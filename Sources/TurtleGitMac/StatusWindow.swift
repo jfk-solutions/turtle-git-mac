@@ -88,6 +88,7 @@ final class StatusNativeWindow: NSWindow {
         window.minSize = NSSize(width: 960, height: 540); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: StatusDialog(model: model))
         super.init(window: window); model.comparisonWindow = window; window.delegate = self
+        model.updateTitle = { [weak window] title in window?.title = title }
         window.refresh = { [weak model] in model?.reload() }
         window.setContentSize(NSSize(width: 1100, height: 630)); window.center()
         model.close = { [weak window] in window?.performClose(nil) }
@@ -166,6 +167,11 @@ final class StatusNativeWindow: NSWindow {
     private(set) static var activeOperations = 0
     private(set) var retired = false
     private var operationCancellation: OperationCancellation?
+    private var refreshRequested = false
+    private var pendingScope: [String]?
+    @Published private(set) var invocation = WorkingTreeInvocation()
+    @Published private(set) var hasStash = false
+    var updateTitle: (String) -> Void = { _ in }
     @Published private(set) var currentOperation = ""
     @Published private(set) var cancelling = false
     var readStatus: (OperationCancellation) async throws -> [WorkingTreeFile]
@@ -200,7 +206,7 @@ final class StatusNativeWindow: NSWindow {
     @Published var filter = WorkingTreeFilter()
     @Published var branch = ""
     @Published var busy = false
-    @Published var confirmingQuit = false
+    @Published var confirmingQuit = false { didSet { if oldValue && !confirmingQuit && refreshRequested && !busy && !retired { reload() } } }
     @Published var error: String?
     var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
     weak var comparisonWindow: NSWindow?
@@ -297,12 +303,44 @@ final class StatusNativeWindow: NSWindow {
         let rows = visibleFiles
         return "\(rows.count) files shown, \(rows.filter { $0.entry.staged }.count) staged, \(rows.filter { $0.state == .modified }.count) modified, \(rows.filter { $0.state == .untracked }.count) unversioned"
     }
+    var folderFiltersEnabled: Bool { invocation.singleDirectory }
+    var stashActions: [RepositoryAction] { hasStash ? [.stash, .stashPop, .stashApply, .stashList] : [.stash] }
+    private func updateScopeTitle() {
+        let path = invocation.titlePath(wholeProject: filter.wholeProject)
+        let location = path.isEmpty ? repository.root.path : repository.root.appendingPathComponent(path).path
+        updateTitle("\(location) – Working Tree – TurtleGit")
+    }
+    /// Related dialogs may finish while a status operation is still settling.
+    /// Coalesce their refresh requests instead of losing the new repository state.
+    func requestReload() {
+        guard !retired else { return }
+        if busy || confirmingQuit { refreshRequested = true; return }
+        reload()
+    }
+    func performDialogAction(_ action: RepositoryAction) {
+        guard !retired, !busy, !confirmingQuit else { return }
+        if [.stash, .stashPop, .stashApply, .stashList].contains(action) {
+            guard stashActions.contains(action) else { return }
+            var available = false
+            runOperation("Checking stash…", operation: { [self] token in
+                let exists = try await repository.workingTreeHasStash(cancellation: token)
+                guard isLive(token) else { return }
+                hasStash = exists; available = action == .stash || exists
+            }, completed: { [self] in if available { onAction(action, []) } })
+        } else if action == .commit { onAction(action, commitPaths()) }
+        else if action == .switchBranch { onAction(action, []) }
+    }
     private var wholeProjectKey: String { "WorkingTree.ShowWholeProject." + repository.root.path }
     func setScope(_ paths: [String]) {
-        guard !retired, !busy else { return }
-        filter.paths = paths.contains(".") ? [] : paths
-        filter.wholeProject = filter.paths.isEmpty || defaults.bool(forKey: wholeProjectKey)
-        selection = []; reload()
+        guard !retired else { return }
+        let normalized = paths.contains(".") ? [] : paths
+        if busy || confirmingQuit { pendingScope = normalized; refreshRequested = true; return }
+        applyScope(normalized); reload()
+    }
+    private func applyScope(_ paths: [String]) {
+        filter.paths = paths
+        filter.wholeProject = paths.isEmpty || defaults.bool(forKey: wholeProjectKey)
+        selection = []
     }
     func setFilter(_ value: WorkingTreeFilter) {
         guard !retired, !busy, !confirmingQuit else { return }
@@ -310,14 +348,14 @@ final class StatusNativeWindow: NSWindow {
         defaults.set(value.showUnversioned, forKey: "AddBeforeCommit")
         defaults.set(value.showAllStaged, forKey: "ChangedFilesIncludeStaged")
         if !value.paths.isEmpty { defaults.set(value.wholeProject, forKey: wholeProjectKey) }
-        selection.formIntersection(Set(visibleFiles.map(\.id)))
+        selection.formIntersection(Set(visibleFiles.map(\.id))); updateScopeTitle()
     }
     @discardableResult func cancelOperation() -> Bool {
         guard let token = operationCancellation else { return cancelLFSOwnerQuery() }
         cancelling = true; token.cancel(); ownerCancellation?.cancel(); submoduleLog.cancel(); return true
     }
     func invalidate() {
-        guard !retired else { return }; retired = true
+        guard !retired else { return }; retired = true; refreshRequested = false; pendingScope = nil
         operationCancellation?.cancel(); ownerCancellation?.cancel(); submoduleLog.retire()
         unifiedWindow?.close(); unifiedWindow = nil
     }
@@ -333,6 +371,7 @@ final class StatusNativeWindow: NSWindow {
                 Self.activeOperations -= 1
                 if operationCancellation === token { operationCancellation = nil; busy = false; cancelling = false; currentOperation = "" }
                 withExtendedLifetime(access) {}
+                if refreshRequested && !retired && !busy && !confirmingQuit { refreshRequested = false; reload() }
             }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -347,9 +386,13 @@ final class StatusNativeWindow: NSWindow {
         }
     }
     func reload() {
-        guard !retired, !busy, !confirmingQuit else { return }; menuGeneration = UUID()
+        guard !retired, !busy, !confirmingQuit else { return }; menuGeneration = UUID(); refreshRequested = false
+        if let pendingScope { self.pendingScope = nil; applyScope(pendingScope) }
+        let scopePaths = filter.paths
         runOperation("Refreshing working tree…", operation: { [self] token in
             // Publish one complete snapshot. A failed/cancelled read retains the prior table.
+            let nextInvocation = try await repository.workingTreeInvocation(paths: scopePaths, cancellation: token)
+            let nextStash = try await repository.workingTreeHasStash(cancellation: token)
             let nextFiles = try await readStatus(token)
             let nextChangelists = try await repository.changelists(cancellation: token)
             let nextBranch = try await repository.branch(cancellation: token)
@@ -359,6 +402,7 @@ final class StatusNativeWindow: NSWindow {
             let nextMetadata = await repository.statusListMetadata(paths: nextFiles.map(\.id))
             let nextStatistics = try await repository.workingTreeFiles(cancellation: token)
             guard isLive(token) else { return }
+            invocation = nextInvocation; hasStash = nextStash; updateScopeTitle()
             changelists = nextChangelists; files = nextFiles; branch = nextBranch; conflictRebase = nextRebase; submodules = nextSubmodules
             hasLFS = nextLFS; fileMetadata = nextMetadata
             statistics = Dictionary(nextStatistics.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
@@ -413,10 +457,16 @@ final class StatusNativeWindow: NSWindow {
             guard isLive(token) else { return }; savePatch(bytes)
         })
     }
+    func scopeUnifiedDiff(alternate: Bool) {
+        presentUnifiedDiff(paths: invocation.comparisonPaths(wholeProject: filter.wholeProject), alternate: alternate)
+    }
     func unifiedDiff(_ ids: Set<String>, alternate: Bool) {
-        guard !unifiedViewerBusy else { return }
         let paths = sortedRows.filter { ids.contains($0.id) }.map(\.id)
         guard !paths.isEmpty else { return }
+        presentUnifiedDiff(paths: paths, alternate: alternate)
+    }
+    private func presentUnifiedDiff(paths: [String], alternate: Bool) {
+        guard !unifiedViewerBusy else { return }
         let owner = comparisonWindow
         runOperation("Preparing unified diff…", operation: { [self] token in
             let session = FileListComparisonSession(window: owner, preferences: defaults, cancellation: token)
@@ -534,7 +584,7 @@ final class StatusNativeWindow: NSWindow {
         guard accepts(captured) else { return }
         selection = Set(captured.entries.map(\.path))
     }
-    func commitPaths() -> [String] { filter.wholeProject ? [] : filter.paths }
+    func commitPaths() -> [String] { invocation.commitPaths(wholeProject: filter.wholeProject) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         selection = Set(selection.map(moved)); filter.paths = filter.paths.map(moved); reload()
@@ -591,7 +641,7 @@ struct StatusDialog: View {
         let rowsByID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id,$0) })
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Button(model.branch.isEmpty ? "Unborn / detached HEAD" : model.branch) { model.onAction(.switchBranch, []) }.buttonStyle(.link)
+                Button(model.branch.isEmpty ? "Unborn / detached HEAD" : model.branch) { model.performDialogAction(.switchBranch) }.buttonStyle(.link)
                 Spacer(); if model.busy { Text(model.currentOperation).font(.caption); ProgressView().controlSize(.small) }
             }
             Table(model.tableRows, selection: $model.selection, sortOrder: Binding(get: { model.sortOrder.map { StatusGroupedSort(column: $0.column, order: $0.order) } }, set: { model.setSortOrder($0.map { StatusFileSort(column: $0.column, order: $0.order) }) })) {
@@ -689,9 +739,9 @@ struct StatusDialog: View {
             .overlay { if rows.isEmpty && !model.busy { Text("No files to show with the current setting.\nCheck one or more settings below to see unversioned, ignored and/or unmodified files.").foregroundStyle(.secondary).allowsHitTesting(false) } }
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Toggle("Show unversioned files", isOn: Binding(get: { model.filter.showUnversioned }, set: { var value = model.filter; value.showUnversioned = $0; model.setFilter(value) }))
+                    Toggle("Show unversioned files", isOn: Binding(get: { model.filter.showUnversioned }, set: { var value = model.filter; value.showUnversioned = $0; model.setFilter(value) })).disabled(!model.folderFiltersEnabled)
                     Toggle("Show ignore local changes flagged files", isOn: Binding(get: { model.filter.showLocalChangesIgnored }, set: { var value = model.filter; value.showLocalChangesIgnored = $0; model.setFilter(value) }))
-                    Toggle("Show ignored files", isOn: Binding(get: { model.filter.showIgnored }, set: { var value = model.filter; value.showIgnored = $0; model.setFilter(value) }))
+                    Toggle("Show ignored files", isOn: Binding(get: { model.filter.showIgnored }, set: { var value = model.filter; value.showIgnored = $0; model.setFilter(value) })).disabled(!model.folderFiltersEnabled)
                     Toggle("Show all staged files", isOn: Binding(get: { model.filter.showAllStaged }, set: { var value = model.filter; value.showAllStaged = $0; model.setFilter(value) }))
                     Toggle("Show Whole Project", isOn: Binding(get: { model.filter.wholeProject }, set: { var value = model.filter; value.wholeProject = $0; model.setFilter(value) })).disabled(model.filter.paths.isEmpty)
                 }.toggleStyle(.checkbox)
@@ -700,14 +750,17 @@ struct StatusDialog: View {
             }
             HStack {
                 Spacer()
-                Button("Save unified diff") { model.diff([], saving: true) }.disabled(model.visibleFiles.isEmpty)
+                Button("Save unified diff") { model.scopeUnifiedDiff(alternate: NSEvent.modifierFlags.contains(.shift)) }
+                    .help("Open the invocation scope as a unified diff. Hold Shift to use the alternative viewer; save from the viewer.")
                 Menu("Stash") {
-                    Button { model.onAction(.stash, []) } label: { CommandLabel(title: "Stash save…", icon: .stash) }
-                    Button { model.onAction(.stashApply, []) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }
-                    Button { model.onAction(.stashPop, []) } label: { CommandLabel(title: "Stash pop", icon: .stashPop) }
-                    Button { model.onAction(.stashList, []) } label: { CommandLabel(title: "Stash list", icon: .log) }
+                    Button { model.performDialogAction(.stash) } label: { CommandLabel(title: "Stash save…", icon: .stash) }
+                    if model.hasStash {
+                        Button { model.performDialogAction(.stashPop) } label: { CommandLabel(title: "Stash pop", icon: .stashPop) }
+                        Button { model.performDialogAction(.stashApply) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }
+                        Button { model.performDialogAction(.stashList) } label: { CommandLabel(title: "Stash list", icon: .log) }
+                    }
                 }
-                Button("Commit") { model.onAction(.commit, model.commitPaths()) }
+                Button("Commit") { model.performDialogAction(.commit) }
                 Button("Refresh") { model.reload() }.keyboardShortcut("r")
                 Button("OK") { model.close() }.keyboardShortcut(.defaultAction)
             }

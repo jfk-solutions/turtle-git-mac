@@ -7,7 +7,8 @@ file, and `RepoStatusCommand`, pinned by `upstream.json`.
 
 - Standalone native Working Tree window, repository permission retained while open.
 - Branch link above a dense file list, followed by lower-left filters, lower-right
-  summary, and Save unified diff / Stash / Commit / Refresh / OK actions.
+  summary, and Save unified diff / Stash / Commit / Refresh / OK actions. The source-labelled
+  Save unified diff action opens the aggregate viewer; saving is available there.
 - Original status artwork; Path, Extension, Status, Lines added, Lines removed
   and Modification date columns. Columns sort on their displayed values.
 - Unversioned, ignored and assume-unchanged/skip-worktree filters. The core also
@@ -46,12 +47,13 @@ cancelled without changing the repository. `site/assets/status.png` shows the ru
   file history/Blame/export/editor/Open/deletion now have native routes below.
 - Full conditional Stash/Switch menus and post-operation behavior; the dedicated
   dialog ports remain partial.
-- Remote status checking and complete displayed/signed acceptance. Refresh ownership,
+- Complete displayed/signed acceptance. Refresh ownership,
   cancellation/progress, F5, source filter persistence and selection restoration
   are implemented in the October 14 lifecycle batch below. Window geometry uses
   the shared native persistence.
-- File/folder-specific filter enablement, alternative diff tools and broader
-  multi-repository, rename, conflict and submodule native QA.
+- Physical alternative-diff tool activation and broader multi-repository, rename,
+  conflict and submodule native QA. Invocation-dependent filter enablement and
+  alternate unified routing are implemented in the scope batch below.
 - Native scoped Finder invocation and signed Finder menu/badge appearance still
   need end-to-end validation; core scope tests do not establish that integration.
 
@@ -144,7 +146,7 @@ on failure. Completed Git mutations are retained rather than claiming rollback.
 Debug compilation and all ten affected Core checks have passing evidence.
 The new lifecycle and existing LFS/column receivers passed with both system
 and bundled Git; all four receivers were reaped. Only the actual failing Core
-fixture was repeated. See [results and repairs](qa/working-tree-lifecycle-2026-10-14.json). Remote status, physical scrollbar/keyboard/panel
+fixture was repeated. See [results and repairs](qa/working-tree-lifecycle-2026-10-14.json). Physical scrollbar/keyboard/panel
 acceptance, signed security scopes and full status-list/menu parity remain open.
 
 ## Captured file-menu workflow family — October 14, 2026
@@ -274,3 +276,51 @@ cannot clear the new operation's busy/progress state. Failure diagnostics are
 restored after starting the refresh. Existing Working Tree lifecycle/file-menu
 checks are part of the grouped validation; see
 [the connected audit](COMMIT-FILE-WORKFLOWS-PARITY.md).
+
+
+## Invocation, aggregate comparison and related-dialog family — October 14, 2026
+
+ChangedDlg's original invocation is now represented separately from highlighted
+rows. A single directory/root enables Unversioned and Ignored; a single file or
+multiple explicit paths disables those controls without overwriting their saved
+values. Missing files remain explicit file invocations, and Git symlinks remain
+files rather than adopting their target's directory type. The scoped title shows
+the invoked path or multiple paths' common directory; Whole Project shows the
+repository root. Explicit root invocation keeps its filters available.
+
+The source-labelled **Save unified diff** now opens the aggregate read-only
+unified viewer, where saving is available. It does not use row highlights or
+out-of-scope staged rows as its path selection. A folder invocation compares its
+common folder (or the repository with Whole Project); the pinned source's explicit
+single-file precedence remains in effect even with Whole Project checked. Shift
+requests the configured alternative viewer. The selected-row context command
+continues to compare only those selected paths. Both use the existing owned,
+cancellable preparation and late-owner fence. Commit's handoff applies the
+source's first-file/common-directory rule and Whole Project choice.
+
+Stash save is always present; Pop, Apply and List follow an existing loose or
+packed refs/stash, including a linked worktree's shared reference. A fresh owned
+read before dispatch refuses a restore/list command after the stash disappears.
+Pop precedes Apply in source order and both retain the original artwork. Working
+Tree's Stash, Commit and Switch handoffs now route directly through that dialog's
+repository and access lease, independently of the main workspace's active root.
+Pop uses ChangedDlg's Show Changes setting 2, Apply its setting 0. Existing child
+operation callbacks update Working Tree after repository changes.
+
+Related-dialog refresh requests are coalesced while an owned operation is busy.
+A new invocation arriving during that work is retained for the next refresh;
+multiple requests do not start parallel reads. Cancelling Quit releases a pending
+refresh/invocation. Retirement discards queued work. Existing Stage/Unstage and
+child mutation callbacks use the same owned refresh path.
+
+The pinned **CheckRepo** DWORD passed as GetStatus's bUpdate argument controls
+UpdateFileList's local cache reload. The old remote/SVN acquisition block is
+inside `#if 0`; this source does not fetch a remote or expose a Remote checkbox.
+No network command is introduced under that obsolete name.
+
+Debug compilation, all thirteen affected Core checks and all eight grouped native
+receivers passed on the first batch validation. The four native families ran
+with system and bundled Git; every owned receiver was reaped. See
+[results and limits](qa/working-tree-scope-2026-10-14.json). Full physical layout/input, configured external-tool activation, signed
+Finder/sandbox acceptance and remaining status-list menu variants are still open.
+This remains partial dialog parity.

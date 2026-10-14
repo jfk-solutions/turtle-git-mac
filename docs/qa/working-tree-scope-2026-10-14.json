@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-14",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Working Tree original file/folder/multiple invocation, source-dependent filters/title and Commit scope",
+    "Aggregate scoped unified viewer and Shift alternative independent of selected-row comparison",
+    "Conditional loose/packed/shared Stash reference and fresh dispatch gates with original menu order/icons",
+    "Direct repository-specific Stash/Commit/Switch routing and coalesced child refresh/deferred invocation/retirement"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/working-tree-scope-debug-2026-10-14.log"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 13,
+      "suite": "WorkingTreeTests",
+      "log": "build/qa/working-tree-scope-core-2026-10-14.log"
+    },
+    "native": {
+      "exit": 0,
+      "cases": 8,
+      "families": [
+        "working-tree-scope",
+        "working-tree-lifecycle",
+        "comparison-launch",
+        "stash-restore"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        49652,
+        49775,
+        49844,
+        49925,
+        50832,
+        50955,
+        51025,
+        51106
+      ],
+      "no_owned_receivers_remain": true,
+      "log": "build/qa/working-tree-scope-native-2026-10-14.log"
+    }
+  },
+  "repairs": [],
+  "limits": [
+    "Hidden native receivers verify model/owned route behavior rather than physical checkbox/menu/pointer or complete visual acceptance",
+    "Configured external diff application activation and signed security scopes/Finder not exercised",
+    "Complete hosted CI acceptance not established by these focused checks",
+    "Remaining status-list menu variants and full application port are incomplete"
+  ],
+  "source_note": "ChangedDlg's CheckRepo/bUpdate controls local UpdateFileList cache reload. Its former remote/SVN acquisition section is disabled with #if 0; no remote fetch was added."
+}

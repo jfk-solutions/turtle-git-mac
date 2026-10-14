@@ -15,6 +15,13 @@ functionality and layout work before validation; do not interrupt implementation
 for repeated builds, screenshot runs or commits. A failure may require a focused
 repair and recheck, but does not justify restarting the complete validation set.
 
+At the start of a batch, state its concrete implementation scope and keep working
+through that scope before the validation checkpoint. Prioritize missing end-user
+port functionality; do not substitute test-harness, packaging or audit work for
+that scope unless it directly blocks implementation or the user requests it.
+Do not expand validation after the relevant checks pass. Record remaining gaps
+and move to the next substantial implementation batch.
+
 A single setting consumer, warning, menu action or parity defect is not normally
 a complete implementation batch. Use the outstanding work in its workflow family
 to define a substantial batch covering related menus, dialog behavior, Git actions,

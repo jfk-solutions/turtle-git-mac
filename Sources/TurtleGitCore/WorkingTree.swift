@@ -1,6 +1,34 @@
 import Foundation
 import Darwin
 
+/// Invocation scope is independent of the highlighted rows and Whole Project.
+/// ChangedDlg uses the original single-directory invocation to enable filters,
+/// and its common directory for the aggregate comparison.
+public struct WorkingTreeInvocation: Equatable, Sendable {
+    public let paths: [String]
+    public let singleDirectory: Bool
+    public let firstIsDirectory: Bool
+    public let commonDirectory: String
+    public init(paths: [String] = [], singleDirectory: Bool = true, firstIsDirectory: Bool = true, commonDirectory: String = "") {
+        self.paths = paths; self.singleDirectory = singleDirectory
+        self.firstIsDirectory = firstIsDirectory; self.commonDirectory = commonDirectory
+    }
+    public func comparisonPaths(wholeProject: Bool) -> [String] {
+        // Source gives an explicitly invoked single file precedence over Whole Project.
+        if paths.count == 1 && !firstIsDirectory { return paths }
+        return wholeProject || commonDirectory.isEmpty ? [] : [commonDirectory]
+    }
+    public func commitPaths(wholeProject: Bool) -> [String] {
+        if wholeProject { return [] }
+        if !firstIsDirectory, let first = paths.first { return [first] }
+        return commonDirectory.isEmpty ? [] : [commonDirectory]
+    }
+    public func titlePath(wholeProject: Bool) -> String {
+        if wholeProject || paths.isEmpty { return "" }
+        return paths.count == 1 ? paths[0] : commonDirectory
+    }
+}
+
 public struct WorkingTreeFile: Identifiable, Sendable {
     public var id: String { entry.path }
     public let entry: StatusEntry
@@ -39,6 +67,37 @@ public struct WorkingTreeFilter: Equatable, Sendable {
 }
 
 extension GitRepository {
+    public func workingTreeInvocation(paths: [String], cancellation: OperationCancellation? = nil) throws -> WorkingTreeInvocation {
+        try cancellation?.check()
+        if paths.isEmpty || paths.contains(".") { return WorkingTreeInvocation() }
+        var directories: [[String]] = [], firstIsDirectory = false
+        for (offset, path) in paths.enumerated() {
+            try cancellation?.check()
+            let location = try restoreLocation(path)
+            let attributes = try? FileManager.default.attributesOfItem(atPath: location.path)
+            let isDirectory = attributes?[.type] as? FileAttributeType == .typeDirectory
+            if offset == 0 { firstIsDirectory = isDirectory }
+            let normalized = String(location.path.dropFirst(root.path.count + 1))
+            var components = normalized.components(separatedBy: "/")
+            if !isDirectory { components.removeLast() }
+            directories.append(components)
+        }
+        var common = directories[0]
+        for directory in directories.dropFirst() {
+            common = Array(zip(common, directory).prefix { $0.0 == $0.1 }.map { $0.0 })
+        }
+        return WorkingTreeInvocation(paths: paths, singleDirectory: paths.count == 1 && firstIsDirectory,
+            firstIsDirectory: firstIsDirectory, commonDirectory: common.joined(separator: "/"))
+    }
+
+    /// Handles loose, packed and linked-worktree shared refs without contacting a remote.
+    public func workingTreeHasStash(cancellation: OperationCancellation? = nil) throws -> Bool {
+        try cancellation?.check()
+        let result = try run(["show-ref", "--verify", "--quiet", "refs/stash"], successfulExitCodes: 0...1, cancellation: cancellation)
+        try cancellation?.check()
+        return result.exitCode == 0
+    }
+
     public func workingTreeStatus(refreshIndex: Bool = true, cancellation: OperationCancellation? = nil) throws -> [WorkingTreeFile] {
         try cancellation?.check()
         let changes = try status(refreshIndex: refreshIndex, cancellation: cancellation)

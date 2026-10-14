@@ -2,6 +2,76 @@ import XCTest
 @testable import TurtleGitCore
 
 final class WorkingTreeTests: XCTestCase {
+    func testInvocationScopesKeepSourceDirectoryAndExplicitFileRules() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("scope space/child"), withIntermediateDirectories: true)
+        for path in ["scope space/one\nfile", "scope space/child/two", "outside"] {
+            try Data("contents\n".utf8).write(to: root.appendingPathComponent(path))
+        }
+        let directory = try await repo.workingTreeInvocation(paths: ["scope space"])
+        XCTAssertTrue(directory.singleDirectory)
+        XCTAssertEqual(directory.comparisonPaths(wholeProject: false), ["scope space"])
+        XCTAssertEqual(directory.comparisonPaths(wholeProject: true), [])
+        let file = try await repo.workingTreeInvocation(paths: ["scope space/one\nfile"])
+        XCTAssertFalse(file.singleDirectory)
+        XCTAssertEqual(file.comparisonPaths(wholeProject: true), ["scope space/one\nfile"])
+        XCTAssertEqual(file.titlePath(wholeProject: false), "scope space/one\nfile")
+        XCTAssertEqual(file.commitPaths(wholeProject: false), ["scope space/one\nfile"])
+        XCTAssertEqual(file.commitPaths(wholeProject: true), [])
+        let multiple = try await repo.workingTreeInvocation(paths: ["scope space/one\nfile", "scope space/child/two"])
+        XCTAssertFalse(multiple.singleDirectory)
+        XCTAssertEqual(multiple.commonDirectory, "scope space")
+        XCTAssertEqual(multiple.comparisonPaths(wholeProject: false), ["scope space"])
+        XCTAssertEqual(multiple.titlePath(wholeProject: false), "scope space")
+        let mixed = try await repo.workingTreeInvocation(paths: ["scope space", "outside"])
+        XCTAssertEqual(mixed.commonDirectory, "")
+        XCTAssertEqual(mixed.commitPaths(wholeProject: false), [])
+        let missing = try await repo.workingTreeInvocation(paths: ["scope space/missing"])
+        XCTAssertFalse(missing.singleDirectory)
+        XCTAssertEqual(missing.commonDirectory, "scope space")
+        let whole = try await repo.workingTreeInvocation(paths: ["."])
+        XCTAssertTrue(whole.singleDirectory)
+        XCTAssertEqual(whole.paths, [])
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("folder-link").path, withDestinationPath: "scope space")
+        let symlink = try await repo.workingTreeInvocation(paths: ["folder-link"])
+        XCTAssertFalse(symlink.singleDirectory, "A symlink is a Git file rather than its target folder")
+        do { _ = try await repo.workingTreeInvocation(paths: ["../outside"]); XCTFail("Escaping invocation accepted") } catch is WorkingFileRestoreFailure {}
+    }
+
+    func testStashAvailabilityIncludesPackedAndLinkedWorktreeRefs() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let absent = try await repo.workingTreeHasStash()
+        XCTAssertFalse(absent)
+        try Data("stash change\n".utf8).write(to: root.appendingPathComponent(path))
+        _ = try await repo.saveStash(StashSaveOptions())
+        let loose = try await repo.workingTreeHasStash()
+        XCTAssertTrue(loose)
+        _ = try await repo.run(["pack-refs", "--all", "--prune"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".git/refs/stash").path))
+        let packed = try await repo.workingTreeHasStash()
+        XCTAssertTrue(packed)
+        let child = root.appendingPathComponent("linked")
+        _ = try await repo.run(["worktree", "add", "-b", "scope-linked", child.path])
+        let linked = GitRepository(root: child)
+        let shared = try await linked.workingTreeHasStash()
+        XCTAssertTrue(shared)
+        _ = try await repo.run(["stash", "clear"])
+        let cleared = try await linked.workingTreeHasStash()
+        XCTAssertFalse(cleared)
+    }
+
+    func testCancelledScopeAndStashReadsPreserveRepository() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.workingTreeInvocation(paths: ["."], cancellation: token); XCTFail("Cancelled scope returned") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.workingTreeHasStash(cancellation: token); XCTFail("Cancelled stash read returned") } catch is OperationCancellationFailure {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+
     func testCancelledWorkingTreeCommandsPreserveIndexAndContent() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

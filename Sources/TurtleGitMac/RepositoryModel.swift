@@ -372,7 +372,7 @@ import TurtleGitCore
         guard !busy, !confirmingQuit else { return }
         busy = true; defer { busy = false }
         do { try await reload() } catch { self.error = error.localizedDescription }
-        if refreshStatus, let root { statusWindows[root.path]?.model.reload() }
+        if refreshStatus, let root { statusWindows[root.path]?.model.requestReload() }
     }
     private func reload() async throws {
         guard let repository, let root else { return }
@@ -415,7 +415,7 @@ import TurtleGitCore
             defer { busy = false }
             do { output = try await operation(repository); try await reload() }
             catch { self.error = error.localizedDescription; try? await reload() }
-            if let root { statusWindows[root.path]?.model.reload() }
+            if let root { statusWindows[root.path]?.model.requestReload() }
         }
     }
     func stage() { let paths = selectedPaths; perform { try await $0.stage(paths); return "Staged \(paths.count) file(s)." } }
@@ -700,7 +700,7 @@ import TurtleGitCore
                 if !entry.isSubmodule {
                     if try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner) {
                         let root = repository.root
-                        statusWindows[root.path]?.model.reload(); commitWindows[root.path]?.model.reload(); rebaseWindows[root.path]?.model.refreshState(); refreshRepositoryLogs(root)
+                        statusWindows[root.path]?.model.requestReload(); commitWindows[root.path]?.model.reload(); rebaseWindows[root.path]?.model.refreshState(); refreshRepositoryLogs(root)
                         for resolve in resolveWindows.values where resolve.model.repository.root == root { resolve.model.load() }
                         if self.root == root { await refresh() }; return
                     }
@@ -709,7 +709,7 @@ import TurtleGitCore
                         let controller = imageConflictWindows[key] ?? ImageConflictWindowController(repository: repository, access: access, document: document)
                         controller.onClosed = { [weak self] in self?.imageConflictWindows.removeValue(forKey: key) }
                         controller.model.onChanged = { [weak self] output in
-                            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
+                            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
                             for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
                             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                         }
@@ -718,7 +718,7 @@ import TurtleGitCore
                     let controller = textConflictWindows[key] ?? TextConflictWindowController(repository: repository, access: access, path: path)
                     controller.onClosed = { [weak self] in self?.textConflictWindows.removeValue(forKey: key) }
                     controller.model.onChanged = { [weak self] output in
-                        self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
+                        self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
                         for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
                         if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                     }
@@ -728,7 +728,7 @@ import TurtleGitCore
                 let controller = submoduleConflictWindows[key] ?? SubmoduleConflictWindowController(repository: repository, access: access, path: path)
                 controller.onClosed = { [weak self] in self?.submoduleConflictWindows.removeValue(forKey: key) }
                 controller.model.onChanged = { [weak self] output in
-                    self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
+                    self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
                     for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
                     if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                 }
@@ -743,7 +743,7 @@ import TurtleGitCore
         let controller = deleteConflictWindows[key] ?? DeleteConflictWindowController(repository: repository, access: access, path: path)
         controller.onClosed = { [weak self] in self?.deleteConflictWindows.removeValue(forKey: key) }
         controller.model.onChanged = { [weak self] output in
-            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
+            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
             for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
         }
@@ -759,7 +759,7 @@ import TurtleGitCore
             self?.configureRevisionComparisonInteractions(model, repository: repository, access: access)
         }
         controller.model.onChanged = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
+            self?.referenceLogWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload()
             self?.refreshRepositoryLogs(root); self?.commitWindows[root.path]?.model.reload()
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
         }
@@ -793,7 +793,7 @@ import TurtleGitCore
         let controller = resolveWindows[key] ?? ResolveWindowController(repository: repository, access: access, paths: paths, quick: quick)
         controller.onClosed = { [weak self] in self?.resolveWindows.removeValue(forKey: key) }
         controller.onChanged = { [weak self] output in
-            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
+            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
@@ -816,7 +816,7 @@ import TurtleGitCore
             controller.onClosed = { [weak self] in self?.ignoreWindows.removeValue(forKey: key) }
             controller.onChanged = { [weak self] output in
                 self?.refreshRepositoryLogs(root)
-                self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+                self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
                 guard let self, self.root == root else { return }
                 self.output = output; Task { await self.refresh() }
             }
@@ -831,7 +831,7 @@ import TurtleGitCore
             let controller = removeWindows[key] ?? RemoveWindowController(repository: repository, access: access, request: request)
             controller.onClosed = { [weak self] in self?.removeWindows.removeValue(forKey: key) }
             controller.onChanged = { [weak self] output in
-                self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+                self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
                 guard let self, self.root == root else { return }
                 self.output = output; Task { await self.refresh() }
             }
@@ -845,7 +845,7 @@ import TurtleGitCore
         controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
         controller.model.onCommitted = { [weak self] output in
-            self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+            self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
             guard let self, self.root == root else { return }
             self.output = output
             Task { await self.refresh() }
@@ -882,7 +882,7 @@ import TurtleGitCore
                 controller.model.onLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
                 controller.model.onBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
                 controller.model.onIgnoreChanged = { [weak self] output in
-                    self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+                    self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
                     if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
                 }
                 controller.model.onRevert = { [weak self] entries, done in
@@ -970,7 +970,7 @@ import TurtleGitCore
                 controller.model.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
                 controller.onClosed = { [weak self] in
                     guard let self else { return }; self.lfsFileOperations.removeValue(forKey: id)
-                    self.statusWindows[repository.root.path]?.model.reload(); self.commitWindows[repository.root.path]?.model.reload()
+                    self.statusWindows[repository.root.path]?.model.requestReload(); self.commitWindows[repository.root.path]?.model.reload()
                     if self.root == repository.root { Task { await self.refresh() } }
                 }
                 lfsFileOperations[id] = controller
@@ -996,7 +996,7 @@ import TurtleGitCore
         workflow.presentation = { [weak self] controller in
             let root = controller.model.repository.root
             let refresh: () -> Void = { [weak self] in
-                self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+                self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
                 if self?.root == root { Task { await self?.refresh() } }
             }
             controller.model.onMutationStopped = refresh
@@ -1159,20 +1159,20 @@ import TurtleGitCore
             case let child as HistoryCombineWindowController:
                 child.configureCommit = { [weak self] commit in self?.configureCommitInteractions(commit.model, repository: repository, access: access) }
                 child.model.onChanged = { [weak self] output in
-                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
             case let child as HistoryNotesWindowController:
                 child.model.onChanged = { [weak self] _ in self?.refreshRepositoryLogs(repository.root) }
             case let child as HistoryRevertWindowController:
                 child.model.onChanged = { [weak self] output in
-                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
                 child.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
             case let child as SwitchProgressWindowController:
                 child.model.onFinished = { [weak self] output, _ in
-                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
                 child.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access) }
@@ -1185,7 +1185,7 @@ import TurtleGitCore
         controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
         controller.model.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.model.onHistoryReferenceChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+            self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
             if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onHistoryFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
@@ -1222,7 +1222,7 @@ import TurtleGitCore
             progress.model.onFinished = { [weak self] output, changed in
                 guard let self else { return }
                 if changed {
-                    self.statusWindows[root.path]?.model.reload()
+                    self.statusWindows[root.path]?.model.requestReload()
                     self.commitWindows[root.path]?.model.reload()
                     self.refreshRepositoryLogs(root)
                     if self.root == root { Task { await self.refresh() } }
@@ -1444,7 +1444,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.submoduleAddProgressWindows.removeValue(forKey: id) }
         model.onAdded = { [weak self] output in
             self?.refreshRepositoryLogs(root)
-            self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+            self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
         }
         submoduleAddProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); model.start()
@@ -1465,7 +1465,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.submoduleUpdateProgressWindows.removeValue(forKey: id) }
         controller.model.onUpdated = { [weak self] output in
             self?.refreshRepositoryLogs(root)
-            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
             completion?()
         }
@@ -1479,7 +1479,7 @@ import TurtleGitCore
         controller.model.onFinished = { [weak self] output, succeeded in
             completion(succeeded)
             self?.refreshRepositoryLogs(root)
-            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
@@ -1499,6 +1499,17 @@ import TurtleGitCore
         controller.model.onAction = { [weak self, weak controller] action, paths in
             guard let self else { return }
             if action == .diff { self.showWorkingFiles(repository: repository, access: access, paths: paths, owner: controller?.window); return }
+            guard let controller, !controller.model.retired else { return }
+            // Working Tree belongs to this repository even when the workspace is displaying another one.
+            switch action {
+            case .stash: self.showStash(repository: repository, access: access); return
+            case .stashPop: self.showStashRestore(repository: repository, access: access, pop: true, showChanges: 2); return
+            case .stashApply: self.showStashRestore(repository: repository, access: access, pop: false, showChanges: 0); return
+            case .stashList: self.showReferenceLog(repository: repository, access: access, reference: "refs/stash"); return
+            case .switchBranch: self.showSwitch(repository: repository, access: access); return
+            case .commit: self.showCommitDialog(repository: repository, access: access, paths: paths); return
+            default: break
+            }
             if self.root != root, let access {
                 self.openSession(access, action: action, actionPaths: paths); return
             }
@@ -1559,7 +1570,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self, weak controller] in if self?.stashRestoreWindows[key] === controller { self?.stashRestoreWindows.removeValue(forKey: key) } }
         controller.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
-            self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+            self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
             self?.commitWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
@@ -1603,12 +1614,12 @@ import TurtleGitCore
         let key = repository.root.path
         let controller = importPatchWindows[key] ?? ImportPatchWindowController(repository: repository, access: access)
         controller.model.onMutationStopped = { [weak self] in
-            self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+            self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
             if self?.root?.path == key { Task { await self?.refresh() } }
         }
         controller.onClosed = { [weak self] in self?.importPatchWindows.removeValue(forKey: key) }
         controller.model.onChanged = { [weak self] output in
-            self?.statusWindows[key]?.model.reload()
+            self?.statusWindows[key]?.model.requestReload()
             if self?.root?.path == key { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.add(paths.map { repository.root.appendingPathComponent($0) }.filter { ["patch", "diff"].contains($0.pathExtension.lowercased()) })
@@ -1631,7 +1642,7 @@ import TurtleGitCore
         if sendMail && !controller.model.busy && !controller.model.progress && !controller.model.composingMail { controller.model.sendMail = true }
         controller.onClosed = { [weak self] in self?.formatPatchWindows.removeValue(forKey: key) }
         controller.model.onOutputChanged = { [weak self] output in
-            self?.statusWindows[rootKey]?.model.reload()
+            self?.statusWindows[rootKey]?.model.requestReload()
             if self?.root?.path == rootKey { self?.output = output; Task { await self?.refresh() } }
         }
         formatPatchWindows[key] = controller
@@ -1651,7 +1662,7 @@ import TurtleGitCore
         controller.model.onCompare = { [weak self, weak controller] path, hash in guard let controller else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: .revision(hash), to: .workingTree, paths: [path], owner: controller.window) }
         controller.model.onChanged = { [weak self] in
             guard let self else { return }
-            self.statusWindows[repository.root.path]?.model.reload()
+            self.statusWindows[repository.root.path]?.model.requestReload()
             self.commitWindows[repository.root.path]?.model.reload()
             if self.root == repository.root { Task { await self.refresh() } }
         }
@@ -1708,7 +1719,7 @@ import TurtleGitCore
         let id = UUID(), root = repository.root
         let child = HistoryRevertWindowController(repository: repository, access: access, entries: entries, mainline: mainline, preferences: .standard)
         child.model.onChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         child.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
@@ -1727,7 +1738,7 @@ import TurtleGitCore
         let child = HistoryCombineWindowController(repository: repository, access: access, entries: entries, firstOffset: offset, expectedHead: head, preferences: .standard)
         child.configureCommit = { [weak self] commit in self?.configureCommitInteractions(commit.model, repository: repository, access: access) }
         child.model.onChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         child.onClosed = { [weak self, weak owner, weak child] in
@@ -1755,7 +1766,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self,weak controller] in guard self?.gitPropertyWindows[key] === controller else { return }; self?.gitPropertyWindows.removeValue(forKey:key) }
         controller.model.onLog = { [weak self] context in self?.showLog(repository:context.repository,access:context.access,paths:context.paths == ["."] ? [] : context.paths) }
         controller.model.onChanged = { [weak self] changed in
-            self?.statusWindows[changed.root.path]?.model.reload(); self?.commitWindows[changed.root.path]?.model.reload()
+            self?.statusWindows[changed.root.path]?.model.requestReload(); self?.commitWindows[changed.root.path]?.model.reload()
             if self?.root == changed.root { Task { await self?.refresh() } }
         }
         gitPropertyWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -1839,7 +1850,7 @@ import TurtleGitCore
         }
         controller.model.onRevisionChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)
-            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
@@ -1882,7 +1893,7 @@ import TurtleGitCore
             onChanged?()
             guard let self else { return }
             self.refreshRepositoryLogs(root)
-            self.commitWindows[root.path]?.model.reload(); self.statusWindows[root.path]?.model.reload()
+            self.commitWindows[root.path]?.model.reload(); self.statusWindows[root.path]?.model.requestReload()
             if self.root == root { self.output = output; Task { await self.refresh() } }
         }
         controller.model.onSubmoduleUpdate = { [weak self] in self?.showSubmoduleUpdate(repository: repository, access: access, scope: []) }
@@ -1906,7 +1917,7 @@ import TurtleGitCore
         let controller = MergeAbortWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.mergeAbortWindows.removeValue(forKey: id) }
         controller.model.onChanged = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
+            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload()
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
@@ -1924,7 +1935,7 @@ import TurtleGitCore
         let root = repository.root
         controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
-            self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+            self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
             self?.commitWindows[root.path]?.model.reload()
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
@@ -1974,7 +1985,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.stashWindows.removeValue(forKey: key) }
         let changed: (String) -> Void = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
-            self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+            self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
             self?.commitWindows[root.path]?.model.reload()
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
@@ -2048,7 +2059,7 @@ import TurtleGitCore
             self?.rebaseWindows.removeValue(forKey: root.path); onResult?(completed); onDismissed?()
         }
         controller.model.onChanged = { [weak self] in
-            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             if self?.root == root { Task { await self?.refresh() } }
         }
         controller.model.onShowStatus = { [weak self] in
@@ -2110,12 +2121,12 @@ import TurtleGitCore
         controller.model.onFetched = { [weak self, weak controller] output in
             guard controller?.model.progress == nil, controller?.model.fetchProgress == nil else { return }
             self?.refreshRepositoryLogs(root)
-            self?.statusWindows[root.path]?.model.reload()
+            self?.statusWindows[root.path]?.model.requestReload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.followUp = followUp
         controller.model.onChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onPullPostAction = { [weak self] action, result in
@@ -2169,7 +2180,7 @@ import TurtleGitCore
     private func configurePushInteractions(_ controller: PushWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         let root = repository.root
         controller.model.onTransportResult = { [weak self] output, _ in
-            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onPostAction = { [weak self] action, options, superproject in
@@ -2201,7 +2212,7 @@ import TurtleGitCore
         let root = repository.root
         controller.model.onCreated = { [weak self] output in
             self?.refreshRepositoryLogs(root)
-            self?.statusWindows[root.path]?.model.reload()
+            self?.statusWindows[root.path]?.model.requestReload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onSwitch = { [weak self, weak controller] reference, done in
@@ -2227,7 +2238,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id) }
         controller.model.onFinished = { [weak self] output, _ in
             self?.referenceLogWindows[root.path]?.model.reload()
-            self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
+            self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload()
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
@@ -2276,13 +2287,13 @@ import TurtleGitCore
         controller.model.onSwitched = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
             self?.commitWindows[root.path]?.model.reload()
-            self?.statusWindows[root.path]?.model.reload()
+            self?.statusWindows[root.path]?.model.requestReload()
             self?.refreshRepositoryLogs(root)
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
         controller.model.onChanged = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access) }
