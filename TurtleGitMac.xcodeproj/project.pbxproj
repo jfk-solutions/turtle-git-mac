@@ -2145,6 +2145,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../../../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.finder;
 				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
 			};
 			name = AppStore;
 		};
@@ -2341,6 +2342,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos;
+				SKIP_INSTALL = NO;
 				SDKROOT = macosx;
 			};
 			name = AppStore;
@@ -2417,6 +2419,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos;
+				SKIP_INSTALL = NO;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -2509,6 +2512,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos;
+				SKIP_INSTALL = NO;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -2523,6 +2527,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../../../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.finder;
 				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
 			};
 			name = Debug;
 		};
@@ -2536,6 +2541,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../../../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = org.turtlegit.macos.finder;
 				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
 			};
 			name = Release;
 		};

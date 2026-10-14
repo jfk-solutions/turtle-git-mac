@@ -261,6 +261,8 @@ jobs:
           python3 scripts/audit-cache-service.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Universal application architecture audit regression
         run: python3 scripts/test-bundle-architectures.py
+      - name: Distribution archive identity and offline export contracts
+        run: python3 scripts/test-distribution-archive.py
       - name: Preview signing inventory regression
         run: python3 scripts/test-preview-signing.py
       - name: Verify production ad-hoc app seal and runtime links

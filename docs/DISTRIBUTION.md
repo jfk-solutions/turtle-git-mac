@@ -372,3 +372,60 @@ Unsigned preparation leaves inherited sandbox signing unverified.
 
 Its unsigned AppStore bundle audit passed the 203 runtime code items, bundled
 Git/Finder packaging, reconstruction/licenses and 296 upstream icons.
+
+## Reviewable XCArchive and offline export
+
+After the pinned runtimes are prepared, build a fresh universal archive:
+
+```sh
+python3 scripts/archive-distribution.py --configuration AppStore \
+  --derived-data build-archive \
+  --archive-path build/artifacts/TurtleGitMac-AppStore.xcarchive
+```
+
+The tool refuses to overwrite an existing archive. Use `--audit-existing` to
+recheck it. The app is the only installed product; Finder and other dependencies
+remain embedded. The audit verifies archive/application identity, both code
+architectures, package/runtime/cache-service layout, a matching universal dSYM
+for every app-owned executable/framework, and a file/hash/contained-alias inventory.
+Its adjacent `.archive-audit.json` records the result. A failed run clears the
+tool's previous success report, while preserving the archive for inspection.
+The candidate is unsigned and does not prove sandbox or App Store acceptance.
+
+Supplying the actual ten-character `--team-id` additionally prepares adjacent
+`.ExportOptions.plist` settings. No example/placeholder team is generated, and
+existing different settings are refused. The options use `app-store-connect`
+for AppStore or `developer-id` for Release, with `destination=export`, version
+management disabled and no symbol upload. These choices were checked against the
+local Xcode command-line help; account/profile/certificate setup remains separate.
+
+For a subsequently signed archive with its actual team/profile configuration:
+
+```sh
+python3 scripts/export-distribution.py \
+  --archive-path /path/to/Signed-TurtleGitMac.xcarchive \
+  --options /path/to/Signed-TurtleGitMac.ExportOptions.plist \
+  --export-path /path/to/fresh-local-export
+```
+
+This entry rejects unsigned/ad-hoc archives, mismatched teams, upload/custom
+settings and existing output directories before export. It does not request
+provisioning updates. Xcode output stays in an owned staging directory until
+signature, identity, universal package and cache-service audits pass. AppStore
+packages are expanded for inspection, including their installer signature;
+Release exports are inspected as applications. A failed package does not appear
+at the requested successful output path. `export-audit.json` still marks signed
+runtime/sandbox acceptance unverified. Nothing is uploaded, notarized or submitted.
+A fully signed export is not claimed until tested with actual certificates and
+profiles; licensing clearance, permissions, physical Finder integration and
+App Review eligibility remain release gates.
+
+The 14 October 2026 local candidate is
+`build/artifacts/TurtleGitMac-AppStore-2026-10-14.xcarchive`, with its adjacent
+archive audit report. All eight app-owned binaries and matching dSYMs contain
+arm64 and x86_64, and 6129 archive members were inventoried. Universal package,
+300-icon/runtime and embedded cache-service checks passed. The actual unsigned
+archive was refused before export. The initial path-fixture and relocated-helper
+symbol-name checks were corrected without rebuilding the archive; exact UUID
+matching remains required. See [the scoped QA record](qa/distribution-archive-2026-10-14.json).
+This is a local unsigned candidate, not an App Store submission-ready release.

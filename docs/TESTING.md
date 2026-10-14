@@ -1576,3 +1576,12 @@ browser table/lifecycle reference receivers separately exercise the actual UI
 adapters and root/folder/list promise handoffs after owner closure. None proves
 physical Finder drops or signed sandbox permissions. See
 [historical transfer parity](HISTORICAL-TRANSFER-PARITY.md).
+
+Distribution archives use `python3 scripts/test-distribution-archive.py` for
+identity/containment, extra-product rejection, exact per-binary universal dSYM
+matching and offline-only team/export settings. `archive-distribution.py` then
+exercises actual universal archive/package/symbol/inventory audits. An unsigned
+candidate is expected to be rejected by `export-distribution.py` before export;
+that refusal does not prove real certificate/profile export or signed runtime
+behavior. No installed application or Finder service is launched by archive
+preparation. See [distribution](DISTRIBUTION.md).

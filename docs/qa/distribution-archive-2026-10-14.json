@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-14",
+  "scope": "Connected unsigned universal archive, identity/symbol/file inventory and offline export preparation/refusal tooling. No signed release/submission claim.",
+  "implemented": [
+    "Main app installs as the sole archive product; Finder/dependencies remain embedded",
+    "Archive/application identity, contained product/alias paths, architecture and exact UUID/dSYM matching",
+    "Full regular-file/hash/mode and symlink inventory",
+    "Explicit actual-team export settings, offline destination, no automatic version changes or symbol upload",
+    "Signed-team preflight and fresh/staged local export with exported package/signature/identity/runtime audits",
+    "Unsigned/ad-hoc export refusal before Xcode export; no upload/notarization/submission",
+    "CI archive contracts and ignored build output directories"
+  ],
+  "contracts": {
+    "totalCases": 5,
+    "passedCumulatively": 5,
+    "fullSingleRunAfterRepairs": false,
+    "initial": "build/qa/distribution-archive-contracts-2026-10-14.log",
+    "initialResult": "Four passed; identity case failed on fixture /var versus /private/var expectation.",
+    "focusedRepairs": [
+      "build/qa/distribution-archive-contract-recheck-2026-10-14.log",
+      "build/qa/distribution-archive-symbol-contract-2026-10-14.log"
+    ],
+    "notes": "Canonicalized fixture path and added exact-symbol coverage for hash-relocated binary aliases. Only affected cases repeated."
+  },
+  "actualArchive": {
+    "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/artifacts/TurtleGitMac-AppStore-2026-10-14.xcarchive",
+    "audit": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/artifacts/TurtleGitMac-AppStore-2026-10-14.archive-audit.json",
+    "configuration": "AppStore",
+    "signed": false,
+    "buildInvocations": 1,
+    "compiled": true,
+    "packageRuntimeCacheAudits": "passed",
+    "auditedCodeBinaries": 8,
+    "matchedUniversalDSYMs": 8,
+    "inventoriedMembers": 6129,
+    "version": "0.1.0",
+    "build": "1",
+    "firstLog": "build/qa/distribution-archive-build-2026-10-14.log",
+    "finalAuditLog": "build/qa/distribution-archive-audit-final-2026-10-14.log",
+    "repair": "Initial audit looked up dSYMs by the resolved hash-relocated helper basename. Inspection proved UUIDs already matched; changed lookup to declared binary name while retaining exact UUID requirements. Re-audited existing archive; no rebuild."
+  },
+  "exportRefusal": {
+    "expectedNonzero": true,
+    "successfulOutputCreated": false,
+    "log": "build/qa/distribution-archive-export-refusal-2026-10-14.log",
+    "settings": "Test-only team ID/settings created in private temporary folder and removed; no user/team settings generated."
+  },
+  "site": {
+    "exitCode": 0,
+    "log": "build/qa/distribution-archive-site-2026-10-14.log"
+  },
+  "runtime": "Package auditors invoked bounded owned helper checks; no app/Finder UI or launch service was registered/launched. Archive build process terminal.",
+  "remaining": [
+    "Real team/profile/certificate signed archive/export and installer acceptance",
+    "Signed runtime/sandbox, bookmark, Keychain and physical Finder acceptance",
+    "Licensing/security/release review and App Review eligibility",
+    "Notarization/direct distribution if selected",
+    "Current-head hosted CI and full application parity"
+  ],
+  "sha256": {
+    ".github/workflows/macos.yml": "39638dacc162739c20263b18d38d5cba4e91318f114aebba8c59e71c12a06b65",
+    ".gitignore": "0060e61919ed8a20474363fe76232b063cf26147e5f0bfff5cd2359d3c8018b6",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "756aa9a3d21e97ed36cc470b0062484d6b025e5b5370700b20a2ee58b16067fb",
+    "scripts/archive-distribution.py": "4e4dc34b37f93eb6adb5fdc154a578dfce73ec7ebcf6659e9f993e9a8e4c29f2",
+    "scripts/distribution_archive.py": "aaebb52b588bcebe4cf5713c0d45f9b5354123a7f44f36064dc12a4370fc4b23",
+    "scripts/export-distribution.py": "d4d0f4ab315efd93520b223984ffe50f5c73d42598f7d13c1c7fa42173e64130",
+    "scripts/test-distribution-archive.py": "edf9d098e8b61289aa901df21f65ed9991af8194daf50ec33efb95e2d657bd41"
+  }
+}

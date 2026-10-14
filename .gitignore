@@ -1,6 +1,8 @@
 .build/
 build/
 build-store/
+build-archive/
+build-distribution/
 .upstream/
 .DS_Store
 *.xcuserstate
