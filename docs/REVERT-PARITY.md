@@ -162,3 +162,32 @@ Post-Revert comparison data now includes the exact resolved baseline revision
 and restored submodule names. The read-only classification backend and its tests
 are recorded in [SUBMODULE-DIFF-PARITY.md](SUBMODULE-DIFF-PARITY.md); the native
 Handle submodules action and comparison/Update windows remain pending.
+
+## Connected progress/recovery family — October 14, 2026
+
+Revert preparation now passes cancellation through status/branch/index reads.
+Actual private-index Git steps stream bounded colored output while retaining the
+ordered Action/Path table. Running mutation steps finish before cancellation
+prevents the next step or index publication; a confirmation does not kill a
+half-completed checkout. Native ConfirmKillProcess prompts retain No/Yes, and
+automatic completion waits for an owned question to settle. The counter and
+repository permission cover all reads, steps and pending questions after forced
+retirement. Retired rows, output, parent callbacks and result actions are suppressed.
+
+Captured AutoCloseGitProgress now applies to dedicated Revert results; no-options
+retains the source Handle submodules action, and no-errors may close successful
+results with that action. Commit's explicit success-close override still requires
+no submodule post-action. Failed/cancelled results retain Retry, recovery and output.
+Retry reads the current originally selected paths rather than replaying stale rows;
+already completed paths remain eligible only while tracked. Unrelated changes are
+not included. All recorded Trash copies survive later attempts. Action logs include
+rows, command output and the result; the source submodule comparison handoff remains.
+
+Physical progress, confirmation timing, keyboard/themes, signed Trash/sandbox and
+all upstream controls remain open. This family preserves cooperative mutation-step
+cancellation and does not claim an atomic filesystem transaction or cancellation
+that rolls back completed working-file effects. Grouped evidence follows validation.
+
+Debug, 33 related Core tests and four grouped native cases passed on the first
+checkpoint with both Git engines. Receiver cleanup and exact validation limits
+are recorded in [the batch evidence](qa/revert-progress-family-2026-10-14.json).

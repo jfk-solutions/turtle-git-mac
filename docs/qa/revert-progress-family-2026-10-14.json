@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-14",
+  "base": "f86b796a",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Revert cancellable local preflight reads and bounded streamed private-index Git commands with protected mutation-step cancellation",
+    "Owned cancellation questions, preparation/operation/lease/Quit counters through forced retirement and late-result suppression",
+    "Captured AutoCloseGitProgress and explicit Commit override; defer completion closure behind pending question",
+    "Fresh selected-path Retry, retained Trash locations across attempts, rows/commands/result action logs and existing source submodule post-action",
+    "Revert user guide; stale remote-status README gap removed by source tracing"
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "first_pass": true,
+      "log": "build/qa/revert-family-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler diagnostics; no clean-diagnostics claim"
+    },
+    "core": {
+      "exit": 0,
+      "tests": 33,
+      "first_pass": true,
+      "filter": "WorkingFileRevert.*Tests|RevertDialogSelectionTests|SubmoduleComparisonTests",
+      "log": "build/qa/revert-family-core-2026-10-14.log",
+      "evidence": [
+        "Retry rereads changed selected status without including unrelated changes; clean selected paths are retained only while tracked",
+        "Actual working/index/Trash effects and cooperative cancellation/private-index preservation regressions",
+        "Related submodule baseline/comparison backend regressions"
+      ]
+    },
+    "native": {
+      "exit": 0,
+      "first_pass": true,
+      "cases": 4,
+      "families": [
+        "revert-progress-family",
+        "submodule-handoffs"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        69654,
+        69701,
+        69762,
+        69809
+      ],
+      "receiver_pids_still_live_at_final_check": [],
+      "log": "build/qa/revert-family-native-2026-10-14.log",
+      "evidence": [
+        "Foreign index lock failure retains result; Retry after changed staging restores actual HEAD bytes and exact recoverable draft",
+        "Captured no-errors policy closes successful result after preference changes",
+        "Real gated restore output replaces CR lines; declined cancellation continues; accepted cancellation queues until step completes and prevents index publication",
+        "Forced closure keeps pending protected step counted and suppresses late output/parent callback",
+        "Existing parent/child status/Commit submodule Log/Diff and cancelled/retired read handoff regressions, separate from Revert post-action physical acceptance"
+      ]
+    },
+    "site": {
+      "exit": 0,
+      "documents": 208,
+      "unresolved_fragments": [],
+      "log": "build/qa/revert-family-site-2026-10-14.log"
+    }
+  },
+  "limitations": [
+    "Running mutation steps remain cooperative and are not terminated halfway through private-index checkout",
+    "Preflight/ref/index/working-file guards do not provide an atomic filesystem transaction; cancellation does not roll back completed effects",
+    "Fresh Retry may refuse paths no longer versioned; retained recovery URLs are not an automatic rollback",
+    "Hidden native fixtures do not prove physical row menus, keyboard/themes, displayed completion/confirmation races or VoiceOver",
+    "Signed Trash/sandbox/Finder and minimum-OS/App Store acceptance remain open",
+    "No full source control certification or current hosted CI acceptance claimed"
+  ]
+}

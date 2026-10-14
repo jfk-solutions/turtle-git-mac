@@ -103,3 +103,6 @@ native receiver is a partial proof; real Finder/sandbox gestures remain open.
 The [Moving and copying guide](MOVING-AND-COPYING.md) covers native drop choices,
 Move/Rename, Copy/Add collision/repository handling and clipboard recovery.
 New receiving-sheet screenshots and physical/signed acceptance remain pending.
+
+The [Reverting working files guide](REVERTING-FILES.md) covers the baseline,
+Trash recovery, protected-step cancellation, Retry and captured close policy.

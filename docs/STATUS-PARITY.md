@@ -326,3 +326,9 @@ with system and bundled Git; every owned receiver was reaped. See
 [results and limits](qa/working-tree-scope-2026-10-14.json). Full physical layout/input, configured external-tool activation, signed
 Finder/sandbox acceptance and remaining status-list menu variants are still open.
 This remains partial dialog parity.
+
+The pinned ChangedDlg `m_bRemote`/CheckRepo value is passed as GetStatus's bUpdate
+argument and then UpdateFileList's local update flag. IDD_CHANGEDFILES has no
+remote-status control or fetch action. The earlier README remote-status gap was
+removed after tracing these source calls; this does not certify all Working Tree
+menus, LFS network behavior or native/signed acceptance.

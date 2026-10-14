@@ -20,27 +20,40 @@ public struct WorkingFileRevertFailure: LocalizedError, Sendable {
 }
 
 extension GitRepository {
+    /// A retry reads current selected-path status rather than reusing stale rows.
+    /// Previously completed clean paths are included only while still tracked.
+    public func workingFileRevertSelection(_ selected: [StatusEntry], amend: Bool = false, againstHead: Bool = false, cancellation: OperationCancellation? = nil) throws -> [StatusEntry] {
+        try cancellation?.check()
+        let requested = Set(selected.flatMap { [$0.path] + ($0.originalPath.map { [$0] } ?? []) })
+        _ = try RemovalRequest(paths: Array(requested), keepLocal: true)
+        let current = try commitDialogStatus(amendToParent: amend && !againstHead, cancellation: cancellation)
+        var result = current.filter { ![FileState.untracked, .ignored].contains($0.state) && (requested.contains($0.path) || $0.originalPath.map { requested.contains($0) } == true) }
+        let represented = Set(result.flatMap { [$0.path] + ($0.originalPath.map { [$0] } ?? []) })
+        let tracked = Set(try trackedPaths(cancellation: cancellation))
+        for path in requested.sorted() where !represented.contains(path) && tracked.contains(path) { result.append(StatusEntry(path: path, originalPath: nil, index: " ", worktree: " ")) }
+        try cancellation?.check(); return result
+    }
     /// Revert selected status rows, preserving added working files and recycling
     /// replaced contents. The index is held privately until all Git steps pass.
-    public func revertWorkingFiles(_ selected: [StatusEntry], amend: Bool = false, amendDiffToLastCommit: Bool = false, cancellation: OperationCancellation? = nil, progress: @Sendable (WorkingFileRevertProgress) -> Void = { _ in }) throws -> WorkingFileRevertResult {
+    public func revertWorkingFiles(_ selected: [StatusEntry], amend: Bool = false, amendDiffToLastCommit: Bool = false, cancellation: OperationCancellation? = nil, progress: @Sendable (WorkingFileRevertProgress) -> Void = { _ in }, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> WorkingFileRevertResult {
         try cancellation?.check()
         guard !selected.isEmpty, Set(selected.map(\.path)).count == selected.count,
               selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) }) else {
             throw GitFailure(arguments: ["revert"], code: 1, message: "Select versioned files to revert.")
         }
-        var current = Dictionary(try commitDialogStatus(amendToParent: amend && !amendDiffToLastCommit).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        var current = Dictionary(try commitDialogStatus(amendToParent: amend && !amendDiffToLastCommit, cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         let clean = selected.filter { current[$0.path] == nil && $0.index == " " && $0.worktree == " " && $0.originalPath == nil && !$0.hasUnversionedCopy }
         if !clean.isEmpty {
-            let tracked = Set(try trackedPaths())
+            let tracked = Set(try trackedPaths(cancellation: cancellation))
             for entry in clean where tracked.contains(entry.path) { current[entry.path] = entry }
         }
         guard selected.allSatisfy({ current[$0.path] == $0 }) else {
             throw GitFailure(arguments: ["revert"], code: 1, message: "The selected files changed. Refresh before reverting.")
         }
         let source: String
-        if amend { source = try commitComparisonBase(amendToParent: true) }
-        else if let head = try? run(["rev-parse", "--verify", "HEAD^{commit}"]).text { source = head.trimmingCharacters(in: .newlines) }
-        else { source = try run(["mktree"]).text.trimmingCharacters(in: .newlines) }
+        if amend { source = try commitComparisonBase(amendToParent: true, cancellation: cancellation) }
+        else if let head = try? run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text { source = head.trimmingCharacters(in: .newlines) }
+        else { try cancellation?.check(); source = try run(["mktree"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
         let manager = FileManager.default
         var trash: [URL] = [], submoduleRenames: [(String, String)] = []
         var submodulePaths = Set<String>()
@@ -51,7 +64,7 @@ extension GitRepository {
             let location = try restoreLocation(entry.path)
             let attributes = try? manager.attributesOfItem(atPath: location.path)
             let directory = attributes?[.type] as? FileAttributeType == .typeDirectory
-            let gitlink = try run(["ls-files", "--stage", "--", entry.path]).text.split(separator: "\n").contains { $0.hasPrefix("160000 ") }
+            let gitlink = try run(["ls-files", "--stage", "--", entry.path], cancellation: cancellation).text.split(separator: "\n").contains { $0.hasPrefix("160000 ") }
             if gitlink { submodulePaths.insert((entry.index == "R" || entry.worktree == "R") ? entry.originalPath ?? entry.path : entry.path) }
             if directory && !gitlink { throw WorkingFileRestoreFailure.unsupported }
             if let old = entry.originalPath, entry.index == "R" || entry.worktree == "R" {
@@ -78,7 +91,7 @@ extension GitRepository {
             }
         }
         try cancellation?.check()
-        var indexBytes = try run(["rev-parse", "--git-path", "index"]).stdout
+        var indexBytes = try run(["rev-parse", "--git-path", "index"], cancellation: cancellation).stdout
         if indexBytes.last == 10 { indexBytes.removeLast() }
         let indexPath = String(decoding: indexBytes, as: UTF8.self)
         let index = indexPath.hasPrefix("/") ? URL(fileURLWithPath: indexPath) : root.appendingPathComponent(indexPath)
@@ -105,7 +118,7 @@ extension GitRepository {
                 let batch = Array(paths[offset..<min(offset + 64, paths.count)])
                 for path in batch { notify(step, path, finished: false) }
                 try cancellation?.check()
-                _ = try run(arguments + batch, environmentOverrides: environment)
+                _ = try run(arguments + batch, environmentOverrides: environment, onOutput: onOutput)
                 for path in batch { notify(step, path, finished: true) }
             }
         }
@@ -124,7 +137,7 @@ extension GitRepository {
             for (new, old) in submoduleRenames {
                 try cancellation?.check(); notify(.move, new, finished: false)
                 try cancellation?.check()
-                _ = try run(["mv", "-f", "--", new, old], environmentOverrides: environment)
+                _ = try run(["mv", "-f", "--", new, old], environmentOverrides: environment, onOutput: onOutput)
                 notify(.move, new, finished: true)
             }
             try runBatches(restore.sorted(), step: .restore, arguments: ["restore", "--source=" + source, "--staged", "--worktree", "--"])

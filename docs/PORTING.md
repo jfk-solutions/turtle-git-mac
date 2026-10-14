@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected working-file Revert recovery batch adds owned cancellable preparation,
+streamed private-index Git output, captured progress closing policy, retained
+Trash locations/action logs and fresh-status Retry. Forced retirement keeps
+protected-step lifetime accounting while suppressing late results. See
+[Revert parity](REVERT-PARITY.md) and the [user guide](REVERTING-FILES.md);
+physical/signed and complete source acceptance remain open.
+
 Workspace and Working Tree URL drops now connect the active upstream Move,
 Move/Rename and Copy/Add choices to the existing operation windows, with captured
 repository/destination context and owned preparation/picker retirement. See
