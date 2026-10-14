@@ -70,6 +70,8 @@ struct FinderContextMenuSettingsPage: View {
                     TextEditor(text: $model.draft.excludedPaths).font(.system(.body, design: .monospaced)).frame(height: 80).border(Color.secondary.opacity(0.3)).padding(8)
                 }
                 Text("One absolute path per line. A path alone matches exactly; a trailing / includes its children; * matches a path prefix. ~ and $HOME expand to your home folder.").font(.caption).foregroundStyle(.secondary)
+                Toggle("Show clipboard Copy/Add and Move in Finder folders", isOn: $model.draft.clipboardTransfers)
+                    .help("macOS clipboard actions appear in the TurtleGit submenu; source menu masks are preserved.")
                 Toggle("Enable drag context menu", isOn: .constant(false)).disabled(true)
                     .help("Finder Sync does not provide drag context menus.")
             }

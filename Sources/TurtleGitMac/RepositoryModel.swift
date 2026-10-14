@@ -156,6 +156,7 @@ import TurtleGitCore
     private var stashWindows: [String: StashWindowController] = [:]
     private var cloneWindows: [UUID: CloneWindowController] = [:]
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
+    var finderTransferPresentation: ((FinderRequest, GitRepository, RepositoryAccessLease) -> Void)?
     private var copyWindows: [UUID: FileCopyWindowController] = [:]
     private var moveWindows: [String: FileMoveWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
@@ -322,6 +323,7 @@ import TurtleGitCore
         guard !busy, !confirmingQuit else { return }
         stopFileMonitoring()
         adoptionGeneration += 1
+        let adoption = adoptionGeneration
         busy = true
         Task {
             do {
@@ -348,22 +350,29 @@ import TurtleGitCore
                         guard itemRoot.standardizedFileURL == resolved.standardizedFileURL else { throw FinderSelectionFailure.multipleRepositories }
                     }
                 }
+                guard adoption == adoptionGeneration else { return }
                 repository = try makeRepository(resolved); activeAccess = lease; root = resolved
                 restoreCloneKeyAccess(root: resolved)
                 selection = []; entries = []; branch = ""; mergeActive = false
                 section = .status
                 output = "Repository: \(resolved.path)"
                 try await reload()
+                guard adoption == adoptionGeneration else { return }
                 if bare { section = .log }
                 if let selected { selection = selected.selectedStatusPaths(root: resolved, entries: entries) }
                 rememberAccess(lease, repositoryRoot: resolved)
                 busy = false
                 if let action {
                     let paths = actionPaths ?? selected?.relativePaths(root: resolved) ?? []
-                    activate(action, paths: paths)
+                    if action.isFileTransfer, let request = selected, let repository, let destination = request.paths.first {
+                        if let finderTransferPresentation { finderTransferPresentation(request, repository, lease) }
+                        else if action == .pasteCopy { showCopy(repository: repository, access: lease, sources: request.sources, paste: true, folder: destination) }
+                        else { showMove(repository: repository, access: lease, paths: [], clipboard: request.sources, destination: destination) }
+                    } else { activate(action, paths: paths) }
                 }
                 onOpened?()
             } catch {
+                guard adoption == adoptionGeneration else { return }
                 self.error=error.localizedDescription
                 if monitoringEnabled,let repository,let directories=try? await repository.finderWatchDirectories() { monitorFiles(directories) }
                 busy=false
@@ -489,6 +498,8 @@ import TurtleGitCore
             let selected = paths.isEmpty ? selectedPaths : paths
             guard selected.count == 1, selected[0] != "." else { error = RenameFailure.source.localizedDescription; return }
             showRename(repository: repository, access: activeAccess, source: selected[0])
+        case .pasteCopy, .pasteMove:
+            showFileTransfer(copy: action == .pasteCopy); return
         case .move:
             guard let repository else { return }
             let selected = paths.isEmpty ? selectedPaths : paths
@@ -698,7 +709,7 @@ import TurtleGitCore
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], clipboard: [URL]? = nil) {
+    func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], clipboard: [URL]? = nil, destination: URL? = nil) {
         let root = repository.root, key = root.path + "\0" + (clipboard == nil ? paths.joined(separator: "\0") : UUID().uuidString)
         let controller = moveWindows[key] ?? FileMoveWindowController(repository: repository, access: access, paths: paths)
         controller.onClosed = { [weak self] in self?.moveWindows.removeValue(forKey: key) }
@@ -711,11 +722,11 @@ import TurtleGitCore
             if self?.root == root { Task { await self?.refresh() } }
         }
         moveWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
-        if let clipboard { controller.model.loadClipboard(clipboard) }
+        if let clipboard { controller.model.loadClipboard(clipboard, destination: destination) }
     }
-    func showCopy(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], paste: Bool = false) {
+    func showCopy(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], paste: Bool = false, folder: URL? = nil) {
         let id = UUID(), root = repository.root
-        let controller = FileCopyWindowController(repository: repository, access: access, sources: sources, paste: paste)
+        let controller = FileCopyWindowController(repository: repository, access: access, sources: sources, folder: folder, paste: paste)
         controller.onClosed = { [weak self] in self?.copyWindows.removeValue(forKey: id) }
         controller.model.onChanged = { [weak self] in
             self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)

@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-14",
+  "base": "126fc688",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Finder clipboard folder actions as explicit macOS additions with preserved source menu masks and icons",
+    "Captured destination and ordered sources in bounded typed transfer requests",
+    "Working-tree revalidation and destination-retaining Copy/Move native handoffs",
+    "Separate persisted clipboard preference and owned external-source authorization continuation",
+    "Stale root adoption generation blocks late transfer handoff"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "tests": 26,
+      "families": [
+        "FinderTransferTests",
+        "FinderRequestTests",
+        "FinderContextMenuSettingsTests",
+        "FinderRepositoryMetadataTests"
+      ],
+      "log": "build/qa/finder-transfer-core-2026-10-14.log"
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/finder-transfer-debug-2026-10-14.log",
+      "diagnostics": "Existing exit-zero/no-output compiler diagnostics; no clean-diagnostics claim."
+    },
+    "menu_builder": {
+      "exit": 0,
+      "log": "build/qa/finder-transfer-menu-2026-10-14.log",
+      "scope": "Actual FinderSync menu builder with cached real Git fixtures, transfer ordering/icons/payloads, external Copy-only eligibility and disable preference; no installed Finder activation."
+    },
+    "native_initial": {
+      "exit": 1,
+      "owned_receivers_reaped": [
+        28817
+      ],
+      "log": "build/qa/finder-transfer-native-2026-10-14.log",
+      "cause": "Authorization fixture assumed plain source URLs lacked a scope in an unsigned process; actual copy/staging succeeded while permission callback was skipped."
+    },
+    "native_diagnostic": {
+      "exit": 1,
+      "owned_receivers_reaped": [
+        29061
+      ],
+      "log": "build/qa/finder-transfer-native-diagnostic-2026-10-14.log",
+      "evidence": "asked=[] with copied=1, failed=false and correct staged contents proved fixture permission-state assumption."
+    },
+    "provider_repair": {
+      "debug_exit": 0,
+      "log": "build/qa/finder-transfer-debug-provider-2026-10-14.log",
+      "change": "Inject initial source bookmark provider; production uses the unchanged SystemRepositoryBookmarkProvider. Fixture begins with denied access and returns captured granted leases.",
+      "core_and_menu": "Not repeated: no Core/menu changes."
+    },
+    "native": {
+      "exit": 0,
+      "cases": 4,
+      "families": [
+        "finder-transfer",
+        "file-transfer"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receivers_reaped": [
+        29222,
+        29303,
+        29389,
+        29469
+      ],
+      "log": "build/qa/finder-transfer-native-provider-2026-10-14.log",
+      "evidence": [
+        "Request adoption retains destination/source arrays at injected native presentation without index mutation",
+        "Denied initial source scope invokes captured permission continuation then performs actual copy and Add",
+        "Held permission reply remains counted for Quit after retirement and rejects late granted mutation",
+        "Move clipboard load validates and retains the captured destination folder",
+        "Existing Copy/Add native collision/metadata/cancellation workflow remains passing"
+      ],
+      "diagnostics": "Existing unsigned private-pasteboard sandbox-extension diagnostic; signed scopes remain unproven."
+    }
+  },
+  "limitations": [
+    "Pinned MenuInfo ordinary ClipPaste is disabled; these menu entries are macOS additions rather than source shell parity",
+    "Native receiver injects final route and permission provider; actual signed scopes/installed Finder URL delivery and displayed authorization panel remain open",
+    "Finder drag-destination context menus and large-payload delivery remain unimplemented or unverified",
+    "No full hosted CI or complete port/App Store claim"
+  ]
+}

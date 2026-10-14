@@ -23,8 +23,9 @@ public struct FinderMenuSettings: Codable, Equatable, Sendable {
     public var extendedOnlyMask = FinderMenuEntry.defaultExtendedMask
     public var hideForUnversioned = false
     public var excludedPaths = ""
+    public var clipboardTransfers = true
     public init(showIcons: Bool = true) { self.showIcons = showIcons }
-    private enum CodingKeys: String, CodingKey { case showIcons, topLevelMask, extendedOnlyMask, hideForUnversioned, excludedPaths }
+    private enum CodingKeys: String, CodingKey { case showIcons, topLevelMask, extendedOnlyMask, hideForUnversioned, excludedPaths, clipboardTransfers }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         self.init(showIcons: try values.decodeIfPresent(Bool.self, forKey: .showIcons) ?? true)
@@ -32,6 +33,7 @@ public struct FinderMenuSettings: Codable, Equatable, Sendable {
         extendedOnlyMask = try values.decodeIfPresent(UInt64.self, forKey: .extendedOnlyMask) ?? FinderMenuEntry.defaultExtendedMask
         hideForUnversioned = try values.decodeIfPresent(Bool.self, forKey: .hideForUnversioned) ?? false
         excludedPaths = try values.decodeIfPresent(String.self, forKey: .excludedPaths) ?? ""
+        clipboardTransfers = try values.decodeIfPresent(Bool.self, forKey: .clipboardTransfers) ?? true
     }
     public static var sharedURL: URL? { FinderIntegration.container?.appendingPathComponent("menu-settings.json") }
     public static func from(defaults: UserDefaults = .standard) -> Self {
@@ -306,7 +308,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     case svnDCommit, svnRebase, svnFetch, svnIgnore
     case reviewPatch, daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
     case synchronize, blame, previousDiff, logSubmodule, properties, settings, help, about
-    case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, move, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
+    case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, move, pasteCopy, pasteMove, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -374,6 +376,8 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .initialize: return "Create repository here…"
         case .rename: return "Rename…"
         case .move: return "Move…"
+        case .pasteCopy: return "Paste Copy and Add…"
+        case .pasteMove: return "Paste Move…"
         case .remove: return "Delete"
         case .removeKeep: return "Delete (keep local)"
         case .ignore: return "Add to ignore list"
@@ -401,12 +405,13 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var isApplicationUtility: Bool { [.settings, .help, .about].contains(self) }
     public var allowsEmptySelection: Bool { isApplicationUtility || self == .clone || self == .initialize }
     public var isMenuHeader: Bool { self == .lfs }
+    public var isFileTransfer: Bool { self == .pasteCopy || self == .pasteMove }
     public var isLFS: Bool { [.lfs, .lfsLocks, .lfsLock, .lfsUnlock].contains(self) }
     public var isIgnore: Bool { [.ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask].contains(self) }
     public var ignoresByExtension: Bool { self == .ignoreMask || self == .ignoreDeleteMask }
     public var removesWhenIgnoring: Bool { self == .ignoreDelete || self == .ignoreDeleteMask }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .lfs, .lfsLocks, .lfsLock, .lfsUnlock, .synchronize, .blame, .previousDiff, .logSubmodule, .status, .commit, .importPatch, .add, .revert, .clean, .submoduleAdd, .submoduleUpdate, .submoduleSync, .diff, .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset, .pull, .switchBranch, .merge, .mergeAbort, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .move, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
+    public var requiresWorkingTree: Bool { [.svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .lfs, .lfsLocks, .lfsLock, .lfsUnlock, .synchronize, .blame, .previousDiff, .logSubmodule, .status, .commit, .importPatch, .add, .revert, .clean, .submoduleAdd, .submoduleUpdate, .submoduleSync, .diff, .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset, .pull, .switchBranch, .merge, .mergeAbort, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .move, .pasteCopy, .pasteMove, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"

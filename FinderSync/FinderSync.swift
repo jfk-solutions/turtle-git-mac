@@ -53,7 +53,8 @@ import TurtleGitCore
         return FinderMenuBuilder.make(paths: paths, snapshot: snapshot,
             settings: FinderMenuSettings.read(), comparisonMark: try? WorkingComparisonMarkSnapshot.read(),
             target: self, actionSelector: #selector(openAction(_:)), creationDirectory: creation,
-            extended: NSEvent.modifierFlags.contains(.shift), toolbar: menuKind == .toolbarItemMenu)
+            extended: NSEvent.modifierFlags.contains(.shift), toolbar: menuKind == .toolbarItemMenu,
+            clipboardSources: (NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? [])
     }
     @objc private func openAction(_ sender: NSMenuItem) {
         guard let command = sender.representedObject as? FinderMenuCommand,
@@ -66,6 +67,7 @@ import TurtleGitCore
 final class FinderMenuCommand: NSObject {
     let request: FinderRequest
     init(action: RepositoryAction, paths: [URL]) { request = FinderRequest(action: action, paths: paths) }
+    init(request: FinderRequest) { self.request = request }
     func url(control: Bool = false) -> URL? {
         if control && request.action == .diffLater {
             return FinderRequest(action: .clearComparisonMark, paths: request.paths).url
@@ -93,6 +95,7 @@ enum FinderShellMenuLayout {
         [.initialize, .add, .blame, .ignore, .ignoreDelete],
         [.worktreeList, .submoduleAdd, .submoduleUpdate, .submoduleSync],
         [.formatPatch, .importPatch, .reviewPatch, .sendMail],
+        [.pasteCopy, .pasteMove],
         [.properties, .settings, .help, .about]
     ]
     static func action(_ item: NSMenuItem) -> RepositoryAction? {
@@ -130,7 +133,7 @@ enum FinderMenuBuilder {
     }
     static func make(paths: [URL], snapshot: FinderSnapshot?, settings: FinderMenuSettings,
                      comparisonMark: WorkingComparisonMarkSnapshot?, target: AnyObject?, actionSelector: Selector,
-                     creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false) -> NSMenu {
+                     creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false, clipboardSources: [URL] = []) -> NSMenu {
         func image(_ icon: MenuIcon) -> NSImage? { settings.showIcons ? icon.image() : nil }
         let menu = NSMenu(title: "TurtleGit")
         if paths.contains(where: { $0.pathComponents.contains(".git") }) { return menu }
@@ -205,6 +208,13 @@ enum FinderMenuBuilder {
             let item = NSMenuItem(title: title, action: actionSelector, keyEquivalent: "")
             item.target = target; item.image = image(.compare); item.representedObject = FinderMenuCommand(action: .diffLater, paths: paths)
             submenu.addItem(.separator()); submenu.addItem(item)
+        }
+        if paths.count == 1 {
+            for request in FinderTransferContext.requests(destination: paths[0], sources: clipboardSources, snapshot: snapshot, settings: settings) {
+                let item = NSMenuItem(title: request.action.title, action: actionSelector, keyEquivalent: "")
+                item.image = image(request.action.icon); item.target = target; item.representedObject = FinderMenuCommand(request: request)
+                submenu.addItem(item)
+            }
         }
         for item in submenu.items {
             guard let action = FinderShellMenuLayout.action(item), let entry = FinderShellMenuLayout.preferenceEntry(action) else { continue }

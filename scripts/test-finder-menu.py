@@ -36,12 +36,12 @@ import TurtleGitCore
         ]
         let nativeBySource = Dictionary(uniqueKeysWithValues: mapping.map { ($0.value, $0.key) })
         let projected = sourceOrder.groups.map { $0.compactMap { nativeBySource[$0] } }.filter { !$0.isEmpty }
-        precondition(FinderShellMenuLayout.groups.map { $0.filter { $0 != .properties } }.filter { !$0.isEmpty } == projected, "Every implemented source root command must preserve pinned MenuInfo order/group")
+        precondition(FinderShellMenuLayout.groups.map { $0.filter { $0 != .properties && !$0.isFileTransfer } }.filter { !$0.isEmpty } == projected, "Every implemented source root command must preserve pinned MenuInfo order/group")
         let adapted = projected.map { group -> [RepositoryAction] in
             guard let settings = group.firstIndex(of: .settings) else { return group }
             var result = group; result.insert(.properties, at: settings); return result
         }
-        precondition(FinderShellMenuLayout.groups == adapted, "Native property-page adaptation must precede Settings")
+        precondition(FinderShellMenuLayout.groups.map { $0.filter { !$0.isFileTransfer } }.filter { !$0.isEmpty } == adapted, "Native property-page adaptation must precede Settings")
         precondition(Set(projected.flatMap { $0 }) == Set(mapping.keys))
         func allCommands(showIcons: Bool = true) -> FinderMenuSettings {
             var settings = FinderMenuSettings(showIcons: showIcons)
@@ -455,6 +455,29 @@ import TurtleGitCore
         let afterMenu = FinderMenuBuilder.make(paths: [actualRoot], snapshot: afterSnapshot, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector)
         precondition(!rootActions(afterMenu).contains(.mergeAbort))
         print("Abort Merge menu: real conflicted Git metadata survives cache serialization; repository, tracked file and multiple tracked selections offer correctly ordered enabled original icon/URL actions with icons on/off; menu construction preserves HEAD/index/file; refreshed aborted state removes entry. No installed Finder activation.")
+
+        let destination = actualRoot.appendingPathComponent("destination 雪", isDirectory: true)
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        var transferSnapshot = FinderSnapshot.build(root: actualRoot, tracked: try await parentRepo.trackedPaths(), changes: try await parentRepo.status())
+        transferSnapshot.repositories[actualRoot.path] = FinderRepositoryMetadata(bare: false)
+        for icons in [true, false] {
+            let transferMenu = FinderMenuBuilder.make(paths: [destination], snapshot: transferSnapshot, settings: allCommands(showIcons: icons), comparisonMark: nil, target: target, actionSelector: selector, clipboardSources: [actualRoot.appendingPathComponent("file.txt")])
+            let entries = items(transferMenu).filter { FinderShellMenuLayout.action($0)?.isFileTransfer == true }
+            precondition(entries.count == 2)
+            precondition(entries.map { FinderShellMenuLayout.action($0)! } == [.pasteCopy, .pasteMove])
+            for entry in entries {
+                precondition((entry.image != nil) == icons)
+                let command = entry.representedObject as! FinderMenuCommand
+                let decoded = FinderRequest(url: command.url()!)!
+                precondition(decoded.paths.map(\.path) == [destination.path] && decoded.sources.map(\.path) == [actualRoot.appendingPathComponent("file.txt").path])
+            }
+        }
+        var noTransfers = allCommands(); noTransfers.clipboardTransfers = false
+        let disabledTransfers = FinderMenuBuilder.make(paths: [destination], snapshot: transferSnapshot, settings: noTransfers, comparisonMark: nil, target: target, actionSelector: selector, clipboardSources: [actualRoot.appendingPathComponent("file.txt")])
+        precondition(!items(disabledTransfers).contains { FinderShellMenuLayout.action($0)?.isFileTransfer == true })
+        let copyOnly = FinderMenuBuilder.make(paths: [destination], snapshot: transferSnapshot, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector, clipboardSources: [actualSource.appendingPathComponent("file.txt")])
+        precondition(items(copyOnly).compactMap { FinderShellMenuLayout.action($0) }.filter(\.isFileTransfer) == [.pasteCopy])
+        print("Finder clipboard transfers: actual submenu/icons/request payload, Copy-only external source, captured folder/files and separate disable preference passed. No live Finder activation.")
         for state in FileState.allCases { precondition(state.icon.image() != nil, "Badge artwork stays available") }
         print("Actual Finder menu builder: parent/action/nested-ignore/marked-compare images toggle; six selection cases preserve titles, enabled states and routing; fresh cache reset and badge artwork pass. No Finder controller/extension/window activated; signed integration and gestures remain pending.")
     }

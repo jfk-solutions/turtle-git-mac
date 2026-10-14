@@ -5,10 +5,12 @@ import Foundation
 public struct FinderRequest: Sendable {
     public let action: RepositoryAction
     public let paths: [URL]
-    public init(action: RepositoryAction, paths: [URL]) {
+    public let sources: [URL]
+    public init(action: RepositoryAction, paths: [URL], sources: [URL] = []) {
         self.action = action
         var seen = Set<String>()
         self.paths = paths.map(Self.normalizedSelectionURL).filter { seen.insert($0.path).inserted }
+        seen = []; self.sources = sources.map(Self.normalizedSelectionURL).filter { seen.insert($0.path).inserted }
     }
     private static func normalizedSelectionURL(_ url: URL) -> URL {
         guard url.isFileURL, url.path != "/" else { return url.standardizedFileURL }
@@ -31,14 +33,19 @@ public struct FinderRequest: Sendable {
         let paths = fields.filter { $0.name == "path" }.compactMap(\.value)
         guard (!paths.isEmpty || action.allowsEmptySelection), paths.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
               paths.count == fields.filter({ $0.name == "path" }).count else { return nil }
-        self.init(action: action, paths: paths.map { URL(fileURLWithPath: $0) })
+        let sourceFields = fields.filter { $0.name == "source" }, sources = sourceFields.compactMap(\.value)
+        guard sources.count == sourceFields.count, sources.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
+              action.isFileTransfer ? paths.count == 1 && !sources.isEmpty && sources.count <= 256 && url.absoluteString.utf8.count <= 131072 : sources.isEmpty else { return nil }
+        self.init(action: action, paths: paths.map { URL(fileURLWithPath: $0) }, sources: sources.map { URL(fileURLWithPath: $0) })
     }
     public var url: URL? {
         guard !action.isMenuHeader, !paths.isEmpty || action.allowsEmptySelection else { return nil }
+        guard paths.allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }), sources.allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }),
+              action.isFileTransfer ? paths.count == 1 && !sources.isEmpty && sources.count <= 256 : sources.isEmpty else { return nil }
         var components = URLComponents()
         components.scheme = "turtlegit"; components.host = "action"
-        components.queryItems = [URLQueryItem(name: "command", value: action.rawValue)] + paths.map { URLQueryItem(name: "path", value: $0.path) }
-        return components.url
+        components.queryItems = [URLQueryItem(name: "command", value: action.rawValue)] + paths.map { URLQueryItem(name: "path", value: $0.path) } + sources.map { URLQueryItem(name: "source", value: $0.path) }
+        guard let result = components.url, !action.isFileTransfer || result.absoluteString.utf8.count <= 131072 else { return nil }; return result
     }
     public func relativePaths(root: URL) -> [String] {
         let prefix = root.standardizedFileURL.path

@@ -51,7 +51,9 @@ of automatically ending shell progress. Directory ACL/extended-attribute fidelit
 physical source/destination picker and drag gestures, keyboard/light/dark layouts,
 all focused-menu states and signed sandbox grants remain unverified.
 
-This batch does not implement Finder drag-destination or clipboard context menus.
+Finder clipboard folder menus now have a separate implementation and acceptance
+record in [Finder transfers](FINDER-TRANSFER-PARITY.md). Finder drag-destination
+menus remain unimplemented.
 Complete Finder delivery, source-shell menu masks and remaining copy consumers are
 still open. Commit's existing direct Add drop path is unchanged; Copy/Add drops go
 through the dedicated copy window. No full upstream or App Store parity is claimed.

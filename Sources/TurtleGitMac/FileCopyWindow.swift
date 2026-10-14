@@ -10,8 +10,8 @@ import TurtleGitCore
     private var panel: NSOpenPanel?
     private var pending: (UUID, NSAlert, (Int) -> Void)?
     private(set) var name: FileCopyNameController?
-    init(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], folder: URL? = nil, paste: Bool = false, preferences: UserDefaults = .standard) {
-        model = FileCopyWindowModel(repository: repository, access: access, sources: sources, folder: folder, paste: paste, preferences: preferences)
+    init(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], folder: URL? = nil, paste: Bool = false, sourceProvider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(), preferences: UserDefaults = .standard) {
+        model = FileCopyWindowModel(repository: repository, access: access, sources: sources, folder: folder, paste: paste, sourceProvider: sourceProvider, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 440), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Copy and Add – TurtleGit"; window.contentMinSize = NSSize(width: 650, height: 340); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: FileCopyDialog(model: model))
@@ -36,6 +36,7 @@ import TurtleGitCore
                 self.name = child; if let childWindow = child.window { window.beginSheet(childWindow) }
             }
         }
+        model.authorizeSources = { [weak self] sources in await self?.authorize(sources) }
         model.confirmCancel = { [weak self] in await self?.ask("The process is still running.", detail: "Are you sure to abort?", buttons: ["Yes", "No"], defaultIndex: 1) == 0 }
     }
     private func browse(sources: Bool) {
@@ -45,6 +46,29 @@ import TurtleGitCore
         panel.beginSheetModal(for: window) { [weak self] response in
             guard let self, self.panel === panel else { return }; self.panel = nil; self.model.question = false
             if response == .OK, !self.model.retired { if sources { self.model.setSources(panel.urls) } else if let url = panel.url { self.model.folder = url } }
+        }
+    }
+    private var authorizationReply: (([RepositoryAccessLease]?) -> Void)?
+    private func authorize(_ sources: [URL]) async -> [RepositoryAccessLease]? {
+        guard !model.retired, panel == nil, let window, window.attachedSheet == nil else { return nil }
+        let panel = NSOpenPanel(); panel.title = "Authorize copied source files"; panel.prompt = "Authorize sources"; panel.canChooseFiles = true; panel.canChooseDirectories = true; panel.allowsMultipleSelection = true; panel.resolvesAliases = false
+        panel.directoryURL = sources.first?.deletingLastPathComponent(); panel.message = "Select these same source files or folders to grant access: " + sources.map(\.lastPathComponent).joined(separator: ", ")
+        self.panel = panel; model.question = true
+        return await withCheckedContinuation { continuation in
+            authorizationReply = { continuation.resume(returning: $0) }
+            panel.beginSheetModal(for: window) { [weak self] response in
+                guard let self, self.panel === panel else { return }; self.panel = nil; self.model.question = false
+                let reply = self.authorizationReply; self.authorizationReply = nil
+                guard !self.model.retired, response == .OK else { reply?(nil); return }
+                let selected = panel.urls, normalized = FinderRequest(action: .status, paths: selected).paths
+                let ordered = sources.compactMap { original -> RepositoryAccessLease? in
+                    let path = FinderRequest(action: .status, paths: [original]).paths[0].path
+                    guard let index = normalized.firstIndex(where: { $0.path == path }) else { return nil }
+                    return RepositoryAccessLease(url: selected[index])
+                }
+                guard selected.count == sources.count, ordered.count == sources.count else { self.model.error = "Choose exactly the captured source files or folders."; reply?(nil); return }
+                reply?(ordered)
+            }
         }
     }
     private func ask(_ title: String, detail: String, buttons: [String], defaultIndex: Int) async -> Int {
@@ -66,6 +90,7 @@ import TurtleGitCore
         guard !model.retired else { return }; model.retire()
         if let pending { settle(pending.0, answer: 2) }
         if let panel { panel.sheetParent?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
+        let authorizationReply = self.authorizationReply; self.authorizationReply = nil; authorizationReply?(nil)
         name?.retire(); name = nil; onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -76,6 +101,7 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
     let paste: Bool
+    private let sourceProvider: any RepositoryBookmarkProvider
     private var sourceAccess: [RepositoryAccessLease] = []
     private var token: OperationCancellation?
     private(set) var retired = false
@@ -101,13 +127,15 @@ import TurtleGitCore
     var repositoryChoice: (CopiedRepository) async -> CopiedRepositoryChoice = { _ in .abort }
     var chooseName: (URL, URL, OperationCancellation) async -> FileCopyPlan? = { _, _, _ in nil }
     var confirmCancel: () async -> Bool = { false }
+    var authorizeSources: ([URL]) async -> [RepositoryAccessLease]? = { _ in nil }
+    var requireSourceScopes = GitRuntime.isAppStoreBuild
     var canEdit: Bool { !retired && !busy && !progress && !question }
-    init(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], folder: URL?, paste: Bool = false, preferences: UserDefaults) {
-        self.repository = repository; self.access = access; self.preferences = preferences; self.paste = paste; self.folder = folder ?? repository.root
+    init(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], folder: URL?, paste: Bool = false, sourceProvider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(), preferences: UserDefaults) {
+        self.repository = repository; self.access = access; self.preferences = preferences; self.sourceProvider = sourceProvider; self.paste = paste; self.folder = folder ?? repository.root
         setSources(sources)
     }
     func setSources(_ urls: [URL]) {
-        guard canEdit else { return }; var seen = Set<String>(); sources = urls.filter { $0.isFileURL && seen.insert($0.path).inserted }; sourceAccess = sources.map { RepositoryAccessLease(url: $0) }
+        guard canEdit else { return }; var seen = Set<String>(); sources = urls.filter { $0.isFileURL && seen.insert($0.path).inserted }; sourceAccess = sources.map { RepositoryAccessLease(url: $0, provider: sourceProvider) }
     }
     @discardableResult func drop(_ providers: [NSItemProvider]) -> Bool {
         guard canEdit, !providers.isEmpty, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }) else { return false }
@@ -128,9 +156,15 @@ import TurtleGitCore
         Task {
             defer { if !retired { onChanged() }; Self.activeOperations -= 1; LocalGitCommandProgress.end(); if self.token === token { self.token = nil; busy = false; current = "" }; withExtendedLifetime(sourceAccess) {}; withExtendedLifetime(access) {} }
             do {
-                if GitRuntime.isAppStoreBuild {
-                    guard access?.hasSecurityScope == true, access?.contains(repository.root) == true,
-                          zip(urls, sourceAccess).allSatisfy({ url, lease in access?.contains(url) == true || lease.hasSecurityScope }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                if GitRuntime.isAppStoreBuild { guard access?.hasSecurityScope == true, access?.contains(repository.root) == true else { throw RepositoryAccessFailure.securityScopeUnavailable } }
+                if requireSourceScopes {
+                    let covered = zip(urls, sourceAccess).allSatisfy { url, lease in access?.contains(url) == true || lease.hasSecurityScope && lease.contains(url) }
+                    if !covered {
+                        guard let authorized = await authorizeSources(urls) else { token.cancel(); throw OperationCancellationFailure.cancelled }
+                        try token.check(); guard !retired else { return }
+                        guard authorized.count == urls.count, zip(urls, authorized).allSatisfy({ url, lease in lease.hasSecurityScope && lease.contains(url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                        sourceAccess = authorized
+                    }
                 }
                 let destination = try await repository.fileMoveDestination(folder, cancellation: token)
                 var additions: [(String, [String])] = []
