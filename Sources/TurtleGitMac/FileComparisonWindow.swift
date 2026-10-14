@@ -160,11 +160,13 @@ import TurtleGitCore
     let imagePresentation = ImageWindowPresentation()
     @Published var imageComparison: ImageComparisonDocument?
     var externalDidOpen: () -> Void = {}
-    private let alternateTool = NSEvent.modifierFlags.contains(.shift)
+    private(set) var alternateTool = ComparisonToolInvocation.capture
     private var externalAttempted = false, retired = false
-    var openExternalComparison: (FileComparisonDocument, URL, [RepositoryAccessLease], Bool) async throws -> Bool = { document, root, permissions, alternate in
-        try await DiffToolApplication.open(document, root: root, permissions: permissions, alternate: alternate)
+    lazy var openExternalComparison: (FileComparisonDocument, URL, [RepositoryAccessLease], Bool) async throws -> Bool = { [weak self] document, root, permissions, alternate in
+        guard let self, !self.retired else { throw OperationCancellationFailure.cancelled }
+        return try await DiffToolApplication.open(document, root: root, permissions: permissions, alternate: alternate, preferences: self.comparisonDefaults, cancellation: self.loadSession?.cancellation)
     }
+    func captureToolChoice(_ alternate: Bool) { guard !busy, !externalAttempted, !retired else { return }; alternateTool = alternate }
     @Published var document: FileComparisonDocument?
     var singleFileMode = false
     @Published var alignment: FileComparisonAlignment? { didSet { combinedCache = nil } }
@@ -776,7 +778,7 @@ import TurtleGitCore
         generalPreferences = .load(from: comparisonDefaults); pendingLoadNavigation = generalPreferences.firstDifference
         initialScrollRow = nil; combinedScrollRow = nil; initialScrollSides = []
         let session = FileListComparisonSession(window: window, preferences: comparisonDefaults)
-        loadSession = session; busy = true
+        loadSession = session; busy = true; error = nil
         Task {
             var externalOpened = false
             defer {
@@ -810,8 +812,8 @@ import TurtleGitCore
                     } else { throw RevisionComparisonFailure.selection }
                     guard !retired, !token.isCancelled else { return }
                     if !externalAttempted {
-                        externalAttempted = true
                         externalOpened = try await openExternalComparison(value, snapshot.root, workingPermissions + [access].compactMap { $0 }, alternateTool)
+                        externalAttempted = true
                         guard !externalOpened, !retired, !token.isCancelled else { return }
                 }
                 let adapted = value.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults))

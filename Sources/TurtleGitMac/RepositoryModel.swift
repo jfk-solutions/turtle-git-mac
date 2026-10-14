@@ -785,7 +785,7 @@ import UniformTypeIdentifiers
         guard !confirmingQuit else { return }
         let key = repository.root.path + "\0" + path
         guard conflictEditorPreparations[key] == nil else { return }
-        let alternate = NSEvent.modifierFlags.contains(.shift), owner = owner ?? NSApp.keyWindow ?? workspaceWindow
+        let alternate = ComparisonToolInvocation.capture, owner = owner ?? NSApp.keyWindow ?? workspaceWindow
         let request = ConflictEditorLaunch(owner: owner, preferences: fileComparisonPreferences)
         conflictEditorPreparations[key] = request; conflictEditorPreparationCount = conflictEditorPreparations.count
         request.showProgress(path: path)
@@ -1536,10 +1536,11 @@ import UniformTypeIdentifiers
                 showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label)
                 continue
             }
-            let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0" + snapshot.from.label + "\0" + snapshot.to.label
+            let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey
             let controller = (fileComparisonWindows[key]?.window != nil ? fileComparisonWindows[key] : nil) ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
             controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
+            controller.model.comparisonDefaults = fileComparisonPreferences
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         }
     }
@@ -2507,6 +2508,7 @@ import UniformTypeIdentifiers
     }
     private func handleComparisonMark(file: URL, permission: RepositoryAccessLease? = nil) {
         guard !busy, !confirmingQuit else { return }
+        let alternateTool = ComparisonToolInvocation.capture
         do {
             guard let permission = try permission ?? comparisonPermission(for: file) else { return }
             if try comparisonMarkStore.snapshot() == nil {
@@ -2519,6 +2521,7 @@ import UniformTypeIdentifiers
                 _ = try comparison.read()
                 let key = "working-mark:" + UUID().uuidString
                 let controller = FileComparisonWindowController(comparison: comparison, permissions: [marked.permission, permission])
+                controller.model.captureToolChoice(alternateTool)
                 controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
                 fileComparisonWindows[key] = controller
                 controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -2528,11 +2531,13 @@ import UniformTypeIdentifiers
         } catch { self.error = error.localizedDescription }
     }
     private func handleFilePair(paths: [URL]) {
+        let alternateTool = ComparisonToolInvocation.capture
         do {
             guard let prepared = try WorkingFilePairAccess.prepare(paths: paths, requireSecurityScope: GitRuntime.isAppStoreBuild,
                 acquire: { try comparisonPermission(for: $0) }) else { return }
             let key = "working-pair:" + UUID().uuidString
             let controller = FileComparisonWindowController(comparison: prepared.comparison, permissions: prepared.permissions)
+            controller.model.captureToolChoice(alternateTool)
             controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

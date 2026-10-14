@@ -12,6 +12,108 @@ import TurtleGitCore
     @MainActor static func main() async {
         do { try await verify() } catch { fputs("Comparison launch failed: \(error)\n", stderr); exit(1) }
     }
+    @MainActor static func verifyTools(repo: GitRepository, prefs: UserDefaults, snapshot: RevisionComparisonSnapshot) async throws {
+        // Capture Shift before a delayed confirmation, then create and load the
+        // child outside the initiating task to model SwiftUI's later .task.
+        let session = ComparisonToolInvocation.$alternate.withValue(true) {
+            FileListComparisonSession(window: nil, preferences: prefs)
+        }
+        var reply: CheckedContinuation<Bool, Never>?, captured: FileComparisonWindowModel?
+        session.confirmation = { _ in await withCheckedContinuation { reply = $0 } }
+        let launch = Task { @MainActor in
+            try await session.run(selectedCount: 4) { _ in
+                await Task.yield()
+                captured = FileComparisonWindowModel(repository: repo, access: nil, snapshot: snapshot, path: snapshot.files[0].path)
+            }
+        }
+        try await wait { reply != nil }
+        try require(ComparisonToolInvocation.alternate == nil, "Pending launch leaked its Shift choice")
+        reply?.resume(returning: true); try await launch.value
+        guard let captured else { throw Failure(message: "Approved comparison was not captured") }
+        captured.comparisonDefaults = prefs
+        var observed: [Bool] = []
+        captured.openExternalComparison = { _, _, _, alternate in observed.append(alternate); return false }
+        captured.load(); try await wait { !captured.busy && !captured.filtering }
+        try require(observed == [true] && captured.document != nil, "Delayed viewer lost initiating Shift")
+        captured.retireImageLoader()
+        // A failed application launch must remain retryable, without changing
+        // this window's captured choice when the user releases Shift.
+        let retry = ComparisonToolInvocation.$alternate.withValue(true) {
+            FileComparisonWindowModel(repository: repo, access: nil, snapshot: snapshot, path: snapshot.files[0].path)
+        }
+        retry.comparisonDefaults = prefs; var attempts = 0
+        retry.openExternalComparison = { _, _, _, alternate in
+            try require(alternate, "Retry changed tool choice"); attempts += 1
+            if attempts == 1 { throw Failure(message: "Injected application launch failure") }; return false
+        }
+        retry.load(); try await wait { !retry.busy }
+        try require(retry.error != nil && retry.document == nil, "Failed launch was hidden")
+        retry.load(); try await wait { !retry.busy && !retry.filtering }
+        try require(attempts == 2 && retry.error == nil && retry.document != nil, "External failure could not retry")
+        retry.retireImageLoader()
+        // Exercise the real configured-program selection, temporary snapshots,
+        // expanded arguments and launch boundary without starting another app.
+        var tools = DiffToolPreferences(); tools.program.applicationPath = "/Applications/TurtleGit-QA.app"
+        tools.program.arguments = "\"%base\" \"%mine\" \"%brev\""; try tools.save(to: prefs)
+        defer { prefs.removeObject(forKey: "TurtleGit.DiffTools"); DiffToolApplication.discardAll() }
+        let document = try await repo.comparisonFile(snapshot, path: snapshot.files[0].path)
+        var launches = 0, failedSnapshot: URL?
+        let opener: (URL, NSWorkspace.OpenConfiguration) async throws -> Void = { application, configuration in
+            launches += 1
+            try require(application.path == tools.program.applicationPath, "Wrong selected application")
+            let args = configuration.arguments
+            try require(args.count == 3 && args[2] == snapshot.from.label, "Tool placeholders changed")
+            let base = URL(fileURLWithPath: args[0]), mine = URL(fileURLWithPath: args[1])
+            try require(try Data(contentsOf: base) == document.base.bytes && Data(contentsOf: mine) == document.destination.bytes, "External tool did not receive exact files")
+            let mode = try FileManager.default.attributesOfItem(atPath: base.path)[.posixPermissions] as! NSNumber
+            try require(mode.intValue & 0o222 == 0, "Historical external snapshot is writable")
+            try require(DiffToolApplication.activeRequests == 1, "Launch lost its owned lifetime")
+            failedSnapshot = base
+        }
+        let ordinary = try await DiffToolApplication.open(document, root: snapshot.root, permissions: [], alternate: false, preferences: prefs, launch: opener)
+        let alternate = try await DiffToolApplication.open(document, root: snapshot.root, permissions: [], alternate: true, preferences: prefs, launch: opener)
+        try require(!ordinary && alternate && launches == 1, "Disabled default/Shift inversion failed")
+        tools.program.enabled = true; try tools.save(to: prefs)
+        let internalChoice = try await DiffToolApplication.open(document, root: snapshot.root, permissions: [], alternate: true, preferences: prefs, launch: opener)
+        try require(!internalChoice && launches == 1, "Enabled default/Shift inversion failed")
+        do {
+            _ = try await DiffToolApplication.open(document, root: snapshot.root, permissions: [], alternate: false, preferences: prefs, launch: { app, config in
+                try await opener(app, config); throw Failure(message: "Injected launcher rejection")
+            })
+            throw Failure(message: "Launch failure was swallowed")
+        } catch let failure as Failure { try require(failure.message == "Injected launcher rejection", "Unexpected launch failure") }
+        try require(failedSnapshot != nil && !FileManager.default.fileExists(atPath: failedSnapshot!.path) && DiffToolApplication.activeRequests == 0, "Failed launch leaked files or lifetime")
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do {
+            _ = try await DiffToolApplication.open(document, root: snapshot.root, permissions: [], alternate: false, preferences: prefs, cancellation: cancelled, launch: opener)
+            throw Failure(message: "Cancelled external request launched")
+        } catch is OperationCancellationFailure { }
+        try require(launches == 2, "Cancelled external request reached launcher")
+        prefs.removeObject(forKey: "TurtleGit.DiffTools")
+        // Cached default and alternate viewers for one file remain independent.
+        let changed = RevisionComparisonWindowModel(repository: repo, access: nil, from: snapshot.from, to: snapshot.to, preferences: prefs)
+        changed.snapshot = snapshot; let ids = Set([snapshot.files[0].path])
+        defer { changed.invalidate(); Array(changed.comparisonWindows.values).forEach { $0.close() } }
+        ComparisonToolInvocation.$alternate.withValue(false) { changed.compare(ids) }
+        try await wait { !changed.busy && changed.comparisonWindows.values.allSatisfy { !$0.model.busy && !$0.model.filtering } }
+        ComparisonToolInvocation.$alternate.withValue(true) { changed.compare(ids) }
+        try await wait { !changed.busy && changed.comparisonWindows.count == 2 && changed.comparisonWindows.values.allSatisfy { !$0.model.busy && !$0.model.filtering } }
+        try require(Set(changed.comparisonWindows.values.map { $0.model.alternateTool }) == Set([true,false]), "Alternate comparison reused the default viewer")
+        // Sync captures its choice before format-patch suspends, and supplies
+        // the same private tool preferences to its Changed Files children.
+        let syncRoot = snapshot.root.appendingPathComponent("sync-tool-fixture")
+        try FileManager.default.createDirectory(at: syncRoot, withIntermediateDirectories: true)
+        let syncRepo = GitRepository(root: syncRoot, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
+        _ = try await syncRepo.run(["init","-b","main"])
+        for (key,value) in [("user.name","QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] { _ = try await syncRepo.run(["config",key,value]) }
+        for n in 0...2 { try Data("value \(n)\n".utf8).write(to: syncRoot.appendingPathComponent("file.txt")); try await syncRepo.stage(["file.txt"]); _ = try await syncRepo.commit(message: "revision \(n)") }
+        let sync = SynchronizationWindowModel(repository: syncRepo, access: nil, preferences: prefs)
+        defer { sync.invalidate(); Array(sync.comparison.comparisonWindows.values).forEach { $0.close() } }
+        ComparisonToolInvocation.$alternate.withValue(true) { sync.compareHistoryChangeSets(first: "HEAD", second: "HEAD~1") }
+        try await wait { !sync.busy && sync.comparison.comparisonWindows.values.first?.model.busy == false }
+        guard let syncViewer = sync.comparison.comparisonWindows.values.first else { throw Failure(message: "Sync did not open changesets") }
+        try require(syncViewer.model.alternateTool && syncViewer.model.comparisonDefaults === prefs, "Sync changesets lost Shift/preferences")
+    }
     @MainActor static func verify() async throws {
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), executable = URL(fileURLWithPath: CommandLine.arguments[2])
         let repo = GitRepository(root: root, executable: executable)
@@ -90,6 +192,7 @@ import TurtleGitCore
         viewer.retireImageLoader()
         try await wait { !viewer.busy && FileListComparisonSession.activeOperations == 0 }
         try require(viewer.document == nil && viewer.error == nil, "Retired blob read published a document/error")
+        try await verifyTools(repo: repo, prefs: prefs, snapshot: snapshot)
         // Aggregated status-list GNU patches stay one captured patch, without a many-viewer warning.
         let commit = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: prefs, dialogDefaults: prefs)
         defer { commit.invalidateForClose() }

@@ -174,10 +174,11 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             guard !closed, !token.isCancelled else { return }
             if let openComparedFile { openComparedFile(snapshot, file); continue }
             if file.isSubmodule { onSubmoduleCompare(file.path, snapshot.from, snapshot.to); continue }
-            let key = file.path + "\0" + snapshot.from.label + "\0" + snapshot.to.label
+            let key = file.path + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey
             let controller = comparisonWindows[key] ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
             controller.onClosed = { [weak self] in self?.comparisonWindows.removeValue(forKey: key) }
             comparisonWindows[key] = controller
+            controller.model.comparisonDefaults = preferences
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         }
         }
@@ -226,7 +227,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                     try checkPatchAccess()
                     let bytes = try await repository.revisionComparisonPatchData(snapshot, paths: [file.path], cancellation: token)
                     guard !closed, !token.isCancelled else { return }
-                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate), !closed, !token.isCancelled {
+                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences), !closed, !token.isCancelled {
                         let controller = unifiedWindows[file.path] ?? PatchWindowController(repository: repository, access: access)
                         controller.model.setReadOnlyDiff(bytes)
                         controller.model.paths = [file.path]

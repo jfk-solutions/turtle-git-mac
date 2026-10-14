@@ -2,12 +2,21 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+/// Preserve the initiating action's Shift choice across asynchronous preparation.
+/// Nested comparison routes inherit it; independent actions capture their own event.
+enum ComparisonToolInvocation {
+    @TaskLocal static var alternate: Bool?
+    @MainActor static var capture: Bool { alternate ?? NSEvent.modifierFlags.contains(.shift) }
+    @MainActor static var cacheKey: String { capture ? "alternate" : "default" }
+}
+
 /// Own the complete selected-file launch, including its question and Git reads.
 /// The initiating window is captured before any suspension; switching windows
 /// cannot move the question or retarget the eventual viewers.
 @MainActor final class FileListComparisonSession {
     private(set) static var activeOperations = 0
     let cancellation: OperationCancellation
+    let alternateTool: Bool
     private weak var window: NSWindow?
     private let preferences: UserDefaults
     private var observer: NSObjectProtocol?
@@ -15,8 +24,9 @@ import TurtleGitCore
     private var started = false
     var confirmation: ((Int) async -> Bool)?
 
-    init(window: NSWindow?, preferences: UserDefaults = .standard, cancellation: OperationCancellation = OperationCancellation()) {
+    init(window: NSWindow?, preferences: UserDefaults = .standard, cancellation: OperationCancellation = OperationCancellation(), alternateTool: Bool? = nil) {
         self.window = window; self.preferences = preferences; self.cancellation = cancellation
+        self.alternateTool = alternateTool ?? ComparisonToolInvocation.capture
         if let window {
             observer = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.cancel() }
@@ -56,7 +66,9 @@ import TurtleGitCore
             try check()
             guard accepted else { return }
         }
-        try await operation(cancellation)
+        try await ComparisonToolInvocation.$alternate.withValue(alternateTool) {
+            try await operation(cancellation)
+        }
         try check()
     }
     deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }

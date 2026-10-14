@@ -234,8 +234,9 @@ private struct DiffToolAssociationEditor: View {
     private static var previews: [URL] = []
     private(set) static var activeRequests = 0
     static func discardAll() { for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
-    static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool) async throws -> Bool {
-        guard let program = try DiffToolPreferences.load().selected(base: document.base.path, destination: document.destination.path, alternate: alternate) else { return false }
+    static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool, preferences: UserDefaults = .standard, cancellation: OperationCancellation? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> Void)? = nil) async throws -> Bool {
+        try cancellation?.check()
+        guard let program = try DiffToolPreferences.load(from: preferences).selected(base: document.base.path, destination: document.destination.path, alternate: alternate) else { return false }
         let provider = SystemRepositoryBookmarkProvider()
         let application: URL
         if let bookmark = program.bookmark { application = try provider.resolve(bookmark).url } else { application = URL(fileURLWithPath: program.applicationPath) }
@@ -257,15 +258,20 @@ private struct DiffToolAssociationEditor: View {
                 try content.bytes.write(to: target, options: .withoutOverwriting)
                 try manager.setAttributes([.posixPermissions: 0o444], ofItemAtPath: target.path); return target
             }
+            try cancellation?.check()
             let base = try file(document.base, side: "base"), mine = try file(document.destination, side: "mine")
             func revisionID(_ revision: ComparisonRevision) -> String { if case .revision(let value) = revision { return value }; return "" }
             let arguments = try program.expandedArguments(values: ["base": base.path, "mine": mine.path, "bname": document.base.path + " : " + document.base.revision.label, "yname": document.destination.path + " : " + document.destination.revision.label, "bpath": document.base.path, "ypath": document.destination.path, "brev": revisionID(document.base.revision), "yrev": revisionID(document.destination.revision), "wtroot": root.path])
             let configuration = NSWorkspace.OpenConfiguration(); configuration.arguments = arguments; configuration.createsNewApplicationInstance = true
             activeRequests += 1
             defer { activeRequests -= 1; withExtendedLifetime(grant) {}; withExtendedLifetime(permissions) {} }
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                NSWorkspace.shared.openApplication(at: application, configuration: configuration) { _, error in
-                    if let error { continuation.resume(throwing: error) } else { continuation.resume() }
+            try cancellation?.check()
+            if let launch { try await launch(application, configuration) }
+            else {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    NSWorkspace.shared.openApplication(at: application, configuration: configuration) { _, error in
+                        if let error { continuation.resume(throwing: error) } else { continuation.resume() }
+                    }
                 }
             }
             previews.append(folder); return true

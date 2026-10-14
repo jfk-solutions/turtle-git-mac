@@ -62,14 +62,17 @@ import TurtleGitCore
         try require(routed==["export:","branch:","tag:","switch:","browse:","refs:"].map { $0+pinned },"Retained history menu followed new selection")
         history.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
         let parentTarget=model.historyTarget([model.historyEntries[0]])!
-        var ready=false,previousRoute:(String,String,Int)?,comparison:RevisionComparisonSnapshot?
-        model.onPrevious={ path,hash,line,_ in previousRoute=(path,hash,line) };model.onChanges={ comparison=$0 }
+        var ready=false,previousRoute:(String,String,Int)?,comparison:RevisionComparisonSnapshot?,comparisonAlternate:Bool?
+        model.onPrevious={ path,hash,line,_ in previousRoute=(path,hash,line) };model.onChanges={ comparison=$0;comparisonAlternate=ComparisonToolInvocation.capture }
         model.prepareHistoryParents(parentTarget) { _ in ready=true };try await wait { ready && BlameWindowModel.activeHistoryOperations==0 }
         historyCoordinator.menuNeedsUpdate(historyMenu)
         let previous=historyMenu.items.first { $0.title=="Blame previous revision" }!,compare=historyMenu.items.first { $0.title=="Compare with previous revision" }!,unified=historyMenu.items.first { $0.title=="Show changes as unified diff" }!
         history.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
         _ = NSApp.sendAction(previous.action!,to:previous.target,from:previous);_ = NSApp.sendAction(compare.action!,to:compare.target,from:compare)
         try require(previousRoute?.0=="menus.cpp" && previousRoute?.1==model.historyEntries[1].hash && previousRoute?.2==1,"Previous Blame lost captured parent")
+        let capturedParents=try await repo.blameHistoryParentComparisons(model.snapshot!,revision:parentTarget.entries[0].hash)
+        model.performHistoryParent(parentTarget,choices:capturedParents,action:.compare,alternate:true)
+        try require(comparisonAlternate==true && ComparisonToolInvocation.alternate==nil,"Blame compare lost or leaked Shift choice")
         let compared=try await repo.comparisonFile(comparison!,path:"menus.cpp")
         try require(compared.base.text?.contains("43")==true && compared.destination.text?.contains("42")==true,"Parent comparison changed pinned file sides")
         _ = NSApp.sendAction(unified.action!,to:unified.target,from:unified)

@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-15",
+  "scope": "Comparison invocation, external-tool retry and owning preferences across shared file routes, Changed Files, Blame and Sync",
+  "source": [
+    "GitLogListBase.cpp captured bShift dispatch",
+    "AppUtils.cpp PickDiffTool, StartExtDiff alternative inversion and StartUnifiedDiffViewer"
+  ],
+  "implementation": [
+    "Capture Shift before confirmation/Git preparation; nested launches inherit a task-local invocation without global state",
+    "Viewer captures the choice before its later SwiftUI load",
+    "Default/alternate viewer cache identities differ",
+    "Blame source/parent Compare forwards captured choice",
+    "Sync change sets capture before format-patch; selected-file unified action forwards Shift",
+    "Owning preferences reach Sync children, Changed Files and external dispatch",
+    "Finder file-pair authorization captures choice before permission prompts",
+    "External launcher checks cancellation before preparation/dispatch, cleans rejected snapshots and retains successful preview lifetime",
+    "Failed external launch can retry the original choice; Reload clears the old error"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/comparison-tool-family-build-2026-10-15.log"
+    },
+    "core": "Unchanged; not rerun for native-only routing",
+    "native": {
+      "result": "4 passed on first run",
+      "cases": [
+        "comparison-launch",
+        "blame-menus"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "log": "build/qa/comparison-tool-family-native-2026-10-15.log",
+      "owned_receiver_pids_reaped": [
+        52004,
+        52129,
+        52386,
+        52507
+      ],
+      "new_coverage": [
+        "Delayed confirmation followed by child creation and loading after initiating scope exits",
+        "Retry after injected application launch failure with original Shift choice",
+        "Real configured program inversion, exact file bytes, expanded arguments and read-only historical snapshot at injected launch boundary",
+        "Rejected launch removes snapshots and releases active request; pre-cancelled request never dispatches",
+        "Changed Files retains two actual viewers for default/alternate choices",
+        "Sync actual two-commit format-patch comparison retains Shift and private owning preferences",
+        "Blame captured parent comparison forwards and does not leak its invocation choice"
+      ]
+    },
+    "coverage_reconciliation_exit_code": 0
+  },
+  "limits": [
+    "External application activation is injected; no third-party app launched",
+    "Physical Shift/menu gestures and signed Finder/App Store grants are unverified",
+    "Core selection semantics unchanged; no new complete hosted CI pass claimed",
+    "Generated change-set panes remain read-only; full upstream/application parity remains incomplete"
+  ]
+}

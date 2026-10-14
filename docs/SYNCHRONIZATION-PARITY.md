@@ -1208,9 +1208,9 @@ injected stalled format-patch read cancelled by owner close. Existing revision-l
 checks remain. The original fixture has no new Git mutations; its separate reference
 creation fixture still intentionally creates its branch/tag.
 
-This remains partial parity. Generated patch panes are read-only; upstream's
-temporary-file editing and configurable external diff-tool routing are not yet
-mapped. Error-sheet presentation, physical menus/Find/zoom/Save As, remaining
+This remains partial parity. Generated patch panes are read-only; upstream's temporary-file editing remains
+open. Configured external dispatch and its captured Shift choice are now covered
+by the [comparison tool family](COMPARISON-LAUNCH-PARITY.md#captured-tool-selection--october-15-2026). Error-sheet presentation, physical menus/Find/zoom/Save As, remaining
 revision commands, full text-comparison acceptance and signed Finder/App Store
 validation remain open. No new complete Core-suite or full-dialog certification
 is claimed.

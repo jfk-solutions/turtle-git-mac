@@ -949,6 +949,7 @@ enum SynchronizationHistoryDiff {
         guard !closed, !busy, !confirmingQuit, !confirmingCancellation, !hasBlockingChild,
               window?.attachedSheet == nil else { return }
         let request = OperationCancellation(), child = tab == 4 ? incomingComparison : comparison
+        let alternateTool = ComparisonToolInvocation.capture
         token?.cancel(); token = request; busy = true; error = nil
         Task {
             defer { if token === request { token = nil; busy = false } }
@@ -958,6 +959,8 @@ enum SynchronizationHistoryDiff {
                 guard !closed, token === request, !request.isCancelled else { return }
                 let key = "Sync change sets " + UUID().uuidString
                 let viewer = FileComparisonWindowController(repository: repository, access: access, changeSets: result)
+                viewer.model.captureToolChoice(alternateTool)
+                viewer.model.comparisonDefaults = preferences
                 viewer.onClosed = { [weak child] in child?.comparisonWindows.removeValue(forKey: key) }
                 child.comparisonWindows[key] = viewer; viewer.model.load(); viewer.showWindow(nil)
             } catch {
@@ -1281,8 +1284,8 @@ enum SynchronizationHistoryDiff {
         self.repository = repository; self.access = access; self.preferences = preferences
         sshSettings = SSHTransportSettings(repository: repository)
         outputState = GitProgressOutputState(preferences: preferences)
-        comparison = RevisionComparisonWindowModel(repository: repository, access: access, from: .revision("HEAD"), to: .revision("HEAD"))
-        incomingComparison = RevisionComparisonWindowModel(repository: repository, access: access, from: .revision("HEAD"), to: .revision("HEAD"))
+        comparison = RevisionComparisonWindowModel(repository: repository, access: access, from: .revision("HEAD"), to: .revision("HEAD"), preferences: preferences)
+        incomingComparison = RevisionComparisonWindowModel(repository: repository, access: access, from: .revision("HEAD"), to: .revision("HEAD"), preferences: preferences)
         switch preferences.integer(forKey: historyKey + ".pullAction") {
         case 1: pullAction = .fetch
         case 2: pullAction = .fetchAndRebase
@@ -1936,7 +1939,7 @@ enum SynchronizationHistoryDiff {
     func compareFiles(unified: Bool) {
         let child = displayedComparison
         guard !closed, !confirmingQuit, !busy, child.snapshot != nil, !fileSelection.isEmpty else { return }
-        if unified { child.showPatch(fileSelection, alternate: false) }
+        if unified { child.showPatch(fileSelection, alternate: ComparisonToolInvocation.capture) }
         else { child.compare(fileSelection) }
     }
 }

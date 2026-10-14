@@ -55,3 +55,36 @@ remain tracked in their comparison documents and the dialog coverage ledger.
 The shared [rename/copy detection family](DIFF-DETECTION-PARITY.md) now connects
 source percentages, paired file/patch reads, pinned snapshot policy and historical
 cache invalidation. Its separate validation record reports the actual scope.
+
+
+## Captured tool selection — October 15, 2026
+
+The selected-file launch owner now captures Shift at dispatch. Its task-local
+invocation value survives confirmations and Git preparation, and nested routes
+inherit it without changing independent launches. A child comparison captures
+that value during construction, before SwiftUI starts its later loading task.
+This ports GitLogListBase's captured bShift and AppUtils' alternative-tool
+inversion to asynchronous native workflows. It covers working/checked files,
+historical pairs, merge-parent groups and marked-file comparisons through the
+shared launch path. Finder file-pair permission prompts capture the choice before
+permission selection. Conflict-editor handoffs inherit the same choice.
+
+Changed Files and repository comparison caches distinguish default and alternate
+invocations, so an existing built-in viewer cannot absorb an alternate-tool
+request. Blame's parent/source Compare action explicitly carries its chosen
+modifier into the shared route. Sync change-set comparison captures before
+format-patch, and its selected-file unified action now forwards Shift instead of
+always choosing the default. Sync and Changed Files pass their owning tool
+preferences to both native children and external dispatch.
+
+An external application launch failure leaves tool dispatch retryable in the
+same comparison window. Reload clears the prior error and retries the original
+choice. Failed launch snapshots are removed; successful launch snapshots remain
+available through the existing app-owned external-preview lifetime. Cancellation
+is checked before snapshot preparation and immediately before dispatch. Once an
+external application has accepted the launch, the app does not terminate it.
+
+Grouped native evidence and limits: [tool-selection batch](qa/comparison-tool-family-2026-10-15.json).
+Core engine behavior is unchanged; no Core suite was repeated for these native
+routing changes. Physical Shift/menu gestures, actual third-party application
+activation, signed grants and all-dialog parity remain separate acceptance work.

@@ -298,7 +298,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     func performHistoryParent(_ target:HistoryTarget,choices:[GitBlameParentComparison],action:ParentAction,alternate:Bool = false,originalLine:Int = 1) {
         guard acceptsHistory(target),!choices.isEmpty else { return }
         if action == .previous { for choice in choices { onPrevious?(choice.path,choice.revision,originalLine,appliedOptions) };return }
-        if action == .compare { for choice in choices { onChanges?(choice.comparison) };return }
+        if action == .compare { ComparisonToolInvocation.$alternate.withValue(alternate) { for choice in choices { onChanges?(choice.comparison) } };return }
         let id=UUID(),token=OperationCancellation();unifiedReadTokens[id]=token;Self.activeHistoryOperations += 1
         Task { [self,access] in
             defer { unifiedReadTokens.removeValue(forKey:id);Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {} }
@@ -1325,7 +1325,7 @@ private struct BlameTable: NSViewRepresentable {
         }
         @objc func showLog() { if let line = model.selectedLine { model.showLog(line) } }
         @objc func showChanges(_ sender: NSMenuItem) {
-            if let target=sender.representedObject as? BlameParentMenuTarget,let history=target.target { model.performHistoryParent(history,choices:[target.choice],action:.compare) }
+            if let target=sender.representedObject as? BlameParentMenuTarget,let history=target.target { model.performHistoryParent(history,choices:[target.choice],action:.compare,alternate:ComparisonToolInvocation.capture) }
         }
         @objc func showUnified(_ sender:NSMenuItem) {
             if let target=sender.representedObject as? BlameParentMenuTarget,let history=target.target { model.performHistoryParent(history,choices:[target.choice],action:.unified,alternate:NSEvent.modifierFlags.contains(.shift)) }
