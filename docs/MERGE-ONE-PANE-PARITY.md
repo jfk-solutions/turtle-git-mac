@@ -1,5 +1,30 @@
 # Combined one-pane comparison
 
+[Grouped lifecycle evidence](qa/merge-comparison-lifecycle-2026-10-16.json) records
+59 focused Core checks, ten native editor workflows, source/fixture repairs and
+owned cleanup. This remains a partial port.
+
+## History savepoints and gap cleanup — October 16, 2026
+
+Both comparison panes now use one chronological Undo manager, matching CUndo's
+all-view history. Undo from either focused pane reverses the most recent edit,
+and restores the matching peer layout/revisions without erasing a newer peer
+draft. Saved edit identities remain separate for each pane. Repeating the same
+text on an already Edited row after Save still marks it modified; Undo/Redo and
+branches in history distinguish that new edit from the saved state. Save and
+Save As record the current identity without adding metadata to file bytes.
+
+Deleting lines inserted into alignment gaps now removes rows only when both
+visible panes have Empty/ConflictEmpty records, following CleanEmptyLines.
+Ordinary blank and Edited empty lines remain real content. Carets and row ranges
+shift by the removed display records. Undo/Redo restores the pre-cleanup layout.
+Changes to options/active filters now use the [owned Save/reload workflow](MERGE-COMPARISON-OPTIONS-PARITY.md), clearing old history after acceptance.
+
+The full aligned three-pane result view, complete Windows row/EOL equivalence,
+IME/multi-caret/wrapped-screen-row behavior and large-file performance remain
+open. Per-pane format/transformation commands retain their existing paths; this
+does not certify the entire editor.
+
 ## Retained in-place editing — October 16, 2026
 
 Native typing, ordinary Cut and Paste now edit the displayed view records rather

@@ -1,5 +1,14 @@
 # Testing TurtleGit for Mac
 
+`scripts/test-merge-whitespace-states.py --only savepoints` checks real native
+saved/branched same-byte edits, global cross-pane Undo/Redo, inserted-line deletion
+cleanup, owned option/filter Cancel/discard/failed Save, Save-left/right/both,
+active-filter removal and close/Quit/duplicate/late-answer guards. `--only engine`
+retains actual two-pane engine/filter/file/Save regressions. Ordinary typing no
+longer starts an engine request, so that fixture explicitly requests recomputation
+before asserting its pending-transfer gate. Core in-place tests cover cleanups,
+real blank records, independent pane savepoints and rebound file identity.
+
 The grouped editor runner `scripts/test-merge-whitespace-states.py` now includes
 `--only in-place`: real native two-pane and combined typing/Paste, exact retained
 Edited/Removed rows, peer gaps without peer-byte changes, helper-free edits,

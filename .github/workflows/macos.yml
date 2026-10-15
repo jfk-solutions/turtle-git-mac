@@ -415,7 +415,7 @@ jobs:
         run: python3 scripts/test-browser-paths.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Captured reference menus and related native workflows
         run: python3 scripts/test-reference-menu-targets.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
-      - name: Native block selection/navigation, whitespace states and editor payloads
+      - name: Comparison savepoints, options, row edits and editor workflows
         run: python3 scripts/test-merge-whitespace-states.py
       - name: Three-pane ordinary block choices, navigation, history and ignored conflicts
         run: python3 scripts/test-merge-ignored.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"

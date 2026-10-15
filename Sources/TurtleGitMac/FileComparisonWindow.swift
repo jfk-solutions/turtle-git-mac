@@ -214,27 +214,31 @@ import TurtleGitCore
         let alignment: FileComparisonAlignment
         let combined: OnePaneFileComparison?
         let annotations: [Bool: FileComparisonEditing.Annotations]
+        let revisions: [Bool: UUID]
     }
     func captureEditingPresentation() -> EditingPresentation? {
-        alignment.map { .init(alignment:$0,combined:onePaneActive ? combined : nil,annotations:[true:annotations(base:true),false:annotations(base:false)]) }
+        alignment.map { .init(alignment:$0,combined:onePaneActive ? combined : nil,annotations:[true:annotations(base:true),false:annotations(base:false)],revisions:editRevisions) }
     }
+    private var editRevisions: [Bool:UUID] { Dictionary(uniqueKeysWithValues:[true,false].compactMap { side in drafts?.editRevision(base:side).map { (side,$0) } }) }
     func installEditingPresentation(_ presentation: EditingPresentation) {
         regexCancellation?.cancel(); regexCancellation = nil; filtering = false
         cancelDeferredNavigation(); alignmentGeneration += 1
         alignment = presentation.alignment; combinedCache = presentation.combined
         retainingViewEdits = true
         for (side,value) in presentation.annotations { updateAnnotations(value,base:side) }
+        for side in [true,false] { drafts?.setEditRevision(presentation.revisions[side],base:side) }
         selectedRows = nil; difference = -1; previewRow = nil
         inlineCache = [:]; inlineNavigationCache = [:]
     }
-    func presentation(for edit: FileComparisonInPlaceEdit) -> EditingPresentation {
+    func presentation(for edit: FileComparisonInPlaceEdit, base: Bool) -> EditingPresentation {
         var values: [Bool:FileComparisonEditing.Annotations] = [:]
         for side in [true,false] {
             var value = alignment.map { annotations(base:side).remapped(from:$0,to:edit.alignment,targetBase:side,typing:false) } ?? .init()
             value.edited.formUnion(edit.alignment.rows.indices.filter { (side ? edit.alignment.rows[$0].base : edit.alignment.rows[$0].destination).state == .edited })
             values[side] = value
         }
-        return .init(alignment:edit.alignment,combined:edit.combined,annotations:values)
+        var revisions = editRevisions; revisions[base] = UUID()
+        return .init(alignment:edit.alignment,combined:edit.combined,annotations:values,revisions:revisions)
     }
     var onePaneActive: Bool { onePaneMode && !singleFileMode && document?.base.text != nil && document?.destination.text != nil }
     var combined: OnePaneFileComparison? {
@@ -293,7 +297,9 @@ import TurtleGitCore
     var regexExecutable: URL?
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
-    var comparisonDefaults: UserDefaults = .standard
+    var comparisonDefaults: UserDefaults = .standard {
+        didSet { if document == nil { comparisonOptions = .load(from:comparisonDefaults) } }
+    }
     @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
     private var pendingLoadNavigation = false
     var initialNavigationPending: Bool { pendingLoadNavigation || initialBlockGeneration != nil }
@@ -344,8 +350,73 @@ import TurtleGitCore
     }
     var supportsComments: Bool { commentTokens != nil }
     func setComparisonOptions(_ value: MergeComparisonOptions) {
-        guard !busy, !confirmingQuit, !retired else { return }
-        comparisonOptions = value; value.save(to: comparisonDefaults); rebuildFilterAlignment()
+        guard value != comparisonOptions else { return }
+        requestProjectionChange { [self] in comparisonOptions = value; value.save(to:comparisonDefaults) }
+    }
+    private final class ProjectionChange {
+        enum Answer { case save([Bool]), discard, cancel }
+        let change: () -> Void
+        var question: NSAlert?
+        var answers: [Answer] = []
+        var answered = false
+        init(_ change: @escaping () -> Void) { self.change = change }
+    }
+    private var projectionChange: ProjectionChange?
+    private(set) static var activeProjectionChoices = 0
+    var presentProjectionQuestion: (NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { alert,owner,answer in alert.beginSheetModal(for:owner,completionHandler:answer) }
+    private func finishProjectionChange(_ request: ProjectionChange) {
+        guard projectionChange === request else { return }
+        projectionChange = nil; confirmingQuit = false; Self.activeProjectionChoices -= 1
+        if let question = request.question {
+            if let owner = question.window.sheetParent { owner.endSheet(question.window) }
+            question.window.orderOut(nil); request.question = nil
+        }
+    }
+    private func applyProjectionChange(_ request: ProjectionChange) {
+        guard !retired, projectionChange === request else { return }
+        finishProjectionChange(request); request.change()
+        regexCancellation?.cancel(); regexCancellation = nil; filtering = false
+        cancelDeferredNavigation(); alignmentGeneration += 1; resetHistory()
+        load(discardingDraft:true)
+    }
+    private func requestProjectionChange(_ change: @escaping () -> Void) {
+        guard !retired, !busy, !confirmingQuit, !hasPendingEditorChoice, window?.attachedSheet == nil else { return }
+        guard document != nil else { change(); return }
+        let request = ProjectionChange(change)
+        projectionChange = request; Self.activeProjectionChoices += 1
+        guard dirty else { applyProjectionChange(request); return }
+        guard let window else { finishProjectionChange(request); return }
+        confirmingQuit = true
+        let alert = NSAlert(); alert.alertStyle = .warning
+        alert.messageText = "Save changes to “" + unsavedFilesDescription + "” before changing comparison options?"
+        alert.informativeText = "Changing comparison options reloads the files and clears Undo history. Any pane you do not save will be reloaded from disk."
+        let sides = drafts?.dirtySides ?? []
+        let choices: [(String,ProjectionChange.Answer)] = sides.count > 1
+            ? [("Save left pane",.save([true])),("Save right pane",.save([false])),("Save both panes",.save(sides)),("Don’t Save",.discard),("Cancel",.cancel)]
+            : [("Save",.save(sides)),("Don’t Save",.discard),("Cancel",.cancel)]
+        request.answers = choices.map { $0.1 }
+        for (title,_) in choices { alert.addButton(withTitle:title).keyEquivalent = title == "Cancel" ? "\u{1b}" : "" }
+        let defaultButton = alert.buttons[sides.count > 1 ? 2 : 0]
+        defaultButton.keyEquivalent = "\r"; alert.window.defaultButtonCell = defaultButton.cell as? NSButtonCell
+        request.question = alert
+        presentProjectionQuestion(alert,window) { [weak self, weak request] answer in
+            guard let self, let request, !self.retired, self.projectionChange === request, !request.answered else { return }
+            request.answered = true
+            if let question = request.question {
+                if let parent = question.window.sheetParent { parent.endSheet(question.window) }
+                question.window.orderOut(nil); request.question = nil
+            }
+            let index = answer.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+            switch request.answers.indices.contains(index) ? request.answers[index] : .cancel {
+            case .save(let sides):
+                self.save(sides:sides,ownerInitiated:true) { [weak self, weak request] saved in
+                    guard let self, let request, self.projectionChange === request else { return }
+                    if saved { self.applyProjectionChange(request) } else { self.finishProjectionChange(request) }
+                }
+            case .discard: self.applyProjectionChange(request)
+            default: self.finishProjectionChange(request)
+            }
+        }
     }
     struct AlignmentSelection { let id = UUID(); let sourceRange: NSRange; var scroll = false }
     @Published var alignmentSelections: [Bool: AlignmentSelection] = [:]
@@ -354,13 +425,14 @@ import TurtleGitCore
     private var regexList: MergeRegexFilterListController?
     func refreshRegexFilters() {
         guard !retired else { return }
-        regexFilters = MergeRegexFilters.load(defaults: regexDefaults)
-        if let name = regexFilterName, !regexFilters.contains(where: { $0.name == name }) { regexFilterName = nil }
-        rebuildFilterAlignment()
+        let incoming = MergeRegexFilters.load(defaults:regexDefaults)
+        let old = regexFilters.first { $0.name == regexFilterName }, next = incoming.first { $0.name == regexFilterName }
+        if regexFilterName == nil || old == next { regexFilters = incoming; return }
+        requestProjectionChange { [self] in regexFilters = incoming; if next == nil { regexFilterName = nil } }
     }
     func selectRegexFilter(_ name: String?) {
-        guard !busy, !confirmingQuit, !retired, name == nil || regexFilters.contains(where: { $0.name == name }) else { return }
-        regexFilterName = name; difference = -1; rebuildFilterAlignment()
+        guard name != regexFilterName, name == nil || regexFilters.contains(where: { $0.name == name }) else { return }
+        requestProjectionChange { [self] in regexFilterName = name; difference = -1 }
     }
     private func rebuildFilterAlignment() {
         let previous = alignment; rebuildAlignment()
@@ -486,7 +558,7 @@ import TurtleGitCore
         locatorPreferences = .load(from: comparisonDefaults)
         whitespaceDisplay = .load(from: comparisonDefaults)
         let options = MergeComparisonOptions.load(from: comparisonDefaults)
-        if options != comparisonOptions { comparisonOptions = options; rebuildFilterAlignment() }
+        if options != comparisonOptions { setComparisonOptions(options) }
         let next = MergeEditorPreferences.load()
         if next.tabWidth != editorPreferences.tabWidth || next.useSpaces != editorPreferences.useSpaces || next.smartTab != editorPreferences.smartTab {
             tabWidths = [:]; spacePanes = [:]; smartTabPanes = [:]
@@ -508,6 +580,7 @@ import TurtleGitCore
         do { try drafts?.update(text: text, base: base) } catch { self.error = error.localizedDescription }
     }
     func updateAnnotations(_ value: FileComparisonEditing.Annotations, base: Bool) { guard !retired, !hasPendingEditorChoice || updatingSaveDecision else { return }; drafts?.update(annotations: value, base: base) }
+    func recordTypingEdit(base: Bool) { drafts?.setEditRevision(UUID(),base:base) }
     @Published var canUndo = false
     @Published var canRedo = false
     @Published var selectedRows: Range<Int>?
@@ -580,7 +653,7 @@ import TurtleGitCore
     }
     func encoding(base: Bool) -> ComparisonTextEncoding? { drafts?.encoding(base: base) }
     private var formatRequest: UUID?
-    var hasPendingEditorChoice: Bool { exporting || formatRequest != nil || paneSave != nil }
+    var hasPendingEditorChoice: Bool { exporting || formatRequest != nil || paneSave != nil || projectionChange != nil }
     var chooseFormat: (NSWindow, String, MergeFormatSelection) async -> MergeFormatSelection? = MergeFormatPrompt.choose
     func showFormatDialog(base: Bool) {
         guard canTransfer(toBase: base), let window, window.attachedSheet == nil,
@@ -806,6 +879,9 @@ import TurtleGitCore
         var resolveForSave: (String) -> Void
     }
     private var editorActions: [Bool: EditorActions] = [:]
+    // TortoiseMerge's CUndo stores one ordered all-view history. Sharing it is
+    // essential now that an edit snapshot also owns the opposite row layout.
+    let comparisonHistory: UndoManager = { let value = UndoManager(); value.groupsByEvent = false; return value }()
     func registerEditor(base: Bool, actions: EditorActions) {
         editorActions[base] = actions
         if base == activeBase { selectEditorActions() }
@@ -873,6 +949,7 @@ import TurtleGitCore
         repository = nil; self.access = access; snapshot = patchComparison.snapshot; path = patchComparison.document.destination.path
         let value = patchComparison.editingDocument.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: preferences))
         document = value; originalPaneDocument = value; drafts = FileComparisonDrafts(value)
+        comparisonDefaults = preferences; comparisonOptions = .load(from:preferences)
         drafts?.setEditing(false, base: false); showInlineDiff = false
         editorPreferences = .load(from: preferences); showLineNumbers = editorPreferences.showLineNumbers
         editorConfigEnabled = [true: editorPreferences.enableEditorConfig, false: editorPreferences.enableEditorConfig]
@@ -886,6 +963,7 @@ import TurtleGitCore
         snapshot = images.snapshot; path = images.destination?.path ?? images.base?.path ?? "Images"
     }
     func retireImageLoader() {
+        if let request = projectionChange { finishProjectionChange(request) }
         folding.retire()
         loadSession?.cancel(); closeAfterLoad = false
         lineWrapping.retire(); viewportNavigation.removeAll()
@@ -953,12 +1031,12 @@ import TurtleGitCore
     }
     var initialLoadDeferred = false
     func beginTransferredDocument() { initialLoadDeferred = false; load() }
-    func load() {
+    func load(discardingDraft: Bool = false) {
         guard !initialLoadDeferred, !retired, !busy, !hasPendingEditorChoice, !confirmingQuit, window?.attachedSheet == nil else { return }
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
         if !loadedPaneMode { onePaneMode = OnePaneFileComparison.defaultEnabled(from: comparisonDefaults); loadedPaneMode = true }
-        if dirty {
+        if dirty && !discardingDraft {
             let alert = NSAlert(); alert.messageText = "Save changes to “\(unsavedFilesDescription)” before reloading?"
             alert.addButton(withTitle: "Save and Reload"); alert.addButton(withTitle: "Reload Without Saving"); alert.addButton(withTitle: "Cancel")
             switch alert.runModal() {
@@ -1157,7 +1235,8 @@ import TurtleGitCore
         }
     }
     private func save(sides: [Bool], ownerInitiated: Bool = false, completion: ((Bool) -> Void)?) {
-        guard paneSave == nil, (!busy && !confirmingQuit || ownerInitiated), !hasPendingEditorChoice, !retired, window?.attachedSheet == nil, document != nil else { completion?(false); return }
+        let choiceAllowed = !hasPendingEditorChoice || ownerInitiated && projectionChange != nil && !exporting && formatRequest == nil && paneSave == nil
+        guard paneSave == nil, (!busy && !confirmingQuit || ownerInitiated), choiceAllowed, !retired, window?.attachedSheet == nil, document != nil else { completion?(false); return }
         let request = OperationCancellation(), permissions = openPermissions
         paneSave = request; Self.activePaneExports += 1; busy = true
         Task {
@@ -1604,8 +1683,8 @@ struct FileComparisonEditor: NSViewRepresentable {
         weak var scroll: NSScrollView?
         var cells: [MergeSourceCell] = []
         var base = false
-        let history: UndoManager = { let value = UndoManager(); value.groupsByEvent = false; return value }()
-        init(model: FileComparisonWindowModel) { self.model = model }
+        let history: UndoManager
+        init(model: FileComparisonWindowModel) { self.model = model; history = model.comparisonHistory }
         func applyViewportSelection() {
             let model = self.model, base = self.base
             guard let scroll, scroll.window != nil, scroll.contentSize.width > 32, scroll.contentSize.height > 32,
@@ -1636,7 +1715,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             do {
                 if !model.filtering, let alignment = model.alignment {
                     let edit = try FileComparisonInPlaceEdit(alignment:alignment,combined:model.onePaneActive && !base ? model.combined : nil,base:base,range:affectedCharRange,replacement:replacementString ?? "")
-                    replace(edit.text,caret:edit.caret,typing:true,presentation:model.presentation(for:edit),displayCaret:edit.displayCaret)
+                    replace(edit.text,caret:edit.caret,typing:true,presentation:model.presentation(for:edit,base:base),displayCaret:edit.displayCaret)
                     return false
                 }
                 let edit: (text: String, caret: Int)
@@ -1668,8 +1747,8 @@ struct FileComparisonEditor: NSViewRepresentable {
             if clearMarks { next.marked = [] }
             if let cleared { next.marked.subtract(cleared); next.edited.subtract(cleared) }
             let textChanged = !old.utf8.elementsEqual(text.utf8)
-            guard textChanged || restored != nil || next != previous || presentation != nil else { return }
-            if !textChanged, (restored ?? next) == previous, presentation == nil { return }
+            guard textChanged || restored != nil || next != previous || presentation != nil || typing else { return }
+            if !textChanged, (restored ?? next) == previous, presentation == nil, !typing { return }
             let previousCaret = model.captureHistoryCaret(base:base)
             let previousPresentation = model.captureEditingPresentation()
             history.beginUndoGrouping(); defer { history.endUndoGrouping(); updateUndoState() }
@@ -1681,6 +1760,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             if model.activeBase == base { model.selectionRequest = caret }
             if let presentation { model.installEditingPresentation(presentation) }
             else { model.rebuildAlignment() }
+            if typing && presentation == nil { model.recordTypingEdit(base:base) }
             if presentation == nil, let oldAlignment, let alignment = model.alignment { model.remapOtherAnnotations(from: oldAlignment, to: alignment, changedBase: base) }
             if let restored { model.updateAnnotations(restored, base: base) }
             else if presentation == nil, let oldAlignment, let alignment = model.alignment { model.updateAnnotations(next.remapped(from: oldAlignment, to: alignment, targetBase: base, typing: typing), base: base) }

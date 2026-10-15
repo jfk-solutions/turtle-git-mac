@@ -1,0 +1,194 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "cd43ed5f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "BaseView.cpp CleanEmptyLines and IsStateEmpty",
+    "MainFrm.cpp CheckForSave(Options), comparison handlers and LoadViews clearing CUndo",
+    "Undo.cpp all-view chronology and original-state tracking"
+  ],
+  "scope": [
+    "Per-pane immutable edit-history identities distinguish repeated identical typing after Save, Undo/Redo and new history branches; Save As and Save record identities without serializing them",
+    "Global comparison Undo manager restores peer layouts and matching draft state in chronological order from either focused pane",
+    "Remove redundant rows only when both visible panes are Empty/ConflictEmpty; preserve real blank and Edited empty lines, adjust caret/ranges, retain exact Undo/Redo",
+    "Owned dirty options/regex sheets with Save/Cancel/discard and two-pane Save-left/right/both, source default Save-both, reload current file targets and clear history after accepted changes",
+    "Failed Save leaves options/preferences/history/draft available; duplicate answers and closed owners are fenced; static accounting blocks Quit through questions and saves",
+    "Initial comparison options use their owning preference store, including prepared patch comparison initialization",
+    "Changed/removed active regex definitions use the same workflow; unrelated definition changes refresh choices only"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/merge-comparison-lifecycle-build.log",
+      "exit": 0,
+      "reason": "Connected source implementation"
+    },
+    {
+      "log": "build/qa/merge-comparison-lifecycle-history-build.log",
+      "exit": 0,
+      "reason": "Source review identified shared chronological CUndo requirement before native checks"
+    },
+    {
+      "log": "build/qa/merge-comparison-lifecycle-preferences-build.log",
+      "exit": 0,
+      "reason": "Repair owning-store initialization found by native assertion"
+    }
+  ],
+  "core": {
+    "log": "build/qa/merge-comparison-lifecycle-core.log",
+    "tests": 59,
+    "failures": 0,
+    "suites": [
+      "FileComparisonInPlaceTests",
+      "FileComparisonEditingTests",
+      "FileComparisonTests",
+      "OnePaneFileComparisonTests",
+      "MergeClipboardTests"
+    ],
+    "repeat_after_native_only_repairs": false
+  },
+  "native": [
+    {
+      "log": "build/qa/merge-comparison-lifecycle-native.log",
+      "receivers_reaped": [
+        72698
+      ],
+      "result": "failed, repaired",
+      "failure": "Projection ownership assertion found initial options from global defaults instead of the owning preference store.",
+      "passed_cases": []
+    },
+    {
+      "log": "build/qa/merge-comparison-lifecycle-diagnostic.log",
+      "receivers_reaped": [
+        72756
+      ],
+      "result": "failed, repaired",
+      "failure": "Diagnostic confirmed model ignoreEndings=true while owning preferences requested false; Close/Quit and question count were correct. Product initialization fixed.",
+      "passed_cases": []
+    },
+    {
+      "log": "build/qa/merge-comparison-lifecycle-native-repair.log",
+      "receivers_reaped": [
+        72863
+      ],
+      "result": "failed, repaired",
+      "failure": "Recovery section attempted typing while the prior failed-Save error sheet still owned the editor.",
+      "passed_cases": []
+    },
+    {
+      "log": "build/qa/merge-comparison-lifecycle-readiness.log",
+      "receivers_reaped": [
+        72918
+      ],
+      "result": "failed, repaired",
+      "failure": "Exact native text/model readiness diagnostic confirmed the recovery reload had been refused while that sheet remained attached.",
+      "passed_cases": []
+    },
+    {
+      "log": "build/qa/merge-comparison-lifecycle-recovery.log",
+      "receivers_reaped": [
+        72980
+      ],
+      "result": "failed, repaired",
+      "failure": "New savepoints workflow passed; retained engine backend model waited for initial viewport navigation with no hosted window. Private backend preferences now disable that UI-only action.",
+      "passed_cases": [
+        "savepoints"
+      ]
+    },
+    {
+      "log": "build/qa/merge-comparison-lifecycle-retained.log",
+      "receivers_reaped": [
+        73054
+      ],
+      "result": "pass",
+      "failure": null,
+      "passed_cases": [
+        "engine",
+        "in-place",
+        "initial",
+        "history",
+        "clipboard",
+        "block-selection",
+        "navigation",
+        "whitespace",
+        "one-pane"
+      ]
+    }
+  ],
+  "final_scope": {
+    "savepoints": "Passed in recovery run; not repeated after backend-only fixture correction",
+    "remaining_cases": [
+      "engine",
+      "in-place",
+      "initial",
+      "history",
+      "clipboard",
+      "block-selection",
+      "navigation",
+      "whitespace",
+      "one-pane"
+    ],
+    "workflow_count": 10,
+    "assertions": [
+      "Repeated saved same-byte edits, Undo/Redo saved state, history branching",
+      "Insert/delete padding with native caret and exact global Undo/Redo",
+      "Native owned alert buttons/default, Close/Quit and mutation gates",
+      "Cancel/duplicate response, discard/reload/cleared obsolete Undo",
+      "Working-file external-change Save refusal and acknowledged error recovery",
+      "Global cross-pane edit/Undo/Redo then Save-left, Save-both and Save-right with exact files",
+      "Regex Cancel/discard, removed active filter Cancel and accepted reload",
+      "Forced parent closure refuses late reply and clears static ownership counters"
+    ]
+  },
+  "cleanup": {
+    "owned_receivers": [
+      72698,
+      72756,
+      72863,
+      72918,
+      72980,
+      73054
+    ],
+    "all_reaped": true,
+    "ps_after_checks": "none present",
+    "unrelated_processes_terminated": false,
+    "failed_engine_fixture_directories_removed": [
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitTwoPaneEngine-83239F12-3678-4761-B443-D6A5F172E5B3"
+    ]
+  },
+  "hosted": {
+    "run": 38814893133,
+    "sha": "cb7724af",
+    "job": 116706875727,
+    "conclusion": "failure",
+    "passed": [
+      "Git integration tests step 58",
+      "Unified Diff editable document workflows step 69"
+    ],
+    "failed_step": 82,
+    "failure": "TwoPaneEngineVerification headless model had no window to consume first-difference viewport request; waited at settled helper with busy=false/filtering=false/selections=[]/error=nil/window=false",
+    "fix": "Private backend-only preference disables first-difference navigation after hosted-window phase; UI-owned settled assertions unchanged",
+    "same_fixture_source": "scripts/test-native-lfs-mail-batch.py copies docs/qa/two-pane-engine-native-2026-10-12.swift",
+    "local_fixed_fixture": "engine case passed in retained run",
+    "latest_full_hosted_pass": false,
+    "last_observed_pending_run": 38822047984,
+    "last_observed_pending_sha": "cd43ed5f",
+    "pages": {
+      "run": 38822048003,
+      "sha": "cd43ed5f",
+      "conclusion": "success"
+    }
+  },
+  "documentation": {
+    "help_documents": 26,
+    "topics": 47,
+    "files": 32,
+    "bytes": 195265
+  },
+  "limits": [
+    "No full aligned three-pane result view, exact all-state/ending/padding parity, IME/multi-caret/wrapped screen-row acceptance or large-file performance certification",
+    "Concurrent independent settings/regex-definition edits during an already pending option question remain unverified",
+    "Source option persistence before accepted reload can leave the new option with an error after a later load/engine failure",
+    "Standalone legacy regex receiver readiness was adapted; its complete workflow was not separately rerun, while engine and new regex workflows passed",
+    "No latest full hosted macOS pass, signed Finder/App Store acceptance, new screenshots or whole-dialog certification"
+  ]
+}

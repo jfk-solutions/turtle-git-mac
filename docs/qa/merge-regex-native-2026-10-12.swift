@@ -47,17 +47,18 @@ import TurtleGitCore
         try beforeA.write(to: a); try beforeB.write(to: b)
         let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: a, destination: b), permissions: [])
         let model = controller.model; model.regexExecutable = parser; model.regexDefaults = preferences
-        model.load(); try await wait { !model.busy && model.document != nil }
+        model.load(); try await wait { !model.busy && !model.filtering && model.document != nil }
         model.refreshRegexFilters(); model.selectRegexFilter(filter.name)
-        try await wait { !model.filtering }
+        try await wait { !model.busy && !model.filtering }
         precondition(model.alignment?.rows[0].base.state == .filtered && model.alignment?.differences == [2..<3])
         precondition(model.draftText(base: true) == String(decoding: beforeA, as: UTF8.self))
         model.selectRegexFilter(nil)
+        try await wait { !model.busy && !model.filtering }
         precondition(model.regexFilterName == nil && model.alignment?.differences.count == 2)
-        model.selectRegexFilter(filter.name); model.selectRegexFilter(nil)
-        try await wait { MergeRegexOperations.activeRequests == 0 }
+        model.selectRegexFilter(filter.name); try await wait { !model.busy && !model.filtering }; model.selectRegexFilter(nil)
+        try await wait { !model.busy && !model.filtering && MergeRegexOperations.activeRequests == 0 }
         precondition(model.regexFilterName == nil && model.alignment?.rows[0].base.state != .filtered)
-        model.selectRegexFilter(filter.name); try await wait { !model.filtering }
+        model.selectRegexFilter(filter.name); try await wait { !model.busy && !model.filtering }
         // Recompute keys for writable drafts without changing source bytes.
         model.editingEnabled = true
         model.updateDraft("version 900\r\nkeep\r\nnewer\r\n", base: false); model.rebuildAlignment()

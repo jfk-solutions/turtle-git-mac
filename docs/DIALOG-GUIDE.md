@@ -172,6 +172,17 @@ opposite pane. Undo/Redo restores the row layout, and Save retains it. Reload or
 changing the view/options rebuilds the comparison. Three-pane source views stay
 read-only; edit the merged result or use the source block choices.
 
+Undo follows the most recent edit across both comparison panes. An edit that
+leaves the same text still marks that pane modified after Save. Undo/Redo can
+return to the saved state. When both sides of an alignment gap become empty,
+the redundant row disappears; ordinary blank lines remain.
+
+Changing comparison options or the active regex filter asks about unsaved work.
+With two modified panes, choose Save left, Save right or Save both; any pane you
+do not save reloads from disk. Don't Save reloads both, and Cancel keeps the
+current draft and options. Accepted changes clear Undo/Redo history. Failed Save
+leaves the current options and draft available for recovery.
+
 In three-pane Merge, navigation follows the focused source or result pane.
 Control-Up/Down or F7/Shift-F7 moves between differences; F8/Shift-F8 moves between
 conflicts. Source and result context menus offer Mine, Theirs and both ordering

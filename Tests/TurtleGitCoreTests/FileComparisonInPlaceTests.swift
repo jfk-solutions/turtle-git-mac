@@ -2,6 +2,52 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonInPlaceTests: XCTestCase {
+    func testInsertThenDeleteRemovesOnlyAllEmptyAlignmentRecords() throws {
+        let original = FileComparisonAlignment(base:"head\nkeep\ntail\n",destination:"head\nkeep\ntail\n")
+        let inserted = try FileComparisonInPlaceEdit(alignment:original,base:false,range:NSRange(location:5,length:0),replacement:"one\ntwo\n")
+        XCTAssertEqual(inserted.alignment.rows.count,5)
+        let deleted = try FileComparisonInPlaceEdit(alignment:inserted.alignment,base:false,range:NSRange(location:5,length:8),replacement:"")
+        XCTAssertEqual(deleted.text,"head\nkeep\ntail\n")
+        XCTAssertEqual(deleted.alignment.rows.count,3)
+        XCTAssertEqual(deleted.removedEmptyRows,[2,3])
+        XCTAssertEqual(deleted.insertedRows,1..<2)
+        XCTAssertEqual(deleted.displayCaret,5)
+        XCTAssertEqual(deleted.alignment.rows.map { $0.base.text }.joined(),"head\nkeep\ntail\n")
+    }
+    func testBlankEditedRecordIsNeverTreatedAsAnAlignmentGap() throws {
+        let original = FileComparisonAlignment(base:"line\n",destination:"line\n")
+        let edit = try FileComparisonInPlaceEdit(alignment:original,base:false,range:NSRange(location:0,length:4),replacement:"")
+        XCTAssertEqual(edit.text,"\n")
+        XCTAssertEqual(edit.alignment.rows.count,1)
+        XCTAssertEqual(edit.alignment.rows[0].destination.state,.edited)
+        XCTAssertTrue(edit.removedEmptyRows.isEmpty)
+    }
+    func testSameByteHistoryHasDistinctSavepointAndBranchIdentities() throws {
+        let content = ComparisonFileContent(path:"file",revision:.workingTree,bytes:Data("same\n".utf8),mode:"100644",permissions:0o644)
+        var drafts = FileComparisonDrafts(.init(base:content,destination:content))
+        let first = UUID(), second = UUID(), branch = UUID()
+        drafts.setEditRevision(first,base:false); drafts.update(annotations:.init(edited:[0]),base:false)
+        XCTAssertTrue(drafts.isDirty(base:false))
+        try drafts.didSave(content,base:false); XCTAssertFalse(drafts.isDirty(base:false))
+        drafts.setEditRevision(second,base:false); XCTAssertTrue(drafts.isDirty(base:false))
+        drafts.setEditRevision(first,base:false); XCTAssertFalse(drafts.isDirty(base:false))
+        drafts.setEditRevision(branch,base:false); XCTAssertTrue(drafts.isDirty(base:false))
+        try drafts.didSave(content,base:false); drafts.setEditRevision(first,base:false)
+        XCTAssertTrue(drafts.isDirty(base:false))
+        drafts.setEditRevision(branch,base:false); XCTAssertFalse(drafts.isDirty(base:false))
+        XCTAssertEqual(try drafts.exported(base:false),content.bytes)
+        XCTAssertNil(drafts.editRevision(base:true)); XCTAssertFalse(drafts.isDirty(base:true))
+    }
+    func testReboundSavepointRecordsHistoryWithoutSerializingIt() throws {
+        let original = ComparisonFileContent(path:"old",revision:.workingTree,bytes:Data("same\n".utf8),mode:"100644",permissions:0o644)
+        let rebound = ComparisonFileContent(path:"new",revision:.workingTree,bytes:original.bytes,mode:"100644",permissions:0o644)
+        var drafts = FileComparisonDrafts(.init(base:original,destination:original))
+        let revision = UUID(); drafts.setEditRevision(revision,base:false)
+        drafts.rebindSavedPane(rebound,base:false); XCTAssertFalse(drafts.isDirty(base:false))
+        drafts.setEditRevision(nil,base:false); XCTAssertTrue(drafts.isDirty(base:false))
+        drafts.setEditRevision(revision,base:false); XCTAssertFalse(drafts.isDirty(base:false))
+        XCTAssertEqual(try drafts.exported(base:false),original.bytes)
+    }
     func testTypingRetainsPeerAndRowsInsteadOfDiffRegrouping() throws {
         let original = FileComparisonAlignment(base:"old\nkeep\n",destination:"new\nkeep\n")
         let edit = try FileComparisonInPlaceEdit(alignment:original,base:false,range:NSRange(location:1,length:1),replacement:"🐢")

@@ -64,7 +64,7 @@ import AppKit
         if FormatPatchWindowModel.activeOperations > 0 { return .terminateCancel }
         if LocalGitCommandProgress.activeOperations > 0 { return .terminateCancel }
         if StatusWindowModel.activeOperations > 0 { return .terminateCancel }
-        if WorkingTreePatchWindowModel.activeOperations > 0 || FileComparisonWindowModel.activePaneExports > 0 { return .terminateCancel }
+        if WorkingTreePatchWindowModel.activeOperations > 0 || FileComparisonWindowModel.activePaneExports > 0 || FileComparisonWindowModel.activeProjectionChoices > 0 { return .terminateCancel }
         if GitDaemonWindowModel.activeOperations > 0 { return .terminateCancel }
         if FirstStartWizardModel.activeWrites > 0 || GeneralGitSettingsModel.activeOperations > 0 { return .terminateCancel }
         if CredentialSettingsModel.activeSaves > 0 || CredentialSettingsModel.activeReads > 0 { return .terminateCancel }

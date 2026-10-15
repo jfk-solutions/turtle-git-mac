@@ -11,6 +11,7 @@ public struct FileComparisonInPlaceEdit: Sendable {
     public let displayCaret: Int
     public let replacedRows: Range<Int>
     public let insertedRows: Range<Int>
+    public let removedEmptyRows: [Int]
     public init(alignment: FileComparisonAlignment, combined: OnePaneFileComparison? = nil,
                 base: Bool, range: NSRange, replacement: String) throws {
         let source = combined?.cells ?? alignment.rows.map { base ? $0.base : $0.destination }
@@ -69,13 +70,20 @@ public struct FileComparisonInPlaceEdit: Sendable {
             rows = target.indices.map { base ? .init(base:target[$0],destination:opposite[$0]) : .init(base:opposite[$0],destination:target[$0]) }
             self.combined = nil
         }
+        // CleanEmptyLines removes records only when every visible pane is an
+        // Empty state. An ordinary blank line or an Edited empty line is real.
+        let removed = combined == nil ? rows.indices.filter {
+            [.empty,.conflictEmpty].contains(rows[$0].base.state) && [.empty,.conflictEmpty].contains(rows[$0].destination.state)
+        } : []
+        let removedSet = Set(removed)
+        let retainedRows = rows.indices.filter { !removedSet.contains($0) }.map { rows[$0] }
         var differences: [Range<Int>] = [], start: Int?
-        for index in 0...rows.count {
-            let changed = index < rows.count && rows[index].changed
+        for index in 0...retainedRows.count {
+            let changed = index < retainedRows.count && retainedRows[index].changed
             if changed, start == nil { start = index }
             if !changed, let begin = start { differences.append(begin..<index); start = nil }
         }
-        self.alignment = .init(rows:rows,differences:differences)
+        self.alignment = .init(rows:retainedRows,differences:differences)
         text = self.combined?.sourceSaveText ?? target.filter(\.hasSourceCoordinate).map(\.text).joined()
         let includedPrefix = target.prefix(first).filter { combined != nil ? !$0.state.isRemoval && $0.state != .empty : $0.hasSourceCoordinate }.map(\.text).joined().utf16.count
         caret = includedPrefix + prefix.utf16.count + inserted.utf16.count
@@ -84,8 +92,16 @@ public struct FileComparisonInPlaceEdit: Sendable {
             if remaining <= cell.displayText.utf16.count { display += remaining; break }
             remaining -= cell.text.utf16.count; display += cell.displayText.utf16.count + 1
         }
-        displayCaret = display
-        replacedRows = oldRange; insertedRows = first..<(first + edited.count)
+        var skipped = 0, oldDisplay = 0
+        for (index,cell) in target.enumerated() {
+            let count = cell.displayText.utf16.count + 1
+            if removedSet.contains(index), oldDisplay < display { skipped += min(count,display - oldDisplay) }
+            oldDisplay += count
+        }
+        displayCaret = display - skipped
+        replacedRows = oldRange
+        insertedRows = (first - removed.filter { $0 < first }.count)..<(first + edited.count - removed.filter { $0 < first + edited.count }.count)
+        removedEmptyRows = removed
     }
 }
 
@@ -408,6 +424,8 @@ public struct FileComparisonDrafts {
         var annotations = FileComparisonEditing.Annotations()
         var savedMarks = Set<Int>()
         var savedEdits = Set<Int>()
+        var editRevision: UUID?
+        var savedEditRevision: UUID?
         var enabled = false
         var encoding: ComparisonTextEncoding?
     }
@@ -429,6 +447,8 @@ public struct FileComparisonDrafts {
     }
     public func text(base: Bool) -> String? { panes[base]?.text }
     public func annotations(base: Bool) -> FileComparisonEditing.Annotations { panes[base]?.annotations ?? .init() }
+    public func editRevision(base: Bool) -> UUID? { panes[base]?.editRevision }
+    public mutating func setEditRevision(_ revision: UUID?, base: Bool) { panes[base]?.editRevision = revision }
     public func editingEnabled(base: Bool) -> Bool { canEdit(base: base) && panes[base]?.enabled == true }
     public mutating func setEditing(_ enabled: Bool, base: Bool) { let eligible = canEdit(base: base); panes[base]?.enabled = enabled && eligible }
     public mutating func update(text: String, base: Bool) throws {
@@ -438,7 +458,7 @@ public struct FileComparisonDrafts {
     public mutating func update(annotations: FileComparisonEditing.Annotations, base: Bool) { panes[base]?.annotations = annotations }
     public func isDirty(base: Bool) -> Bool {
         guard canEdit(base: base), let pane = panes[base], let text = pane.text, let original = pane.content.text else { return false }
-        return !text.utf8.elementsEqual(original.utf8) || pane.annotations.marked != pane.savedMarks || pane.annotations.edited != pane.savedEdits || pane.encoding != pane.content.encoding
+        return !text.utf8.elementsEqual(original.utf8) || pane.annotations.marked != pane.savedMarks || pane.annotations.edited != pane.savedEdits || pane.editRevision != pane.savedEditRevision || pane.encoding != pane.content.encoding
     }
     public var dirtySides: [Bool] { [false, true].filter { isDirty(base: $0) } }
     public var dirtyPaths: [String] { dirtySides.compactMap { panes[$0]?.content.path } }
@@ -447,6 +467,7 @@ public struct FileComparisonDrafts {
         pane.content = content; pane.text = content.text; pane.encoding = content.encoding
         pane.savedMarks = pane.annotations.marked
         pane.savedEdits = pane.annotations.edited
+        pane.savedEditRevision = pane.editRevision
         panes[base] = pane
     }
     public mutating func didSave(_ content: ComparisonFileContent, base: Bool) throws {
@@ -454,6 +475,7 @@ public struct FileComparisonDrafts {
         panes[base]?.content = content
         panes[base]?.savedMarks = pane.annotations.marked
         panes[base]?.savedEdits = pane.annotations.edited
+        panes[base]?.savedEditRevision = pane.editRevision
     }
     public mutating func remapAnnotations(from old: FileComparisonAlignment, to new: FileComparisonAlignment, base: Bool) {
         guard let pane = panes[base] else { return }

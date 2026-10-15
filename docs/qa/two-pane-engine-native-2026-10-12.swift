@@ -55,6 +55,10 @@ import TurtleGitCore
         try await wait { editors(controller.window?.contentView).contains { $0.isEditable && $0.string.contains("new") } }
         guard let text = editors(controller.window?.contentView).first(where: { $0.isEditable && $0.string.contains("new") }) else { preconditionFailure("Missing production editable destination pane") }
         text.insertText("🦎!", replacementRange: (text.string as NSString).range(of: "new"))
+        precondition(!model.filtering && model.draftText(base:false).contains("🦎!"))
+        // Ordinary typing retains view records. Explicit recomputation still
+        // owns a real engine request and fences transfers until it publishes.
+        model.rebuildAlignment()
         precondition(model.filtering && !model.canTransfer && model.draftText(base: false).contains("🦎!"))
         let retained = model.draftText(base: false)
         model.selectedRows = 2..<3; model.useOtherBlock()
@@ -87,6 +91,9 @@ import TurtleGitCore
         let mode = try FileManager.default.attributesOfItem(atPath: base.path)[.posixPermissions] as? NSNumber
         precondition(mode?.intValue == 0o755)
         controller.window?.close(); try await wait { MergeRegexOperations.activeRequests == 0 }
+        // The following models deliberately have no hosted editor to consume
+        // initial viewport requests; their assertions cover engine data only.
+        MergeGeneralPreferences(firstDifference:false,firstConflict:false).save(to:defaults)
         let commentBase = folder.appendingPathComponent("base.cpp"), commentMine = folder.appendingPathComponent("mine.cpp")
         let commentBaseBytes = Data("value; // base\r\n".utf8), commentMineBytes = Data("value; // mine\r\n".utf8)
         try commentBaseBytes.write(to: commentBase); try commentMineBytes.write(to: commentMine)
