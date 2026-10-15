@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-16",
+  "started": "2026-10-15",
+  "base_commit": "5cdecd68",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "MainFrm.cpp active Mine/combined pane and FirstDiffOnLoad/FirstConflictOnLoad handling",
+    "BaseView.cpp GoToFirstDifference/SelectNextBlock skip-current=false and source-state eligibility",
+    "Existing shared line-navigation and Find ownership consumers"
+  ],
+  "scope": [
+    "Initial Compare waits for authoritative alignment, all required pane text/generation and viewport readiness, then selects first state block and peer ranges with inline entry caret",
+    "Combined neutral state can precede engine changed regions during initial selection",
+    "Transfers/marks require explicit selected rows; removed engine difference-index fallback",
+    "Mouse/key/context/navigation/Find/Go to Line input revokes deferred initial and Undo caret writers",
+    "Line chooser checks input revision plus text/window identity; changed generation invalidates its view revision",
+    "Busy/filter/preparation/sheet/retired gates strengthened on the two native editor line-navigation consumers",
+    "Initial viewport selection is scheduled after native layout, with settled fixture readiness aligned to actual UI state"
+  ],
+  "build": {
+    "log": "build/qa/merge-initial-navigation-build.log",
+    "exit": 0
+  },
+  "core": {
+    "changed": false,
+    "tests_repeated": false,
+    "reason": "Native model, view, prompt and Find consumers changed; Core state/inline algorithms unchanged"
+  },
+  "native": [
+    {
+      "log": "build/qa/merge-initial-navigation-native.log",
+      "pid": 62279,
+      "exit": 1,
+      "result": "New initial case reached neutral test but filter was nil; window onAppear began load before fixture filter selection, whose busy guard correctly refused it"
+    },
+    {
+      "log": "build/qa/merge-initial-navigation-diagnostic.log",
+      "pid": 62332,
+      "exit": 1,
+      "result": "Confirmed mode=true, payload version 1, ordinary Removed/Added states, filter=nil and difference=0; assertions retained"
+    },
+    {
+      "log": "build/qa/merge-initial-navigation-native-repair.log",
+      "pid": 62385,
+      "exit": 0,
+      "repair": "Use existing deferInitialLoad controller entry, configure filter then beginTransferredDocument; no product guard bypass or assertion weakening",
+      "cases": [
+        "New initial explicit block/peer/inline caret and transfer checks",
+        "Actual deferred Undo request superseded by later input",
+        "Stale and fresh Go to Line in Compare; stale result answer and retired Merge refusal",
+        "Initial neutral combined state ahead of engine changed region",
+        "Retained history/clipboard/block/state/whitespace/combined editing workflows"
+      ]
+    },
+    {
+      "log": "build/qa/merge-initial-navigation-three-pane.log",
+      "pid": 62548,
+      "exit": 0,
+      "cases": [
+        "Three-pane navigation/mapped choices/queued-selection Undo refusal",
+        "Engine reload/save/close and ignored conflict lifecycle",
+        "Result palette/history and two-pane manual annotations"
+      ]
+    },
+    {
+      "log": "build/qa/merge-initial-navigation-find.log",
+      "pid": 62864,
+      "exit": 0,
+      "engine": "system Git, bundled Subversion comparison",
+      "cases": [
+        "Actual two/three-pane Find/Count/Replace All/Undo, readonly/async and pane ownership gates",
+        "Marked words/Find/locator layering, menu/busy/retired/foreign guards"
+      ]
+    },
+    {
+      "log": "build/qa/merge-initial-navigation-toolbar.log",
+      "pid": 62939,
+      "exit": 0,
+      "engine": "system Git",
+      "cases": [
+        "Actual toolbar order/artwork/live state, busy refusal, navigation and Save",
+        "Conflict choice/Undo, replacement rebinding, image suppression and retired commands"
+      ]
+    }
+  ],
+  "ownership": {
+    "all_six_receivers_reaped": true,
+    "owned_windows_closed": true,
+    "public_screenshots_added": false,
+    "unrelated_worktree_changes_preserved": true
+  },
+  "hosted_ci": {
+    "run": 38808679175,
+    "commit": "ddfb57ab",
+    "status_at_inspection": "in_progress, Git integration tests step 58",
+    "latest_pending_run": 38813140322,
+    "latest_pending_commit": "5cdecd68",
+    "pages_run": 38813140350,
+    "pages_conclusion": "success",
+    "full_macos_pass_confirmed": false
+  },
+  "open": [
+    "Physical mouse/keyboard/modal-prompt acceptance and selected-text direction/affinity",
+    "Wrapped screen-row traversal and combined-view inline navigation",
+    "Complete aligned result and arbitrary source-pane block replacement",
+    "Full hosted CI confirmation, large-file performance and signed installed Finder/App Store acceptance"
+  ],
+  "certifies_complete_dialog": false
+}

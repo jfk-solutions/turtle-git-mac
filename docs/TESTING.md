@@ -2170,3 +2170,11 @@ all-pane selection clearing, disabled Copy without a selection, and Normal/chang
 context blocks. The previous block-selection fixture now asserts source
 Undo.cpp selection clearing rather than the earlier invented block restoration.
 Focused Core context-grouping cases pin fixed-state bidirectional expansion.
+
+The grouped native editor runner includes `--only initial`, implemented by
+`merge-initial-navigation-native-2026-10-15.swift`. It verifies current-pane/peer
+initial blocks and inline entry carets, explicit-only transfer, later input during
+an actual Undo engine request, stale/fresh Go to Line answers with unchanged text,
+and neutral combined-state selection before an engine changed region. The shared
+settled helper now includes initial navigation and lays out the owned content.
+This batch changes native consumers only; Core algorithms are unchanged.

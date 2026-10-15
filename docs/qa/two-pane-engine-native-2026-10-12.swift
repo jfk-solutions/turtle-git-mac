@@ -16,7 +16,8 @@ import TurtleGitCore
         try await wait {
             count += 1
             if count == 999 { print("Two-pane wait state: busy=\(model.busy), filtering=\(model.filtering), selections=\(model.alignmentSelections.keys), error=\(String(describing: model.error)), window=\(model.window != nil)"); fflush(stdout) }
-            return !model.busy && !model.filtering && model.alignmentSelections.isEmpty
+            model.window?.contentView?.layoutSubtreeIfNeeded()
+            return !model.busy && !model.filtering && model.alignmentSelections.isEmpty && !model.initialNavigationPending
         }
     }
     @MainActor static func main() async throws {

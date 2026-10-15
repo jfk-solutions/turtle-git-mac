@@ -92,8 +92,30 @@ repaired build, four grouped native receivers and remaining history/visual limit
 
 [Source history/context continuation](qa/merge-editor-history-2026-10-15.json)
 records the correction to upstream Undo semantics, automatic two-pane inline
-advance, context preparation/focus and exact target-caret checks. Manual caret
-movement during pending Undo realignment still needs a restoration-revocation
-hook. Initial Compare first-difference positioning also needs full source block
-initialization; the current transfer fallback is broader than explicit selection.
-These are remaining implementation gaps, not certified behavior.
+advance, context preparation/focus and exact target-caret checks. The following continuation adds explicit user-input revocation and initial
+source-block selection. This remains a partial editor port.
+
+Initial Compare navigation now waits for the authoritative alignment and current
+text/geometry in all required panes. It searches Mine (or combined Base/Mine)
+states with skip-current disabled, matching MainFrm/GoToFirstDifference. It selects
+peer blocks, applies the same inline entry advance and centers the caret. Neutral
+combined rows can be the first block even when the engine's first changed region
+is later. The initial preference remains optional. Transfers/marks use explicit
+block or ordinary text-selection rows, without an engine-index fallback.
+
+Mouse/key input, context selection, navigation, Find and Go to Line revoke pending
+initial/Undo caret writers. A line chooser captures an input revision as well as
+text/window identity; a later input action or document generation invalidates its
+answer even if the text is byte-identical. Rendering and automatic entry advance
+do not revoke their own requests. Closing, busy/filter, preparation and sheet
+checks still gate navigation. Initial selection consumes after layout, avoiding
+publication from representable updates.
+
+Remaining acceptance includes physical input, selected-text direction/affinity,
+wrapped-screen-row behavior, combined inline navigation, complete result alignment,
+large-file performance and signed installed behavior.
+
+[Initial navigation and input ownership evidence](qa/merge-initial-navigation-2026-10-16.json)
+records actual initial/neutral blocks, explicit transfer refusal, input during
+Undo realignment, same-text stale/fresh line chooser responses, the fixture
+configuration race and repaired grouped native checks.

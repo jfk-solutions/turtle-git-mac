@@ -776,6 +776,7 @@ private enum MergeSourceSide {
     }
     var canChooseConflict: Bool { !blocks.isEmpty && (!navigationOwnsChoice || conflictIndex(in:navigationChoiceRange) != nil) }
     func navigateBlock(_ direction: Int, conflictsOnly: Bool) {
+        activeNavigationView?.beginUserNavigation()
         guard let (active,target) = navigationTarget(direction,conflictsOnly:conflictsOnly) else { return }
         selectNavigationBlock(in:active,target:target)
     }
@@ -1121,7 +1122,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.isEditable = editable && !model.busy && !model.confirmingQuit; view.model = model
         view.mergeFindController?.updateGates()
         if view.blockGeneration != model.navigationGeneration {
-            view.blockSelection.clear(in:view); view.blockGeneration = model.navigationGeneration
+            view.blockSelection.clear(in:view); view.invalidateNavigationRevision(); view.blockGeneration = model.navigationGeneration
         }
         let range = view.selectedRange()
         if !view.string.utf8.elementsEqual(text.utf8) { view.string = text; view.setSelectedRange(NSRange(location: min(range.location, (text as NSString).length), length: 0)) }
@@ -1221,7 +1222,10 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     var navigationPending = false
     @objc private func expandFoldedSection(_ sender: Any?) { _ = foldLayout.expandSelection(in: self) }
     var navigationCells: [MergeSourceCell]? { sourceCells }
-    var navigationAllowed: Bool { model?.busy == false && model?.confirmingQuit == false }
+    var navigationAllowed: Bool { model?.sourceToolsAllowed == true }
+    private(set) var navigationIntentRevision = 0
+    func invalidateNavigationRevision() { navigationIntentRevision &+= 1 }
+    func beginUserNavigation() { invalidateNavigationRevision(); model?.selectionRequest = nil }
     @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
@@ -1291,7 +1295,9 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         if model?.selectingNavigationBlock != true { foldLayout.reveal(selection: range, in: self, includeMarker: true) }
         super.scrollRangeToVisible(range)
     }
+    override func keyDown(with event: NSEvent) { beginUserNavigation(); model?.clearNavigationBlockSelection(); super.keyDown(with:event) }
     override func mouseDown(with event: NSEvent) {
+        beginUserNavigation()
         model?.clearNavigationBlockSelection()
         if MergeMarkedWordInterface.mouse(event, in: self) { window?.makeFirstResponder(self); return }
         if model?.busy == false, model?.confirmingQuit == false, foldLayout.expand(at: event, in: self) { return }
@@ -1370,11 +1376,12 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     private let mergeUndoManager: UndoManager = { let value = UndoManager(); value.groupsByEvent = false; return value }()
     override var undoManager: UndoManager? { mergeEditable ? mergeUndoManager : super.undoManager }
     func updateUndoState() { model?.canUndo = mergeUndoManager.canUndo; model?.canRedo = mergeUndoManager.canRedo }
-    func undoMergeEdit() { if mergeUndoManager.canUndo { mergeUndoManager.undo() }; updateUndoState() }
-    func redoMergeEdit() { if mergeUndoManager.canRedo { mergeUndoManager.redo() }; updateUndoState() }
+    func undoMergeEdit() { if mergeUndoManager.canUndo { beginUserNavigation(); mergeUndoManager.undo() }; updateUndoState() }
+    func redoMergeEdit() { if mergeUndoManager.canRedo { beginUserNavigation(); mergeUndoManager.redo() }; updateUndoState() }
     func resetMergeHistory() { mergeUndoManager.removeAllActions(); updateUndoState() }
     func replaceMergeBlock(_ range: NSRange, with replacement: String, actionName: String = "Use text block", state: MergeSourceState = .edited) {
         guard isEditable, model?.busy == false, model?.confirmingQuit == false, NSMaxRange(range) <= (string as NSString).length else { return }
+        beginUserNavigation()
         let previous = string, selection = NSRange(location:selectedRange().location,length:0), presentation = model?.resultPresentation
         mergeUndoManager.beginUndoGrouping(); defer { mergeUndoManager.endUndoGrouping() }
         mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection:selection, presentation:presentation) }
@@ -1400,6 +1407,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         if mergeEditable { (window as? TextConflictNSWindow)?.mergedText = self }
     }
     func selectContextBlock(at displayOffset: Int) {
+        beginUserNavigation()
         window?.makeFirstResponder(self); model?.navigationSelectionChanged(self)
         let selected = selectedRange()
         if selected.length > 0, NSLocationInRange(displayOffset,selected) { return }

@@ -144,6 +144,11 @@ Choosing a side counts as a modified result until saved, including that same-byt
 Mine choice, so Close and Quit still offer to save it. Save warns while such conflicts remain; Mark as resolved stays unavailable.
 
 
+When first-difference navigation is enabled, Compare opens with the first state
+block selected, including neutral rows in combined view. Block transfer commands
+require a selected block or text range. Later keyboard, mouse or Find navigation
+supersedes a pending caret restoration.
+
 In two-pane and one-pane comparison, Previous/Next difference searches from the
 active pane's caret and selects the whole source-state block. Control-Up/Down, Option-Up/Down and F7/Shift-F7 use the same navigation.
 In two-pane Compare, the caret also advances to the first inline difference when

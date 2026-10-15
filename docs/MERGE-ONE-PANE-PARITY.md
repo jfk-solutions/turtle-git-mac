@@ -117,3 +117,7 @@ caret restoration; the earlier block-restoring result history was corrected. In-
 all whitespace aliases/legacy overrides,
 physical/VoiceOver/large-file and signed App Store acceptance also remain open.
 This does not certify the complete Merge/editor family.
+
+Initial first-difference selection now searches the combined source-state list,
+so a neutral Base alias before the first engine changed region is selected first.
+The selected display block remains distinct from the insertion caret.

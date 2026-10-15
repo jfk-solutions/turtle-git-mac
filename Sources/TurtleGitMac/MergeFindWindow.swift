@@ -151,6 +151,7 @@ extension NSTextView {
     /// to the start/end of the document. No selection clears the search paint.
     static func selection(upwards: Bool, in text: NSTextView) {
         guard let target = text as? MergeFindProviding, target.mergeFindAllowed else { return }
+        (text as? MergeLineNavigationProviding)?.beginUserNavigation()
         let selected = text.selectedRange(), value = text.string as NSString
         let query = selected.length > 0 && NSMaxRange(selected) <= value.length ? value.substring(with: selected) : ""
         var options = MergeFindOptions.load(from: target.mergeFindDefaults)
@@ -188,6 +189,7 @@ extension NSTextView {
         guard let target = text as? MergeFindProviding else { return }
         if action == .hideFindInterface { target.mergeFindController?.close(); return }
         guard target.mergeFindAllowed else { return }
+        (text as? MergeLineNavigationProviding)?.beginUserNavigation()
         if action == .previousMatch || action == .nextMatch {
             let state = target.mergeFindHighlights; state.refresh(in: text)
             let upwards = action == .previousMatch
@@ -315,6 +317,7 @@ private final class MergeFindNativeWindow: NSWindow {
     }
     func find(upwards: Bool? = nil) {
         guard let text, let matches = prepare() else { return }
+        (text as? MergeLineNavigationProviding)?.beginUserNavigation()
         guard let match = MergeFind.next(in: matches, selection: text.selectedRange(), upwards: upwards ?? options.searchUp) else {
             status.stringValue = "\"\(search.stringValue)\" not found."; status.textColor = .systemRed; return
         }

@@ -269,9 +269,8 @@ import TurtleGitCore
     var comparisonDefaults: UserDefaults = .standard
     @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
     private var pendingLoadNavigation = false
-    @Published var combinedScrollRow: Int?
-    private var initialScrollRow: Int?
-    private var initialScrollSides = Set<Bool>()
+    var initialNavigationPending: Bool { pendingLoadNavigation || initialBlockGeneration != nil }
+    private var initialBlockGeneration: Int?
     @Published private(set) var whitespaceDisplay = MergeWhitespaceDisplayPreferences.load()
     func setWhitespaceDisplay(_ value: MergeWhitespaceDisplayPreferences) {
         guard !busy, !confirmingQuit, !retired else { return }
@@ -525,7 +524,7 @@ import TurtleGitCore
     var copyCommandsAllowed: Bool { !retired }
     var contextCommandsAllowed: Bool { !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
     var oppositeViewCommandsAllowed: Bool { !onePaneActive && contextCommandsAllowed }
-    var transferRows: Range<Int>? { selectedRows ?? alignment.flatMap { $0.differences.indices.contains(difference) ? $0.differences[difference] : nil } }
+    var transferRows: Range<Int>? { selectedRows }
     func useOtherBlock(_ choice: FileComparisonEditing.BlockChoice = .other, targetBase: Bool? = nil) {
         let base = targetBase ?? activeBase
         guard !onePaneActive, canTransfer(toBase: base), let alignment, let rows = transferRows else { return }
@@ -799,6 +798,10 @@ import TurtleGitCore
         let sourceOffset: Int
     }
     private var historyCaretRequests: [Bool: (generation: Int, caret: HistoryCaret)] = [:]
+    func cancelDeferredNavigation() {
+        historyCaretRequests = [:]; initialBlockGeneration = nil; pendingLoadNavigation = false
+        alignmentSelections = [:]; selectionRequest = nil
+    }
     func captureHistoryCaret(base: Bool) -> HistoryCaret? {
         guard let view = scrolls[base]?.documentView as? FileComparisonTextView,
               let source = try? FileComparisonEditing.sourceRange(NSRange(location:view.selectedRange().location,length:0),cells:view.sourceCells) else { return nil }
@@ -939,7 +942,7 @@ import TurtleGitCore
         }
         reloadCommentProfiles = true
         generalPreferences = .load(from: comparisonDefaults); pendingLoadNavigation = generalPreferences.firstDifference
-        initialScrollRow = nil; combinedScrollRow = nil; initialScrollSides = []
+        initialBlockGeneration = nil
         let session = FileListComparisonSession(window: window, preferences: comparisonDefaults)
         loadSession = session; busy = true; error = nil
         Task {
@@ -1010,7 +1013,7 @@ import TurtleGitCore
     func rebuildAlignment() {
         guard let document else { return }
         regexCancellation?.cancel(); regexCancellation = nil; filtering = false
-        historyCaretRequests = [:]
+        historyCaretRequests = [:]; initialBlockGeneration = nil
         alignmentSelections = [:]
         alignmentGeneration += 1; selectedRows = nil; previewRow = nil
         let a = drafts?.text(base: true) ?? document.base.text
@@ -1060,12 +1063,9 @@ import TurtleGitCore
                 alignmentSelections = selections
                 if pendingLoadNavigation {
                     pendingLoadNavigation = false
-                    if let first = value.differences.first {
-                        difference = 0
-                        initialScrollRow = first.lowerBound; initialScrollSides = [true, false]
-                        for side in [true, false] where scrolls[side] != nil { queueInitialNavigation(base: side) }
-                    }
+                    initialBlockGeneration = current
                 }
+
             case .failure(let failure): pendingLoadNavigation = false; alignment = nil; regexFilterName = nil; error = failure.localizedDescription
             }
         }
@@ -1198,17 +1198,27 @@ import TurtleGitCore
     func remapOtherAnnotations(from old: FileComparisonAlignment, to new: FileComparisonAlignment, changedBase: Bool) {
         drafts?.remapAnnotations(from: old, to: new, base: !changedBase)
     }
-    private func queueInitialNavigation(base: Bool) {
-        guard initialScrollSides.contains(base), let row = initialScrollRow, let alignment else { return }
-        let offset = alignment.rows.prefix(row).reduce(0) { sum, row in
-            let cell = base ? row.base : row.destination
-            return sum + (cell.lineNumber == nil ? 0 : cell.text.utf16.count)
+    func applyInitialBlockSelection() {
+        guard let generation = initialBlockGeneration, !retired, !filtering, contextCommandsAllowed else { return }
+        guard generation == alignmentGeneration else { initialBlockGeneration = nil; return }
+        let sides: [Bool] = onePaneActive || singleFileMode ? [false] : [true,false]
+        for side in sides {
+            guard let scroll = scrolls[side], scroll.contentSize.width > 32, scroll.contentSize.height > 32,
+                  let view = scroll.documentView as? FileComparisonTextView,
+                  view.blockGeneration == generation else { return }
+            let cells = displayCells(base:side)
+            let expected = cells.map(\.displayText).joined(separator:"\n") + (cells.isEmpty ? "" : "\n")
+            guard view.string.utf8.elementsEqual(expected.utf8) else { return }
         }
-        initialScrollSides.remove(base)
-        if onePaneActive, !base { combinedScrollRow = combined?.rows.firstIndex(where: { $0.alignmentRow >= row }); return }
-        alignmentSelections[base] = .init(sourceRange: NSRange(location: offset, length: 0), scroll: true)
+        initialBlockGeneration = nil; alignmentSelections = [:]; selectionRequest = nil
+        updateFolding()
+        let base = false, cells = displayCells(base:false), visible = folding.projection.rows.map(\.sourceRow)
+        guard let first = visible.first,
+              let target = MergeBlockNavigation.target(states:cells.map(\.state),visibleRows:visible,caret:first,direction:1,skipCurrent:false) else { return }
+        if let view = scrolls[base]?.documentView as? NSTextView { window?.makeFirstResponder(view) }
+        selectDifferenceBlock(target,base:base,advanceInline:true)
     }
-    func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll; queueInitialNavigation(base: base); onRegisterScroll(scroll, base); refreshLocatorViewport() }
+    func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll; onRegisterScroll(scroll,base); refreshLocatorViewport() }
     func scrolled(_ source: NSScrollView) {
         defer { refreshLocatorViewport(); previewHorizontalOffsets = scrolls.mapValues { $0.contentView.bounds.minX } }
         guard !synchronizing else { return }; synchronizing = true; defer { synchronizing = false }
@@ -1245,6 +1255,7 @@ import TurtleGitCore
     }
     func canNavigateDifference(_ step: Int) -> Bool { differenceTarget(step) != nil }
     func navigate(_ step: Int) {
+        (activeFindText as? MergeLineNavigationProviding)?.beginUserNavigation()
         guard let (target,base) = differenceTarget(step) else { return }
         selectDifferenceBlock(target,base:base,advanceInline:true)
     }
@@ -1289,6 +1300,7 @@ import TurtleGitCore
             ?? (scrolls[activeBase]?.documentView as? NSTextView)
     }
     func find(_ action: NSTextFinder.Action) {
+        (activeFindText as? MergeLineNavigationProviding)?.beginUserNavigation()
         if let text = activeFindText { MergeFindInterface.perform(action, in: text) }
     }
     func replaceFindMatches(_ ranges: [NSRange], cells: [MergeSourceCell], base: Bool, replacement: String) -> Bool {
@@ -1482,7 +1494,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         let cells = model.alignment == nil ? self.cells : model.displayCells(base: base)
         context.coordinator.cells = cells; context.coordinator.base = base
         if let target = view as? FileComparisonTextView, target.blockGeneration != model.alignmentGeneration {
-            target.blockSelection.clear(in:target); target.blockGeneration = model.alignmentGeneration
+            target.blockSelection.clear(in:target); target.invalidateNavigationRevision(); target.blockGeneration = model.alignmentGeneration
         }
         (view as? FileComparisonTextView)?.sourceCells = cells
         if let renderer = (view as? MergeWhitespaceDisplaying)?.whitespaceRenderer {
@@ -1505,7 +1517,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
         model.updateFolding()
         (view as? FileComparisonTextView)?.foldLayout.apply(to: view, controller: model.folding)
-        model.lineWrapping.geometryChanged = { [weak model] in model?.applyViewportNavigation(); model?.refreshLocatorViewport() }
+        model.lineWrapping.geometryChanged = { [weak model] in DispatchQueue.main.async { model?.applyViewportNavigation(); model?.refreshLocatorViewport() } }
         model.lineWrapping.update(scroll, key: base ? "Base" : "Mine", aligned: !model.onePaneActive && !model.singleFileMode, enabled: model.wrapLines)
         scroll.rulersVisible = model.showLineNumbers
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
@@ -1518,9 +1530,8 @@ struct FileComparisonEditor: NSViewRepresentable {
             target.mergeFindHighlights.refresh(in: view)
         }
         model.refreshLocatorHighlights()
-        // Navigation is consumed after wrapping/text extents settle, not while
-        // the SwiftUI representable still has an empty initial viewport.
-
+        // Run once after layout, including the first representable update.
+        DispatchQueue.main.async { [weak coordinator = context.coordinator] in coordinator?.applyViewportSelection() }
     }
     static func inline(_ row: Int, model: FileComparisonWindowModel, base: Bool) -> MergeInlineComparison? {
         if model.onePaneActive, !base, model.showInlineDiff, let combined = model.combined, combined.rows.indices.contains(row) {
@@ -1572,7 +1583,8 @@ struct FileComparisonEditor: NSViewRepresentable {
             guard let scroll, scroll.window != nil, scroll.contentSize.width > 32, scroll.contentSize.height > 32,
                   let view = scroll.documentView as? NSTextView,
                   let layout = view.layoutManager, let container = view.textContainer else { return }
-            layout.ensureLayout(for: container)
+            layout.ensureLayout(for:container)
+            model.applyInitialBlockSelection()
             if let selection = model.alignmentSelections[base], appliedSelection != selection.id {
                 appliedSelection = selection.id
                 let start = FileComparisonEditing.displayOffset(sourceOffset: selection.sourceRange.location, cells: cells)
@@ -1580,11 +1592,6 @@ struct FileComparisonEditor: NSViewRepresentable {
                 view.setSelectedRange(NSRange(location: min(start, (view.string as NSString).length), length: max(0, min(end, (view.string as NSString).length) - min(start, (view.string as NSString).length))))
                 if selection.scroll { view.scrollRangeToVisible(view.selectedRange()) }
                 DispatchQueue.main.async { if model.alignmentSelections[base]?.id == selection.id { model.alignmentSelections.removeValue(forKey: base) } }
-            }
-            if model.onePaneActive, !base, let row = model.combinedScrollRow {
-                let offset = cells.prefix(row).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
-                view.setSelectedRange(NSRange(location: min(offset, (view.string as NSString).length), length: 0)); view.scrollRangeToVisible(view.selectedRange())
-                DispatchQueue.main.async { if model.combinedScrollRow == row { model.combinedScrollRow = nil } }
             }
             if model.editableBase == base, let caret = model.selectionRequest {
                 let offset = FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells)
@@ -1669,7 +1676,10 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     var navigationCells: [MergeSourceCell]? { sourceCells }
-    var navigationAllowed: Bool { model?.busy == false && model?.confirmingQuit == false }
+    var navigationAllowed: Bool { model?.contextCommandsAllowed == true && model?.filtering == false }
+    private(set) var navigationIntentRevision = 0
+    func invalidateNavigationRevision() { navigationIntentRevision &+= 1 }
+    func beginUserNavigation() { invalidateNavigationRevision(); model?.cancelDeferredNavigation() }
     @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
     @objc private func expandFoldedSection(_ sender: Any?) { _ = foldLayout.expandSelection(in: self) }
     private func inlineTarget(forward: Bool) -> Int? {
@@ -1688,6 +1698,8 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     }
     func canNavigateInline(forward: Bool) -> Bool { inlineTarget(forward: forward) != nil }
     func navigateInline(forward: Bool) {
+        // Automatic block-entry advancement must not cancel its own selection.
+        if model?.selectingDifferenceBlock != true { beginUserNavigation() }
         guard let target = inlineTarget(forward: forward) else { return }
         model?.selectionRequest = nil
         blockSelection.moveCaret(target,in:self); scrollRangeToVisible(selectedRange())
@@ -1776,7 +1788,9 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         window.makeFirstResponder(self)
         setAccessibilityFocused(true)
     }
+    override func keyDown(with event: NSEvent) { beginUserNavigation(); model?.clearNavigationBlockSelection(); super.keyDown(with:event) }
     override func mouseDown(with event: NSEvent) {
+        beginUserNavigation()
         model?.clearNavigationBlockSelection()
         model?.activatePane(base: baseSide)
         if MergeMarkedWordInterface.mouse(event, in: self) { window?.makeFirstResponder(self); return }
@@ -1832,6 +1846,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         pasteboard.clearContents(); return pasteboard.setString(text, forType: .string)
     }
     func selectContextBlock(at displayOffset: Int) {
+        beginUserNavigation()
         window?.makeFirstResponder(self)
         let selected = selectedRange()
         if selected.length > 0, NSLocationInRange(displayOffset,selected) { return }
@@ -2019,8 +2034,12 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     var navigationPending: Bool { get set }
     var navigationCells: [MergeSourceCell]? { get }
     var navigationAllowed: Bool { get }
+    var navigationIntentRevision: Int { get }
+    func beginUserNavigation()
 }
 extension MergeLineNavigationProviding where Self: NSTextView {
+    var navigationIntentRevision: Int { 0 }
+    func beginUserNavigation() {}
     var navigationLimit: Int? {
         if let cells = navigationCells { return MergeSourceComparison.navigationLimit(cells: cells) }
         let count = MergeSourceComparison.navigationRanges(text: string).count
@@ -2031,13 +2050,14 @@ extension MergeLineNavigationProviding where Self: NSTextView {
     }
     func navigateToSourceLine() {
         guard canNavigateToSourceLine, let window, let limit = navigationLimit else { return }
-        let original = string
+        beginUserNavigation()
+        let original = string, revision = navigationIntentRevision
         navigationPending = true
         Task { @MainActor in
             defer { navigationPending = false }
             guard let line = await chooseNavigationLine(window, limit), line >= 1, line <= limit,
                   navigationAllowed, window.attachedSheet == nil, self.window === window,
-                  string.utf8.elementsEqual(original.utf8) else { return }
+                  navigationIntentRevision == revision, string.utf8.elementsEqual(original.utf8) else { return }
             let range: NSRange?
             if let cells = navigationCells { range = MergeSourceComparison.navigationRange(line: line, cells: cells) }
             else { range = MergeSourceComparison.navigationRanges(text: string)[line - 1] }
