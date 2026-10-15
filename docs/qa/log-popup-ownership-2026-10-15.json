@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-15",
+  "scope": "Captured ownership for native Log revision popups and submenus",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "reference": "src/TortoiseProc/GitLogListBase.cpp: popup selection/ref targeting and ContextMenuAction"
+  },
+  "implementation": [
+    "Guarded native action target for 46 existing revision selector methods; original captions, icons and represented payloads remain on menu items",
+    "Popup snapshots selected hashes, byte-preserving reference metadata and Log generation",
+    "Refuses selection/reference changes, reload, blocked/retired owners and duplicate use",
+    "Fresh action dispatch remains valid after native popup close; the next popup replaces the retained relay",
+    "Recursively binds clipboard, reference, parent and other submenus; async Combine retains its existing guarded item",
+    "Header-column and active keyboard/double-click routes retain their separate lifecycles"
+  ],
+  "validation": {
+    "core": "Unchanged; not rerun",
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/log-popup-ownership-build-2026-10-15.log"
+    },
+    "native": {
+      "result": "both engine cases passed",
+      "cases": [
+        "history-workflows/system Git",
+        "history-workflows/bundled Git"
+      ],
+      "log": "build/qa/log-popup-ownership-native-final-2026-10-15.log",
+      "receivers_reaped": [
+        87294,
+        87530
+      ],
+      "new_scope": "Fresh Browse/Export/Checkout/Create Branch/Tag/Reset/Containing Refs/Cherry-pick/Format Patch/Compare callbacks after popup close; private hash clipboard and duplicate refusal; all leaves of a constructed revision popup after selection change; busy/Find/Ordering/ref-picker guards; same-hash NFC/NFD ref change; same-selection reload; working-tree Commit and retired model; unchanged HEAD/index/refs",
+      "baseline_scope": "Existing live Revert and Combine output/recovery/rollback, preserved partial MERGE_MSG, Commit handoff and Log/Sync ancestry/Quit ownership"
+    },
+    "initial_fixture_repairs": [
+      {
+        "log": "build/qa/log-popup-ownership-native-2026-10-15.log",
+        "description": "A fixture lookup force-unwrapped a missing selector; replaced it with a descriptive throwing lookup."
+      },
+      {
+        "log": "build/qa/log-popup-ownership-native-diagnostic-2026-10-15.log",
+        "description": "The newly constructed Log model retained its conservative bare default, omitting working-tree commands. Populate the actual private repository bare state before asserting those commands; assertions retained."
+      }
+    ],
+    "visual": "Dispatch-only change; existing captions, artwork, selector names and menu construction layout preserved. No new screenshots or broad visual parity claim.",
+    "hosted_snapshot": {
+      "head": "b4c5ef68",
+      "pages_run": 38677594805,
+      "pages_conclusion": "success",
+      "macos_run": 38677594795,
+      "macos_status": "pending"
+    },
+    "cleanup": {
+      "receivers_reaped_and_absent": [
+        87167,
+        87226,
+        87294,
+        87530
+      ],
+      "method": "Runner reaped each receiver; later ps check found all absent. Fixture uses a private pasteboard/preferences/repositories and closes owned workflow windows."
+    },
+    "documentation": {
+      "site_documents": 216,
+      "unresolved_fragments": [],
+      "coverage_ledger": "regenerated",
+      "log": "build/qa/log-popup-ownership-site-2026-10-15.log"
+    }
+  },
+  "limits": [
+    "Physical native menu tracking and full keyboard/VoiceOver acceptance remain open",
+    "Source availability masks, all conditional menu variants and other shared-list consumers remain partial",
+    "Actual Git operations continue to need their own fresh validation/cancellation; UI ownership is not repository authorization",
+    "Signed Finder/App Store and full app parity remain open"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

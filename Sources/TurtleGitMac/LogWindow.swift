@@ -1289,6 +1289,7 @@ struct LogCommandRequest: Identifiable {
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     @Published var commandRequest: LogCommandRequest?
     private var generation = 0
+    var contextMenuGeneration:Int { generation }
     private(set) var isInvalidated = false
     private var detailGeneration = 0
     private let showBranchRevisionNumber: Bool
@@ -3134,6 +3135,7 @@ struct RevisionTable: NSViewRepresentable {
         var headerMenu: NSMenu?
         private var combineMenuTask: Task<Void, Never>?
         private var combineMenuCancellation: OperationCancellation?
+        private var menuActionTarget:HistoryMenuActionTarget?
         private final class RevertTarget: NSObject {
             let entries: [LogEntry], mainline: Int?
             init(_ entries: [LogEntry], mainline: Int? = nil) { self.entries = entries; self.mainline = mainline }
@@ -3306,6 +3308,10 @@ struct RevisionTable: NSViewRepresentable {
             if let table, model.entries.indices.contains(table.selectedRow) {
                 model.findSearchIndex = table.selectedRow
             }
+            let actionTarget=HistoryMenuActionTarget(self);menuActionTarget=actionTarget
+            // NSMenuItem.target is weak; this coordinator retains the popup's
+            // relay until the next revision popup replaces it.
+            defer { bind(menu,to:actionTarget) }
             @discardableResult func item(_ title: String, _ selector: Selector, icon: MenuIcon, enabled: Bool = true) -> NSMenuItem {
                 let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(defaults: model.colorPreferences); item.target = self; item.isEnabled = enabled; menu.addItem(item)
                 return item
@@ -3492,6 +3498,12 @@ struct RevisionTable: NSViewRepresentable {
             parent.image = MenuIcon.copy.contextImage(); parent.submenu = clipboard; menu.addItem(parent)
             if one { item("Show branches this commit is on", #selector(showContainingReferences), icon: .showBranches, enabled: !model.busy && model.onShowContainingReferences != nil) }
         }
+        private func bind(_ menu:NSMenu,to target:HistoryMenuActionTarget) {
+            for item in menu.items {
+                if let submenu=item.submenu { bind(submenu,to:target) }
+                if item.action != nil,item.target === self { item.target=target }
+            }
+        }
         func menuDidClose(_ menu: NSMenu) { combineMenuTask?.cancel(); combineMenuTask = nil; combineMenuCancellation?.cancel(); combineMenuCancellation = nil; if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil } }
         private final class PushTarget: NSObject {
             let entry: LogEntry, pointedName: String?
@@ -3607,6 +3619,78 @@ struct RevisionTable: NSViewRepresentable {
         @objc func copyDetailsWithoutPaths() { model.copyDetails(includePaths: false) }
     }
 }
+
+/// A revision popup owns one selection/ref snapshot. Keep its original selectors
+/// and payloads while refusing actions after another selection, reload or use.
+@MainActor private final class HistoryMenuActionTarget:NSObject {
+    private weak var coordinator:RevisionTable.Coordinator?
+    private weak var model:LogWindowModel?
+    private let generation:Int,selection:Set<String>,hashes:[String],references:[[RevisionReference]]
+    private var consumed=false
+    init(_ coordinator:RevisionTable.Coordinator) {
+        self.coordinator=coordinator;let model=coordinator.model;self.model=model
+        generation=model.contextMenuGeneration;let selected=model.selected;selection=selected
+        let entries=model.entries.filter{selected.contains($0.hash)}
+        hashes=entries.map(\.hash);references=entries.map(\.references)
+    }
+    private func invoke(_ selector:Selector,sender:NSMenuItem? = nil) {
+        guard !consumed,let coordinator,let model,coordinator.model === model,!model.isInvalidated,
+              !model.busy,!model.findBlocked,!model.orderingBlocked,!model.referencePickerBlocked,
+              model.window?.attachedSheet==nil,model.contextMenuGeneration==generation,
+              !selection.isEmpty,model.selected==selection else { return }
+        let entries=model.entries.filter{selection.contains($0.hash)}
+        guard entries.count==selection.count,entries.map(\.hash)==hashes,entries.map(\.references)==references else { return }
+        consumed=true
+        NSApp.sendAction(selector,to:coordinator,from:sender)
+    }
+    @objc func revertCaptured(_ sender:NSMenuItem) { invoke(NSSelectorFromString("revertCaptured:"),sender:sender) }
+    @objc func combineRevisions(_ sender:NSMenuItem) { invoke(NSSelectorFromString("combineRevisions:"),sender:sender) }
+    @objc func pushCaptured(_ sender:NSMenuItem) { invoke(NSSelectorFromString("pushCaptured:"),sender:sender) }
+    @objc func pullFromHistory() { invoke(NSSelectorFromString("pullFromHistory")) }
+    @objc func pushReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("pushReference:"),sender:sender) }
+    @objc func switchBranchReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("switchBranchReference:"),sender:sender) }
+    @objc func mergeReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("mergeReference:"),sender:sender) }
+    @objc func branchReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("branchReference:"),sender:sender) }
+    @objc func tagReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("tagReference:"),sender:sender) }
+    @objc func deleteReferenceItems(_ sender:NSMenuItem) { invoke(NSSelectorFromString("deleteReferenceItems:"),sender:sender) }
+    @objc func checkoutReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("checkoutReference:"),sender:sender) }
+    @objc func copyReferenceNames(_ sender:NSMenuItem) { invoke(NSSelectorFromString("copyReferenceNames:"),sender:sender) }
+    @objc func toggleRollup() { invoke(NSSelectorFromString("toggleRollup")) }
+    @objc func showContainingReferences() { invoke(NSSelectorFromString("showContainingReferences")) }
+    @objc func browseRepository() { invoke(NSSelectorFromString("browseRepository")) }
+    @objc func formatPatch() { invoke(NSSelectorFromString("formatPatch")) }
+    @objc func editNotes() { invoke(NSSelectorFromString("editNotes")) }
+    @objc func exportRevision() { invoke(NSSelectorFromString("exportRevision")) }
+    @objc func mergeRevision() { invoke(NSSelectorFromString("mergeRevision")) }
+    @objc func rebaseRevision() { invoke(NSSelectorFromString("rebaseRevision")) }
+    @objc func reset() { invoke(NSSelectorFromString("reset")) }
+    @objc func push() { invoke(NSSelectorFromString("push")) }
+    @objc func checkout() { invoke(NSSelectorFromString("checkout")) }
+    @objc func branch() { invoke(NSSelectorFromString("branch")) }
+    @objc func tag() { invoke(NSSelectorFromString("tag")) }
+    @objc func revert() { invoke(NSSelectorFromString("revert")) }
+    @objc func revertParent(_ sender:NSMenuItem) { invoke(NSSelectorFromString("revertParent:"),sender:sender) }
+    @objc func cherryPick() { invoke(NSSelectorFromString("cherryPick")) }
+    @objc func showDiff() { invoke(NSSelectorFromString("showDiff")) }
+    @objc func compare() { invoke(NSSelectorFromString("compare")) }
+    @objc func workingDiff() { invoke(NSSelectorFromString("workingDiff")) }
+    @objc func bisectStart() { invoke(NSSelectorFromString("bisectStart")) }
+    @objc func bisectGood() { invoke(NSSelectorFromString("bisectGood")) }
+    @objc func bisectBad() { invoke(NSSelectorFromString("bisectBad")) }
+    @objc func bisectSkip() { invoke(NSSelectorFromString("bisectSkip")) }
+    @objc func bisectReset() { invoke(NSSelectorFromString("bisectReset")) }
+    @objc func commitWorkingTree() { invoke(NSSelectorFromString("commitWorkingTree")) }
+    @objc func workingCommand(_ sender:NSMenuItem) { invoke(NSSelectorFromString("workingCommand:"),sender:sender) }
+    @objc func copyAuthors() { invoke(NSSelectorFromString("copyAuthors")) }
+    @objc func copyAuthorNames() { invoke(NSSelectorFromString("copyAuthorNames")) }
+    @objc func copyAuthorEmails() { invoke(NSSelectorFromString("copyAuthorEmails")) }
+    @objc func copySubjects() { invoke(NSSelectorFromString("copySubjects")) }
+    @objc func copyHashes() { invoke(NSSelectorFromString("copyHashes")) }
+    @objc func copyMessages() { invoke(NSSelectorFromString("copyMessages")) }
+    @objc func copyDetails() { invoke(NSSelectorFromString("copyDetails")) }
+    @objc func copyDetailsWithoutPaths() { invoke(NSSelectorFromString("copyDetailsWithoutPaths")) }
+}
+
 
 final class HistoryTableView: NSTableView {
     var contextReference: (row: Int, name: String)?

@@ -2415,3 +2415,34 @@ weakly, so AppKit/autofill retention cannot keep the repository grants active.
 Both grouped native engine cases verified the child lifetime and final scope
 release; see [workspace metadata evidence](qa/workspace-metadata-access-2026-10-15.json).
 This does not establish signed sandbox acceptance.
+
+## Revision popup ownership — October 15, 2026
+
+Revision menus now retain an operation target with the selected hashes, reference
+metadata and Log generation from popup construction. Every revision/submenu leaf
+uses that target while keeping its original Objective-C selector, source caption,
+icon and typed payload. A different selection, changed reference list (including
+byte-distinct Unicode names), reload, blocked/retired owner or prior command use
+refuses the old popup. The same guard covers Compare/unified diff, working-tree
+commands, merge/rebase, reference creation/switch/deletion, reset, export, notes,
+patch creation, history combination, bisect and clipboard operations.
+
+Fresh actions can run after AppKit closes the popup, as native menu dispatch
+requires. Clearing the transient pointed-reference hit does not discard their
+captured typed target. The next popup replaces the retained relay; one command
+consumes each relay. Header column commands retain their existing separate layout
+lifecycle, and keyboard/double-click operations continue to use the active row.
+Async Combine preparation keeps its already-created menu item and guarded target.
+Actual repository operations retain their existing fresh validation and owned
+cancellation; a captured UI target does not bypass those checks.
+
+This adapts the selection/ref ownership of the pinned GitLogListBase popup and
+ContextMenuAction paths to an asynchronously refreshed native Log. It changes
+dispatch, not graph geometry or the displayed menu layout. Physical menu tracking,
+complete accessibility, every shared-list consumer and signed sandbox acceptance
+remain open.
+
+The Debug build and both grouped engine cases passed; see
+[popup ownership evidence](qa/log-popup-ownership-2026-10-15.json). These checks
+retain the existing real Revert/Combine workflow assertions alongside the new
+menu ownership cases.

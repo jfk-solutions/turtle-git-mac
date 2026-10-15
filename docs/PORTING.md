@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The Log revision-menu family now binds 46 existing selectors to a one-use popup
+snapshot, preserving native item artwork and typed payloads while rejecting
+selection/reference changes, reload and retired/blocked owners. Fresh callbacks,
+working-tree commands, byte-distinct refs and existing real Revert/Combine
+workflows passed both grouped Git-engine cases. See
+[menu ownership evidence](qa/log-popup-ownership-2026-10-15.json). Source menu
+variants, physical/accessibility and signed acceptance remain open.
+
 The Blame pane interaction family now adds saved native tab groups, group
 auto-hide/pinning, caption drag sessions and outside-workspace floating with
 captured-document guards. Native pane/File Open checks passed on both engines;

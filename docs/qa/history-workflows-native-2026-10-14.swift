@@ -16,6 +16,7 @@ import TurtleGitCore
         let suite="TurtleGit.HistoryWorkflows."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         prefs.set(16,forKey:"GitOutputLimitinKiB");prefs.set(true,forKey:"ShowAppContextMenuIcons");prefs.set(false,forKey:"EnableGravatar")
         defer { prefs.removePersistentDomain(forName:suite) }
+        try await menuOwnership(repository:repo,entries:entries,preferences:prefs)
         let helper=root.appendingPathComponent("stream-git"),marker=root.appendingPathComponent("ready"),release=root.appendingPathComponent("release"),counter=root.appendingPathComponent("counter")
         let script = #"""
         #!/bin/sh
@@ -92,4 +93,68 @@ import TurtleGitCore
         }
         print("History workflows: Revert live/copy/original results, preserved partial MERGE_MSG, cancellation, Skip and ordered Commit handoff; real Combine amendment/replay/presets and forced pending-child rollback; Log/Sync ancestry ownership and Quit passed. Private fixtures/preferences/clipboard; owned windows closed.")
     }
+    @MainActor static func menuOwnership(repository:GitRepository,entries:[LogEntry],preferences:UserDefaults) async throws {
+        let model=LogWindowModel(repository:repository,access:nil,labelDefaults:preferences)
+        let coordinator=RevisionTable.Coordinator(model:model),menu=NSMenu()
+        let clipboard=NSPasteboard(name:NSPasteboard.Name("TurtleGit.HistoryMenu."+UUID().uuidString));model.clipboard=clipboard
+        defer { coordinator.menuDidClose(menu);model.invalidate();clipboard.releaseGlobally() }
+        let head=try await repository.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:repository.root.appendingPathComponent(".git/index")),refs=try await repository.run(["show-ref"]).stdout
+        var shown=entries;shown[1].references=[RevisionReference(name:"refs/heads/menu-captured"),RevisionReference(name:"refs/remotes/origin/menu-captured")]
+        model.entries=shown;model.graph=CommitGraph.layout(shown);model.selected=[shown[1].hash];model.currentBranch="main";model.bare=try await repository.isBare()
+        var callbacks:[String]=[]
+        model.onBrowseRepository={ callbacks.append("browse:"+$0) };model.onExportRevision={ callbacks.append("export:"+$0) }
+        model.onCheckout={ callbacks.append("checkout:"+$0) };model.onCreateReference={ callbacks.append(($0 ? "tag:":"branch:")+$1) }
+        model.onReset={ callbacks.append("reset:"+$0) };model.onShowContainingReferences={ callbacks.append("refs:"+$0) }
+        model.onCherryPick={ callbacks.append("pick:"+$0.joined(separator:",")) };model.onFormatPatch={_ in callbacks.append("patch")}
+        model.onCompare={_,_ in callbacks.append("compare")};model.onCommit={ callbacks.append("commit") }
+        func leaves(_ menu:NSMenu)->[NSMenuItem] { menu.items.flatMap { item in item.submenu.map{leaves($0)} ?? (item.action == nil ? []:[item]) } }
+        func item(_ selector:String) throws ->NSMenuItem {
+            guard let found=leaves(menu).first(where:{NSStringFromSelector($0.action!)==selector}) else { throw Failure(description:"Missing revision selector: "+selector+"; available: "+leaves(menu).map{NSStringFromSelector($0.action!)}.joined(separator:",")) };return found
+        }
+        func send(_ item:NSMenuItem) { _=NSApp.sendAction(item.action!,to:item.target,from:item) }
+        func open() { coordinator.menuNeedsUpdate(menu) }
+        func sentinel() { clipboard.clearContents();clipboard.setString("untouched",forType:.string) }
+        let commands=["browseRepository","exportRevision","checkoutReference:","branchReference:","tagReference:","reset","showContainingReferences","cherryPick","formatPatch","compare"]
+        for command in commands {
+            open();let action=try item(command),before=callbacks.count
+            try require(action.isEnabled && (action.target as? NSObject)?.responds(to:action.action!)==true,"Fresh menu action unavailable: "+command)
+            coordinator.menuDidClose(menu);send(action)
+            try require(callbacks.count==before+1,"Fresh/closed-menu callback failed: "+command)
+        }
+        open();let copy=try item("copyHashes");send(copy)
+        try require(clipboard.string(forType:.string)==shown[1].hash,"Fresh copied hash changed")
+        sentinel();send(copy);try require(clipboard.string(forType:.string)=="untouched","Popup command executed twice")
+        // Every menu/submenu leaf has a guarded native selector, including
+        // actions with typed reference/parent payloads and async preparation.
+        open();let stale=leaves(menu),before=callbacks.count
+        try require(stale.count>20 && stale.allSatisfy{($0.target as? NSObject)?.responds(to:$0.action!)==true},"Some revision selectors bypassed or lack the relay")
+        model.selected=[shown[2].hash];sentinel()
+        for action in stale { send(action) }
+        await Task.yield()
+        try require(callbacks.count==before && clipboard.string(forType:.string)=="untouched" && model.commandRequest==nil && model.noteRequest==nil && model.error==nil && !model.busy && !model.loadingNote,"Stale menu targeted a later revision or started work")
+        model.selected=[shown[1].hash]
+        for key in [\LogWindowModel.busy,\.findBlocked,\.orderingBlocked,\.referencePickerBlocked] {
+            open();let action=try item("copyHashes");model[keyPath:key]=true;sentinel();send(action)
+            try require(clipboard.string(forType:.string)=="untouched","Blocked dialog accepted popup action");model[keyPath:key]=false
+        }
+        // A same-hash reference change, including canonical-equivalent Unicode
+        // names, must retire the old label/command binding without a reload.
+        shown[1].references=[RevisionReference(name:"refs/heads/café")];model.entries=shown;open();let changedRefs=try item("copyHashes")
+        shown[1].references=[RevisionReference(name:"refs/heads/café")];model.entries=shown;sentinel();send(changedRefs)
+        try require(clipboard.string(forType:.string)=="untouched","Reference byte-identity change preserved an old popup")
+        // Reloading to the same commit is still a new menu generation.
+        open();let beforeReload=try item("browseRepository"),count=callbacks.count
+        model.reload();try await wait{!model.busy};model.selected=[entries[1].hash]
+        send(beforeReload);try require(callbacks.count==count,"Old popup survived a same-selection reload")
+        // Working-tree commands have the same captured ownership contract.
+        model.selected=[""];open();let commit=try item("commitWorkingTree")
+        model.selected=[entries[1].hash];send(commit);try require(callbacks.count==count,"Working-tree popup opened Commit for another row")
+        model.selected=[""];open();send(try item("commitWorkingTree"));try require(callbacks.last=="commit","Fresh working-tree Commit was lost")
+        model.selected=[entries[1].hash];open();let retired=try item("browseRepository");model.invalidate();send(retired)
+        try require(callbacks.last=="commit" && callbacks.count==count+1,"Retired Log accepted a menu action")
+        let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterRefs=try await repository.run(["show-ref"]).stdout
+        try require(afterHead==head && afterRefs==refs && (try? Data(contentsOf:repository.root.appendingPathComponent(".git/index")))==index,"Menu ownership checks modified repository state")
+        print("Log popup ownership: original native selectors/icons/payloads, fresh callbacks after menu close, one-shot use, all stale selection leaves, blocked states, Unicode reference bytes, reload generation, working tree and retirement passed; private clipboard/HEAD/index/refs preserved.")
+    }
+
 }
