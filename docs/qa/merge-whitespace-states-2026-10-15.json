@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "43726410",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "DiffData.cpp DoTwoWayDiff and CompareWithIgnoreWS",
+    "BaseView.cpp modified Find categories, SaveFile and block navigation",
+    "DiffColors defaults and SetColorPage Normal/Filtered/Added/Removed channels",
+    "FileTextLines.cpp Add/Save literal content and ending serialization"
+  ],
+  "scope": [
+    "Normal versus FilteredDiff common rows and independent folding flags",
+    "Combined RemovedWhitespace/AddedWhitespace source conditions, Mine line numbers and default palette channels",
+    "Leading-space-only versus inner-whitespace/all-whitespace collapse policy, including text-filter combinations",
+    "Modified-only Find, line counts, explicit source Save As and retained editing payloads",
+    "Original Mine coordinate mapping independent of displayed duplicate line numbers; native mode/filter/caret transitions"
+  ],
+  "build": {
+    "initial_log": "build/qa/merge-whitespace-states-build.log",
+    "initial_exit": 0,
+    "final_log": "build/qa/merge-whitespace-states-coordinate-build.log",
+    "final_exit": 0,
+    "note": "Existing project diagnostic noise remains; terminal exit codes authoritative."
+  },
+  "core": {
+    "initial_log": "build/qa/merge-whitespace-states-core.log",
+    "initial_tests": 45,
+    "initial_failures": 0,
+    "affected_log": "build/qa/merge-whitespace-states-coordinate-core.log",
+    "affected_tests": 29,
+    "affected_failures": 0,
+    "affected_scope": "OnePaneFileComparisonTests and FileComparisonEditingTests after the coordinate repair; the full initial group was not repeated.",
+    "checks": [
+      "Actual Subversion normalized keys and original payloads/endings",
+      "Exact source leading-space/tab trim and Ignore All branch; combining-character boundary",
+      "Source hide flags independent of modified Find; neutral rows omitted from Added/Removed counts",
+      "Alias defaults unaffected by customized Normal colors",
+      "Neutral Base/Mine displayed numbers and original Mine source/display selection offsets",
+      "Captured neutral payload serialization, BOM/EOL/no-final-ending bytes and real-removal exclusion",
+      "Existing comparison options, palette, folding, Find and three-pane source/ignored-conflict projection cases"
+    ]
+  },
+  "native": {
+    "command": "python3 scripts/test-merge-whitespace-states.py",
+    "initial_log": "build/qa/merge-whitespace-states-native.log",
+    "initial_pid": 55588,
+    "initial_failure": "Immediate assertion expected hidden alias rows after mode/options change.",
+    "fixture_recheck_log": "build/qa/merge-whitespace-states-native-repair.log",
+    "fixture_recheck_pid": 55660,
+    "fixture_recheck_failure": "Bounded readiness wait still found the alias run expanded; coordinate source audit found duplicate displayed numbers counted as extra Mine payload.",
+    "repair": "Separate hasSourceCoordinate from displayed lineNumber in original-pane mapping; place native caret on the changed row before switching comparison options. Retain existing caret-driven fold expansion.",
+    "final_log": "build/qa/merge-whitespace-states-coordinate-native.log",
+    "final_pid": 56189,
+    "exit": 0,
+    "result": "New workflow and retained one-pane group passed in one process.",
+    "checks": [
+      "Actual source aliases/numbers/statistics and modified Find",
+      "Actual light/dark attributed neutral colors independent of custom Normal palette",
+      "One/two-pane filter and whitespace-option changes; retained hidden aliases and folding",
+      "Exact explicit export in Mine UTF-8 BOM/CRLF format, with original Base UTF-16 and Mine untouched",
+      "Native typing retains neutral payloads but excludes real removals; grouped Undo/Redo and exact Save with Base unchanged",
+      "Retained combined ordering/locator/navigation, removed-row editing, mode-switch Save/Cancel/Discard, Find Replace All/Tab and retirement assertions"
+    ],
+    "engine_scope": "Private standalone files using the bundled Subversion engine. No duplicate Git-engine run; no Git repository or authenticated remote required.",
+    "ownership": "All three executed receivers reaped; all test-owned windows closed; private preference suites removed.",
+    "screenshots": "No new captures; native attributed paint checked without claiming whole-window physical appearance."
+  },
+  "limitations": [
+    "Per-state next-block navigation for neutral aliases remains open; toolbar follows engine difference regions",
+    "Native alignment is recomputed after typing; exact source in-place Edited presentation remains incomplete",
+    "Remaining whitespace states and hidden per-alias legacy color overrides unported",
+    "Physical gestures/VoiceOver, large-file performance, signed Finder/App Store scopes/distribution unverified",
+    "No complete dialog/editor/application certification"
+  ],
+  "hosted_ci": {
+    "full_pass_claimed": false,
+    "state": "e67417b3 run 38799322056 still in Git integration tests at last observation; newer source changes have local validation.",
+    "pages": "43726410 run 38804363197 succeeded; new batch not yet hosted."
+  },
+  "documentation": {
+    "site_documents": 234,
+    "unresolved_fragments": 0,
+    "help_guides": 26,
+    "help_topics": 47,
+    "help_bytes_before_index": 191644,
+    "mapped_controls": 974,
+    "pending_control_reviews": 685,
+    "certified_dialogs": 0
+  }
+}

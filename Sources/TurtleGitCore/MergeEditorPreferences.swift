@@ -139,7 +139,7 @@ public enum MergeColorRole: String, CaseIterable, Codable, Hashable, Sendable {
 extension MergeSourceState {
     public var colorRole: MergeColorRole {
         switch self {
-        case .normal: return .normal
+        case .normal,.removedWhitespace,.addedWhitespace: return .normal
         case .removed,.identicalRemoved,.theirsRemoved,.yoursRemoved: return .removed
         case .added,.identicalAdded,.theirsAdded,.yoursAdded: return .added
         case .conflicted,.conflictAdded,.conflictEmpty,.conflictedIgnored: return .conflicted
@@ -179,6 +179,9 @@ public struct MergeColorPreferences: Codable, Equatable, Sendable {
     /// Apply path gives ConflictEmpty the Empty background and Conflict text;
     /// before the first saved Colors page, the source default is Conflict red.
     public func stateColors(_ state: MergeSourceState, dark: Bool, applied: Bool = false) -> UnifiedDiffColors {
+        // These source aliases have independent hidden color keys and are not
+        // changed by SetColorPage's Normal swatches. Preserve their defaults.
+        if state == .removedWhitespace || state == .addedWhitespace { return Self.standard(.normal,dark:dark) }
         let foreground = colors(state == .edited ? .added : state.colorRole, dark: dark).foreground
         let background = colors(state == .conflictEmpty && applied ? .empty : state.colorRole, dark: dark).background
         return UnifiedDiffColors(foreground, background)

@@ -227,8 +227,8 @@ import TurtleGitCore
     }
     func updateFolding() {
         let unchanged: [Bool]
-        if onePaneActive { unchanged = combined?.rows.map { $0.cell.state == .normal || $0.cell.state == .filtered } ?? [] }
-        else { unchanged = alignment?.rows.map { ($0.base.state == .normal || $0.base.state == .filtered) && ($0.destination.state == .normal || $0.destination.state == .filtered) } ?? [] }
+        if onePaneActive { unchanged = combined?.rows.map { $0.cell.hiddenByComparison } ?? [] }
+        else { unchanged = alignment?.rows.map { $0.base.hiddenByComparison && $0.destination.hiddenByComparison } ?? [] }
         folding.update(unchanged: unchanged)
     }
     func displayCells(base: Bool) -> [MergeSourceCell] {
@@ -691,10 +691,12 @@ import TurtleGitCore
         guard canBeginOutput, let window, let document else { return }
         let content = base ? document.base : document.destination
         do {
-            let bytes = try drafts?.exported(base: base) ?? content.bytes
+            let selectedEncoding = drafts?.encoding(base: base) ?? content.encoding
+            let bytes: Data
+            if onePaneActive, !base, let combined, let selectedEncoding { bytes = try selectedEncoding.encode(combined.sourceSaveText) }
+            else { bytes = try drafts?.exported(base: base) ?? content.bytes }
             let directory = paneTargets[base]?.url.deletingLastPathComponent() ?? (sourceSnapshotRoot == nil ? snapshot.root : FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.homeDirectoryForCurrentUser)
             let name = (content.path as NSString).lastPathComponent
-            let selectedEncoding = drafts?.encoding(base: base) ?? content.encoding
             let chooser = chooseExportLocation
             guard let request = beginOutput() else { return }
             Task {

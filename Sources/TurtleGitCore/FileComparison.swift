@@ -398,9 +398,9 @@ public struct OnePaneFileComparison: Sendable {
     public var cells: [MergeSourceCell] { rows.map(\.cell) }
     public init(alignment: FileComparisonAlignment, options: MergeComparisonOptions = .init()) {
         var output: [Row] = [], ranges: [Range<Int>] = [], index = 0
-        func append(_ cell: MergeSourceCell, at index: Int, base: Bool, state: MergeSourceState? = nil) {
+        func append(_ cell: MergeSourceCell, at index: Int, base: Bool, state: MergeSourceState? = nil, number: Int? = nil, hidden: Bool? = nil) {
             guard cell.lineNumber != nil else { return }
-            output.append(Row(cell: MergeSourceCell(text: cell.text, lineNumber: base ? nil : cell.lineNumber, state: state ?? cell.state), alignmentRow: index, base: base))
+            output.append(Row(cell: MergeSourceCell(text: cell.text, lineNumber: base ? (state == .removedWhitespace ? number : nil) : cell.lineNumber, state: state ?? cell.state, hiddenByComparison: hidden ?? cell.hiddenByComparison), alignmentRow: index, base: base))
         }
         let starts = Dictionary(uniqueKeysWithValues: alignment.differences.map { ($0.lowerBound, $0) })
         while index < alignment.rows.count {
@@ -411,18 +411,25 @@ public struct OnePaneFileComparison: Sendable {
                 ranges.append(start..<output.count); index = range.upperBound
             } else {
                 let row = alignment.rows[index]
-                let whitespace = MergeComparisonOptions(whitespace: options.whitespace)
                 let payloadDiffers = !row.base.displayText.utf8.elementsEqual(row.destination.displayText.utf8)
-                let whitespaceOnly = options.whitespace != .compare && whitespace.key(content: row.base.displayText, ending: "") == whitespace.key(content: row.destination.displayText, ending: "")
-                if payloadDiffers && !whitespaceOnly {
-                    append(row.base, at: index, base: true, state: .removed)
-                    append(row.destination, at: index, base: false, state: .added)
-                } else { append(row.destination, at: index, base: false, state: .normal) }
+                // DiffData::CompareWithIgnoreWS trims leading spaces/tabs
+                // only for WhiteSpaces. AllWhiteSpaces always collapses here.
+                func trimLeading(_ value: String) -> String { String(decoding:value.utf8.drop { $0 == 32 || $0 == 9 },as:UTF8.self) }
+                let changedAfterLeadingTrim = !trimLeading(row.base.displayText).utf8.elementsEqual(trimLeading(row.destination.displayText).utf8)
+                let split = payloadDiffers && (options.whitespace == .compare || options.whitespace == .ignoreChanges && changedAfterLeadingTrim)
+                if split {
+                    let hidden = options.whitespace != .compare
+                    append(row.base, at: index, base: true, state: .removedWhitespace, number: row.destination.lineNumber, hidden: hidden)
+                    append(row.destination, at: index, base: false, state: .addedWhitespace, hidden: hidden)
+                } else { append(row.destination, at: index, base: false, state: .normal, hidden: true) }
                 index += 1
             }
         }
         rows = output; differences = ranges
     }
+    /// BaseView::SaveFile excludes Removed but retains RemovedWhitespace.
+    /// Save As serializes captured endings, not synthetic display separators.
+    public var sourceSaveText: String { cells.filter { !$0.state.isRemoval && $0.state != .empty }.map(\.text).joined() }
     /// Removed lines remain display-only unless the user edits that line. Such
     /// edits retain its unselected payload, as the source Edited state does.
     public func editingSource(for ranges: [NSRange]) throws -> (text: String, ranges: [NSRange]) {
@@ -434,7 +441,7 @@ public struct OnePaneFileComparison: Sendable {
             let rowRange = NSRange(location: offsets[i], length: cells[i].displayText.utf16.count + 1)
             return range.length == 0 ? NSLocationInRange(range.location, rowRange) : NSIntersectionRange(range, rowRange).length > 0
         } })
-        let included = rows.indices.filter { !rows[$0].base || touched.contains($0) }
+        let included = rows.indices.filter { !rows[$0].base || rows[$0].cell.state == .removedWhitespace || touched.contains($0) }
         let style = MergeLineEndings.predominantStyle(in: rows.filter { !$0.base }.map { $0.cell.text }.joined())
         var source = "", sourceLength = 0, starts: [Int: Int] = [:]
         source.reserveCapacity(included.reduce(0) { $0 + cells[$1].text.utf8.count })

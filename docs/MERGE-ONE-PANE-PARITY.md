@@ -11,7 +11,8 @@ preference. A combined region shows all removed Base lines before all added
 Mine lines, followed by common lines. Alignment gaps are omitted. Whitespace
 ignored by the comparison collapses to Mine; filtered non-whitespace payload
 differences retain removed/added lines. Original bytes/endings and source row
-IDs stay separate from the synthetic display LF.
+IDs stay separate from the synthetic display LF. The whitespace continuation
+below supersedes the earlier generalization about all ignored whitespace collapsing.
 
 The combined view edits Mine. Untouched removed rows stay display-only. Editing
 a removed row retains its unselected payload in the result, corresponding to
@@ -61,3 +62,43 @@ disables hidden-opposite transfer commands and removes right-only mark actions.
 Clipboard menu targets capture their pasteboard and support actual combined
 Copy/Cut/Paste/Undo without affecting a newer menu. See
 [one-pane context parity](MERGE-ONE-PANE-CONTEXT-PARITY.md).
+
+
+## Source whitespace aliases and visibility — October 15, 2026
+
+`DiffData::DoTwoWayDiff` now supplies the common-row policy in both native modes.
+Two-pane whitespace/EOL-only common rows use Normal, while payloads made common
+by case/comment/regex filters use FilteredDiff and stay visible when folding.
+A separate hide flag preserves the distinction between folding and modified-only
+Find; neither comparison keys nor displayed line numbers supply edited bytes.
+
+The combined common-row branch follows the pinned CompareWithIgnoreWS rule:
+Compare whitespaces retains different payloads as RemovedWhitespace/AddedWhitespace;
+Ignore whitespace changes collapses only a leading-space/tab-only difference and
+otherwise retains a hidden pair; Ignore all whitespace changes keeps only Mine
+for common rows, including those made common by another filter. Neutral pairs
+retain Mine's displayed line number on both rows. They remain searchable by
+modified-only Find but do not increment Added/Removed counts. Their source color
+channels keep the neutral defaults independently of the Normal swatches. Hidden
+legacy per-alias color overrides are not exposed by the native Colors page.
+
+Explicit Save As/export follows BaseView::SaveFile: neutral RemovedWhitespace
+payloads are retained, while ordinary Removed rows are omitted. Both neutral
+versions therefore appear in the exported contents, using the selected Mine
+encoding and captured endings; no display LF is substituted. Native editing
+uses those retained neutral payloads, with the existing grouped Undo/Redo and
+working-file freshness checks. No viewing or export action rewrites the inputs.
+
+Displayed duplicate line numbers no longer add a line to the original Mine
+coordinate space. Selection restoration across mode/filter changes uses the
+original Mine coordinates; combined editing/export owns its separate serialized
+payload. This prevents a neutral Base row from shifting a later working-file
+selection. Existing caret-driven expansion of folded rows is retained.
+
+[Grouped evidence](qa/merge-whitespace-states-2026-10-15.json) records source
+conditions, actual engine plans, palette/folding/Find and byte mappings, native
+mode changes and editing/export/Save/Undo. Source per-state next-block navigation
+for neutral pairs is still open; the current toolbar follows engine difference
+regions. In-place Edited row retention, all whitespace aliases/legacy overrides,
+physical/VoiceOver/large-file and signed App Store acceptance also remain open.
+This does not certify the complete Merge/editor family.

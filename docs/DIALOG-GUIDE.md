@@ -144,6 +144,13 @@ Choosing a side counts as a modified result until saved, including that same-byt
 Mine choice, so Close and Quit still offer to save it. Save warns while such conflicts remain; Mark as resolved stays unavailable.
 
 
+In one-pane comparison, a filtered common line can appear as a neutral pair.
+Ignore whitespace changes can fold that pair, while Modified-only Find still
+includes it. Ignore all whitespace changes collapses common pairs to Mine.
+Save As retains both neutral rows; ordinary removed rows are omitted. Editing
+uses the same retained payloads, with normal Undo/Redo and encoding controls.
+
+
 ## Rebase and Cherry Pick
 
 Rebase prepares commits relative to the selected branch/upstream and optional

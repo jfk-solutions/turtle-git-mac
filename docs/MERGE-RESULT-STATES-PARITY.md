@@ -120,3 +120,5 @@ checks. The older statement that ignored-conflict production was missing is
 superseded by this batch. Whitespace-state aliases, resolved-empty gap production,
 complete physical/VoiceOver/theme geometry and signed Finder/App Store acceptance
 remain open. This is not complete Merge/application certification.
+
+The connected [one-pane whitespace continuation](MERGE-ONE-PANE-PARITY.md#source-whitespace-aliases-and-visibility--october-15-2026) now produces neutral RemovedWhitespace/AddedWhitespace rows, separate source hide flags and original Mine coordinate mappings. Resolved-empty gaps and the remaining whitespace aliases remain open.

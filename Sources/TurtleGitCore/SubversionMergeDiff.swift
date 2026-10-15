@@ -30,8 +30,9 @@ public struct SubversionDiffPlan: Sendable {
     public let mine: [String]
     public let theirs: [String]?
     public let normalizedComparison: Bool
-    public init(segments: [SubversionDiffSegment], base: [String], mine: [String], theirs: [String]?, normalizedComparison: Bool = false) {
-        self.segments = segments; self.base = base; self.mine = mine; self.theirs = theirs; self.normalizedComparison = normalizedComparison
+    public let contentFiltered: Bool
+    public init(segments: [SubversionDiffSegment], base: [String], mine: [String], theirs: [String]?, normalizedComparison: Bool = false, contentFiltered: Bool = false) {
+        self.segments = segments; self.base = base; self.mine = mine; self.theirs = theirs; self.normalizedComparison = normalizedComparison; self.contentFiltered = contentFiltered
     }
     /// Original line arrays are retained separately from filtered engine keys.
     /// Consumers must use these originals for display, transfers and result text.
@@ -176,6 +177,6 @@ public enum SubversionMergeDiff {
             guard let last = parent.resolved.last, last.mineStart + last.mineLength == parent.mine.upperBound,
                   last.theirsStart + last.theirsLength == parent.theirs.upperBound else { throw SubversionMergeDiffFailure.invalidOutput }
         }
-        return .init(segments: segments, base: lines[0], mine: lines[1], theirs: lines.count == 3 ? lines[2] : nil, normalizedComparison: filter != nil || options.whitespace != .compare || options.ignoreCase || options.ignoreEndings || options.ignoreComments)
+        return .init(segments: segments, base: lines[0], mine: lines[1], theirs: lines.count == 3 ? lines[2] : nil, normalizedComparison: filter != nil || options.whitespace != .compare || options.ignoreCase || options.ignoreEndings || options.ignoreComments, contentFiltered: filter != nil || options.ignoreCase || options.ignoreComments)
     }
 }

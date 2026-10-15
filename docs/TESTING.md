@@ -2126,3 +2126,15 @@ result-history families run once because their standalone Subversion behavior is
 independent of Git selection. `--only workflow` or `--only retained` limits a
 failure repair to the affected group. Private preferences and owned-window/process
 cleanup remain required. See [dated evidence](qa/merge-ignored-2026-10-15.json).
+
+### Whitespace state and combined-view payloads
+
+`python3 scripts/test-merge-whitespace-states.py` runs the connected native
+whitespace/mode/color/fold/Find/export/edit/Undo/Save cases and the retained
+one-pane workflow in one owned receiver. It uses private standalone files and
+preferences; repeating it with another Git executable would not exercise another
+engine because these workflows use the bundled Subversion comparison runtime.
+Core checks cover actual plans, source leading-trim/all-whitespace policy,
+visibility independent of Find categories, neutral palette defaults, line numbers,
+raw serialization and original Mine selection offsets. See
+[the evidence](qa/merge-whitespace-states-2026-10-15.json).

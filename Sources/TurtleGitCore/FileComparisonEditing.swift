@@ -198,18 +198,18 @@ public enum FileComparisonEditing {
     }
     public static func applying(_ replacement: String, range: NSRange, cells: [MergeSourceCell]) throws -> (text: String, caret: Int) {
         let source = try sourceRange(range, cells: cells)
-        let original = cells.filter { $0.lineNumber != nil }.map(\.text).joined()
+        let original = cells.filter { $0.hasSourceCoordinate }.map(\.text).joined()
         let style: MergeLineEnding = MergeLineEndings.predominantStyle(in: original)
         let inserted = MergeLineEndings.converting(replacement, to: style)
         return ((original as NSString).replacingCharacters(in: source, with: inserted), source.location + (inserted as NSString).length)
     }
     public static func selectedText(_ range: NSRange, cells: [MergeSourceCell]) throws -> String {
         let source = try sourceRange(range, cells: cells)
-        return (cells.filter { $0.lineNumber != nil }.map(\.text).joined() as NSString).substring(with: source)
+        return (cells.filter { $0.hasSourceCoordinate }.map(\.text).joined() as NSString).substring(with: source)
     }
     public static func indentation(_ range: NSRange, cells: [MergeSourceCell], tabWidth: Int, useSpaces: Bool, smart: Bool, remove: Bool = false) throws -> (text: String, selection: NSRange)? {
         let selection = try sourceRange(range, cells: cells)
-        let original = cells.filter { $0.lineNumber != nil }.map(\.text).joined()
+        let original = cells.filter { $0.hasSourceCoordinate }.map(\.text).joined()
         if let edit = MergeWhitespace.indentSelection(in: original, selection: selection, tabWidth: tabWidth, useSpaces: useSpaces, smart: smart, remove: remove) {
             let result = (original as NSString).replacingCharacters(in: edit.range, with: edit.replacement)
             guard !result.utf8.elementsEqual(original.utf8) else { return nil }
@@ -243,11 +243,11 @@ public enum FileComparisonEditing {
             for cell in cells {
                 let payload = (cell.displayText as NSString).length, length = payload + 1
                 if offset < display + length {
-                    guard cell.lineNumber != nil else { return source }
+                    guard cell.hasSourceCoordinate else { return source }
                     return source + min(offset - display, payload)
                 }
                 display += length
-                if cell.lineNumber != nil { source += (cell.text as NSString).length }
+                if cell.hasSourceCoordinate { source += (cell.text as NSString).length }
             }
             return source
         }
@@ -258,7 +258,7 @@ public enum FileComparisonEditing {
         var display = 0, source = 0
         for cell in cells {
             let payload = (cell.displayText as NSString).length
-            if cell.lineNumber != nil {
+            if cell.hasSourceCoordinate {
                 let length = (cell.text as NSString).length
                 if sourceOffset <= source + payload { return display + max(0, sourceOffset - source) }
                 if sourceOffset < source + length { return display + payload }

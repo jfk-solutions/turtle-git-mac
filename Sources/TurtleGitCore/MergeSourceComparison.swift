@@ -3,7 +3,7 @@ import Foundation
 public enum MergeSourceState: Sendable, Equatable, CaseIterable {
     case normal, removed, added, conflicted, resolved, edited, empty, filtered
     case identicalRemoved, identicalAdded, theirsRemoved, theirsAdded, yoursRemoved, yoursAdded
-    case conflictAdded, conflictEmpty, conflictedIgnored
+    case conflictAdded, conflictEmpty, conflictedIgnored, removedWhitespace, addedWhitespace
     public var isRemoval: Bool { [.removed,.identicalRemoved,.theirsRemoved,.yoursRemoved].contains(self) }
     public var isAddition: Bool { [.added,.identicalAdded,.theirsAdded,.yoursAdded,.conflictAdded].contains(self) }
     public var isConflict: Bool { [.conflicted,.conflictAdded,.conflictEmpty,.conflictedIgnored].contains(self) }
@@ -31,7 +31,14 @@ public struct MergeSourceCell: Sendable {
     /// One-based source line number. Removed base lines and alignment gaps have none.
     public let lineNumber: Int?
     public let state: MergeSourceState
-    public init(text: String, lineNumber: Int?, state: MergeSourceState) { self.text = text; self.lineNumber = lineNumber; self.state = state }
+    /// Source HideState is independent of Find's modified-state categories.
+    public let hiddenByComparison: Bool
+    public init(text: String, lineNumber: Int?, state: MergeSourceState, hiddenByComparison: Bool? = nil) {
+        self.text = text; self.lineNumber = lineNumber; self.state = state; self.hiddenByComparison = hiddenByComparison ?? state.isUnchanged
+    }
+    /// A combined Base whitespace row displays Mine's number but is not an
+    /// extra line in the original Mine coordinate space.
+    public var hasSourceCoordinate: Bool { lineNumber != nil && state != .removedWhitespace }
     public var displayText: String {
         MergeLineEndings.droppingFinalEnding(text)
     }

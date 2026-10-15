@@ -28,8 +28,8 @@ public struct SubversionComparisonPresentation: Sendable {
     public init(plan: SubversionDiffPlan) throws {
         guard plan.theirs == nil else { throw SubversionMergeDiffFailure.invalidOutput }
         var rows: [FileComparisonRow] = [], differences: [Range<Int>] = []
-        func cell(_ lines: [String], _ index: Int, _ state: MergeSourceState) -> MergeSourceCell {
-            .init(text: lines[index], lineNumber: index + 1, state: state)
+        func cell(_ lines: [String], _ index: Int, _ state: MergeSourceState, hidden: Bool? = nil) -> MergeSourceCell {
+            .init(text: lines[index], lineNumber: index + 1, state: state, hiddenByComparison: hidden)
         }
         let gap = MergeSourceCell(text: "", lineNumber: nil, state: .empty)
         for segment in plan.segments {
@@ -37,8 +37,9 @@ public struct SubversionComparisonPresentation: Sendable {
             case .common:
                 for offset in 0..<segment.base.count {
                     let a = segment.base.lowerBound + offset, b = segment.mine.lowerBound + offset
-                    let state: MergeSourceState = plan.base[a].utf8.elementsEqual(plan.mine[b].utf8) ? .normal : .filtered
-                    rows.append(.init(base: cell(plan.base, a, state), destination: cell(plan.mine, b, state)))
+                    let payloadDiffers = !MergeLineEndings.droppingFinalEnding(plan.base[a]).utf8.elementsEqual(MergeLineEndings.droppingFinalEnding(plan.mine[b]).utf8)
+                    let state: MergeSourceState = payloadDiffers && plan.contentFiltered ? .filtered : .normal
+                    rows.append(.init(base: cell(plan.base, a, state, hidden: state == .normal), destination: cell(plan.mine, b, state, hidden: state == .normal)))
                 }
             case .modified:
                 let start = rows.count
