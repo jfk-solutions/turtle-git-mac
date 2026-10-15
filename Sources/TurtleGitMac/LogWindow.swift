@@ -1308,6 +1308,8 @@ struct LogCommandRequest: Identifiable {
     var onHistoryPush: ((String, Bool) -> Void)?
     var onHistoryPull: (() -> Void)?
     var onShowHistory: ((String) -> Void)?
+    var onShowHistoryRange: ((HistoryRevisionRange) -> Void)?
+    var onCommitChangeSets: ((CommitChangeSetComparison) -> Void)?
     var onHistorySVNDCommit: (() -> Void)?
     func historyLogAvailable(extended:Bool)->Bool {
         guard let revision else { return false }
@@ -1320,6 +1322,43 @@ struct LogCommandRequest: Identifiable {
     func showHistory(extended:Bool) {
         guard canStartHistoryTransport,historyLogAvailable(extended:extended),let revision else { return }
         onShowHistory?(revision.hash)
+    }
+    var selectedHistoryRanges: [HistoryRevisionRange] {
+        let chosen=revisions
+        guard !includesWorkingTree,selected.count==2,chosen.count==2 else { return [] }
+        return [HistoryRevisionRange(from:chosen[1].hash,to:chosen[0].hash),
+                HistoryRevisionRange(from:chosen[0].hash,to:chosen[1].hash),
+                HistoryRevisionRange(from:chosen[1].hash,to:chosen[0].hash,kind:.symmetricDifference)]
+    }
+    func showHistoryRange(_ range:HistoryRevisionRange) {
+        guard canStartHistoryTransport,selectedHistoryRanges.contains(range) else { return }
+        onShowHistoryRange?(range)
+    }
+    var continuousRevisionSelection: Bool {
+        let indices=entries.indices.filter { selected.contains(entries[$0].hash) }
+        return !includesWorkingTree && indices.count==selected.count && indices.count>1 &&
+            indices.last! - indices.first! + 1 == indices.count
+    }
+    var canCompareRevisionSelection: Bool {
+        let count=revisions.count
+        return selected.count==count && (count==1 || count==2 || continuousRevisionSelection)
+    }
+    func compareChangeSets(alternate:Bool = false) {
+        guard canStartHistoryTransport,!includesWorkingTree,selected.count==2,revisions.count==2,onCommitChangeSets != nil else { return }
+        let chosen=revisions,request=generation,selection=selected
+        let id=UUID(),session=FileListComparisonSession(window:window,preferences:labelDefaults,alternateTool:alternate)
+        unifiedSessions[id]=session;busy=true;error=nil
+        Task {
+            defer { unifiedSessions.removeValue(forKey:id);if request==generation { busy=false };withExtendedLifetime(access) {} }
+            do {
+                try await session.run(selectedCount:0) { [self] token in
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let comparison=try await repository.commitChangeSets(first:chosen[0].hash,second:chosen[1].hash,cancellation:token)
+                    guard request==generation,selection==selected,!isInvalidated,!token.isCancelled else { return }
+                    onCommitChangeSets?(comparison)
+                }
+            } catch { if request==generation,selection==selected,!isInvalidated,!session.cancellation.isCancelled { self.error=error.localizedDescription } }
+        }
     }
     func svnDCommitFromHistory(extended:Bool) {
         guard canStartHistoryTransport,!bare,hasGitSVN,historyPushAvailable(extended:extended) else { return }
@@ -1456,9 +1495,9 @@ struct LogCommandRequest: Identifiable {
         historyWalk.followRenames = false; canFollowRenames = false
         historyPaths = scope; showWholeProject = scope.isEmpty; reload()
     }
-    func canReuseForRange(_ range: HistoryRevisionRange) -> Bool {
+    func canReuseForRange(_ range: HistoryRevisionRange, paths:[String] = []) -> Bool {
         !isInvalidated && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !unifiedViewerBusy && !copyingDetails &&
-        revisionRange == range && endRevision == nil && historyPaths.isEmpty && startRevisions.isEmpty && effectiveReferenceScope == .current
+        revisionRange == range && endRevision == nil && historyPaths == paths && showWholeProject == paths.isEmpty && startRevisions.isEmpty && effectiveReferenceScope == .current
     }
     func configureWholeProjectScope() {
         historyWalk.followRenames = false; canFollowRenames = false
@@ -1832,13 +1871,14 @@ struct LogCommandRequest: Identifiable {
         cancelClipboardRead()
         clipboard.clearContents(); clipboard.setString(text, forType: .string)
     }
-    func diff(workingTree: Bool = false, path: String? = nil, alternate: Bool = false) {
+    func diff(workingTree: Bool = false, path: String? = nil, alternate: Bool = false, mode:LogRevisionDiffMode = .firstParent) {
         guard !busy, !isInvalidated, !unifiedViewerBusy, !workingTree || !bare else { return }
         if includesWorkingTree { workingTreeDiff(path: path, alternate: alternate); return }
         let revisions = self.revisions
         guard (1...2).contains(revisions.count) else { return }
+        let scope=path.map { [$0] } ?? (showWholeProject ? [] : historyPaths)
         let request = generation, selection = selected
-        let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults)
+        let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults, alternateTool:alternate)
         unifiedSessions[id] = session; busy = true
         Task {
             defer { unifiedSessions.removeValue(forKey: id); if request == generation { busy = false }; withExtendedLifetime(access) {} }
@@ -1848,10 +1888,13 @@ struct LogCommandRequest: Identifiable {
                     let bytes: Data
                     if revisions.count == 2, !workingTree {
                         var args = ["diff", "--no-ext-diff", "--no-color", revisions[1].hash, revisions[0].hash, "--"]
-                        if let path { args.append(path) }
+                        args += scope
                         bytes = try await repository.run(args, cancellation: token).stdout
-                    } else { bytes = try await repository.revisionDiffData(revisions[0], path: path, workingTree: workingTree, cancellation: token) }
+                    } else { bytes = try await repository.revisionDiffData(revisions[0], paths:scope, workingTree:workingTree, mode:mode, cancellation:token) }
                     guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                    if mode == .extraMergeChanges, String(decoding:bytes,as:UTF8.self).split(separator:"\n").count <= 1 {
+                        navigationNotice="No extra changes after merge.";return
+                    }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                     else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
                         guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
@@ -2413,16 +2456,20 @@ struct LogCommandRequest: Identifiable {
         guard !chosen.hash.isEmpty || !bare else { return }
         onCompare?(.revision(parent), chosen.hash.isEmpty ? .workingTree : .revision(chosen.hash))
     }
-    func compare(workingTree: Bool = false) {
-        guard !busy, let onCompare, !workingTree || !bare else { return }
+    func compare(workingTree: Bool = false, parent:Int? = nil) {
+        guard canStartHistoryTransport, let onCompare, !workingTree || !bare else { return }
         if includesWorkingTree, !workingTree, selected.count <= 2 {
             let base = revisions.first?.hash ?? workingTreeSnapshot?.entry.parents.first
             onCompare(base.map { .revision($0) } ?? .emptyTree, .workingTree); return
         }
         let chosen = revisions
-        guard chosen.count == 1 || chosen.count == 2 && !workingTree else { return }
+        guard canCompareRevisionSelection,!workingTree || chosen.count==1 else { return }
+        if let parent {
+            guard chosen.count==1,!workingTree,parent>0,parent<=chosen[0].parents.count else { return }
+            onCompare(.revision(chosen[0].parents[parent-1]),.revision(chosen[0].hash));return
+        }
         if workingTree { onCompare(.revision(chosen[0].hash), .workingTree) }
-        else if chosen.count == 2 { onCompare(.revision(chosen[1].hash), .revision(chosen[0].hash)) }
+        else if chosen.count >= 2 { onCompare(.revision(chosen.last!.hash), .revision(chosen[0].hash)) }
         else { onCompare(chosen[0].parents.first.map { .revision($0) } ?? .emptyTree, .revision(chosen[0].hash)) }
     }
     private func workingTreeDiff(path: String?, alternate: Bool) {
@@ -3377,8 +3424,33 @@ struct RevisionTable: NSViewRepresentable {
             }
             let one = model.revision != nil, two = model.revisions.count == 2
             item("Compare with working tree", #selector(workingDiff), icon: .compare, enabled: one && !model.bare && !model.busy && model.onCompare != nil)
-            item(two || model.includesWorkingTree ? "Compare revisions" : "Compare with previous revision", #selector(compare), icon: .compare, enabled: (one || two || model.includesWorkingTree && model.selected.count == 2) && !model.busy && model.onCompare != nil)
-            item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: (one || two || model.includesWorkingTree && model.selected.count == 2) && !model.busy)
+            if let revision=model.revision,revision.parents.count>1 {
+                let previous=item("Compare with previous revision",#selector(compare),icon:.compare,enabled:!model.busy && model.onCompare != nil)
+                let parents=NSMenu();parents.autoenablesItems=false;previous.submenu=parents
+                for choice in model.parentChoices(for:revision) {
+                    let child=NSMenuItem(title:choice.title,action:#selector(compareParent(_:)),keyEquivalent:"")
+                    child.target=self;child.isEnabled=previous.isEnabled;child.representedObject=NSNumber(value:choice.number);parents.addItem(child)
+                }
+                if !model.bare {
+                    let unified=item("Unified diff with",#selector(showDiff),icon:.unifiedDiff,enabled:!model.busy)
+                    let choices=NSMenu();choices.autoenablesItems=false;unified.submenu=choices
+                    let modes:[(String,LogRevisionDiffMode)]=[("All Parents",.allParents),("Only Merged Files",.combined),("Show extra changes after merge",.extraMergeChanges)] + model.parentChoices(for:revision).map { ($0.title,.parent($0.number)) }
+                    for (title,mode) in modes {
+                        let child=NSMenuItem(title:title,action:#selector(showParentDiff(_:)),keyEquivalent:"")
+                        child.target=self;child.isEnabled=unified.isEnabled;child.representedObject=mode;choices.addItem(child)
+                    }
+                }
+            } else {
+                item(model.selected.count>1 ? "Compare revisions" : "Compare with previous revision", #selector(compare), icon: .compare, enabled: (model.canCompareRevisionSelection || model.includesWorkingTree && model.selected.count == 2) && !model.busy && model.onCompare != nil)
+                item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: (one || two || model.includesWorkingTree && model.selected.count == 2) && !model.bare && !model.busy)
+            }
+            if two,!model.includesWorkingTree {
+                for range in model.selectedHistoryRanges {
+                    let label=String(range.from.prefix(8))+range.separator+String(range.to.prefix(8))
+                    item("Show log of "+label,#selector(showHistoryRange(_:)),icon:.log,enabled:!model.busy && model.onShowHistoryRange != nil).representedObject=range
+                }
+                item("Compare change sets",#selector(compareChangeSets(_:)),icon:.compare,enabled:!model.busy && model.onCommitChangeSets != nil)
+            }
             menu.addItem(.separator())
             for command in [LogBisectCommand.good, .bad, .skip] where one && model.bisectAvailable(command) {
                 let selector = command == .good ? #selector(bisectGood) : command == .bad ? #selector(bisectBad) : #selector(bisectSkip)
@@ -3552,6 +3624,10 @@ struct RevisionTable: NSViewRepresentable {
         }
         @objc func pullFromHistory() { model.pullFromHistory() }
         @objc func showHistory(_ sender:NSMenuItem) { model.showHistory(extended:(sender.representedObject as? NSNumber)?.boolValue ?? false) }
+        @objc func showHistoryRange(_ sender:NSMenuItem) { if let range=sender.representedObject as? HistoryRevisionRange { model.showHistoryRange(range) } }
+        @objc func compareChangeSets(_ sender:NSMenuItem) { model.compareChangeSets(alternate:NSEvent.modifierFlags.contains(.shift)) }
+        @objc func compareParent(_ sender:NSMenuItem) { if let number=sender.representedObject as? NSNumber { model.compare(parent:number.intValue) } }
+        @objc func showParentDiff(_ sender:NSMenuItem) { if let mode=sender.representedObject as? LogRevisionDiffMode { model.diff(alternate:NSEvent.modifierFlags.contains(.shift),mode:mode) } }
         @objc func svnDCommitFromHistory(_ sender:NSMenuItem) { model.svnDCommitFromHistory(extended:(sender.representedObject as? NSNumber)?.boolValue ?? false) }
         @objc func pushReference(_ sender: NSMenuItem) { model.requestReference(.push, target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func switchBranchReference(_ sender: NSMenuItem) { if let target = sender.representedObject as? LogReferenceMenuTarget { model.switchBranch(target: target) } }
@@ -3687,6 +3763,10 @@ struct RevisionTable: NSViewRepresentable {
     @objc func pushCaptured(_ sender:NSMenuItem) { invoke(NSSelectorFromString("pushCaptured:"),sender:sender) }
     @objc func pullFromHistory() { invoke(NSSelectorFromString("pullFromHistory")) }
     @objc func showHistory(_ sender:NSMenuItem) { invoke(NSSelectorFromString("showHistory:"),sender:sender) }
+    @objc func showHistoryRange(_ sender:NSMenuItem) { invoke(NSSelectorFromString("showHistoryRange:"),sender:sender) }
+    @objc func compareChangeSets(_ sender:NSMenuItem) { invoke(NSSelectorFromString("compareChangeSets:"),sender:sender) }
+    @objc func compareParent(_ sender:NSMenuItem) { invoke(NSSelectorFromString("compareParent:"),sender:sender) }
+    @objc func showParentDiff(_ sender:NSMenuItem) { invoke(NSSelectorFromString("showParentDiff:"),sender:sender) }
     @objc func svnDCommitFromHistory(_ sender:NSMenuItem) { invoke(NSSelectorFromString("svnDCommitFromHistory:"),sender:sender) }
     @objc func pushReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("pushReference:"),sender:sender) }
     @objc func switchBranchReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("switchBranchReference:"),sender:sender) }

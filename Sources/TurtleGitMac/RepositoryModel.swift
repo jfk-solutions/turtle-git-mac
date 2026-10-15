@@ -1492,6 +1492,19 @@ import UniformTypeIdentifiers
     var fileComparisonPreferences: UserDefaults = .standard
     var fileComparisonQuestion: ((Int) async -> Bool)?
     var fileComparisonPresentation: ((RevisionComparisonSnapshot, CommitFile) -> Void)?
+    var commitChangeSetPresentation: ((CommitChangeSetComparison) -> Void)?
+    private func showCommitChangeSets(repository:GitRepository,access:RepositoryAccessLease?,comparison:CommitChangeSetComparison) {
+        guard !confirmingQuit else { return }
+        if let commitChangeSetPresentation { commitChangeSetPresentation(comparison);return }
+        let key=repository.root.path+"\0changesets\0"+comparison.snapshot.from.label+"\0"+comparison.snapshot.to.label+"\0"+ComparisonToolInvocation.cacheKey
+        let controller=fileComparisonWindows[key] ?? FileComparisonWindowController(repository:repository,access:access,changeSets:comparison)
+        controller.model.comparisonDefaults=fileComparisonPreferences
+        controller.onClosed={ [weak self,weak controller] in
+            guard let self,let controller,self.fileComparisonWindows[key] === controller else { return }
+            self.fileComparisonWindows.removeValue(forKey:key)
+        }
+        fileComparisonWindows[key]=controller;controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
+    }
     private var fileComparisonSessions: [UUID: FileListComparisonSession] = [:]
     private func prepareFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, selectedCount: Int, owner: NSWindow?, operation: @escaping (OperationCancellation) async throws -> Void) {
         guard !busy, !confirmingQuit else { return }
@@ -1993,7 +2006,7 @@ import UniformTypeIdentifiers
         if let revisionRange {
             reusable = logWindows.first { _, controller in
                 controller.model.repository.root == root && controller.model.repository.executable == repository.executable &&
-                controller.window?.attachedSheet == nil && controller.model.canReuseForRange(revisionRange)
+                controller.window?.attachedSheet == nil && controller.model.canReuseForRange(revisionRange,paths:paths)
             }
         } else { reusable = logWindows[baseKey].map { (key: baseKey, value: $0) } }
         let key = reusable?.key ?? (logWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
@@ -2027,7 +2040,6 @@ import UniformTypeIdentifiers
         controller.model.onContainingLog = { [weak self] name, select, range in
             self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range)
         }
-        controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
         controller.model.onPreparedFileCompare = { [weak self, weak controller] marked, current in guard let controller else { return }; self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current, owner: controller.window) }
         controller.model.onFilePairCompare = { [weak self, weak controller] revision, files in guard let controller else { return }; self?.showHistoricalFilePair(repository: repository, access: access, revision: revision, files: files, owner: controller.window) }
@@ -2075,6 +2087,7 @@ import UniformTypeIdentifiers
         if let selectedRevision { ReferenceLogWindowModel.configureRevisionLog(controller.model, revision: selectedRevision) }
         if let revisionRange {
             ReferenceLogWindowModel.configureRangeLog(controller.model, range: revisionRange)
+            controller.model.historyPaths=paths;controller.model.showWholeProject=paths.isEmpty
             controller.window?.title = location + " – Log Messages " + revisionRange.expression + " – TurtleGit"
         }
         controller.model.reload()
@@ -2082,7 +2095,16 @@ import UniformTypeIdentifiers
     }
 
     private func configureLogMenus(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        model.onCompare={ [weak self,weak model] from,to in
+            guard let model else { return }
+            self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,paths:model.showWholeProject ? [] : model.historyPaths)
+        }
         model.onShowHistory={ [weak self] hash in self?.showLog(repository:repository,access:access,paths:[],endRevision:hash,selectedRevision:hash) }
+        model.onShowHistoryRange={ [weak self,weak model] range in
+            guard let model else { return }
+            self?.showLog(repository:repository,access:access,paths:model.historyPaths,revisionRange:range)
+        }
+        model.onCommitChangeSets={ [weak self] comparison in self?.showCommitChangeSets(repository:repository,access:access,comparison:comparison) }
         model.onHistorySVNDCommit={ [weak self] in self?.showSVN(.dcommit,repository:repository,access:access) }
         model.configureStartReferenceBrowser = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         model.onSwitchBranch = { [weak self, weak model] reference in

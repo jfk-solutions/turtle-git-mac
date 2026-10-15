@@ -671,6 +671,25 @@ final class CommitHistoryTests: XCTestCase {
         try await repo.stage(["shared"]); _ = try await repo.commit(message: "resolved merge")
         history = try await repo.history(); var merge = try XCTUnwrap(history.first)
         XCTAssertEqual(merge.parents, [main, side])
+        let parentOne=try await repo.revisionDiffData(merge,path:"shared",mode:.parent(1))
+        let parentTwo=try await repo.revisionDiffData(merge,path:"shared",mode:.parent(2))
+        XCTAssertTrue(String(decoding:parentOne,as:UTF8.self).contains("-main\n+resolved"))
+        XCTAssertTrue(String(decoding:parentTwo,as:UTF8.self).contains("-side\n+resolved"))
+        let all=try await repo.revisionDiffData(merge,path:"shared",mode:.allParents)
+        XCTAssertTrue(String(decoding:all,as:UTF8.self).contains("-main\n+resolved"))
+        XCTAssertTrue(String(decoding:all,as:UTF8.self).contains("-side\n+resolved"))
+        let combined=try await repo.revisionDiffData(merge,path:"shared",mode:.combined)
+        let extra=try await repo.revisionDiffData(merge,path:"shared",mode:.extraMergeChanges)
+        XCTAssertTrue(String(decoding:combined,as:UTF8.self).contains("diff --combined shared"))
+        XCTAssertTrue(String(decoding:extra,as:UTF8.self).contains("diff --cc shared"))
+        XCTAssertTrue(String(decoding:extra,as:UTF8.self).contains("++resolved"))
+        for number in [0,3] {
+            do { _ = try await repo.revisionDiffData(merge,mode:.parent(number));XCTFail("Invalid parent accepted") }
+            catch is RevisionComparisonFailure {}
+        }
+        let cancelled=OperationCancellation();cancelled.cancel()
+        do { _ = try await repo.revisionDiffData(merge,mode:.allParents,cancellation:cancelled);XCTFail("Cancelled merge diff accepted") }
+        catch is OperationCancellationFailure {}
         // Cached row metadata is not authoritative for which parents belong to the commit.
         merge.parents = [side, main, initial.hash]
         try Data("staged\n".utf8).write(to: root.appendingPathComponent("shared")); try await repo.stage(["shared"])

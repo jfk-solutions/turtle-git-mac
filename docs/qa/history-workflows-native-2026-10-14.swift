@@ -222,6 +222,36 @@ import TurtleGitCore
         window.makeFirstResponder(table)
         try require(window.performKeyEquivalent(with:enter),"Log window default button consumed Return before revision diff")
         try require(comparisons.count==1 && comparisons[0].0 == .revision(entries[1].parents[0]) && comparisons[0].1 == .revision(entries[1].hash),"Return did not follow source double-click diff preference")
+        // Source multi-selection and merge-parent inspection use the same live menu/relay.
+        var ranges:[HistoryRevisionRange]=[],changeSets:[CommitChangeSetComparison]=[],toolChoices:[Bool]=[]
+        model.onShowHistoryRange={ranges.append($0)}
+        model.onCommitChangeSets={changeSets.append($0);toolChoices.append(ComparisonToolInvocation.capture)}
+        model.select([entries[0].hash,entries[2].hash]);update()
+        let rangeItems=leaves(menu).filter{$0.action==NSSelectorFromString("showHistoryRange:")}
+        try require(rangeItems.count==3 && rangeItems.allSatisfy{$0.image != nil && $0.isEnabled},"Two selected commits lack the three source range commands/icons")
+        for choice in rangeItems {update();let expression=(choice.representedObject as! HistoryRevisionRange).expression;send(leaves(menu).first{($0.representedObject as? HistoryRevisionRange)?.expression==expression}!)}
+        try require(ranges==model.selectedHistoryRanges,"Range orientation/symmetric difference changed")
+        update();let staleRange=leaves(menu).first{$0.action==NSSelectorFromString("showHistoryRange:")}!
+        model.select([entries[1].hash]);send(staleRange);try require(ranges.count==3,"Stale range opened another selection")
+        model.select(Set(entries.prefix(3).map(\.hash)));comparisons=[];model.compare()
+        try require(model.continuousRevisionSelection && comparisons.count==1 && comparisons[0].0 == .revision(entries[2].hash) && comparisons[0].1 == .revision(entries[0].hash),"Continuous selection did not compare displayed endpoints")
+        model.select([entries[0].hash,entries[1].hash,entries[3].hash]);model.compare()
+        try require(!model.canCompareRevisionSelection && comparisons.count==1,"Discontinuous multi-selection compared silently")
+        model.select([entries[0].hash,entries[1].hash]);model.compareChangeSets(alternate:true);try await wait{!model.busy}
+        try require(changeSets.count==1 && toolChoices==[true] && changeSets[0].snapshot.from == .revision(entries[0].hash) && changeSets[0].snapshot.to == .revision(entries[1].hash) && changeSets[0].document.base.text?.contains("Subject: [PATCH] add c")==true,"Change sets lost patch ordering/content or captured alternate tool")
+        let patchModel=FileComparisonWindowModel(repository:repository,access:nil,changeSets:changeSets[0]);patchModel.comparisonDefaults=preferences;patchModel.openExternalComparison={_,_,_,_ in false};patchModel.load();try await wait{!patchModel.busy}
+        try require(patchModel.document?.base.bytes==changeSets[0].document.base.bytes && !patchModel.canEdit(base:true) && !patchModel.canEdit(base:false),"Prepared patch viewer lost bytes or became editable");patchModel.retireImageLoader()
+        model.compareChangeSets();model.select([entries[1].hash,entries[2].hash]);try await wait{!model.busy}
+        try require(changeSets.count==1,"Late patch preparation opened a viewer after selection changed")
+        // Native parent items retain ordinal payloads and all three source merge modes.
+        let mergeIndex=model.entries.firstIndex{$0.hash==entries[0].hash}!,originalParents=model.entries[mergeIndex].parents
+        model.entries[mergeIndex].parents=[entries[1].hash,entries[2].hash];model.parentMetadata.removeValue(forKey:entries[0].hash);model.select([entries[0].hash]);update()
+        let parentItems=leaves(menu).filter{$0.action==NSSelectorFromString("compareParent:")},diffItems=leaves(menu).filter{$0.action==NSSelectorFromString("showParentDiff:")}
+        try require(parentItems.count==2 && diffItems.count==5 && diffItems.prefix(3).map(\.title)==["All Parents","Only Merged Files","Show extra changes after merge"],"Merge parent/mode submenu missing or reordered")
+        send(parentItems[1]);try require(comparisons.last?.0 == .revision(entries[2].hash),"Parent 2 compared Parent 1")
+        model.entries[mergeIndex].parents=originalParents
+        model.select([entries[0].hash,entries.last!.hash]);model.compareChangeSets();try await wait{!model.busy}
+        try require(changeSets.count==1 && model.error != nil,"Root change-set failure opened a partial viewer")
         owner.close();try require(!table.showKeyboardContextMenu() && table.onReturn?() != true,"Retired native table accepted keyboard action")
         // Exercise repository-bound handlers through the actual workspace factory.
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in false},comparisonMarks:WorkingComparisonMarkStore(storageURL:repository.root.appendingPathComponent("private-comparison-mark.json")))
@@ -244,10 +274,20 @@ import TurtleGitCore
         try require(logs.count==2,"Same scoped history did not reuse its child")
         parent.model.select([entries[0].hash]);parent.model.svnDCommitFromHistory(extended:false)
         try require(svnRoots.count==1 && svnRoots[0]==parent.model.repository.root && svnWindows[0].model.operation == .dcommit,"History SVN command lost its captured repository")
+        parent.model.select([entries[0].hash,entries[1].hash]);parent.model.historyPaths=["a"];parent.model.showWholeProject=false
+        let selectedRange=parent.model.selectedHistoryRanges[0]
+        parent.model.showHistoryRange(selectedRange);try await wait{logs.count==3 && !logs[2].model.busy}
+        let scoped=logs[2]
+        try require(scoped.model.revisionRange==selectedRange && scoped.model.historyPaths==["a"] && !scoped.model.showWholeProject && leases[0] === leases[2],"Range child lost source path/repository/grant")
+        parent.model.showHistoryRange(selectedRange);try await wait{!scoped.model.busy};try require(logs.count==3,"Same path/range child was not reused")
+        parent.model.historyPaths=[];parent.model.showWholeProject=true;parent.model.showHistoryRange(selectedRange);try await wait{logs.count==4 && !logs[3].model.busy}
+        try require(logs[3] !== scoped && logs[3].model.historyPaths.isEmpty,"Whole-repository range reused a path-restricted child")
+        var workspacePatches:[CommitChangeSetComparison]=[];workspace.commitChangeSetPresentation={workspacePatches.append($0)}
+        parent.model.compareChangeSets();try await wait{!parent.model.busy};try require(workspacePatches.count==1 && workspacePatches[0].snapshot.root==repository.root,"Workspace did not present prepared change sets from the originating repository")
         workspace.closeRepository();parent.close()
         try require(!child.model.isInvalidated && child.window?.isVisible==true,"Closing parent/workspace retired independent scoped history")
         child.close()
-        print("Log source menu family: normal/extended/ref/stash/bare Show log and SVN DCommit, original icons, Shift snapshot and stale guards, selected-row Shift-F10/AX routes, Return diff preference, scoped child reuse/selection/grant and captured SVN repository passed. No SVN transport submitted; owned windows closed.")
+        print("Log source menu family: range orientations/path reuse, continuous selection, change-set patches/read-only viewer/alternate tool/root failure, merge parent/mode menus; normal/extended/ref/stash/bare Show log and SVN DCommit, original icons, Shift snapshot and stale guards, selected-row Shift-F10/AX routes, Return diff preference, scoped child reuse/selection/grant and captured SVN repository passed. No SVN transport submitted; owned windows closed.")
     }
 
 }

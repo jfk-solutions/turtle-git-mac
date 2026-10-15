@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-15",
+  "scope": "Connected Log multi-commit and merge inspection family",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/GitLogListBase.cpp: parent/unified menus, continuous selection, three two-row ranges and change sets",
+      "src/TortoiseProc/GitLogListAction.cpp: ID_COMPARETWOCOMMITCHANGES, ID_LOG_VIEWRANGE variants and merge diff actions",
+      "src/Git/Git.cpp: GetUnifiedDiffCmd -m/-c flags",
+      "src/Resources/TortoiseLoglistCommon.rc2: captions and icons"
+    ]
+  },
+  "implementation": [
+    "Three typed full-hash range actions in displayed order with eight-character labels; scoped child Logs retain repository, grant and path scope; reuse separates whole-repository and path-restricted ranges",
+    "Owned cancellable first-parent format-patch comparison routed to read-only TurtleGitMerge; retains byte order and alternate tool choice; rejects changed selection or retired owner and reports unsupported root range failure",
+    "Continuous multi-row comparisons use displayed endpoints; discontinuous selections of more than two rows refuse comparison",
+    "Merge parent ordinal comparison submenu and unified All Parents/Only Merged Files/extra merge changes/numbered parent modes",
+    "Revision comparison handoffs preserve current path scope; unified Git reads accept all scoped paths; empty extra-merge output shows a notice",
+    "All new revision leaves bound through existing popup lifetime relay with original Log/Diff artwork"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/log-inspection-build-2026-10-15.log"
+    },
+    "core": {
+      "result": "3 tests passed, 0 failures",
+      "filter": "CommitHistoryTests.testLogFileGroupsRetainEveryParentOccurrenceAndScopedPatch|CommitHistoryTests.testUnifiedDiffBytesRemainApplicableForNonUTF8Text|FileComparisonTests.testChangeSetsCompareFirstParentPatchStreamsAndPreserveRepository",
+      "log": "build/qa/log-inspection-core-2026-10-15.log",
+      "scope": "Real conflicted merge resolved to new content: each parent, -m/-c/--cc output, invalid ordinals and cancellation; existing octopus/file grouping; raw patch applicability and first-parent patch streams with root/cancellation/index/ref/config preservation"
+    },
+    "native": {
+      "result": "both engine cases passed",
+      "cases": [
+        "history-workflows/system Git",
+        "history-workflows/bundled Git"
+      ],
+      "log": "build/qa/log-inspection-native-2026-10-15.log",
+      "receivers_reaped_and_absent": [
+        92330,
+        92857
+      ],
+      "scope": "Native range captions/icons/payload orientation and stale relay; continuous/discontinuous endpoint selection; actual prepared patches and read-only viewer with captured alternate tool; stale async suppression and root failure; synthetic merge menu parent/mode payloads; real workspace range child path/repository/grant/reuse and prepared comparison routing; existing Show Log/SVN/keyboard/Revert/Combine assertions retained"
+    },
+    "hosted_snapshot_before_push": {
+      "head": "54c8c33a",
+      "pages_run": 38680740401,
+      "pages_conclusion": "success",
+      "macos_run": 38680740416,
+      "macos_status": "pending"
+    },
+    "visual": "Menu construction/payload behavior checked through native objects; no physical popup capture or claim of complete visual parity.",
+    "documentation": {
+      "site_documents": 216,
+      "unresolved_fragments": [],
+      "coverage_ledger": "regenerated",
+      "log": "build/qa/log-inspection-site-2026-10-15.log"
+    }
+  },
+  "limits": [
+    "Complete shared-list masks/order and rename-following parent paths remain partial",
+    "Parent menu metadata uses a synthetic two-parent row in native checks; actual merge Git outputs covered by the Core fixture",
+    "Physical popup/default-item, keyboard/VoiceOver and signed acceptance remain open",
+    "No SVN transport submitted by native fixture",
+    "App Store distribution and full app parity remain open"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

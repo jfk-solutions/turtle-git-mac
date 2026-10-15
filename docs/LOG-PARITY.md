@@ -2478,3 +2478,42 @@ acceptance and signed SVN/Finder/App Store behavior remain separate work.
 The Debug build and four grouped history/reference cases passed on system and
 bundled Git; see [source menu evidence](qa/log-source-menus-2026-10-15.json).
 Every owned receiver was reaped. No SVN transport was submitted by the fixture.
+
+## Multi-commit and merge inspection — October 15, 2026
+
+The revision popup now includes the source's three **Show log of** commands for
+exactly two selected commits: last..first, first..last and last...first, using the
+displayed row order and eight-character captions. Their typed payloads retain
+full hashes. The child keeps the originating repository, access grant and path
+scope; reuse requires the same range and path scope. A whole-repository range
+cannot reuse a path-restricted child. Single-commit Show log remains a separate,
+whole-repository command.
+
+**Compare change sets** now generates the two first-parent format-patch streams
+in source order and opens the existing read-only TurtleGitMerge comparison.
+Preparation owns its cancellation and Git processes, retains the access lease,
+captures the alternate-tool choice and rejects stale selection/generation or a
+closed owner. A root commit's unsupported first-parent range reports its Git
+failure without opening a partial comparison. This does not change the source's
+merge/root patch semantics.
+
+Compare revisions also accepts more than two continuously selected rows and
+uses the first/last displayed endpoints. Three or more discontinuous rows refuse
+that comparison. Two nonadjacent commits remain valid. Comparisons opened from
+path-scoped Logs now pass that scope to the revision comparison window.
+
+Merge commits expose **Compare with previous revision** parent submenus and the
+source **Unified diff with** choices: All Parents (`-m`), Only Merged Files (`-c`),
+Show extra changes after merge (`diff-tree --cc`), and each numbered parent.
+Existing parent metadata supplies the captions. Unified preparation retains raw
+bytes, path scopes and cancellation. The extra-merge command reports an empty
+result rather than opening a blank viewer. All new leaves use the existing
+one-shot popup relay and original Log/Diff artwork.
+
+Complete shared-list menu masks/order, rename-following path reconstruction for
+all parent comparisons, physical popup/default-item behavior, keyboard/VoiceOver
+acceptance and signed distribution remain open.
+
+The Debug build, three affected Core tests and both grouped native engine cases
+passed. See [inspection family evidence](qa/log-inspection-family-2026-10-15.json)
+for exact scope and acceptance limits. Both owned receivers were reaped.

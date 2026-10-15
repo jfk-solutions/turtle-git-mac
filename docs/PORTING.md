@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+
+The connected Log inspection family now includes forward/reverse/symmetric range
+Logs with path-aware child reuse, first-parent change-set comparison, continuous
+multi-row endpoint comparison and merge-parent/combined unified choices. These
+use the existing native Log and comparison dialogs, original menu artwork and
+owned preparation lifetimes. See [Log parity](LOG-PARITY.md). Full source masks,
+rename-following parent paths and physical/signed acceptance remain open.
+
 The Log revision-menu family now binds 46 existing selectors to a one-use popup
 snapshot, preserving native item artwork and typed payloads while rejecting
 selection/reference changes, reload and retired/blocked owners. Fresh callbacks,

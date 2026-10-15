@@ -800,6 +800,10 @@ public struct LogParentChoice: Sendable, Equatable {
         return prefix + ": \"" + short + "\" (" + hash.prefix(8) + ")"
     }
 }
+/// GitLogList's unified merge menu: an individual parent, -m, -c or --cc.
+public enum LogRevisionDiffMode: Equatable, Sendable {
+    case firstParent, parent(Int), allParents, combined, extraMergeChanges
+}
 /// A Log merge may list the same path once for each parent. Keep those
 /// occurrences separate instead of unioning their actions/statistics by path.
 public struct LogFileGroup: Identifiable, Sendable {
@@ -1439,7 +1443,7 @@ extension GitRepository {
     public func revisionDiff(_ entry: LogEntry, path: String? = nil, workingTree: Bool = false) throws -> String {
         String(decoding: try revisionDiffData(entry, path: path, workingTree: workingTree), as: UTF8.self)
     }
-    public func revisionDiffData(_ entry: LogEntry, path: String? = nil, workingTree: Bool = false, cancellation: OperationCancellation? = nil) throws -> Data {
+    public func revisionDiffData(_ entry: LogEntry, path: String? = nil, paths: [String] = [], workingTree: Bool = false, mode: LogRevisionDiffMode = .firstParent, cancellation: OperationCancellation? = nil) throws -> Data {
         try cancellation?.check()
         func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
             try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
@@ -1447,10 +1451,22 @@ extension GitRepository {
 
         var args: [String]
         if workingTree { args = ["diff", "--no-ext-diff", "--no-color", entry.hash] }
-        else if let parent = entry.parents.first { args = ["diff", "--no-ext-diff", "--no-color", parent, entry.hash] }
-        else { args = ["show", "--format=", "--no-ext-diff", "--no-color", entry.hash] }
+        else {
+            switch mode {
+            case .firstParent:
+                if let parent = entry.parents.first { args = ["diff", "--no-ext-diff", "--no-color", parent, entry.hash] }
+                else { args = ["show", "--format=", "--no-ext-diff", "--no-color", entry.hash] }
+            case .parent(let number):
+                guard number > 0, number <= entry.parents.count else { throw RevisionComparisonFailure.selection }
+                args = ["diff", "--no-ext-diff", "--no-color", entry.parents[number - 1], entry.hash]
+            case .allParents, .combined:
+                args = ["diff-tree", "-r", "-p", mode == .allParents ? "-m" : "-c", "--stat", "--no-ext-diff", "--no-color", entry.hash]
+            case .extraMergeChanges:
+                args = ["diff-tree", "--cc", "--no-ext-diff", "--no-color", entry.hash]
+            }
+        }
         args.insert(contentsOf: workingTree ? diffDetection.comparisonArguments : diffDetection.historyArguments, at: 1)
-        args.append("--"); if let path { args.append(path) }
+        args.append("--"); args += path.map { [$0] } ?? paths
         return try read(args).stdout
     }
     /// FillPatchView: whole changes with stats, or selected versioned rows in list order.
