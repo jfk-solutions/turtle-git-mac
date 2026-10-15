@@ -2,6 +2,36 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RebaseSessionSnapshotTests:XCTestCase {
+    func testContinuationRefusesChangedResolutionAndHeadBeforeMutatingReplay() async throws {
+        let tests=RebaseTests(),(root,repo,path)=try await tests.fixture(conflict:true)
+        defer {try? FileManager.default.removeItem(at:root)}
+        _ = try await repo.startRebase(try await repo.rebasePlan(tests.options()),editorExecutable:tests.editor)
+        let old=try await repo.rebaseSessionSnapshot()
+        try Data("resolved continuation\n".utf8).write(to:root.appendingPathComponent(path));try await repo.stage([path])
+        let current=try await repo.rebaseSessionSnapshot(retaining:old.identity)
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        do {_ = try await repo.continueRebase(expectedReplayState:old.state,expectedReplayHead:old.head);XCTFail("Changed resolution accepted")} catch RebaseFailure.changed {}
+        do {_ = try await repo.continueRebase(expectedReplayState:current.state,expectedReplayHead:String(repeating:"0",count:40));XCTFail("Wrong HEAD accepted")} catch RebaseFailure.changed {}
+        try await repo.validateRebaseContinuation(expected:current.state,expectedHead:current.head)
+        XCTAssertEqual(index,try Data(contentsOf:root.appendingPathComponent(".git/index")))
+        let head=try await repo.rebaseCommit("HEAD");XCTAssertEqual(head.hash,current.head)
+        let result=try await repo.continueRebase(expectedReplayState:current.state,expectedReplayHead:current.head)
+        XCTAssertEqual(result.exitCode,0);XCTAssertFalse(result.state.active)
+    }
+    func testCancelledContinuationAndValidationPreserveActiveResolvedReplay() async throws {
+        let tests=RebaseTests(),(root,repo,path)=try await tests.fixture(conflict:true)
+        defer {try? FileManager.default.removeItem(at:root)}
+        _ = try await repo.startRebase(try await repo.rebasePlan(tests.options()),editorExecutable:tests.editor)
+        try Data("resolved cancellation\n".utf8).write(to:root.appendingPathComponent(path));try await repo.stage([path])
+        let captured=try await repo.rebaseSessionSnapshot(),index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let token=OperationCancellation();token.cancel()
+        do {try await repo.validateRebaseContinuation(expected:captured.state,expectedHead:captured.head,cancellation:token);XCTFail("Cancelled validation ran")} catch is OperationCancellationFailure {}
+        do {_ = try await repo.continueRebase(expectedReplayState:captured.state,expectedReplayHead:captured.head,cancellation:token);XCTFail("Cancelled continue ran")} catch is OperationCancellationFailure {}
+        XCTAssertEqual(index,try Data(contentsOf:root.appendingPathComponent(".git/index")))
+        let state=try await repo.rebaseState();XCTAssertTrue(state.active);XCTAssertEqual(state.currentStep,captured.state.currentStep)
+        _ = try await repo.abortRebase()
+    }
+
     func testConflictSnapshotRetainsResolvedCheckedFileRecoveryAndReplayRows() async throws {
         let tests=RebaseTests(),(root,repo,path)=try await tests.fixture(conflict:true);defer {try? FileManager.default.removeItem(at:root)}
         let plan=try await repo.rebasePlan(tests.options());let stopped=try await repo.startRebase(plan,editorExecutable:tests.editor)

@@ -85,6 +85,79 @@ import TurtleGitCore
         try await wait {RebaseWindowModel.activePreparationReads==0}
         try require(delivered==0 && late.error==nil && late.conflictComparisonMark==nil,"Retired comparison preparation published")
     }
+    @MainActor static func verifyReplayMessages(root:URL,git:URL) async throws {
+        for kind in ["cancel","retire","pick","squash"] {
+            let location=root.appendingPathComponent("messages-"+kind);try FileManager.default.createDirectory(at:location,withIntermediateDirectories:true)
+            let repo=GitRepository(root:location,executable:git),path="message conflict 雪.txt",group="group-first.txt"
+            _ = try await repo.run(["init","-b","main"])
+            for (key,value) in [("user.name","Message QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("core.commentchar",";")] {_ = try await repo.run(["config",key,value])}
+            try Data("base\n".utf8).write(to:location.appendingPathComponent(path));try await repo.stage([path]);_ = try await repo.commit(message:"base")
+            let base=try await repo.rebaseCommit("HEAD");_ = try await repo.run(["switch","-c","upstream"])
+            try Data("destination\n".utf8).write(to:location.appendingPathComponent(path));try await repo.stage([path]);_ = try await repo.commit(message:"destination")
+            _ = try await repo.run(["switch","-c","topic",base.hash])
+            try Data("group first\n".utf8).write(to:location.appendingPathComponent(group));try await repo.stage([group])
+            _ = try await repo.run(["commit","--author","First Message <first@example.invalid>","-m","first source"],environmentOverrides:["GIT_AUTHOR_DATE":"2001-02-03T04:05:06+02:00"])
+            try Data("source\n".utf8).write(to:location.appendingPathComponent(path));try await repo.stage([path])
+            _ = try await repo.run(["commit","--author","Last Message <last@example.invalid>","-m","last source"],environmentOverrides:["GIT_AUTHOR_DATE":"2002-03-04T05:06:07-03:00"])
+            let source=try await repo.rebaseCommit("HEAD")
+            var options=RebaseOptions();options.branch="topic";options.upstream="upstream";options.squashDate = .latest
+            var plan=try await repo.rebasePlan(options);if kind=="squash" {plan.entries[plan.entries.count-1].action = .squash}
+            let editor=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac")
+            _ = try await repo.startRebase(plan,editorExecutable:editor)
+            try Data("resolved message bytes\n".utf8).write(to:location.appendingPathComponent(path));try await repo.stage([path])
+            let suite="TurtleGit.ReplayMessage."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
+            prefs.set(false,forKey:"EnableLogCache");prefs.set(false,forKey:"EnableGravatar");prefs.set(false,forKey:"ConfirmKillProcess")
+            prefs.set(true,forKey:"StripCommentedLines");prefs.set(false,forKey:"SanitizeCommitMsg")
+            defer {prefs.removePersistentDomain(forName:suite)}
+            let owner=RebaseWindowController(repository:repo,access:nil,preferences:prefs),model=owner.model
+            model.confirmConflictHints={true};model.chooseEmptyResult={.cancel};model.load()
+            try await wait {!model.busy && model.fileRecovery && RebaseWindowModel.activePreparationReads==0}
+            defer {owner.close()}
+            if kind=="squash" {
+                try require(model.canCheckConflictFiles && !model.supportsConflictSelection && model.primaryActionTitle=="Continue","Squash checkbox/continuation semantics conflated")
+                let index=try Data(contentsOf:location.appendingPathComponent(".git/index"))
+                for row in model.conflictRows {model.setConflictChecked(row.path,checked:false)}
+                try require(model.checkedConflicts.isEmpty && Data(contentsOf:location.appendingPathComponent(".git/index"))==index,"Squash checks mutated staged index")
+                model.refreshState();try await wait {!model.busy}
+                try require(model.checkedConflicts.isEmpty,"Squash refresh discarded checkbox choices")
+                model.execute("continue");try await wait {!model.busy && !model.replaying}
+                try require(model.error==nil && model.state?.squashMessage != nil,"Unchecked Squash failed staged-index continuation: "+(model.error ?? ""))
+            }
+            let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:location.appendingPathComponent(".git/index"))
+            if kind=="pick" || kind=="squash" {
+                model.amendMessage="; comment only\n";model.execute("continue");try await wait {!model.busy && !model.replaying}
+                try require(model.error != nil && model.tab==1 && model.amendMessage=="; comment only\n" && Data(contentsOf:location.appendingPathComponent(".git/index"))==index,"Empty prepared message mutated state or lost editable draft")
+                let currentHead=try await repo.run(["rev-parse","HEAD"]).stdout;try require(currentHead==head,"Empty prepared message advanced HEAD")
+                model.error=nil;try await wait {owner.window?.attachedSheet==nil}
+            }
+            let draft="Captured "+kind+" 雪\n\n; stripped\nbody\n",prepare=model.prepareReplayMessage
+            var reply:CheckedContinuation<Void,Never>?,captured:(String,Bool,Bool)?
+            model.prepareReplayMessage={raw,strip,sanitize,token in
+                captured=(raw,strip,sanitize);await withCheckedContinuation {reply=$0}
+                return try await prepare(raw,strip,sanitize,token)
+            }
+            model.amendMessage=draft;model.execute("continue");try await wait {reply != nil}
+            if kind=="cancel" {model.cancelReplay()} else if kind=="retire" {owner.close()}
+            else {model.amendMessage="Replacement must not commit";prefs.set(false,forKey:"StripCommentedLines");prefs.set(true,forKey:"SanitizeCommitMsg")}
+            reply?.resume();try await wait {!model.replaying && !model.busy && RebaseWindowModel.activePreparationReads==0}
+            try require(captured?.0==draft && captured?.1==true && captured?.2==false,"Message preparation lost captured draft/preferences")
+            if kind=="cancel" || kind=="retire" {
+                let after=try await repo.run(["rev-parse","HEAD"]).stdout
+                try require(after==head && Data(contentsOf:location.appendingPathComponent(".git/index"))==index && !model.finished,"Cancelled/retired message preparation advanced replay")
+                _ = try await repo.abortRebase()
+            } else {
+                try require(model.finished && model.error==nil,"Prepared message continuation failed: "+(model.error ?? ""))
+                let commit=try await repo.rebaseCommit("HEAD")
+                try require(commit.message=="Captured "+kind+" 雪\n\nbody\n","Commit used a replacement draft/preferences or retained stripped comments")
+                if kind=="squash" {
+                    let files=try await repo.files(in:commit)
+                    try require(commit.author=="First Message" && commit.date==source.date && Set(files.map(\.path))==Set([group,path]),"Squash lost staged files, first author or Latest date")
+                }
+            }
+            owner.close()
+        }
+        print("Replay message family: active Squash checks retain staged-index semantics; custom comment stripping, empty-message refusal/editable draft, captured preferences/draft, actual Pick/Squash messages and author/date, cancelled/retired late preparation passed; owned windows closed.")
+    }
     @MainActor static func verifyAddIgnoreDelete(owner:RebaseWindowController,repo:GitRepository,root:URL,path:String,conflict:String) async throws {
         let model=owner.model,file=root.appendingPathComponent(path),index=root.appendingPathComponent(".git/index")
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,stages=try await repo.run(["ls-files","--unmerged","-z"]).stdout
@@ -240,6 +313,9 @@ import TurtleGitCore
     }
     @MainActor static func verify() async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
+        if ProcessInfo.processInfo.environment["TURTLEGIT_REPLAY_MESSAGE_ONLY"] == "1" {
+            try await verifyReplayMessages(root:root,git:git);return
+        }
         if ProcessInfo.processInfo.environment["TURTLEGIT_REPLAY_MUTATION_ONLY"] == "1" {
             let suite="TurtleGit.ReplayMutationOnly."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
             prefs.set(false,forKey:"EnableLogCache");prefs.set(false,forKey:"EnableGravatar");defer {prefs.removePersistentDomain(forName:suite)}

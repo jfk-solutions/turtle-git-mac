@@ -730,8 +730,31 @@ extension GitRepository {
         if head == original { _ = try run(["reset", "--soft", base, "--"]) }
         return try recoverRebase("--skip")
     }
-    private func continueRebaseOwned(squashMessage: String? = nil, editMessage: String? = nil, emptySquashChoice: RebaseEmptyChoice? = nil, expectedSquashHead: String? = nil, expectedSquashState: RebaseState? = nil) throws -> RebaseExecution {
+    private func requireRebaseContinuation(_ actual: RebaseState, expected: RebaseState, expectedHead: String) throws {
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        let sameSquash = try encoder.encode(actual.squashMessage) == encoder.encode(expected.squashMessage)
+        let sameSplit = try encoder.encode(actual.split) == encoder.encode(expected.split)
+        guard actual.active, expected.active, actual.isCherryPick == expected.isCherryPick,
+              actual.originalHead == expected.originalHead, actual.branch == expected.branch, actual.onto == expected.onto,
+              actual.stoppedEntryID == expected.stoppedEntryID, actual.stoppedCommit == expected.stoppedCommit,
+              actual.currentStep == expected.currentStep, actual.stoppedAction == expected.stoppedAction,
+              actual.isEditPause == expected.isEditPause, actual.remainingCommands == expected.remainingCommands,
+              actual.mergeParents == expected.mergeParents, actual.total == expected.total,
+              actual.isStructuralMergeEdit == expected.isStructuralMergeEdit, actual.hasStructuralMergeResult == expected.hasStructuralMergeResult,
+              actual.conflicts == expected.conflicts, actual.message == expected.message, sameSquash, sameSplit,
+              try rebaseRevision("HEAD") == expectedHead else { throw RebaseFailure.changed }
+    }
+    public func validateRebaseContinuation(expected: RebaseState, expectedHead: String, cancellation: OperationCancellation? = nil) throws {
+        try withReplayIO(cancellation: cancellation, onOutput: nil) {
+            try requireRebaseContinuation(rebaseState(), expected: expected, expectedHead: expectedHead)
+        }
+    }
+    private func continueRebaseOwned(squashMessage: String? = nil, editMessage: String? = nil, emptySquashChoice: RebaseEmptyChoice? = nil, expectedSquashHead: String? = nil, expectedSquashState: RebaseState? = nil, expectedReplayState: RebaseState? = nil, expectedReplayHead: String? = nil) throws -> RebaseExecution {
         let state = try rebaseState()
+        if let expectedReplayState {
+            guard let expectedReplayHead else { throw RebaseFailure.changed }
+            try requireRebaseContinuation(state, expected: expectedReplayState, expectedHead: expectedReplayHead)
+        }
         guard state.active else { throw RebaseFailure.inactive }
         if let split = state.split {
             guard split.parts > 0, try rebaseRevision("HEAD") == split.expectedHead, !(try rebaseSplitHasRemainingChanges()) else { throw RebaseFailure.plan }
@@ -991,8 +1014,8 @@ extension GitRepository {
     public func startRebase(_ plan: RebasePlan, editorExecutable: URL, afterFetch: Bool = false, autoStart: Bool = false, fromLog: Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> RebaseExecution {
         try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try startRebaseOwned(plan, editorExecutable: editorExecutable, afterFetch: afterFetch, autoStart: autoStart, fromLog: fromLog) }
     }
-    public func continueRebase(squashMessage: String? = nil, editMessage: String? = nil, emptySquashChoice: RebaseEmptyChoice? = nil, expectedSquashHead: String? = nil, expectedSquashState: RebaseState? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> RebaseExecution {
-        try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try continueRebaseOwned(squashMessage: squashMessage, editMessage: editMessage, emptySquashChoice: emptySquashChoice, expectedSquashHead: expectedSquashHead, expectedSquashState: expectedSquashState) }
+    public func continueRebase(squashMessage: String? = nil, editMessage: String? = nil, emptySquashChoice: RebaseEmptyChoice? = nil, expectedSquashHead: String? = nil, expectedSquashState: RebaseState? = nil, expectedReplayState: RebaseState? = nil, expectedReplayHead: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> RebaseExecution {
+        try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try continueRebaseOwned(squashMessage: squashMessage, editMessage: editMessage, emptySquashChoice: emptySquashChoice, expectedSquashHead: expectedSquashHead, expectedSquashState: expectedSquashState, expectedReplayState: expectedReplayState, expectedReplayHead: expectedReplayHead) }
     }
     public func skipRebase(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> RebaseExecution {
         try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try skipRebaseOwned() }

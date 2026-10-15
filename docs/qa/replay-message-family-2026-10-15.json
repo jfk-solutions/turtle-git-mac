@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-15",
+  "scope": "Replay Squash checkbox and Pick/Edit/Squash message preparation/continuation family",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RebaseDlg.cpp Squash_Conclict, Conclict, ListConflictFile and commit-message preparation",
+    "Shared native Commit message formatter/preferences"
+  ],
+  "implementation": [
+    "Active Squash checkboxes and Space/check toggles, retaining staged-index Continue rather than Pick/Edit checked-file semantics",
+    "Captured draft, checked paths, phase, HEAD and Strip/Sanitize/hint preferences before asynchronous work",
+    "Cancellable shared message formatter with Git comment character and same-phase editable draft retention",
+    "Empty prepared message refuses commit and returns to message tab",
+    "Stopped occurrence/phase/durable Squash-Split/remaining commands/conflicts/HEAD validation before preparation, after questions and before backend continuation",
+    "Pass preparation cancellation token to checked-file commit",
+    "Cancelled/retired preparation cannot create late commits; later draft/preferences cannot redirect captured action"
+  ],
+  "validation": {
+    "core": {
+      "checks": 22,
+      "failures": 0,
+      "log": "build/qa/replay-message-family-core-2026-10-15.log",
+      "scope": [
+        "RebaseSessionSnapshotTests including changed-resolution/wrong-HEAD refusal and precancelled continuation",
+        "RebaseReplayIOTests",
+        "CommitMessageTests",
+        "Real Squash conflict message/author/date policy regression"
+      ]
+    },
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/replay-message-family-build-2026-10-15.log"
+    },
+    "native": {
+      "log": "build/qa/replay-message-family-native-2026-10-15.log",
+      "cases": [
+        "rebase-conflict-menus with TURTLEGIT_REPLAY_MESSAGE_ONLY=1",
+        "rebase-replay-progress"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "scope": [
+        "Actual private stopped Pick and Squash repositories",
+        "Custom comment-character stripping and exact final commit text",
+        "Empty-message refusal with retained raw draft, index and HEAD",
+        "Captured draft/preferences while formatter suspension permits injected replacement",
+        "Cancellation and forced retirement during suspended formatting preserve HEAD/index",
+        "All Squash checks cleared without staging effects; Continue uses all staged group files",
+        "First Squash author, Latest author date and whole-group files retained",
+        "Existing owned replay progress cancellation/recovery checks"
+      ],
+      "result": "4 grouped cases passed",
+      "owned_receiver_pids_reaped": [
+        91066,
+        92051,
+        92347,
+        93341
+      ],
+      "owned_receivers_absent_after_check": true
+    },
+    "documentation": {
+      "reconciled": true,
+      "site_exit_code": 0,
+      "documents": 215,
+      "unresolved_fragments": []
+    }
+  },
+  "limits": [
+    "Hidden native views and injected formatter suspension; no complete physical checkbox/keyboard/VoiceOver or displayed-layout acceptance",
+    "Not a complete replay/application parity claim",
+    "Signed Finder, sandbox and App Store distribution remain open",
+    "Local selected passes do not establish hosted full CI acceptance"
+  ]
+}

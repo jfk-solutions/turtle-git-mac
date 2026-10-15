@@ -49,11 +49,10 @@ Ignore/Abort hint warning. See [empty results and message hints](REBASE-EMPTY-RE
 
 ## Remaining parity work
 
-This is a partial port of upstream's conflict tab. Squash checkbox acceptance,
-the Strip Commented Lines preference, all contextual
+This is a partial port of upstream's conflict tab. Full displayed Squash checkbox acceptance and all contextual
 commands and full displayed layout/keyboard/accessibility acceptance remain
-pending. Squash conflicts keep the existing staged Continue
-path, and their checkboxes are disabled. Single ordinary base comparison now
+pending. Squash conflicts keep the staged Continue
+path with active checkboxes; see [Squash message and checkbox behavior](REBASE-SQUASH-CONFLICTS.md). Single ordinary base comparison now
 uses the full native editor; multiple selected paths use the shared working-file
 comparison preparation. The separate unified command retains an aggregate patch. No new screenshot establishes this tab's displayed layout.
 

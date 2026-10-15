@@ -34,9 +34,11 @@ phases, and finishes with the first author's identity and expected date policy.
 Views are hosted hidden and prompt responses are injected; displayed layout,
 button focus, keyboard gestures and accessibility remain unverified.
 
-Squash conflict checkboxes remain disabled. Upstream displays active checkboxes,
-but its Squash conflict Continue branch does not consume their selection through
-the Pick/Edit index loop. Exact checkbox behavior/layout still needs acceptance.
+Squash conflict checkboxes are active, including Space/check toggles and retained
+choices during refresh. As upstream does, Squash Continue consumes the resolved
+staged index rather than passing checkbox selection through the Pick/Edit index
+loop. Unchecking a group file does not remove it from the staged combined commit.
+Full physical checkbox/keyboard/layout acceptance remains open.
 Empty groups now offer Commit/Skip/Cancel, including durable Skip recovery.
 See [empty Squash groups](REBASE-EMPTY-SQUASH.md) and repeated-conflict coverage
 below. This does not establish complete replay
@@ -69,3 +71,31 @@ not remain excluded. The native receiver covers repeated conflict/reopening and
 empty-group Commit/Skip/Cancel with injected answers on four Git versions.
 Displayed interaction and advanced rewritten-reference behavior remain unverified.
 Evidence: [repeated-conflict QA](qa/rebase-multiple-squash-2026-10-06.json).
+
+
+## Message preparation and continuation — October 15, 2026
+
+Replay actions capture the draft, checked paths, phase, HEAD and message
+preferences before asynchronous work begins. Pick/Edit resolution, applied Edit
+and combined Squash approval use the shared Strip Commented Lines and Sanitize
+Commit Message formatter with its operation token. The configured Git comment
+character is respected. An empty prepared message returns to the message tab
+without committing and retains the editable draft.
+
+Squash conflict Continue retains its separate staged-index semantics and waits
+for combined-message approval. The checkbox UI now remains active in that phase
+without enabling the Pick/Edit checked-file commit path. Checkbox changes never
+stage or unstage files by themselves.
+
+Continuation validates the stopped occurrence, phase, durable Squash/Split state,
+remaining commands, conflict set and HEAD before preparation, after answers, and
+again in the backend before continuing or amending. A changed session is refused.
+The checked-file commit now receives the same cancellation token as preparation.
+Cancelled or retired preparation cannot publish a late commit. Changes to the
+visible draft or preferences while preparation is pending do not redirect an
+already captured action. Failed preparation in the same phase retains the draft.
+
+[Grouped evidence](qa/replay-message-family-2026-10-15.json) separates actual Git
+commit messages, combined group files/first author/Latest date, empty-message
+refusal and cancelled/retired preparation from physical input and signed
+acceptance, which remain open. This is a partial replay port.
