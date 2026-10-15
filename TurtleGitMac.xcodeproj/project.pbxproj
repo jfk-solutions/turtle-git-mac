@@ -64,6 +64,7 @@
 		2368F21797097AE66DBADDAE /* LogGraphDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = D653B9C802C1DF2EE95F01A9 /* LogGraphDrawing.swift */; };
 		23C8CB83DB2C8FE3D62BD5B7 /* SubversionMergePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD26E6495039510A4AA65A2 /* SubversionMergePresentation.swift */; };
 		241DD127E807673880A95899 /* PatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */; };
+		4B31805576EE431C8008D7B1 /* ConflictTitles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED921FDE7185F2A22FD7896 /* ConflictTitles.swift */; };
 		243FF612B8CF82EB79FC9C0D /* SavedMergePane.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8793BAAC2C2BCB452DBF2BC /* SavedMergePane.swift */; };
 		24D410B4268C9FBFE28B45B3 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
 		25FA6351F250E4932AC95E73 /* SSHTransportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF2BD443F2E22C1D673BB60C /* SSHTransportCoordinator.swift */; };
@@ -751,6 +752,7 @@
 		C692AF42221DDE4FA4070CF1 /* LogOrderingWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogOrderingWindow.swift; sourceTree = "<group>"; };
 		C75E958EB60D00CC4B682456 /* GitConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitConfiguration.swift; sourceTree = "<group>"; };
 		C8547B7FA28A893C7D185689 /* SubmoduleAddWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleAddWindow.swift; sourceTree = "<group>"; };
+		6ED921FDE7185F2A22FD7896 /* ConflictTitles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictTitles.swift; sourceTree = "<group>"; };
 		C8793BAAC2C2BCB452DBF2BC /* SavedMergePane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedMergePane.swift; sourceTree = "<group>"; };
 		C8E9D379D35AF0431C2A8495 /* CredentialSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialSettings.swift; sourceTree = "<group>"; };
 		C9A930411C5DE9F562E47D41 /* ReleaseUpdates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseUpdates.swift; sourceTree = "<group>"; };
@@ -1265,6 +1267,7 @@
 				2CC0645FE46863074D486187 /* RevisionGraph.swift */,
 				DD369921B6275ED94AC162A8 /* RevisionGraphLayout.swift */,
 				814E543BEB0736B84A50B21B /* SavedData.swift */,
+				6ED921FDE7185F2A22FD7896 /* ConflictTitles.swift */,
 				C8793BAAC2C2BCB452DBF2BC /* SavedMergePane.swift */,
 				B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */,
 				1955B87A0E1325E2162C4C37 /* SSHAgentSession.swift */,
@@ -1800,6 +1803,7 @@
 				084320672DDAA80261764600 /* SSHKeyGeneration.swift in Sources */,
 				F4564607AA83749B93DC5894 /* SSHTransportPreparation.swift in Sources */,
 				768B7B2B700F618CA924EBDA /* SavedData.swift in Sources */,
+				4B31805576EE431C8008D7B1 /* ConflictTitles.swift in Sources */,
 				243FF612B8CF82EB79FC9C0D /* SavedMergePane.swift in Sources */,
 				C90C42AC6C78C7122C11B302 /* SerialPatch.swift in Sources */,
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,

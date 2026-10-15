@@ -1673,3 +1673,15 @@ points; no second SwiftUI compilation or replacement editor implementation is
 needed. The previous `c8a2cee4` hosted run failed because tests fell back to the
 absent `.build/debug/TurtleGitMac`, causing rebase/Fetch recovery failures and a
 later fixture crash. Local focused checks do not establish a hosted green run.
+
+## Conflict identity workflow family
+
+After the current Debug build, run
+`python3 scripts/test-conflict-identities.py --git /usr/bin/git --git build/git-runtime/Git/bin/git`.
+The owned native receiver creates private merge/rebase conflicts and a real-index
+gitlink fixture, exercises shared captions, disabled guessing, captured Log targets,
+external-tool argument handoff and unchanged index/workfile snapshots. It injects
+the external-app launch and never starts a third-party app. Optional `--captures`
+writes light/dark native-view images into the specified folder; all owned windows
+and receivers close afterward. Core identity tests additionally cover ref priority,
+annotated tags, cherry-pick/revert, rebase metadata and saved-document propagation.

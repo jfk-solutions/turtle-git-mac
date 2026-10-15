@@ -26,7 +26,7 @@ public enum SubmoduleConflictFailure: LocalizedError {
     public var errorDescription: String? { "Choose a conflicted submodule to open this dialog." }
 }
 extension GitRepository {
-    public func submoduleConflictDetails(path: String, cancellation: OperationCancellation? = nil) throws -> SubmoduleConflictDetails {
+    public func submoduleConflictDetails(path: String, identityOptions: ConflictIdentityOptions = .init(), cancellation: OperationCancellation? = nil) throws -> SubmoduleConflictDetails {
         guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
         guard entry.isSubmodule else { throw SubmoduleConflictFailure.unsupported }
         try validateConflicts([entry], using: .current, cancellation: cancellation)
@@ -84,18 +84,9 @@ extension GitRepository {
             }
             return SubmoduleConflictSide(stage: number, title: title, revision: stage?.object, subject: info.0, available: info.1, change: change)
         }
-        let rebase = try conflictIsRebase(cancellation: cancellation)
-        var incomingTitle = "changes to-be-integrated"
-        for reference in ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"] {
-            if let hash = try? run(["rev-parse", "--verify", reference + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) {
-                var identity = String(hash.prefix(7))
-                if reference == "MERGE_HEAD", let refs = try? run(["for-each-ref", "--points-at", hash, "--format=%(refname:short)", "refs/heads", "refs/remotes"], cancellation: cancellation).text.split(separator: "\n"), let first = refs.first { identity = String(first) + ", " + identity }
-                incomingTitle = reference == "REVERT_HEAD" ? "Parent of " + identity : reference + " (" + identity + ")"
-                break
-            }
-        }
-        let mine = side(rebase ? remote : local, number: rebase ? 3 : 2, title: rebase ? "Branch being rebased" : "HEAD")
-        let theirs = side(rebase ? local : remote, number: rebase ? 2 : 3, title: rebase ? "Branch being rebased onto" : incomingTitle)
+        let titles = try conflictTitles(options: identityOptions, cancellation: cancellation), rebase = titles.rebase
+        let mine = side(rebase ? remote : local, number: rebase ? 3 : 2, title: titles.mine.title)
+        let theirs = side(rebase ? local : remote, number: rebase ? 2 : 3, title: titles.theirs.title)
         let base = SubmoduleConflictSide(stage: 1, title: "Base", revision: baseHash, subject: baseInfo.0, available: baseInfo.1, change: .identical)
         try cancellation?.check()
         try validateConflicts([entry], using: .current, cancellation: cancellation)

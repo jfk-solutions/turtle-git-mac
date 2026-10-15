@@ -27,8 +27,8 @@ import TurtleGitCore
 @MainActor final class ImageConflictWindowController: NSWindowController, NSWindowDelegate {
     let model: ImageConflictWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, document: ImageConflictDocument) {
-        model = ImageConflictWindowModel(repository: repository, access: access, document: document)
+    init(repository: GitRepository, access: RepositoryAccessLease?, document: ImageConflictDocument, preferences: UserDefaults = .standard) {
+        model = ImageConflictWindowModel(repository: repository, access: access, document: document, preferences: preferences)
         let window = ImageConflictNSWindow(contentRect: NSRect(x: 0,y: 0,width: 1200,height: 720), styleMask: [.titled,.closable,.miniaturizable,.resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.title = document.entry.path + " — TurtleGitIDiff"
         window.contentView = NSHostingView(rootView: ImageConflictDialog(model: model))
@@ -56,6 +56,7 @@ import TurtleGitCore
 @MainActor final class ImageConflictWindowModel: ObservableObject {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    private let preferences: UserDefaults
     @Published private(set) var document: ImageConflictDocument
     @Published var vertical = false
     @Published var showInfo = false
@@ -70,8 +71,8 @@ import TurtleGitCore
     let presentation = ImageWindowPresentation()
     let panes: [ImageConflictSide: ImageComparisonViewModel]
     private(set) var images: [ImageConflictSide: ComparisonImage]
-    init(repository: GitRepository, access: RepositoryAccessLease?, document: ImageConflictDocument) {
-        self.repository = repository; self.access = access; self.document = document
+    init(repository: GitRepository, access: RepositoryAccessLease?, document: ImageConflictDocument, preferences: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.document = document; self.preferences = preferences
         let decoded = Dictionary(uniqueKeysWithValues: ImageConflictSide.allCases.compactMap { side in document.image(side).map { (side,$0) } })
         images = decoded
         let presentation = self.presentation
@@ -90,7 +91,7 @@ import TurtleGitCore
         task = Task { [weak self] in
             guard let self, !self.retired else { return }; defer { busy = false; task = nil; cancellation = nil }
             do {
-                guard let next = try await repository.imageConflictDocument(path: document.entry.path, cancellation: token) else { throw ImageConflictFailure.unavailable }
+                guard let next = try await repository.imageConflictDocument(path: document.entry.path, identityOptions: ConflictIdentityOptions(defaults: preferences), cancellation: token) else { throw ImageConflictFailure.unavailable }
                 guard !retired else { return }
                 document = next
                 images = Dictionary(uniqueKeysWithValues: ImageConflictSide.allCases.compactMap { side in next.image(side).map { (side,$0) } })
@@ -98,6 +99,16 @@ import TurtleGitCore
                 fitImages()
             } catch { if !retired { self.error = error.localizedDescription } }
         }
+    }
+    func title(for side: ImageConflictSide) -> String {
+        if let titles = document.conflictTitles {
+            switch side {
+            case .base: return titles.base
+            case .mine: return "Mine — " + titles.mine.title
+            case .theirs: return "Theirs — " + titles.theirs.title
+            }
+        }
+        return side == .mine && document.mineStage == 3 ? "Mine — Branch being rebased" : side == .theirs && document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : side.rawValue
     }
     func select(_ side: ImageConflictSide) {
         guard !busy, !retired, images[side] != nil else { return }; busy = true; error = nil
@@ -161,7 +172,7 @@ struct ImageConflictDialog: View {
     }
     private func pane(_ side: ImageConflictSide) -> some View {
         ImageConflictPane(side: side, image: model.images[side], bytes: model.document.contents[side]?.count ?? 0,
-                          title: side == .mine && model.document.mineStage == 3 ? "Mine — Branch being rebased" : side == .theirs && model.document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : side.rawValue,
+                          title: model.title(for: side),
                           model: model.panes[side]!, info: model.showInfo) { model.select(side) }
     }
 }

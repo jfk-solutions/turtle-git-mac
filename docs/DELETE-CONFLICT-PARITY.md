@@ -118,3 +118,15 @@ Conflict ownership compares canonical filesystem paths rather than literal URL
 forms. A repository URL lacking a trailing slash or using a symlink alias now
 retains the same owner, while nested repositories and escaping parents remain
 subject to the existing containment and Git-top-level validation.
+
+## Shared conflict identity family — October 15, 2026
+
+The [shared conflict identity reader](CONFLICT-IDENTITIES.md) supplies captured
+operation/branch captions and the default-on guessing policy. Text/image panes,
+delete/modify and submodule sides and external merge-tool arguments share the
+same stage mapping. The Advanced disable-guessing setting now has a runtime
+consumer. Existing source-control mappings and complete-dialog acceptance remain
+partial; earlier generic-label gaps are superseded within this documented scope.
+
+[Grouped validation and visual review](qa/conflict-identities-2026-10-15.json)
+record actual coverage and remaining limits; no dialog is newly certified.

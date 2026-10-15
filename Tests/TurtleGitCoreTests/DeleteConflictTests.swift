@@ -65,9 +65,11 @@ final class DeleteConflictTests: XCTestCase {
         do { _ = try await repo.run(["rebase", "side"]); XCTFail("Expected rebase conflict") } catch is GitFailure {}
         let details = try await repo.deleteConflictDetails(path: path)
         XCTAssertEqual(details.first.stage, 3); XCTAssertEqual(details.first.status, "Deleted")
-        XCTAssertEqual(details.first.reference, "Commit being replayed")
+        XCTAssertEqual(details.first.reference, "main")
         XCTAssertEqual(details.second.stage, 2); XCTAssertEqual(details.second.status, "Modified")
-        XCTAssertEqual(details.second.reference, "Branch being rebased onto")
+        XCTAssertTrue(details.second.reference.hasPrefix("side, "))
+        let currentHead = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(details.second.commit, currentHead)
         _ = try await repo.run(["rebase", "--abort"])
     }
     func testFileDirectoryConflictUsesCreatedChoiceWithoutBaseComparison() async throws {

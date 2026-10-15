@@ -131,9 +131,10 @@ public struct ExternalMergeInputs: Sendable {
     public let entry: ConflictEntry
     public let base: Data, mine: Data, theirs: Data
     public let result: URL
+    public var conflictTitles: ConflictTitles? = nil
 }
 extension GitRepository {
-    public func externalMergeInputs(path: String, cancellation: OperationCancellation? = nil) throws -> ExternalMergeInputs {
+    public func externalMergeInputs(path: String, identityOptions: ConflictIdentityOptions = .init(), cancellation: OperationCancellation? = nil) throws -> ExternalMergeInputs {
         guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }), !entry.isSubmodule, !entry.isDeleteModify,
               entry.stages.allSatisfy({ ["100644", "100755"].contains($0.mode) }) else { throw TextConflictFailure.unsupported }
         try validateConflicts([entry], using: .current, cancellation: cancellation)
@@ -144,7 +145,10 @@ extension GitRepository {
         }
         let result = root.appendingPathComponent(path)
         _ = try conflictWorkingSnapshot(result)
-        let input = try ExternalMergeInputs(entry: entry, base: bytes(1), mine: bytes(rebase ? 3 : 2), theirs: bytes(rebase ? 2 : 3), result: result)
+        var input = try ExternalMergeInputs(entry: entry, base: bytes(1), mine: bytes(rebase ? 3 : 2), theirs: bytes(rebase ? 2 : 3), result: result)
+        try validateConflicts([entry], using: .current, cancellation: cancellation)
+        guard try conflictIsRebase(cancellation: cancellation) == rebase else { throw ResolveFailure.stale }
+        input.conflictTitles = try conflictTitles(rebase: rebase, options: identityOptions, cancellation: cancellation)
         try validateConflicts([entry], using: .current, cancellation: cancellation)
         guard try conflictIsRebase(cancellation: cancellation) == rebase else { throw ResolveFailure.stale }
         try cancellation?.check(); return input

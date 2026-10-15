@@ -333,6 +333,7 @@
       "qa_records": [
         "docs/qa/comparison-tabs-2026-10-05.json",
         "docs/qa/conflict-encoding-2026-10-05.json",
+        "docs/qa/conflict-identities-2026-10-15.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/format-status-2026-10-05.json",
@@ -1352,6 +1353,7 @@
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/conflict-identities-2026-10-15.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/lfs-tristate-2026-10-08.json",
@@ -1785,6 +1787,7 @@
         "docs/qa/advanced-list-consumers-2026-10-14.json",
         "docs/qa/advanced-settings-2026-10-06.json",
         "docs/qa/commit-message-file-2026-10-07.json",
+        "docs/qa/conflict-identities-2026-10-15.json",
         "docs/qa/history-boundaries-2026-10-09.json",
         "docs/qa/log-list-preferences-2026-10-09.json"
       ]
@@ -2368,6 +2371,7 @@
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/conflict-identities-2026-10-15.json",
         "docs/qa/conflict-review-2026-10-14.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
@@ -3283,6 +3287,7 @@
         "docs/SUBMODULE-CONFLICT-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/conflict-identities-2026-10-15.json",
         "docs/qa/conflict-review-2026-10-14.json"
       ]
     },

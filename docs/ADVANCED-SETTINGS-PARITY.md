@@ -171,3 +171,15 @@ cache invalidation. Its separate validation record reports the actual scope.
 The connected [Log reference-navigation family](LOG-REFERENCE-NAVIGATION-PARITY.md)
 adds source reference-set scopes, multi-tip/range picking, bounded exact recents
 and owned browser/preparation lifetime. ChooseVersion histories remain session-only.
+
+## Shared conflict identity family — October 15, 2026
+
+The [shared conflict identity reader](CONFLICT-IDENTITIES.md) supplies captured
+operation/branch captions and the default-on guessing policy. Text/image panes,
+delete/modify and submodule sides and external merge-tool arguments share the
+same stage mapping. The Advanced disable-guessing setting now has a runtime
+consumer. Existing source-control mappings and complete-dialog acceptance remain
+partial; earlier generic-label gaps are superseded within this documented scope.
+
+[Grouped validation and visual review](qa/conflict-identities-2026-10-15.json)
+record actual coverage and remaining limits; no dialog is newly certified.

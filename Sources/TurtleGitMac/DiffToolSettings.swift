@@ -420,7 +420,7 @@ struct MergeToolSettings: View {
     private(set) static var previews: [URL] = []
     private(set) static var activeRequests = 0
     static func discardAll() { for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
-    static func open(repository: GitRepository, access: RepositoryAccessLease?, path: String, alternate: Bool, owner: NSWindow?, cancellation: OperationCancellation? = nil, onPrepared: () -> Void = {}, preferences: MergeToolPreferences? = nil, expectedEntry: ConflictEntry? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> NSRunningApplication)? = nil) async throws -> Bool {
+    static func open(repository: GitRepository, access: RepositoryAccessLease?, path: String, alternate: Bool, owner: NSWindow?, cancellation: OperationCancellation? = nil, onPrepared: () -> Void = {}, preferences: MergeToolPreferences? = nil, expectedEntry: ConflictEntry? = nil, identityOptions: ConflictIdentityOptions = .init(defaults: .standard), launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> NSRunningApplication)? = nil) async throws -> Bool {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let settings = preferences ?? MergeToolPreferences.load()
         guard let program = try settings.selected(path: path, alternate: alternate) else { return false }
@@ -431,7 +431,7 @@ struct MergeToolSettings: View {
         let session = ExternalMergeSession(owner: owner, cancellation: token)
         defer { session.retire(cancelWork: false) }
         return try await withTaskCancellationHandler(operation: {
-        let input = try await repository.externalMergeInputs(path: path, cancellation: token)
+        let input = try await repository.externalMergeInputs(path: path, identityOptions: identityOptions, cancellation: token)
         try Task.checkCancellation(); try token.check()
         if let expectedEntry, input.entry != expectedEntry { throw ResolveFailure.stale }
         guard !session.retired else { return true }
@@ -446,7 +446,7 @@ struct MergeToolSettings: View {
         try manager.createDirectory(at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { withExtendedLifetime(grant) {} }
         do {
-            var values = ["merged": input.result.path, "bname": path + " : Base", "tname": path + " : Theirs", "yname": path + " : Mine", "mname": path, "wtroot": repository.root.path]
+            var values = ["merged": input.result.path, "bname": path + " : " + (input.conflictTitles?.base ?? "Base"), "tname": path + " : " + (input.conflictTitles?.theirs.title ?? "Theirs"), "yname": path + " : " + (input.conflictTitles?.mine.title ?? "Mine"), "mname": path, "wtroot": repository.root.path]
             let privateFiles = try await Task.detached(priority: .userInitiated) { () throws -> [String: String] in
                 var files: [String: String] = [:]
                 for (side, bytes) in [("base", input.base), ("theirs", input.theirs), ("mine", input.mine)] {

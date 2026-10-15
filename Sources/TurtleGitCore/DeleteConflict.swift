@@ -19,26 +19,18 @@ public enum DeleteConflictFailure: LocalizedError {
     public var errorDescription: String? { "This dialog handles file delete/modify conflicts. Text merge and submodule conflicts use separate editors." }
 }
 extension GitRepository {
-    public func deleteConflictDetails(path: String, cancellation: OperationCancellation? = nil) throws -> DeleteConflictDetails {
+    public func deleteConflictDetails(path: String, identityOptions: ConflictIdentityOptions = .init(), cancellation: OperationCancellation? = nil) throws -> DeleteConflictDetails {
         guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
         guard entry.isDeleteModify else { throw DeleteConflictFailure.unsupported }
         try validateConflicts([entry], using: .current, cancellation: cancellation)
-        func hash(_ reference: String) -> String? { try? run(["rev-parse", "--verify", "--end-of-options", reference + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
-        let rebase = try conflictIsRebase(cancellation: cancellation), head = hash("HEAD")
-        var incoming: String?, incomingName = "Ref to be merged"
-        for name in rebase ? ["REBASE_HEAD"] : ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"] {
-            if let resolved = hash(name) { incoming = resolved; incomingName = name + " (" + resolved.prefix(7) + ")"; break }
-        }
-        if !rebase, incomingName.hasPrefix("MERGE_HEAD"), let incoming {
-            let refs = try run(["for-each-ref", "--points-at", incoming, "--format=%(refname:short)", "refs/heads", "refs/remotes"], cancellation: cancellation).text.split(separator: "\n")
-            if let reference = refs.first { incomingName = "MERGE_HEAD (" + reference + ", " + incoming.prefix(7) + ")" }
-        }
+        let titles = try conflictTitles(options: identityOptions, cancellation: cancellation)
+        let rebase = titles.rebase
         func side(_ stage: Int, reference: String, commit: String?) -> ConflictSide {
             let present = entry.stages.contains { $0.number == stage }
             return ConflictSide(stage: stage, reference: reference, commit: commit, status: present ? (entry.stages.contains { $0.number == 1 } ? "Modified" : "Created") : "Deleted")
         }
-        let stage2 = side(2, reference: rebase ? "Branch being rebased onto" : "HEAD", commit: head)
-        let stage3 = side(3, reference: rebase ? "Commit being replayed" : incomingName, commit: incoming)
+        let stage2 = side(2, reference: titles.stage2.title, commit: titles.stage2.commit)
+        let stage3 = side(3, reference: titles.stage3.title, commit: titles.stage3.commit)
         try cancellation?.check()
         try validateConflicts([entry], using: .current, cancellation: cancellation)
         return DeleteConflictDetails(entry: entry, first: rebase ? stage3 : stage2, second: rebase ? stage2 : stage3)

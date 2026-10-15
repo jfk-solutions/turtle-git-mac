@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "12b65f85",
+  "scope": "Shared conflict identity family across text/image/delete/submodule and external merge tools; Advanced branch guessing and ruler viewport repair",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/AppUtils.cpp::GetConflictTitles",
+      "src/Git/Git.cpp::GuessRefForHash / GetShortHASHLength",
+      "src/Resources/TortoiseProcENG.rc::IDS_CONFLICT_INFOTEXT / REVERT / REFTOBEMERGED"
+    ]
+  },
+  "implementation": [
+    "One captured stage-2/stage-3 identity reader with source eight-character hashes; merge ref priority local/remote/tag including annotated tags; cherry-pick/revert avoid guessing",
+    "Modern rebase-merge, rebase-apply and tgitrebase.active metadata; recorded branch names survive disabled guessing; actual HEAD/REBASE_HEAD Log targets remain independent of display names",
+    "Documents retain identities through Save, selection and source overlays; UI source captions remain independent of stable editor keys and Save As targets suppress obsolete repository captions",
+    "Native delete/submodule readers and text/image reload honor private/current preference; external tool label substitutions share captured stage mapping and existing quoting",
+    "Shared wrapping adapter uses clip-view ruler insets for leading origin and text width; preserves horizontal content offset when ruler geometry changes"
+  ],
+  "validation": {
+    "core": {
+      "initial_cases": 43,
+      "initial_failures": 1,
+      "initial_log": "build/qa/conflict-identities-core.log",
+      "repair": "Fixture retained unrelated staged/working other.txt changes; restore that private fixture path before aborting merge",
+      "focused_recheck_cases": 8,
+      "focused_recheck_failures": 0,
+      "recheck_log": "build/qa/conflict-identities-core-recheck.log",
+      "unique_cases_accepted": 50,
+      "families": [
+        "ConflictTitlesTests",
+        "DeleteConflictTests",
+        "SubmoduleConflictTests",
+        "ImageConflictTests",
+        "TextConflictTests",
+        "SavedMergePaneTests",
+        "DiffToolPreferencesTests"
+      ]
+    },
+    "debug": {
+      "initial_exit": 65,
+      "initial_log": "build/qa/conflict-identities-build.log",
+      "repair": "Default external-merge closure needed lazy weak-self access to preferences, not an instance member in a stored-property initializer",
+      "recheck_exit": 0,
+      "recheck_log": "build/qa/conflict-identities-build-recheck.log",
+      "final_exit": 0,
+      "final_log": "build/qa/conflict-identities-viewport-build.log",
+      "core_not_repeated_for_native_viewport_repair": true
+    },
+    "native": {
+      "final_exit": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/conflict-identities-native-final.log",
+      "coverage": [
+        "merge and real rebase operation captions",
+        "actual hidden text/image/delete/submodule controllers and shared disabled-guess preference",
+        "delete Log callback receives captured commit identity",
+        "injected external application receives exact correctly ordered title arguments; no external app launched",
+        "source pane keys and raw index/working contents/HEAD retained by identity reads",
+        "real index gitlink fixture without initialized child checkout",
+        "leading glyphs visible beyond actual ruler inset",
+        "existing long-Unicode two-pane/combined/three-pane wrapping, row alignment, resize reflow, persistence and unchanged content/selection/history/file checks"
+      ],
+      "setup_failure": "First fixture modified deleted.txt before ordinary git rm. Corrected setup writes only surviving text/image files before deleting original path."
+    },
+    "visual": {
+      "accepted": [
+        "conflict-identities-text-light.png",
+        "conflict-identities-text-dark.png",
+        "conflict-identities-delete-light.png",
+        "conflict-identities-delete-dark.png",
+        "conflict-identities-rebase-light.png",
+        "conflict-identities-rebase-dark.png"
+      ],
+      "method": "ScreenCaptureKit currentProcess owned-window compositor, macOS 14.4+; unaltered PNGs",
+      "review": "Inspected light/dark merge, delete/modify and rebase windows. Complete source/result text after viewport fix; operation and rebase branch captions visible, source colors/icons retained. No Windows pixel-equivalence claim.",
+      "rejected": "AppKit bitmap caching omitted SwiftUI labels/backgrounds. Preserved under build/qa/conflict-identities-captures-rejected, never published.",
+      "defect_found": "Compositor images exposed a real existing first-glyph clipping bug: clip bounds reset to zero despite a 45-point ruler inset. Corrected shared adapter; final native visibility and wrapping checks passed.",
+      "capture_logs": [
+        "build/qa/conflict-identities-captures.log",
+        "build/qa/conflict-identities-geometry.log",
+        "build/qa/conflict-identities-clip-insets.log",
+        "build/qa/conflict-identities-native-final.log"
+      ]
+    },
+    "cleanup": {
+      "sampled_owned_pids": [
+        83552,
+        83804,
+        84088,
+        84429,
+        84758,
+        85403,
+        85842,
+        86119
+      ],
+      "remaining": [],
+      "policy": "owned exact-process-group reaping on success/failure/timeout, private fixture files/preferences, all test windows closed"
+    },
+    "hosted": "Latest previously inspected 12b65f85 macOS run 38721704928 in progress; Pages run 38721705301 succeeded. No hosted green claim for this batch."
+  },
+  "limits": [
+    "No complete Windows ref-order/locale/malformed/multi-head metadata equivalence",
+    "No physical menu/keyboard/VoiceOver or initialized-submodule native acceptance",
+    "External app launch is injected",
+    "No signed sandbox, Finder, App Store or full dialog/application certification"
+  ],
+  "unrelated_wip_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

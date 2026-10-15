@@ -852,8 +852,8 @@ import UniformTypeIdentifiers
     enum ConflictEditorRoute: String { case deleteModify, submodule, image, text }
     var conflictEditorPresentation: ((ConflictEditorRoute, GitRepository, String, ImageConflictDocument?) -> Void)?
     var readConflictEditorEntry: ((GitRepository, String, OperationCancellation) async throws -> ConflictEntry)?
-    var openExternalConflict: (GitRepository, RepositoryAccessLease?, String, Bool, NSWindow?, ConflictEntry, OperationCancellation, @escaping () -> Void) async throws -> Bool = { repository, access, path, alternate, owner, entry, token, prepared in
-        try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner, cancellation: token, onPrepared: prepared, expectedEntry: entry)
+    lazy var openExternalConflict: (GitRepository, RepositoryAccessLease?, String, Bool, NSWindow?, ConflictEntry, OperationCancellation, @escaping () -> Void) async throws -> Bool = { [weak self] repository, access, path, alternate, owner, entry, token, prepared in
+        try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner, cancellation: token, onPrepared: prepared, expectedEntry: entry, identityOptions: ConflictIdentityOptions(defaults: self?.fileComparisonPreferences ?? .standard))
     }
     private var conflictEditorPreparations: [String: ConflictEditorLaunch] = [:]
     @Published private(set) var conflictEditorPreparationCount = 0
@@ -899,12 +899,12 @@ import UniformTypeIdentifiers
                         if self.root == root { await refresh() }; return
                     }
                     let root = repository.root, key = root.path + "\0" + path
-                    if let document = try await repository.imageConflictDocument(path: path, cancellation: token) {
+                    if let document = try await repository.imageConflictDocument(path: path, identityOptions: ConflictIdentityOptions(defaults: fileComparisonPreferences), cancellation: token) {
                         guard document.entry == entry else { throw ResolveFailure.stale }
                         try await validateConflictEditorEntry(entry, repository: repository, token: token)
                         request.dismissProgress()
                         if let conflictEditorPresentation { conflictEditorPresentation(.image, repository, path, document); return }
-                        let controller = imageConflictWindows[key] ?? ImageConflictWindowController(repository: repository, access: access, document: document)
+                        let controller = imageConflictWindows[key] ?? ImageConflictWindowController(repository: repository, access: access, document: document, preferences: fileComparisonPreferences)
                         controller.onClosed = { [weak self] in self?.imageConflictWindows.removeValue(forKey: key) }
                         controller.model.onChanged = { [weak self] output in
                             self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)

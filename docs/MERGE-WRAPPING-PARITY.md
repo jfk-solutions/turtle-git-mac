@@ -43,3 +43,13 @@ and after resizing, with text/selection/history/comparison/saved-byte invariants
 retained. See [the batch record](qa/merge-wrapping-2026-10-12.json).
 All test-owned windows/helpers closed. Full hosted and physical/signed
 acceptance remain unproven.
+
+## Ruler viewport follow-up — October 15, 2026
+
+The conflict identity visual review found initial characters hidden under the
+line ruler. The shared wrapping adapter now uses clip-view insets for leading
+horizontal position and available wrapping width, retaining user offset when
+ruler geometry changes. See [the connected family](CONFLICT-IDENTITIES.md).
+
+[Grouped validation and visual review](qa/conflict-identities-2026-10-15.json)
+record actual coverage and remaining limits; no dialog is newly certified.

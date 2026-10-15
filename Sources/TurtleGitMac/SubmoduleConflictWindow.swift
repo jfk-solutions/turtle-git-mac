@@ -63,7 +63,7 @@ import TurtleGitCore
             defer { operation.finish(token); withExtendedLifetime(operation.access) {} }
             do {
                 try operation.checkAccess(); let value: SubmoduleConflictDetails
-                if let readDetails { value = try await readDetails(token) } else { value = try await repository.submoduleConflictDetails(path: path, cancellation: token) }
+                if let readDetails { value = try await readDetails(token) } else { value = try await repository.submoduleConflictDetails(path: path, identityOptions: ConflictIdentityOptions(defaults: operation.preferences), cancellation: token) }
                 try token.check(); guard operation.live(token) else { return }; details = value
             } catch { operation.fail(error, token: token) }
         }
@@ -75,7 +75,7 @@ import TurtleGitCore
         Task {
             defer { operation.finish(token); withExtendedLifetime(operation.access) {} }
             do {
-                try operation.checkAccess(); let current = try await repository.submoduleConflictDetails(path: path, cancellation: token)
+                try operation.checkAccess(); let current = try await repository.submoduleConflictDetails(path: path, identityOptions: ConflictIdentityOptions(defaults: operation.preferences), cancellation: token)
                 guard current.entry == original.entry, current.checkout == checkout,
                       [current.base, current.mine, current.theirs].contains(where: { $0.stage == side.stage && $0.revision == revision && $0.canShowLog }) else { throw ResolveFailure.stale }
                 try token.check(); guard operation.live(token) else { return }; onLog(GitRepository(root: checkout, executable: repository.executable), revision)

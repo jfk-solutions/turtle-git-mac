@@ -234,3 +234,6 @@ macOS build scripts. Build it with `swift build --product TurtleGitWCRev`.
 
 Compare and Review source panes support Save As to a new working file, including
 subsequent Save and Reload. See [Save As behavior and limitations](docs/SAVE-AS-TARGETS.md).
+
+Conflict editors and external merge tools share [operation-aware side identities](docs/CONFLICT-IDENTITIES.md),
+including merge/rebase branch names and the Advanced branch-guessing preference.

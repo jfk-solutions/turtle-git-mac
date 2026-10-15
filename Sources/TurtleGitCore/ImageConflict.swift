@@ -11,6 +11,7 @@ public struct ImageConflictDocument: Sendable {
     public let contents: [ImageConflictSide: Data]
     public let workingContents: Data?
     public let permissions: Int
+    public var conflictTitles: ConflictTitles? = nil
     public func image(_ side: ImageConflictSide) -> ComparisonImage? { contents[side].flatMap { ComparisonImage(bytes: $0) } }
 }
 public enum ImageConflictFailure: LocalizedError {
@@ -26,7 +27,7 @@ public enum ImageConflictFailure: LocalizedError {
 extension GitRepository {
     /// Image routing examines original stage bytes, independent of extensions.
     /// A missing base is allowed for add/add conflicts; selection stays unavailable.
-    public func imageConflictDocument(path: String, cancellation: OperationCancellation? = nil) throws -> ImageConflictDocument? {
+    public func imageConflictDocument(path: String, identityOptions: ConflictIdentityOptions = .init(), cancellation: OperationCancellation? = nil) throws -> ImageConflictDocument? {
         try cancellation?.check()
         guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
         try cancellation?.check()
@@ -48,8 +49,12 @@ extension GitRepository {
         try validateConflicts([entry], using: .current, cancellation: cancellation)
         guard try conflictIsRebase(cancellation: cancellation) == rebase else { throw ResolveFailure.stale }
         try cancellation?.check()
-        return ImageConflictDocument(entry: entry, mineStage: mineStage, theirsStage: theirsStage, contents: contents,
+        var document = ImageConflictDocument(entry: entry, mineStage: mineStage, theirsStage: theirsStage, contents: contents,
                                      workingContents: working, permissions: permissions ?? (entry.stages.first { $0.number == mineStage }?.mode == "100755" ? 0o755 : 0o644))
+        document.conflictTitles = try conflictTitles(rebase: rebase, options: identityOptions, cancellation: cancellation)
+        try validateConflicts([entry], using: .current, cancellation: cancellation)
+        guard try conflictIsRebase(cancellation: cancellation) == rebase else { throw ResolveFailure.stale }
+        try cancellation?.check(); return document
     }
     private func validateImageWorkingFile(_ document: ImageConflictDocument, cancellation: OperationCancellation? = nil) throws {
         try validateConflicts([document.entry], using: .current, cancellation: cancellation)
@@ -68,8 +73,9 @@ extension GitRepository {
         if document.workingContents != nil && !FileManager.default.isWritableFile(atPath: location.path) { throw ImageConflictFailure.readOnly }
         try bytes.write(to: location, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: document.permissions], ofItemAtPath: location.path)
-        return ImageConflictDocument(entry: document.entry, mineStage: document.mineStage, theirsStage: document.theirsStage,
+        var saved = ImageConflictDocument(entry: document.entry, mineStage: document.mineStage, theirsStage: document.theirsStage,
                                      contents: document.contents, workingContents: bytes, permissions: document.permissions)
+        saved.conflictTitles = document.conflictTitles; return saved
     }
     public func markImageConflictResolved(_ document: ImageConflictDocument, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()

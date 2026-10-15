@@ -71,7 +71,7 @@ import TurtleGitCore
             do {
                 try operation.checkAccess()
                 let value: DeleteConflictDetails
-                if let readDetails { value = try await readDetails(token) } else { value = try await repository.deleteConflictDetails(path: path, cancellation: token) }
+                if let readDetails { value = try await readDetails(token) } else { value = try await repository.deleteConflictDetails(path: path, identityOptions: ConflictIdentityOptions(defaults: operation.preferences), cancellation: token) }
                 try token.check(); guard operation.live(token) else { return }; details = value
             } catch { operation.fail(error, token: token) }
         }
@@ -96,7 +96,7 @@ import TurtleGitCore
         Task {
             defer { operation.finish(token); withExtendedLifetime(operation.access) {} }
             do {
-                try operation.checkAccess(); let current = try await repository.deleteConflictDetails(path: path, cancellation: token)
+                try operation.checkAccess(); let current = try await repository.deleteConflictDetails(path: path, identityOptions: ConflictIdentityOptions(defaults: operation.preferences), cancellation: token)
                 guard current.entry == details.entry, [current.first.commit, current.second.commit].contains(revision) else { throw ResolveFailure.stale }
                 try token.check(); guard operation.live(token) else { return }; onLog(revision)
             } catch { operation.fail(error, token: token) }

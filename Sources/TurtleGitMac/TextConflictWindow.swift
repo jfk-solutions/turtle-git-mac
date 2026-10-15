@@ -299,6 +299,10 @@ private enum MergeSourceSide {
     }
     private(set) var sourceTargets: [Bool: SavedMergePane] = [:]
     func sourceTargetURL(mine: Bool) -> URL? { sourceTargets[mine]?.url }
+    func sourceCaption(mine: Bool) -> String? {
+        guard sourceTargets[mine] == nil, let titles = document?.conflictTitles else { return nil }
+        return mine ? titles.mine.title : titles.theirs.title
+    }
     @Published private(set) var exportingSource = false
     lazy var sourceExporter: MergeSourceExport = {
         let value = MergeSourceExport()
@@ -634,7 +638,7 @@ private enum MergeSourceSide {
             }
             next = try await workingMerge.read(engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), cancellation: cancellation)
         }
-        else { next = try await repository.textConflictDocument(path: path, engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), cancellation: cancellation) }
+        else { next = try await repository.textConflictDocument(path: path, engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), identityOptions: ConflictIdentityOptions(defaults: comparisonDefaults), cancellation: cancellation) }
         if workingMerge == nil, !sourceTargets.isEmpty {
             next = try next.replacingSources(mine: sourceTargets[true]?.read(), theirs: sourceTargets[false]?.read(), engine: engine, cancellation: cancellation)
         }
@@ -790,7 +794,7 @@ enum MergePalette {
 
 private struct TextConflictDialog: View {
     @ObservedObject var model: TextConflictWindowModel
-    func pane(_ title: String, text: String, editable: Bool = false, cells: [MergeSourceCell]? = nil, side: MergeSourceSide? = nil) -> some View {
+    func pane(_ title: String, text: String, caption: String? = nil, editable: Bool = false, cells: [MergeSourceCell]? = nil, side: MergeSourceSide? = nil) -> some View {
         let displayed = cells.map { $0.map(\.displayText).joined(separator: "\n") + ($0.isEmpty ? "" : "\n") } ?? text
         let tabWidth = model.tabWidths[title] ?? model.editorPreferences.tabWidth
         let useSpaces = model.spacePanes[title] ?? model.editorPreferences.useSpaces
@@ -799,6 +803,7 @@ private struct TextConflictDialog: View {
         return VStack(spacing: 0) {
             HStack {
                 Text(title).font(.headline)
+                if let caption { Text(caption).font(.caption).lineLimit(1).help(caption).textSelection(.enabled) }
                 if let side, let url = model.sourceTargetURL(mine: side == .mine) { Text(url.lastPathComponent).font(.caption).lineLimit(1).help(url.path) }
                 Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
@@ -861,8 +866,8 @@ private struct TextConflictDialog: View {
                     }
                     VSplitView {
                     HSplitView {
-                        pane(document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", text: document.theirs, cells: model.sourceComparison?.rows.map(\.theirs), side: .theirs)
-                        pane(document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine", text: document.mine, cells: model.sourceComparison?.rows.map(\.mine), side: .mine)
+                        pane(document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", text: document.theirs, caption: model.sourceCaption(mine: false), cells: model.sourceComparison?.rows.map(\.theirs), side: .theirs)
+                        pane(document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine", text: document.mine, caption: model.sourceCaption(mine: true), cells: model.sourceComparison?.rows.map(\.mine), side: .mine)
                         if model.showBase { pane("Base", text: document.base) }
                     }
                     pane("Merged · \(model.path)", text: model.result, editable: true)

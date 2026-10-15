@@ -343,6 +343,7 @@ struct MergeLocatorBar: NSViewRepresentable {
         var aligned: Bool
         var enabled: Bool
         var applied: Bool?
+        var leadingInset: CGFloat?
         var observers: [NSObjectProtocol] = []
         init(scroll: NSScrollView, aligned: Bool, enabled: Bool) { self.scroll = scroll; self.aligned = aligned; self.enabled = enabled }
         deinit { for observer in observers { NotificationCenter.default.removeObserver(observer) } }
@@ -371,6 +372,7 @@ struct MergeLocatorBar: NSViewRepresentable {
         guard !retired, !queued, !applying else { return }; queued = true
         DispatchQueue.main.async { [weak self] in guard let self else { return }; self.queued = false; self.apply() }
     }
+    private func clipInsets(_ scroll: NSScrollView) -> NSEdgeInsets { scroll.contentView.contentInsets }
     private func apply() {
         guard !retired, !applying else { return }; applying = true; defer { applying = false }
         let visible = entries.values.compactMap { entry -> (Entry, NSScrollView, NSTextView)? in
@@ -381,8 +383,10 @@ struct MergeLocatorBar: NSViewRepresentable {
         alignedHeights = []
         for (entry, scroll, view) in visible {
             guard let storage = view.textStorage, let layout = view.layoutManager, let container = view.textContainer else { continue }
-            let width = scroll.contentSize.width; guard width > 32 else { continue }
-            let wrappingChanged = entry.applied != entry.enabled; entry.applied = entry.enabled
+            let clip = scroll.contentView, insets = clipInsets(scroll)
+            let width = clip.bounds.width - insets.left - insets.right; guard width > 32 else { continue }
+            let previousInset = entry.leadingInset
+            let wrappingChanged = entry.applied != entry.enabled; entry.applied = entry.enabled; entry.leadingInset = insets.left
             scroll.hasHorizontalScroller = !entry.enabled
             view.isHorizontallyResizable = !entry.enabled
             view.autoresizingMask = entry.enabled ? [.width] : []
@@ -391,8 +395,13 @@ struct MergeLocatorBar: NSViewRepresentable {
             view.maxSize = NSSize(width: entry.enabled ? width : CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
             if entry.enabled { view.setFrameSize(NSSize(width: width, height: max(view.frame.height, scroll.contentSize.height))) }
             container.containerSize = NSSize(width: entry.enabled ? max(1, width - 2 * view.textContainerInset.width) : CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-            if wrappingChanged && scroll.contentView.bounds.minX != 0 {
-                var point = scroll.contentView.bounds.origin; point.x = 0; scroll.contentView.scroll(to: point); scroll.reflectScrolledClipView(scroll.contentView)
+            // Rulers occupy clip-view insets. Zero hides the first glyphs under
+            // the ruler; the leading position is minus that inset. Preserve a
+            // user's horizontal offset when only ruler geometry changes.
+            if wrappingChanged || previousInset != insets.left {
+                var proposed = clip.bounds
+                proposed.origin.x = wrappingChanged ? -insets.left : clip.bounds.minX + (previousInset ?? insets.left) - insets.left
+                clip.scroll(to: clip.constrainBoundsRect(proposed).origin); scroll.reflectScrolledClipView(clip)
             }
             let ranges = MergeLineEndings.lineRanges(in: view.string)
             storage.beginEditing()

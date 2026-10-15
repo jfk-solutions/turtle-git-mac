@@ -60,3 +60,15 @@ stage bytes, regardless of the currently previewed frame. See
 All three conflict panes share a transparency color chooser and local Dark Mode,
 including the D key. Their navigation/zoom models remain independent. See
 [color parity](IMAGE-COLORS-PARITY.md).
+
+## Shared conflict identity family — October 15, 2026
+
+The [shared conflict identity reader](CONFLICT-IDENTITIES.md) supplies captured
+operation/branch captions and the default-on guessing policy. Text/image panes,
+delete/modify and submodule sides and external merge-tool arguments share the
+same stage mapping. The Advanced disable-guessing setting now has a runtime
+consumer. Existing source-control mappings and complete-dialog acceptance remain
+partial; earlier generic-label gaps are superseded within this documented scope.
+
+[Grouped validation and visual review](qa/conflict-identities-2026-10-15.json)
+record actual coverage and remaining limits; no dialog is newly certified.
