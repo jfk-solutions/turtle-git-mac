@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 783,
-    "mapped_controls": 876,
+    "pending_control_reviews": 758,
+    "mapped_controls": 901,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -556,17 +556,22 @@
       "status": "partial-workflow-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 27,
-      "mapped_controls": 2,
-      "pending_control_reviews": 25,
+      "mapped_controls": 27,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/LogWindow.swift",
-          "origin": "recorded-control-mapping"
+          "anchor": "struct LogDialog"
+        },
+        {
+          "path": "Sources/TurtleGitMac/LogFilterField.swift",
+          "anchor": "struct LogFilterField"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/LOG-FILTER-PARITY.md",
         "docs/LOG-PARITY.md"
       ],
       "qa_records": [
@@ -589,6 +594,7 @@
         "docs/qa/log-detail-cancel-2026-10-06.json",
         "docs/qa/log-double-click-2026-10-07.json",
         "docs/qa/log-file-clipboard-2026-10-07.json",
+        "docs/qa/log-filters-2026-10-15.json",
         "docs/qa/log-graph-accessibility-2026-10-10.json",
         "docs/qa/log-graph-parents-2026-10-07.json",
         "docs/qa/log-gravatar-2026-10-07.json",

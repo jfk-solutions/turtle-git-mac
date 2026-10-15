@@ -52,6 +52,21 @@ public enum IssueRegexRuntime {
         }
         return IssueRegexMatch(hasMatch: first == "matched\t1", ranges: ranges)
     }
+    /// Validate the Log expression with the same ECMAScript engine as filtering,
+    /// without reading history or confusing an invalid expression with no matches.
+    public static func validateLogPattern(_ pattern: String, caseSensitive: Bool, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> Bool {
+        try cancellation?.check()
+        let expression = pattern.hasPrefix("!") ? String(pattern.dropFirst()) : pattern
+        guard !expression.isEmpty else { return true }
+        let output = try capture(message: "", check: expression, extract: "", executable: executable,
+            mode: [caseSensitive ? "--log-case" : "--log-insensitive"], messageUnits: [], cancellation: cancellation)
+        try cancellation?.check()
+        switch String(decoding: output, as: UTF8.self) {
+        case "log\tactive\n": return true
+        case "log\tinactive\n": return false
+        default: throw HistoryRegexFailure.failed("Invalid Log validation output.")
+        }
+    }
     /// One compiled ECMAScript expression over length-framed UTF-16 records.
     /// Invalid/empty expressions reproduce upstream's inactive-filter behavior.
     static func logMatches(_ texts: [String], pattern: String, caseSensitive: Bool, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [Bool] {

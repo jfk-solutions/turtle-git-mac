@@ -20,6 +20,16 @@ final class IssueRegexTests: XCTestCase {
         XCTAssertEqual(try IssueRegexRuntime.batchIssueIDs(messages,check:"(",executable:parser),Array(repeating:[],count:4))
         XCTAssertEqual(try IssueRegexRuntime.batchIssueIDs(["b"],check:"(a)?b",executable:parser),[[""]])
     }
+    func testLogValidationUsesECMAScriptIncludingInversionAndCancellation() throws {
+        for expression in ["", "!", "blue|snow", "!blue", "\\uD83E\\uDD8E", "^a.*$"] {
+            XCTAssertTrue(try IssueRegexRuntime.validateLogPattern(expression, caseSensitive: true, executable: parser), expression)
+        }
+        for expression in ["(", "![", "(?<=#)42"] {
+            XCTAssertFalse(try IssueRegexRuntime.validateLogPattern(expression, caseSensitive: false, executable: parser), expression)
+        }
+        let stopped = OperationCancellation(); stopped.cancel()
+        XCTAssertThrowsError(try IssueRegexRuntime.validateLogPattern("blue", caseSensitive: false, executable: parser, cancellation: stopped)) { XCTAssertTrue($0 is OperationCancellationFailure) }
+    }
     func testSourceSVNRevisionBatchPatternsAndWholeMessageAnchors() throws {
         let messages = ["git-svn-id: https://example.invalid/a@b@00123 abcd-123", "\n\tgit-svn-id: 0007@ab-c9", "subject\n\ngit-svn-id: https://example.invalid/a@42 abcd", "git-svn-id: https://example.invalid/a@42 abcd\n", "git-svn-id: 42@ABCD", "git-svn-id: 42@abcd\0ignored", "ordinary"]
         XCTAssertEqual(try IssueRegexRuntime.svnRevisions(messages, executable: parser), ["00123", "0007", "", "", "", "42", ""])

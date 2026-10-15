@@ -67,6 +67,7 @@ for baseline and update rules.
 ## History and repository browsing
 
 - [Log Messages parity](LOG-PARITY.md)
+- [Log filter controls and source layout](LOG-FILTER-PARITY.md)
 - [Find in Log Messages](LOG-FIND.md)
 - [References commit is on: native workflow and remaining parity](COMMIT-CONTAINING-REFS-PARITY.md)
 - [Expanding compressed history](LOG-GRAPH.md)

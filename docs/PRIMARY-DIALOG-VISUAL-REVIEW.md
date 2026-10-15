@@ -43,3 +43,9 @@ passed; see [results and remaining work](qa/preview-viewport-2026-10-14.json).
 ![Current light Partial Staging window](site/assets/partial-staging-current-light.png)
 
 ![Current dark Partial Staging window](site/assets/partial-staging-current-dark.png)
+
+The October 15 [Log filter/layout batch](LOG-FILTER-PARITY.md) supersedes the
+older Log header/footer captures with an integrated native filter menu and source
+command rows. Its light/dark compositor captures were reviewed after correcting
+From compression and ordinary/selector footer differences. Complete source and
+physical/signed acceptance remain open.

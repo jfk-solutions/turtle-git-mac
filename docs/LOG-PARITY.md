@@ -2607,3 +2607,25 @@ by that repair. Both complete native history-workflow cases passed on system and
 bundled Git, including the actual file viewer, parent/selected/working patches,
 double-click and started-reader selection/requested/forced cancellation. Both
 owned receivers were reaped. See [followed-history evidence](qa/followed-history-2026-10-15.json).
+
+## Integrated filter controls and source command layout — October 15, 2026
+
+The Log header now keeps the source branch, From limit/date, To date, integrated
+filter and Jump controls in one row, without separate Search in/Search buttons.
+The lower filter row groups Show Whole Project/All Branches on the left, changed
+path filtering in the middle and Help on the right. Refresh, Statistics, Walk
+Behavior, View, OK and Cancel occupy the final row. Show Working Tree Changes
+remains available in View. The three content panes and graph are preserved.
+
+Native search fields provide the source ordered filter menu, original artwork,
+clear and keyboard actions. Both typing filters use the source one-second delay;
+history Return and clearing apply immediately, and path Escape clears immediately.
+Regex validation uses the existing ECMAScript helper before timed history reads;
+an invalid expression leaves the current rows and exposes an error on the field.
+Preference choices now use the owning Log's store instead of global defaults.
+Pending timers and helper reads are invalidated by explicit refresh/replacement
+and retirement, with started validation counted through settlement for Quit.
+
+[Filter workflow details](LOG-FILTER-PARITY.md) records source references,
+validation and remaining physical/signed acceptance. This remains partial Log
+parity; rearranging controls does not certify every source menu or dialog.

@@ -997,6 +997,82 @@ struct LogCommandRequest: Identifiable {
     @Published var searchFields = LogSearchSelection.load()
     @Published var searchRegex = UserDefaults.standard.bool(forKey: "UseRegexFilter")
     @Published var searchCaseSensitive = UserDefaults.standard.bool(forKey: "FilterCaseSensitively")
+    @Published private(set) var searchFilterError: String?
+    @Published private(set) var pathFilterDraft = ""
+    static private(set) var activeFilterValidations = 0
+    private var searchFilterTask: Task<Void, Never>?
+    private var searchFilterCancellation: OperationCancellation?
+    private var searchFilterGeneration = 0
+    private var pathFilterTask: Task<Void, Never>?
+    private var pathFilterGeneration = 0
+    var readSearchValidation: ((String, Bool, OperationCancellation) async throws -> Bool)?
+    var canEditPathFilter: Bool { !isInvalidated && !referencePickerBlocked && !findBlocked && !orderingBlocked && window?.attachedSheet == nil }
+    var canEditLogFilters: Bool { canEditPathFilter && (!busy || loadingHistory) }
+    func editSearch(_ text: String, submit: Bool = false) {
+        guard canEditLogFilters else { return }
+        search = text; scheduleSearchFilter(immediate: submit || text.isEmpty, validateRegex: !submit)
+    }
+    func submitSearch() { guard canEditLogFilters else { return }; scheduleSearchFilter(immediate: true, validateRegex: false) }
+    private func cancelSearchFilter() {
+        searchFilterGeneration += 1; searchFilterTask?.cancel(); searchFilterTask = nil
+        searchFilterCancellation?.cancel(); searchFilterCancellation = nil
+    }
+    private func scheduleSearchFilter(immediate: Bool = false, validateRegex: Bool = true) {
+        cancelSearchFilter(); searchFilterError = nil
+        let request = searchFilterGeneration, text = search, regex = searchRegex, sensitive = searchCaseSensitive
+        let token = OperationCancellation(); searchFilterCancellation = token
+        searchFilterTask = Task { [weak self] in
+            defer { if let self, request == searchFilterGeneration { searchFilterTask = nil; searchFilterCancellation = nil } }
+            do {
+                if !immediate { try await Task.sleep(nanoseconds: 1_000_000_000) }
+                // A timer must not replace a Git mutation or an owned sheet.
+                while let owner = self, !owner.isInvalidated, !owner.canEditLogFilters {
+                    try await Task.sleep(nanoseconds: 100_000_000)
+                }
+                guard let self, !isInvalidated, request == searchFilterGeneration, !Task.isCancelled else { return }
+                if regex && !text.isEmpty && validateRegex {
+                    Self.activeFilterValidations += 1
+                    let valid: Bool
+                    do {
+                        defer { Self.activeFilterValidations -= 1 }
+                        if let readSearchValidation { valid = try await readSearchValidation(text, sensitive, token) }
+                        else {
+                            let executable = historyRegexExecutable
+                            valid = try await Task.detached(priority: .userInitiated) {
+                                try IssueRegexRuntime.validateLogPattern(text, caseSensitive: sensitive, executable: executable, cancellation: token)
+                            }.value
+                        }
+                    }
+                    guard !isInvalidated, request == searchFilterGeneration, !token.isCancelled else { return }
+                    guard valid else { searchFilterError = "Invalid regular expression"; return }
+                }
+                while !isInvalidated, request == searchFilterGeneration, !canEditLogFilters {
+                    try await Task.sleep(nanoseconds: 100_000_000)
+                }
+                guard request == searchFilterGeneration, !token.isCancelled, canEditLogFilters else { return }
+                reload()
+            } catch {
+                guard let self, !isInvalidated, request == searchFilterGeneration, !token.isCancelled, !Task.isCancelled else { return }
+                searchFilterError = error.localizedDescription
+            }
+        }
+    }
+    func editPathFilter(_ text: String, submit: Bool = false) {
+        guard canEditPathFilter else { return }
+        pathFilterGeneration += 1; pathFilterTask?.cancel(); pathFilterTask = nil; pathFilterDraft = text
+        if submit || text.isEmpty { filterPaths = text; return }
+        let request = pathFilterGeneration
+        pathFilterTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+                while let owner = self, !owner.isInvalidated, !owner.canEditPathFilter {
+                    try await Task.sleep(nanoseconds: 100_000_000)
+                }
+            } catch { return }
+            guard let self, canEditPathFilter, request == pathFilterGeneration else { return }
+            filterPaths = text; pathFilterTask = nil
+        }
+    }
     static private(set) var activeNoteReads = 0
     static private(set) var activeNoteSaves = 0
     var readNote: ((String, OperationCancellation) async throws -> (CommitNoteSnapshot, ProjectDialogSettings))?
@@ -1188,7 +1264,7 @@ struct LogCommandRequest: Identifiable {
             if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "NoJumpNotFoundWarning") }
         }
     }
-    @Published var filterPaths = "" { didSet { refreshPatchPreview() } }
+    @Published var filterPaths = "" { didSet { pathFilterDraft = filterPaths; refreshPatchPreview() } }
     @Published var from = Date(timeIntervalSince1970: 0)
     @Published var to = Date()
     @Published private(set) var historyLimit = HistoryLimitScope()
@@ -1507,6 +1583,9 @@ struct LogCommandRequest: Identifiable {
         self.includeWorkingTreeChanges = labelDefaults.object(forKey: "LogIncludeWorkingTreeChanges") == nil || labelDefaults.bool(forKey: "LogIncludeWorkingTreeChanges")
         self.includeBoundaryCommits = labelDefaults.bool(forKey: "LogIncludeBoundaryCommits")
         self.historyRegexExecutable = historyRegexExecutable
+        self.searchFields = LogSearchSelection.load(defaults: labelDefaults)
+        self.searchRegex = labelDefaults.bool(forKey: "UseRegexFilter")
+        self.searchCaseSensitive = labelDefaults.bool(forKey: "FilterCaseSensitively")
         self.showBranchRevisionNumber = labelDefaults.bool(forKey: "ShowBranchRevisionNumber")
         self.gravatar = gravatar ?? LogGravatar(defaults: labelDefaults)
         sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
@@ -1519,24 +1598,24 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func selectSearchFields(_ fields: HistorySearchFields) {
-        guard !busy else { return }
+        guard canEditLogFilters else { return }
         searchFields = fields.intersection(LogSearchSelection.all)
-        UserDefaults.standard.set(searchFields.rawValue, forKey: "SelectedLogFilters")
-        if !search.isEmpty { reload() }
+        labelDefaults.set(searchFields.rawValue, forKey: "SelectedLogFilters")
+        if !search.isEmpty { scheduleSearchFilter() }
     }
     func toggleSearchFields() { selectSearchFields(LogSearchSelection.all.subtracting(searchFields)) }
     func selectAllSearchFields() { selectSearchFields(LogSearchSelection.all) }
     func setSearchRegex(_ enabled: Bool) {
-        guard !busy else { return }
+        guard canEditLogFilters else { return }
         searchRegex = enabled
-        UserDefaults.standard.set(enabled, forKey: "UseRegexFilter")
-        if !search.isEmpty { reload() }
+        labelDefaults.set(enabled, forKey: "UseRegexFilter")
+        if !search.isEmpty { scheduleSearchFilter() }
     }
     func setSearchCaseSensitive(_ enabled: Bool) {
-        guard !busy else { return }
+        guard canEditLogFilters else { return }
         searchCaseSensitive = enabled
-        UserDefaults.standard.set(enabled, forKey: "FilterCaseSensitively")
-        if !search.isEmpty { reload() }
+        labelDefaults.set(enabled, forKey: "FilterCaseSensitively")
+        if !search.isEmpty { scheduleSearchFilter() }
     }
     var canAcceptSelection: Bool { !busy && (selectingMultiple ? !selected.isEmpty && entries.filter { selected.contains($0.hash) }.count == selected.count : revision != nil) }
     func accept() {
@@ -1603,6 +1682,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        cancelSearchFilter(); pathFilterGeneration += 1; pathFilterTask?.cancel(); pathFilterTask = nil
         followedSession?.cancel();closeAfterFollowedRead=false
         workingCommandCancellation?.cancel();closeAfterWorkingCommandRead=false
         changedFileColumnRequest=UUID();resettingChangedFileColumns=false;focusedChangedFile=nil
@@ -1625,6 +1705,7 @@ struct LogCommandRequest: Identifiable {
     }
     func reload() {
         guard !isInvalidated, !referencePickerBlocked, !busy || loadingHistory else { return }
+        cancelSearchFilter()
         restoreHistorySnapshot()
         historyRestore = HistoryRestore(entries: entries, graph: graph, rollups: rollupInfo, highlights: searchHighlights)
         onFindReferenceRefresh?()
@@ -2666,8 +2747,8 @@ struct LogDialog: View {
     }
     var body: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 12) {
-                Button(model.startReferenceTitle) { model.browseStartReference() }.buttonStyle(.link).lineLimit(1)
+            HStack(spacing: 6) {
+                Button(model.startReferenceTitle) { model.browseStartReference() }.buttonStyle(.link).lineLimit(1).frame(minWidth: 55, idealWidth: 115, maxWidth: 145, alignment: .leading)
                     .help(model.referenceExpression).disabled(!model.canChangeStartReference)
                     .contextMenu { TurtleGitContextMenu { startReferenceActions } }
                 Menu(model.historyLimitTitle) {
@@ -2678,35 +2759,10 @@ struct LogDialog: View {
                     }
                     Divider()
                     Button("Configure default") { model.configureHistoryDefaults = true }
-                }.disabled(model.busy)
+                }.fixedSize(horizontal: true, vertical: false).disabled(model.busy)
                 DatePicker("From:", selection: Binding(get: { model.from }, set: { model.changeHistoryFrom($0) }), displayedComponents: .date).labelsHidden().fixedSize(horizontal: true, vertical: false).disabled(model.busy)
                 DatePicker("To:", selection: Binding(get: { model.to }, set: { model.changeHistoryTo($0) }), displayedComponents: .date).fixedSize(horizontal: true, vertical: false).disabled(model.busy)
-                Menu {
-                    ForEach([("Subject", HistorySearchFields.subject), ("Messages", .messages), ("Paths", .paths), ("Authors", .authors), ("Emails", .emails), ("Revisions", .revisions), ("Refname", .referenceNames), ("Tag Info", .tagInfo), ("Notes", .notes)], id: \.0) { title, field in
-                        Toggle(title, isOn: Binding(get: { model.searchFields.contains(field) }, set: { enabled in
-                            var selected = model.searchFields
-                            if enabled { selected.insert(field) } else { selected.remove(field) }
-                            model.selectSearchFields(selected)
-                        }))
-                    }
-                    if model.issueProperties.showsBugIDColumn {
-                        Toggle("Bug IDs", isOn: Binding(get: { model.searchFields.contains(.bugIDs) }, set: { enabled in
-                            var fields = model.searchFields
-                            if enabled { fields.insert(.bugIDs) } else { fields.remove(.bugIDs) }
-                            model.selectSearchFields(fields)
-                        }))
-                    }
-                    Divider()
-                    Button("Toggle filters") { model.toggleSearchFields() }
-                    Button("All") { model.selectAllSearchFields() }
-                    Divider()
-                    Toggle("Use regular expression", isOn: Binding(get: { model.searchRegex }, set: { model.setSearchRegex($0) }))
-                    Toggle("Case-sensitive", isOn: Binding(get: { model.searchCaseSensitive }, set: { enabled in
-                        model.setSearchCaseSensitive(enabled)
-                    }))
-                } label: { CommandLabel(title: "Search in", icon: .log) }.disabled(model.busy)
-                TextField("Search log", text: Binding(get: { [weak model] in model?.search ?? "" }, set: { [weak model] in guard model?.isInvalidated == false else { return }; model?.search = $0 })).textFieldStyle(.roundedBorder).help(model.searchRegex ? "Use an ECMAScript regular expression; begin with ! to invert. Invalid expressions leave the filter inactive." : "Require words, exclude with -word, offer alternatives with +word, quote phrases, or begin with ! to invert the filter.").onSubmit { [weak model] in model?.reload() }
-                Button("Search") { model.reload() }.disabled(model.busy)
+                LogFilterField(model: model).frame(minWidth: 140, maxWidth: .infinity).layoutPriority(1)
                 Picker("Jump", selection: $model.jumpKind) {
                     ForEach(HistoryJumpKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }.labelsHidden().frame(width: 150).help("Jump to revision")
@@ -2759,9 +2815,21 @@ struct LogDialog: View {
             }
             Text("Showing \(model.entries.filter { !$0.hash.isEmpty }.count) revision(s) • \(model.selectedWorkingTree ? "Working tree selected" : "\(model.revisions.count) revision(s) selected") • \(model.files.count) changed file(s)")
                 .font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
-            HStack {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                if !model.historyPaths.isEmpty {
+                    Toggle("Show Whole Project", isOn: $model.showWholeProject).toggleStyle(.checkbox).disabled(model.historyWalk.followRenames).onChange(of: model.showWholeProject) { _ in model.reload() }
+                        .help(model.historyPaths.joined(separator: "\n"))
+                }
                 LogReferenceScopeCheckbox(scope: model.effectiveReferenceScope, enabled: model.canChangeStartReference && !model.historyWalk.followRenames) { model.chooseReferenceScope($0 ? .all : .current) }
                     .contextMenu { TurtleGitContextMenu { startReferenceActions } }
+                }.frame(width: 220, alignment: .leading)
+                LogFilterField(model: model, kind: .paths).frame(minWidth: 180, maxWidth: .infinity)
+                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-showlog.html")!) }
+            }
+            HStack {
+                Button("Refresh") { model.reload() }.disabled(model.busy)
+                Button("Statistics") { model.showStatistics() }.disabled(model.busy || model.entries.isEmpty || model.isInvalidated)
                 Menu {
                     ForEach([HistoryWalkCommand.firstParent, .noMerges, .followRenames, .fullHistory], id: \.self) { command in
                         Toggle(command.rawValue, isOn: Binding(get: { model.historyWalk.contains(command) }, set: { _ in model.toggleHistoryWalk(command) })).disabled(!model.canToggleHistoryWalk(command))
@@ -2785,28 +2853,18 @@ struct LogDialog: View {
                     Divider()
                     Toggle("Gravatar", isOn: Binding(get: { model.showGravatar }, set: { _ in model.toggleGravatar() }))
                     Toggle("View Patch", isOn: Binding(get: { model.patchPreviewVisible }, set: { model.setPatchPreview($0) }))
+                    if !model.selecting && !model.bare {
+                        Divider()
+                        Toggle("Show Working Tree Changes", isOn: $model.showWorkingTree).disabled(!model.canShowWorkingTree).onChange(of: model.showWorkingTree) { _ in model.reload() }
+                    }
                 }.disabled(model.busy || model.isInvalidated)
-                if !model.selecting && !model.bare {
-                    Toggle("Show Working Tree Changes", isOn: $model.showWorkingTree).toggleStyle(.checkbox).disabled(!model.canShowWorkingTree).onChange(of: model.showWorkingTree) { _ in model.reload() }
-                }
-                if !model.historyPaths.isEmpty {
-                    Toggle("Show Whole Project", isOn: $model.showWholeProject).toggleStyle(.checkbox).disabled(model.historyWalk.followRenames).onChange(of: model.showWholeProject) { _ in model.reload() }
-                        .help(model.historyPaths.joined(separator: "\n"))
-                }
                 Spacer()
-                TextField("Filter paths", text: Binding(get: { [weak model] in model?.filterPaths ?? "" }, set: { [weak model] in guard model?.isInvalidated == false else { return }; model?.filterPaths = $0 })).textFieldStyle(.roundedBorder).frame(maxWidth: 430)
-            }
-            HStack {
-                Button("Refresh") { model.reload() }.disabled(model.busy)
-                Button("Statistics") { model.showStatistics() }.disabled(model.busy || model.entries.isEmpty || model.isInvalidated)
                 if model.busy { ProgressView().controlSize(.small); if model.loadingHistory { Text("Read \(model.loadedRevisionCount) revisions…").font(.caption).foregroundStyle(.secondary) } }
                 if model.patchPreviewLoading { ProgressView("Reading patch…").controlSize(.small) }
                 if let error = model.patchPreviewError { Text(error).foregroundStyle(.red).font(.caption) }
                 if let error = model.patchPreferenceError { Text("Could not remember View Patch: " + error).foregroundStyle(.red).font(.caption) }
                 if model.loadingNote { ProgressView("Reading notes…").controlSize(.small) }
                 if model.copyingDetails { ProgressView("Reading log details for clipboard…").controlSize(.small) }
-                Spacer()
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-showlog.html")!) }
                 Button("OK") { model.accept() }.disabled(model.selecting && !model.canAcceptSelection).keyboardShortcut(.defaultAction)
                 if model.selecting { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }
             }

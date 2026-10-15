@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The Log filter/layout family now combines source-ordered native filter menus,
+one-second typing, immediate clear/Return/Escape, actual ECMAScript validation,
+owner preferences and cancellation/retirement/Quit accounting. Header and footer
+commands follow the source layout; current light/dark compositor captures were
+reviewed. Debug, eight Core tests and both native Git-engine cases passed. See
+[Log filters](LOG-FILTER-PARITY.md); full physical/signed and complete Log parity
+remain open.
+
 The connected Finder overlay path-policy family now compiles source precedence
 rules per refresh, follows per-directory volume/case metadata across mount
 boundaries, resolves Finder badge aliases, refreshes on volume events and reports

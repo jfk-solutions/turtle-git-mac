@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "0c73f0ab",
+  "scope": "Connected Log header/footer layout and native filter controls: integrated source menu, delayed typing, immediate clear/Return/Escape, ECMAScript syntax, owner preferences and cancellation/Quit lifetime",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "files": [
+      "src/TortoiseProc/LogDlg.cpp",
+      "src/TortoiseProc/FilterHelper.cpp",
+      "src/Resources/TortoiseProcENG.rc",
+      "doc/images/en/LogMessages.png"
+    ]
+  },
+  "validation": {
+    "core": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter IssueRegexTests",
+      "tests": 8,
+      "failures": 0,
+      "log": "build/qa/log-filters-core.log",
+      "rerun_after_native_layout_repair": false
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/log-filters-final-build-recheck.log"
+    },
+    "native": {
+      "command": "python3 scripts/test-log-filters.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --captures build/qa/log-native-filters-final",
+      "engines": 2,
+      "exit": 0,
+      "required_completion_markers": 2,
+      "log": "build/qa/log-filters-native-final.log",
+      "owned_receiver_pids_checked_absent": [
+        1105,
+        1467,
+        1992,
+        2290
+      ],
+      "scope": "Real repository history with actual AppKit search fields/menu targets and real one-second timers; real helper syntax/queries; controlled validation replies for replacement/close/Quit; minimum-size field bounds; private prefs and unchanged raw HEAD/index/porcelain status",
+      "physical_events": false
+    },
+    "repairs": [
+      {
+        "kind": "visual",
+        "log": "build/qa/log-filters-native.log",
+        "detail": "Both initial native cases passed, but reviewed captures compressed From to F. Menu now keeps intrinsic width. Source comparison also restored only OK for ordinary Logs, retaining Cancel for selectors."
+      },
+      {
+        "kind": "build_execution",
+        "log": "build/qa/log-filters-final-build.log",
+        "exit": 65,
+        "detail": "Final build was mistakenly launched before the preceding build exited. Xcode refused with a locked build database. Both handles were observed terminal before one fresh successful final build; no database was deleted."
+      }
+    ],
+    "previous_ci": {
+      "run": 38736892584,
+      "job": 116428891347,
+      "head": "0c73f0ab",
+      "observed": "Application build passed; Git integration tests running. The prior DiffToolSettings compiler timeout is no longer the active blocker; full hosted result remains pending."
+    }
+  },
+  "screenshots": [
+    {
+      "path": "docs/site/assets/log-native-filters-light.png",
+      "sha256": "c1fcad08e0cee5cacab7d7dad333dffe07300b2f86ca20e535b9d89c7b9c1543",
+      "capture": "Unaltered current-process ScreenCaptureKit window compositor image",
+      "review": "Compared with pinned doc/images/en/LogMessages.png and IDD_LOGMESSAGE; corrected From compression, retained one ordinary OK action; physical/full parity remains open"
+    },
+    {
+      "path": "docs/site/assets/log-native-filters-dark.png",
+      "sha256": "27e966b532296d18fa3389b1b36bb1f6035538132323396353e9451b51b9e114",
+      "capture": "Unaltered current-process ScreenCaptureKit window compositor image",
+      "review": "Compared with pinned doc/images/en/LogMessages.png and IDD_LOGMESSAGE; corrected From compression, retained one ordinary OK action; physical/full parity remains open"
+    }
+  ],
+  "remaining": [
+    "Physical search/menu/IME/focus and VoiceOver acceptance",
+    "Every long branch/locale/minimum OS and signed execution",
+    "Source full info-range/line totals and contextual Whole Project visibility differences remain partial",
+    "Complete source Log masks/options/actions and all-dialog parity",
+    "Installed Finder and signed/App Store distribution acceptance"
+  ]
+}

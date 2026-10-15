@@ -1755,3 +1755,18 @@ icon-disabled menus, consumed menu refusal, and closure fencing. The other two
 cases retain conditional metadata/cancellation and row movement/structural replay
 coverage. Receivers link current Debug objects and close their owned windows;
 no installed Finder or signed acceptance is implied.
+
+## Log filter control family
+
+After building current Debug objects, run `python3 scripts/test-log-filters.py
+--git /usr/bin/git --git build/git-runtime/Git/bin/git` on one line. Optional
+`--captures build/qa/log-native-filters` records only the fixture's Log window
+in light/dark using the macOS compositor. The runner requires its final marker
+as well as exit zero. Native timers use the actual one-second delay; closed/
+replaced validation uses controlled replies and private preferences.
+
+The affected Core group is `TURTLEGIT_CORE_ONLY=1 swift test --filter
+IssueRegexTests`, including actual ECMAScript syntax and stalled-helper cleanup.
+The native fixture verifies source menu order, independent owner settings,
+clear/Return/Escape, deferred filtering, invalid-expression retention, Quit and
+retired callback fences, minimum geometry and unchanged HEAD/index/status.
