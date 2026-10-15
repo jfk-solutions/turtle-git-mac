@@ -430,6 +430,7 @@ import UniformTypeIdentifiers
     @Published private(set) var issueMessageStyles: [IssueMessageStyle] = []
     private let issueStyler = IssueMessageStyler()
     private var issueStyleTask: Task<Void, Never>?
+    private var issueStyleCancellation: OperationCancellation?
     private var historyIssueTask: Task<Void, Never>?
     private var historyIssueCancellation: OperationCancellation?
     private var historyIssueGeneration = UUID()
@@ -444,7 +445,7 @@ import UniformTypeIdentifiers
     private var completionSources: [MessageCodeScanner.Source] = []
     private var completionOptions: MessageCodeScanner.Options?
     private var completionEnabled: Bool?
-    deinit { reloadCancellation?.cancel(); reloadTask?.cancel(); completionTask?.cancel(); issueStyleTask?.cancel(); historyIssueTask?.cancel(); historyIssueCancellation?.cancel(); authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel() }
+    deinit { reloadCancellation?.cancel(); reloadTask?.cancel(); completionTask?.cancel(); issueStyleTask?.cancel(); issueStyleCancellation?.cancel(); historyIssueTask?.cancel(); historyIssueCancellation?.cancel(); authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel() }
     func prepareMessageCompletions(force: Bool = false) {
         var options = MessageCodeScanner.Options()
         let defaults = dialogDefaults
@@ -484,13 +485,17 @@ import UniformTypeIdentifiers
         historyIssueCancellation = nil; historyIssueTask = nil
     }
     private func scheduleIssueStyling() {
-        issueStyleTask?.cancel(); issueMessageStyles = []
+        issueStyleTask?.cancel(); issueStyleCancellation?.cancel(); issueMessageStyles = []
+        let cancellation = OperationCancellation(); issueStyleCancellation = cancellation
         let text = message, properties = issueProperties, worker = issueStyler, formatting = formattingEnabled
         guard !text.isEmpty else { return }
         issueStyleTask = Task { [weak self] in
             do {
                 try await Task.sleep(nanoseconds: 150_000_000)
-                let styles = try await worker.styles(properties: properties, message: text, formattingEnabled: formatting)
+                try Task.checkCancellation(); try cancellation.check()
+                MessageEditorStylingSession.beginOperation()
+                defer { MessageEditorStylingSession.endOperation() }
+                let styles = try await worker.styles(properties: properties, message: text, formattingEnabled: formatting, cancellation: cancellation)
                 guard !Task.isCancelled, let self, self.message == text, self.issueProperties == properties, self.formattingEnabled == formatting else { return }
                 self.issueMessageStyles = styles
             } catch { /* Invalid/stale styling does not interrupt text entry. Commit validation reports configuration failures. */ }
@@ -1346,7 +1351,7 @@ import UniformTypeIdentifiers
         pendingReloadCancel = false; busy = false
         invalidateMessageFocus()
         invalidateMetadataLoads()
-        completionTask?.cancel(); issueStyleTask?.cancel()
+        completionTask?.cancel(); issueStyleTask?.cancel(); issueStyleCancellation?.cancel()
     }
     func acknowledgeMessageFocus(_ request: Int) {
         guard messageFocusAvailable, request == messageFocusRequest else { return }

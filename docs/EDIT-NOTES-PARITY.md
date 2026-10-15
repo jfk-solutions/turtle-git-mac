@@ -60,5 +60,16 @@ The full Log/application port remains incomplete.
 The shared Sync Notes editor now tracks an atomic save independently of its
 window. If its owner is forcibly closed, late UI publication remains fenced and
 Quit remains blocked until the save task returns. This continues to retain the
-repository access lease for the operation. This ownership change is uncompiled
-and untested; the earlier Notes evidence does not cover it.
+repository access lease for the operation. That checkpoint was uncompiled
+and untested; the later shared Input host consolidation and current message-style
+records provide scoped build/native evidence. Full physical and signed acceptance
+remain open.
+
+## Shared source-style presentation — October 15, 2026
+
+The [shared message styling family](SHARED-MESSAGE-STYLES.md) connects issue/URL
+hotspots and source text formatting to the native Input, Notes, Merge and Rebase
+editors, with owning font/style preferences, IME protection and owned cancellation.
+Descriptions keep the source non-project route. Earlier missing issue-styling
+statements above are superseded only for this implemented scope; full physical,
+Scintilla and signed acceptance remain open. See its dated evidence.

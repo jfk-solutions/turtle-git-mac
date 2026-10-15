@@ -25,11 +25,12 @@ final class InputMessageTextView: ProjectMessageTextView {
     private var token: OperationCancellation?
     private var fontObserver: NSObjectProtocol?
     private let preferences: UserDefaults
+    private var issueProperties: IssueTrackerProperties
     private let write: (String, Bool, OperationCancellation) async throws -> Void
     var onClosed: () -> Void = {}
     var onTextChanged: (String) -> Void = { _ in }
-    init(title: String = "Input", hint: String = "Enter log message:", text: String, checkboxTitle: String? = nil, checked: Bool = false, minimumLength: Int = 0, projectSettings: ProjectDialogSettings = ProjectDialogSettings(), preferences: UserDefaults, write: @escaping (String, Bool, OperationCancellation) async throws -> Void) {
-        self.preferences = preferences; self.write = write; self.minimumLength = max(0, minimumLength)
+    init(title: String = "Input", hint: String = "Enter log message:", text: String, checkboxTitle: String? = nil, checked: Bool = false, minimumLength: Int = 0, projectSettings: ProjectDialogSettings = ProjectDialogSettings(), issueProperties: IssueTrackerProperties = IssueTrackerProperties(), preferences: UserDefaults, write: @escaping (String, Bool, OperationCancellation) async throws -> Void) {
+        self.preferences = preferences; self.issueProperties = issueProperties; self.write = write; self.minimumLength = max(0, minimumLength)
         let input = InputMessageTextView(frame: .zero); editor = input
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 510, height: 255), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = title; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 360, height: 210)
@@ -43,7 +44,7 @@ final class InputMessageTextView: ProjectMessageTextView {
         input.maxSize = .init(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         input.textContainerInset = .init(width: 5, height: 5); input.string = text
         input.setAccessibilityLabel(title); input.undoManager?.removeAllActions(); input.delegate = self
-        input.applyProjectSettings(projectSettings)
+        input.spellingPreferences = preferences; input.applyProjectSettings(projectSettings)
         checkbox.title = checkboxTitle ?? ""; checkbox.isHidden = checkboxTitle?.isEmpty != false; checkbox.state = checked ? .on : .off
         errorLabel.textColor = .systemRed
         ok.bezelStyle = .rounded; cancelButton.bezelStyle = .rounded
@@ -64,10 +65,8 @@ final class InputMessageTextView: ProjectMessageTextView {
     }
     private func updateFont() {
         guard !closed else { return }
-        let ranges = editor.selectedRanges
-        editor.undoManager?.disableUndoRegistration()
-        editor.font = MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: preferences.object(forKey: "LogFontSize") as? Int ?? MessageEditorFont.defaultSize)
-        editor.undoManager?.enableUndoRegistration(); editor.selectedRanges = ranges
+        let font = MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: preferences.object(forKey: "LogFontSize") as? Int ?? MessageEditorFont.defaultSize)
+        (editor as? InputMessageTextView)?.configureSourceStyling(properties: issueProperties, preferences: preferences, font: font)
     }
     func focusEditor() { guard !closed, !busy, let window else { return }; window.makeFirstResponder(editor); editor.setSelectedRange(.init(location: editor.string.utf16.count, length: 0)) }
     var canAccept: Bool { readyForInput && !closed && !busy && editor.string.utf16.count >= minimumLength && !editor.string.contains("\0") }
@@ -77,12 +76,12 @@ final class InputMessageTextView: ProjectMessageTextView {
         readyForInput = ready; editor.isEditable = ready && !busy
         errorLabel.stringValue = message ?? ""; updateAcceptance()
     }
-    func configure(text: String, minimumLength: Int, settings: ProjectDialogSettings) {
+    func configure(text: String, minimumLength: Int, settings: ProjectDialogSettings, issueProperties: IssueTrackerProperties = IssueTrackerProperties()) {
         guard !closed, !busy else { return }
-        self.minimumLength = max(0, minimumLength); editor.string = text
+        self.minimumLength = max(0, minimumLength); self.issueProperties = issueProperties; editor.string = text
         editor.undoManager?.removeAllActions()
         (editor as? InputMessageTextView)?.applyProjectSettings(settings)
-        setInputState(ready: true); focusEditor()
+        updateFont(); setInputState(ready: true); focusEditor()
     }
     private func updateAcceptance() { ok.isEnabled = canAccept }
     private func dismiss() { if let window { window.sheetParent?.endSheet(window); window.close() } }
@@ -108,6 +107,7 @@ final class InputMessageTextView: ProjectMessageTextView {
     func windowShouldClose(_ sender: NSWindow) -> Bool { !busy }
     func windowWillClose(_ notification: Notification) {
         guard !closed else { return }; closed = true; token?.cancel(); token = nil
+        (editor as? InputMessageTextView)?.retireSourceStyling()
         if let fontObserver { NotificationCenter.default.removeObserver(fontObserver) }; fontObserver = nil
         if let window { window.sheetParent?.endSheet(window) }; onClosed()
     }
@@ -116,7 +116,8 @@ final class InputMessageTextView: ProjectMessageTextView {
 
 @MainActor final class ReferenceDescriptionWindowController: InputWindowController {
     init(text: String, preferences: UserDefaults, write: @escaping (String, OperationCancellation) async throws -> Void) {
-        super.init(title: "Edit description", hint: "Edit description", text: text, preferences: preferences) { text, _, token in try await write(text, token) }
+        var settings = ProjectDialogSettings(); settings.language = .init(value: "-1", inherit: false)
+        super.init(title: "Edit description", hint: "Edit description", text: text, projectSettings: settings, preferences: preferences) { text, _, token in try await write(text, token) }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -133,7 +134,7 @@ final class InputMessageTextView: ProjectMessageTextView {
     }
     private func show(_ note: CommitNoteSnapshot, settings: ProjectDialogSettings) {
         guard editor == nil, !model.isInvalidated, let parent, parent.attachedSheet == nil else { model.cancelNote(); return }
-        let child = InputWindowController(title: "Edit Notes", hint: "Edit Notes", text: note.text, minimumLength: note.minimumLength, projectSettings: settings, preferences: preferences) { [model] text, _, token in
+        let child = InputWindowController(title: "Edit Notes", hint: "Edit Notes", text: note.text, minimumLength: note.minimumLength, projectSettings: settings, issueProperties: model.noteIssueProperties, preferences: preferences) { [model] text, _, token in
             if token.isCancelled { throw CancellationError() }
             try await model.saveNoteText(note, text: text)
         }

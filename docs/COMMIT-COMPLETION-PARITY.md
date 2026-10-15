@@ -204,3 +204,12 @@ guesses to keep installed dictionaries and personal words unchanged; it does not
 prove every installed dictionary, physical keyboard routing or VoiceOver.
 [Recorded checks](qa/message-suggestions-2026-10-15.json) identify the actual
 scope. Complete editor/dialog/application and signed sandbox parity remain open.
+
+## Shared source-style presentation — October 15, 2026
+
+The [shared message styling family](SHARED-MESSAGE-STYLES.md) connects issue/URL
+hotspots and source text formatting to the native Input, Notes, Merge and Rebase
+editors, with owning font/style preferences, IME protection and owned cancellation.
+Descriptions keep the source non-project route. Earlier missing issue-styling
+statements above are superseded only for this implemented scope; full physical,
+Scintilla and signed acceptance remain open. See its dated evidence.

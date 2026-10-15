@@ -11,12 +11,13 @@ public struct IssueMessageStyle: Sendable, Equatable {
 /// requests observe cancellation before starting another bounded helper.
 public actor IssueMessageStyler {
     public init() {}
-    public func styles(properties: IssueTrackerProperties, message: String, formattingEnabled: Bool = true) throws -> [IssueMessageStyle] {
-        try Task.checkCancellation()
-        do { return try properties.messageStyles(in: message, formattingEnabled: formattingEnabled) }
+    public func styles(properties: IssueTrackerProperties, message: String, formattingEnabled: Bool = true, cancellation: OperationCancellation? = nil) throws -> [IssueMessageStyle] {
+        try Task.checkCancellation(); try cancellation?.check()
+        do { return try properties.messageStyles(in: message, formattingEnabled: formattingEnabled, cancellation: cancellation) }
         catch is IssueRegexFailure {
             // SciEdit's URL pass still runs after an invalid issue expression.
-            return try IssueTrackerProperties().messageStyles(in: message, formattingEnabled: formattingEnabled)
+            try Task.checkCancellation(); try cancellation?.check()
+            return try IssueTrackerProperties().messageStyles(in: message, formattingEnabled: formattingEnabled, cancellation: cancellation)
         }
     }
 }
@@ -24,9 +25,10 @@ public actor IssueMessageStyler {
 extension IssueTrackerProperties {
     /// SciEdit uses narrow ECMAScript regexes over UTF-8 bytes, unlike
     /// ProjectProperties' UTF-16 matcher. Call off the main thread.
-    public func messageStyles(in message: String, executable: URL? = nil, formattingEnabled: Bool = true) throws -> [IssueMessageStyle] {
+    public func messageStyles(in message: String, executable: URL? = nil, formattingEnabled: Bool = true, cancellation: OperationCancellation? = nil) throws -> [IssueMessageStyle] {
+        try cancellation?.check()
         guard !checkExpression.isEmpty, !message.isEmpty else { return resolvedStyles(in: message, ranges: [], formattingEnabled: formattingEnabled) }
-        let output = try IssueRegexRuntime.capture(message: message, check: checkExpression, extract: extractionExpression, executable: executable, mode: ["--styles-utf8"])
+        let output = try IssueRegexRuntime.capture(message: message, check: checkExpression, extract: extractionExpression, executable: executable, mode: ["--styles-utf8"], cancellation: cancellation)
         guard let text = String(data: output, encoding: .utf8) else { throw IssueRegexFailure.failed("Invalid styling output.") }
         let rows = text.split(separator: "\n")
         guard rows.first == "styles\tutf8" else { throw IssueRegexFailure.failed("Invalid styling output.") }

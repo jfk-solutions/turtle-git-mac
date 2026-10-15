@@ -304,6 +304,46 @@ private struct ProjectDialogWindowProbe: NSViewRepresentable {
 
 /// SciEdit's project language and margin are shared by Commit, Merge and Rebase.
 class ProjectMessageTextView: NSTextView {
+    private var sourceStyling: MessageEditorStylingSession?
+    func configureSourceStyling(properties: IssueTrackerProperties = IssueTrackerProperties(), preferences: UserDefaults, font: NSFont) {
+        spellingPreferences = preferences
+        isAutomaticLinkDetectionEnabled = false
+        linkTextAttributes = [.foregroundColor: NSColor.linkColor, .cursor: NSCursor.pointingHand]
+        if sourceStyling == nil { sourceStyling = MessageEditorStylingSession(editor: self) }
+        sourceStyling?.configure(properties: properties, preferences: preferences, font: font)
+    }
+    func retireSourceStyling() { sourceStyling?.retire(); sourceStyling = nil }
+    override func didChangeText() { super.didChangeText(); sourceStyling?.refresh() }
+    override func unmarkText() { super.unmarkText(); sourceStyling?.refresh() }
+    private var appliedStyles: [IssueMessageStyle] = []
+    private var styledText = ""
+    private var styledBaseFont: NSFont?
+    func applyIssueStyles(_ styles: [IssueMessageStyle], base: NSFont) {
+        guard styles != appliedStyles || !string.utf8.elementsEqual(styledText.utf8) || styledBaseFont != base, let storage = textStorage else { return }
+        appliedStyles = styles; styledText = string; styledBaseFont = base
+        let selection = selectedRanges
+        let undoEnabled = undoManager?.isUndoRegistrationEnabled == true
+        if undoEnabled { undoManager?.disableUndoRegistration() }
+        storage.beginEditing()
+        let whole = NSRange(location: 0, length: storage.length)
+        for key in [NSAttributedString.Key.link, .toolTip, .underlineStyle] { storage.removeAttribute(key, range: whole) }
+        let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []; paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: base]).width * 8
+        storage.addAttributes([.font: base, .foregroundColor: NSColor.textColor, .paragraphStyle: paragraph], range: whole)
+        for style in styles where style.range.location >= 0 && style.range.location <= storage.length && style.range.length <= storage.length - style.range.location {
+            var styledFont = base
+            if [.context, .identifier, .bold].contains(style.kind) { styledFont = NSFontManager.shared.convert(styledFont, toHaveTrait: .boldFontMask) }
+            if [.identifier, .italic].contains(style.kind) { styledFont = NSFontManager.shared.convert(styledFont, toHaveTrait: .italicFontMask) }
+            let color = [.bold, .italic, .underlined].contains(style.kind) ? NSColor.textColor : NSColor.linkColor
+            var attributes: [NSAttributedString.Key: Any] = [.font: styledFont, .foregroundColor: color]
+            if style.kind == .underlined { attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+            if let url = style.url { attributes[.link] = url; attributes[.toolTip] = url }
+            storage.addAttributes(attributes, range: style.range)
+        }
+        storage.endEditing()
+        if undoEnabled { undoManager?.enableUndoRegistration() }
+        selectedRanges = selection
+        typingAttributes = [.font: base, .foregroundColor: NSColor.textColor, .paragraphStyle: paragraph]
+    }
     var spellingPreferences = UserDefaults.standard
     var spellingSuggestions: ((String, String?) -> [String])?
     private let spellingPopup = CommitCompletionPopup()
@@ -345,7 +385,7 @@ class ProjectMessageTextView: NSTextView {
         spellingPopup.show(spellingChoices, catalog: MessageCompletionCatalog(), icon: .completionSpelling, in: self)
     }
     override func resignFirstResponder() -> Bool { dismissSpellingSuggestions(); return super.resignFirstResponder() }
-    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); if window == nil { dismissSpellingSuggestions() } }
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); if window == nil { dismissSpellingSuggestions(); retireSourceStyling() } }
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event)
         if isEditable, let menu {
@@ -409,7 +449,7 @@ class ProjectMessageTextView: NSTextView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         let column = projectSettings.borderColumn
-        guard column > 0, let font else { return }
+        guard column > 0, let font = styledBaseFont ?? font else { return }
         let width = ("M" as NSString).size(withAttributes: [.font: font]).width
         let x = textContainerOrigin.x + (textContainer?.lineFragmentPadding ?? 0) + CGFloat(column) * width
         guard x >= dirtyRect.minX, x <= dirtyRect.maxX else { return }
@@ -424,6 +464,7 @@ struct ProjectMessageEditor: NSViewRepresentable {
     let settings: ProjectDialogSettings
     let label: String
     var preferences: UserDefaults = .standard
+    var issueProperties = IssueTrackerProperties()
     @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
     @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     @Environment(\.isEnabled) private var enabled
@@ -442,23 +483,18 @@ struct ProjectMessageEditor: NSViewRepresentable {
         guard let editor = scroll.documentView as? ProjectMessageTextView else { return }
         context.coordinator.text = $text
         editor.isEditable = enabled; editor.setAccessibilityLabel(label)
-        let font = MessageEditorFont.resolve(name: fontName, size: fontSize)
-        if editor.font != font {
-            let ranges = editor.selectedRanges, undo = editor.undoManager
-            let registered = undo?.isUndoRegistrationEnabled == true
-            if registered { undo?.disableUndoRegistration() }
-            editor.font = font; editor.typingAttributes[.font] = font; editor.selectedRanges = ranges
-            if registered { undo?.enableUndoRegistration() }
-        }
+        let font = MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: preferences.object(forKey: "LogFontSize") as? Int ?? MessageEditorFont.defaultSize)
         if editor.string != text {
             let selected = editor.selectedRange(); editor.string = text
             editor.setSelectedRange(.init(location: min(selected.location, (text as NSString).length), length: 0))
         }
         editor.spellingPreferences = preferences
         editor.applyProjectSettings(settings)
+        editor.configureSourceStyling(properties: issueProperties, preferences: preferences, font: font)
     }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
         (scroll.documentView as? ProjectMessageTextView)?.dismissSpellingSuggestions()
+        (scroll.documentView as? ProjectMessageTextView)?.retireSourceStyling()
         (scroll.documentView as? NSTextView)?.delegate = nil
     }
     func makeCoordinator() -> Coordinator { Coordinator($text) }

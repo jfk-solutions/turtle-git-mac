@@ -60,8 +60,18 @@ Quit cannot leave owned work running. Save callbacks observe settled busy state.
 Core notes writes remain noninterruptible once authorized.
 
 Full SciEdit completion/issue styling, physical keyboard/accessibility/layout,
-branch project-settings propagation and signed access acceptance remain open.
+and signed access acceptance remain open. Branch descriptions intentionally use
+the source non-project route, as clarified in the shared styling family below.
 
 The consolidation passed the Debug build and six grouped native cases across
 system and bundled Git. Core was unchanged and was not retested. See the
 [host acceptance record](qa/input-hosts-2026-10-13.json).
+
+## Shared source-style presentation — October 15, 2026
+
+The [shared message styling family](SHARED-MESSAGE-STYLES.md) connects issue/URL
+hotspots and source text formatting to the native Input, Notes, Merge and Rebase
+editors, with owning font/style preferences, IME protection and owned cancellation.
+Descriptions keep the source non-project route. Earlier missing issue-styling
+statements above are superseded only for this implemented scope; full physical,
+Scintilla and signed acceptance remain open. See its dated evidence.

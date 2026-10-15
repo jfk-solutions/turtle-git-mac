@@ -194,35 +194,6 @@ private final class MessageTextView: ProjectMessageTextView {
         completionPopup.show(request.candidates, catalog: catalog, in: self)
     }
     override func resignFirstResponder() -> Bool { completionPopup.close(); return super.resignFirstResponder() }
-    private var appliedStyles: [IssueMessageStyle] = []
-    private var styledText = ""
-    private var styledBaseFont: NSFont?
-    func applyIssueStyles(_ styles: [IssueMessageStyle], base: NSFont) {
-        guard styles != appliedStyles || !string.utf8.elementsEqual(styledText.utf8) || styledBaseFont != base, let storage = textStorage else { return }
-        appliedStyles = styles; styledText = string; styledBaseFont = base
-        let selection = selectedRanges
-        let undoEnabled = undoManager?.isUndoRegistrationEnabled == true
-        if undoEnabled { undoManager?.disableUndoRegistration() }
-        storage.beginEditing()
-        let whole = NSRange(location: 0, length: storage.length)
-        for key in [NSAttributedString.Key.link, .toolTip, .underlineStyle] { storage.removeAttribute(key, range: whole) }
-        let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []; paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: base]).width * 8
-        storage.addAttributes([.font: base, .foregroundColor: NSColor.textColor, .paragraphStyle: paragraph], range: whole)
-        for style in styles where style.range.location >= 0 && style.range.location <= storage.length && style.range.length <= storage.length - style.range.location {
-            var styledFont = base
-            if [.context, .identifier, .bold].contains(style.kind) { styledFont = NSFontManager.shared.convert(styledFont, toHaveTrait: .boldFontMask) }
-            if [.identifier, .italic].contains(style.kind) { styledFont = NSFontManager.shared.convert(styledFont, toHaveTrait: .italicFontMask) }
-            let color = [.bold, .italic, .underlined].contains(style.kind) ? NSColor.textColor : NSColor.linkColor
-            var attributes: [NSAttributedString.Key: Any] = [.font: styledFont, .foregroundColor: color]
-            if style.kind == .underlined { attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue }
-            if let url = style.url { attributes[.link] = url; attributes[.toolTip] = url }
-            storage.addAttributes(attributes, range: style.range)
-        }
-        storage.endEditing()
-        if undoEnabled { undoManager?.enableUndoRegistration() }
-        selectedRanges = selection
-        typingAttributes = [.font: base, .foregroundColor: NSColor.textColor, .paragraphStyle: paragraph]
-    }
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let menu = super.menu(for: event), isEditable else { return super.menu(for: event) }
         menu.addItem(.separator())

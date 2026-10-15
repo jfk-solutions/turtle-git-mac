@@ -160,6 +160,12 @@ work that remains.
 
 ## Screenshots and website
 
+Notes, Merge and Rebase now share Commit's source-style issue/URL links and
+message formatting, preserving plain-text drafts and Undo. Reviewed Notes
+[light](docs/site/assets/notes-message-styles-light.png) /
+[dark](docs/site/assets/notes-message-styles-dark.png) captures show the native
+form with private font preferences. [Scope and limits](docs/SHARED-MESSAGE-STYLES.md).
+
 Image comparison and conflict selection now use native source-ordered toolbars
 with original artwork and common menu/keyboard guards. Reviewed
 [comparison light](docs/site/assets/image-toolbar-comparison-light.png) /

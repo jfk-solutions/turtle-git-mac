@@ -2,6 +2,16 @@ import XCTest
 @testable import TurtleGitCore
 
 final class IssueMessageStyleTests: XCTestCase {
+    func testCancelledStyleRequestsDoNotInvokeRegexOrFallback() async throws {
+        let cancellation = OperationCancellation(); cancellation.cancel()
+        let properties = IssueTrackerProperties(values: ["bugtraq.logregex": "#([0-9]+)", "bugtraq.url": "https://example.invalid/%BUGID%"])
+        XCTAssertThrowsError(try properties.messageStyles(in: "#42 *bold* https://example.invalid", executable: parser, cancellation: cancellation)) { XCTAssertTrue($0 is OperationCancellationFailure) }
+        XCTAssertThrowsError(try IssueTrackerProperties().messageStyles(in: "*bold*", cancellation: cancellation)) { XCTAssertTrue($0 is OperationCancellationFailure) }
+        do {
+            _ = try await IssueMessageStyler().styles(properties: properties, message: "#42", cancellation: cancellation)
+            XCTFail("Cancelled source style query was accepted")
+        } catch { XCTAssertTrue(error is OperationCancellationFailure) }
+    }
     private var parser: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
     }

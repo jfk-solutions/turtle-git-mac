@@ -281,6 +281,8 @@ jobs:
         run: TURTLEGIT_CORE_ONLY=1 swift test
       - name: Pinned inline parser and matching oracle
         run: python3 scripts/test-inline-source.py
+      - name: Shared message styles and spelling
+        run: python3 scripts/test-message-style-family.py --only styles --only spelling --only font --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Image native command family
         run: python3 scripts/test-image-command-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Inline engine native consumers

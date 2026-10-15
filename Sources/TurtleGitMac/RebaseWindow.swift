@@ -435,6 +435,7 @@ struct RebaseReferenceRequest {
     @Published var message = ""
     @Published var amendMessage = ""
     @Published var projectSettings = ProjectDialogSettings()
+    @Published private(set) var issueProperties = IssueTrackerProperties()
     @Published var output = ""
     @Published var tab = 0
     @Published var busy = false
@@ -1102,6 +1103,7 @@ struct RebaseReferenceRequest {
             do {
                 try requireAccess()
                 projectSettings = try await preparedRead(token) { try await repository.projectDialogSettings(source: .effective, cancellation: token) }
+                issueProperties = try await preparedRead(token) { try await repository.issueTrackerProperties(cancellation: token) }
                 revisionMenuLog.bare = try await preparedRead(token) { try await repository.isBare(cancellation: token) }
                 references = try await preparedRead(token) { try await repository.checkoutReferences(includeFetchHead:true,cancellation:token) }
                 let session=try await preparedRead(token) {try await readSession(conflictIdentity,token)}
@@ -1567,7 +1569,7 @@ struct RebaseDialog: View {
                         if model.fileRecovery || model.state?.squashMessage != nil || model.state?.isEditPause == true || model.state?.split != nil {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(model.state?.squashMessage != nil ? "Combined commit message:" : "Edit commit message:")
-                                ProjectMessageEditor(text: $model.amendMessage, settings: model.projectSettings, label: model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message", preferences: model.messageEditorPreferences)
+                                ProjectMessageEditor(text: $model.amendMessage, settings: model.projectSettings, label: model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message", preferences: model.messageEditorPreferences, issueProperties: model.issueProperties)
                                 if let squash = model.state?.squashMessage { Text("Author: first commit • Author date: " + (squash.datePolicy == .first ? "first commit" : squash.datePolicy == .latest ? "latest commit" : "current time")).font(.caption) }
                             }.padding(8)
                         } else { ScrollView { Text(model.message).font(messageFont).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(8) } }

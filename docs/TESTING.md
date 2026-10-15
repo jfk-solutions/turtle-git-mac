@@ -1853,3 +1853,23 @@ when `ps` proves no matching members or only zombies; live members, unavailable,
 empty or malformed process tables retain the permission error. Six contracts,
 including the injected Darwin cases, passed locally. The [record](qa/receiver-darwin-cleanup-2026-10-15.json)
 links the hosted failure; full hosted success remains pending.
+
+## Shared editable message styles
+
+After a current Debug build, run the connected Input/style checkpoint:
+
+```sh
+TURTLEGIT_CORE_ONLY=1 swift test --filter 'IssueMessageStyleTests|IssueRegexTests'
+python3 scripts/test-message-style-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The native runner links current app objects once and retains the prior Input,
+Notes-host and spelling fixtures. Its new case checks actual note/Log/Merge
+issue properties and native attributes, Rebase's shared editor, non-project
+descriptions, owning live font/style choices, raw text/selection/Undo and stale
+query cancellation/Quit accounting. `--only styles`, `input`, `hosts`, `spelling` or `font`
+limits an affected repair. The font case retains the existing actual Commit/Merge
+font, caret, accessibility and Undo checks. `--captures build/qa/message-style-captures` records
+the actual Notes window in light/dark; inspect the raw images before publishing.
+Each owned case/process must reach its final marker and is reaped on every exit.
+See [scope](SHARED-MESSAGE-STYLES.md) and [evidence](qa/message-styles-2026-10-15.json).

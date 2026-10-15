@@ -1090,6 +1090,7 @@ struct LogCommandRequest: Identifiable {
     static private(set) var activeNoteSaves = 0
     var readNote: ((String, OperationCancellation) async throws -> (CommitNoteSnapshot, ProjectDialogSettings))?
     var onShowNote: ((CommitNoteSnapshot, ProjectDialogSettings) -> Void)?
+    private(set) var noteIssueProperties = IssueTrackerProperties()
     @Published var noteRequest: CommitNoteSnapshot?
     @Published var noteText = ""
     @Published var noteError: String?
@@ -1165,7 +1166,7 @@ struct LogCommandRequest: Identifiable {
     }
     func editNotes() {
         guard canEditNotes, let revision else { return }
-        cancelNoteRead(); let token = OperationCancellation(); noteCancellation = token
+        cancelNoteRead(); noteIssueProperties = IssueTrackerProperties(); let token = OperationCancellation(); noteCancellation = token
         let request = noteGeneration; loadingNote = true; error = nil
         Self.activeNoteReads += 1
         Task {
@@ -1177,6 +1178,9 @@ struct LogCommandRequest: Identifiable {
                 else {
                     note = try await repository.editableCommitNote(revision: revision.hash, cancellation: token)
                     settings = try await repository.projectDialogSettings(source: .effective, cancellation: token)
+                    let properties = try await repository.issueTrackerProperties(cancellation: token)
+                    guard !isInvalidated, request == noteGeneration else { return }
+                    noteIssueProperties = properties
                 }
                 guard !isInvalidated, request == noteGeneration else { return }
                 noteCancellation = nil; loadingNote = false; noteText = note.text; noteError = nil; noteRequest = note

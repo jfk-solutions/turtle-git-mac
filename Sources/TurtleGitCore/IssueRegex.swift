@@ -29,8 +29,17 @@ public struct IssueRegexMatch: Sendable, Equatable {
     }
 }
 public enum IssueRegexRuntime {
+    private final class FrameworkAnchor: NSObject {}
     public static func executable(bundle: Bundle = .main) throws -> URL {
-        let file = bundle.bundleURL.appendingPathComponent("Contents/Helpers/IssueRegex/issue-regex")
+        var resolved = bundle
+        if bundle === Bundle.main, bundle.bundleURL.pathExtension != "app" {
+            // Standalone native receivers load Core beside the built app. A
+            // packaged application always resolves its own sealed helper.
+            let framework = Bundle(for: FrameworkAnchor.self)
+            let companion = framework.bundleURL.deletingLastPathComponent().appendingPathComponent("TurtleGitMac.app")
+            resolved = Bundle(url: companion) ?? bundle
+        }
+        let file = resolved.bundleURL.appendingPathComponent("Contents/Helpers/IssueRegex/issue-regex")
         guard FileManager.default.isExecutableFile(atPath: file.path) else { throw IssueRegexFailure.runtimeMissing }
         return file
     }

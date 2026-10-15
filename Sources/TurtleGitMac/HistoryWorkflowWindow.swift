@@ -15,7 +15,10 @@ import TurtleGitCore
         }
         setInputState(ready: false, message: "Loading notes…")
         onTextChanged = { [weak notes] text in notes?.text = text }
-        notes.onLoaded = { [weak self] note, settings in self?.configure(text: note.text, minimumLength: note.minimumLength, settings: settings) }
+        notes.onLoaded = { [weak self] note, settings in
+            guard let self else { return }
+            self.configure(text: note.text, minimumLength: note.minimumLength, settings: settings, issueProperties: self.model.issueProperties)
+        }
         notes.onStateChanged = { [weak self, weak notes] in
             guard let self, let notes, notes.snapshot == nil else { return }
             self.setInputState(ready: false, message: notes.error ?? (notes.loading ? "Loading notes…" : nil))
@@ -40,6 +43,7 @@ import TurtleGitCore
     @Published private(set) var loading = false
     @Published private(set) var saving = false
     @Published var error: String?
+    private(set) var issueProperties = IssueTrackerProperties()
     private(set) var snapshot: CommitNoteSnapshot?
     private var invalidated = false
     private var cancellation: OperationCancellation?
@@ -69,6 +73,9 @@ import TurtleGitCore
                 else {
                     note = try await repository.editableCommitNote(revision: revision, cancellation: token)
                     settings = try await repository.projectDialogSettings(source: .effective, cancellation: token)
+                    let properties = try await repository.issueTrackerProperties(cancellation: token)
+                    guard !self.invalidated, self.cancellation === token, !token.isCancelled else { return }
+                    self.issueProperties = properties
                 }
                 guard !self.invalidated, self.cancellation === token, !token.isCancelled else { return }
                 self.snapshot = note; self.text = note.text

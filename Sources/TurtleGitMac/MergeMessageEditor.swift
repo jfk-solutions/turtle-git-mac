@@ -23,7 +23,8 @@ struct MergeMessageEditor: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let editor = scroll.documentView as? MergeMessageTextView else { return }
         editor.model = model; editor.isEditable = enabled
-        editor.applyFont(MessageEditorFont.resolve(name: fontName, size: fontSize))
+        let preferences = model.messageEditorPreferences
+        let font = MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: preferences.object(forKey: "LogFontSize") as? Int ?? MessageEditorFont.defaultSize)
         editor.spellingPreferences = model.messageEditorPreferences
         editor.applyProjectSettings(model.projectSettings)
         if editor.string != model.message {
@@ -31,9 +32,10 @@ struct MergeMessageEditor: NSViewRepresentable {
             editor.string = model.message
             editor.setSelectedRange(.init(location: min(selection.location, (model.message as NSString).length), length: 0))
         }
+        editor.configureSourceStyling(properties: model.issueProperties, preferences: preferences, font: font)
     }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
-        if let editor = scroll.documentView as? MergeMessageTextView { editor.dismissSpellingSuggestions(); editor.delegate = nil; editor.model = nil }
+        if let editor = scroll.documentView as? MergeMessageTextView { editor.dismissSpellingSuggestions(); editor.retireSourceStyling(); editor.delegate = nil; editor.model = nil }
     }
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     final class Coordinator: NSObject, NSTextViewDelegate {

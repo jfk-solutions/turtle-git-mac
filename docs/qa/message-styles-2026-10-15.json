@@ -1,0 +1,177 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "72f6df7a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Shared source issue/URL and formatting renderer for Input/Notes, Merge and Rebase, effective issue property reads, owning live font/style settings, source non-project descriptions, IME/Undo/selection safety, cancellation through helper settlement and application Quit.",
+  "implementation": [
+    "Moved existing Commit attribute application into ProjectMessageTextView; Commit retains its model-driven style queries.",
+    "New per-editor debounced styling session, tokens and stale-generation/marked-text/retirement guards.",
+    "Notes/Log, Merge and Rebase acquire issue properties in existing cancellable metadata reads; descriptions use source Init(-1).",
+    "Core issue-style APIs accept cancellation, including fallback; native IssueRegex lookup can resolve companion Debug app, packaged apps stay in their bundle.",
+    "Commit cancels new style token on supersession, deinitialization and explicit close invalidation; shared active query count guards Quit."
+  ],
+  "builds": [
+    {
+      "log": "build/qa/message-style-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/message-style-runtime-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/message-style-close-build.log",
+      "exit": 0
+    }
+  ],
+  "core": [
+    {
+      "log": "build/qa/message-style-core.log",
+      "tests": 14,
+      "failures": 0,
+      "exit": 0
+    },
+    {
+      "log": "build/qa/message-style-core-runtime.log",
+      "tests": 14,
+      "failures": 0,
+      "exit": 0,
+      "notes": "Affected recheck after helper lookup repair; includes actual owned-helper/child cancellation tests."
+    },
+    {
+      "log": "build/qa/message-style-core-formatting.log",
+      "tests": 4,
+      "failures": 0,
+      "exit": 0,
+      "notes": "Retains the source supplementary-character formatting quirk and pass precedence."
+    }
+  ],
+  "failed_native_attempts": [
+    {
+      "log": "build/qa/message-style-native.log",
+      "exit": 1,
+      "reason": "Fixture tried trimming raw stdout Data as String; fixed to use text. No receiver started."
+    },
+    {
+      "log": "build/qa/message-style-native-fixture.log",
+      "exit": 1,
+      "owned_pid": 12521,
+      "reason": "Initial link/format assertion timed out."
+    },
+    {
+      "log": "build/qa/message-style-native-diagnostic.log",
+      "exit": 1,
+      "owned_pid": 12614,
+      "reason": "Diagnostic confirmed standalone default regex runtime lookup failed. Added companion Debug bundle lookup. Removed an unnecessary whole-editor font assignment while retaining per-range/typing font updates."
+    },
+    {
+      "log": "build/qa/message-style-native-runtime.log",
+      "exit": 1,
+      "owned_pid": 21097,
+      "reason": "Runtime repair succeeded; combined assertion still expected marker formatting after an emoji on the same line."
+    },
+    {
+      "log": "build/qa/message-style-native-attributes.log",
+      "exit": 1,
+      "reason": "Diagnostic fixture passed NSTextView without its known ProjectMessageTextView cast; compile failed, no receiver started."
+    },
+    {
+      "log": "build/qa/message-style-native-attributes-cast.log",
+      "exit": 1,
+      "owned_pid": 21351,
+      "reason": "Actual links and issue traits were present; independent Core reference omitted all three marker formats, matching documented source emoji boundary behavior. Moved formatting to a separate line, retaining checks and source algorithm."
+    }
+  ],
+  "passing_native": [
+    {
+      "log": "build/qa/message-style-native-source-format.log",
+      "exit": 0,
+      "git": "/usr/bin/git",
+      "cases": [
+        "styles"
+      ],
+      "owned_pids": [
+        21506
+      ]
+    },
+    {
+      "log": "build/qa/message-style-native-retained.log",
+      "exit": 0,
+      "git": "/usr/bin/git",
+      "cases": [
+        "input",
+        "hosts",
+        "spelling"
+      ],
+      "owned_pids": [
+        21725,
+        21821,
+        21991
+      ]
+    },
+    {
+      "log": "build/qa/message-style-native-bundled.log",
+      "exit": 0,
+      "git": "build/git-runtime/Git/bin/git",
+      "cases": [
+        "styles",
+        "input",
+        "hosts",
+        "spelling",
+        "font"
+      ],
+      "owned_pids": [
+        22048,
+        22195,
+        22294,
+        22463,
+        22465
+      ]
+    },
+    {
+      "log": "build/qa/message-style-native-final-font.log",
+      "exit": 0,
+      "git": "build/git-runtime/Git/bin/git",
+      "cases": [
+        "font"
+      ],
+      "owned_pids": [
+        22604
+      ],
+      "notes": "Affected recheck after adding explicit Commit close token cancellation; renderer/other editors unchanged."
+    }
+  ],
+  "coverage": [
+    "Actual History/Synchronization and Log Notes properties, identifier/URL attributes and bold/italic/underline fonts",
+    "Actual Merge message editor; shared Rebase Edit/Squash editor hosted with properties from real Rebase preparation (does not prove every replay state)",
+    "Descriptions keep URL/formatting and omit repository issue links",
+    "Private live style toggle leaves issue/URL links; font changes preserve exact bytes, caret/selection and Undo",
+    "Actual marked-text insertion/unmarking preserves input bytes and applies formatting after commit",
+    "Deterministic held query receives cancellation and stays counted through settlement; uncooperative late result cannot paint a retired view",
+    "Retained actual Input checkbox/minimum/capture/failure/retry/Cancel/write ownership, note hosts, spelling, Commit/Merge font/caret/accessibility and Undo checks",
+    "HEAD/raw index/note preserved by style case; retained note host fixtures perform only their deliberate private note saves"
+  ],
+  "captures": {
+    "files": [
+      "docs/site/assets/notes-message-styles-light.png",
+      "docs/site/assets/notes-message-styles-dark.png"
+    ],
+    "sha256": {
+      "notes-message-styles-light.png": "ea45c0f5c91d62e029636b179c62f785da6d3a8e76f0882d6bf0224015b89fde",
+      "notes-message-styles-dark.png": "34fe3d3a482179499123441a2c32931792b25f30233a466b32f0b476ecaeab81"
+    },
+    "log": "build/qa/message-style-native-source-format.log",
+    "owned_pid": 21506,
+    "method": "Unaltered SCScreenshotManager current-process window images. Both visually inspected; inactive accessory app, private 18-point font and selected issue context. No image editing."
+  },
+  "ownership": "Every recorded receiver was reaped and closed owned windows. PID absence checked before commit. No browser/mail was opened, no unrelated apps terminated, isolated repositories/preferences used.",
+  "not_proven": [
+    "Full TortoiseGit/Scintilla or all-dialog parity",
+    "Physical link clicking, default/focus/keyboard/VoiceOver and every IME/locale",
+    "Every Rebase replay/message state",
+    "Full external note-ref and missing-identity Settings handoff acceptance",
+    "Signed minimum-OS/Intel Finder/sandbox/App Store acceptance",
+    "Complete hosted CI run covering this commit"
+  ],
+  "build_notes": "Final builds retain existing warnings; Core was rechecked only after helper lookup changed, not after the Commit-only close hook."
+}
