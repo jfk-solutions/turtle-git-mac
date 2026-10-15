@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-15",
+  "scope": "Finder background service health, per-root diagnostics, explicit retry and watched-root lifecycle",
+  "implementation": [
+    "Versioned bounded authenticated status report with registered root ID, active refresh, last successful publication and collection error; cleanup failures remain distinct",
+    "Report contains no bookmarks or transferable authority; legacy flat failure maps are readable without pretending detailed healthy state",
+    "Separate Background column, checked time, per-root status and cleanup/connection diagnostics in Watched Repositories",
+    "Check Status and Retry Background Refresh use existing signed XPC channel; retry does not register service or replace grants",
+    "Visible controls refresh health every three seconds under a cancellable SwiftUI task; one active request and queued synchronization drain",
+    "Watch-list revision, registration epoch and retired-manager fences suppress late reports; leases remain held until handoff settlement",
+    "Updated README and replaced stale historical claim that independent service was unimplemented"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/finder-service-health-build-2026-10-15.log",
+      "diagnostics": "Existing warnings and exit-code-zero/no-output SwiftCompile diagnostics; no clean-diagnostics claim."
+    },
+    "core": {
+      "tests": 6,
+      "failures": 0,
+      "scope": "FinderCacheServiceRuntimeTests and FinderServicePermissionStoreTests",
+      "log": "build/qa/finder-service-health-core-2026-10-15.log",
+      "coverage": [
+        "Actual restored runtime publication/events/replacement/shutdown with report IDs and last publication dates",
+        "Versioned report round trip, duplicate/invalid IDs, unknown versions, oversized payload and legacy map",
+        "Existing atomic persistent receiver scopes and failed replacement behavior"
+      ]
+    },
+    "native": {
+      "accepted_pairs": [
+        "service health/system Git",
+        "service health/bundled Git"
+      ],
+      "log": "build/qa/finder-service-health-native-final-2026-10-15.log",
+      "earlier_log": "build/qa/finder-service-health-native-2026-10-15.log",
+      "scope_note": "Initial health cases passed; affected fixture was extended to verify the explicitly scoped watch-list-change/queued-sync invariant, then rechecked with both engines. No app or Core rerun for fixture-only extension.",
+      "coverage": [
+        "Root/cleanup failure display, publication dates, duplicate retry refusal and no grant writes for retry",
+        "Connection and unsupported schema failures clear healthy state; legacy empty reports cannot claim healthy detailed status",
+        "Watch-list change during held report discards stale data and drains exactly one queued grant synchronization with both current roots",
+        "Disabled and retired late replies cannot publish; service settles during manager shutdown",
+        "Private source permissions and repository HEAD/index unchanged except explicit second watch addition"
+      ],
+      "owned_receiver_pids_reaped_and_verified_absent": [
+        36855,
+        36886,
+        36957,
+        37008
+      ],
+      "transport": "Injected private transport; production signed requirement and timeout remain in code. No login item registered."
+    },
+    "packaging": {
+      "exit_code": 0,
+      "log": "build/qa/finder-service-health-packaging-2026-10-15.log",
+      "scope": "Actual embedded agent plist/executable/identities/framework paths plus unsigned negative startup refusal; subprocess exited and was reaped.",
+      "tooling_note": "Audit script has no --help; a read-only help attempt was interpreted as a bundle path and failed before launch. Correct bundle invocation passed."
+    },
+    "documentation": {
+      "site_exit_code": 0,
+      "documents": 216,
+      "unresolved_fragments": 0,
+      "ledger": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_static_controls": 876,
+        "pending_control_reviews": 783
+      }
+    }
+  },
+  "limitations": [
+    "No signed XPC peer/user-approved registration or App Store sandbox/distribution acceptance",
+    "No physical Finder badge/context menu or full all-dialog layout acceptance",
+    "Core and injected native service checks do not prove signed production helper operation or complete application parity"
+  ]
+}

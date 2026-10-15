@@ -58,7 +58,7 @@ final class CacheServiceEndpoint:NSObject,FinderCacheServiceProtocol {
     }
     func status(withReply reply:@escaping (Data?,String?)->Void) {
         Task { @MainActor in
-            do { reply(try JSONEncoder().encode(Dictionary(uniqueKeysWithValues:runtime.failures.map { ($0.key.uuidString,$0.value) })),nil) }
+            do { reply(try JSONEncoder().encode(runtime.report),nil) }
             catch { reply(nil,error.localizedDescription) }
         }
     }

@@ -222,6 +222,40 @@ public enum FinderCacheServiceFailure:LocalizedError {
 
 /// Independent-process coordinator. Its caller supplies private grants and a shared
 /// status store; it does not register a login item or authenticate IPC itself.
+/// Private diagnostics contain no bookmarks or transferable authority.
+public struct FinderCacheServiceReport: Codable, Sendable {
+    public struct Root: Codable, Sendable {
+        public let id: UUID
+        public let refreshing: Bool
+        public let lastPublication: Date?
+        public let failure: String?
+        public init(id: UUID, refreshing: Bool = false, lastPublication: Date? = nil, failure: String? = nil) {
+            self.id = id; self.refreshing = refreshing; self.lastPublication = lastPublication; self.failure = failure
+        }
+    }
+    public let version: Int
+    public let running: Bool
+    public let roots: [Root]
+    public let cleanupFailures: [String: String]
+    public let legacy: Bool
+    public init(running: Bool, roots: [Root], cleanupFailures: [String: String] = [:], legacy: Bool = false) {
+        version = 1; self.running = running; self.roots = roots; self.cleanupFailures = cleanupFailures; self.legacy = legacy
+    }
+    public static func decode(_ data: Data) throws -> Self {
+        guard data.count <= 16_777_216 else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        if let object = try JSONSerialization.jsonObject(with: data) as? [String: Any], object["version"] == nil {
+            let failures = try JSONDecoder().decode([String: String].self, from: data)
+            guard failures.count <= 10_000, failures.keys.allSatisfy({ UUID(uuidString: $0) != nil }) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+            return Self(running: true, roots: failures.map { Root(id: UUID(uuidString: $0.key)!, failure: $0.value) }, legacy: true)
+        }
+        let result = try JSONDecoder().decode(Self.self, from: data)
+        guard result.version == 1 else { throw FinderServiceAuthorizationFailure.unsupportedVersion }
+        guard result.roots.count <= 10_000, Set(result.roots.map(\.id)).count == result.roots.count,
+              result.cleanupFailures.count <= 10_000, result.cleanupFailures.keys.allSatisfy({ UUID(uuidString: $0) != nil }) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        return result
+    }
+}
+
 @MainActor public final class FinderCacheServiceRuntime {
     @MainActor private final class Session {
         let access:FinderServicePersistentAccess
@@ -233,9 +267,16 @@ public enum FinderCacheServiceFailure:LocalizedError {
         var task:Task<Void,Never>?
         var active=true
         var watchFailure:String?
+        var lastPublication:Date?
         init(_ access:FinderServicePersistentAccess,repository:GitRepository) { self.access=access;self.repository=repository }
         func retire() { active=false;monitor?.stop();monitor=nil;refresh?.retire();refresh=nil;token?.cancel();task?.cancel() }
         deinit { monitor?.stop();token?.cancel();task?.cancel() }
+    }
+    public var report: FinderCacheServiceReport {
+        FinderCacheServiceReport(running: running, roots: permissions.grants.map { grant in
+            let session = sessions[grant.id]
+            return .init(id: grant.id, refreshing: session?.token != nil, lastPublication: session?.lastPublication, failure: rootFailures[grant.id])
+        }.sorted { $0.id.uuidString < $1.id.uuidString }, cleanupFailures: Dictionary(uniqueKeysWithValues: cleanupFailures.map { ($0.key.uuidString, $0.value) }))
     }
     public private(set) var running=false
     private var rootFailures:[UUID:String]=[:]
@@ -301,11 +342,11 @@ public enum FinderCacheServiceFailure:LocalizedError {
                 self?.running==true && session?.active==true
             },refresh:{ [weak self,weak session] in
                 guard let self,let session,session.active else { return }
-                let token=OperationCancellation();session.token=token
+                let token=OperationCancellation();session.token=token; self.changed()
                 session.task=Task { [weak self] in
                     guard let self else { return };await self.collect(session,token:token)
                 }
-                await session.task?.value;session.task=nil;session.token=nil
+                await session.task?.value;session.task=nil;session.token=nil; self.changed()
             })
             session.refresh?.invalidate()
         }
@@ -323,6 +364,7 @@ public enum FinderCacheServiceFailure:LocalizedError {
             if let failure=session.watchFailure { throw NSError(domain:"TurtleGit.FinderWatcher",code:1,userInfo:[NSLocalizedDescriptionKey:failure]) }
             let publication=try cache.publish(ticket,snapshots:collection.snapshots,cancellation:token)
             if publication.published {
+                session.lastPublication = Date()
                 rootFailures.removeValue(forKey:session.access.id)
                 if !collection.failures.isEmpty { rootFailures[session.access.id]=collection.failures.values.sorted().joined(separator:"\n") }
                 notify();changed()

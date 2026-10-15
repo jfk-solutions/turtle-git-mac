@@ -96,6 +96,10 @@ The preview is not notarized or App Store signed. See the
 
 ## Finder integration
 
+Watched Repositories includes a separate Background status column, publication
+times, failure details and a retry action for the embedded cache service.
+[Service setup and current limits](docs/FINDER-SERVICE-DEPLOYMENT.md).
+
 Configure your signing team in `TurtleGitMac.xcodeproj`. Register an App Group
 supported by your team and, if necessary, replace `group.org.turtlegit.macos` in
 both entitlements and `FinderIntegration.group`. The app and extension need

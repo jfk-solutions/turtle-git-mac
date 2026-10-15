@@ -57,3 +57,33 @@ creates its own persistent bookmarks for every transferred folder before committ
 the set. Keep app and cache helper from the same build: older helpers reject the
 new protocol instead of dropping additional grants. A linked worktree can grant
 its main repository's `.git` folder without granting its entire parent directory.
+
+## Background status and recovery — October 15, 2026
+
+Watched Repositories now separates its app-owned Status from the helper-owned
+Background column. The helper's authenticated status reply reports each registered
+root's active refresh, last successful publication and current collection failure,
+plus failures cleaning up removed cache roots. Reports contain identifiers, dates
+and diagnostics, without bookmarks or transferable access. A successful permission
+handoff no longer presents itself as proof that background collection succeeded.
+
+Check Status reads this report. Retry Background Refresh invokes the existing
+helper refresh/cleanup retry without registering a login item or replacing the
+permission set. Synchronize retains its separate grant-handoff role. The visible
+service controls refresh diagnostics every three seconds while their SwiftUI task
+is active; concurrent requests are refused, and pending watch-list synchronization
+is drained after a status request settles. The controls show the check time,
+connection errors, cleanup failures and an explicit older-helper status.
+
+Status replies are bounded and versioned. A legacy UUID-to-failure dictionary is
+readable but cannot certify detailed healthy state. Unknown schemas, duplicate
+root identities, malformed legacy identifiers and oversized replies fail rather
+than leaving stale green rows. Watch-list revision and service lifetime fences
+refuse late publication after registration changes or app-watch retirement.
+Disabling clears the report; closing the app retains outstanding handoff leases
+until the request settles. Source permissions are not rewritten by status/retry.
+
+[Health/recovery QA](qa/finder-service-health-2026-10-15.json) records the actual
+Core/native scopes and repairs. Signed XPC peer acceptance, user-approved agent
+registration, physical Finder badges and App Store sandbox/distribution remain
+open; injected transport does not establish those gates.

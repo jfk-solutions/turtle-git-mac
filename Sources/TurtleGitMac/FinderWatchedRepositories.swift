@@ -187,7 +187,7 @@ struct FinderWatchRow:Identifiable {
         }.sorted { $0.0.uuidString<$1.0.uuidString }
         return try FinderServiceAuthorization.capture(values,provider:provider)
     }
-    func retire() { guard active else { return };active=false;mutation?.cancel();sessions.values.forEach { $0.retire() };sessions=[:] }
+    func retire() { guard active else { return };active=false;backgroundService?.retire();mutation?.cancel();sessions.values.forEach { $0.retire() };sessions=[:] }
     func shutdown() async { retire();while pendingOperations>0 { try? await Task.sleep(nanoseconds:10_000_000) };await backgroundService?.settle() }
 }
 
@@ -205,6 +205,10 @@ struct FinderWatchedRepositoriesPage:View {
                 TableColumn("Repository") { row in HStack { Image(nsImage:MenuIcon.repositoryBrowser.image() ?? NSImage()).frame(width:16,height:16);Text(row.name) } }
                 TableColumn("Path",value:\.path)
                 TableColumn("Status") { row in Text(row.status).foregroundStyle(row.status.contains("unavailable") ? Color.orange : row.status.hasPrefix("Updated") ? Color.green : Color.primary) }
+                TableColumn("Background") { row in
+                    if let service = manager.backgroundService { FinderBackgroundRootStatus(service: service, id: row.id, revision: manager.serviceRevision) }
+                    else { Text("Disabled").foregroundStyle(.secondary) }
+                }
             }.accessibilityLabel("Watched repositories").frame(minHeight:180)
             HStack {
                 Button { choose(nil) } label: { CommandLabel(title:"Add…",icon:.add) }
@@ -261,18 +265,51 @@ struct FinderWatchedRepositoriesPage:View {
     }
 }
 
-private struct FinderBackgroundServiceControls:View {
-    @ObservedObject var service:FinderBackgroundService
-    let manager:FinderWatchManager
-    var body:some View {
-        VStack(alignment:.leading,spacing:6) {
+private struct FinderBackgroundRootStatus: View {
+    @ObservedObject var service: FinderBackgroundService
+    let id: UUID
+    let revision: Int
+    var body: some View {
+        let text = service.rootStatus(id, revision: revision)
+        let root = service.report?.roots.first { $0.id == id }
+        Text(text).lineLimit(2).help(text)
+            .foregroundStyle(service.failure != nil || root?.failure != nil ? Color.orange : root?.lastPublication != nil ? Color.green : Color.secondary)
+    }
+}
+
+private struct FinderBackgroundServiceControls: View {
+    @ObservedObject var service: FinderBackgroundService
+    @ObservedObject var manager: FinderWatchManager
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Toggle("Refresh after TurtleGit quits",isOn:Binding(get:{ service.enabled },set:{ value in Task { if value { await service.enable(manager) } else { await service.disable() } } })).disabled(service.busy || manager.busy || manager.pendingOperations>0)
-                Button("Synchronize") { service.requestSync(manager,force:true) }.disabled(!service.enabled || service.busy || manager.busy || manager.pendingOperations>0)
+                Toggle("Refresh after TurtleGit quits", isOn: Binding(get: { service.enabled }, set: { value in Task { if value { await service.enable(manager) } else { await service.disable() } } }))
+                    .disabled(service.busy || manager.busy || manager.pendingOperations > 0)
+                Spacer()
                 Button("Login Items…") { SMAppService.openSystemSettingsLoginItems() }
             }
+            HStack {
+                Button { service.checkStatus(manager) } label: { CommandLabel(title: "Check Status", icon: .refresh) }
+                Button { service.checkStatus(manager, retry: true) } label: { CommandLabel(title: "Retry Background Refresh", icon: .refresh) }
+                Button("Synchronize") { service.requestSync(manager, force: true) }
+                if service.busy { ProgressView().controlSize(.small) }
+            }.disabled(!service.enabled || service.busy || manager.busy || manager.pendingOperations > 0)
             Text(service.message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-        }.onAppear { service.updateStatus() }
-        .onReceive(NotificationCenter.default.publisher(for:NSApplication.didBecomeActiveNotification)) { _ in service.updateStatus();service.requestSync(manager) }
+            if let checked = service.lastChecked { Text("Status checked " + checked.formatted(date: .omitted, time: .standard)).font(.caption).foregroundStyle(.secondary) }
+            if let failure = service.failure { Text(failure).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
+            if let report = service.report {
+                ForEach(report.cleanupFailures.keys.sorted(), id: \.self) { id in
+                    let name = manager.rows.first { $0.id.uuidString == id }?.name ?? "Removed repository"
+                    Text(name + " — cache cleanup: " + (report.cleanupFailures[id] ?? "")).font(.caption).foregroundStyle(.orange).textSelection(.enabled)
+                }
+            }
+        }.task {
+            service.updateStatus(); service.requestSync(manager)
+            while !Task.isCancelled {
+                do { try await Task.sleep(nanoseconds: 3_000_000_000) } catch { break }
+                service.checkStatus(manager)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in service.updateStatus(); service.requestSync(manager) }
     }
 }

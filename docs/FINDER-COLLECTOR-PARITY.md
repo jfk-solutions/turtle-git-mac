@@ -55,4 +55,6 @@ build passed. No full runtime audit or signed/physical acceptance was repeated.
 
 The later [publication batch](FINDER-PUBLICATION-PARITY.md) routes production
 app updates through root-scoped tickets and atomic cross-process merge ownership.
-The independent service remains unimplemented.
+The subsequent [runtime](FINDER-CACHE-SERVICE-RUNTIME.md) and
+[deployment](FINDER-SERVICE-DEPLOYMENT.md) batches implement the independent
+service. Signed registration and physical Finder acceptance remain open.
