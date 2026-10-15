@@ -10,7 +10,8 @@ The list remains newest first while IDs keep their original replay positions.
 Completed rows remain available for Log inspection and clipboard commands.
 Completed/Skip text is dimmed, the current row is bold, and Edit/Squash cells
 have translucent yellow/gray backgrounds that adapt to macOS light/dark mode.
-Accessibility values expose Pending, Current and Completed.
+Native text cells retain their commit values for accessibility; accessibility help
+exposes Pending, Current and Completed.
 
 The replay identity file now records the selected action and merge mainline,
 alongside original source hash and occurrence number. It survives reopening an

@@ -57,20 +57,58 @@ import TurtleGitCore
         let reopened=RebaseWindowController(repository:repo,access:nil,preferences:prefs); defer { reopened.close() }
         reopened.model.load(cherryPick:hashes); let restored=try await settle(reopened)
         try require(restored.table!.tableColumns.first?.width == 330 && restored.table!.tableColumns.first?.isHidden == false,"Reopened width/order/visibility not restored")
-        // Show the distinct committer/date values through actual SwiftUI-backed native cells.
+        // Show the distinct committer/date values through actual AppKit text cells.
         for name in ["Commit Name","Commit Email","Commit Date"] { probe.toggle(probe.headerMenu().item(withTitle:name)!) }
         table.layoutSubtreeIfNeeded()
         try require(owner.model.entries.contains { $0.commit.email == "author@example.invalid" && $0.commit.committerEmail == "committer@example.invalid" },"Raw independent identities missing")
-        table.tableColumns[8].width = 500; probe.persistLayout()
-        table.scrollColumnToVisible(8); owner.window!.contentView!.layoutSubtreeIfNeeded()
-        guard let cell = table.view(atColumn:8,row:owner.model.entries.firstIndex { $0.commit.committerEmail == "committer@example.invalid" }!,makeIfNecessary:true) else { throw Failure(description:"Missing native committer cell") }
-        let text = try cellText(cell)
+        let committerColumn = table.tableColumns.firstIndex { $0.identifier.rawValue == "Commit Email" }!
+        table.tableColumns[committerColumn].width = 500; probe.persistLayout()
+        let committerRow = owner.model.entries.firstIndex { $0.commit.email == "author@example.invalid" && $0.commit.committerEmail == "committer@example.invalid" }!
+        table.scrollColumnToVisible(committerColumn); table.scrollRowToVisible(committerRow)
+        var cell: NSTableCellView?
+        try await wait {
+            owner.window!.contentView!.layoutSubtreeIfNeeded(); table.layoutSubtreeIfNeeded()
+            cell = table.view(atColumn: committerColumn, row: committerRow, makeIfNecessary: true) as? NSTableCellView
+            return cell?.textField?.stringValue == "committer@example.invalid" && (cell?.bounds.height ?? 0) > 10
+        }
+        let text = try cellText(cell!)
         try require(text.contains("committer@example.invalid"),"Native committer pixels missing: " + text)
-        let selected=owner.model.entries[0].id; owner.model.selection=[selected]
-        owner.model.setAction(.edit,ids:[selected]); try require(owner.model.entries.first { $0.id == selected }?.action == .edit,"Column work broke action editing")
+        // Native values remain attached to identifiers after order/visibility changes.
+        for name in ["Author", "Email", "Commit Name", "Commit Email"] {
+            if let index = table.tableColumns.firstIndex(where: { $0.identifier.rawValue == name }), !table.tableColumns[index].isHidden {
+                let view = table.view(atColumn: index, row: committerRow, makeIfNecessary: true) as? NSTableCellView
+                try require(view?.textField?.stringValue.isEmpty == false, "Native value missing after reordering: " + name)
+                try require(view?.textField?.accessibilityLabel() == name, "Native column accessibility label missing")
+            }
+        }
+        guard let native = table as? RebaseReplayNativeTable, let coordinator = native.owner else { throw Failure(description: "Replay list is not a native report table") }
+        let selected = owner.model.entries[committerRow].id
+        table.selectRowIndexes(IndexSet(integer: committerRow), byExtendingSelection: false)
+        try require(owner.model.selection == [selected], "Native selection lost occurrence identity")
+        let rowMenu = coordinator.menu(ids: [selected], alternate: false)
+        let edit = rowMenu.item(withTitle: "Edit")!, skip = rowMenu.item(withTitle: "Skip")!
+        try require(edit.isEnabled && edit.image != nil && NSApp.sendAction(edit.action!, to: edit.target, from: edit), "Native action menu failed")
+        try require(owner.model.entries.first { $0.id == selected }?.action == .edit, "Column work broke action editing")
+        _ = NSApp.sendAction(skip.action!, to: skip.target, from: skip)
+        try require(owner.model.entries.first { $0.id == selected }?.action == .edit, "Consumed popup applied a second command")
+        let actionColumn = table.tableColumns.firstIndex { $0.identifier.rawValue == "REBASE" }!
+        try await wait {
+            table.layoutSubtreeIfNeeded()
+            let cell = table.view(atColumn: actionColumn, row: committerRow, makeIfNecessary: true) as? NSTableCellView
+            return cell?.textField?.stringValue == "Edit"
+        }
+        let actionCell = table.view(atColumn: actionColumn, row: committerRow, makeIfNecessary: true) as! NSTableCellView
+        try require(actionCell.imageView?.image != nil && actionCell.textField?.font?.pointSize == 18, "Native icon/private Log font missing")
+        prefs.set(false, forKey: "ShowAppContextMenuIcons")
+        let plain = coordinator.menu(ids: [selected], alternate: false)
+        try require(plain.items.allSatisfy { $0.image == nil && ($0.submenu?.items.allSatisfy { $0.image == nil } ?? true) }, "Native replay popup ignored icon preference")
+        prefs.removeObject(forKey: "ShowAppContextMenuIcons")
         owner.model.busy=true; probe.toggle(email); try require(prefs.bool(forKey:"Rebase.Columns.Visible.Email"),"Busy header accepted action"); owner.model.busy=false
         probe.resetLayout(); try require(prefs.stringArray(forKey:"Rebase.Columns.Order")?.first == "REBASE" && table.tableColumns.filter { !$0.isHidden }.count == 6,"Reset did not restore default layout")
+        let heldMenu = coordinator.menu(ids: [selected], alternate: false), heldPick = heldMenu.item(withTitle: "Pick")!
         reopened.close(); owner.close(); probe.toggle(email)
+        _ = NSApp.sendAction(heldPick.action!, to: heldPick.target, from: heldPick)
+        try require(owner.model.entries.first { $0.id == selected }?.action == .edit, "Retired native menu changed replay plan")
         try await wait { RebaseWindowModel.activeColumnReads == 0 }
         try require(prefs.object(forKey:"Rebase.Columns.Visible.Email") == nil,"Closed owner changed visibility")
         let after=UserDefaults.standard.dictionaryRepresentation().filter { $0.key.hasPrefix("Rebase.Columns.") }

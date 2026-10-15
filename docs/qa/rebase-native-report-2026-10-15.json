@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "2461059d",
+  "scope": "Native Rebase/Cherry Pick report table: stable columns, independent author/committer text, row styling, occurrence selection, original-icon menus and stale/consumed/closed command fencing",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "validation": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/rebase-native-report-build-current.log"
+    },
+    "native_group": {
+      "exit": 0,
+      "log": "build/qa/rebase-native-report-native-current.log",
+      "cases": [
+        "rebase-columns",
+        "rebase-conditional",
+        "rebase-row-drag"
+      ],
+      "git_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "completed_cases": 6,
+      "owned_pids_reaped_and_checked_absent": [
+        97631,
+        97718,
+        97798,
+        98478,
+        98554,
+        98629
+      ]
+    },
+    "core": "Not rerun: no Core/model/Git-operation logic changed.",
+    "initial_checkpoint": "Native runner refused before launching because the comment-only RebaseColumnLayout edit left an older object timestamp. Stable identifier binding was completed and Debug rebuilt; freshness gate retained.",
+    "prior_hosted_failure": {
+      "run": 38721704928,
+      "job": 116378009960,
+      "detail": "Native committer pixels missing in rebase-columns; actual native-cell Vision OCR assertion retained and now passes locally with both Git engines."
+    },
+    "latest_hosted_state": {
+      "run": 38734598158,
+      "job": 116421147282,
+      "conclusion": "failure",
+      "detail": "Xcode 16.4 / Swift 6.1.2 type-check timeout at DiffToolSettings.swift:433, before native tests. Separate compile repair remains required."
+    }
+  },
+  "limits": [
+    "No hosted green claim for these changes",
+    "No complete displayed or VoiceOver acceptance",
+    "No installed Finder/signed/App Store acceptance",
+    "Full Rebase/Cherry Pick and application parity remain incomplete"
+  ]
+}

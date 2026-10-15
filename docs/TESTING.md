@@ -1739,3 +1739,19 @@ Three Core icon tests, final Debug compilation, both toolbar configurations and
 the retained Find/word groups passed; the Debug resource audit verified 309 icon
 resources. [The record](qa/merge-toolbar-2026-10-15.json) includes failed attempts,
 rejected incomplete exit-zero runs, repairs, reviewed captures and cleanup.
+
+## Native Rebase replay table
+
+After a current Debug build, run the connected replay table group:
+
+```sh
+python3 scripts/test-native-reference-batch.py --only rebase-columns --only rebase-conditional --only rebase-row-drag --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The columns fixture uses actual AppKit text cells and retains local Vision OCR
+of the distinct committer email after revealing/reordering columns. It also
+checks private Log font and original action artwork, native occurrence selection,
+icon-disabled menus, consumed menu refusal, and closure fencing. The other two
+cases retain conditional metadata/cancellation and row movement/structural replay
+coverage. Receivers link current Debug objects and close their owned windows;
+no installed Finder or signed acceptance is implied.

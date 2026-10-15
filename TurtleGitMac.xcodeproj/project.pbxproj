@@ -157,6 +157,7 @@
 		68355E42E5C9D1D014516AF4 /* ComparisonFileList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */; };
 		685C871A83BE7D21AD6E50B0 /* LogStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */; };
 		686B1F35B40207267BA9CCF3 /* SVNPromptWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83CB356DE47836D1BE2F694D /* SVNPromptWindow.swift */; };
+		2F7C9D3158F3B1EA926CE15F /* RebaseReplayTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A69110F6ADECB5F997434B4 /* RebaseReplayTable.swift */; };
 		6945355043AA95201E2EB4CD /* RebaseColumnLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0ADAB5E1FCC13EE50B581A7 /* RebaseColumnLayout.swift */; };
 		697C21F466069759F260EF25 /* WorkingFileDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E301A686F051DF474EF1D7D /* WorkingFileDelete.swift */; };
 		6A154C22FEFFF6B2D9DA4235 /* ClientHooks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75AA5AB1CB579F6BCBCC9CDB /* ClientHooks.swift */; };
@@ -730,6 +731,7 @@
 		AED856C37545053179A74184 /* RevisionGraphFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionGraphFilter.swift; sourceTree = "<group>"; };
 		B0144901E0020C531A5D86FB /* RepositoryAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccess.swift; sourceTree = "<group>"; };
 		B07F1FB47DC4A875FEE5ECD4 /* SettingsTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTransaction.swift; sourceTree = "<group>"; };
+		0A69110F6ADECB5F997434B4 /* RebaseReplayTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseReplayTable.swift; sourceTree = "<group>"; };
 		B0ADAB5E1FCC13EE50B581A7 /* RebaseColumnLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseColumnLayout.swift; sourceTree = "<group>"; };
 		B16F443B326FDAB1414D334B /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		B20E461B2D9629D0293A80EB /* WorkingTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingTree.swift; sourceTree = "<group>"; };
@@ -1007,6 +1009,7 @@
 				94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */,
 				7147E00D8870E2CB238BAEDD /* ProjectDialogSettings.swift */,
 				1491F4A59F19B27A3FCCF966 /* PushWindow.swift */,
+				0A69110F6ADECB5F997434B4 /* RebaseReplayTable.swift */,
 				B0ADAB5E1FCC13EE50B581A7 /* RebaseColumnLayout.swift */,
 				A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */,
 				6F95A32F6B4ECD8AA7745857 /* ReferenceBrowserWindow.swift */,
@@ -1960,6 +1963,7 @@
 				1C9F0C456E3788CF9D80C5FC /* ProgressActionLog.swift in Sources */,
 				2D11419DF7A44BFFC87F88DB /* ProjectDialogSettings.swift in Sources */,
 				8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */,
+				2F7C9D3158F3B1EA926CE15F /* RebaseReplayTable.swift in Sources */,
 				6945355043AA95201E2EB4CD /* RebaseColumnLayout.swift in Sources */,
 				9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */,
 				10DEF02C4073108A457F85DC /* ReferenceBrowserWindow.swift in Sources */,

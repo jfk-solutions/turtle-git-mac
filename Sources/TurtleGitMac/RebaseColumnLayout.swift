@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Persist the public native table columns while preserving SwiftUI's row/menu
-/// ownership, occurrence selection and existing Rebase keyboard dispatcher.
+/// Persist the native replay table columns while preserving occurrence selection
+/// and the existing Rebase keyboard and drag dispatcher.
 struct RebaseColumnLayout: NSViewRepresentable {
     let model: RebaseWindowModel
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: Probe, context: Context) -> CGSize? { CGSize(width: proposal.width ?? nsView.frame.width, height: proposal.height ?? nsView.frame.height) }
@@ -53,7 +53,8 @@ struct RebaseColumnLayout: NSViewRepresentable {
             guard let native = find(content) else { return }
             if table !== native {
                 tokens.forEach(NotificationCenter.default.removeObserver); tokens = []
-                table = native; columns = native.tableColumns
+                table = native; columns = Self.names.compactMap { name in native.tableColumns.first { $0.identifier.rawValue == name } }
+                guard columns.count == Self.names.count else { table = nil; columns = []; return }
                 for name in [NSTableView.columnDidMoveNotification, NSTableView.columnDidResizeNotification] {
                     tokens.append(NotificationCenter.default.addObserver(forName: name, object: native, queue: .main) { [weak self] _ in
                         guard self?.trackingHeader == true else { return }

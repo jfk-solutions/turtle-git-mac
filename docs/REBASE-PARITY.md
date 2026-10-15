@@ -220,9 +220,9 @@ The native header offers checkable column choices and the existing source-style
 Yes/No Reset question. Width/order/visibility persist in supplied preferences,
 shared by Rebase and Cherry Pick. Unknown/duplicate ordering and invalid widths
 are ignored; at least one column remains visible. Header drag tracking prevents
-SwiftUI refresh from resetting a drag before its final width/order is stored.
-Busy, sheet and retired ownership guard layout commands. Existing SwiftUI row
-menus and the owned keyboard/action dispatcher are preserved.
+view refresh from resetting a drag before its final width/order is stored.
+Busy, sheet and retired ownership guard layout commands. Native row menus and
+the owned keyboard/action dispatcher are preserved.
 
 Rebase readers now include raw committer name/email/date, retaining raw author
 name/email/date and message text in their original fields. One reader supplies
@@ -265,8 +265,8 @@ Closing/refreshing cancels the owned read, rejects obsolete replies and retains
 its repository grant and global Quit accounting until completion. Read state
 is separate from replay execution; the UI remains selectable while repository
 queries may queue behind the owned read.
-Runtime errors are reported by the owning Rebase dialog. SwiftUI column groups
-keep all twelve columns within macOS 13-compatible builder expressions.
+Runtime errors are reported by the owning Rebase dialog. The replay list now uses
+twelve explicitly identified AppKit columns; see the native report-table batch below.
 
 The batch's evidence is [conditional-column QA](qa/rebase-conditional-2026-10-13.json).
 It does not establish complete dialog/VoiceOver/physical/signed parity. Source
@@ -537,3 +537,26 @@ was repeated. See [batch evidence](qa/rebase-session-refresh-2026-10-14.json).
 The connected replay streaming/cancellation and owned recovery batch is tracked
 in [Replay progress parity](REBASE-REPLAY-PROGRESS-PARITY.md). Physical and signed
 acceptance, full hook/editor interruption and broader source parity remain open.
+
+## Native replay report table (2026-10-15)
+
+Rebase and Cherry Pick now use explicit AppKit report cells instead of SwiftUI
+hosted cells. Each column keeps its source name as its identifier, so revealing
+committer metadata and moving columns cannot change which value a cell renders.
+The list retains the source six-column defaults, optional author/committer and
+Bug-ID/SVN metadata, saved width/order/visibility and Reset. Occurrence IDs retain
+selection through row updates and preserve repeated commits as distinct entries.
+
+The same table supplies native icon-bearing revision menus, action editing,
+clipboard submenus and captured Shift tool choices. A consumed menu cannot apply
+a second retained action; selection changes, replacement rows and owner closure
+invalidate its callbacks. Existing action/move keys and drag insertion remain
+attached to the table. Native text supports the configured Log font, current-row
+bold, completed/Skip dimming and Edit/Squash yellow/gray backgrounds.
+
+This batch addresses the hosted `rebase-columns` failure where Vision could not
+read the newly revealed committer cell. Validation retains that pixel assertion
+and checks independent author/committer identities, native selection, menu icon
+preferences and consumed/closed menu refusal. The Debug build and all six selected native runs passed with system/bundled Git;
+see [batch evidence](qa/rebase-native-report-2026-10-15.json). Complete displayed, keyboard/VoiceOver and signed acceptance
+remain open; this does not certify full Rebase or application parity.

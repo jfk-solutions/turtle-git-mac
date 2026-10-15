@@ -1497,34 +1497,6 @@ enum RebaseRevisionCommand: String, CaseIterable {
         }
     }
 }
-struct RebaseRevisionMenu: View {
-    @ObservedObject var model: RebaseWindowModel
-    @ObservedObject var log: LogWindowModel
-    let ids: Set<String>
-    var body: some View {
-        ForEach(RebaseAction.allCases, id: \.self) { action in
-            Button { model.setAction(action, ids: ids) } label: { CommandLabel(title: action == .skip ? "Skip" : action.rawValue.capitalized, icon: action.icon) }
-                .disabled(ids.isEmpty || !model.editable || model.options.preserveMerges && action == .squash && model.entries.contains { ids.contains($0.id) && $0.commit.parents.count != 1 })
-        }
-        if !model.revisionMenuRows(ids).isEmpty {
-            Divider()
-            ForEach([RebaseRevisionCommand.workingTree, .compare, .unified], id: \.self) { command in commandButton(command) }
-            Divider()
-            ForEach([RebaseRevisionCommand.log, .browse, .branch, .tag, .push], id: \.self) { command in commandButton(command) }
-            Divider()
-            ForEach([RebaseRevisionCommand.notes, .patch], id: \.self) { command in commandButton(command) }
-            Divider()
-            Menu {
-                ForEach([RebaseRevisionCommand.details, .detailsWithoutPaths, .hashes, .authors, .authorNames, .authorEmails, .subjects, .messages], id: \.self) { command in commandButton(command) }
-            } label: { CommandLabel(title: "Copy to clipboard", icon: .copy) }
-                .disabled(!model.revisionMenuAvailable)
-        }
-    }
-    private func commandButton(_ command: RebaseRevisionCommand) -> some View {
-        Button { model.performRevisionMenu(command, ids: ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: command == .compare && ids.count == 2 ? "Compare revisions" : command.rawValue, icon: command.icon) }
-            .disabled(!model.canPerformRevisionMenu(command, ids: ids))
-    }
-}
 struct RebaseRevisionMenuPresentation: ViewModifier {
     @ObservedObject var log: LogWindowModel
     func body(content: Content) -> some View {
@@ -1534,28 +1506,10 @@ struct RebaseRevisionMenuPresentation: ViewModifier {
     }
 }
 
-struct RebaseReplayCell<Content: View>: View {
-    @AppStorage("LogFontForLogCtrl") private var useLogFont = false
-    @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
-    @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
-    let entry: RebaseEntry
-    @ViewBuilder let content: () -> Content
-    var body: some View {
-        content()
-            .font(useLogFont ? Font(MessageEditorFont.resolve(name: fontName, size: fontSize)) : nil)
-            .foregroundStyle(entry.progress == .completed || entry.action == .skip ? Color.secondary : Color.primary)
-            .fontWeight(entry.progress == .current ? .bold : .regular)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(entry.action == .edit ? Color.yellow.opacity(0.16) : entry.action == .squash ? Color.gray.opacity(0.16) : Color.clear)
-            .accessibilityValue(entry.progress == .completed ? "Completed" : entry.progress == .current ? "Current" : "Pending")
-    }
-}
-
 struct RebaseDialog: View {
     @ObservedObject var model: RebaseWindowModel
     @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
     @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
-    @AppStorage("LogFontForLogCtrl") private var useLogFont = false
     @AppStorage("LogDateFormat") private var shortDate = true
     @AppStorage("RelativeTimes") private var relativeTimes = false
     @AppStorage("UseSystemLocaleForDates") private var systemDates = true
@@ -1579,26 +1533,8 @@ struct RebaseDialog: View {
             }.disabled(!model.editable)
             VSplitView {
                 VStack(spacing: 8) {
-                    Table(model.entries, selection: $model.selection) {
-                        TableColumn("REBASE") { entry in RebaseReplayCell(entry: entry) { HStack(spacing: 5) { Image(nsImage: entry.action.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(entry.action == .skip ? "Skip" : entry.action.rawValue.capitalized) } } }.width(90)
-                        TableColumn("ID") { entry in RebaseReplayCell(entry: entry) { Text(String(model.entryNumber(entry))).frame(maxWidth: .infinity, alignment: .trailing) } }.width(40)
-                        TableColumn("SHA-1") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.hash).font(useLogFont ? nil : .system(.caption, design: .monospaced)).lineLimit(1) } }.width(95)
-                        TableColumn("Message") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.logLine(fullMessage: model.fullCommitMessageOnLogLine)).lineLimit(1) } }
-                        TableColumn("Author") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.author) } }.width(130)
-                        TableColumn("Date") { entry in RebaseReplayCell(entry: entry) { Text(dates.format(entry.commit.date)) } }.width(150)
-                        Group {
-                        TableColumn("Email") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.email) } }.width(200)
-                        TableColumn("Commit Name") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.committer) } }.width(130)
-                        TableColumn("Commit Email") { entry in RebaseReplayCell(entry: entry) { Text(entry.commit.committerEmail) } }.width(200)
-                        TableColumn("Commit Date") { entry in RebaseReplayCell(entry: entry) { Text(dates.format(entry.commit.committerDate)) } }.width(150)
-                        TableColumn("Bug-ID") { (entry: RebaseEntry) in RebaseReplayCell(entry:entry) { Text(model.issueColumnValues[entry.commit.hash] ?? "") } }.width(110)
-                        TableColumn("SVN Rev") { (entry: RebaseEntry) in RebaseReplayCell(entry:entry) { Text(model.svnColumnValues[entry.commit.hash] ?? "") } }.width(100)
-                        }
-                    }.background(RebaseColumnLayout(model: model)).background(RebaseListInteraction(model: model)).contextMenu(forSelectionType: String.self) { ids in
-                        TurtleGitContextMenu {
-                            RebaseRevisionMenu(model: model, log: model.revisionMenuLog, ids: ids)
-                        }
-                    }
+                    RebaseReplayTable(model: model, dates: dates)
+                        .background(RebaseColumnLayout(model: model)).background(RebaseListInteraction(model: model))
                     HStack {
                         Button("Pick ALL") { model.setAction(.pick, ids: Set(model.entries.map(\.id))) }.disabled(!model.editable)
                         Menu("Options") {
@@ -1896,8 +1832,8 @@ struct RebaseListInteraction: NSViewRepresentable {
             case "e": model.setAction(.edit)
             default: model.move(up: key == "u", toEnd: flags.contains(.shift))
             }
-            // SwiftUI reconciles the identity-bound selection after replacing its
-            // rows. Selecting AppKit indexes here would still use the old rows.
+            // The native representable reconciles occurrence-bound selection after
+            // replacing rows. Immediate AppKit indexes would use the old rows.
             DispatchQueue.main.async { [weak table, weak model] in
                 guard let table, let model, model.selection == ids else { return }
                 let visible = model.entries
@@ -1909,7 +1845,7 @@ struct RebaseListInteraction: NSViewRepresentable {
     }
 }
 
-private extension RebaseAction {
+extension RebaseAction {
     var icon: MenuIcon {
         switch self { case .pick: return .rebasePick; case .skip: return .rebaseSkip; case .edit: return .rebaseEdit; case .squash: return .rebaseSquash }
     }
