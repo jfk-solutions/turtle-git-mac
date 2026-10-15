@@ -209,6 +209,33 @@ import TurtleGitCore
     @Published private(set) var onePaneMode = false
     private var loadedPaneMode = false
     private var combinedCache: OnePaneFileComparison?
+    private var retainingViewEdits = false
+    struct EditingPresentation {
+        let alignment: FileComparisonAlignment
+        let combined: OnePaneFileComparison?
+        let annotations: [Bool: FileComparisonEditing.Annotations]
+    }
+    func captureEditingPresentation() -> EditingPresentation? {
+        alignment.map { .init(alignment:$0,combined:onePaneActive ? combined : nil,annotations:[true:annotations(base:true),false:annotations(base:false)]) }
+    }
+    func installEditingPresentation(_ presentation: EditingPresentation) {
+        regexCancellation?.cancel(); regexCancellation = nil; filtering = false
+        cancelDeferredNavigation(); alignmentGeneration += 1
+        alignment = presentation.alignment; combinedCache = presentation.combined
+        retainingViewEdits = true
+        for (side,value) in presentation.annotations { updateAnnotations(value,base:side) }
+        selectedRows = nil; difference = -1; previewRow = nil
+        inlineCache = [:]; inlineNavigationCache = [:]
+    }
+    func presentation(for edit: FileComparisonInPlaceEdit) -> EditingPresentation {
+        var values: [Bool:FileComparisonEditing.Annotations] = [:]
+        for side in [true,false] {
+            var value = alignment.map { annotations(base:side).remapped(from:$0,to:edit.alignment,targetBase:side,typing:false) } ?? .init()
+            value.edited.formUnion(edit.alignment.rows.indices.filter { (side ? edit.alignment.rows[$0].base : edit.alignment.rows[$0].destination).state == .edited })
+            values[side] = value
+        }
+        return .init(alignment:edit.alignment,combined:edit.combined,annotations:values)
+    }
     var onePaneActive: Bool { onePaneMode && !singleFileMode && document?.base.text != nil && document?.destination.text != nil }
     var combined: OnePaneFileComparison? {
         guard let alignment else { return nil }
@@ -1012,6 +1039,7 @@ import TurtleGitCore
     }
     func rebuildAlignment() {
         guard let document else { return }
+        retainingViewEdits = false
         regexCancellation?.cancel(); regexCancellation = nil; filtering = false
         historyCaretRequests = [:]; initialBlockGeneration = nil
         alignmentSelections = [:]
@@ -1191,7 +1219,7 @@ import TurtleGitCore
                     if let target = paneTargets[base] { paneTargets[base] = try target.recording(savedContent) }
                     else { originalPaneDocument = originalPaneDocument?.replacingPane(base: base, content: savedContent) }
                 }
-                rebuildAlignment(); saved = true
+                if !retainingViewEdits { rebuildAlignment() }; saved = true
             } catch { if !retired && !request.isCancelled { self.error = error.localizedDescription } }
         }
     }
@@ -1576,7 +1604,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         weak var scroll: NSScrollView?
         var cells: [MergeSourceCell] = []
         var base = false
-        let history = UndoManager()
+        let history: UndoManager = { let value = UndoManager(); value.groupsByEvent = false; return value }()
         init(model: FileComparisonWindowModel) { self.model = model }
         func applyViewportSelection() {
             let model = self.model, base = self.base
@@ -1604,7 +1632,13 @@ struct FileComparisonEditor: NSViewRepresentable {
         @objc func scrolled(_ notification: Notification) { if let scroll { model.scrolled(scroll) } }
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
             guard model.editingEnabled, model.editableBase == base, !model.busy, !model.confirmingQuit else { return false }
+            if affectedCharRange.length == 0 && (replacementString ?? "").isEmpty { return false }
             do {
+                if !model.filtering, let alignment = model.alignment {
+                    let edit = try FileComparisonInPlaceEdit(alignment:alignment,combined:model.onePaneActive && !base ? model.combined : nil,base:base,range:affectedCharRange,replacement:replacementString ?? "")
+                    replace(edit.text,caret:edit.caret,typing:true,presentation:model.presentation(for:edit),displayCaret:edit.displayCaret)
+                    return false
+                }
                 let edit: (text: String, caret: Int)
                 if model.onePaneActive, !base, let combined = model.combined { edit = try combined.applying(replacementString ?? "", ranges: [affectedCharRange]) }
                 else { edit = try FileComparisonEditing.applying(replacementString ?? "", range: affectedCharRange, cells: cells) }
@@ -1627,33 +1661,36 @@ struct FileComparisonEditor: NSViewRepresentable {
             DispatchQueue.main.async { if self.model.activeBase == self.base, self.model.alignmentGeneration == generation, view.selectedRange() == range { self.model.updateSelection(range, cells: cells) } }
         }
         func updateUndoState() { guard model.activeBase == base else { return }; model.canUndo = history.canUndo; model.canRedo = history.canRedo }
-        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false, resolvingSave: Bool = false, historyCaret: FileComparisonWindowModel.HistoryCaret? = nil) {
+        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false, resolvingSave: Bool = false, historyCaret: FileComparisonWindowModel.HistoryCaret? = nil, presentation: FileComparisonWindowModel.EditingPresentation? = nil, displayCaret: Int? = nil) {
             guard model.canEdit(base: base), resolvingSave || (!model.busy && !model.confirmingQuit) else { return }
             let old = model.draftText(base: base), previous = model.annotations(base: base), oldAlignment = model.alignment
             var next = previous
             if clearMarks { next.marked = [] }
             if let cleared { next.marked.subtract(cleared); next.edited.subtract(cleared) }
             let textChanged = !old.utf8.elementsEqual(text.utf8)
-            guard textChanged || restored != nil || next != previous else { return }
-            if !textChanged, (restored ?? next) == previous { return }
+            guard textChanged || restored != nil || next != previous || presentation != nil else { return }
+            if !textChanged, (restored ?? next) == previous, presentation == nil { return }
             let previousCaret = model.captureHistoryCaret(base:base)
+            let previousPresentation = model.captureEditingPresentation()
+            history.beginUndoGrouping(); defer { history.endUndoGrouping(); updateUndoState() }
             history.registerUndo(withTarget:self) { target in
-                target.replace(old,caret:previousCaret?.sourceOffset ?? min(caret,old.utf16.count),restored:previous,historyCaret:previousCaret)
+                target.replace(old,caret:previousCaret?.sourceOffset ?? min(caret,old.utf16.count),restored:previous,historyCaret:previousCaret,presentation:previousPresentation)
             }
             history.setActionName("Edit comparison")
             model.updateDraft(text, base: base)
             if model.activeBase == base { model.selectionRequest = caret }
-            model.rebuildAlignment()
-            if let oldAlignment, let alignment = model.alignment { model.remapOtherAnnotations(from: oldAlignment, to: alignment, changedBase: base) }
+            if let presentation { model.installEditingPresentation(presentation) }
+            else { model.rebuildAlignment() }
+            if presentation == nil, let oldAlignment, let alignment = model.alignment { model.remapOtherAnnotations(from: oldAlignment, to: alignment, changedBase: base) }
             if let restored { model.updateAnnotations(restored, base: base) }
-            else if let oldAlignment, let alignment = model.alignment { model.updateAnnotations(next.remapped(from: oldAlignment, to: alignment, targetBase: base, typing: typing), base: base) }
+            else if presentation == nil, let oldAlignment, let alignment = model.alignment { model.updateAnnotations(next.remapped(from: oldAlignment, to: alignment, targetBase: base, typing: typing), base: base) }
             if let alignment = model.alignment, let view = scroll?.documentView as? NSTextView {
                 cells = model.displayCells(base: base)
                 (view as? FileComparisonTextView)?.sourceCells = cells
                 view.textStorage?.setAttributedString(FileComparisonEditor.attributed(cells, font: view.font!, model: model, base: base))
                 (view as? FileComparisonTextView)?.missingOffsets = FileComparisonEditor.missingOffsets(cells, model: model, base: base)
                 if model.activeBase == base {
-                    view.setSelectedRange(NSRange(location: min(FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells), (view.string as NSString).length), length: 0))
+                    view.setSelectedRange(NSRange(location: min(displayCaret ?? FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells), (view.string as NSString).length), length: 0))
                     // The native editor has consumed this edit's caret. Do not
                     // replay it during a later hosting update after the user
                     // has selected another range.
@@ -1664,7 +1701,6 @@ struct FileComparisonEditor: NSViewRepresentable {
                 model.clearNavigationBlockSelection(clearTextSelections:true)
                 model.requestHistoryCaret(historyCaret,base:base)
             }
-            DispatchQueue.main.async { self.updateUndoState() }
         }
         deinit { NotificationCenter.default.removeObserver(self) }
     }

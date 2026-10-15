@@ -63,7 +63,7 @@ struct MergeWhitespaceStatesVerification {
         model.activatePane(base:false);model.editingEnabled=true;try await wait{view.isEditable}
         view.insertText("edited content",replacementRange:(view.string as NSString).range(of:"new content"));try await TwoPaneEngineVerification.settled(model)
         let edited="head\r\nversion 1\r\nversion 2\r\nmiddle\r\nedited content\r\nlast"
-        try require(model.draftText(base:false) == edited && model.canUndo,"Editing lost neutral payloads or included a real removal")
+        try require(model.draftText(base:false) == edited && model.canUndo,"Editing lost neutral payloads or included a real removal: draft=\(String(reflecting:model.draftText(base:false))) undo=\(model.canUndo)")
         model.undo();try await TwoPaneEngineVerification.settled(model);try require(model.draftText(base:false) == new && !model.dirty,"Neutral edit Undo lost original Mine")
         model.redo();try await TwoPaneEngineVerification.settled(model);model.save();try await wait{!model.busy && !model.filtering && !model.dirty}
         try require(try Data(contentsOf:mine) == ComparisonTextEncoding.utf8BOM.encode(edited) && Data(contentsOf:base) == baseBytes,"Neutral edit Save changed Base/encoding/endings")

@@ -1,6 +1,94 @@
 import Foundation
 import Darwin
 
+/// BaseView edits its view records, rather than diffing the files after every
+/// keystroke. Preserve opposite rows and untouched Removed/whitespace records.
+public struct FileComparisonInPlaceEdit: Sendable {
+    public let alignment: FileComparisonAlignment
+    public let combined: OnePaneFileComparison?
+    public let text: String
+    public let caret: Int
+    public let displayCaret: Int
+    public let replacedRows: Range<Int>
+    public let insertedRows: Range<Int>
+    public init(alignment: FileComparisonAlignment, combined: OnePaneFileComparison? = nil,
+                base: Bool, range: NSRange, replacement: String) throws {
+        let source = combined?.cells ?? alignment.rows.map { base ? $0.base : $0.destination }
+        let cells = source.isEmpty ? [MergeSourceCell(text:"",lineNumber:1,state:.normal)] : source
+        var offsets: [Int] = [], length = 0
+        for cell in cells { offsets.append(length); length += cell.displayText.utf16.count + 1 }
+        guard range.location >= 0, range.length >= 0, range.location <= length, range.length <= length - range.location else { throw FileComparisonEditFailure.range }
+        func row(_ offset: Int) -> Int { offsets.lastIndex { $0 <= min(offset,max(0,length - 1)) } ?? 0 }
+        let first = row(range.location), last = row(NSMaxRange(range)), oldRange = first..<(last + 1)
+        let firstText = cells[first].displayText as NSString, lastText = cells[last].displayText as NSString
+        let a = min(firstText.length,max(0,range.location - offsets[first]))
+        let b = min(lastText.length,max(0,NSMaxRange(range) - offsets[last]))
+        let prefix = firstText.substring(to:a), suffix = lastText.substring(from:b)
+        let ending = NSMaxRange(range) > offsets[last] + lastText.length ? "" : (cells[last].text as NSString).substring(from:lastText.length)
+        let original = combined?.sourceSaveText ?? cells.filter(\.hasSourceCoordinate).map(\.text).joined()
+        let style = MergeLineEndings.predominantStyle(in:original)
+        let inserted = MergeLineEndings.converting(replacement,to:style)
+        var payload = prefix + inserted + suffix + ending
+        let hasFollowingPayload = cells.dropFirst(last + 1).contains { combined != nil ? !$0.state.isRemoval && $0.state != .empty : $0.hasSourceCoordinate }
+        if !payload.isEmpty, !MergeLineEndings.hasFinalEnding(payload), hasFollowingPayload { payload += style.rawValue }
+        var lines = MergeRegexFilters.lines(payload)
+        if lines.isEmpty || prefix.utf16.count + inserted.utf16.count == payload.utf16.count && MergeLineEndings.hasFinalEnding(payload) { lines.append("") }
+        var target = cells
+        let gap = MergeSourceCell(text:"",lineNumber:nil,state:.empty)
+        var edited = lines.map { MergeSourceCell(text:$0,lineNumber:1,state:.edited) }
+        if combined == nil, edited.count < oldRange.count { edited += Array(repeating:gap,count:oldRange.count - edited.count) }
+        target.replaceSubrange(oldRange,with:edited)
+        if first > 0, !payload.isEmpty, let previous = target[..<first].lastIndex(where: { combined != nil ? !$0.state.isRemoval && $0.state != .empty : $0.hasSourceCoordinate }),
+           !MergeLineEndings.hasFinalEnding(target[previous].text) {
+            let cell = target[previous]
+            target[previous] = .init(text:cell.text + style.rawValue,lineNumber:cell.lineNumber,state:cell.state,hiddenByComparison:cell.hiddenByComparison)
+        }
+        var number = 0
+        target = target.map { cell in
+            let included = combined != nil ? !cell.state.isRemoval && cell.state != .empty && cell.state != .conflictEmpty : cell.lineNumber != nil
+            if included { number += 1 }
+            return .init(text:cell.text,lineNumber:included ? number : nil,state:cell.state,hiddenByComparison:cell.hiddenByComparison)
+        }
+        var rows: [FileComparisonRow] = []
+        if let combined {
+            let before = Array(combined.rows.prefix(first)), after = Array(combined.rows.dropFirst(last + 1))
+            let retained = before + edited.map { OnePaneFileComparison.Row(cell:$0,alignmentRow:0,base:false) } + after
+            let projected = retained.indices.map { OnePaneFileComparison.Row(cell:target[$0],alignmentRow:$0,base:retained[$0].base) }
+            self.combined = OnePaneFileComparison(retainedRows:projected)
+            for (index,row) in projected.enumerated() {
+                let original = retained[index]
+                let old = alignment.rows.indices.contains(original.alignmentRow) ? alignment.rows[original.alignmentRow].base : gap
+                let left = row.base ? MergeSourceCell(text:row.cell.text,lineNumber:old.lineNumber,state:row.cell.state) : row.cell.state.isUnchanged ? old : gap
+                let right = row.base && row.cell.state != .removedWhitespace ? gap : row.cell
+                rows.append(.init(base:left,destination:right))
+            }
+        } else {
+            var opposite = alignment.rows.map { base ? $0.destination : $0.base }
+            if opposite.isEmpty { opposite = [gap] }
+            if edited.count > oldRange.count { opposite.insert(contentsOf:Array(repeating:gap,count:edited.count - oldRange.count),at:last + 1) }
+            rows = target.indices.map { base ? .init(base:target[$0],destination:opposite[$0]) : .init(base:opposite[$0],destination:target[$0]) }
+            self.combined = nil
+        }
+        var differences: [Range<Int>] = [], start: Int?
+        for index in 0...rows.count {
+            let changed = index < rows.count && rows[index].changed
+            if changed, start == nil { start = index }
+            if !changed, let begin = start { differences.append(begin..<index); start = nil }
+        }
+        self.alignment = .init(rows:rows,differences:differences)
+        text = self.combined?.sourceSaveText ?? target.filter(\.hasSourceCoordinate).map(\.text).joined()
+        let includedPrefix = target.prefix(first).filter { combined != nil ? !$0.state.isRemoval && $0.state != .empty : $0.hasSourceCoordinate }.map(\.text).joined().utf16.count
+        caret = includedPrefix + prefix.utf16.count + inserted.utf16.count
+        var display = target.prefix(first).reduce(0) { $0 + $1.displayText.utf16.count + 1 }, remaining = prefix.utf16.count + inserted.utf16.count
+        for cell in edited {
+            if remaining <= cell.displayText.utf16.count { display += remaining; break }
+            remaining -= cell.text.utf16.count; display += cell.displayText.utf16.count + 1
+        }
+        displayCaret = display
+        replacedRows = oldRange; insertedRows = first..<(first + edited.count)
+    }
+}
+
 /// Explicit output formats; UTF-32 choices include a BOM, as upstream does.
 public enum ComparisonTextEncoding: String, CaseIterable, Sendable {
     case windows1252 = "ASCII (Windows-1252)"
@@ -319,6 +407,7 @@ public struct FileComparisonDrafts {
         var text: String?
         var annotations = FileComparisonEditing.Annotations()
         var savedMarks = Set<Int>()
+        var savedEdits = Set<Int>()
         var enabled = false
         var encoding: ComparisonTextEncoding?
     }
@@ -349,7 +438,7 @@ public struct FileComparisonDrafts {
     public mutating func update(annotations: FileComparisonEditing.Annotations, base: Bool) { panes[base]?.annotations = annotations }
     public func isDirty(base: Bool) -> Bool {
         guard canEdit(base: base), let pane = panes[base], let text = pane.text, let original = pane.content.text else { return false }
-        return !text.utf8.elementsEqual(original.utf8) || pane.annotations.marked != pane.savedMarks || pane.encoding != pane.content.encoding
+        return !text.utf8.elementsEqual(original.utf8) || pane.annotations.marked != pane.savedMarks || pane.annotations.edited != pane.savedEdits || pane.encoding != pane.content.encoding
     }
     public var dirtySides: [Bool] { [false, true].filter { isDirty(base: $0) } }
     public var dirtyPaths: [String] { dirtySides.compactMap { panes[$0]?.content.path } }
@@ -357,17 +446,20 @@ public struct FileComparisonDrafts {
         guard var pane = panes[base] else { return }
         pane.content = content; pane.text = content.text; pane.encoding = content.encoding
         pane.savedMarks = pane.annotations.marked
+        pane.savedEdits = pane.annotations.edited
         panes[base] = pane
     }
     public mutating func didSave(_ content: ComparisonFileContent, base: Bool) throws {
         guard let pane = panes[base], pane.content.path == content.path, pane.content.revision == content.revision else { throw RevisionComparisonFailure.selection }
         panes[base]?.content = content
         panes[base]?.savedMarks = pane.annotations.marked
+        panes[base]?.savedEdits = pane.annotations.edited
     }
     public mutating func remapAnnotations(from old: FileComparisonAlignment, to new: FileComparisonAlignment, base: Bool) {
         guard let pane = panes[base] else { return }
         panes[base]?.annotations = pane.annotations.remapped(from: old, to: new, targetBase: base, typing: false)
         panes[base]?.savedMarks = FileComparisonEditing.Annotations(marked: pane.savedMarks).remapped(from: old, to: new, targetBase: base, typing: false).marked
+        panes[base]?.savedEdits = FileComparisonEditing.Annotations(edited: pane.savedEdits).remapped(from: old, to: new, targetBase: base, typing: false).edited
     }
     public func exported(base: Bool) throws -> Data {
         guard let pane = panes[base] else { throw RevisionComparisonFailure.selection }

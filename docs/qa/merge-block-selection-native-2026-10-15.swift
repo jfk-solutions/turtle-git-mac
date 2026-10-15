@@ -43,7 +43,7 @@ struct MergeBlockSelectionVerification {
         model.undo();try await TwoPaneEngineVerification.settled(model);try require(model.draftText(base:false) == after,"Compare paste Undo")
         let merge=TextConflictWindowController(repository:GitRepository(root:root),access:nil,path:"mine.txt",workingMerge:try WorkingTextMerge(base:base,theirs:theirs,mine:mine),preferences:prefs),three=merge.model
         defer{merge.close()};merge.window!.alphaValue=0;merge.window!.orderFront(nil);three.load()
-        try await ThreePaneEngineVerification.wait{!three.busy && three.document != nil && !three.resultFolding.projection.rows.isEmpty}
+        try await ThreePaneEngineVerification.wait{!three.busy && three.document != nil && !three.resultFolding.projection.rows.isEmpty && ThreePaneEngineVerification.textViews(merge.window?.contentView).contains{$0.isEditable}}
         let result=ThreePaneEngineVerification.textViews(merge.window?.contentView).first{$0.isEditable}!
         try await ThreePaneEngineVerification.wait{result.string == after}
         merge.window!.makeFirstResponder(result);result.setSelectedRange(NSRange(location:0,length:0));await Task.yield();three.navigateBlock(1,conflictsOnly:false)

@@ -29,8 +29,9 @@ struct MergeInitialNavigationVerification {
         selected.selectContextBlock(at:12);model.useOtherBlock();try await TwoPaneEngineVerification.settled(model)
         try require(model.draftText(base:false) == old && model.canUndo,"Explicit context block transfer failed")
         model.undo()
-        // Undo starts an authoritative engine request; later user intent wins.
-        try require(model.filtering,"Undo did not start a deferred engine request")
+        // Undo restores its retained view records; later user intent still wins
+        // over the queued layout/caret restoration without another diff helper.
+        try require(!model.filtering,"Undo unnecessarily regenerated the diff")
         navigation.beginUserNavigation();right.setSelectedRange(NSRange(location:0,length:0))
         try await TwoPaneEngineVerification.settled(model)
         try require(model.draftText(base:false) == new && right.selectedRange() == NSRange(location:0,length:0),"Deferred Undo caret overrode later input")

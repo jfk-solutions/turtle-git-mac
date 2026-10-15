@@ -39,8 +39,9 @@ families.
 Remaining: physical popup anchoring/focus/keyboard/VoiceOver acceptance,
 source row-state and selection aliases, exact full menu contents/spacing and
 light/dark captures. Mac navigation/Save As/Undo/Redo additions remain alongside
-the source commands. In-place Edited-row presentation and signed/minimum-OS
-acceptance are still separate open work. No full TortoiseMerge certification is
+the source commands. The October 16 [in-place editing continuation](MERGE-ONE-PANE-PARITY.md) adds
+Edited-row retention for typing and ordinary clipboard edits. Signed/minimum-OS
+acceptance remains open. No full TortoiseMerge certification is
 claimed.
 
 

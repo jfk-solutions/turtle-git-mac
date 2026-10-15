@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "0e02a171",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "BaseView.cpp OnChar, RemoveSelectedText, PasteText, SaveFile and view-record edits",
+    "Undo.cpp grouped view-state restoration",
+    "MainFrm.cpp LoadViews readonly/changable flags for one/two/three-pane modes"
+  ],
+  "scope": [
+    "In-place native two-pane and combined typing/Cut/Paste after initial authoritative alignment",
+    "Edited cell retention, untouched Removed/whitespace rows, Unicode/synthetic-display/source ending coordinates",
+    "Opposite bytes remain unchanged; extra lines pad opposite view; deleting selected text retains peer records",
+    "Exact presentation/annotations snapshots for Undo/Redo, explicit transaction groups and immediate Undo availability",
+    "Edited-row savepoint annotations and Save retaining current row records instead of rediffing",
+    "Corrected earlier remaining-work claims: three-pane sources are intentionally readonly; combined inline navigation requires a visible opposite pane and stays disabled"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/merge-in-place-build.log",
+      "exit": 0,
+      "reason": "Initial connected implementation"
+    },
+    {
+      "log": "build/qa/merge-in-place-save-build.log",
+      "exit": 0,
+      "reason": "Source review identified Save regrouping; retained view on Save before native checks"
+    },
+    {
+      "log": "build/qa/merge-in-place-history-build.log",
+      "exit": 0,
+      "reason": "Repair native Paste Undo grouping"
+    },
+    {
+      "log": "build/qa/merge-in-place-undo-state-build.log",
+      "exit": 0,
+      "reason": "Repair immediate Undo-state publication"
+    }
+  ],
+  "core": {
+    "log": "build/qa/merge-in-place-core.log",
+    "tests": 55,
+    "failures": 0,
+    "suites": [
+      "FileComparisonInPlaceTests",
+      "FileComparisonEditingTests",
+      "FileComparisonTests",
+      "OnePaneFileComparisonTests",
+      "MergeClipboardTests"
+    ],
+    "repeat_after_native_only_repairs": false
+  },
+  "native": [
+    {
+      "log": "build/qa/merge-in-place-native.log",
+      "receivers_reaped": [
+        70685
+      ],
+      "result": "failed, repaired",
+      "failure": "Paste Undo grouped with prior immediate edit under event-based Undo. Product repair uses explicit Undo groups.",
+      "passed_case_markers": []
+    },
+    {
+      "log": "build/qa/merge-in-place-native-repair.log",
+      "receivers_reaped": [
+        70790
+      ],
+      "result": "failed, repaired",
+      "failure": "Retained block fixture dereferenced editable result view before native readiness. Added actual editable-view readiness, no timeout/assertion weakened.",
+      "passed_case_markers": []
+    },
+    {
+      "log": "build/qa/merge-in-place-retained-repair.log",
+      "receivers_reaped": [
+        70903
+      ],
+      "result": "failed, repaired",
+      "failure": "Block and navigation passed; neutral edit assertion found Undo availability not published synchronously.",
+      "passed_case_markers": [
+        "block-selection",
+        "navigation"
+      ]
+    },
+    {
+      "log": "build/qa/merge-in-place-whitespace-diagnostic.log",
+      "receivers_reaped": [
+        70986
+      ],
+      "result": "failed, repaired",
+      "failure": "Diagnostic confirmed correct exact neutral draft and undo=false. Product repair publishes Undo state when the group closes. ",
+      "passed_case_markers": []
+    },
+    {
+      "log": "build/qa/merge-in-place-final-native.log",
+      "receivers_reaped": [
+        71069
+      ],
+      "result": "pass",
+      "failure": null,
+      "passed_case_markers": [
+        "in-place",
+        "initial",
+        "history",
+        "clipboard",
+        "block-selection",
+        "whitespace",
+        "one-pane"
+      ]
+    }
+  ],
+  "final_scope": {
+    "latest_run": [
+      "in-place",
+      "initial",
+      "history",
+      "clipboard",
+      "block-selection",
+      "whitespace",
+      "one-pane"
+    ],
+    "navigation": "passed in retained-repair run; unaffected by subsequent Undo-state publication repair",
+    "core_cases": [
+      "two-pane Unicode edits, preserved peers, inserted/deleted rows, combined removed edits, final missing-ending repair, gap EOF, trailing editor blank without extra saved bytes, empty input and invalid ranges"
+    ],
+    "latest_native_cases": [
+      "same-byte typing Edited/dirty and Undo baseline",
+      "two-pane insertion and peer gaps without helper request",
+      "combined edited removal stays in place and untouched removal survives",
+      "actual private-pasteboard Paste and exact Undo/Redo state/layout",
+      "Save retains Edited/Removed records with UTF-8 BOM/CRLF and unchanged UTF-16 Base",
+      "retained initial/context/inline navigation, clipboard, block boundaries, neutral aliases/folding/options/export, view-switch Cancel/Discard and replacement/Tab workflows"
+    ]
+  },
+  "cleanup": {
+    "owned_receivers": [
+      70685,
+      70790,
+      70903,
+      70986,
+      71069
+    ],
+    "all_reaped": true,
+    "ps_after_checks": "none present",
+    "unrelated_processes_terminated": false
+  },
+  "documentation": {
+    "bundled_help_documents": 26,
+    "topics": 47,
+    "files": 32,
+    "bytes": 194579
+  },
+  "limits": [
+    "Whole-document transforms/block transfers and edits while initial engine projection is pending retain existing guarded realignment",
+    "Complete Windows CleanEmptyLines/padding behavior for every multistep deletion/gap combination remains open",
+    "Undo across every comparison-option/context change and all IME/multi-caret/whitespace alias selections remain unverified",
+    "Repeated byte-identical typing on an already Edited row after Save needs a stronger modification-revision savepoint model",
+    "No complete aligned three-pane result view or source UseBothBlocks state mutation port",
+    "Physical gestures/VoiceOver, exact wrapped row traversal, large-file performance, signed Finder/App Store acceptance and full dialog parity remain open",
+    "No new screenshots or fully certified dialogs",
+    "No latest full hosted macOS pass claimed"
+  ]
+}

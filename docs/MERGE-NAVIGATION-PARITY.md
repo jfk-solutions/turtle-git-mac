@@ -27,7 +27,7 @@ This is still partial editor parity. Marker groups and groups produced by a
 multi-row choice can retain a whole-group mapping; selecting only part of such
 a group is disabled until a complete alignment can represent it precisely.
 Arbitrary edits crossing mappings can invalidate them. The full aligned result
-view (including removed/empty records), editable source panes, wrapped screen-row
+view (including removed/empty records), wrapped screen-row
 traversal, source-state mutations after UseBothBlocks, physical input/VoiceOver,
 large-file performance and signed acceptance remain open.
 
@@ -158,3 +158,7 @@ large-file performance and signed installed behavior.
 records actual initial/neutral blocks, explicit transfer refusal, input during
 Undo realignment, same-text stale/fresh line chooser responses, the fixture
 configuration race and repaired grouped native checks.
+
+Three-pane source views are read-only in the pinned MainFrm::LoadViews; only
+Bottom/result is writable. Two-pane Base/Mine editing is separate and now retains
+Edited records through input, history and Save; see [in-place editing](MERGE-ONE-PANE-PARITY.md).

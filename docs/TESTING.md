@@ -1,5 +1,13 @@
 # Testing TurtleGit for Mac
 
+The grouped editor runner `scripts/test-merge-whitespace-states.py` now includes
+`--only in-place`: real native two-pane and combined typing/Paste, exact retained
+Edited/Removed rows, peer gaps without peer-byte changes, helper-free edits,
+Undo/Redo layout snapshots, and Save with UTF-8 BOM/CRLF while preserving Base.
+`FileComparisonInPlaceTests` covers Unicode carets, inserted/deleted rows, empty
+buffers and EOF gaps/endings. The retained initial-navigation fixture now expects
+Undo to restore its rows directly, while still refusing late caret restoration.
+
 The grouped `scripts/test-merge-ignored.py` receiver also includes `--only blocks`
 for ordinary source/result block choices: captured menu targets, all four choices,
 single-row changes beside other additions, zero-byte removed-row anchors, repeated

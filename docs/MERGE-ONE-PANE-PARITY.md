@@ -1,5 +1,41 @@
 # Combined one-pane comparison
 
+## Retained in-place editing — October 16, 2026
+
+Native typing, ordinary Cut and Paste now edit the displayed view records rather
+than recomputing the diff after each input. Touched records become Edited;
+untouched Removed and neutral whitespace records retain their position and
+state. Editing a removed combined row includes that row's unselected payload in
+the working draft without including other untouched removals. Insertions retain
+Unicode and source endings. Editing across rows joins only the selected text.
+
+Two-pane editing uses the same operation, retaining the opposite pane's payload
+and inserting Empty alignment records as needed. Missing endings are supplied
+when a formerly empty/removed record becomes a real line beside other content.
+The caret uses explicit display coordinates, keeping source offsets separate
+from synthetic display LF and alignment gaps. New final empty editor records do
+not add unintended saved bytes.
+
+Undo/Redo snapshots retain both pane layouts, combined rows and annotations.
+Their restoration does not start another diff helper. Save records edited-row
+annotations in its clean baseline and retains the current view records; explicit
+Reload and view/options changes still regenerate comparison data. Operations
+performed while the initial engine projection is pending retain the existing
+guarded recomputation path. Whole-document transformations and block-transfer
+paths still use their existing realignment behavior.
+
+[Batch evidence](qa/merge-in-place-2026-10-16.json) records 55 focused Core
+checks, grouped native coverage, both product repairs, native readiness repair
+and owned process cleanup.
+
+This is partial source parity. Exact Windows behavior for every multi-row
+deletion/padding/ending combination, IME and multi-caret input, mixed whitespace
+alias selection, wrapped screen-row input and large-file performance remain
+open. Three-pane source views are intentionally read-only: MainFrm::LoadViews
+sets only the Bottom/result pane writable in that mode. Writable Base/Mine
+controls apply to two-pane comparison. The earlier claim that three-pane source
+editing was missing was incorrect.
+
 Source baseline: `7338078f8ddd924b8cddee35f512f2286072136d`,
 `DiffData.cpp::m_YourBaseBoth`, `MainFrm.cpp::LoadViews/OnViewOnewaydiff`,
 `BaseView.cpp::SaveFile` and `SetMainPage.cpp::OnePane`.
@@ -111,9 +147,9 @@ This selection is
 also the existing transfer/Copy block selection. [Three-pane navigation](MERGE-NAVIGATION-PARITY.md) now shares the search with
 explicit engine peer mappings. Independent boundary highlights and insertion carets now preserve block-only
 Copy/Cut/Paste semantics; neutral-row Copy uses exact combined display coordinates.
-Wrapped screen-row grouping and combined-view inline navigation still require a
-further port. Undo/Redo now follows source all-pane selection clearing and target
-caret restoration; the earlier block-restoring result history was corrected. In-place Edited row retention,
+Wrapped screen-row grouping still requires a further port. Combined inline
+navigation is disabled in source because the opposite pane is hidden. Undo/Redo now follows source all-pane selection clearing and target
+caret restoration; the earlier block-restoring result history was corrected. The October 16 continuation adds in-place Edited row retention;
 all whitespace aliases/legacy overrides,
 physical/VoiceOver/large-file and signed App Store acceptance also remain open.
 This does not certify the complete Merge/editor family.

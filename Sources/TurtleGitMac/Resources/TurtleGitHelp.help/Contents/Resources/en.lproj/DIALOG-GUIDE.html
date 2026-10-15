@@ -126,6 +126,12 @@ the insertion caret stays separate. Right-click selects the clicked state block,
 including unchanged lines. Copy copies an existing block or text selection. Cut copies it without
 deleting when no text is selected, and Paste inserts at the caret. Drag or use
 Shift with navigation keys to select text for normal Cut/replace behavior.</p>
+<p>Typing and ordinary Cut/Paste retain the current comparison rows. Edited rows
+stay where you edited them, including a removed row in combined view; untouched
+removal rows keep their original appearance. Inserted lines add gaps in the
+opposite pane. Undo/Redo restores the row layout, and Save retains it. Reload or
+changing the view/options rebuilds the comparison. Three-pane source views stay
+read-only; edit the merged result or use the source block choices.</p>
 <p>In three-pane Merge, navigation follows the focused source or result pane.
 Control-Up/Down or F7/Shift-F7 moves between differences; F8/Shift-F8 moves between
 conflicts. Source and result context menus offer Mine, Theirs and both ordering

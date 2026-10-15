@@ -395,6 +395,16 @@ public struct OnePaneFileComparison: Sendable {
     }
     public let rows: [Row]
     public let differences: [Range<Int>]
+    init(retainedRows: [Row]) {
+        rows = retainedRows
+        var blocks: [Range<Int>] = [], start: Int?
+        for index in 0...retainedRows.count {
+            let changed = index < retainedRows.count && !retainedRows[index].cell.state.isUnchanged
+            if changed, start == nil { start = index }
+            if !changed, let first = start { blocks.append(first..<index); start = nil }
+        }
+        differences = blocks
+    }
     public var cells: [MergeSourceCell] { rows.map(\.cell) }
     public init(alignment: FileComparisonAlignment, options: MergeComparisonOptions = .init()) {
         var output: [Row] = [], ranges: [Range<Int>] = [], index = 0
