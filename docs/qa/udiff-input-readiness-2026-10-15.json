@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-15",
+  "scope": "Native UDiff fixture waits for actual editable view/model synchronization before typing after Save/Open. No production code or deadline/assertion weakening.",
+  "hosted_failure": {
+    "run": 38792987011,
+    "commit": "b5acf758",
+    "job": 116623819818,
+    "step": "Unified Diff editable document workflows",
+    "engine": "bundled",
+    "diagnostic": "Unified document did not settle at fixture line 107",
+    "boundary": "insertText immediately after UTF-16 Save; preceding wait checked only PatchDocumentSession.activeOperations. System document/handoff cases passed.",
+    "inference": "Session busy/count defer can settle before SwiftUI updateNSView restores NSTextView.isEditable; the fixture did not wait for view readiness before attempting insertion. No hosted view-state values were recorded, so await hosted confirmation."
+  },
+  "change": "All native typing boundaries wait for model.canEditText, text.isEditable and matching document text using the existing bounded wait; readiness failure now prints actual view/model state. Existing save/Undo/encoding/dirty/preservation assertions remain.",
+  "local": {
+    "command": "python3 scripts/test-unified-document-family.py --only document --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"",
+    "log": "build/qa/udiff-input-readiness-native.log",
+    "exit": 0,
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "receiver_pids": [
+      51018,
+      51033
+    ],
+    "result": "pass",
+    "ownership": "Both reaped; owned windows closed.",
+    "scope": "Only affected document case rerun. Core/handoffs/partial staging not repeated; no real external apps."
+  },
+  "hosted_repair_pass_claimed": false
+}

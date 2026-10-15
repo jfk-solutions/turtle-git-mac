@@ -44,7 +44,7 @@ import TurtleGitCore
         precondition(table.numberOfRows == 2 && table.tableColumns.count == 7)
         precondition(MenuIcon.lock.image() != nil && MenuIcon.unlock.image() != nil)
         try await settle { table.headerView?.menu?.item(withTitle: "Filename") != nil && table.tableColumns.filter { !$0.isHidden }.count == 4 }
-        func locksProbe() -> CommitFileInteraction.Probe { descendants(window.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first! }
+        func locksProbe() -> LFSLocksTable.Coordinator { table.delegate as! LFSLocksTable.Coordinator }
         precondition(locksProbe().nativeColumns == LFSLocksWindowModel.columns && locksProbe().itemIDs?.count == 2)
         precondition(table.tableColumns[2].isHidden && table.tableColumns[4].isHidden && table.tableColumns[5].isHidden)
         precondition(locksProbe().columnMenu().item(withTitle: "Status") == nil)
@@ -93,7 +93,7 @@ import TurtleGitCore
         try await settle {
             let views = descendants(reopen.window!.contentView!)
             guard let table = views.compactMap({ $0 as? NSTableView }).first,
-                  let probe = views.compactMap({ $0 as? CommitFileInteraction.Probe }).first else { return false }
+                  let probe = table.delegate as? LFSLocksTable.Coordinator else { return false }
             return probe.columnDefinition(atNativeIndex: 1) == .lfsOwner && abs(table.tableColumns[1].width - 217) < 0.5
         }
         precondition(reopen.model.fileColumns == savedLocksColumns); reopen.window?.close()
@@ -103,7 +103,9 @@ import TurtleGitCore
         precondition(locksProbe().fitColumn(atNativeIndex: 1, useDefault: true))
         precondition(model.fileColumns.widths[.lfsOwner] == nil)
         let customizedLocksColumns = model.fileColumns
-        locksProbe().confirmResetColumns = { owner in precondition(owner === window && model.busy); return false }
+        locksProbe().confirmResetColumns = { owner in precondition(owner === window && model.busy)
+            precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+            return false }
         let locksNoReset = locksProbe().columnMenu().item(withTitle: "Reset columns")!
         _ = NSApplication.shared.sendAction(locksNoReset.action!, to: locksNoReset.target, from: locksNoReset)
         try await settle { !model.busy && locksProbe().enabled }
@@ -269,9 +271,9 @@ import TurtleGitCore
         var positionReply = (0..<160).map { LFSLock(id: "before-\($0)", path: String(format: "position-%03d.bin",$0), owner: "QA") }
         positionModel.query = { _ in positionReply }; await positionModel.refresh()
         positionController.window!.contentView!.layoutSubtreeIfNeeded()
-        try await settle { descendants(positionController.window!.contentView!).contains { $0 is CommitFileInteraction.Probe } }
+        try await settle { descendants(positionController.window!.contentView!).contains { $0 is LFSLocksNativeTable } }
         let positionTable = descendants(positionController.window!.contentView!).compactMap { $0 as? NSTableView }.first!
-        let positionProbe = descendants(positionController.window!.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first!
+        let positionProbe = positionTable.delegate as! LFSLocksTable.Coordinator
         try await settle { positionTable.numberOfRows == 160 && positionProbe.itemIDs?.count == 160 && positionTable.headerView?.menu != nil }
         precondition(positionModel.saveColumnLayout(order: positionModel.fileColumns.order, widths: [.path:1200]))
         try await settle { abs(positionTable.tableColumns[1].width - 1200) < 0.5 }
@@ -279,21 +281,21 @@ import TurtleGitCore
         positionScroll.layoutSubtreeIfNeeded(); positionTable.layoutSubtreeIfNeeded()
         positionTable.selectRowIndexes(IndexSet([20,22]), byExtendingSelection: false)
         try await settle { positionModel.selection == ["before-20","before-22"] }
-        positionProbe.focusedPath?.wrappedValue = "before-22"
+        positionProbe.focusedID = "before-22"
         positionScroll.contentView.scroll(to: NSPoint(x:150,y:500)); positionScroll.reflectScrolledClipView(positionScroll.contentView)
         let savedOrigin = positionScroll.contentView.bounds.origin
         precondition(savedOrigin.x > 0 && savedOrigin.y > 0)
         positionModel.setChecked("before-20", false)
         positionReply = (0..<160).map { LFSLock(id: "after-\($0)", path: String(format: "position-%03d.bin",$0), owner: "QA") }
         await positionModel.refresh()
-        try await settle { positionModel.selection == ["after-20"] && positionProbe.focusedPath?.wrappedValue == "after-22" && abs(positionScroll.contentView.bounds.origin.x - savedOrigin.x) < 0.5 && abs(positionScroll.contentView.bounds.origin.y - savedOrigin.y) < 0.5 }
+        try await settle { positionModel.selection == ["after-20"] && positionProbe.focusedID == "after-22" && abs(positionScroll.contentView.bounds.origin.x - savedOrigin.x) < 0.5 && abs(positionScroll.contentView.bounds.origin.y - savedOrigin.y) < 0.5 }
         precondition(!positionModel.checked.contains("after-20") && positionModel.checked.count == 159)
         defaults.set(false, forKey: "RememberFileListPosition")
         positionTable.selectRowIndexes(IndexSet(integer:30), byExtendingSelection: false)
-        positionProbe.focusedPath?.wrappedValue = "after-30"
+        positionProbe.focusedID = "after-30"
         positionScroll.contentView.scroll(to: NSPoint(x:150,y:700)); positionScroll.reflectScrolledClipView(positionScroll.contentView)
         await positionModel.refresh()
-        try await settle { positionModel.selection.isEmpty && positionProbe.focusedPath?.wrappedValue == nil && positionScroll.contentView.bounds.origin == .zero }
+        try await settle { positionModel.selection.isEmpty && positionProbe.focusedID == nil && positionScroll.contentView.bounds.origin == .zero }
         precondition(!positionModel.checked.contains("after-20") && positionModel.checked.count == 159)
         defaults.removeObject(forKey: "RememberFileListPosition"); positionController.window?.close()
         // Context actions use highlighted IDs, ignore the dialog Force checkbox,

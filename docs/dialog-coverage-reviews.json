@@ -33,6 +33,10 @@
         {
           "path": "Sources/TurtleGitMac/LFSLocksWindow.swift",
           "anchor": "LFSLocksWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/LFSLocksTable.swift",
+          "anchor": "LFSLocksTable"
         }
       ],
       "parity_document": "docs/LFS-PARITY.md",

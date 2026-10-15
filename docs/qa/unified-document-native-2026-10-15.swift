@@ -54,6 +54,16 @@ import TurtleGitCore
         func source() -> PatchTextView.PatchText? { descendants(window.contentView!).compactMap { $0 as? PatchTextView.PatchText }.first }
         try await wait { source()?.isEditable == true && source()?.string == model.document.text }
         let text = source()!
+        @MainActor func readyForInput(line: UInt = #line) async throws {
+            // Session counters settle before SwiftUI updates NSTextView's
+            // isEditable after Save/Open. Drive native input only when both
+            // model and view agree; keep the existing bounded wait/assertions.
+            do { try await wait(line: line) { model.canEditText && text.isEditable && text.string == model.document.text } }
+            catch {
+                print("UDiff input readiness", line, "editable", text.isEditable, "model", model.canEditText, "busy", model.busy, "operations", PatchDocumentSession.activeOperations, "textMatches", text.string == model.document.text)
+                throw error
+            }
+        }
         window.makeFirstResponder(text)
         text.setSelectedRange(NSRange(location: 0, length: 6)); text.find(.showFindInterface)
         try require(model.findVisible && model.findText == "needle", "Source bottom Find did not seed selection")
@@ -68,6 +78,7 @@ import TurtleGitCore
         text.cancelOperation(nil); try require(!model.findVisible, "Escape did not hide Find first")
         try await capture(owner, text); try await wait { text.string == String(decoding: initial, as: UTF8.self) }
         let original = text.string
+        try await readyForInput()
         text.insertText(" edited", replacementRange: NSRange(location: text.string.utf16.count, length: 0))
         try await wait { model.documentDirty && window.isDocumentEdited }
         try require(!model.canApplyLines && !model.canApplyHunks, "Document edits enabled staging")
@@ -99,11 +110,13 @@ import TurtleGitCore
         session.chooseOpen = { _, reply in reply(encoded) }; session.openDocument()
         try await wait { PatchDocumentSession.activeOperations == 0 && text.string == body }
         try require(session.fileURL == encoded && model.exportDocument.bytes == raw && text.undoManager?.canUndo != true, "Open changed original bytes or kept prior Undo")
+        try await readyForInput()
         text.insertText("+more\n", replacementRange: NSRange(location: text.string.utf16.count, length: 0)); try await wait { model.documentDirty }
         let modified = text.string; session.saveDocument(); try await wait { PatchDocumentSession.activeOperations == 0 }
         var expected = Data([0xff,0xfe]); expected.append(modified.data(using: .utf16LittleEndian)!)
         try require(try Data(contentsOf: encoded) == expected && !model.documentDirty, "Save changed original UTF-16 encoding")
         // An external write must not be silently overwritten by Save.
+        try await readyForInput()
         text.insertText("+local\n", replacementRange: NSRange(location: text.string.utf16.count, length: 0)); try await wait { model.documentDirty }
         try Data("external\n".utf8).write(to: encoded)
         session.saveDocument(); try await wait { PatchDocumentSession.activeOperations == 0 }
@@ -115,6 +128,7 @@ import TurtleGitCore
         try legacyBytes.write(to: legacy); session.chooseOpen = { _, reply in reply(legacy) }; session.openDocument()
         try await wait { PatchDocumentSession.activeOperations == 0 && session.fileURL == legacy }
         try await wait { text.string == "+café\n" && text.isEditable }
+        try await readyForInput()
         text.insertText("雪", replacementRange: NSRange(location: text.string.utf16.count, length: 0)); try await wait { model.documentDirty }
         session.saveDocument(); try await wait { PatchDocumentSession.activeOperations == 0 }
         try require(try Data(contentsOf: legacy) == legacyBytes && model.error != nil && model.documentDirty, "Unrepresentable legacy Save wrote lossy bytes")

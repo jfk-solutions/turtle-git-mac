@@ -80,12 +80,25 @@ import TurtleGitCore
         model.copy(stale,information:.relativePaths);await model.setSelectionLocked(stale,locked:false);try require(copied.count==count && !model.showingProgress,"Refreshed menu target executed")
         let beforeColumn=model.menuTarget(["1"])!;model.setColumn(.lfsOwner,visible:false);try require(!model.accepts(beforeColumn) && model.lfsActions(["1"])==[.lock,.unlock],"Column policy did not retire menu")
         model.setColumn(.lfsOwner,visible:true);model.setSortOrder([LFSFileSort(column:.path)])
-        try await wait { views(owner.window!.contentView!).contains { $0 is CommitFileInteraction.Probe } }
-        let probe=views(owner.window!.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first!
-        guard let capturedColumn=probe.captureColumnCopy?(["1","2"],.lfsOwner) else { throw Failure(description:"Missing captured column hook") }
+        try await wait { views(owner.window!.contentView!).contains { $0 is LFSLocksNativeTable } }
+        let lockedTable = views(owner.window!.contentView!).compactMap { $0 as? LFSLocksNativeTable }.first!
+        let nativeList = lockedTable.delegate as! LFSLocksTable.Coordinator
+        try require((lockedTable.headerView?.frame.height ?? 0) > 0,"Native list header has no visible height")
+        try require(lockedTable.watermarkImage != nil && lockedTable.backdropRect(in:NSRect(x:0,y:0,width:500,height:300)) != nil,"Native lock-list watermark missing")
+        model.selection = ["1","2"];nativeList.contextColumn = .lfsOwner
+        lockedTable.menu!.delegate?.menuNeedsUpdate?(lockedTable.menu!)
+        guard let columnItem = lockedTable.menu!.item(withTitle:"Copy to Clipboard")?.submenu?.item(withTitle:"column '\(StatusListColumn.lfsOwner.rawValue)'") else { throw Failure(description:"Missing native captured column menu") }
+        let capturedColumn = { _ = NSApp.sendAction(columnItem.action!,to:columnItem.target,from:columnItem) }
         capturedColumn();try require(copied.last=="QA\nOther user\n","Actual table column hook copy")
         await model.refresh();let oldCount=copied.count;capturedColumn();try require(copied.count==oldCount,"Old native column capture survived refresh")
-        model.selectAll(true);try await capture(owner.window!,name:"lfs-locks")
+        model.selectAll(true);model.selection = ["1","2"];nativeList.refresh()
+        let rowCheck = lockedTable.view(atColumn:0,row:0,makeIfNecessary:true) as! NSButton
+        rowCheck.performClick(nil);try require(model.checked.isEmpty && model.selection == ["1","2"],"Native checkbox did not propagate selected rows")
+        lockedTable.toggleChecks();try require(model.checked == ["1","2"],"Native Space handler lost selected checks")
+        lockedTable.copyRows(false);try require(copied.last == paths.joined(separator:"\n")+"\n","Native keyboard copy lost selected paths")
+        preferences.set(false,forKey:"ShowListBackgroundImage");try require(lockedTable.backdropRect(in:NSRect(x:0,y:0,width:500,height:300)) == nil,"Private watermark preference ignored")
+        preferences.set(true,forKey:"ShowListBackgroundImage")
+        try await capture(owner.window!,name:"lfs-locks")
         let operation=Task { await model.unlock() }
         try await wait { model.currentPath==paths[0] && model.busy && owner.window!.attachedSheet != nil }
         owner.window!.attachedSheet?.alphaValue=0

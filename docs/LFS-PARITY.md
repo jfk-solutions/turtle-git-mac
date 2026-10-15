@@ -390,3 +390,37 @@ Both native engine cases passed in one grouped run, including the retained LFS
 interaction checks. No Core run was needed for native-only changes. See the
 [progress-action evidence](qa/lfs-progress-actions-2026-10-15.json) for exact
 builds, assertions, simulations and remaining acceptance work.
+
+## Native lock list — October 15, 2026
+
+`IDD_LFS_LOCKS` now uses an AppKit table instead of the SwiftUI Table/interaction
+bridge. One coordinator owns checkbox events, row selection, sorting, header
+layout and menus. The original LockBackground artwork now appears in this main
+list as well as progress. Private background/icon/font/tooltip preferences apply
+to the owning dialog. The main-window background gap recorded above is closed.
+The new unmodified light/dark captures replace the gallery's earlier list captures.
+
+Checking a selected row propagates to selected rows; Space uses the marked row.
+Keyboard Copy uses the captured displayed selection, and F5 runs the existing
+owned refresh. Source Lock/Unlock menus and all existing clipboard choices now
+use native menu items with original artwork. Current-column Copy captures the
+initiating rows, order and column; later refresh or policy changes expire it.
+There is no file-opening double-click on this list, as in LFSLocksDlg.
+
+Headers expose the six source-supported text columns, fitting/default widths and
+Reset columns. The checkbox column stays fixed at the front and Path cannot be
+hidden. Saved order/width/visibility and first-descriptor sorting survive reopen.
+Refresh restores the viewport, first selected row index and separate focus mark
+when enabled; unchecking RememberFileListPosition clears them. Native layout is
+settled directly, removing the bridge's asynchronous configuration/restoration
+retry loop. Pending Reset questions retain operation/Quit ownership and their
+repository grant; forced close cancels the owned question and refuses late edits.
+
+The initial build exposed an integer font-size type mismatch, corrected before
+execution. The new interaction group passed with both engines; the retained
+regression first stopped on a leftover bridge-only fixture reference. The native
+replacement also now explicitly retains the separate focus index. Exact grouped
+results are recorded in [native-list evidence](qa/lfs-native-table-2026-10-15.json).
+Core is unchanged. Physical gestures/VoiceOver, large-list performance, exact
+source geometry, authenticated LFS and signed Finder/App Store acceptance remain
+open. This is not complete dialog or application certification.

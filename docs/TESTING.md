@@ -2100,3 +2100,16 @@ configured history routing and real fallback Log/child LFS controllers. Applicat
 launch, chooser responses and Finder reveal are intercepted. A held chooser
 checks ownership and refusal after retirement. This adds no Core test run; see
 [the dated evidence](qa/lfs-progress-actions-2026-10-15.json).
+
+### Native LFS lock list
+
+The Locks dialog now owns an AppKit table directly; its checks no longer locate
+SwiftUI's internal table through `CommitFileInteraction.Probe`. The retained
+`test-lfs-locks.py` cases exercise the new coordinator's real columns and menus,
+header order/width/fit/reset persistence, native selection and separate focus
+mark, refresh viewport restoration, and its existing progress/retirement routes.
+`test-lfs-interaction.py` additionally clicks a real row checkbox, invokes native
+keyboard handlers and captured column menu items, checks the original watermark
+and private preference, and captures the actual main window in light/dark mode.
+See [native-list evidence](qa/lfs-native-table-2026-10-15.json) for build repairs,
+engine results and limits. Core is unchanged for this batch.

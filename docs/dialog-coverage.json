@@ -1185,6 +1185,10 @@
           "anchor": "LFSLocksWindowController"
         },
         {
+          "path": "Sources/TurtleGitMac/LFSLocksTable.swift",
+          "anchor": "LFSLocksTable"
+        },
+        {
           "path": "Sources/TurtleGitMac/LFSProgressTable.swift",
           "origin": "recorded-control-mapping"
         }
@@ -1200,6 +1204,7 @@
         "docs/qa/lfs-interaction-2026-10-15.json",
         "docs/qa/lfs-locks-2026-10-08.json",
         "docs/qa/lfs-menu-copy-2026-10-09.json",
+        "docs/qa/lfs-native-table-2026-10-15.json",
         "docs/qa/lfs-owner-column-2026-10-08.json",
         "docs/qa/lfs-progress-actions-2026-10-15.json",
         "docs/qa/lfs-pull-follow-up-2026-10-09.json",
@@ -1298,6 +1303,7 @@
       "qa_records": [
         "docs/qa/commit-close-log-unified-2026-10-05.json",
         "docs/qa/external-documents-2026-10-15.json",
+        "docs/qa/udiff-input-readiness-2026-10-15.json",
         "docs/qa/unified-appearance-footer-2026-10-05.json",
         "docs/qa/unified-appearance-navigation-2026-10-05.json",
         "docs/qa/unified-document-2026-10-15.json",
@@ -3441,6 +3447,7 @@
       "qa_records": [
         "docs/qa/commit-close-log-unified-2026-10-05.json",
         "docs/qa/external-documents-2026-10-15.json",
+        "docs/qa/udiff-input-readiness-2026-10-15.json",
         "docs/qa/unified-appearance-footer-2026-10-05.json",
         "docs/qa/unified-appearance-navigation-2026-10-05.json",
         "docs/qa/unified-document-2026-10-15.json",
@@ -3908,6 +3915,7 @@
       "qa_records": [
         "docs/qa/commit-close-log-unified-2026-10-05.json",
         "docs/qa/external-documents-2026-10-15.json",
+        "docs/qa/udiff-input-readiness-2026-10-15.json",
         "docs/qa/unified-appearance-footer-2026-10-05.json",
         "docs/qa/unified-appearance-navigation-2026-10-05.json",
         "docs/qa/unified-document-2026-10-15.json",

@@ -6,7 +6,10 @@ installing TurtleGit alone does not create a locking service.
 
 Open **Show locked files** to list server locks. The list shows paths, extensions
 and lock owners by default. Header menus expose filenames, modification dates and
-sizes and let you arrange columns. F5 or Refresh fetches the list again. A failed
+sizes and let you arrange columns. Double-click a header to fit it; Option-double-click
+restores its default width. Reset columns restores the default layout. The native
+list uses the original lock background artwork, controlled by the list-background
+preference. F5 or Refresh fetches the list again. A failed
 or cancelled query does not present unknown ownership as an unlocked file.
 
 Select rows to use their context menu. With the owner column visible, a uniformly

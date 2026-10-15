@@ -201,9 +201,9 @@ import TurtleGitCore
     }
     func requestResetColumns(choose: @escaping () async -> Bool, onAccepted: @escaping () -> Void) {
         guard !retired, !busy, !confirmingQuit, !showingProgress else { return }
-        busy = true
+        busy = true; Self.activeOperations += 1
         Task {
-            defer { busy = false }
+            defer { busy = false; Self.activeOperations -= 1; withExtendedLifetime(access) {} }
             guard await choose(), !retired, !confirmingQuit else { return }
             menuGeneration = UUID(); fileColumns = Self.defaultColumns; fileColumns.save(to: defaults, key: Self.columnKey); onAccepted()
         }
@@ -410,41 +410,9 @@ import TurtleGitCore
 
 struct LFSLocksDialog: View {
     @ObservedObject var model: LFSLocksWindowModel
-    @State private var focusedID: String?
     var body: some View {
-        let rows = model.rows
         VStack(alignment: .leading, spacing: 10) {
-            Table(rows, selection: $model.selection, sortOrder: Binding(get: { model.sortOrder }, set: { model.setSortOrder($0) })) {
-                TableColumn("") { lock in Toggle("Select \(lock.path)", isOn: Binding(get: { model.checked.contains(lock.id) }, set: { model.checkClicked(lock.id, value: $0) })).labelsHidden().toggleStyle(.checkbox).disabled(model.busy || model.confirmingQuit) }.width(24)
-                TableColumn("Path", sortUsing: LFSFileSort(column: .path)) { lock in HStack { Image(nsImage: MenuIcon.lock.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(lock.path) }.repositoryFileHelp(repository: model.repository.root, path: lock.path, preferences: model.presentationPreferences) }.width(min: 240, ideal: 420)
-                TableColumn("Filename", sortUsing: LFSFileSort(column: .fileName)) { Text($0.fileName) }.width(min: 100, ideal: 180)
-                TableColumn("Extension", sortUsing: LFSFileSort(column: .fileExtension)) { Text($0.fileExtension) }.width(min: 40, ideal: 75)
-                TableColumn("Last modified", sortUsing: LFSFileSort(column: .lastModified)) { Text($0.metadata?.dateText ?? "–") }.width(min: 150, ideal: 170)
-                TableColumn("File size", sortUsing: LFSFileSort(column: .fileSize)) { Text($0.metadata?.sizeText ?? "–") }.width(min: 70, ideal: 100)
-                TableColumn("LFS Lock", sortUsing: LFSFileSort(column: .lfsOwner)) { Text($0.owner) }.width(min: 100, ideal: 160)
-            }.fileListFont().background(CommitFileInteraction(rows: [], keyboardDeleteEnabled: false, nativeColumns: LFSLocksWindowModel.columns,
-                rowTexts: rows.map { row in Dictionary(uniqueKeysWithValues: LFSLocksWindowModel.columns.map { ($0,row.text($0)) }) }, itemIDs: rows.map(\.id),
-                copyIDs: { model.copy(Set($0), information: $1 ? .pathsAndStatus : .relativePaths) }, copyColumnIDs: { model.copy(Set($0), information: .column($1)) }, captureColumnCopy: { [weak model] ids, column in
-                    guard let model, let target = model.menuTarget(Set(ids)) else { return nil }
-                    return { [weak model] in model?.copy(target, information: .column(column)) }
-                },
-                toggleCheckIDs: { model.toggleChecks($0, mark: $1) }, configureRefresh: { view in
-                    model.captureListPosition = { [weak view] in view?.storeListPosition() }
-                    model.cancelListPosition = { [weak view] in view?.cancelListPosition() }
-                    model.restoreListPosition = { [weak view] ids, enabled in
-                        await withCheckedContinuation { continuation in
-                            guard let view else { continuation.resume(); return }
-                            view.restoreListPosition(ids: ids, enabled: enabled) { continuation.resume() }
-                        }
-                    }
-                }, preferences: model.presentationPreferences, visibleColumns: Set(model.visibleColumns), availableColumns: Set(LFSLocksWindowModel.columns),
-                columnText: { _,_ in "" }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,
-                saveLayout: { model.saveColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setColumn($0, visible: $1) },
-                resetColumns: { choose, accepted in model.requestResetColumns(choose: choose, onAccepted: accepted) }, focusedPath: $focusedID,
-                enabled: !model.busy && !model.confirmingQuit && !model.showingProgress, delete: { _,_,_ in }, copy: { _,_ in }, copyColumn: { _,_ in }, toggleCheck: { _,_ in }))
-            .contextMenu(forSelectionType: String.self) { ids in
-                if let target = model.menuTarget(ids) { LFSCapturedMenu(model: model, target: target) }
-            }.disabled(model.busy || model.confirmingQuit)
+            LFSLocksTable(model: model)
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.information).font(.caption); Spacer(); Button("Refresh") { Task { await model.refresh() } }.disabled(model.busy || model.confirmingQuit).keyboardShortcut(KeyEquivalent(Character(UnicodeScalar(NSF5FunctionKey)!)), modifiers: []) }
             HStack {

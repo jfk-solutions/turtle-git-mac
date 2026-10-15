@@ -555,3 +555,16 @@ The GNU patch group in `IDD_SETTINGSPROGSDIFF` maps its group title,
 GroupBox, radio picker, separate program/Arguments fields and owned chooser.
 Those five source controls remain partial mappings; physical radio/Browse,
 complete Diff settings geometry and signed permission acceptance are pending.
+
+
+## Hosted native input readiness
+
+Run 38792987011 at b5acf758 reached the bundled-Git UDiff document case and
+failed at fixture line 107, typing immediately after Save. The fixture waited
+for the operation count, but not AppKit editing readiness after SwiftUI
+propagated the busy transition. Native input boundaries now wait for both
+`canEditText` and `isEditable`, with matching document text, using the existing
+bounded wait. Save/encoding/dirty/Undo/preservation assertions remain unchanged.
+The affected document case passed locally with both engines, with owned windows
+and receivers closed. This is a fixture synchronization repair; hosted confirmation
+is still required. See [exact failure and local evidence](qa/udiff-input-readiness-2026-10-15.json).

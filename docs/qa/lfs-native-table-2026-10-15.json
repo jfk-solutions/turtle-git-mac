@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "e67417b3",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Replace the LFS Locks SwiftUI table/interaction bridge with one native AppKit owner",
+    "Original lock watermark and icons; private background/font/tooltip/context icon preferences",
+    "Real selected-row checkboxes, native Space/Copy/F5, captured native Lock/Unlock/current-column Copy menus",
+    "Six supported text columns, fixed check column, sort/visibility/order/width/fit/reset persistence",
+    "Refresh viewport, first selected index and separate focus mark; owned Reset confirmation and Quit guard"
+  ],
+  "build": {
+    "first_log": "build/qa/lfs-native-table-build.log",
+    "first_exit": 65,
+    "repair": "Font size uses the shared integer preference type; native header receives an explicit visible height.",
+    "repaired_log": "build/qa/lfs-native-table-build-repair.log",
+    "repaired_exit": 0,
+    "final_log": "build/qa/lfs-native-table-focus-build.log",
+    "final_exit": 0,
+    "final_change": "Separate focus-index restoration retained while adapting the old viewport fixture to the native coordinator.",
+    "diagnostics": "Existing project diagnostics remain; no new native-table warning observed."
+  },
+  "core": {
+    "run": false,
+    "reason": "Core unchanged; native dialog and fixture changes only."
+  },
+  "native": {
+    "interaction": {
+      "log": "build/qa/lfs-native-table-interaction.log",
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "receiver_pids": [
+        49675,
+        49707
+      ],
+      "result": "pass",
+      "assertions": "All retained progress/menu/Force/action-log checks plus actual native row-checkbox propagation, keyboard handlers, current-column native menu retirement and watermark/private preference/header height."
+    },
+    "regression": {
+      "first_log": "build/qa/lfs-native-table-regression.log",
+      "first_pid": 49750,
+      "first_result": "SIGTRAP waiting for removed bridge at fixture line 272; all preceding selection/column/sort/fit/reset/review/cancellation/check-memory checks completed.",
+      "final_log": "build/qa/lfs-native-table-regression-repair.log",
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "receiver_pids": [
+        49895,
+        50414
+      ],
+      "result": "pass",
+      "assertions": "Retained viewport/focus/setting restoration, saved columns/fit/reset/reopen, actual Reset Quit refusal, check memory, progress review/Force/cancellation, standalone Finder progress, parent routing and retired late-result guards; HEAD/raw index/working contents preserved."
+    },
+    "rerun_scope": "Only the affected retained regression group repeated after native focus/fixture repairs; the passing interaction group was not repeated.",
+    "ownership": "Every receiver reaped; explicit PID inspection found none remaining; owned windows closed.",
+    "simulation": "Private repositories/preferences/pasteboard and injected LFS responses; interaction group uses the existing private Python LFS wrapper. No authenticated server."
+  },
+  "captures": {
+    "public": [
+      "docs/site/assets/lfs-locks-light.png",
+      "docs/site/assets/lfs-locks-dark.png"
+    ],
+    "source": "build/qa/lfs-native-table-captures",
+    "visual_review": "Both main-window captures inspected: visible native header/checkboxes/icons/footer, original lock watermark and full table viewport in light/dark. Unmodified PNGs. Progress captures from the same run were not newly published/reviewed.",
+    "physical_acceptance": false
+  },
+  "limitations": [
+    "Physical pointer/keyboard/VoiceOver, large-list performance and exact upstream geometry remain open",
+    "Authenticated LFS/Pull, installed Finder and signed App Store scopes/distribution unverified",
+    "No complete dialog or application certification"
+  ],
+  "hosted_ci": {
+    "macos": "b5acf758 run 38792987011 failed UDiff document at fixture line 107; e67417b3 run 38799322056 now in progress",
+    "pages": "e67417b3 run 38799321906 succeeded",
+    "full_macos_pass_claimed": false
+  },
+  "documentation": {
+    "site_documents": 234,
+    "unresolved_fragments": 0,
+    "help_guides": 26,
+    "help_topics": 47,
+    "help_bytes_before_index": 190619,
+    "mapped_controls": 974,
+    "pending_control_reviews": 685,
+    "certified_dialogs": 0
+  }
+}
