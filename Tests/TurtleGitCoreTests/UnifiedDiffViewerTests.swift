@@ -117,4 +117,33 @@ final class UnifiedDiffViewerTests: XCTestCase {
         first.discard()
         XCTAssertFalse(FileManager.default.fileExists(atPath: first.directory.path))
     }
+    func testArgumentTemplatesAreExpandedAfterParsingWithoutShellEvaluation() throws {
+        let file = URL(fileURLWithPath: "/tmp/space 雪 %title $(touch nope); 'quote'.patch")
+        let title = "revision \"雪\" %1 \nsecond line"
+        var value = UnifiedDiffViewerPreferences(enabled: true, applicationPath: "/Applications/Viewer.app", arguments: #"--title "%title" --file=%1 '' '$HOME' `literal`"#)
+        XCTAssertEqual(try value.expandedArguments(file: file, title: title), ["--title", title, "--file=" + file.path, "", "$HOME", "`literal`"])
+        value.arguments = "--label=%title"
+        XCTAssertEqual(try value.expandedArguments(file: file, title: title), ["--label=" + title, file.path])
+        value.arguments = "%1 %1"
+        XCTAssertEqual(try value.expandedArguments(file: file, title: title), [file.path, file.path])
+        for malformed in ["'unfinished", "trailing\\", "bad\0argument"] {
+            value.arguments = malformed; XCTAssertFalse(value.argumentsValid); XCTAssertFalse(value.valid)
+            XCTAssertThrowsError(try value.choice()); XCTAssertEqual(try value.choice(alternate: true), .builtin)
+        }
+        value.arguments = "%title"; XCTAssertThrowsError(try value.expandedArguments(file: file, title: "bad\0title"))
+    }
+    func testArgumentPreferenceMigrationPersistenceAndExecutableChoice() throws {
+        let suite = "TurtleGitUDiffArguments." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set("/Applications/Viewer.app", forKey: "TurtleGit.UnifiedDiffViewer.Application")
+        XCTAssertEqual(UnifiedDiffViewerPreferences.load(from: defaults).arguments, "")
+        var value = UnifiedDiffViewerPreferences(enabled: true, applicationPath: "/selected/viewer", bookmark: Data([1,2]), arguments: "%1 --title=%title")
+        XCTAssertTrue(value.valid); XCTAssertFalse(value.program.isApplicationBundle)
+        XCTAssertEqual(try value.choice(), .external(URL(fileURLWithPath: value.applicationPath)))
+        value.enabled = false; value.save(to: defaults)
+        XCTAssertEqual(UnifiedDiffViewerPreferences.load(from: defaults), value)
+        XCTAssertEqual(try value.choice(), .builtin)
+        XCTAssertEqual(try value.choice(alternate: true), .external(URL(fileURLWithPath: value.applicationPath)))
+    }
+
 }

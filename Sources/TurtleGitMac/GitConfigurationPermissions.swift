@@ -22,6 +22,7 @@ import TurtleGitCore
         }
         UserDefaults.standard.set(refreshed, forKey: key)
     }
+    static func retained(for file: URL) -> [RepositoryAccessLease] { leases.filter { $0.permits(file) } }
     static func authorized(_ file: URL) -> Bool {
         if !GitRuntime.isAppStoreBuild { return true }
         let home = RepositoryAccessLease(url: FileManager.default.homeDirectoryForCurrentUser)

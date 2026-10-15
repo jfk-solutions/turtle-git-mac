@@ -1081,7 +1081,7 @@ import UniformTypeIdentifiers
                 controller.model.unifiedViewerBusy = { [weak self] in self?.addUnifiedWindows[key]?.model.busy == true || self?.addUnifiedWindows[key]?.window?.attachedSheet != nil }
                 controller.model.onUnifiedPatch = { [weak self] bytes, alternate in
                     guard let self else { return }
-                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, title: "HEAD → Working tree", permissions: access.map { [$0] } ?? []) {
                         self.addUnifiedWindows[key] = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.addUnifiedWindows[key], title: "HEAD → Working tree", onClosed: { [weak self] in self?.addUnifiedWindows.removeValue(forKey: key) })
                     }
                 }

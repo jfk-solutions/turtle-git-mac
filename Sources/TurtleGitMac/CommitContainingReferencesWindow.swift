@@ -266,7 +266,7 @@ extension CommitContainingReferencesWindowController: NSMenuDelegate {
                 let bytes = try await repository.revisionComparisonPatchData(data, cancellation: token)
                 guard !closed, !token.isCancelled else { return }
                 if let onUnified { try await onUnified(bytes, alternate) }
-                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate), !closed, !token.isCancelled {
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: names.map(\.rawValue).joined(separator: ":"), permissions: access.map { [$0] } ?? [], cancellation: token), !closed, !token.isCancelled {
                     unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedViewer, title: names.map(\.rawValue).joined(separator: ":"), onClosed: { [weak self] in self?.unifiedViewer = nil })
                 }
             }

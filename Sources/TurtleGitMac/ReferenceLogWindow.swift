@@ -657,7 +657,7 @@ import TurtleGitCore
                 guard !invalidated, request == generation else { return }
                 let viewerAlternate = chosen.count == 1 && mode == .extraChanges ? false : alternate
                 if let onUnifiedDiff { try await onUnifiedDiff(bytes, viewerAlternate) }
-                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: viewerAlternate) {
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: viewerAlternate, preferences: preferences, title: "Selected RefLog changes", permissions: access.map { [$0] } ?? []) {
                     guard !invalidated, request == generation else { return }
                     unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected RefLog changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }

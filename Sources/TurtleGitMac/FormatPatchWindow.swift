@@ -177,7 +177,7 @@ import TurtleGitCore
                 let preview = try UnifiedDiffPreview.create(bytes)
                 UnifiedDiffPreviewFiles.retain(preview)
                 model.openingViewer = true
-                UnifiedDiffApplication.open(preview.file, application: application, bookmark: preferences.bookmark) { [weak model] error in
+                UnifiedDiffApplication.open(preview.file, application: application, bookmark: preferences.bookmark, arguments: preferences.arguments, title: "HEAD → Working tree", permissions: model.access.map { [$0] } ?? []) { [weak model] error in
                     model?.openingViewer = false
                     if let error { UnifiedDiffPreviewFiles.discard(preview.file); if model?.isRetired == false { model?.error = error } }
                 }

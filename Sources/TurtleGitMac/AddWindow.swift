@@ -119,7 +119,7 @@ private final class AddNativeWindow: NSWindow {
                 }
             }
         } else if action == .editor {
-            AlternativeEditor.open(file) { [weak model] failure in if let failure { model?.error = failure } }
+            AlternativeEditor.open(file, permissions: access.map { [$0] } ?? []) { [weak model] failure in if let failure { model?.error = failure } }
         } else if !NSWorkspace.shared.open(file) { model.error = "Could not open the file. Choose an application using Open With." }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if sender.attachedSheet != nil { return false }; if model.busy { model.cancel(); return false }; return !model.confirmingQuit }

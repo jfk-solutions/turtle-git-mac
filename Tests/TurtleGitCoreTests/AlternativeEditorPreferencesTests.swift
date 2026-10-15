@@ -23,8 +23,23 @@ final class AlternativeEditorPreferencesTests: XCTestCase {
             XCTAssertTrue(AlternativeEditorPreferences(custom: true, applicationPath: path).valid)
         }
         XCTAssertNil(AlternativeEditorPreferences(custom: true).customApplication)
-        for path in ["relative.app", "/bin/sh", "/Applications/Editor.app\0extra", "https://example.com/editor.app"] {
+        for path in ["relative.app", "/missing/editor-tool", "/Applications/Editor.app\0extra", "https://example.com/editor.app"] {
             XCTAssertFalse(AlternativeEditorPreferences(custom: true, applicationPath: path).valid, path)
         }
     }
+    func testExecutableChoiceAndValidationRetainBookmarkAcrossDisable() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitEditorCLI-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("editor 雪")
+        try Data("#!/bin/sh\nexit 0\n".utf8).write(to: file)
+        XCTAssertFalse(AlternativeEditorPreferences(custom: true, applicationPath: file.path).valid)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: file.path)
+        let value = AlternativeEditorPreferences(custom: true, applicationPath: file.path)
+        XCTAssertTrue(value.valid); XCTAssertEqual(value.customApplication?.path, file.path)
+        XCTAssertFalse(value.program.isApplicationBundle)
+        let selected = AlternativeEditorPreferences(custom: true, applicationPath: "/not-mounted/editor", bookmark: Data([1]))
+        XCTAssertTrue(selected.valid) // Resolved target is checked at launch, as for Diff/Merge tools.
+    }
+
 }

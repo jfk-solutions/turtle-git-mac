@@ -21,36 +21,39 @@ import TurtleGitCore
         return controller
     }
     /// Returns false when the caller should use its built-in viewer.
-    static func openExternal(_ bytes: Data, alternate: Bool, preferences defaults: UserDefaults = .standard) async throws -> Bool {
+    static func openExternal(_ bytes: Data, alternate: Bool, preferences defaults: UserDefaults = .standard, title: String = "",
+                             permissions: [RepositoryAccessLease] = [], cancellation: OperationCancellation? = nil,
+                             provider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(), requiresScopes: Bool = GitRuntime.isAppStoreBuild,
+                             launch: ExternalDocumentApplication.Launch? = nil) async throws -> Bool {
         let preferences = UnifiedDiffViewerPreferences.load(from: defaults)
-        guard case .external(let application) = try preferences.choice(alternate: alternate) else { return false }
+        guard case .external = try preferences.choice(alternate: alternate) else { return false }
+        try cancellation?.check()
         let preview = try UnifiedDiffPreview.create(bytes)
         UnifiedDiffPreviewFiles.retain(preview)
-        let error: String? = await withCheckedContinuation { continuation in
-            open(preview.file, application: application, bookmark: preferences.bookmark) { continuation.resume(returning: $0) }
-        }
-        if let error {
-            UnifiedDiffPreviewFiles.discard(preview.file)
-            throw NSError(domain: "TurtleGit.UnifiedDiffViewer", code: 1, userInfo: [NSLocalizedDescriptionKey: error])
-        }
-        return true
-    }
-    static func open(_ file: URL, application: URL, bookmark: Data?, completion: @escaping (String?) -> Void) {
-        var target = application
-        if let bookmark {
-            do {
-                var stale = false
-                target = try URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI], bookmarkDataIsStale: &stale)
-            } catch { completion("Choose the viewer again using Browse in Settings → Unified Diff Viewer."); return }
-        }
-        let scoped = target.startAccessingSecurityScopedResource()
-        guard !GitRuntime.isAppStoreBuild || scoped else { completion("Choose the viewer using Browse in Settings → Unified Diff Viewer to grant access."); return }
         activeRequests += 1
-        NSWorkspace.shared.open([file], withApplicationAt: target, configuration: NSWorkspace.OpenConfiguration()) { _, error in
-            if scoped { target.stopAccessingSecurityScopedResource() }
-            DispatchQueue.main.async { activeRequests -= 1; completion(error?.localizedDescription) }
+        defer { activeRequests -= 1 }
+        do {
+            try await ExternalDocumentApplication.open(file: preview.file, program: preferences.program,
+                arguments: preferences.expandedArguments(file: preview.file, title: title),
+                nativeDocumentOpen: preferences.arguments.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                permissions: permissions, cancellation: cancellation, provider: provider, requiresScopes: requiresScopes, launch: launch)
+            return true
+        } catch { UnifiedDiffPreviewFiles.discard(preview.file); throw error }
+    }
+    static func open(_ file: URL, application: URL, bookmark: Data?, arguments: String = "", title: String = "", permissions: [RepositoryAccessLease] = [], completion: @escaping (String?) -> Void) {
+        let preferences = UnifiedDiffViewerPreferences(enabled: true, applicationPath: application.path, bookmark: bookmark, arguments: arguments)
+        activeRequests += 1
+        Task {
+            defer { activeRequests -= 1 }
+            do {
+                guard case .external = try preferences.choice() else { throw UnifiedDiffViewerFailure.application }
+                try await ExternalDocumentApplication.open(file: file, program: preferences.program,
+                    arguments: preferences.expandedArguments(file: file, title: title), nativeDocumentOpen: arguments.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, permissions: permissions)
+                completion(nil)
+            } catch { completion(error.localizedDescription) }
         }
     }
+
 }
 
 struct UnifiedDiffViewerSettings: View {
@@ -78,7 +81,9 @@ struct UnifiedDiffViewerSettings: View {
                         TextField("Viewer application", text: Binding(get: { draft.applicationPath }, set: { draft.applicationPath = $0; draft.bookmark = nil }))
                         Button("Browse…", action: browse)
                     }.disabled(!draft.enabled)
-                    if !draft.valid { Text("Choose an application (.app) using its full path.").font(.caption).foregroundStyle(.red) }
+                    TextField("Arguments", text: $draft.arguments).disabled(!draft.enabled).accessibilityIdentifier("UnifiedDiff.ViewerArguments")
+                    Text("Use %1 for the patch and %title for its title. The patch is appended when %1 is absent. Leave arguments empty to open a document in an app bundle. Quotes group an argument; filenames and titles are substituted afterward.").font(.caption).foregroundStyle(.secondary)
+                    if !draft.valid { Text(draft.argumentsValid ? "Choose an application bundle or executable using its full path." : "Finish the quote or escape in the arguments.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
             }
             Text("Hold Shift when opening a unified diff from Format Patch, Log, Commit, Working Tree or Changed Files to reverse the viewer choice. A saved external application remains available while the built-in viewer is selected.").font(.caption).foregroundStyle(.secondary)
@@ -89,11 +94,11 @@ struct UnifiedDiffViewerSettings: View {
             } }
         }.padding(20).background(ToolChooserProbe(chooser: chooser).frame(width: 0, height: 0)).onDisappear { chooser.cancel() }
             .settingsParticipant("unifiedDiff.viewer", page: settingsPage, value: draft, modified: { draft != saved },
-                validate: { draft.valid ? nil : "Choose a valid unified diff viewer application." },
+                validate: { draft.valid ? nil : "Choose a valid viewer and argument template." },
                 apply: { draft.save(to:preferences); saved = draft; return true }, cancel: { draft = saved })
             .alert("Unified Diff Viewer", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
     }
     private func browse() {
-        chooser.choose({ application, bookmark in draft.bookmark = bookmark; draft.applicationPath = application.path }, failure: { error = $0 })
+        chooser.choose({ application, bookmark in draft.bookmark = bookmark; draft.applicationPath = application.path }, failure: { error = $0 }, allowExecutables: true)
     }
 }

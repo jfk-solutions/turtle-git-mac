@@ -291,7 +291,7 @@ final class ApplicationMailContext: @unchecked Sendable {
                 guard let self else { return }
                 self.model.loadPatch(file) { [weak self] bytes in
                     guard let self else { return }
-                    if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences) { return }
+                    if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: file.lastPathComponent, permissions: try self.model.fileGrants(for: [file])) { return }
                     let controller = self.patch ?? PatchWindowController(repository: repository, access: repositoryAccess, preferences: preferences)
                     let grants = try self.model.fileGrants(for: [file])
                     let fileAccess = grants.first { $0.contains(file) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) }

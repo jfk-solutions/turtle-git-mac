@@ -10,7 +10,7 @@ import TurtleGitCore
     private(set) var conflictBaseViewer: FileComparisonWindowController?
     private(set) var conflictRevertWindow:RevertProgressWindowController?
     private(set) var conflictUnifiedWindows:[UUID:PatchWindowController]=[:]
-    var openConflictUnifiedExternal:(Data,Bool,UserDefaults) async throws -> Bool = {try await UnifiedDiffApplication.openExternal($0,alternate:$1,preferences:$2)}
+    var openConflictUnifiedExternal:(Data,Bool,UserDefaults) async throws -> Bool = {try await UnifiedDiffApplication.openExternal($0,alternate:$1,preferences:$2,title:"Rebase conflict changes")}
     private(set) var conflictAddWindow: AddProgressWindowController?
     private(set) var conflictIgnoreWindow: IgnoreWindowController?
     var configureConflictAdd: (AddProgressWindowModel) -> Void = { _ in }
@@ -419,9 +419,10 @@ struct RebaseReferenceRequest {
             }
         } else if !NSWorkspace.shared.open(url) { throw StatusFileActionFailure(message: "Could not open " + url.lastPathComponent + ".") }
     }
-    var openConflictAlternativeEditor: (URL) async throws -> Void = { url in
+    lazy var openConflictAlternativeEditor: (URL) async throws -> Void = { [weak self] url in
+        guard let self else { throw OperationCancellationFailure.cancelled }
         try await withCheckedThrowingContinuation { (reply: CheckedContinuation<Void, Error>) in
-            AlternativeEditor.open(url) { failure in if let failure { reply.resume(throwing: StatusFileActionFailure(message: failure)) } else { reply.resume() } }
+            AlternativeEditor.open(url, preferences: self.messageDefaults, permissions: self.access.map { [$0] } ?? []) { failure in if let failure { reply.resume(throwing: StatusFileActionFailure(message: failure)) } else { reply.resume() } }
         }
     }
     var revealConflictFiles: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }

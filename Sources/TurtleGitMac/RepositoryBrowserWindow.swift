@@ -135,7 +135,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
                     if model?.active == true && model?.generation == identity { model?.error = error }
                 }
             }
-            if action == .alternativeEditor { AlternativeEditor.open(preview.file, completion: failed) }
+            if action == .alternativeEditor { AlternativeEditor.open(preview.file, preferences: model.preferences, permissions: model.access.map { [$0] } ?? [], completion: failed) }
             else if let application {
                 let scoped = application.startAccessingSecurityScopedResource()
                 NSWorkspace.shared.open([preview.file], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { _, error in

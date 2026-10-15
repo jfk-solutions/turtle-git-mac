@@ -10,12 +10,12 @@ public struct AlternativeEditorPreferences: Equatable, Sendable {
     }
     public var customApplication: URL? {
         guard custom, !applicationPath.isEmpty else { return nil }
-        return URL(fileURLWithPath: applicationPath, isDirectory: true)
+        return URL(fileURLWithPath: applicationPath, isDirectory: program.isApplicationBundle)
     }
-    public var valid: Bool {
-        !custom || applicationPath.isEmpty || (applicationPath.hasPrefix("/") && !applicationPath.contains("\0") &&
-            (applicationPath as NSString).pathExtension.caseInsensitiveCompare("app") == .orderedSame)
+    public var program: DiffToolProgram {
+        var value = DiffToolProgram(); value.enabled = true; value.applicationPath = applicationPath; value.bookmark = bookmark; value.arguments = "%1"; return value
     }
+    public var valid: Bool { !custom || applicationPath.isEmpty || program.valid }
     public static func load(from defaults: UserDefaults = .standard) -> Self {
         Self(custom: defaults.bool(forKey: "TurtleGit.AlternativeEditor.Custom"),
              applicationPath: defaults.string(forKey: "TurtleGit.AlternativeEditor.Application") ?? "",

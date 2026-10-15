@@ -41,7 +41,7 @@ import TurtleGitCore
         model.chooseFiles = { [weak self] in self?.chooseFiles() }
         model.showPatch = { [weak self] bytes, title, alternate in
             guard let self else { return }
-            if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate) { return }
+            if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: title, permissions: access.map { [$0] } ?? []) { return }
             self.patch = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.patch, title: title, onClosed: { [weak self] in self?.patch = nil })
         }
         model.composeMail = { [weak self] files, completion in

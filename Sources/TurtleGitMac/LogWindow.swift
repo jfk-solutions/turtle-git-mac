@@ -281,7 +281,7 @@ final class LogHistoryWindow: NSWindow {
         guard !model.busy, !model.isInvalidated else { return }
         do { try model.validateWorkingFileAccess(file) } catch { model.error = error.localizedDescription; return }
         let failed: @MainActor @Sendable (String?) -> Void = { [weak model] error in if let error { model?.error = error } }
-        if action == .alternativeEditor { AlternativeEditor.open(file, completion: failed) }
+        if action == .alternativeEditor { AlternativeEditor.open(file, preferences: findPreferences, permissions: findAccess.map { [$0] } ?? [], completion: failed) }
         else if let application {
             let scoped = application.startAccessingSecurityScopedResource()
             NSWorkspace.shared.open([file], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { _, error in
@@ -309,7 +309,7 @@ final class LogHistoryWindow: NSWindow {
             let failed: @MainActor @Sendable (String?) -> Void = { [weak model] error in
                 if let error { HistoricalPreviewFiles.discard(preview.file); model?.error = error }
             }
-            if action == .alternativeEditor { AlternativeEditor.open(preview.file, completion: failed) }
+            if action == .alternativeEditor { AlternativeEditor.open(preview.file, preferences: findPreferences, permissions: findAccess.map { [$0] } ?? [], completion: failed) }
             else if let application {
                 let scoped = application.startAccessingSecurityScopedResource()
                 NSWorkspace.shared.open([preview.file], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { _, error in
@@ -2088,7 +2088,7 @@ struct LogCommandRequest: Identifiable {
                         navigationNotice="No extra changes after merge.";return
                     }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: "Selected revision changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
                         guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
                         unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
@@ -2585,7 +2585,7 @@ struct LogCommandRequest: Identifiable {
                     else { return }
                     guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: working ? "Selected working-tree changes" : "Selected revision changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
                         guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
                         unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: working ? "Selected working-tree changes" : "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
@@ -2691,7 +2691,7 @@ struct LogCommandRequest: Identifiable {
                     }
                     guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: "Working tree changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
                         guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
                         unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Working tree changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }

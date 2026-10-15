@@ -122,7 +122,7 @@ private struct BlameParentMenuTarget {
     private func configureHistoryActions() {
         model.onHistoryUnified={ [weak self] bytes,title,alternate in
             guard let self,!self.model.retired else { return };let original=self.model
-            if try await !UnifiedDiffApplication.openExternal(bytes,alternate:alternate,preferences:self.preferences) {
+            if try await !UnifiedDiffApplication.openExternal(bytes,alternate:alternate,preferences:self.preferences,title:title,permissions:original.repositoryAccess.map { [$0] } ?? []) {
                 guard self.model===original,!original.retired else { return };let id=UUID()
                 let child=UnifiedDiffApplication.presentBuiltin(bytes,repository:original.repository,access:original.repositoryAccess,existing:nil,title:title,onClosed:{ [weak self] in self?.historyUnifiedWindows.removeValue(forKey:id) })
                 child.window?.appearance=self.window?.appearance;self.historyUnifiedWindows[id]=child

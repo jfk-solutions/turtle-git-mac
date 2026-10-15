@@ -34,9 +34,10 @@ Invalid configured application paths report an error when the external viewer
 is requested; choosing the built-in viewer does not launch them. Settings use
 the source's GNU patch viewer group, built-in/external radio choices, path field
 and Browse button. Disabling the external viewer keeps its path/bookmark.
-Application bundles and native document opening replace Windows command-line
-launching in this implementation. Custom argument templates and `%1`/`%title`
-substitution are still pending, so external command parity is incomplete.
+Application bundles retain native document opening when their Arguments field is
+empty. Configured argument templates and executable tools are supported by the
+external-document continuation below; complete Windows command/environment and
+signed macOS launch equivalence remain unverified.
 
 ## Native handoff and lifetime
 
@@ -497,3 +498,60 @@ This advances the previous batch's Apply Patch and replacement-metadata gaps.
 Physical menu/panel gestures, all Settings Apply/font/palette transactions,
 full producer-specific timing races, signed grants/App Store execution and
 complete UDiff parity remain unverified. No dialog is certified complete.
+
+## External viewer arguments and executable tools — October 15, 2026
+
+Unified Diff Viewer now stores an **Arguments** field beside its selected app or
+executable. `%1` supplies the patch path; `%title` supplies the captured comparison
+title. If `%1` is absent, the patch is appended. For example, a tool that accepts
+those flags can use `--title "%title" "%1"`. Quote grouping is parsed before
+substitution, so spaces, Unicode, quotes, newlines and placeholder-looking text
+in a filename/title remain within their original argument. There is no shell or
+environment evaluation. Unfinished quotes/escapes and NUL values are refused.
+
+This follows `AppUtils.cpp` `StartUnifiedDiffViewer`'s placeholder and implicit
+patch argument behavior. Windows combined command text is represented by a
+separate application/executable path and Arguments field. Existing preferences
+load an empty Arguments value: app bundles continue native URL document opening.
+A nonempty template uses a fresh app launch with expanded argv. Executables
+always receive expanded argv. Built-in/external and Shift inversion retain the
+selected path, bookmark and template, including while the external choice is
+disabled. Choosing the built-in viewer does not evaluate invalid external args.
+
+Callers now forward the same title used by their built-in comparison, along with
+owning preferences and available grants. This includes Log, Commit/Status,
+Changed Files, RefLog, reference browsers, Blame, Rebase conflict output, Sync,
+Graph, Add, patch import and Send Mail. Format Patch's direct external launch
+also forwards its template and HEAD-to-working-tree title.
+
+The shared native launcher resolves the selected program bookmark, starts and
+retains its scope through app-launch completion or managed executable settlement,
+and preserves original-byte previews for successful detached viewers. Failed
+launches remove only that request's preview. Cancellation before launch refuses
+the tool. Executables use the existing Diff/Merge process pool and its group
+cancellation/reaping; their caller grants survive a closed initiating window.
+A lost program permission points to Browse in Settings, independently of the
+repository-folder recovery used for missing file access.
+External tools are independent after startup. Quit remains guarded while owned
+launches or managed children are active, following the existing tool lifetime
+policy. Signed grant transfer and arbitrary third-party app CLI/document behavior
+remain unverified.
+
+Alternative Editor uses this same launcher for app bundles or executable files,
+retaining the source's single literal filename argument and TextEdit fallback.
+It does not acquire a UDiff argument template. Working-file callers retain their
+repository grants; historical/configuration previews keep their existing private
+file lifetimes. Queued editor startup participates in the Quit guard.
+
+See [external-document evidence](qa/external-documents-2026-10-15.json) for the
+18 focused Core cases and native family check, actual private executable argv,
+scope-provider simulations, descendant cleanup and current Settings-field scope.
+No real user editor app was launched. Complete source command/environment
+equivalence, physical Browse/panel gestures, every caller-specific race, signed
+App Store/Finder execution and full dialog parity remain open.
+
+The GNU patch group in `IDD_SETTINGSPROGSDIFF` maps its group title,
+`IDC_DIFFVIEWER_OFF`/`IDC_DIFFVIEWER_ON`, command field and Browse to the native
+GroupBox, radio picker, separate program/Arguments fields and owned chooser.
+Those five source controls remain partial mappings; physical radio/Browse,
+complete Diff settings geometry and signed permission acceptance are pending.

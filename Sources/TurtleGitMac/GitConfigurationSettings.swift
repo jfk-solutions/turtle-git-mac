@@ -227,7 +227,7 @@ import TurtleGitCore
                     target = file
                 }
                 guard self.active, self.generation == request, !token.isCancelled else { return }
-                AlternativeEditor.open(target) { [weak self] error in
+                AlternativeEditor.open(target, permissions: access.map { [$0] } ?? []) { [weak self] error in
                     guard let self, self.active, self.generation == request else { return }
                     self.error = error
                 }

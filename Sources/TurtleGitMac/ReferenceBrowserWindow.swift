@@ -106,7 +106,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             guard let self, !self.model.closed else { return }
             let title = pair.from.rawValue + ":" + pair.to.rawValue
             if let present = self.presentUnified { try await present(bytes, alternate, title); return }
-            if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate), !self.model.closed {
+            if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: self.model.preferences, title: title, permissions: self.model.access.map { [$0] } ?? []), !self.model.closed {
                 self.unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: self.model.repository, access: self.model.access, existing: self.unifiedViewer, title: title, onClosed: { [weak self] in self?.unifiedViewer = nil })
             }
         }

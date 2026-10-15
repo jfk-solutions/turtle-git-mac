@@ -407,7 +407,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                     try checkPatchAccess()
                     let bytes = try await repository.revisionComparisonPatchData(snapshot, paths: [file.path], cancellation: token)
                     guard !closed, !token.isCancelled else { return }
-                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences), !closed, !token.isCancelled {
+                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))", permissions: access.map { [$0] } ?? [], cancellation: token), !closed, !token.isCancelled {
                         let controller = unifiedWindows[file.path] ?? PatchWindowController(repository: repository, access: access)
                         controller.presentDocument(bytes, title: "\(file.path) – Unified Diff – TurtleGit",
                             comparison: "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))",

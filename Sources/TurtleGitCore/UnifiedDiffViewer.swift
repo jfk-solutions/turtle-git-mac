@@ -27,7 +27,7 @@ public enum UnifiedDiffViewerChoice: Equatable, Sendable {
 }
 public enum UnifiedDiffViewerFailure: LocalizedError {
     case application
-    public var errorDescription: String? { "Choose a macOS application in Settings → Unified Diff Viewer." }
+    public var errorDescription: String? { "Choose an application bundle or executable in Settings → Unified Diff Viewer." }
 }
 
 /// AppUtils::StartUnifiedDiffViewer inverts enabled/disabled external selection
@@ -36,27 +36,37 @@ public struct UnifiedDiffViewerPreferences: Equatable, Sendable {
     public var enabled: Bool
     public var applicationPath: String
     public var bookmark: Data?
-    public init(enabled: Bool = false, applicationPath: String = "", bookmark: Data? = nil) {
-        self.enabled = enabled; self.applicationPath = applicationPath; self.bookmark = bookmark
+    public var arguments: String
+    public init(enabled: Bool = false, applicationPath: String = "", bookmark: Data? = nil, arguments: String = "") {
+        self.enabled = enabled; self.applicationPath = applicationPath; self.bookmark = bookmark; self.arguments = arguments
     }
-    private var applicationValid: Bool {
-        applicationPath.hasPrefix("/") && !applicationPath.contains("\0") && (applicationPath as NSString).pathExtension.caseInsensitiveCompare("app") == .orderedSame
+    public var program: DiffToolProgram {
+        var value = DiffToolProgram(); value.enabled = true; value.applicationPath = applicationPath; value.bookmark = bookmark; value.arguments = arguments; return value
     }
-    public var valid: Bool { !enabled || applicationValid }
+    public var argumentsValid: Bool { (try? DiffToolProgram.argumentTokens(arguments)) != nil }
+    private var applicationValid: Bool { var value = program; value.arguments = ""; return value.valid }
+    public var valid: Bool { !enabled || applicationValid && argumentsValid }
+    public func expandedArguments(file: URL, title: String) throws -> [String] {
+        guard file.isFileURL, !file.path.contains("\0"), !title.contains("\0") else { throw DiffToolFailure.arguments }
+        return try program.expandedArguments(values: ["1": file.path, "title": title], files: ["1"])
+    }
     public func choice(alternate: Bool = false) throws -> UnifiedDiffViewerChoice {
         guard !applicationPath.isEmpty, enabled != alternate else { return .builtin }
         guard applicationValid else { throw UnifiedDiffViewerFailure.application }
-        return .external(URL(fileURLWithPath: applicationPath, isDirectory: true))
+        guard argumentsValid else { throw DiffToolFailure.arguments }
+        return .external(URL(fileURLWithPath: applicationPath, isDirectory: program.isApplicationBundle))
     }
     public static func load(from defaults: UserDefaults = .standard) -> Self {
         Self(enabled: defaults.bool(forKey: "TurtleGit.UnifiedDiffViewer.Enabled"),
              applicationPath: defaults.string(forKey: "TurtleGit.UnifiedDiffViewer.Application") ?? "",
-             bookmark: defaults.data(forKey: "TurtleGit.UnifiedDiffViewer.Bookmark"))
+             bookmark: defaults.data(forKey: "TurtleGit.UnifiedDiffViewer.Bookmark"),
+             arguments: defaults.string(forKey: "TurtleGit.UnifiedDiffViewer.Arguments") ?? "")
     }
     public func save(to defaults: UserDefaults = .standard) {
         defaults.set(enabled, forKey: "TurtleGit.UnifiedDiffViewer.Enabled")
         defaults.set(applicationPath, forKey: "TurtleGit.UnifiedDiffViewer.Application")
         defaults.set(bookmark, forKey: "TurtleGit.UnifiedDiffViewer.Bookmark")
+        defaults.set(arguments, forKey: "TurtleGit.UnifiedDiffViewer.Arguments")
     }
 }
 

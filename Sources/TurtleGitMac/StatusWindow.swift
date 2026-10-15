@@ -231,9 +231,10 @@ final class StatusNativeWindow: NSWindow {
             }
         } else if !NSWorkspace.shared.open(url) { throw StatusFileActionFailure(message: "Could not open " + url.lastPathComponent + ".") }
     }
-    var openAlternativeEditor: (URL) async throws -> Void = { url in
+    lazy var openAlternativeEditor: (URL) async throws -> Void = { [weak self] url in
+        guard let self else { throw OperationCancellationFailure.cancelled }
         try await withCheckedThrowingContinuation { (reply: CheckedContinuation<Void, Error>) in
-            AlternativeEditor.open(url) { error in
+            AlternativeEditor.open(url, preferences: self.defaults, permissions: self.access.map { [$0] } ?? []) { error in
                 if let error { reply.resume(throwing: StatusFileActionFailure(message: error)) } else { reply.resume() }
             }
         }
@@ -478,7 +479,7 @@ final class StatusNativeWindow: NSWindow {
                 let bytes = try await repository.workingTreeDiffData(paths: paths, cancellation: token)
                 guard isLive(token) else { return }
                 if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: defaults, title: "HEAD → Working tree", permissions: access.map { [$0] } ?? [], cancellation: token) {
                     guard isLive(token) else { return }
                     unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "HEAD → Working tree", onClosed: { [weak self] in self?.unifiedWindow = nil })
             }

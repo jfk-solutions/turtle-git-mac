@@ -552,9 +552,10 @@ import UniformTypeIdentifiers
             }
         } else if !NSWorkspace.shared.open(url) { throw StatusFileActionFailure(message: "Could not open " + url.lastPathComponent + ".") }
     }
-    var openAlternativeEditor: (URL) async throws -> Void = { url in
+    lazy var openAlternativeEditor: (URL) async throws -> Void = { [weak self] url in
+        guard let self else { throw OperationCancellationFailure.cancelled }
         try await withCheckedThrowingContinuation { (reply: CheckedContinuation<Void, Error>) in
-            AlternativeEditor.open(url) { failure in
+            AlternativeEditor.open(url, preferences: self.dialogDefaults, permissions: self.access.map { [$0] } ?? []) { failure in
                 if let failure { reply.resume(throwing: StatusFileActionFailure(message: failure)) } else { reply.resume() }
             }
         }
@@ -1446,7 +1447,7 @@ import UniformTypeIdentifiers
                 }
                 guard messageFocusAvailable, !confirmingQuit, !token.isCancelled else { return }
                 if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: dialogDefaults, title: staged == true ? "Index changes" : staged == false ? "Working tree changes" : "Commit changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
                     guard messageFocusAvailable, !confirmingQuit, !token.isCancelled else { return }
                     unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: staged == true ? "Index changes" : staged == false ? "Working tree changes" : "Commit changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }

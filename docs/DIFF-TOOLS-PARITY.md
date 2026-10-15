@@ -246,3 +246,12 @@ observation-only behavior and are never killed by this process path.
 focused Core and native settings/lifecycle checks. It does not certify third-party
 tool argument conventions, daemonizing wrappers, physical Browse/VoiceOver, signed
 sandbox execution or full source visual parity.
+
+
+Unified Diff Viewer and Alternative Editor now share app/executable launch and
+permission lifetime with the managed Diff/Merge process pool. UDiff adds the
+source `%1`/`%title` argument field and implicit patch argument; Alternative Editor
+keeps its source single-filename behavior. Their empty-template app choice
+retains native URL opening. See [source scope](UNIFIED-DIFF-VIEWER-PARITY.md#external-viewer-arguments-and-executable-tools--october-15-2026)
+and [dated native/Core evidence](qa/external-documents-2026-10-15.json). Signed
+execution and complete external-program acceptance remain open.

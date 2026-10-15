@@ -301,7 +301,7 @@ enum RevisionGraphReferenceCommand {
     var hasExportSheet: Bool { exporting || exportError != nil }
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, layoutExecutable: URL? = nil, automaticallyLoad: Bool = true) {
-        openUnifiedExternal={ bytes,alternate in try await UnifiedDiffApplication.openExternal(bytes,alternate:alternate,preferences:preferences) }
+        openUnifiedExternal={ bytes,alternate in try await UnifiedDiffApplication.openExternal(bytes,alternate:alternate,preferences:preferences,title:"Revision Graph changes",permissions:access.map { [$0] } ?? []) }
         let model = RevisionGraphWindowModel(repository: repository, access: access, preferences: preferences, layoutExecutable: layoutExecutable)
         self.model = model; canvas = RevisionGraphCanvas(model: model); overview = RevisionGraphOverview(model: model)
         let window = RevisionGraphNativeWindow(contentRect: CGRect(x: 0, y: 0, width: 980, height: 670), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)

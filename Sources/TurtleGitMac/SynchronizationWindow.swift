@@ -1005,7 +1005,7 @@ enum SynchronizationHistoryDiff {
                         await presentHistoryNotice("No extra changes after merge"); return
                     }
                 }
-                if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences) { return }
+                if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: diff.title, permissions: access.map { [$0] } ?? [], cancellation: request) { return }
                 guard !closed, token === request, !request.isCancelled else { return }
                 let key = "Sync revision diff " + diff.arguments.joined(separator: "\0")
                 let viewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access,

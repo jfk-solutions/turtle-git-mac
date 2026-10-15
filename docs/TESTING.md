@@ -1929,3 +1929,23 @@ is pending refuses a late review. See [handoff evidence](qa/unified-handoffs-202
 The default grouped checkpoint runs document, partial and handoff cases with both
 engines; affected repairs may use `--only handoffs`. Native-only changes do not
 repeat Core suites.
+
+
+## External document tool family
+
+After a current Debug build:
+
+```sh
+TURTLEGIT_CORE_ONLY=1 swift test --filter 'UnifiedDiffViewerTests|AlternativeEditorPreferencesTests|DiffToolPreferencesTests'
+python3 scripts/test-external-document-family.py
+```
+
+The native receiver uses injected app launches and actual private executable
+helpers; it never opens a user editor app. It checks native URL default behavior,
+expanded title/path argv and literal filenames, raw previews, Shift inversion,
+failed-launch cleanup, missing simulated scope, pre-launch cancellation, held app
+launch/file-grant lifetime, executable group/descendant cleanup, queued
+Alternative Editor Quit ownership and the actual owning Arguments field.
+Core checks include template validation/persistence and old-preference defaults.
+The receiver and owned helper groups are reaped. Native scope simulation does
+not prove signed execution. See [evidence](qa/external-documents-2026-10-15.json).

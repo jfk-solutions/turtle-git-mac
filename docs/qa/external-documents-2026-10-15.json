@@ -1,0 +1,99 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "5108b3a0",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/AppUtils.cpp:StartUnifiedDiffViewer (%1, %title, implicit patch argument and alternate choice)",
+    "src/TortoiseProc/AppUtils.cpp:LaunchAlternativeEditor (single literal filename)",
+    "src/Resources/TortoiseProcENG.rc:IDD_SETTINGSPROGSDIFF GNU patch viewer group and IDD_SETTINGSPROGSALTERNATIVEEDITOR"
+  ],
+  "scope": [
+    "UDiff argument template persistence/migration, app/executable validation and selected disabled-viewer Shift behavior",
+    "Separate native tool path and Arguments field, source placeholders and implicit patch argument; existing empty-template app settings retain native document opening",
+    "Shared bookmark/scope launch with app request counting, managed executable argv and retained file/program grants through settlement",
+    "Captured title/preferences/grants/cancellation forwarding across UDiff producers; Alternative Editor app/executable support retains literal filename/TextEdit fallback",
+    "Working-file editor callers retain owning preferences/grants; persistent config grants remain retained",
+    "Queued editor and executable/app launch Quit ownership; program permission recovery points to Browse in Settings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/external-documents-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/external-documents-permission-build.log",
+      "exit": 0,
+      "reason": "Native review found program permission recovery incorrectly reused repository-selection text. Dedicated tool Browse recovery replaces it."
+    }
+  ],
+  "core": {
+    "log": "build/qa/external-documents-core.log",
+    "exit": 0,
+    "cases": 18,
+    "filter": "UnifiedDiffViewerTests|AlternativeEditorPreferencesTests|DiffToolPreferencesTests",
+    "detail": "Template grouping before single-pass substitution; literal shell-like text/Unicode/newlines/quotes; implicit and repeated patch arguments; malformed quote/escape/NUL refusal; old preference defaults, disabled template/bookmark retention, app/executable choices and existing raw patch/working-tree cases. Core was not repeated for the native permission-message repair."
+  },
+  "native": {
+    "runner": "scripts/test-external-document-family.py",
+    "fixture": "docs/qa/external-documents-native-2026-10-15.swift",
+    "attempts": [
+      {
+        "log": "build/qa/external-documents-native.log",
+        "exit": 0,
+        "cases": 1
+      },
+      {
+        "log": "build/qa/external-documents-permission-native.log",
+        "exit": 0,
+        "cases": 1,
+        "reason": "Affected native family repeated for the corrected tool-permission recovery error; no extra Core or unrelated UI suites."
+      }
+    ],
+    "exact_checks": [
+      "Injected app launch receives title/path argv without retokenizing or evaluating text, preserves non-UTF-8 original bytes, starts a fresh configured app instance and retains successful preview",
+      "Empty arguments preserve native document URL launch without overriding app argv; Shift restores a disabled configured viewer",
+      "Failed app launch removes its request preview; denied simulated program grant and pre-cancelled operation do not launch",
+      "Suspended native app launch retains caller file/program scope until completion and holds application Quit guard",
+      "Actual private executable receives literal title and preview-path argv, retains a simulated program scope and remains in the managed process pool",
+      "Explicit cancellation reaps owned script and sleep descendant before completion and releases scopes",
+      "Actual Alternative Editor executable receives one literal filename with spaces/Unicode/quotes/$/% text; original bytes remain unchanged",
+      "Queued Alternative Editor startup holds Quit guard before its Task begins",
+      "Actual SwiftUI settings host displays the owning saved Arguments string in a native field"
+    ],
+    "receiver_pids": [
+      31285,
+      31418
+    ],
+    "all_receiver_pids_absent": true,
+    "helper_pids": "Fixture directly checks script and sleep-child kill(pid,0) absence after managed cancellation; private helper argv/PID files are removed with fixture directory.",
+    "scope_provider": "Injected RepositoryBookmarkProvider proves model lifetime/refusal; it is not signed sandbox evidence.",
+    "engine_scope": "Native helper is independent of Git engines; no real user app launched. Caller forwarding was compiled/inspected, not every live caller path independently driven.",
+    "test_warnings": "Fixture compiler warns about deliberately mutated captures used for lifetime checks; runs completed successfully."
+  },
+  "ci": {
+    "macos": "Previous run38770926593 pending when initially inspected; no complete hosted pass claimed for this unpushed batch.",
+    "new_step": "External document tool arguments and scoped lifetime: python3 scripts/test-external-document-family.py",
+    "pages_failure": {
+      "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38769002710",
+      "build": "success",
+      "deploy": "Timed out after ten minutes in GitHub updating_pages; deployment canceled by action timeout, not a site build/test failure."
+    },
+    "pages_recovery": {
+      "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38770926610",
+      "jobs": [
+        116546213019,
+        116546368266
+      ],
+      "result": "Build and deploy succeeded for previous commit5108b3a0; no restart or workflow workaround required."
+    }
+  },
+  "limitations": [
+    "No signed App Store/file-grant/Finder acceptance",
+    "Actual third-party app argv/document behavior, stale bookmark relocation and physical Browse/radio/argument typing gestures remain unverified",
+    "Every live producer-specific title/cancellation race not independently exercised",
+    "Windows combined command quoting and environment expansion are native adaptations, not complete byte-for-byte equivalence",
+    "Managed tool lifetime follows existing Quit policy; full external-tool UX and complete dialog parity remain open",
+    "No new screenshot; five GNU patch source controls receive partial native mappings only",
+    "No dialog certified complete"
+  ]
+}

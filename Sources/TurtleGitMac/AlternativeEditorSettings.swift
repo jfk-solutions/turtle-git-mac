@@ -4,25 +4,27 @@ import UniformTypeIdentifiers
 import TurtleGitCore
 
 @MainActor enum AlternativeEditor {
-    static func open(_ file: URL, completion: @escaping @MainActor @Sendable (String?) -> Void) {
-        let preferences = AlternativeEditorPreferences.load()
-        guard preferences.valid else { completion("Choose a macOS editor application in Settings → Alternative Editor."); return }
-        var application = preferences.customApplication
-        if application != nil, let bookmark = preferences.bookmark {
-            do {
-                var stale = false
-                application = try URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI], bookmarkDataIsStale: &stale)
-            } catch { completion("The saved editor is unavailable. Choose it again in Settings → Alternative Editor."); return }
-        }
-        guard let application = application ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.TextEdit") else {
+    private(set) static var activeRequests = 0
+    static func open(_ file: URL, preferences defaults: UserDefaults = .standard, permissions: [RepositoryAccessLease] = [], completion: @escaping @MainActor @Sendable (String?) -> Void) {
+        let preferences = AlternativeEditorPreferences.load(from: defaults)
+        guard preferences.valid else { completion("Choose an application bundle or executable in Settings → Alternative Editor."); return }
+        let custom = preferences.customApplication
+        guard let application = custom ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.TextEdit") else {
             completion("TextEdit is unavailable. Choose a custom editor in Settings → Alternative Editor."); return
         }
-        let scoped = application.startAccessingSecurityScopedResource()
-        NSWorkspace.shared.open([file], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { _, error in
-            if scoped { application.stopAccessingSecurityScopedResource() }
-            DispatchQueue.main.async { completion(error?.localizedDescription) }
+        var program = preferences.program; program.applicationPath = application.path
+        if custom == nil { program.bookmark = nil }
+        activeRequests += 1
+        Task {
+            defer { activeRequests -= 1 }
+            do {
+                try await ExternalDocumentApplication.open(file: file, program: program, arguments: [file.path], nativeDocumentOpen: true,
+                    permissions: permissions + GitConfigurationPermissions.retained(for: file), requiresProgramScope: custom != nil)
+                completion(nil)
+            } catch { completion(error.localizedDescription) }
         }
     }
+
 }
 
 struct AlternativeEditorSettings: View {
@@ -53,10 +55,10 @@ struct AlternativeEditorSettings: View {
                         }))
                         Button("Browse…", action: browse)
                     }.disabled(!draft.custom)
-                    if !draft.valid { Text("Choose an application (.app) using its full path.").font(.caption).foregroundStyle(.red) }
+                    if !draft.valid { Text("Choose an application bundle or executable using its full path.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
             }
-            Text("The editor command opens working files in TextEdit or your chosen application. Open uses the file’s default application; Open With lets you choose an application once.")
+            Text("The editor command opens working files in TextEdit or your chosen app/executable. Open uses the file’s default application; Open With lets you choose an application once.")
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
             if transaction == nil { HStack {
@@ -66,13 +68,13 @@ struct AlternativeEditorSettings: View {
             } }
         }.padding(20).background(ToolChooserProbe(chooser:chooser).frame(width:0,height:0)).onDisappear { chooser.cancel() }.onAppear { if !initialized { initialized = true; saved = .load(from:preferences); draft = saved } }
             .settingsParticipant("alternativeEditor", page: .alternativeEditor, value: draft,
-                modified: { draft != saved }, validate: { draft.valid ? nil : "Choose a macOS editor application." },
+                modified: { draft != saved }, validate: { draft.valid ? nil : "Choose an editor application or executable." },
                 apply: { draft.save(to:preferences); saved = draft; return true }, cancel: { draft = saved })
             .alert("Alternative editor", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("OK") { error = nil }
             } message: { Text(error ?? "") }
     }
     private func browse() {
-        chooser.choose({ application, bookmark in draft.applicationPath = application.path; draft.bookmark = bookmark },failure:{ error = $0 })
+        chooser.choose({ application, bookmark in draft.applicationPath = application.path; draft.bookmark = bookmark },failure:{ error = $0 }, allowExecutables: true)
     }
 }

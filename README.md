@@ -272,3 +272,8 @@ Unified Diff's Apply Patch command opens TurtleGitMerge review for the saved
 patch or loaded generated comparison; unsaved editor text is excluded until
 saved. Its Settings command opens the UDiff page directly. Comparison replacement
 keeps the document and its labels/paths together through unsaved-change decisions.
+
+
+External Unified Diff viewers accept app bundles or executables and `%1`/`%title`
+argument templates. Alternative Editor also supports executable tools, with one
+literal filename argument. See [external tool configuration](docs/UNIFIED-DIFF-VIEWER-PARITY.md#external-viewer-arguments-and-executable-tools--october-15-2026).
