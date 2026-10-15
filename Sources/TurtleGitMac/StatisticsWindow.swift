@@ -133,7 +133,7 @@ private final class StatisticsNativeWindow: NSWindow {
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard) {
         model = StatisticsWindowModel(repository: repository, access: access, entries: entries, defaults: defaults)
         let window = StatisticsNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 620), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Statistics – TurtleGit"; window.contentMinSize = NSSize(width: 720, height: 530); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Statistics", preferences: defaults); window.contentMinSize = NSSize(width: 720, height: 530); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: StatisticsDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.performClose(nil) }

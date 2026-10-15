@@ -2020,3 +2020,18 @@ Phase diagnostics in the private root identify stalled interactions. No browser,
 real tracker or shared pasteboard is used. Physical clicks/hover, all native
 localized menu variants and signed App Store acceptance remain open. See
 [MESSAGE-LINK-INTERACTION-PARITY](MESSAGE-LINK-INTERACTION-PARITY.md).
+
+
+## Repository presentation family
+
+`TURTLEGIT_CORE_ONLY=1 swift test --filter 'RepositoryPresentationTests|AdvancedSettingsTests'`
+checks the shared title/path policy and Advanced persistence.
+
+`python3 scripts/test-repository-presentation.py --git /usr/bin/git`
+links the existing Debug app objects once. It creates private repositories and
+preference suites, constructs ten real native controllers, checks scope/title
+updates and independent preference domains, inspects Add's native tooltip cells,
+resets both settings and checks that closed windows stop receiving updates.
+It preserves the private repository's exact HEAD/index and closes owned windows.
+This is a presentation check; repeating it with another Git engine is optional.
+Physical tooltip hover, every dialog layout and signed acceptance are separate.

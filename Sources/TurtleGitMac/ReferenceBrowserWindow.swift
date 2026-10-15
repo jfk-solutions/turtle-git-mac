@@ -41,7 +41,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, pickMultiple: Bool = false, allowsRangeSelection: Bool = false, onChoose: @escaping (String?) -> Void) {
         model = ReferenceBrowserWindowModel(repository: repository, access: access, initial: initial, preferences: preferences, scope: scope, picking: picking, pickMultiple: pickMultiple, allowsRangeSelection: allowsRangeSelection); completion = onChoose
         let window = ReferenceBrowserNativeWindow(contentRect: .init(x: 0, y: 0, width: 1130, height: 660), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Browse references – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 940, height: 450)
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Browse references", preferences: preferences); window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 940, height: 450)
         window.contentViewController = NSHostingController(rootView: ReferenceBrowserDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.center()
         window.refresh = { [weak model] in model?.load() }

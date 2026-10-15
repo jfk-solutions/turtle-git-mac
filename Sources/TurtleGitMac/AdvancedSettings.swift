@@ -23,7 +23,7 @@ import TurtleGitCore
     func apply() {
         do {
             let changes = values.filter { original[$0.key] != $0.value }
-            try store.apply(changes); original = values; error = nil; onApplied()
+            try store.apply(changes); original = values; error = nil; RepositoryWindowTitles.refreshAll(); onApplied()
             if changes["ShowContextMenuIcons"] != nil {
                 do { try publishFinderMenu(FinderMenuSettings.from(defaults: defaults)) }
                 catch { self.error = "Settings saved, but Finder menu preferences could not be updated: " + error.localizedDescription }
@@ -97,7 +97,7 @@ struct AdvancedSettingsTable: NSViewRepresentable {
         func tableView(_ tableView: NSTableView, toolTipFor cell: NSCell, rect: NSRectPointer, tableColumn: NSTableColumn?, row: Int, mouseLocation: NSPoint) -> String {
             guard AdvancedSettingDefinition.all.indices.contains(row) else { return "" }
             let setting = AdvancedSettingDefinition.all[row]
-            let effective: Set<String> = ["ShortHashLengthForHyperLinkInLogMessage", "DownloadAnimation", "FetchVerbose", "ConflictDontGuessBranchNames", "MaxRefHistoryItems", "DiffSimilarityIndexThreshold", "AutoCompleteMinChars", "AutocompleteParseMaxSize", "AutocompleteParseUnversioned", "AutocompleteRemovesExtensions", "StyleCommitMessages", "ShowListBackgroundImage", "ShowAppContextMenuIcons", "ShowContextMenuIcons", "LogIncludeBoundaryCommits", "LogIncludeWorkingTreeChanges", "LogFontForLogCtrl", "LogFontForFileListCtrl", "NoSortLocalBranchesFirst", "LogTooManyItemsThreshold", "NumDiffWarning", "LogShowSuperProjectSubmodulePointer", "NamedRemoteFetchAll", "RememberFileListPosition", "SanitizeCommitMsg", "SquashDate", "StyleGitOutput", "VersionCheck", "VersionCheckPreview"]
+            let effective: Set<String> = ["DialogTitles", "ShowListFullPathTooltip", "ShortHashLengthForHyperLinkInLogMessage", "DownloadAnimation", "FetchVerbose", "ConflictDontGuessBranchNames", "MaxRefHistoryItems", "DiffSimilarityIndexThreshold", "AutoCompleteMinChars", "AutocompleteParseMaxSize", "AutocompleteParseUnversioned", "AutocompleteRemovesExtensions", "StyleCommitMessages", "ShowListBackgroundImage", "ShowAppContextMenuIcons", "ShowContextMenuIcons", "LogIncludeBoundaryCommits", "LogIncludeWorkingTreeChanges", "LogFontForLogCtrl", "LogFontForFileListCtrl", "NoSortLocalBranchesFirst", "LogTooManyItemsThreshold", "NumDiffWarning", "LogShowSuperProjectSubmodulePointer", "NamedRemoteFetchAll", "RememberFileListPosition", "SanitizeCommitMsg", "SquashDate", "StyleGitOutput", "VersionCheck", "VersionCheckPreview"]
             return effective.contains(setting.name) ? setting.name : "This preference has no effect on TurtleGit yet."
         }
         @objc func beginEdit() {
@@ -127,5 +127,65 @@ private struct AdvancedWindowProbe: NSViewRepresentable {
     private final class Probe: NSView {
         var reference: AdvancedSettingsWindowReference?
         override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); reference?.window = window }
+    }
+}
+
+/// Repository windows retain their semantic title, so applying DialogTitles can
+/// update existing windows without losing a scope, progress phase or revision.
+@MainActor enum RepositoryWindowTitles {
+    private final class Record {
+        weak var window: NSWindow?
+        let repository: URL
+        let location: URL?
+        let dialog: String
+        let preferences: UserDefaults
+        init(_ window: NSWindow, repository: URL, location: URL?, dialog: String, preferences: UserDefaults) {
+            self.window = window; self.repository = repository; self.location = location
+            self.dialog = dialog; self.preferences = preferences
+        }
+        func refresh() {
+            window?.title = RepositoryPresentationSettings(defaults: preferences).title(repository: repository, location: location, dialog: dialog)
+        }
+    }
+    private static var records: [ObjectIdentifier: Record] = [:]
+    private static var observers: [NSObjectProtocol] = []
+    static func set(_ window: NSWindow?, repository: URL, location: URL? = nil, dialog: String, preferences: UserDefaults = .standard) {
+        guard let window else { return }
+        if observers.isEmpty {
+            observers.append(NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { _ in
+                Task { @MainActor in refreshAll() }
+            })
+            observers.append(NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { note in
+                guard let window = note.object as? NSWindow else { return }
+                MainActor.assumeIsolated { records.removeValue(forKey: ObjectIdentifier(window)) }
+            })
+        }
+        records = records.filter { $0.value.window != nil }
+        let record = Record(window, repository: repository, location: location, dialog: dialog, preferences: preferences)
+        records[ObjectIdentifier(window)] = record; record.refresh()
+    }
+    static func refreshAll() {
+        records = records.filter { $0.value.window != nil }
+        for record in records.values { record.refresh() }
+    }
+}
+
+private struct RepositoryFileHelp: ViewModifier {
+    let repository: URL
+    let path: String
+    let detail: String
+    @AppStorage private var enabled: Int
+    init(repository: URL, path: String, detail: String, preferences: UserDefaults) {
+        self.repository = repository; self.path = path; self.detail = detail
+        _enabled = AppStorage(wrappedValue: 1, "ShowListFullPathTooltip", store: preferences)
+    }
+    func body(content: Content) -> some View {
+        let fullPath = repository.appendingPathComponent(path).standardizedFileURL.path
+        content.help(enabled == 1 ? fullPath + (detail.isEmpty ? "" : "\n" + detail) : "")
+    }
+}
+extension View {
+    func repositoryFileHelp(repository: URL, path: String, detail: String = "", preferences: UserDefaults = .standard) -> some View {
+        modifier(RepositoryFileHelp(repository: repository, path: path, detail: detail, preferences: preferences))
     }
 }

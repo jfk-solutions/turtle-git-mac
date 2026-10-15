@@ -84,11 +84,11 @@ final class StatusNativeWindow: NSWindow {
         model = StatusWindowModel(repository: repository, access: access, defaults: defaults)
         let window = StatusNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 630),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Working Tree – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Working Tree", preferences: defaults)
         window.minSize = NSSize(width: 960, height: 540); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: StatusDialog(model: model))
         super.init(window: window); model.comparisonWindow = window; window.delegate = self
-        model.updateTitle = { [weak window] title in window?.title = title }
+        model.updateTitle = { [weak window] location in RepositoryWindowTitles.set(window, repository: repository.root, location: location, dialog: "Working Tree", preferences: defaults) }
         window.refresh = { [weak model] in model?.reload() }
         window.setContentSize(NSSize(width: 1100, height: 630)); window.center()
         model.close = { [weak window] in window?.performClose(nil) }
@@ -171,7 +171,7 @@ final class StatusNativeWindow: NSWindow {
     private var pendingScope: [String]?
     @Published private(set) var invocation = WorkingTreeInvocation()
     @Published private(set) var hasStash = false
-    var updateTitle: (String) -> Void = { _ in }
+    var updateTitle: (URL) -> Void = { _ in }
     @Published private(set) var currentOperation = ""
     @Published private(set) var cancelling = false
     var readStatus: (OperationCancellation) async throws -> [WorkingTreeFile]
@@ -312,8 +312,8 @@ final class StatusNativeWindow: NSWindow {
     var stashActions: [RepositoryAction] { hasStash ? [.stash, .stashPop, .stashApply, .stashList] : [.stash] }
     private func updateScopeTitle() {
         let path = invocation.titlePath(wholeProject: filter.wholeProject)
-        let location = path.isEmpty ? repository.root.path : repository.root.appendingPathComponent(path).path
-        updateTitle("\(location) – Working Tree – TurtleGit")
+        let location = path.isEmpty ? repository.root : repository.root.appendingPathComponent(path)
+        updateTitle(location)
     }
     /// Related dialogs may finish while a status operation is still settling.
     /// Coalesce their refresh requests instead of losing the new repository state.
@@ -653,7 +653,7 @@ struct StatusDialog: View {
                 TableColumn("Path", sortUsing: StatusGroupedSort(column: .path)) { item in
                     if let row = item.contents {
                         HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).lineLimit(1) }
-                            .help(row.file.entry.originalPath.map { "Renamed from \($0)" } ?? row.path)
+                            .repositoryFileHelp(repository: model.repository.root, path: row.path, detail: row.file.entry.originalPath.map { "Renamed from " + $0 } ?? "", preferences: model.colorPreferences)
                     } else if let group = item.row.group { Text(group.title).font(.headline).foregroundStyle(Color.accentColor).accessibilityLabel(group.title) }
                 }.width(min: 250, ideal: 380)
                 TableColumn("Filename", sortUsing: StatusGroupedSort(column: .fileName)) { item in groupCell(item, column: .fileName) }.width(min: 100, ideal: 180)

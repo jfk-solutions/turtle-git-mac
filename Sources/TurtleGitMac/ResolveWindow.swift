@@ -18,7 +18,7 @@ import TurtleGitCore
         model = ResolveWindowModel(repository: repository, access: access, paths: paths, quick: quick, preferences: preferences)
         let size = quick == nil ? NSSize(width: 780, height: 450) : NSSize(width: 480, height: 110)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Resolve – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Resolve", preferences: preferences)
         window.contentMinSize = quick == nil ? NSSize(width: 660, height: 340) : size
         window.isReleasedWhenClosed = false
         super.init(window: window); window.delegate = self
@@ -334,7 +334,7 @@ private struct ResolveDialog: View {
                         TableColumn("") { entry in
                             Toggle("Resolve \(entry.path)", isOn: Binding(get: { model.checked.contains(entry.path) }, set: { if $0 { model.checked.insert(entry.path) } else { model.checked.remove(entry.path) } })).labelsHidden().toggleStyle(.checkbox)
                         }.width(24)
-                        TableColumn("Path") { entry in HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(FileState.conflicted.textColor) } }.width(min: 260, ideal: 440)
+                        TableColumn("Path") { entry in HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(FileState.conflicted.textColor) }.repositoryFileHelp(repository: model.repository.root, path: entry.path, preferences: model.preferences) }.width(min: 260, ideal: 440)
                         TableColumn("Extension") { Text(($0.path as NSString).pathExtension) }.width(70)
                         TableColumn("Status") { _ in Text("Conflicted").foregroundStyle(FileState.conflicted.textColor) }.width(95)
                     }.disabled(!model.canInteract).fileListFont().contextMenu(forSelectionType: String.self) { ids in

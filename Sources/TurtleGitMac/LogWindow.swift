@@ -127,7 +127,7 @@ final class LogHistoryWindow: NSWindow {
         model.endRevision = initialRevision
         let window = LogHistoryWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Log Messages – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Log Messages", preferences: labelDefaults)
         window.minSize = NSSize(width: 1080, height: 700)
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).disabled(model.findBlocked || model.orderingBlocked || model.referencePickerBlocked).defaultAppStorage(labelDefaults))
@@ -955,9 +955,9 @@ struct LogCommandRequest: Identifiable {
         reload()
     }
     private func updatePathScopeTitle() {
-        let location = repository.root.lastPathComponent + (!showWholeProject && historyPaths.count == 1 ? "/" + historyPaths[0] : "")
+        let location = RepositoryPresentationSettings.scopedLocation(repository: repository.root, paths: historyPaths, wholeProject: showWholeProject)
         let scope = revisionRange.map { " " + $0.expression } ?? endRevision.map { " at " + $0.prefix(7) } ?? ""
-        window?.title = location + " – Log Messages" + scope + " – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, location: location, dialog: "Log Messages" + scope, preferences: labelDefaults)
     }
     @Published private(set) var unrelatedPathMode = HistoryUnrelatedPathMode.gray
     @Published private(set) var pathScopes: [HistoryPathScope] = []
@@ -2830,7 +2830,7 @@ struct LogDialog: View {
                         if let header = row.header {
                             Text(header).fontWeight(.semibold).foregroundStyle(Color.accentColor).accessibilityAddTraits(.isHeader)
                         } else if let file = row.file {
-                            HStack(spacing:4) { if let icon=model.changedFileIcon(file) {Image(nsImage:icon)};Text(model.changedFileText(file,column:.path)) }.foregroundStyle(model.fileForeground(file, selected: model.selectedFiles.contains(file.id))).help(file.oldPath.map { "Renamed from \($0)" } ?? file.path)
+                            HStack(spacing:4) { if let icon=model.changedFileIcon(file) {Image(nsImage:icon)};Text(model.changedFileText(file,column:.path)) }.foregroundStyle(model.fileForeground(file, selected: model.selectedFiles.contains(file.id))).repositoryFileHelp(repository: model.repository.root, path: file.path, detail: file.oldPath.map { "Renamed from " + $0 } ?? "", preferences: model.colorPreferences)
                         }
                     }.width(min: 260, ideal: 460)
                     TableColumn("Extension",sortUsing:LogChangedFileSort(column:.fileExtension)) { row in Text(row.file.map { StatusListClipboard.fileExtension($0.path, isDirectory: $0.isSubmodule) } ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.id)) } ?? .primary) }.width(80)

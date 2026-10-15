@@ -305,7 +305,7 @@ enum RevisionGraphReferenceCommand {
         let model = RevisionGraphWindowModel(repository: repository, access: access, preferences: preferences, layoutExecutable: layoutExecutable)
         self.model = model; canvas = RevisionGraphCanvas(model: model); overview = RevisionGraphOverview(model: model)
         let window = RevisionGraphNativeWindow(contentRect: CGRect(x: 0, y: 0, width: 980, height: 670), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Revision Graph – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Revision Graph", preferences: preferences)
         window.isReleasedWhenClosed = false; window.contentMinSize = CGSize(width: 700, height: 420)
         super.init(window: window); window.delegate = self
         let bar = NSStackView(); bar.orientation = .horizontal; bar.spacing = 8

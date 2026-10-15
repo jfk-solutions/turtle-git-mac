@@ -119,3 +119,56 @@ public struct AdvancedListBehavior: Sendable {
     public func hidesFileList(count: Int) -> Bool { count > Int(tooManyFiles) }
     public func warnsBeforeDiffs(count: Int) -> Bool { count > Int(max(3, diffWarning)) }
 }
+
+/// Portable presentation policy for CAppUtils::FormatWindowTitle and status-list
+/// info tips. macOS uses an ellipsis without splitting extended grapheme clusters
+/// in place of Windows' PathCompactPathEx; the source UTF-16 budget is retained.
+public struct RepositoryPresentationSettings {
+    public let compactRepositoryTitle: Bool
+    public let showFullPathTooltip: Bool
+    public init(defaults: UserDefaults = .standard) {
+        compactRepositoryTitle = (defaults.object(forKey: "DialogTitles") as? NSNumber)?.uint32Value == 1
+        showFullPathTooltip = ((defaults.object(forKey: "ShowListFullPathTooltip") as? NSNumber)?.intValue ?? 1) == 1
+    }
+    public func title(repository: URL, location: URL? = nil, dialog: String) -> String {
+        let root = repository.standardizedFileURL
+        let path = (location ?? root).standardizedFileURL.path
+        // A component boundary avoids treating a neighboring worktree as a child.
+        let contained = path == root.path || path.hasPrefix(root.path == "/" ? "/" : root.path + "/")
+        let parent = root.deletingLastPathComponent().path
+        let prefix = parent == "/" ? "/" : parent + "/"
+        let displayed = compactRepositoryTitle && contained && path != "/" && path.hasPrefix(prefix) ? String(path.dropFirst(prefix.count)) : path
+        let budget = max(1, 79 - dialog.utf16.count)
+        return Self.compact(displayed, budget: budget) + " – " + dialog + " – TurtleGit"
+    }
+    public func fileTooltip(repository: URL, path: String) -> String? {
+        guard showFullPathTooltip else { return nil }
+        return repository.appendingPathComponent(path).standardizedFileURL.path
+    }
+    public static func scopedLocation(repository: URL, paths: [String], wholeProject: Bool) -> URL {
+        guard !wholeProject, !paths.isEmpty else { return repository }
+        if paths.count == 1 { return repository.appendingPathComponent(paths[0]) }
+        let components = paths.map { $0.split(separator: "/").dropLast().map(String.init) }
+        var common = components[0]
+        for path in components.dropFirst() {
+            common = Array(zip(common, path).prefix(while: { $0 == $1 }).map { $0.0 })
+        }
+        return common.reduce(repository) { $0.appendingPathComponent($1) }
+    }
+    private static func compact(_ path: String, budget: Int) -> String {
+        guard path.utf16.count > budget else { return path }
+        guard budget > 1 else { return "…" }
+        var suffix = ""
+        let suffixBudget = (budget - 1) * 2 / 3
+        for character in path.reversed() {
+            guard suffix.utf16.count + String(character).utf16.count <= suffixBudget else { break }
+            suffix.insert(character, at: suffix.startIndex)
+        }
+        var prefix = ""
+        for character in path {
+            guard prefix.utf16.count + String(character).utf16.count + 1 + suffix.utf16.count <= budget else { break }
+            prefix.append(character)
+        }
+        return prefix + "…" + suffix
+    }
+}

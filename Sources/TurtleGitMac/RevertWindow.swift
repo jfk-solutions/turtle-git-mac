@@ -19,7 +19,7 @@ private final class RevertNativeWindow: NSWindow {
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = RevertWindowModel(repository: repository, access: access)
         let window = RevertNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 520), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Revert – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Revert")
         window.contentMinSize = NSSize(width: 900, height: 360); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RevertDialog(model: model))
         super.init(window: window); window.delegate = self
@@ -125,7 +125,7 @@ private struct RevertDialog: View {
         VStack(spacing: 10) {
             Table(model.entries, selection: $model.highlighted) {
                 TableColumn("") { row in Toggle("Revert \(row.path)", isOn: Binding(get: { model.checked.contains(row.path) }, set: { if $0 { model.checked.insert(row.path) } else { model.checked.remove(row.path) } })).labelsHidden().toggleStyle(.checkbox) }.width(24)
-                TableColumn("Path") { row in HStack { Image(nsImage: row.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(row.path).foregroundStyle(model.highlighted.contains(row.path) ? Color.primary : row.state.textColor) }.help(row.originalPath.map { "Renamed from \($0)" } ?? row.path) }.width(min: 250, ideal: 390)
+                TableColumn("Path") { row in HStack { Image(nsImage: row.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(row.path).foregroundStyle(model.highlighted.contains(row.path) ? Color.primary : row.state.textColor) }.repositoryFileHelp(repository: model.repository.root, path: row.path, detail: row.originalPath.map { "Renamed from " + $0 } ?? "") }.width(min: 250, ideal: 390)
                 TableColumn("Extension") { (row: StatusEntry) in Text((row.path as NSString).pathExtension) }.width(70)
                 TableColumn("Status") { row in Text(row.originalPath != nil ? "Renamed" : row.state.rawValue.capitalized) }.width(95)
                 TableColumn("Lines added") { (row: StatusEntry) in Text(lineCount(row.path, added: true)) }.width(80)

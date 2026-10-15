@@ -69,7 +69,7 @@ struct CleanDialogRequest {
     init(repository: GitRepository, defaults: UserDefaults = .standard) {
         model = CleanWindowModel(repository: repository, defaults: defaults)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 510, height: 330), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Clean – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Clean", preferences: defaults)
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CleanDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
@@ -247,7 +247,7 @@ private struct CleanDialog: View {
     init(repository: GitRepository, access: RepositoryAccessLease?, request: CleanDialogRequest, preferences: UserDefaults = .standard) {
         model = CleanProgressWindowModel(repository: repository, access: access, request: request, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 500), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Clean Progress – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Clean Progress", preferences: preferences)
         window.contentMinSize = NSSize(width: 650, height: 330); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CleanProgressDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()

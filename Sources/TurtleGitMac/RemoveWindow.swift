@@ -16,7 +16,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, request: RemovalRequest, preferences: UserDefaults = .standard) {
         model = RemoveWindowModel(repository: repository, access: access, request: request, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Delete\(request.keepLocal ? " (keep local)" : "") – TurtleGit"; window.contentMinSize = NSSize(width: 620, height: 300); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Delete\(request.keepLocal ? " (keep local)" : "")", preferences: preferences); window.contentMinSize = NSSize(width: 620, height: 300); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RemoveDialog(model: model))
         super.init(window: window); window.delegate = self; window.center(); DialogGeometry.attach(window, identifier: "RemoveWindowController")
         model.close = { [weak self] in self?.window?.performClose(nil) }

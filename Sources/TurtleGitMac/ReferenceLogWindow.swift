@@ -14,7 +14,7 @@ import TurtleGitCore
         model = ReferenceLogWindowModel(repository: repository, access: access, reference: reference, selecting: onChoose != nil, preferences: preferences)
         selectionCompletion = onChoose
         let window = ReferenceLogNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 530), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – RefLog – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "RefLog", preferences: preferences)
         window.minSize = NSSize(width: 800, height: 360); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ReferenceLogDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self

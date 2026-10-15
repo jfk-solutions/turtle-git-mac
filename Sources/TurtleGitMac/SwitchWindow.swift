@@ -132,7 +132,7 @@ extension UserDefaults {
         model = SwitchWindowModel(repository: repository, access: access, revision: revision, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 370),
             styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Switch/Checkout – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Switch/Checkout", preferences: preferences)
         window.minSize = NSSize(width: 600, height: 390); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: SwitchDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
@@ -564,7 +564,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         self.model = model
         let repository = model.repository
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Switch Progress – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Switch Progress", preferences: model.preferences)
         window.contentMinSize = NSSize(width: 560, height: 300); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: SwitchProgressDialog(model: model))
         super.init(window: window); window.delegate = self

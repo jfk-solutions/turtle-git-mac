@@ -28,7 +28,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         model = RevisionComparisonWindowModel(repository: repository, access: access, from: from, to: to, paths: paths, preferences: preferences)
         let size = NSSize(width: 1000, height: 700)
         let window = RevisionComparisonNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
-        window.title = "\(paths.isEmpty ? repository.root.lastPathComponent : paths.joined(separator: ", ")) – Changed Files – TurtleGit"; window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Changed Files", preferences: preferences); window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 900, height: 530)
         window.contentViewController = NSHostingController(rootView: RevisionComparisonDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
@@ -381,7 +381,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         guard !closed, !busy, !confirmingQuit, patchWindow?.model.busy != true, patchWindow?.window?.attachedSheet == nil else { return }
         if showingPatch { patchWindow?.close(); return }
         let controller = PatchWindowController(repository: repository, access: access)
-        controller.window?.title = "\(repository.root.lastPathComponent) – Unified Diff – TurtleGit"
+        RepositoryWindowTitles.set(controller.window, repository: repository.root, dialog: "Unified Diff", preferences: preferences)
         controller.model.readOnly = true
         controller.model.readOnlyInformation = "Read-only comparison. Select files in Changed Files to inspect their patch."
         controller.model.customRefresh = { [weak self] in self?.updatePatch() }
@@ -613,7 +613,7 @@ private struct RevisionComparisonDialog: View {
             revisionGroup("Version 2", value: $model.to, base: false)
             HStack { TextField("Filter paths", text: $model.filter).textFieldStyle(.roundedBorder); if !model.filter.isEmpty { Button("Clear") { model.filter = "" } } }
             Table(model.visibleFiles, selection: $model.selection, sortOrder: $model.sortOrder) {
-                TableColumn("File", value: \.sortPath) { file in HStack { Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(model.fileText(file, column: .path)).foregroundStyle(model.selection.contains(file.path) ? Color.primary : state(file).textColor) }.help(file.oldPath.map { "Renamed from \($0)" } ?? file.path) }.width(min: 350, ideal: 500)
+                TableColumn("File", value: \.sortPath) { file in HStack { Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(model.fileText(file, column: .path)).foregroundStyle(model.selection.contains(file.path) ? Color.primary : state(file).textColor) }.repositoryFileHelp(repository: model.repository.root, path: file.path, detail: file.oldPath.map { "Renamed from " + $0 } ?? "", preferences: model.preferences) }.width(min: 350, ideal: 500)
                 TableColumn("Extension", value: \.sortExtension) { file in Text(model.fileText(file, column: .fileExtension)) }.width(min: 45, ideal: 75, max: 320)
                 TableColumn("Action", value: \.sortAction) { file in Text(file.status) }.width(min: 65, ideal: 100, max: 320)
                 TableColumn("Lines added", value: \.sortAdded) { file in Text(file.addedText) }.width(min: 65, ideal: 85, max: 320)

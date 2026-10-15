@@ -13,7 +13,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], folder: URL? = nil, paste: Bool = false, sourceProvider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(), preferences: UserDefaults = .standard) {
         model = FileCopyWindowModel(repository: repository, access: access, sources: sources, folder: folder, paste: paste, sourceProvider: sourceProvider, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 440), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Copy and Add – TurtleGit"; window.contentMinSize = NSSize(width: 650, height: 340); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Copy and Add", preferences: preferences); window.contentMinSize = NSSize(width: 650, height: 340); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: FileCopyDialog(model: model))
         super.init(window: window); window.delegate = self; window.center(); DialogGeometry.attach(window, identifier: "TurtleGit.FileCopy")
         model.close = { [weak self] in self?.window?.performClose(nil) }

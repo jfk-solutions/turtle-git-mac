@@ -17,7 +17,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = WorktreeCreateWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – New Worktree – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "New Worktree", preferences: preferences)
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: WorktreeCreateDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self

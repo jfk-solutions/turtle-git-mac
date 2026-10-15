@@ -16,7 +16,7 @@ import TurtleGitCore
         model = FileMoveWindowModel(repository: repository, access: access, paths: paths, preferences: preferences)
         let size = NSSize(width: 760, height: 440)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Move – TurtleGit"; window.contentMinSize = NSSize(width: 650, height: 340); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Move", preferences: preferences); window.contentMinSize = NSSize(width: 650, height: 340); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: FileMoveDialog(model: model))
         super.init(window: window); window.delegate = self; window.setContentSize(size); window.center()
         model.close = { [weak self] in self?.window?.performClose(nil) }

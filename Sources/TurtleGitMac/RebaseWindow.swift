@@ -62,7 +62,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = RebaseWindowModel(repository: repository, access: access, messageDefaults: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Rebase – TurtleGit"; window.minSize = NSSize(width: 930, height: 620); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Rebase", preferences: preferences); window.minSize = NSSize(width: 930, height: 620); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RebaseDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
         model.revisionMenuLog.window = window
@@ -157,7 +157,7 @@ import TurtleGitCore
         model.pickReference = { [weak self] target in self?.showReferencePicker(target) }
         notePresenter = CommitNotePresenter(parent: window, model: model.revisionMenuLog, preferences: preferences)
         model.onModeChanged = { [weak window, weak model] in
-            window?.title = "\(repository.root.lastPathComponent) – \(model?.operationTitle ?? "Rebase") – TurtleGit"
+            RepositoryWindowTitles.set(window, repository: repository.root, dialog: "\(model?.operationTitle ?? "Rebase")", preferences: preferences)
         }
         model.pickAdditionalCommits = { [weak self] in
             guard let self, self.model.canAdd, let window = self.window, window.attachedSheet == nil, self.logPicker == nil else { return }
@@ -1651,7 +1651,7 @@ struct RebaseConflictFiles: View {
     var body: some View {
         Table(model.conflictTableRows, selection: $model.selectedConflicts, sortOrder:Binding(get:{model.conflictSortOrder},set:{model.setConflictSort($0)})) {
             TableColumn("✓") { row in Toggle((model.supportsConflictSelection ? "Commit ":"Check ")+row.entry.path, isOn: Binding(get: { model.checkedConflicts.contains(row.entry.path) }, set: {model.setConflictChecked(row.entry.path,checked:$0)})).labelsHidden().toggleStyle(.checkbox).disabled(!model.canCheckConflictFiles || model.busy) }.width(28)
-            TableColumn("Path",sortUsing:RebaseConflictSort(column:.path)) { row in HStack(spacing:5) { Image(nsImage:row.entry.state.icon.image() ?? NSImage());cell(row,.path) } }
+            TableColumn("Path",sortUsing:RebaseConflictSort(column:.path)) { row in HStack(spacing:5) { Image(nsImage:row.entry.state.icon.image() ?? NSImage());cell(row,.path) }.repositoryFileHelp(repository: model.repository.root, path: row.entry.path, preferences: model.columnPreferences) }
             TableColumn("Extension",sortUsing:RebaseConflictSort(column:.fileExtension)) { cell($0,.fileExtension) }.width(min:45,ideal:70)
             TableColumn("Status",sortUsing:RebaseConflictSort(column:.status)) { cell($0,.status) }.width(min:80,ideal:110)
             TableColumn("Lines added",sortUsing:RebaseConflictSort(column:.added)) { cell($0,.added) }.width(min:55,ideal:85)

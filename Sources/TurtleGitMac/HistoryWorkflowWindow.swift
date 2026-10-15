@@ -130,7 +130,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?, preferences: UserDefaults) {
         model = HistoryRevertWindowModel(repository: repository, access: access, entries: entries, mainline: mainline, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 380), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Revert commits – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Revert commits", preferences: preferences)
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 600, height: 300)
         window.contentViewController = NSHostingController(rootView: HistoryRevertDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
@@ -296,7 +296,7 @@ private struct HistoryRevertDialog: View {
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], firstOffset: Int, expectedHead: String, preferences: UserDefaults) {
         model = HistoryCombineWindowModel(repository: repository, access: access, entries: entries, firstOffset: firstOffset, expectedHead: expectedHead, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 320), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Combine commits – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Combine commits", preferences: preferences)
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 600, height: 260)
         window.contentViewController = NSHostingController(rootView: HistoryCombineDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self

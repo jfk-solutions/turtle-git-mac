@@ -332,3 +332,8 @@ argument and then UpdateFileList's local update flag. IDD_CHANGEDFILES has no
 remote-status control or fetch action. The earlier README remote-status gap was
 removed after tracing these source calls; this does not certify all Working Tree
 menus, LFS network behavior or native/signed acceptance.
+
+
+Shared repository titles and path-cell tooltips now consume the source Advanced
+preferences; see [repository presentation](REPOSITORY-PRESENTATION-PARITY.md)
+and its [grouped evidence](qa/repository-presentation-2026-10-15.json).

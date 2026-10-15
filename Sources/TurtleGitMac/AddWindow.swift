@@ -25,7 +25,7 @@ private final class AddNativeWindow: NSWindow {
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
         model = AddWindowModel(repository: repository, access: access, defaults: defaults); self.access = access
         let window = AddNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 480), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Add – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Add", preferences: defaults)
         window.contentMinSize = NSSize(width: 580, height: 320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: AddDialogView(model: model))
         window.setContentSize(NSSize(width: 760, height: 480))
@@ -167,6 +167,7 @@ private final class AddNativeWindow: NSWindow {
     var querySelection: (([String], Bool, OperationCancellation) async throws -> AddDialogSelection)?
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    var presentationPreferences: UserDefaults { defaults }
     private let defaults: UserDefaults
     private static let columnKey = "Add.FileColumns"
     static let columns: [StatusListColumn] = [.path, .fileExtension, .lastModified, .fileSize]

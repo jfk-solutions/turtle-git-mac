@@ -16,7 +16,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, directory: String = "", preferences: UserDefaults = .standard) {
         model = ExportWindowModel(repository: repository, access: access, directory: directory, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 360), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Export – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Export", preferences: preferences)
         window.isReleasedWhenClosed = false
         let content = NSHostingController(rootView: ExportDialog(model: model).frame(minWidth: 600, minHeight: 360))
         window.contentViewController = content
@@ -139,6 +139,7 @@ import TurtleGitCore
         guard !invalidated, pickerTarget == .commit else { return }
         if let entry { selectCustomRevision(entry.hash) }; finishPicker()
     }
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     private var invalidated = false
     private var loadTask: Task<Void, Never>?
@@ -281,6 +282,7 @@ struct ExportDialog: View {
     let destination: URL
     private let access: RepositoryAccessLease?, outputAccess: RepositoryAccessLease?
     private let revision: String, directory: String
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
     private let cancellation = OperationCancellation()
@@ -375,7 +377,7 @@ struct ExportDialog: View {
     init(model: ExportProgressWindowModel) {
         self.model = model
         let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x:0,y:0,width:760,height:430), styleMask:[.titled,.closable,.resizable], backing:.buffered, defer:false)
-        window.title = "Export – \(model.repository.root.lastPathComponent) – TurtleGit"; window.minSize = NSSize(width:650,height:320); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Export", preferences: model.presentationPreferences); window.minSize = NSSize(width:650,height:320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView:ExportProgressDialog(model:model)); super.init(window:window); window.delegate = self
         model.close = { [weak self] in guard let self, !self.model.busy, !self.model.confirmingCancellation, self.window?.attachedSheet == nil else { return }; if let window = self.window { window.sheetParent?.endSheet(window); window.close() } }
         window.escapeAction = { [weak model] in guard let model else { return }; if model.busy { model.cancel() } else { model.close() } }

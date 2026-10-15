@@ -17,7 +17,7 @@ private final class RevertProgressNativeWindow: NSWindow {
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard) {
         model = RevertProgressWindowModel(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess, preferences: preferences)
         let window = RevertProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 550), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Revert Progress – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Revert Progress", preferences: preferences)
         window.contentMinSize = NSSize(width: 800, height: 410); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RevertProgressDialog(model: model))
         super.init(window: window); window.delegate = self

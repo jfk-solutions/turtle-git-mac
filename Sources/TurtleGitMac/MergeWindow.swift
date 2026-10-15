@@ -17,7 +17,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = MergeWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 570), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Merge – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Merge", preferences: preferences)
         window.minSize = NSSize(width: 660, height: 540); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: MergeDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
@@ -98,6 +98,7 @@ import TurtleGitCore
     var onProgress: ((MergeProgressWindowModel) -> Void)?
     var onPostAction: ((MergePostAction, MergeOptions) -> Void)?
     var messageEditorPreferences: UserDefaults { preferences }
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     private var loadToken: OperationCancellation?
     private var invalidated = false
@@ -302,6 +303,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
     private var started = false, invalidated = false, dispatched = false
     private var inspectionCancellation: OperationCancellation?
     private var dismissalCancellation: OperationCancellation?
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
     static let conflictHintPreference = "MergeConflictsNeedsCommit"
@@ -486,7 +488,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
     init(model: MergeProgressWindowModel) {
         self.model = model
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(model.repository.root.lastPathComponent) – Merge Progress – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Merge Progress", preferences: model.presentationPreferences)
         window.contentMinSize = NSSize(width: 560, height: 300); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: MergeProgressDialog(model: model))
         super.init(window: window); window.delegate = self
@@ -613,6 +615,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     var onShowModified: (() -> Void)?
     var onPostAction: ((MergeAbortPostAction) -> Void)?
     var onResize: (Bool) -> Void = { _ in }
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     private var autoClosePolicy = GitProgressAutoClose.manual
     var close: () -> Void = {}
@@ -742,7 +745,7 @@ private final class MergeAbortNativeWindow: NSWindow {
         comparisonPreferences=preferences
         model = MergeAbortWindowModel(repository: repository, access: access, preferences: preferences)
         let window = MergeAbortNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 265), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Abort Merge – TurtleGit"; window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Abort Merge", preferences: preferences); window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 660, height: 265)
         window.contentViewController = NSHostingController(rootView: MergeAbortDialog(model: model).frame(width: 660, height: 265))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 660, height: 265)); window.center()
@@ -802,7 +805,7 @@ private final class MergeAbortNativeWindow: NSWindow {
     init(model: MergeAbortWindowModel) {
         self.model = model
         let window = MergeAbortNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(model.repository.root.lastPathComponent) – Reset – TurtleGit"; window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Reset", preferences: model.presentationPreferences); window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 600, height: 300)
         window.contentViewController = NSHostingController(rootView: MergeAbortDialog(model: model).frame(minWidth: 600, minHeight: 300))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 760, height: 420))

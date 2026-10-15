@@ -301,3 +301,8 @@ Final source review corrected the conflict gate to follow the marked row; a
 real unmerged-index case and the affected native group pass with both engines.
 All six receiver processes were reaped; no real LFS server was contacted and
 Core operations were unchanged. See [exact evidence](qa/add-list-family-2026-10-15.json).
+
+
+Shared repository titles and path-cell tooltips now consume the source Advanced
+preferences; see [repository presentation](REPOSITORY-PRESENTATION-PARITY.md)
+and its [grouped evidence](qa/repository-presentation-2026-10-15.json).

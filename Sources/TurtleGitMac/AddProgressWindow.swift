@@ -8,7 +8,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal) {
         model = AddProgressWindowModel(repository: repository, access: access, paths: paths, mode: mode)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 460), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Add – TurtleGit"; window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Add"); window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 580, height: 330)
         window.contentViewController = NSHostingController(rootView: AddProgressView(model: model))
         super.init(window: window); window.delegate = self; window.center()

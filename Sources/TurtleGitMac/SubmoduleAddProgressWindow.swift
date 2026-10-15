@@ -9,7 +9,7 @@ import TurtleGitCore
     init(model: SubmoduleAddProgressWindowModel) {
         self.model = model
         let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "Submodule Add – TurtleGit"; window.contentMinSize = NSSize(width: 600, height: 320); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Submodule Add", preferences: model.presentationPreferences); window.contentMinSize = NSSize(width: 600, height: 320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: SubmoduleAddProgressDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
@@ -39,6 +39,7 @@ import TurtleGitCore
 @MainActor final class SubmoduleAddProgressWindowModel: ObservableObject, ActionLogProgress {
     let repository: GitRepository
     private var access: RepositoryAccessLease?, sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?
+    var presentationPreferences: UserDefaults { preferences }
     private let options: SubmoduleAddOptions, preferences: UserDefaults, autoClosePolicy: GitProgressAutoClose
     private let identities: SSHIdentityAccessStore, makeSSHCoordinator: SSHCloneTransportFactory?
     private var token: OperationCancellation?, invalidated = false, started = false

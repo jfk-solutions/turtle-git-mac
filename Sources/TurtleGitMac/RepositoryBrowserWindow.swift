@@ -31,7 +31,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences:UserDefaults = .standard) {
         model = RepositoryBrowserWindowModel(repository: repository, access: access, revision: revision, preferences:preferences)
         let window = RepositoryBrowserNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 650), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = repository.root.lastPathComponent + " – Repository Browser – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Repository Browser", preferences: preferences)
         window.contentMinSize = NSSize(width: 760, height: 440); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RepositoryBrowserDialog(model: model))
         super.init(window: window); window.delegate = self; window.model = model

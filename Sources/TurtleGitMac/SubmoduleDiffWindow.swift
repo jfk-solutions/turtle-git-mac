@@ -50,7 +50,7 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
         model = SubmoduleDiffWindowModel(repository: repository, access: access, path: path, from: from, to: to)
         let size = NSSize(width: 900, height: 320)
         let window = SubmoduleDiffNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Submodule Diff – TurtleGit"; window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Submodule Diff", preferences: preferences); window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 800, height: 320)
         window.contentViewController = NSHostingController(rootView: SubmoduleDiffDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self

@@ -11,7 +11,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
         model = LFSLocksWindowModel(repository: repository, access: access, defaults: defaults)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 490), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – LFS Locks – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "LFS Locks", preferences: defaults)
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 570, height: 330)
         window.contentViewController = NSHostingController(rootView: LFSLocksDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
@@ -56,6 +56,7 @@ import TurtleGitCore
     @Published var sortOrder = [LFSFileSort(column: .path)]
     @Published var fileColumns: StatusListColumnSettings
     @Published var fileMetadata: [String: StatusListMetadata] = [:]
+    var presentationPreferences: UserDefaults { defaults }
     private let defaults: UserDefaults
     private static let columnKey = "LFSLocks.FileColumns"
     static let columns: [StatusListColumn] = [.path,.fileName,.fileExtension,.lastModified,.fileSize,.lfsOwner]
@@ -284,7 +285,7 @@ struct LFSLocksDialog: View {
         VStack(alignment: .leading, spacing: 10) {
             Table(rows, selection: $model.selection, sortOrder: Binding(get: { model.sortOrder }, set: { model.setSortOrder($0) })) {
                 TableColumn("") { lock in Toggle("Select \(lock.path)", isOn: Binding(get: { model.checked.contains(lock.id) }, set: { model.setChecked(lock.id, $0) })).labelsHidden().toggleStyle(.checkbox).disabled(model.busy || model.confirmingQuit) }.width(24)
-                TableColumn("Path", sortUsing: LFSFileSort(column: .path)) { lock in HStack { Image(nsImage: MenuIcon.lock.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(lock.path) } }.width(min: 240, ideal: 420)
+                TableColumn("Path", sortUsing: LFSFileSort(column: .path)) { lock in HStack { Image(nsImage: MenuIcon.lock.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(lock.path) }.repositoryFileHelp(repository: model.repository.root, path: lock.path, preferences: model.presentationPreferences) }.width(min: 240, ideal: 420)
                 TableColumn("Filename", sortUsing: LFSFileSort(column: .fileName)) { Text($0.fileName) }.width(min: 100, ideal: 180)
                 TableColumn("Extension", sortUsing: LFSFileSort(column: .fileExtension)) { Text($0.fileExtension) }.width(min: 40, ideal: 75)
                 TableColumn("Last modified", sortUsing: LFSFileSort(column: .lastModified)) { Text($0.metadata?.dateText ?? "–") }.width(min: 150, ideal: 170)

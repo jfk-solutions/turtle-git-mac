@@ -26,7 +26,7 @@ import TurtleGitCore
         self.historyRegexExecutable = historyRegexExecutable
         model = PushWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 750, height: 590), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Push – TurtleGit"; window.minSize = NSSize(width: 720, height: 610); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Push", preferences: preferences); window.minSize = NSSize(width: 720, height: 610); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: PushDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.setContentSize(NSSize(width: 750, height: 590)); window.center()
         model.becameIdle = { [weak self] in if self?.closingPreparation == true { self?.window?.performClose(nil) } }
@@ -180,6 +180,7 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?
     var repositoryAccess: RepositoryAccessLease? { access }
     var settingsPreferences: UserDefaults { preferences }
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     lazy var clientHooks = ClientHookSession(preferences: preferences)
     private var postHookFailure: String?
@@ -716,7 +717,7 @@ enum PushPostAction: String, Hashable {
     init(owner: PushWindowModel, result: PushProgressWindowModel) {
         self.pushModel = owner; self.result = result
         let window = NSWindow(contentRect: NSRect(x:0,y:0,width:760,height:430), styleMask:[.titled,.closable,.resizable], backing:.buffered, defer:false)
-        window.title = "Push – \(owner.repository.root.lastPathComponent) – TurtleGit"; window.minSize = NSSize(width:650,height:320); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: owner.repository.root, dialog: "Push", preferences: owner.presentationPreferences); window.minSize = NSSize(width:650,height:320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView:PushProgressDialog(owner:owner,result:result))
         super.init(window:window); window.delegate = self
         result.close = { [weak self] in guard let self, !self.result.busy, !self.pushModel.confirmingCancellation, self.window?.attachedSheet == nil else { return }; if let window = self.window { window.sheetParent?.endSheet(window); window.close() } }

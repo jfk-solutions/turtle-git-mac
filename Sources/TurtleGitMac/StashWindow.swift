@@ -9,7 +9,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = StashWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 240), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Stash – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Stash", preferences: preferences)
         window.minSize = NSSize(width: 500, height: 272); window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: 272)
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: StashDialog(model: model))
@@ -218,7 +218,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     init(model: StashSaveProgressWindowModel) {
         self.model = model
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 390), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(model.repository.root.lastPathComponent) – Stash Save Progress – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Stash Save Progress", preferences: model.preferences)
         window.contentMinSize = NSSize(width: 520, height: 280); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: StashSaveProgressDialog(model: model))
         super.init(window: window); window.delegate = self

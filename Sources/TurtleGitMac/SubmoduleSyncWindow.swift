@@ -9,7 +9,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], preferences: UserDefaults = .standard) {
         model = SubmoduleSyncWindowModel(repository: repository, access: access, scope: scope, preferences: preferences)
         let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "Submodule Sync – TurtleGit"; window.contentMinSize = NSSize(width: 600, height: 320); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Submodule Sync", preferences: preferences); window.contentMinSize = NSSize(width: 600, height: 320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: SubmoduleSyncDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }

@@ -46,10 +46,15 @@ struct AddFileTable: NSViewRepresentable {
     @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
     @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     private var fileListFont: NSFont? { useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil }
+    @AppStorage private var showFullPathTooltip: Int
     @ObservedObject var model: AddWindowModel
+    init(model: AddWindowModel) {
+        self.model = model
+        _showFullPathTooltip = AppStorage(wrappedValue: 1, "ShowListFullPathTooltip", store: model.presentationPreferences)
+    }
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView { context.coordinator.fileListFont = fileListFont; return context.coordinator.make() }
-    func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.fileListFont = fileListFont; context.coordinator.refresh() }
+    func updateNSView(_ view: NSScrollView, context: Context) { _ = showFullPathTooltip; context.coordinator.fileListFont = fileListFont; context.coordinator.refresh() }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         let model: AddWindowModel
         private let nativeTable = AddNativeTable(icon: .addBackdrop)
@@ -195,7 +200,7 @@ struct AddFileTable: NSViewRepresentable {
                 let cell = NSTableCellView(frame: NSRect(x: 0, y: 0, width: tableColumn?.width ?? 440, height: table.rowHeight)); cell.imageView = NSImageView(); cell.imageView?.image = row.state.icon.image(); cell.textField = field
                 if let image = cell.imageView { image.frame = NSRect(x: 2, y: (table.rowHeight - 16) / 2, width: 16, height: 16); cell.addSubview(image) }
                 if model.restoreCopies[row.path] != nil { let overlay = NSImageView(frame: NSRect(x: 2, y: (table.rowHeight - 16) / 2, width: 16, height: 16)); overlay.identifier = NSUserInterfaceItemIdentifier("restore-overlay"); overlay.image = MenuIcon.restoreOverlay.image(); cell.addSubview(overlay) }
-                field.frame = NSRect(x: 23, y: 2, width: max(0, (tableColumn?.width ?? 440) - 26), height: table.rowHeight - 4); field.autoresizingMask = [.width]; cell.addSubview(field); cell.toolTip = row.path; return cell
+                field.frame = NSRect(x: 23, y: 2, width: max(0, (tableColumn?.width ?? 440) - 26), height: table.rowHeight - 4); field.autoresizingMask = [.width]; cell.addSubview(field); cell.toolTip = RepositoryPresentationSettings(defaults: model.presentationPreferences).fileTooltip(repository: model.repository.root, path: row.path); return cell
             }
             return field
         }

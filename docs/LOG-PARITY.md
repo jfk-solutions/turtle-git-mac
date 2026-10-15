@@ -2645,3 +2645,8 @@ The connected [rich message pane](LOG-MESSAGE-PARITY.md) adds source hash/issue/
 links, rich-edit formatting, applied-filter highlighting, visible hash navigation
 and owned styling/menu lifetime. Its dated grouped evidence supersedes the earlier
 plain-text pane description within that scope; full Log acceptance remains open.
+
+
+Shared repository titles and path-cell tooltips now consume the source Advanced
+preferences; see [repository presentation](REPOSITORY-PRESENTATION-PARITY.md)
+and its [grouped evidence](qa/repository-presentation-2026-10-15.json).

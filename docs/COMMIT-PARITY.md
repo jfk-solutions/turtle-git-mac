@@ -2308,3 +2308,8 @@ and native checks. Native permission policy/provider injection exercises the own
 panel and grant lifecycle without claiming signed sandbox acceptance. Actual Store
 signing, deployed bookmarks across app upgrades and physical permission-panel
 selection remain release acceptance work.
+
+
+Shared repository titles and path-cell tooltips now consume the source Advanced
+preferences; see [repository presentation](REPOSITORY-PRESENTATION-PARITY.md)
+and its [grouped evidence](qa/repository-presentation-2026-10-15.json).

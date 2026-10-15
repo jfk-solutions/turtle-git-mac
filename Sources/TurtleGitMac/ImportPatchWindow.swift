@@ -16,7 +16,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
         model = ImportPatchWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Apply Patch Serial – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Apply Patch Serial", preferences: preferences)
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ImportPatchDialog(model: model))
         super.init(window: window); window.delegate = self

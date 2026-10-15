@@ -19,17 +19,17 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, preferences: UserDefaults = .standard) {
         model = BisectWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 180), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Bisect start – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Bisect start", preferences: preferences)
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 620, height: 180)
         window.contentViewController = NSHostingController(rootView: BisectDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.performClose(nil) }
         model.onProgress = { [weak window] in
-            guard let window else { return }; window.title = "\(repository.root.lastPathComponent) – Bisect – TurtleGit"
+            guard let window else { return }; RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Bisect", preferences: preferences)
             if window.contentLayoutRect.height < 440 { window.setContentSize(NSSize(width: max(660, window.contentLayoutRect.width), height: 440)) }
         }
         model.onOptions = { [weak window] in
-            guard let window else { return };window.title="\(repository.root.lastPathComponent) – Bisect start – TurtleGit";window.setContentSize(NSSize(width:max(660,window.contentLayoutRect.width),height:180))
+            guard let window else { return };RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Bisect start", preferences: preferences);window.setContentSize(NSSize(width:max(660,window.contentLayoutRect.width),height:180))
         }
         model.chooseRevision = { [weak self] good in self?.chooseRevision(good: good) }
         model.cancelPrompt = { [weak self] in self?.finishStash(false) }

@@ -19,7 +19,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, preferences: UserDefaults = .standard) {
         model = FetchWindowModel(repository: repository, access: access, isPull: isPull, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – \(isPull ? "Pull" : "Fetch") – TurtleGit"; window.minSize = NSSize(width: 660, height: 450); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "\(isPull ? "Pull" : "Fetch")", preferences: preferences); window.minSize = NSSize(width: 660, height: 450); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: FetchDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.center()
         model.becameIdle = { [weak self] in if self?.closingPreparation == true { self?.window?.performClose(nil) } }
@@ -120,6 +120,7 @@ import TurtleGitCore
     let sshSettings: SSHTransportSettings
     let remoteSettings: PushWindowModel
     private let access: RepositoryAccessLease?
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     @Published var urls: [String] = []
     @Published var branchHistory: [String] = []
@@ -550,6 +551,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
     let options: PullOptions
     let followUp: PullFollowUp
     private let access: RepositoryAccessLease?
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
     private var cancellation = OperationCancellation()
@@ -728,7 +730,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
     init(model: PullProgressWindowModel) {
         self.model = model; model.closeAfterCancellation = true
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(model.repository.root.lastPathComponent) – Pull progress – TurtleGit"; window.minSize = NSSize(width: 620, height: 340); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Pull progress", preferences: model.presentationPreferences); window.minSize = NSSize(width: 620, height: 340); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: PullProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in
@@ -821,6 +823,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     let rebaseMode: FetchRebaseMode
     let preserveMerges: Bool
     private let access: RepositoryAccessLease?
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
     private var cancellation = OperationCancellation()
@@ -1033,7 +1036,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     init(model: FetchProgressWindowModel) {
         self.model = model; model.closeAfterCancellation = true
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(model.repository.root.lastPathComponent) – Fetch progress – TurtleGit"; window.minSize = NSSize(width: 620, height: 340); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Fetch progress", preferences: model.presentationPreferences); window.minSize = NSSize(width: 620, height: 340); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: FetchProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in

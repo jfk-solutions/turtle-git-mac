@@ -17,7 +17,7 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
         model = SubmoduleUpdateWindowModel(repository: repository, access: access, scope: scope, selected: selected, preferences: preferences)
         let size = NSSize(width: 760, height: 500)
         let window = SubmoduleUpdateNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Submodule Update – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Submodule Update", preferences: preferences)
         window.contentMinSize = NSSize(width: 700, height: 460); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: SubmoduleUpdateDialog(model: model))
         super.init(window: window); window.delegate = self

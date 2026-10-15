@@ -138,7 +138,7 @@ struct StashRestorePrompt {
     init(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults = .standard) {
         model = StashRestoreWindowModel(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 390), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Stash \(pop ? "Pop" : "Apply") – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Stash \(pop ? "Pop" : "Apply")", preferences: preferences)
         window.isReleasedWhenClosed = false
         spinner.style = .spinning; spinner.startAnimation(nil)
         waiting.textColor = .secondaryLabelColor

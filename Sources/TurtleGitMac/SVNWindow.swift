@@ -209,7 +209,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, operation: GitSVNOperation, preferences: UserDefaults = .standard, clipboard: NSPasteboard = .general) {
         model = SVNWindowModel(repository: repository, access: access, operation: operation, preferences: preferences, clipboard: clipboard)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 740, height: 460), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – \(model.title) – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 600, height: 310)
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "\(model.title)", preferences: preferences); window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 600, height: 310)
         window.contentViewController = NSHostingController(rootView: SVNDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in self?.window?.close() }

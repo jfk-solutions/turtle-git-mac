@@ -40,7 +40,7 @@ import TurtleGitCore
         model.apply(preset)
         if sendMail { model.sendMail = true }
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 365), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Format Patch – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Format Patch", preferences: preferences)
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: FormatPatchDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self

@@ -76,7 +76,7 @@ extension SynchronizationTagKind {
         model = SynchronizationProgressModel(repository: repository, operation: operation, cancellation: cancellation, preferences: preferences, transportFactory: transportFactory)
         self.completion = completion
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: operation.compactProgress ? 480 : 760, height: operation.compactProgress ? 170 : 420), styleMask: operation.compactProgress ? [.titled, .closable] : [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – \(operation.title) – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "\(operation.title)", preferences: preferences)
         window.isReleasedWhenClosed = false; window.contentMinSize = operation.compactProgress ? NSSize(width: 400, height: 150) : NSSize(width: 560, height: 300)
         window.contentViewController = NSHostingController(rootView: SynchronizationProgressDialog(model: model))
         super.init(window: window); window.delegate = self
@@ -267,7 +267,7 @@ enum SynchronizationHistoryOperation: Equatable {
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = SynchronizationWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1050, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Git Synchronization – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Git Synchronization", preferences: preferences)
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 860, height: 500)
         window.contentViewController = NSHostingController(rootView: SynchronizationDialog(model: model))
         super.init(window: window); window.delegate = self; model.window = window

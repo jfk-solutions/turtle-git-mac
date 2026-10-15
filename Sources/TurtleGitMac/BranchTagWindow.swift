@@ -17,7 +17,7 @@ import TurtleGitCore
         model = BranchTagWindowModel(repository: repository, access: access, isTag: isTag, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 470),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Create \(isTag ? "Tag" : "Branch") – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Create \(isTag ? "Tag" : "Branch")", preferences: preferences)
         window.minSize = NSSize(width: 650, height: 480); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: BranchTagDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self

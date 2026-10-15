@@ -21,6 +21,7 @@ import UniformTypeIdentifiers
     private var previousPartialParentFrame: NSRect?
     private var positioningPartial = false
     var partialPlacementScreens: () -> [NSRect] = { NSScreen.screens.map(\.visibleFrame) }
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     private(set) var templatePanel: NSOpenPanel?
     private var closingCommit = false
@@ -41,7 +42,7 @@ import UniformTypeIdentifiers
         model = CommitWindowModel(repository: repository, access: access, unversionedDefaults: defaults, dialogDefaults: defaults)
         let window = CommitNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Commit – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Commit", preferences: defaults)
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults))
         super.init(window: window); model.comparisonWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
@@ -626,14 +627,14 @@ import UniformTypeIdentifiers
     private let dialogDefaults: UserDefaults
     private var selectFilesAutomatically: Bool
     private let doNotAutoselectMissing: Bool
-    @Published var showWholeProject = true
-    @Published var scopePaths: [String] = []
+    @Published var showWholeProject = true { didSet { updateScopeTitle() } }
+    @Published var scopePaths: [String] = [] { didSet { updateScopeTitle() } }
     @Published var busy = false
     @Published var confirmingQuit = false
     @Published var error: String?
     private var diffSession: FileListComparisonSession?
     var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
-    weak var comparisonWindow: NSWindow?
+    weak var comparisonWindow: NSWindow? { didSet { updateScopeTitle() } }
     var unifiedWindow: PatchWindowController?
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     var showViewPatch: () -> Void = {}
@@ -1048,9 +1049,13 @@ import UniformTypeIdentifiers
         }, completed: { [self] in reload() }, failed: { [self] in reload() })
     }
 
+    private func updateScopeTitle() {
+        let location = RepositoryPresentationSettings.scopedLocation(repository: repository.root, paths: scopePaths, wholeProject: showWholeProject)
+        RepositoryWindowTitles.set(comparisonWindow, repository: repository.root, location: location, dialog: "Commit", preferences: dialogDefaults)
+    }
     func fileHelp(_ entry: StatusEntry) -> String {
-        let origin = entry.originalPath.map { "Renamed from " + $0 } ?? entry.path
-        return changelists.assignments[entry.path].map { origin + "\nChangelist: " + $0 } ?? origin
+        let origin = entry.originalPath.map { "Renamed from " + $0 } ?? ""
+        return changelists.assignments[entry.path].map { origin + (origin.isEmpty ? "" : "\n") + "Changelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: Set<String> { Set(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
     var canCommit: Bool { messageFocusAvailable && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
@@ -2015,7 +2020,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                             if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }
                         }
                         Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences))
-                    }.help(model.fileHelp(entry))
+                    }.repositoryFileHelp(repository: model.repository.root, path: entry.path, detail: model.fileHelp(entry), preferences: model.colorPreferences)
                 } else if let group = row.group {
                     HStack {
                         Text(group.title).font(.headline).foregroundStyle(Color.accentColor)
@@ -2289,6 +2294,7 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     let options: CommitOptions
     let cancellation = OperationCancellation()
     let cancellable: Bool
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
     private var outputState: GitProgressOutputState
@@ -2371,7 +2377,7 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     init(model: CommitProgressWindowModel) {
         self.model = model
         let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled,.closable,.resizable], backing: .buffered, defer: false)
-        window.title = "\(model.repository.root.lastPathComponent) – Commit progress – TurtleGit"; window.minSize = NSSize(width: 620,height: 340); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Commit progress", preferences: model.presentationPreferences); window.minSize = NSSize(width: 620,height: 340); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.onClose = { [weak window] in guard let window else { return }; window.sheetParent?.endSheet(window); window.close() }

@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "0ad4cadc",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/AppUtils.cpp:FormatWindowTitle/SetWindowTitle",
+    "src/Git/GitStatusListCtrl.cpp:OnLvnGetInfoTip",
+    "src/TortoiseProc/CommitDlg.cpp:scoped SetWindowTitle calls",
+    "src/TortoiseProc/LogDlg.cpp:scoped SetWindowTitle calls"
+  ],
+  "scope": [
+    "Shared full/root-relative, bounded Unicode window title policy across repository dialogs and progress windows",
+    "Preserve Commit/Working Tree/Log scopes and dynamic operation titles when applying Advanced settings",
+    "Full-path tooltips with private live preference stores in main status/file lists; Add native view-based cells; retain rename/changelist details",
+    "Weak native window bindings retired on close"
+  ],
+  "build": {
+    "log": "build/qa/repository-presentation-build-repair.log",
+    "exit": 0,
+    "initial_failure": {
+      "log": "build/qa/repository-presentation-build.log",
+      "exit": 65,
+      "reason": "SendPatchProgressModel uses existing notificationPreferences accessor; corrected title consumer."
+    },
+    "diagnostics": "Existing exit-zero command diagnostic noise and warnings remain."
+  },
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'RepositoryPresentationTests|AdvancedSettingsTests'",
+    "log": "build/qa/repository-presentation-core.log",
+    "exit": 0,
+    "tests": 9,
+    "failures": 0
+  },
+  "native": {
+    "command": "python3 scripts/test-repository-presentation.py --git /usr/bin/git",
+    "fixture": "docs/qa/repository-presentation-native-2026-10-15.swift",
+    "log": "build/qa/repository-presentation-native.log",
+    "exit": 0,
+    "receiver_pids": [
+      40119
+    ],
+    "all_receiver_pids_absent": true,
+    "exact_checks": [
+      "Ten real controllers: Add (two private domains), Commit, Working Tree, Log, Changed Files, Merge, Fetch, Repository Browser, LFS Locks",
+      "Full path default; Commit single/multiple file and whole-project title; actual Working Tree and Log scoped reads",
+      "Advanced Apply updates existing windows without losing scope; separate private preference domain remains unchanged",
+      "Actual Add view-based cell full-path tooltip, disable and reset",
+      "Clearing title override updates open windows; explicit preference notification cannot retitle closed owner",
+      "Exact private HEAD/index bytes unchanged; every owned controller closed"
+    ],
+    "not_exercised": [
+      "Physical tooltip hover or accessibility gestures",
+      "Every progress-window operation and every list column",
+      "Signed Finder/sandbox/distribution acceptance"
+    ],
+    "engine_scope": "One engine; presentation policy does not depend on Git version."
+  },
+  "ci": {
+    "previous_pages": "38785756958 success for 0ad4cadc",
+    "previous_macos": "38785757109 in_progress at inspection",
+    "older_failure": "38778092594 build-and-test job116573435120: Core 1467 tests/2 skips/0 failures; native Unified Diff document with bundled Git timed out after system document/handoffs passed. Not fixed or claimed passing by this presentation batch."
+  },
+  "limitations": [
+    "macOS Unicode compaction adapts Windows PathCompactPathEx; component-boundary containment deliberately avoids raw-prefix neighbor ambiguity",
+    "No new screenshots or full physical UI acceptance",
+    "No dialog newly certified; all remaining parity work stays open"
+  ]
+}

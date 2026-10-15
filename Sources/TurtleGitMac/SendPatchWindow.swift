@@ -61,6 +61,7 @@ final class ApplicationMailContext: @unchecked Sendable {
     private let appOwnedFiles: Set<URL>
     private let deliveryOverride: Delivery?
     var delivery: Delivery { capturedDelivery().delivery == .mailClient ? .mailClient : .smtp }
+    var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     private var access: [RepositoryAccessLease]
     private var invalidated = false, submitted = false
@@ -843,7 +844,7 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     init(model: SendPatchProgressModel) {
         self.model = model
         let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(model.repository.root.lastPathComponent) – Send Email – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 600, height: 320)
+        RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Send Email", preferences: model.notificationPreferences); window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 600, height: 320)
         window.contentViewController = NSHostingController(rootView: SendPatchProgressDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }

@@ -116,7 +116,7 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
     init(repository: GitRepository, access: RepositoryAccessLease?, configuration: GitDaemonConfiguration = .init(), preferences: UserDefaults = .standard) {
         model = GitDaemonWindowModel(repository: repository, access: access, configuration: configuration, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Daemon – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Daemon", preferences: preferences)
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 620, height: 380)
         window.contentViewController = NSHostingController(rootView: GitDaemonDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()

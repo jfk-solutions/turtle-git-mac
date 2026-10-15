@@ -44,7 +44,7 @@ struct ResetChooserDraft: Equatable {
         model = ResetWindowModel(repository: repository, access: access, revision: revision, preferences: preferences)
         let size = NSSize(width: 690, height: 405)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Reset – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Reset", preferences: preferences)
         window.contentMinSize = size; window.contentMaxSize = NSSize(width: 4000, height: size.height); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ResetDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
@@ -529,7 +529,7 @@ enum ResetPostAction: String, Hashable {
     init(model: ResetProgressWindowModel) {
         self.model = model
         let window = NSWindow(contentRect:NSRect(x:0,y:0,width:760,height:430),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
-        window.title = "Reset – \(model.repository.root.lastPathComponent) – TurtleGit"; window.minSize = NSSize(width:650,height:320); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Reset", preferences: model.preferences); window.minSize = NSSize(width:650,height:320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView:ResetProgressDialog(model:model)); super.init(window:window); window.delegate = self
         model.close = { [weak self] in guard let self, !self.model.busy, !self.model.confirmingCancellation, self.window?.attachedSheet == nil else { return }; if let window = self.window { window.sheetParent?.endSheet(window); window.close() } }
         model.confirmCancellation = { [weak window] choose in

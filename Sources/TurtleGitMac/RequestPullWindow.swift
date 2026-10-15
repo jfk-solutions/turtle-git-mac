@@ -31,7 +31,7 @@ import TurtleGitCore
         self.mailPreferences = preferences; self.mailPresentation = mailPresentation
         model = RequestPullWindowModel(repository: repository, access: access, preferences: preferences, end: end, repositoryURL: repositoryURL)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 210), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(repository.root.lastPathComponent) – Request pull – TurtleGit"; window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Request pull", preferences: preferences); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RequestPullDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         window.contentMinSize = NSSize(width: 600, height: 210); window.contentMaxSize = NSSize(width: 4000, height: 210)
