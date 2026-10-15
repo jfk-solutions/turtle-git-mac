@@ -2,6 +2,35 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitMessageTests: XCTestCase {
+    func testCapturedTemplateChoiceCannotBeRedirectedByLaterConfigurationAndKeepsOperationMessages() async throws {
+        let helper = CommitSelectionTests(), (root, repo) = try await helper.fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let absent = try await repo.commitMessageTemplate()
+        XCTAssertNil(absent.url)
+        let first = "template 雪\n.txt", second = "other.txt"
+        try helper.write(root, first, "First\r\n\r\n")
+        try helper.write(root, second, "Second\n")
+        try helper.write(root, ".git/MERGE_MSG", "Operation\n")
+        _ = try await repo.run(["config", "commit.template", first])
+        let captured = try await repo.commitMessageTemplate()
+        XCTAssertEqual(captured.url?.path, root.appendingPathComponent(first).path)
+        _ = try await repo.run(["config", "commit.template", second])
+        try helper.write(root, "tracked.txt", "staged\n"); try await repo.stage(["tracked.txt"])
+        try helper.write(root, "tracked.txt", "working\n")
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let seed = try await repo.commitMessageSeed(template: captured)
+        XCTAssertEqual(seed.template, "First\n"); XCTAssertEqual(seed.message, "First\nOperation\n")
+        let recommit = try await repo.commitMessageSeed(includeOperationMessages: false, template: captured)
+        XCTAssertEqual(recommit.message, "First\n")
+        let skipped = try await repo.commitMessageSeed(template: absent)
+        XCTAssertEqual(skipped.template, ""); XCTAssertEqual(skipped.message, "Operation\n")
+        let current = try await repo.commitMessageSeed()
+        XCTAssertEqual(current.template, "Second\n")
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.commitMessageSeed(template: captured, cancellation: token); XCTFail("Cancelled captured read") } catch {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(first)), "First\r\n\r\n")
+    }
     func testSourceEncodingAliasesAndNativeBytes() throws {
         XCTAssertEqual(CommitMessageEncoding.aliases.count, 156)
         XCTAssertEqual(CommitMessageEncoding.codePage("WINDOWS-1252"), 1252)

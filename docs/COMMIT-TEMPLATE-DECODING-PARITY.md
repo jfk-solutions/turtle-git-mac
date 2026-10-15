@@ -33,10 +33,21 @@ raw template before checking history equality/replacement and Cancel. Its other
 message insertion, issue-update and owned-sheet checks remain in place.
 
 Exact Windows comparison for every malformed subsequence, embedded-NUL UI
-behavior, physical entry, external-template authorization and signed sandbox
-acceptance remain unverified. This is a partial Commit parity checkpoint.
+behavior, physical entry and signed sandbox acceptance remain unverified.
+External-template authorization is implemented in the October 15 continuation
+below; its native injected checks do not certify deployed sandbox behavior. This is a partial Commit parity checkpoint.
 
 Twenty focused Core tests and native checks with system and bundled Git passed.
 Final unsigned Debug/AppStore builds and bundle audits passed with 116 original
 icons, required AppStore runtimes and the updated loader attribution in NOTICE.
 See [the QA record](qa/commit-template-decoding-2026-10-10.json).
+
+## Owned external-file access continuation
+
+Commit now captures the configured template URL before authorization and uses it
+for the subsequent seed read. ReCommit uses the same path with operation messages
+disabled. Native file grants are checked, retained only through the read, persisted
+for reopening and refreshed when stale. The owned panel supports Cancel and forced
+close; existing drafts survive denial and late replies cannot persist grants.
+See [Commit parity](COMMIT-PARITY.md#external-template-permission-and-captured-loading--october-15-2026)
+and [grouped evidence](qa/commit-template-access-2026-10-15.json).

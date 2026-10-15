@@ -38,3 +38,42 @@ import TurtleGitCore
         leases.removeAll { $0.url == directory }; leases.append(lease)
     }
 }
+
+/// File grants belong to Commit template reads, independently of config-write
+/// directory permissions. Keep each scope alive through its corresponding read.
+@MainActor final class CommitTemplateFileAccess {
+    static let key = "Commit.TemplateBookmarks"
+    let preferences: UserDefaults
+    var provider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()
+    var requiresSecurityScope = GitRuntime.isAppStoreBuild
+    init(preferences: UserDefaults) { self.preferences = preferences }
+    func needsPermission(_ file: URL, repositoryAccess: RepositoryAccessLease?) -> Bool {
+        requiresSecurityScope && !(repositoryAccess?.hasSecurityScope == true && repositoryAccess?.contains(file) == true)
+    }
+    private func sameFile(_ a: URL, _ b: URL) -> Bool {
+        a.isFileURL && b.isFileURL && a.standardizedFileURL.resolvingSymlinksInPath().path == b.standardizedFileURL.resolvingSymlinksInPath().path
+    }
+    func acquire(_ file: URL) throws -> RepositoryAccessLease? {
+        let values = preferences.dictionary(forKey: Self.key) as? [String: Data] ?? [:]
+        guard let bookmark = values[file.standardizedFileURL.path] else { return nil }
+        let resolved = try provider.resolve(bookmark)
+        guard sameFile(resolved.url, file) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let lease = RepositoryAccessLease(url: resolved.url, provider: provider)
+        guard !requiresSecurityScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        if resolved.stale {
+            var refreshed = values; refreshed[file.standardizedFileURL.path] = try provider.create(for: resolved.url)
+            preferences.set(refreshed, forKey: Self.key)
+        }
+        return lease
+    }
+    func remember(_ selected: URL, for expected: URL) throws -> RepositoryAccessLease {
+        guard sameFile(selected, expected) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let lease = RepositoryAccessLease(url: selected, provider: provider)
+        guard !requiresSecurityScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let bookmark = try provider.create(for: selected)
+        var values = preferences.dictionary(forKey: Self.key) as? [String: Data] ?? [:]
+        values[expected.standardizedFileURL.path] = bookmark
+        preferences.set(values, forKey: Self.key)
+        return lease
+    }
+}

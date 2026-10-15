@@ -5,6 +5,16 @@ public struct CommitMessageSeed: Sendable {
     public let template: String
     public let message: String
     public let warnings: [String]
+    public init(template: String, message: String, warnings: [String]) {
+        self.template = template; self.message = message; self.warnings = warnings
+    }
+}
+
+/// A captured configuration choice, including the absence of a template. Native
+/// callers can authorize this exact file before reading without re-querying config.
+public struct CommitMessageTemplate: Sendable {
+    public let url: URL?
+    public init(url: URL?) { self.url = url }
 }
 
 /// Text retained by the dialog/history and text actually passed to Git differ
@@ -61,21 +71,29 @@ extension GitRepository {
         guard let match = message.range(of: "\n" + comment + " Conflicts:\n" + comment + "\t") else { return false }
         return match.lowerBound > message.startIndex
     }
+    public func commitMessageTemplate(cancellation: OperationCancellation? = nil) throws -> CommitMessageTemplate {
+        try cancellation?.check()
+        let configured: GitResult
+        do { configured = try run(["config", "--path", "--null", "--get", "commit.template"], cancellation: cancellation) }
+        catch let failure as GitFailure where failure.code == 1 { return CommitMessageTemplate(url: nil) }
+        var bytes = configured.stdout
+        if bytes.last == 0 { bytes.removeLast() }
+        let path = String(decoding: bytes, as: UTF8.self)
+        return CommitMessageTemplate(url: path.isEmpty ? nil : path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path))
+    }
     /// Mirrors CommitDlg's GetCommitTemplate / LoadTextFile sequence without changing Git state.
-    public func commitMessageSeed(includeOperationMessages: Bool = true, cancellation: OperationCancellation? = nil) throws -> CommitMessageSeed {
+    public func commitMessageSeed(includeOperationMessages: Bool = true, template captured: CommitMessageTemplate? = nil, cancellation: OperationCancellation? = nil) throws -> CommitMessageSeed {
         try cancellation?.check()
         var template = "", warnings: [String] = []
-        let configured: GitResult?
-        do { configured = try run(["config", "--path", "--null", "--get", "commit.template"], cancellation: cancellation) }
-        catch let failure as GitFailure where failure.code == 1 { configured = nil }
-        if let configured {
-            var bytes = configured.stdout
-            if bytes.last == 0 { bytes.removeLast() }
-            let path = String(decoding: bytes, as: UTF8.self)
-            if !path.isEmpty {
-                let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
-                do { template = try Self.readCommitMessage(url) }
-                catch { warnings.append("Could not open and load commit.template file: \(url.path)\n\(error.localizedDescription)") }
+        let selection = try captured ?? commitMessageTemplate(cancellation: cancellation)
+        if let url = selection.url {
+            do {
+                guard url.isFileURL else { throw CocoaError(.fileReadUnsupportedScheme) }
+                template = try Self.readCommitMessage(url)
+                try cancellation?.check()
+            } catch {
+                try cancellation?.check()
+                warnings.append("Could not open and load commit.template file: \(url.path)\n\(error.localizedDescription)")
             }
         }
         var message = template

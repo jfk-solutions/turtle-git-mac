@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-15",
+  "scope": "Commit external-template permission and captured seed family",
+  "implementation": [
+    "Capture configured template URL or absence before authorization, then read without a config re-query",
+    "Owned native file permission panel only for external templates requiring sandbox grants",
+    "Exact configured-file checks, separate saved bookmarks, stale bookmark refresh and scope lifetime through each seed read",
+    "Initial Commit and ReCommit share seed preparation; existing draft survives denied initial template access",
+    "Cancel/close and late-authorizer retirement cannot persist grants or publish into retired Commit"
+  ],
+  "validation": {
+    "core": {
+      "scope": "CommitMessageTests",
+      "existing_checks_passed": 9,
+      "new_check_passed": 1,
+      "initial_log": "build/qa/commit-template-access-core-2026-10-15.log",
+      "focused_recheck_log": "build/qa/commit-template-access-core-recheck-2026-10-15.log",
+      "initial_failure": "New fixture attempted to read .git/index in an unborn repository before creating an index; repaired fixture with staged content, reran only new check",
+      "new_case": "Captured relative Unicode/newline URL, config replacement, captured absence, operation-message append, template-only ReCommit preparation, cancellation and unchanged index/input bytes"
+    },
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/commit-template-access-build-2026-10-15.log"
+    },
+    "native": {
+      "result": "passed with system and bundled Git",
+      "log": "build/qa/commit-template-access-native-final-2026-10-15.log",
+      "scope": "Existing Commit preference UI group plus template permissions, exact template/config identity, saved/stale grants, different-file refusal, ReCommit seed, real owned panel Cancel/close, retained draft, released scopes, late authorization refusal and unchanged HEAD/index",
+      "receivers_reaped": [
+        34853,
+        35271
+      ],
+      "initial_failure": "New permission fixture omitted explicit model.reload for two native Commit hosts; fixed fixture and reran native group",
+      "initial_failure_log": "build/qa/commit-template-access-native-2026-10-15.log",
+      "initial_receiver_reaped": 34587
+    },
+    "cleanup": "Runner reaped receivers 34587, 34853 and 35271; subsequent ps check found all absent.",
+    "documentation": "Coverage ledger regenerated; site built 215 documents with no unresolved fragments."
+  },
+  "limits": [
+    "Native forced permission policy and bookmark-provider injection do not prove signed Store sandbox behavior",
+    "Physical file selection, deployed persisted bookmarks across upgrades and complete source visual parity remain open",
+    "No App Store signing profiles or distribution submission created"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

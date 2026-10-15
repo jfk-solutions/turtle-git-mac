@@ -270,7 +270,8 @@ normalizes CRLF/trailing LF to one final newline, matching the pinned loader.
 Missing/unreadable templates report their path and error while available operation
 messages remain usable. The pinned loader does not auto-detect UTF-16 or use the
 commit-output encoding for these inputs. Sandbox access remains subject to the
-repository lease and macOS permissions; external-template authorization is pending.
+repository lease and macOS permissions; the October 15 external-template batch
+below adds owned file authorization and saved bookmark reuse.
 See [the decoding audit](COMMIT-TEMPLATE-DECODING-PARITY.md).
 
 Upstream `CGit::LoadTextFile` appends to the message buffer. The port therefore
@@ -2277,3 +2278,33 @@ actual attached pane rendering/export/copy and unrelated-index preservation.
 Physical line/hunk gestures, all legacy code pages, visual parity, signed Finder
 and App Store acceptance remain open. Earlier UTF-8-only descriptions above
 refer to prior checkpoints.
+
+## External template permission and captured loading — October 15, 2026
+
+The initial Commit and ReCommit template paths share a captured template descriptor.
+Git resolves `commit.template` once before any permission sheet. The seed reader
+uses that exact URL, including a captured absence, even when config changes while
+the sheet is open. Template decoding, operation-message append order and ReCommit's
+template-only behavior retain the pinned `GetCommitTemplate` / `LoadTextFile` rules.
+
+In an App Store build, a template covered by the active repository grant needs no
+additional selection. An external template opens an owned **Allow access to commit
+template** file panel naming the configured path. Select that file to authorize
+it. Selecting a different file does not redirect the template. Cancel leaves the
+template unloaded, reports that choice and keeps any existing editor draft; available
+operation messages remain usable. This macOS permission flow adds no source-layout
+checkboxes or persistent main-dialog controls.
+
+Template grants are saved separately from repository and Git config-write grants.
+A later read resolves the bookmark, checks the exact file and starts a scope for
+the read. Stale bookmarks refresh after successful validation. Missing, invalid,
+moved-to-another-file or unusable grants return to the owned authorization flow.
+Scopes end after the read, including failures. Closing Commit cancels its panel;
+a late injected authorizer cannot read the template, save a grant or publish an
+error into the retired dialog. ReCommit also suppresses late seed errors after close.
+
+[Grouped evidence](qa/commit-template-access-2026-10-15.json) records focused Core
+and native checks. Native permission policy/provider injection exercises the owned
+panel and grant lifecycle without claiming signed sandbox acceptance. Actual Store
+signing, deployed bookmarks across app upgrades and physical permission-panel
+selection remain release acceptance work.

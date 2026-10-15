@@ -22,6 +22,7 @@ import UniformTypeIdentifiers
     private var positioningPartial = false
     var partialPlacementScreens: () -> [NSRect] = { NSScreen.screens.map(\.visibleFrame) }
     private let preferences: UserDefaults
+    private(set) var templatePanel: NSOpenPanel?
     private var closingCommit = false
     private var historyWindow: NSWindow?
     var makeHistoryWindow: () -> NSWindow = {
@@ -44,6 +45,18 @@ import UniformTypeIdentifiers
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults))
         super.init(window: window); model.comparisonWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
+        model.authorizeTemplateFile = { [weak self, weak window] file in
+            guard let self, let window, !self.closingCommit, window.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
+            let panel = NSOpenPanel(); self.templatePanel = panel
+            panel.title = "Allow access to commit template"; panel.prompt = "Allow Access"
+            panel.message = "Select the configured commit template: " + file.path
+            panel.canChooseFiles = true; panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
+            panel.directoryURL = file.deletingLastPathComponent(); panel.nameFieldStringValue = file.lastPathComponent
+            defer { if self.templatePanel === panel { self.templatePanel = nil } }
+            let response = await withCheckedContinuation { reply in panel.beginSheetModal(for: window) { reply.resume(returning: $0) } }
+            guard !self.closingCommit else { throw OperationCancellationFailure.cancelled }
+            return response == .OK ? panel.url : nil
+        }
         issueProviderOwner = CommitIssueProviderOwner(model: model, parent: window)
         model.close = { [weak self, weak window] in
             guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil, !self.model.unifiedViewerBusy else { return }
@@ -206,6 +219,7 @@ import UniformTypeIdentifiers
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) {
+        templatePanel?.cancel(nil); templatePanel = nil
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
         closingCommit = true;preflightAlert=nil; model.invalidateForClose(); issueProviderOwner?.retire(); issueProviderOwner = nil; lfsOperation?.close(); lfsOperation = nil
         if let child = historyWindow {
@@ -501,6 +515,8 @@ import UniformTypeIdentifiers
         }
     }
     private var loadedMessage = false
+    let templateFileAccess: CommitTemplateFileAccess
+    var authorizeTemplateFile: (URL) async throws -> URL? = { _ in nil }
     private(set) var messageTemplate = ""
     private(set) var messageHistory: CommitMessageHistory?
     var showMessageHistory: (@escaping (String) -> Void) -> Void = { _ in }
@@ -640,6 +656,7 @@ import UniformTypeIdentifiers
     init(repository: GitRepository, access: RepositoryAccessLease?, unversionedDefaults: UserDefaults = .standard, dialogDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.unversionedDefaults = unversionedDefaults
         self.dialogDefaults = dialogDefaults
+        templateFileAccess = CommitTemplateFileAccess(preferences: dialogDefaults)
         queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
         queryHistoryIssue = { try await repository.issueFieldValue(properties: $0, message: $1, cancellation: $2) }
         queryCommitStatus = { try await repository.commitDialogStatus(amendToParent: $0, cancellation: $1) }
@@ -1167,7 +1184,7 @@ import UniformTypeIdentifiers
                     let identity = try await readReload(token) { try await repository.commitMessageHistoryIdentity(cancellation: token) }
                     let storedLimit = dialogDefaults.object(forKey: "MaxHistoryItems") as? Int ?? dialogDefaults.object(forKey: "Commit.MaxHistoryItems") as? Int ?? 25
                     messageHistory = CommitMessageHistory(repositoryIdentity: identity, defaults: dialogDefaults, limit: storedLimit)
-                    let seed = try await readReload(token) { try await repository.commitMessageSeed(cancellation: token) }
+                    let seed = try await readReload(token) { try await loadMessageSeed(cancellation: token) }
                     messageTemplate = seed.template
                     if message.isEmpty && !amend {
                         let separated = issueProperties.separateIssueLine(from: seed.message)
@@ -1200,6 +1217,35 @@ import UniformTypeIdentifiers
 
             } catch { if messageFocusAvailable, !token.isCancelled { self.error = error.localizedDescription } }
         }
+    }
+    /// Capture config before presenting a permission sheet. A config edit while
+    /// that sheet is open must not redirect the subsequent read to another file.
+    func loadMessageSeed(includeOperationMessages: Bool = true, cancellation: OperationCancellation) async throws -> CommitMessageSeed {
+        func check() throws {
+            try cancellation.check()
+            guard messageFocusAvailable, !Task.isCancelled else { throw OperationCancellationFailure.cancelled }
+        }
+        try check()
+        var selection = try await repository.commitMessageTemplate(cancellation: cancellation)
+        try check()
+        var permission: RepositoryAccessLease?, warning: String?
+        if let file = selection.url, templateFileAccess.needsPermission(file, repositoryAccess: access) {
+            do { permission = try templateFileAccess.acquire(file) } catch { /* Re-authorize missing, stale or invalid saved access. */ }
+            if permission == nil {
+                let selected = try await authorizeTemplateFile(file)
+                try check()
+                if let selected {
+                    do { permission = try templateFileAccess.remember(selected, for: file) }
+                    catch { warning = "Could not authorize commit.template file: " + file.path + "\n" + error.localizedDescription }
+                } else { warning = "The commit template was not loaded because file access was cancelled: " + file.path }
+                if permission == nil { selection = CommitMessageTemplate(url: nil) }
+            }
+        }
+        defer { withExtendedLifetime(permission) {} }
+        try check()
+        let seed = try await repository.commitMessageSeed(includeOperationMessages: includeOperationMessages, template: selection, cancellation: cancellation)
+        try check()
+        return CommitMessageSeed(template: seed.template, message: seed.message, warnings: seed.warnings + (warning.map { [$0] } ?? []))
     }
     /// Check on both sides of every suspension: even an injected read that
     /// ignores cancellation cannot publish into a closed Commit window.
@@ -1557,12 +1603,15 @@ import UniformTypeIdentifiers
                 if let postHookFailure { self.error = postHookFailure; busy = false; reload(); return }
                 if action == .recommit || selectedPostAction == .recommit {
                     do {
-                        let seed = try await repository.commitMessageSeed(includeOperationMessages: false)
+                        let seed = try await loadMessageSeed(includeOperationMessages: false, cancellation: preflightToken)
                         messageTemplate = seed.template
                         let separated = properties.separateIssueLine(from: seed.template)
                         message = separated.message; issueID = separated.issueID
                         if !seed.warnings.isEmpty { self.error = seed.warnings.joined(separator: "\n\n") }
-                    } catch { messageTemplate = ""; message = ""; self.error = error.localizedDescription }
+                    } catch {
+                        guard messageFocusAvailable, !preflightToken.isCancelled else { return }
+                        messageTemplate = ""; message = ""; self.error = error.localizedDescription
+                    }
                     createBranch = false; newBranch = ""; amend = false; amendDiffToLastCommit = false; amendMessage = ""; nonAmendMessage = ""; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
                     selectFilesAutomatically = true
                     checked = []; selection = []; hasLoaded = false; loadedMessage = false
