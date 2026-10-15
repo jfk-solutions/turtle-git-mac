@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import TurtleGitCore
 
 private struct BlameParentMenuTarget {
@@ -20,6 +21,8 @@ private struct BlameParentMenuTarget {
     private(set) var containingReferences:[UUID:CommitContainingReferencesWindowController]=[:]
     var configureContainingReferences:(CommitContainingReferencesWindowController)->Void = { _ in }
     private let preferences:UserDefaults
+    private var floatingPanes:[BlamePane:BlameFloatingPaneController]=[:]
+    func floatingPaneWindow(_ pane:BlamePane)->NSWindow? { floatingPanes[pane]?.window }
     let recentDocuments:BlameRecentDocuments?
     private let documentOpener:BlameDocumentOpener
     private(set) var openPanel:NSOpenPanel?
@@ -45,6 +48,7 @@ private struct BlameParentMenuTarget {
         };model.reload()
 
         configureHistoryActions()
+        configurePaneLayout()
         applyWindowAppearance()
         DialogGeometry.attach(window, identifier: "BlameWindowController")
     }
@@ -98,11 +102,11 @@ private struct BlameParentMenuTarget {
                 old.retireSourceView?();old.onFind=nil;old.onFindFeedback=nil;old.retire()
                 let replacement=BlameWindowModel(repository:document.repository,access:document.access,path:document.snapshot.path,revision:"HEAD",options:document.options,labelDefaults:preferences,historyRegexExecutable:old.historyRegexExecutable)
                 replacement.install(document.snapshot,history:document.history,options:document.options,details:document.details);replacement.recentHistoryError=old.recentHistoryError
-                model=replacement;replacement.onFind={ [weak self] in self?.showFind() };replacement.onFindFeedback={ [weak self] in self?.feedback($0) };replacement.onOpenDocument={ [weak self] in self?.openDocument() };replacement.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };replacement.onOpenRecent={ [weak self] in self?.openRecent($0) };replacement.recentDocuments=recentDocuments
+                retireFloatingPanes();model=replacement;replacement.onFind={ [weak self] in self?.showFind() };replacement.onFindFeedback={ [weak self] in self?.feedback($0) };replacement.onOpenDocument={ [weak self] in self?.openDocument() };replacement.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };replacement.onOpenRecent={ [weak self] in self?.openRecent($0) };replacement.recentDocuments=recentDocuments
                 window?.contentViewController=NSHostingController(rootView:BlameDialog(model:replacement))
                 Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
                 Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:]
-                configureHistoryActions();findWindow?.rebind(replacement);applyWindowAppearance()
+                configureHistoryActions();configurePaneLayout();findWindow?.rebind(replacement);applyWindowAppearance()
                 NotificationCenter.default.post(name:NSNotification.Name("TurtleGit.BlameDocumentChanged"),object:window)
                 window?.title="\(document.snapshot.path) at HEAD – Blame – TurtleGit";replacement.goToLine(1)
                 do { try recentDocuments?.remember(root:document.repository.root,path:document.snapshot.path,lease:document.access,replacing:recentID) }
@@ -144,9 +148,41 @@ private struct BlameParentMenuTarget {
             if let window=child.window { window.appearance=parent.appearance;parent.addChildWindow(window,ordered:.above);window.center();window.orderFront(nil) };child.refresh()
         }
     }
+    override func showWindow(_ sender:Any?) { super.showWindow(sender);refreshPaneLayout() }
+    private func configurePaneLayout() {
+        let current=model
+        model.onPaneLayoutChanged={ [weak self,weak current] in
+            guard let self,let current,self.model === current,!current.retired else { return }
+            self.refreshPaneLayout()
+        }
+        refreshPaneLayout()
+    }
+    func refreshPaneLayout() {
+        guard !model.retired,let window else { return }
+        let vertical=BlamePane.allCases.filter { model.paneVisible($0) && !model.paneAutoHidden($0) && [.top,.bottom].contains(model.paneLayout.placement($0)) }.count
+        window.minSize=NSSize(width:820,height:vertical>1 ? 520 : 400)
+        for pane in BlamePane.allCases {
+            if model.paneVisible(pane),model.paneLayout.placement(pane) == .floating {
+                guard window.isVisible else { continue }
+                if floatingPanes[pane] == nil { floatingPanes[pane]=BlameFloatingPaneController(owner:self,pane:pane,preferences:preferences) }
+                floatingPanes[pane]?.window?.appearance=window.appearance
+                floatingPanes[pane]?.window?.order(.above,relativeTo:window.windowNumber)
+            } else if let child=floatingPanes.removeValue(forKey:pane) { child.retire() }
+        }
+    }
+    fileprivate func floatingPaneClosed(_ pane:BlamePane) {
+        floatingPanes.removeValue(forKey:pane)
+        model.setPaneVisible(pane,false)
+    }
+    private func retireFloatingPanes() {
+        let children=Array(floatingPanes.values);floatingPanes=[:]
+        children.forEach { $0.retire() }
+    }
+    func windowDidBecomeKey(_ notification:Notification) { refreshPaneLayout() }
     private func applyWindowAppearance() {
         window?.appearance=model.darkOverride.map { NSAppearance(named:$0 ? .darkAqua : .aqua)! }
         findWindow?.window?.appearance=window?.appearance
+        floatingPanes.values.forEach { $0.window?.appearance=window?.appearance }
         findAlert?.window.appearance=window?.appearance
         historyUnifiedWindows.values.forEach { $0.window?.appearance=window?.appearance }
     }
@@ -190,6 +226,7 @@ private struct BlameParentMenuTarget {
     }
     func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy && !model.openingDocument && !model.resettingHistoryColumns && !hasBlockingHistoryChild }
     func windowWillClose(_ notification:Notification) {
+        model.onPaneLayoutChanged={};retireFloatingPanes()
         feedbackGeneration += 1;openingGeneration += 1;documentOpener.cancel()
         if let alert=columnAlert { alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close();columnAlert=nil }
         Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:]
@@ -349,9 +386,51 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published var historyEntries: [LogEntry] = [] { didSet { historyVersion += 1 } }
     private(set) var historyVersion=0
     @Published var selectedLogHashes: Set<String> = []
-    @Published var showProperties=true { didSet { labelDefaults.set(showProperties,forKey:"Blame.ShowProperties") } }
+    @Published var showProperties=true { didSet { guard !retired else { return };labelDefaults.set(showProperties,forKey:"Blame.ShowProperties");onPaneLayoutChanged() } }
     @Published var showToolbar=true { didSet { labelDefaults.set(showToolbar,forKey:"Blame.ShowToolbar") } }
-    @Published var showLog=true { didSet { labelDefaults.set(showLog,forKey:"Blame.ShowLog") } }
+    @Published var showLog=true { didSet { guard !retired else { return };labelDefaults.set(showLog,forKey:"Blame.ShowLog");onPaneLayoutChanged() } }
+    @Published private(set) var paneLayout=BlamePaneLayout() { didSet { guard !retired else { return };if let data=try? JSONEncoder().encode(paneLayout) { labelDefaults.set(data,forKey:"Blame.PaneLayout") };onPaneLayoutChanged() } }
+    @Published var paneDropPreview:BlamePanePlacement?
+    var onPaneLayoutChanged:()->Void={}
+    private let paneDragID=UUID()
+    func paneVisible(_ pane:BlamePane)->Bool { pane == .log ? showLog : showProperties }
+    func paneAutoHidden(_ pane:BlamePane)->Bool { paneLayout.autoHidden(pane) && paneLayout.placement(pane) != .floating }
+    func setPaneVisible(_ pane:BlamePane,_ value:Bool) { guard !retired else { return };if pane == .log { showLog=value } else { showProperties=value } }
+    func setPanePlacement(_ pane:BlamePane,_ value:BlamePanePlacement) {
+        guard canFind else { return };var next=paneLayout;next.place(pane,value);paneLayout=next
+    }
+    func togglePaneFloating(_ pane:BlamePane) { setPanePlacement(pane,paneLayout.placement(pane) == .floating ? paneLayout.lastDock(pane) : .floating) }
+    func setPaneAutoHidden(_ pane:BlamePane,_ value:Bool) {
+        guard canFind,paneLayout.placement(pane) != .floating else { return };var next=paneLayout;next.setAutoHidden(pane,value);paneLayout=next
+    }
+    @Published private(set) var paneLayoutRevision=0
+    func restorePaneLayout() {
+        guard canFind else { return }
+        for edge in BlamePanePlacement.allCases where edge != .floating { labelDefaults.removeObject(forKey:"Blame.Pane.Dock."+edge.rawValue+".Extent") }
+        paneLayoutRevision += 1;paneLayout=BlamePaneLayout();showLog=true;showProperties=true
+    }
+    func paneDragProvider(_ pane:BlamePane)->NSItemProvider {
+        let provider=NSItemProvider(),data=Data((paneDragID.uuidString+"\n"+pane.rawValue).utf8)
+        provider.registerDataRepresentation(forTypeIdentifier:BlamePane.dragType,visibility:.ownProcess) { reply in reply(data,nil);return nil }
+        return provider
+    }
+    @discardableResult func receivePaneDrop(_ providers:[NSItemProvider],placement:BlamePanePlacement)->Bool {
+        guard canFind,placement != .floating,providers.count==1,let provider=providers.first,provider.hasItemConformingToTypeIdentifier(BlamePane.dragType) else { return false }
+        let identity=paneDragID
+        provider.loadDataRepresentation(forTypeIdentifier:BlamePane.dragType) { [weak self] data,_ in
+            Task { @MainActor in
+                guard let self,self.canFind,self.paneDragID==identity,let data else { return }
+                _ = self.applyPaneDropData(data,placement:placement)
+            }
+        }
+        return true
+    }
+    @discardableResult func applyPaneDropData(_ data:Data,placement:BlamePanePlacement)->Bool {
+        guard canFind,placement != .floating else { return false }
+        let pieces=String(decoding:data,as:UTF8.self).split(separator:"\n")
+        guard pieces.count==2,pieces[0]==paneDragID.uuidString,let pane=BlamePane(rawValue:String(pieces[1])),paneVisible(pane) else { return false }
+        setPanePlacement(pane,placement);return true
+    }
     @Published var showStatusBar=true { didSet { labelDefaults.set(showStatusBar,forKey:"Blame.ShowStatusBar") } }
     @Published private(set) var darkOverride:Bool?
     func setDarkOverride(_ value:Bool?) { darkOverride=value;if let value { labelDefaults.set(value,forKey:"Blame.DarkMode") } else { labelDefaults.removeObject(forKey:"Blame.DarkMode") } }
@@ -452,6 +531,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions(), labelDefaults: UserDefaults = .standard,historyRegexExecutable:URL? = nil) {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision; self.labelDefaults = labelDefaults;self.historyColumns = .load(labelDefaults);self.historyRegexExecutable=historyRegexExecutable
+        paneLayout=BlamePaneLayout.load(labelDefaults)
         showProperties=labelDefaults.object(forKey:"Blame.ShowProperties") as? Bool ?? true
         showToolbar=labelDefaults.object(forKey:"Blame.ShowToolbar") as? Bool ?? true
         showLog=labelDefaults.object(forKey:"Blame.ShowLog") as? Bool ?? true
@@ -522,7 +602,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         followRenames = enabled; GitBlamePreferences.update(in:labelDefaults) { $0.followRenames = enabled }; reload(saveThresholds: true)
     }
     func retire() {
-        retired=true;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
+        retired=true;onPaneLayoutChanged={};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
     func invalidate() { loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
@@ -709,6 +789,7 @@ private struct BlameDialog: View {
                     Toggle("Enable syntax highlighting",isOn:Binding(get:{model.syntaxEnabled},set:{model.setSyntaxEnabled($0)}))
                     Toggle("Log",isOn:$model.showLog)
                     Toggle("Properties",isOn:$model.showProperties)
+                    Divider();BlamePaneLayoutMenu(model:model)
                     Toggle("Status Bar",isOn:$model.showStatusBar)
                     Toggle("Toolbar",isOn:$model.showToolbar)
                     Divider()
@@ -727,16 +808,7 @@ private struct BlameDialog: View {
             if model.loadingParents || model.readingHistoryParents { ProgressView("Reading previous revisions…").controlSize(.small) }
             if model.copyingLog { ProgressView("Reading log message for clipboard…").controlSize(.small) }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-            HSplitView {
-                VSplitView {
-                    BlameTable(model: model).frame(minHeight: 90, maxHeight: .infinity)
-                    if model.showLog { BlameHistoryTable(model:model).frame(minHeight:80,idealHeight:170,maxHeight:320) }
-                }.frame(minWidth: 450, maxWidth: .infinity, maxHeight: .infinity)
-                if model.showProperties {
-                    BlamePropertiesPane(entry: model.selectedHistoryEntry, history: model.historyEntries, copy: model.copy)
-                        .frame(minWidth: 230, idealWidth: 300, maxWidth: 350, maxHeight: .infinity)
-                }
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            BlamePaneWorkspace(model:model).frame(maxWidth:.infinity,maxHeight:.infinity)
             if model.showStatusBar { if let line = model.selectedLine {
                 Text("\(line.hash) • \(line.author) <\(line.email)>").font(.system(size: 11)).textSelection(.enabled)
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
@@ -851,20 +923,19 @@ private struct BlamePropertiesPane: View {
     let entry: LogEntry?
     let history: [LogEntry]
     let copy: (String) -> Void
-    private func property(_ name: String, _ value: String) -> some View {
+    private func property(_ name: String, _ value: String, multiline:Bool = false) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Text(name).foregroundStyle(.secondary).frame(width: 88, alignment: .leading)
+            Text(name).foregroundStyle(.secondary).frame(width: 88, alignment: .leading).lineLimit(1)
             Text(value.isEmpty ? " " : value).frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled).lineLimit(multiline ? nil : 1).truncationMode(.tail).help(value)
+                .fixedSize(horizontal: false, vertical: multiline)
         }.accessibilityElement(children: .combine)
     }
     private var properties: GitBlameRevisionProperties? { entry.map { GitBlameRevisionProperties(entry: $0) } }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Properties").font(.headline).padding(8)
-            Divider()
             ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Basic information").font(.headline)
                     property("SHA-1", entry?.hash ?? "")
                     property("Author", entry?.author ?? "")
@@ -874,7 +945,7 @@ private struct BlamePropertiesPane: View {
                     property("Committer email", entry?.committerEmail ?? "")
                     property("Committer date", properties?.committerDate ?? "")
                     property("Subject", properties?.subject ?? "")
-                    property("Body", properties?.body ?? "")
+                    property("Body", properties?.body ?? "",multiline:true)
                     Divider()
                     Text("Parents").font(.headline)
                     ForEach(entry?.parents ?? [], id: \.self) { hash in
@@ -1894,5 +1965,315 @@ private final class BlameRowView: NSTableRowView {
     override func drawSelection(in dirtyRect: NSRect) {
         if revisionHighlighted { ageColor.setFill(); dirtyRect.fill() }
         else { super.drawSelection(in: dirtyRect) }
+    }
+}
+
+// MainFrm.cpp enables all four dock edges and floating/auto-hide for Output and Properties.
+enum BlamePane:String,CaseIterable,Identifiable,Codable {
+    case log,properties
+    var id:String { rawValue }
+    var title:String { self == .log ? "Log" : "Properties" }
+    var caption:String { self == .log ? "Git Revision List" : "Commit Info" }
+    var icon:MenuIcon { self == .log ? .log : .imageInfo }
+    static let dragType="org.turtlegit.blame.pane"
+}
+enum BlamePanePlacement:String,CaseIterable,Codable,Identifiable {
+    case left,right,top,bottom,floating
+    var id:String { rawValue }
+    var title:String { self == .floating ? "Float" : "Dock "+rawValue.capitalized }
+    static func edge(at point:CGPoint,size:CGSize)->Self {
+        let width=max(1,size.width),height=max(1,size.height)
+        return [(Self.left,point.x/width),(.right,1-point.x/width),(.top,point.y/height),(.bottom,1-point.y/height)].min{$0.1<$1.1}!.0
+    }
+}
+struct BlamePaneLayout:Codable,Equatable {
+    var log:BlamePanePlacement = .bottom,properties:BlamePanePlacement = .right
+    var logLastDock:BlamePanePlacement = .bottom,propertiesLastDock:BlamePanePlacement = .right
+    var logAutoHide=false,propertiesAutoHide=false
+    static func load(_ preferences:UserDefaults)->Self {
+        guard let data=preferences.data(forKey:"Blame.PaneLayout"),var value=try? JSONDecoder().decode(Self.self,from:data) else { return Self() }
+        if value.logLastDock == .floating { value.logLastDock = .bottom }
+        if value.propertiesLastDock == .floating { value.propertiesLastDock = .right }
+        return value
+    }
+    func placement(_ pane:BlamePane)->BlamePanePlacement { pane == .log ? log : properties }
+    func lastDock(_ pane:BlamePane)->BlamePanePlacement { pane == .log ? logLastDock : propertiesLastDock }
+    func autoHidden(_ pane:BlamePane)->Bool { pane == .log ? logAutoHide : propertiesAutoHide }
+    mutating func setAutoHidden(_ pane:BlamePane,_ value:Bool) { if pane == .log { logAutoHide=value } else { propertiesAutoHide=value } }
+    mutating func place(_ pane:BlamePane,_ value:BlamePanePlacement) {
+        if pane == .log { log=value;if value != .floating { logLastDock=value } }
+        else { properties=value;if value != .floating { propertiesLastDock=value } }
+        if value == .floating { setAutoHidden(pane,false) }
+    }
+}
+struct BlamePaneLayoutMenu:View {
+    @ObservedObject var model:BlameWindowModel
+    var body:some View {
+        ForEach(BlamePane.allCases) { pane in
+            Menu(pane.title+" Pane") { BlamePaneChoices(model:model,pane:pane) }
+        }
+        Button("Restore Default Pane Layout") { model.restorePaneLayout() }.disabled(!model.canFind)
+    }
+}
+private struct BlamePaneChoices:View {
+    @ObservedObject var model:BlameWindowModel
+    let pane:BlamePane
+    var body:some View {
+        ForEach(BlamePanePlacement.allCases) { placement in
+            Toggle(placement.title,isOn:Binding(get:{model.paneLayout.placement(pane)==placement},set:{_ in model.setPanePlacement(pane,placement)}))
+        }
+        Divider()
+        Toggle("Auto Hide",isOn:Binding(get:{model.paneAutoHidden(pane)},set:{model.setPaneAutoHidden(pane,$0)})).disabled(model.paneLayout.placement(pane) == .floating)
+    }
+}
+private struct BlamePaneHeader:View {
+    @ObservedObject var model:BlameWindowModel
+    let pane:BlamePane
+    var body:some View {
+        HStack(spacing:6) {
+            CommandLabel(title:pane.caption,icon:pane.icon).font(.caption.bold()).lineLimit(1)
+                .onDrag { model.paneDragProvider(pane) }.onTapGesture(count:2) { model.togglePaneFloating(pane) }
+                .help("Drag to an edge to dock; double-click to float or dock.")
+            Spacer(minLength:2)
+            Menu { BlamePaneChoices(model:model,pane:pane) } label: { Image(systemName:"chevron.down") }.menuStyle(.borderlessButton).fixedSize().accessibilityLabel(pane.title+" pane placement")
+            Button { model.setPaneVisible(pane,false) } label: { Image(systemName:"xmark") }.buttonStyle(.plain).accessibilityLabel("Hide "+pane.title)
+        }.padding(5).background(Color(nsColor:.controlBackgroundColor)).disabled(!model.canFind)
+    }
+}
+private struct BlamePaneContent:View {
+    @ObservedObject var model:BlameWindowModel
+    let pane:BlamePane
+    var body:some View {
+        if pane == .log { BlameHistoryTable(model:model) }
+        else { BlamePropertiesPane(entry:model.selectedHistoryEntry,history:model.historyEntries,copy:model.copy) }
+    }
+}
+private struct BlameAutoHideTab:NSViewRepresentable {
+    let pane:BlamePane,enabled:Bool
+    let action:()->Void
+    func makeCoordinator()->Coordinator { Coordinator(action) }
+    func makeNSView(context:Context)->NSButton {
+        let button=PaneTabButton(title:pane.title,target:context.coordinator,action:#selector(Coordinator.pressed(_:)))
+        button.bezelStyle = .rounded;button.controlSize = .small;button.font = .systemFont(ofSize:11)
+        button.image=pane.icon.contextImage();button.imagePosition = .imageLeft
+        button.toolTip="Show "+pane.title;button.setAccessibilityLabel("Show auto-hidden "+pane.title)
+        return button
+    }
+    func updateNSView(_ button:NSButton,context:Context) {
+        context.coordinator.action=action;button.isEnabled=enabled && context.environment.isEnabled
+    }
+    static func dismantleNSView(_ button:NSButton,coordinator:Coordinator) { button.target=nil;button.action=nil;coordinator.action={} }
+    private final class PaneTabButton:NSButton {
+        override func accessibilityPerformPress()->Bool {
+            guard isEnabled,let action,let target else { return false }
+            return sendAction(action,to:target)
+        }
+    }
+    final class Coordinator:NSObject {
+        var action:()->Void
+        init(_ action:@escaping ()->Void) { self.action=action }
+        @objc func pressed(_ sender:NSButton) { action() }
+    }
+}
+private struct BlameDockedPane:View {
+    @ObservedObject var model:BlameWindowModel
+    let pane:BlamePane
+    @State private var showing=false
+    var body:some View {
+        if model.paneAutoHidden(pane) {
+            BlameAutoHideTab(pane:pane,enabled:model.canFind,action:{showing.toggle()})
+                .frame(width:pane == .log ? 90 : 115,height:28)
+                .popover(isPresented:$showing) {
+                    VStack(spacing:0) { BlamePaneHeader(model:model,pane:pane);BlamePaneContent(model:model,pane:pane) }
+                        .frame(width:pane == .log ? 680 : 320,height:360)
+                }.onDisappear { showing=false }
+        } else {
+            VStack(spacing:0) { BlamePaneHeader(model:model,pane:pane);BlamePaneContent(model:model,pane:pane) }
+        }
+    }
+}
+private struct BlamePaneWorkspace:View {
+    @ObservedObject var model:BlameWindowModel
+    var body:some View {
+        GeometryReader { geometry in
+            BlameNativeDockWorkspace(model:model)
+            .onDrop(of:[BlamePane.dragType],delegate:BlamePaneDockDrop(model:model,size:geometry.size))
+            .overlay(alignment:.topLeading) {
+                if let edge=model.paneDropPreview {
+                    let rect=dropRect(edge,size:geometry.size)
+                    Text(edge.title).frame(width:rect.width,height:rect.height)
+                        .background(Color.accentColor.opacity(0.2)).border(Color.accentColor)
+                        .offset(x:rect.minX,y:rect.minY).allowsHitTesting(false).accessibilityHidden(true)
+                }
+            }
+        }
+    }
+    private func dropRect(_ edge:BlamePanePlacement,size:CGSize)->CGRect {
+        switch edge {
+        case .left:return CGRect(x:0,y:0,width:min(150,size.width/3),height:size.height)
+        case .right:let width=min(150,size.width/3);return CGRect(x:size.width-width,y:0,width:width,height:size.height)
+        case .top:return CGRect(x:0,y:0,width:size.width,height:min(100,size.height/3))
+        default:let height=min(100,size.height/3);return CGRect(x:0,y:size.height-height,width:size.width,height:height)
+        }
+    }
+}
+@MainActor private struct BlamePaneDockDrop:DropDelegate {
+    let model:BlameWindowModel,size:CGSize
+    func validateDrop(info:DropInfo)->Bool { model.canFind && info.hasItemsConforming(to:[BlamePane.dragType]) }
+    func dropUpdated(info:DropInfo)->DropProposal? {
+        guard validateDrop(info:info) else { return DropProposal(operation:.cancel) }
+        model.paneDropPreview=BlamePanePlacement.edge(at:info.location,size:size)
+        return DropProposal(operation:.move)
+    }
+    func dropExited(info:DropInfo) { model.paneDropPreview=nil }
+    func performDrop(info:DropInfo)->Bool {
+        model.paneDropPreview=nil
+        return model.receivePaneDrop(info.itemProviders(for:[BlamePane.dragType]),placement:BlamePanePlacement.edge(at:info.location,size:size))
+    }
+}
+@MainActor private final class BlameFloatingPaneController:NSWindowController,NSWindowDelegate {
+    private weak var blameOwner:BlameWindowController?
+    private let pane:BlamePane,preferences:UserDefaults
+    private var retiring=false
+    private var frameKey:String { "Blame.Pane."+pane.rawValue+".FloatingFrame" }
+    init(owner:BlameWindowController,pane:BlamePane,preferences:UserDefaults) {
+        self.blameOwner=owner;self.pane=pane;self.preferences=preferences
+        let panel=NSPanel(contentRect:NSRect(x:0,y:0,width:pane == .log ? 700 : 330,height:350),styleMask:[.titled,.closable,.resizable,.utilityWindow],backing:.buffered,defer:false)
+        panel.title=pane.caption;panel.isReleasedWhenClosed=false;panel.hidesOnDeactivate=true;panel.minSize=NSSize(width:260,height:160)
+        panel.contentViewController=NSHostingController(rootView:BlamePaneContent(model:owner.model,pane:pane))
+        super.init(window:panel)
+        let accessory=NSTitlebarAccessoryViewController()
+        accessory.view=NSHostingView(rootView:Menu { BlamePaneChoices(model:owner.model,pane:pane) } label: { Image(systemName:"rectangle.split.2x1") }.menuStyle(.borderlessButton).accessibilityLabel(pane.title+" pane placement").frame(width:28,height:22))
+        accessory.layoutAttribute = .right;panel.addTitlebarAccessoryViewController(accessory)
+        var frame=preferences.string(forKey:frameKey).map(NSRectFromString) ?? panel.frame
+        if ![frame.minX,frame.minY,frame.width,frame.height].allSatisfy({$0.isFinite}) || frame.width<260 || frame.height<160 { frame=panel.frame }
+        let screen=owner.window?.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? NSRect(x:0,y:0,width:1200,height:800)
+        frame.size.width=min(frame.width,screen.width);frame.size.height=min(frame.height,screen.height)
+        if preferences.string(forKey:frameKey)==nil { frame.origin=NSPoint(x:(owner.window?.frame.midX ?? screen.midX)-frame.width/2,y:(owner.window?.frame.midY ?? screen.midY)-frame.height/2) }
+        frame.origin.x=min(max(frame.minX,screen.minX),screen.maxX-frame.width)
+        frame.origin.y=min(max(frame.minY,screen.minY),screen.maxY-frame.height)
+        panel.setFrame(frame,display:false);panel.delegate=self
+        owner.window?.addChildWindow(panel,ordered:.above)
+    }
+    required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
+    private func saveFrame() { if let window { preferences.set(NSStringFromRect(window.frame),forKey:frameKey) } }
+    func windowDidMove(_ notification:Notification) { saveFrame() }
+    func windowDidResize(_ notification:Notification) { saveFrame() }
+    func windowWillClose(_ notification:Notification) {
+        saveFrame();if let window { window.parent?.removeChildWindow(window) }
+        if !retiring { blameOwner?.floatingPaneClosed(pane) }
+    }
+    func retire() { guard !retiring else { return };retiring=true;window?.close() }
+}
+
+/// Native split frames avoid intrinsic-content compression from nested hosting
+/// views. Keep the source host stable while moving the two existing pane hosts.
+private struct BlameNativeDockWorkspace:NSViewControllerRepresentable {
+    @ObservedObject var model:BlameWindowModel
+    func makeNSViewController(context:Context)->BlameDockWorkspaceController { BlameDockWorkspaceController(model:model) }
+    func updateNSViewController(_ controller:BlameDockWorkspaceController,context:Context) { controller.update(model) }
+}
+@MainActor private final class BlameDockRootSplit:NSSplitView {
+    var afterLayout:()->Void={}
+    override func layout() { super.layout();afterLayout() }
+}
+@MainActor private final class BlameDockWorkspaceController:NSViewController,NSSplitViewDelegate {
+    private var model:BlameWindowModel
+    private let root=BlameDockRootSplit(),center=NSSplitView()
+    private var groups:[BlamePanePlacement:NSSplitView]=[:]
+    private let source:NSHostingView<BlameTable>
+    private var hosts:[BlamePane:NSHostingView<BlameDockedPane>]=[:]
+    private var edgePanes:[BlamePanePlacement:[BlamePane]]=[:]
+    private var previousLayout:BlamePaneLayout?,previousLog:Bool?,previousProperties:Bool?,previousRevision = -1
+    private var applying=false,pending=true
+    init(model:BlameWindowModel) {
+        self.model=model;source=NSHostingView(rootView:BlameTable(model:model))
+        super.init(nibName:nil,bundle:nil)
+        source.sizingOptions=[];source.autoresizingMask=[.width,.height]
+        for pane in BlamePane.allCases {
+            let host=NSHostingView(rootView:BlameDockedPane(model:model,pane:pane));host.sizingOptions=[];host.autoresizingMask=[.width,.height];hosts[pane]=host
+        }
+        for edge in BlamePanePlacement.allCases where edge != .floating { groups[edge]=NSSplitView() }
+    }
+    required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
+    override func loadView() {
+        root.isVertical=false;center.isVertical=true
+        for (edge,split) in groups { split.isVertical=[.top,.bottom].contains(edge) }
+        for split in [root,center]+Array(groups.values) { split.dividerStyle = .thin;split.delegate=self;split.autoresizingMask=[.width,.height] }
+        root.afterLayout={ [weak self] in self?.applyPendingFrames() };view=root
+        rebuild()
+    }
+    func update(_ model:BlameWindowModel) {
+        if self.model !== model {
+            self.model=model;source.rootView=BlameTable(model:model)
+            for pane in BlamePane.allCases { hosts[pane]?.rootView=BlameDockedPane(model:model,pane:pane) }
+            previousLayout=nil
+        }
+        guard isViewLoaded else { return }
+        if previousLayout != model.paneLayout || previousLog != model.showLog || previousProperties != model.showProperties || previousRevision != model.paneLayoutRevision { rebuild() }
+    }
+    private func rebuild() {
+        applying=true;defer { applying=false }
+        previousLayout=model.paneLayout;previousLog=model.showLog;previousProperties=model.showProperties;previousRevision=model.paneLayoutRevision
+        for split in [root,center]+Array(groups.values) { for child in split.arrangedSubviews { child.removeFromSuperview() } }
+        for edge in BlamePanePlacement.allCases where edge != .floating {
+            let panes=BlamePane.allCases.filter{model.paneVisible($0) && model.paneLayout.placement($0)==edge};edgePanes[edge]=panes
+            for pane in panes { if let host=hosts[pane] { groups[edge]?.addArrangedSubview(host) } }
+        }
+        if has(.top) { root.addArrangedSubview(groups[.top]!) }
+        root.addArrangedSubview(center)
+        if has(.bottom) { root.addArrangedSubview(groups[.bottom]!) }
+        if has(.left) { center.addArrangedSubview(groups[.left]!) }
+        center.addArrangedSubview(source)
+        if has(.right) { center.addArrangedSubview(groups[.right]!) }
+        pending=true;root.needsLayout=true
+    }
+    private func has(_ edge:BlamePanePlacement)->Bool { !(edgePanes[edge] ?? []).isEmpty }
+    private func collapsed(_ edge:BlamePanePlacement)->Bool { (edgePanes[edge] ?? []).allSatisfy{model.paneAutoHidden($0)} }
+    private func extentKey(_ edge:BlamePanePlacement)->String { "Blame.Pane.Dock."+edge.rawValue+".Extent" }
+    private func extent(_ edge:BlamePanePlacement,available:CGFloat)->CGFloat {
+        let horizontal=[BlamePanePlacement.top,.bottom].contains(edge)
+        if collapsed(edge) { return horizontal ? 34 : 115 }
+        let saved=model.labelDefaults.double(forKey:extentKey(edge)),fallback:CGFloat=horizontal ? 170 : 280
+        return min(max(saved.isFinite && saved>0 ? CGFloat(saved) : fallback,horizontal ? 80 : 160),available*0.4)
+    }
+    private func applyPendingFrames() {
+        guard pending,!applying,root.bounds.width>0,root.bounds.height>0 else { return }
+        applying=true;defer { applying=false };pending=false
+        root.adjustSubviews()
+        if has(.top) { root.setPosition(extent(.top,available:root.bounds.height),ofDividerAt:0) }
+        if has(.bottom) { root.setPosition(root.bounds.height-extent(.bottom,available:root.bounds.height)-root.dividerThickness,ofDividerAt:root.arrangedSubviews.count-2) }
+        center.adjustSubviews()
+        if has(.left) { center.setPosition(extent(.left,available:center.bounds.width),ofDividerAt:0) }
+        if has(.right) { center.setPosition(center.bounds.width-extent(.right,available:center.bounds.width)-center.dividerThickness,ofDividerAt:center.arrangedSubviews.count-2) }
+        for split in groups.values where !split.arrangedSubviews.isEmpty {
+            split.adjustSubviews()
+            if split.arrangedSubviews.count>1 { split.setPosition((split.isVertical ? split.bounds.width : split.bounds.height)/2,ofDividerAt:0) }
+        }
+    }
+    func splitView(_ splitView:NSSplitView,shouldAdjustSizeOfSubview view:NSView)->Bool {
+        if splitView === root { return view === center }
+        if splitView === center { return view === source }
+        return true
+    }
+    private func minimum(_ child:NSView,in split:NSSplitView)->CGFloat {
+        if child === source { return 450 }
+        if child === center { return 90 }
+        if let edge=groups.first(where:{$0.value === child})?.key { return collapsed(edge) ? ([.top,.bottom].contains(edge) ? 34 : 115) : (split.isVertical ? 160 : 80) }
+        return split.isVertical ? 120 : 60
+    }
+    func splitView(_ splitView:NSSplitView,constrainSplitPosition proposedPosition:CGFloat,ofSubviewAt dividerIndex:Int)->CGFloat {
+        let children=splitView.arrangedSubviews
+        guard children.indices.contains(dividerIndex),dividerIndex+1<children.count else { return proposedPosition }
+        let lower=children[...dividerIndex].reduce(CGFloat(0)){$0+minimum($1,in:splitView)}+CGFloat(dividerIndex)*splitView.dividerThickness
+        let upper=(splitView.isVertical ? splitView.bounds.width : splitView.bounds.height)-children[(dividerIndex+1)...].reduce(CGFloat(0)){$0+minimum($1,in:splitView)}-CGFloat(children.count-dividerIndex-2)*splitView.dividerThickness
+        return min(max(proposedPosition,lower),max(lower,upper))
+    }
+    func splitViewDidResizeSubviews(_ notification:Notification) {
+        guard !applying,!pending,let split=notification.object as? NSSplitView,split === root || split === center else { return }
+        for (edge,group) in groups where has(edge) && !collapsed(edge) && group.superview === split {
+            let value=split.isVertical ? group.frame.width : group.frame.height
+            if value.isFinite,value>0 { model.labelDefaults.set(Double(value),forKey:extentKey(edge)) }
+        }
     }
 }

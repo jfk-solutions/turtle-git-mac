@@ -1,0 +1,131 @@
+{
+  "date": "2026-10-15",
+  "scope": "Blame native Log/Commit Info docking, floating, auto-hide, stable split layout and persistence",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseGitBlame/MainFrm.cpp CreateDockingWindows/EnableDocking/EnableAutoHidePanes",
+      "src/Resources/TortoiseGitBlameENG.rc IDS_OUTPUT_WND and IDS_PROPERTIES_WND",
+      "doc/images/en/TortoiseBlame.png"
+    ]
+  },
+  "implementation": [
+    "Four dock edges, floating and auto-hide choices in pane captions plus main/window pane menus; double-click Float/Dock, Hide and Restore Default",
+    "Process-local caption data restricted to the same live document and visible pane; edge-target drop preview",
+    "Owned native utility panels share existing table/properties data, focus routing and appearance; panel Close hides only that pane",
+    "Owner Close and File Open retire/rebind floating views without discarding saved visibility; showWindow refresh restores floating profiles after the owner is actually visible",
+    "Native NSSplitView keeps the annotation host stable and persists docked edge extents in the owning preferences; reset clears custom extents",
+    "Default full-width Git Revision List below both annotations and Commit Info; original captions; compact values with full-value tooltips and multiline Body",
+    "Auto-hide uses an explicit native button with enabled target/action and accessibility press handler; transient popover pin/close cleanup"
+  ],
+  "validation": {
+    "core": "Unchanged; not rerun",
+    "final_build": {
+      "exit_code": 0,
+      "log": "build/qa/blame-pane-layout-splits-build-2026-10-15.log"
+    },
+    "native": {
+      "result": "All four final cases passed",
+      "cases": [
+        "blame-menus/system Git",
+        "blame-file-open/system Git",
+        "blame-menus/bundled Git",
+        "blame-file-open/bundled Git"
+      ],
+      "log": "build/qa/blame-pane-layout-native-splits-2026-10-15.log",
+      "receivers_reaped": [
+        69955,
+        70257,
+        70384,
+        70679
+      ],
+      "new_scope": "Dock placements, native divider 316-point persistence/reopening and 280-point reset, floating focus/content/close, appearance/frame restore, own/foreign/retired drag data, File Open model rebinding, actual auto-hide accessibility press/popover/pin cleanup, source selection/annotations and full-width table",
+      "baseline_scope": "Existing Blame menu/current/Find/unrelated/second/retired focus, option/column/parent/clipboard, private preferences and unchanged HEAD/index/file; File Open picker/scope/cross-repository/recent/late replies"
+    },
+    "initial_failures": [
+      {
+        "logs": [
+          "build/qa/blame-pane-layout-build-2026-10-15.log",
+          "build/qa/blame-pane-layout-source-build-2026-10-15.log"
+        ],
+        "description": "Compile repairs: NSWindowController already has owner; renamed the weak pane reference. Corrected SwiftUI frame argument order."
+      },
+      {
+        "logs": [
+          "build/qa/blame-pane-layout-native-2026-10-15.log",
+          "build/qa/blame-pane-layout-native-diagnostic-2026-10-15.log"
+        ],
+        "description": "Fresh saved-floating profile did not create a panel before the key notification visibility check; refresh again after showWindow completes."
+      },
+      {
+        "logs": [
+          "build/qa/blame-pane-layout-native-final-2026-10-15.log",
+          "build/qa/blame-pane-layout-native-accessible-2026-10-15.log",
+          "build/qa/blame-pane-layout-native-actions-2026-10-15.log",
+          "build/qa/blame-pane-layout-native-tabs-2026-10-15.log",
+          "build/qa/blame-pane-layout-native-press-2026-10-15.log"
+        ],
+        "description": "Auto-hide verification exposed differences between SwiftUI virtual controls/public AX metadata and the prohibited plain receiver host. Activate the owned receiver for UI checks, use an explicit native tab and implement its modern enabled press hook. Actual popover/pin assertions retained."
+      },
+      {
+        "log": "build/qa/blame-pane-layout-native-final-controls-2026-10-15.log",
+        "description": "Four workflow cases passed before visual inspection revealed nested SwiftUI split compression. Replaced the split container with controlled native frames and persistent divider extents, compacted property values, then reran the affected four native cases and captures."
+      }
+    ],
+    "cleanup": {
+      "all_checked_receivers_absent": [
+        66265,
+        66564,
+        67057,
+        67393,
+        67723,
+        68118,
+        68449,
+        68811,
+        69116,
+        69242,
+        69536,
+        69955,
+        70257,
+        70384,
+        70679
+      ],
+      "method": "Runner reaped each receiver; later ps inspection found all absent. Native assertions close owned windows/popovers and verify panel detachment."
+    },
+    "visual": {
+      "reviewed": [
+        {
+          "path": "docs/site/assets/blame-panes-current-light.png",
+          "sha256": "f7f90032d8252a753cd9c8ecd9dca1a25f4d8f43ab23fd0cfb83c8c1b09a5bf3",
+          "pixels": [
+            2240,
+            1464
+          ],
+          "theme": "light"
+        },
+        {
+          "path": "docs/site/assets/blame-panes-current-dark.png",
+          "sha256": "76cf7ed49a105aeb1fc55e162fe8813c0471f13d28495b8e630fa420cb0bddaf",
+          "pixels": [
+            2240,
+            1464
+          ],
+          "theme": "dark"
+        }
+      ],
+      "reference": "Pinned TortoiseBlame.png was viewed alongside final light/dark captures",
+      "excluded": "Four floating-window PNGs remain diagnostics only: compositor child grouping does not isolate panel windows."
+    },
+    "documentation": "Coverage ledger regenerated; site built 215 documents with no unresolved fragments. Only reviewed docked light/dark PNGs were published."
+  },
+  "limits": [
+    "Full MFC tab-group/smart-docking equivalence and dragging outside the workspace to float",
+    "Physical drag/divider/multi-screen/keyboard/VoiceOver and every conditional layout",
+    "Signed Finder/App Store security scopes and full application acceptance",
+    "Sparse fixture demonstrates pane arrangement, not complete lexer/history topology coverage"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

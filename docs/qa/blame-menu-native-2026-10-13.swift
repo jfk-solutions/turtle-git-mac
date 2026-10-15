@@ -4,9 +4,9 @@ import TurtleGitCore
 @main struct BlameMenuVerification {
     struct Failure:Error,CustomStringConvertible { let description:String }
     static func require(_ value:Bool,_ message:String) throws { if !value { throw Failure(description:message) } }
-    @MainActor static func wait(_ condition:@escaping ()->Bool) async throws {
+    @MainActor static func wait(line:Int = #line,_ condition:@escaping ()->Bool) async throws {
         for _ in 0..<1000 { if condition() { return };try await Task.sleep(nanoseconds:10_000_000) }
-        throw Failure(description:"Blame menu did not settle")
+        throw Failure(description:"Blame menu did not settle at \(line)")
     }
     @MainActor static func descendants(_ view:NSView)->[NSView] { [view]+view.subviews.flatMap(descendants) }
     @MainActor static func main() async { do { try await verify() } catch {
@@ -170,6 +170,7 @@ import TurtleGitCore
         context.setDetection(.disabled);try await wait { !model.busy };context.refresh()
         context.perform(.ignoreWhitespace);try await wait { !model.busy && model.ignoreWhitespace }
         try require(GitBlamePreferences.load(from:prefs).ignoreWhitespace && GitBlamePreferences.load()==globals,"Option menu wrote outside injected preferences")
+        try await paneWorkflows(owner:owner,prefs:prefs,regexExecutable:regexExecutable)
         // A second owner receives its own routing and restores persisted pane choices.
         model.showToolbar=false;model.showLog=false;model.showProperties=false;model.showStatusBar=false
         let reopened=BlameWindowController(repository:repo,access:nil,path:"menus.cpp",revision:"HEAD",options:GitBlameOptions(),preferences:prefs,regexExecutable:regexExecutable)
@@ -184,4 +185,104 @@ import TurtleGitCore
         try require(afterHead==head && afterIndex==index && afterFile==Data(text.utf8),"Menu operations changed repository state")
         print("Blame menus: current/Find/unrelated/second/retired window routing, busy/detection gates, persistent pane restoration, source selection retention, window/panel appearance/reset, private option defaults and exact HEAD/index/file preservation passed. Owned windows closed; full physical menu/VoiceOver acceptance remains open.")
     }
+    @MainActor static func paneWorkflows(owner:BlameWindowController,prefs:UserDefaults,regexExecutable:URL) async throws {
+        NSApp.setActivationPolicy(.accessory);NSApp.activate(ignoringOtherApps:true)
+        let model=owner.model,annotations=model.lines.map{($0.hash,$0.originalLine)},selection=model.selection
+        let root=owner.window!;owner.showWindow(nil);root.makeKeyAndOrderFront(nil)
+        model.restorePaneLayout()
+        func sideSplit(_ window:NSWindow)->NSSplitView? {
+            let container=descendants(window.contentView!).compactMap{$0 as? NSSplitView}.first{String(describing:type(of:$0)).contains("BlameDockRootSplit")}
+            return container?.arrangedSubviews.compactMap{$0 as? NSSplitView}.first { split in descendants(split).compactMap{$0 as? NSTextView}.contains{$0.accessibilityLabel()=="Blame source text"} }
+        }
+        try await wait { root.contentView?.layoutSubtreeIfNeeded();return sideSplit(root)?.arrangedSubviews.count==2 }
+        let sides=sideSplit(root)!;sides.setPosition(sides.bounds.width-316-sides.dividerThickness,ofDividerAt:0)
+        try await wait { abs(prefs.double(forKey:"Blame.Pane.Dock.right.Extent")-316)<1 }
+        for edge in [BlamePanePlacement.left,.top,.right,.bottom] {
+            model.setPanePlacement(.log,edge);root.contentView?.layoutSubtreeIfNeeded()
+            try require(model.paneLayout.placement(.log)==edge && BlamePaneLayout.load(prefs)==model.paneLayout,"Dock edge not persisted")
+        }
+        model.setPanePlacement(.log,.floating);model.setPanePlacement(.properties,.floating)
+        try await wait { owner.floatingPaneWindow(.log)?.isVisible == true && owner.floatingPaneWindow(.properties)?.isVisible == true }
+        let log=owner.floatingPaneWindow(.log)!,properties=owner.floatingPaneWindow(.properties)!
+        try await wait { descendants(log.contentView!).compactMap{$0 as? BlameHistoryNativeTable}.first?.numberOfRows == model.historyEntries.count }
+        let context=BlameMenuContext(keyWindow:{log});context.refresh()
+        try require(context.owner === owner && context.available,"Floating pane lost focused owner")
+        owner.setDarkMode(true);try require(log.effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua && properties.effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua,"Floating appearance did not follow owner")
+        owner.followSystemAppearance()
+        log.setFrameOrigin(NSPoint(x:log.frame.minX+18,y:log.frame.minY+12))
+        try await wait { prefs.string(forKey:"Blame.Pane.log.FloatingFrame") != nil }
+        properties.performClose(nil)
+        try require(!model.showProperties && !model.retired && model.showLog && owner.floatingPaneWindow(.properties)==nil,"Closing Properties retired owner or Log")
+        model.setPaneVisible(.properties,true)
+        // Same-window drag uses the actual item provider. A foreign document cannot apply it.
+        let provider=model.paneDragProvider(.log)
+        try require(model.receivePaneDrop([provider],placement:.top),"Own pane drop refused")
+        try await wait { model.paneLayout.log == .top && owner.floatingPaneWindow(.log)==nil }
+        model.setPanePlacement(.log,.floating)
+        let restored=owner.floatingPaneWindow(.log)!
+        try require(abs(restored.frame.minX-log.frame.minX)<1 && abs(restored.frame.minY-log.frame.minY)<1,"Floating frame did not restore")
+        let second=BlameWindowController(repository:model.repository,access:nil,path:model.path,revision:"HEAD",preferences:prefs,regexExecutable:regexExecutable)
+        defer { second.close() }
+        second.showWindow(nil);second.window?.makeKeyAndOrderFront(nil)
+        try await wait { !second.model.busy && second.floatingPaneWindow(.log) != nil }
+        second.model.setPanePlacement(.properties,.right)
+        try await wait { second.window?.contentView?.layoutSubtreeIfNeeded();return sideSplit(second.window!)?.arrangedSubviews.last.map{abs($0.frame.width-316)<1} == true }
+        second.model.setPanePlacement(.properties,.floating)
+        let foreign=second.model.paneDragProvider(.log)
+        let foreignData:Data=try await withCheckedThrowingContinuation { reply in foreign.loadDataRepresentation(forTypeIdentifier:BlamePane.dragType) { bytes,error in if let bytes { reply.resume(returning:bytes) } else { reply.resume(throwing:error ?? Failure(description:"Missing pane payload")) } } }
+        try require(!model.applyPaneDropData(foreignData,placement:.left) && model.paneLayout.log == .floating,"Foreign pane payload changed layout")
+        // File Open replaces the model and retires floating views before rebinding.
+        let old=second.model,oldLog=second.floatingPaneWindow(.log)!
+        second.chooseFile={ _,_,reply in reply(model.repository.root.appendingPathComponent("unrelated.txt")) }
+        second.openDocument()
+        try await wait { second.model !== old && !second.model.openingDocument && !second.model.busy && second.floatingPaneWindow(.log) != nil }
+        let rebound=second.floatingPaneWindow(.log)!
+        try require(old.retired && !oldLog.isVisible && oldLog.parent==nil && rebound !== oldLog && second.model.path=="unrelated.txt","Document replacement retained old floating content")
+        try await wait { descendants(rebound.contentView!).compactMap{$0 as? BlameHistoryNativeTable}.contains { ($0.delegate as? BlameHistoryTable.Coordinator)?.model === second.model } }
+        let visibleBeforeClose=BlamePane.allCases.compactMap{second.floatingPaneWindow($0)}
+        second.close()
+        try require(visibleBeforeClose.allSatisfy{!$0.isVisible && $0.parent==nil} && prefs.bool(forKey:"Blame.ShowLog") && prefs.bool(forKey:"Blame.ShowProperties"),"Owner close leaked panels or discarded saved visibility")
+        try require(!old.applyPaneDropData(foreignData,placement:.bottom),"Retired document applied pane drop")
+        model.setPanePlacement(.properties,.right);model.setPanePlacement(.log,.bottom);model.setPaneAutoHidden(.log,true)
+        root.makeKeyAndOrderFront(nil)
+        try require(model.paneAutoHidden(.log) && model.showLog && model.canFind,"Auto-hide state did not install: \(model.paneLayout), retired=\(model.retired), busy=\(model.busy)")
+        try await wait { root.contentView?.layoutSubtreeIfNeeded();return descendants(root.contentView!).compactMap{$0 as? NSButton}.contains{$0.accessibilityLabel()=="Show auto-hidden Log"} }
+        let tab=descendants(root.contentView!).compactMap{$0 as? NSButton}.first{$0.accessibilityLabel()=="Show auto-hidden Log"}!
+        try require(tab.isEnabled && tab.target != nil && tab.action != nil,"Auto-hide native tab lost enabled target/action")
+        try require(tab.accessibilityPerformPress(),"Auto-hide tab did not execute its native accessibility press action")
+        try await wait { NSApp.windows.filter{$0.isVisible && $0 !== root}.contains { window in window.contentView.map { descendants($0).compactMap{$0 as? BlameHistoryNativeTable}.contains{($0.delegate as? BlameHistoryTable.Coordinator)?.model === model} } == true } }
+        model.setPaneAutoHidden(.log,false)
+        try await wait { !NSApp.windows.filter{$0.isVisible && $0 !== root}.contains { window in window.contentView.map { descendants($0).compactMap{$0 as? BlameHistoryNativeTable}.contains{($0.delegate as? BlameHistoryTable.Coordinator)?.model === model} } == true } }
+        model.restorePaneLayout();root.contentView?.layoutSubtreeIfNeeded()
+        try require(model.paneLayout==BlamePaneLayout() && model.selection==selection && model.lines.count==annotations.count && zip(model.lines,annotations).allSatisfy{$0.0.hash==$0.1.0 && $0.0.originalLine==$0.1.1},"Pane docking changed annotations or selected line")
+        try require(owner.floatingPaneWindow(.log)==nil && owner.floatingPaneWindow(.properties)==nil,"Restore layout retained floating panes")
+        try await wait { root.contentView?.layoutSubtreeIfNeeded();return descendants(root.contentView!).compactMap{$0 as? BlameHistoryNativeTable}.contains{$0.frame.width>root.contentView!.bounds.width*0.8} }
+        try require(sideSplit(root)?.arrangedSubviews.last.map{abs($0.frame.width-280)<1} == true,"Restore layout did not reset native divider extent")
+        if let directory=ProcessInfo.processInfo.environment["TURTLEGIT_BLAME_PANE_CAPTURES"],model.repository.executable.path=="/usr/bin/git" {
+            let output=URL(fileURLWithPath:directory);try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
+            let selected=model.selectedLogHashes
+            defer { model.selectedLogHashes=selected }
+            if let entry=model.historyEntries.first { model.selectedLogHashes=[entry.hash] }
+            NSApp.setActivationPolicy(.accessory)
+            for (dark,name) in [(false,"light"),(true,"dark")] {
+                model.restorePaneLayout();owner.setDarkMode(dark);root.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)
+                try await capturePane(root,to:output.appendingPathComponent("blame-panes-"+name+".png"))
+                model.setPanePlacement(.log,.floating);model.setPanePlacement(.properties,.floating)
+                try await wait { owner.floatingPaneWindow(.log)?.isVisible==true && owner.floatingPaneWindow(.properties)?.isVisible==true }
+                for pane in BlamePane.allCases { try await capturePane(owner.floatingPaneWindow(pane)!,to:output.appendingPathComponent("blame-floating-"+pane.rawValue+"-"+name+".png")) }
+            }
+            model.restorePaneLayout();owner.followSystemAppearance()
+        }
+        print("Blame panes: four dock edges, owned float/close, focused menu routing, appearance/frame restoration, own/foreign/retired drag payloads, saved layout, File Open rebinding, actual auto-hide tab/popover and annotation selection preservation passed.")
+    }
+
+    @MainActor static func capturePane(_ window:NSWindow,to output:URL) async throws {
+        window.contentView?.layoutSubtreeIfNeeded();window.orderFront(nil)
+        try await Task.sleep(nanoseconds:400_000_000)
+        let capture=Process();capture.executableURL=URL(fileURLWithPath:"/usr/sbin/screencapture")
+        capture.arguments=["-x","-o","-l",String(window.windowNumber),output.path]
+        try capture.run();capture.waitUntilExit()
+        try require(capture.terminationStatus==0,"Owned Blame pane compositor capture failed")
+    }
+
 }

@@ -1229,3 +1229,56 @@ conditional-column availability/removal, issue IDs after document replacement,
 stable annotations/selection after Cancel, actual owned metadata-process reaping
 and suppressed publication after Close. All four receivers were reaped and checked
 absent. See qa/blame-metadata-load-2026-10-15.json for exact scope and limits.
+
+## Native docking, floating and auto-hide panes — October 15, 2026
+
+Pinned `MainFrm.cpp::CreateDockingWindows` creates Log at the bottom and Properties
+at the right, enables every dock edge, and enables floating and auto-hide. The
+native viewer now offers those placement choices for both existing pane contents.
+The default layout matches the pinned `doc/images/en/TortoiseBlame.png`: the
+**Git Revision List** spans the full width below annotations and **Commit Info**;
+Commit Info is beside the annotations at the right. The earlier port nested Log
+inside the annotation column and incorrectly extended Properties down beside it.
+
+Pane captions provide placement/auto-hide menus, Hide and double-click Float/Dock.
+Dragging a caption to an annotation-workspace edge docks there, with an edge
+preview. Payloads are process-local and bound to one document model; another Blame
+window, a replaced document or a retired owner cannot apply them. The main and
+window **Toolbars and Panes** menus expose the same choices and Restore Default
+Pane Layout. Auto-hidden panes use a compact native tab and a transient popover;
+pinning returns their normal contents to the split layout.
+
+Floating panes are owned native utility panels with the same Log table or
+Properties content. Focused main-menu routing follows their parent Blame window.
+They inherit appearance; ordinary pane Close hides only that pane. Owner Close
+retires every floating panel while retaining saved visibility/placement. File Open
+retires old floating views before rebinding panels to the replacement model.
+Positions, auto-hide choices and last dock edges use the owning preferences.
+Native `NSSplitView` keeps the annotation host stable when a pane moves and saves
+docked edge extents; Restore Default Pane Layout resets those extents. Floating
+frames restore within the current screen and persist in that same store. Commit
+Info uses compact single-line values with full-value tooltips, retaining multiline
+Body text; its caption and values no longer squeeze under nested SwiftUI splits.
+
+[Grouped native evidence](qa/blame-pane-layout-2026-10-15.json) records placement,
+focus, permission-independent File Open, real auto-hide tab/popover and cleanup
+scope. Core Git behavior is unchanged and is not retested for this native layout
+batch. Full MFC tab-group/smart-docking equivalence, dragging outside the workspace
+to float, complete physical divider behavior, multi-screen/keyboard/VoiceOver,
+complete visual comparison and signed sandbox acceptance remain open. The native
+placement controls do not certify every upstream docking gesture.
+
+
+The final grouped native run passed both menu/pane and File Open families with
+system and bundled Git. Native divider resize, reopening at the saved extent and
+Restore Default's 280-point right pane are checked along with the full-width Log.
+The reviewed current captures below are raw macOS compositor images from the
+private two-line fixture. Floating-window captures were excluded from publication:
+the compositor grouped child panels with their owner instead of isolating them.
+Native panel focus/frame/content/cleanup checks remain the evidence for floating.
+These images establish the displayed arrangement, not every conditional state or
+physical gesture. No Core tests were repeated for these native-only changes.
+
+![Current light Blame pane layout](site/assets/blame-panes-current-light.png)
+
+![Current dark Blame pane layout](site/assets/blame-panes-current-dark.png)

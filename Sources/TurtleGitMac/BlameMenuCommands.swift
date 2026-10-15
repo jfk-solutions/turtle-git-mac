@@ -111,7 +111,7 @@ struct BlameCommands:Commands {
         }
         CommandGroup(after:.toolbar) {
             if context.focused {
-                Menu("Toolbars and Panes") { toggle(.toolbar);toggle(.log);toggle(.properties) }
+                Menu("Toolbars and Panes") { toggle(.toolbar);toggle(.log);toggle(.properties);if let model=context.owner?.model { Divider();BlamePaneLayoutMenu(model:model) } }
                 toggle(.statusBar)
                 item(.nextChange);item(.previousChange)
                 Divider()
