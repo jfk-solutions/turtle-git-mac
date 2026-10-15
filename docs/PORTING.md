@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The workspace permission family now includes a native access manager under
+File → Open Recent. It connects repository/extra-folder lists, independent stale
+renewal, captured Add/Replace pickers and confirmed Remove/Forget, with workspace
+and Quit guards and live-grant retention. Debug, 18 Core checks and both grouped
+native engine cases passed; light/dark captures were reviewed after a sizing repair.
+See [access guide](REPOSITORY-FOLDER-ACCESS.md) and
+[evidence](qa/repository-access-manager-2026-10-15.json). Signed acceptance remains open.
+
 Workspace opening now prepares external Git metadata permissions for linked
 worktrees, submodules and shared object stores, with owned folder sheets,
 per-repository saved grants, cancellation/rollback and child-window scope lifetime.

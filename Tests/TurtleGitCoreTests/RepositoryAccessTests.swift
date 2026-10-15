@@ -50,6 +50,33 @@ final class RepositoryAccessTests: XCTestCase {
         XCTAssertEqual(available.map{ $0.url.path },[good.path]);XCTAssertEqual(provider.creates,before+1)
         XCTAssertEqual(store.repositories[0].additionalPermissions?.count,2,"Unavailable records remain available for explicit renewal/removal")
     }
+    func testRenewalWithoutOpeningPreservesRecentOrderAndDates() throws {
+        let (folder,file)=try fixture();defer { try? FileManager.default.removeItem(at:folder) }
+        let provider=TestBookmarks(),store=try RepositoryAccessStore(storageURL:file,provider:provider)
+        let first=try store.remember(folder.appendingPathComponent("first")),second=try store.remember(folder.appendingPathComponent("second"))
+        provider.stale=true;provider.movedURL=folder.appendingPathComponent("moved")
+        do { let lease=try store.acquire(first.id,requireSecurityScope:true,recordingOpen:false);XCTAssertEqual(lease.url,provider.movedURL) }
+        XCTAssertEqual(store.repositories.map(\.id),[second.id,first.id]);XCTAssertEqual(store.repositories.last?.lastOpened,first.lastOpened)
+        XCTAssertEqual(store.repositories.last?.lastKnownPath,provider.movedURL?.path);XCTAssertEqual(provider.starts,provider.stops)
+        let reopened=try RepositoryAccessStore(storageURL:file,provider:provider)
+        XCTAssertEqual(reopened.repositories,store.repositories)
+        do { _=try reopened.acquire(first.id) };XCTAssertEqual(reopened.repositories.first?.id,first.id)
+    }
+    func testTargetedGrantRenewalDoesNotResolveOrChangeUnavailableSibling() throws {
+        let (folder,file)=try fixture();defer { try? FileManager.default.removeItem(at:folder) }
+        let provider=TestBookmarks(),store=try RepositoryAccessStore(storageURL:file,provider:provider),saved=try store.remember(folder.appendingPathComponent("repo"))
+        try store.addPermission(saved.id,url:folder.appendingPathComponent("good"));try store.addPermission(saved.id,url:folder.appendingPathComponent("bad"))
+        let grants=try XCTUnwrap(store.repositories.first?.additionalPermissions),good=grants[0],bad=grants[1]
+        provider.invalidBookmarks=[bad.bookmark];provider.stale=true;provider.movedURL=folder.appendingPathComponent("moved-good")
+        do { let lease=try store.acquirePermission(saved.id,permission:good.id,requireSecurityScope:true);XCTAssertEqual(lease.url,provider.movedURL) }
+        XCTAssertEqual(store.repositories[0].additionalPermissions?[1],bad);XCTAssertEqual(store.repositories[0].additionalPermissions?[0].id,good.id)
+        XCTAssertEqual(store.repositories[0].additionalPermissions?[0].path,provider.movedURL?.path);XCTAssertEqual(provider.starts,provider.stops)
+        let bytes=try Data(contentsOf:file)
+        XCTAssertThrowsError(try store.acquirePermission(saved.id,permission:bad.id));XCTAssertEqual(try Data(contentsOf:file),bytes)
+        provider.scopeAvailable=false
+        XCTAssertThrowsError(try store.acquirePermission(saved.id,permission:good.id,requireSecurityScope:true));XCTAssertEqual(try Data(contentsOf:file),bytes)
+        XCTAssertThrowsError(try store.acquirePermission(saved.id,permission:UUID()))
+    }
     func testLinkedWorktreeMetadataPermissionsAreDiscoveredInLayersWithoutGitWrites() async throws {
         let (root,repo,_)=try await GitPatchTests().fixture()
         let linked=root.deletingLastPathComponent().appendingPathComponent("linked 雪-"+UUID().uuidString)

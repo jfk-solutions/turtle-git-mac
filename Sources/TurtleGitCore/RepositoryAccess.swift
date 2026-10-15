@@ -148,7 +148,7 @@ public final class RepositoryAccessStore {
         try persist(updated)
         return saved
     }
-    public func acquire(_ id: UUID, requireSecurityScope: Bool = false, updatingRecord:Bool = true) throws -> RepositoryAccessLease {
+    public func acquire(_ id: UUID, requireSecurityScope: Bool = false, updatingRecord:Bool = true, recordingOpen:Bool = true) throws -> RepositoryAccessLease {
         guard let index = repositories.firstIndex(where: { $0.id == id }) else { throw RepositoryAccessFailure.unknownRepository }
         let resolved = try provider.resolve(repositories[index].bookmark)
         let lease = RepositoryAccessLease(url: resolved.url, provider: provider)
@@ -158,9 +158,24 @@ public final class RepositoryAccessStore {
         if resolved.stale { updated[index].bookmark = try provider.create(for: resolved.url) }
         updated[index].lastKnownPath = resolved.url.standardizedFileURL.resolvingSymlinksInPath().path
         updated[index].name = resolved.url.lastPathComponent
-        updated[index].lastOpened = Date()
-        let entry = updated.remove(at: index); updated.insert(entry, at: 0)
-        try persist(updated)
+        if recordingOpen {
+            updated[index].lastOpened = Date()
+            let entry = updated.remove(at: index); updated.insert(entry, at: 0)
+        }
+        if updated != repositories { try persist(updated) }
+        return lease
+    }
+    /// Renew one extra grant without requiring unrelated grants to resolve.
+    public func acquirePermission(_ id:UUID, permission:UUID, requireSecurityScope:Bool = false) throws -> RepositoryAccessLease {
+        guard let index=repositories.firstIndex(where:{ $0.id==id }),
+              let offset=repositories[index].additionalPermissions?.firstIndex(where:{ $0.id==permission }),
+              let saved=repositories[index].additionalPermissions?[offset] else { throw RepositoryAccessFailure.unknownRepository }
+        let resolved=try provider.resolve(saved.bookmark),lease=RepositoryAccessLease(url:resolved.url,provider:provider)
+        guard !requireSecurityScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        var values=repositories
+        if resolved.stale { values[index].additionalPermissions?[offset].bookmark=try provider.create(for:resolved.url) }
+        values[index].additionalPermissions?[offset].path=resolved.url.standardizedFileURL.resolvingSymlinksInPath().path
+        if values != repositories { try persist(values) }
         return lease
     }
     @discardableResult public func replace(_ id:UUID,with url:URL) throws -> SavedRepository {

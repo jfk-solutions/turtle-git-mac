@@ -89,8 +89,8 @@ import UniformTypeIdentifiers
     @Published var entries: [StatusEntry] = []
     @Published var selection = Set<String>()
     @Published var output = "Open a repository to get started."
-    @Published var busy = false { didSet { if !busy { eventRefresh?.kick() } } }
-    @Published var confirmingQuit = false { didSet { if !confirmingQuit { eventRefresh?.kick() } } }
+    @Published var busy = false { didSet { repositoryAccessWindow?.model.objectWillChange.send();if !busy { eventRefresh?.kick() } } }
+    @Published var confirmingQuit = false { didSet { repositoryAccessWindow?.model.objectWillChange.send();if !confirmingQuit { eventRefresh?.kick() } } }
     @Published var error: String?
     @Published var section = RepositoryAction.status
     @Published var dialog: RepositoryAction?
@@ -101,7 +101,8 @@ import UniformTypeIdentifiers
     @Published var workingComparisonMark: WorkingComparisonMarkSnapshot?
     private let comparisonMarkStore = WorkingComparisonMarkStore(storageURL: WorkingComparisonMarkStore.defaultStorageURL)
     var comparisonMarkTitle: String { workingComparisonMark.map { "Compare with " + $0.path } ?? RepositoryAction.diffLater.title }
-    @Published var recentRepositories: [SavedRepository] = []
+    @Published var recentRepositories: [SavedRepository] = [] { didSet { repositoryAccessWindow?.model.refresh() } }
+    private var repositoryAccessWindow:RepositoryAccessWindowController?
     private var accessStore: RepositoryAccessStore?
     private var activeAccess: RepositoryAccessLease?
     var requiresRepositoryScope = GitRuntime.isAppStoreBuild
@@ -195,7 +196,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -314,6 +315,23 @@ import UniformTypeIdentifiers
     func forgetRepository(_ saved: SavedRepository) {
         do { try accessStore?.forget(saved.id); recentRepositories = accessStore?.repositories ?? [] }
         catch { self.error = error.localizedDescription }
+    }
+    func showRepositoryAccess(selected:UUID? = nil) {
+        guard !busy,!confirmingQuit,let store=accessStore else { return }
+        let controller:RepositoryAccessWindowController
+        if let existing=repositoryAccessWindow {
+            controller=existing;existing.model.refresh()
+            if let selected { existing.model.selection=selected }
+        } else {
+            let editor=RepositoryAccessWindowModel(store:store,provider:repositoryBookmarkProvider,requireScope:requiresRepositoryScope,selected:selected)
+            editor.mayChange={ [weak self] in self?.busy==false && self?.confirmingQuit==false }
+            editor.onChanged={ [weak self] in self?.recentRepositories=store.repositories }
+            editor.open={ [weak self] saved in self?.openRecent(saved) }
+            controller=RepositoryAccessWindowController(model:editor)
+            controller.onClosed={ [weak self] in self?.repositoryAccessWindow=nil }
+            repositoryAccessWindow=controller
+        }
+        controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
     }
     func closeRepository() {
         guard !busy, !confirmingQuit else { return }

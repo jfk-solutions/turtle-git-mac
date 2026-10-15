@@ -27,10 +27,11 @@ metadata access, so a metadata choice does not change which repository was opene
 Authorized metadata directories can participate in file monitoring, and an already
 authorized template or approved client hook can use that folder permission.
 
-Workspace grants live with the repository in Recents. Forget that saved repository
-and close its windows to discard the saved grants; opening it again asks for the
-needed folders. A dedicated workspace grant editor remains to be ported. Active
-operations retain permissions they already acquired until their windows finish.
+Workspace grants live with the repository in Recents. Manage them through
+**File → Open Recent → Manage Repository Access…** as described below. Forgetting
+a saved repository discards its saved grants; opening it again asks for the needed
+folders. Active operations retain permissions they already acquired until their
+windows finish.
 
 Background Finder watches have a separate archive and authorization lifecycle.
 Their grants are managed under **Settings → Icon Overlays → Watched Repositories →
@@ -47,3 +48,36 @@ private repositories and an injected bookmark provider. They do not establish
 signed sandbox inheritance, physical powerbox behavior, network filesystem
 behavior or complete App Store acceptance. Local clone-source and SSH-key grants
 remain separate workflows.
+
+## Manage saved workspace access
+
+Use **File → Open Recent → Manage Repository Access…** to open the native
+repository and additional-folder lists. The command is available even when
+Open Recent is empty. Select a repository to see its saved metadata/object folders.
+
+**Check and Renew Access** resolves each bookmark independently, renews stale
+records and shows Available or Choose folder again. It does not open a repository,
+change the recent order or retain these temporary checking permissions.
+
+**Choose Repository Folder…** renews the working-folder permission, including a
+repository that has moved. Choose its root folder. The existing saved identity and
+extra grants are retained; a non-repository folder or another already-saved
+repository is rejected. Opening subsequently performs Git discovery and asks for
+any uncovered metadata dependencies.
+
+Use **Add…** to grant an extra metadata/object folder, **Choose Folder Again…**
+to renew or replace a selected extra grant, and **Remove…** to discard it.
+**Forget…** removes the selected repository and its extra grants from Open Recent.
+Both removal questions default to Cancel. These operations affect future openings;
+already-open windows and operations retain their acquired permissions until they
+finish. Repository files are left on disk.
+
+Pickers and questions belong to the access window. Their pending choices prevent
+another action or normal close/Quit; forced owner retirement cancels the sheet
+and rejects late responses. Workspace operations also block saved-access edits.
+The access manager changes only the workspace archive; background Finder watches
+continue to use their separate Settings page.
+
+See [manager implementation evidence](qa/repository-access-manager-2026-10-15.json)
+and the [light](site/assets/repository-access-light.png) /
+[dark](site/assets/repository-access-dark.png) native window captures.

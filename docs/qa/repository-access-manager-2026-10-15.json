@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-15",
+  "scope": "Native saved workspace repository/folder access management, Recents integration and owned presentation",
+  "source_relationship": "Native macOS security-scoped bookmark management required by App Store adaptation; this window is not an additional upstream resource dialog or a claim of source dialog completion. Reuses existing original upstream command artwork.",
+  "implementation": [
+    "File \u2192 Open Recent \u2192 Manage Repository Access remains available for an empty archive and reuses one native window",
+    "Repository and additional-folder tables with independent availability/stale renewal and full-path help",
+    "Bookmark checking preserves recent order/timestamps and releases temporary scopes; targeted extra renewal tolerates an unavailable sibling",
+    "Primary folder renewal/replacement rejects non-repositories and duplicate saved roots while retaining identity/extras",
+    "Owned Add/Replace folder pickers, Remove/Forget questions defaulting to Cancel, captured target identity and one-shot replies",
+    "Workspace busy/Quit and access-window operation gates, forced close/sheet cancellation and late reply rejection",
+    "Live scopes survive saved-grant removal/Forget; repository files and independent Finder-watch archive remain untouched"
+  ],
+  "validation": {
+    "core": {
+      "result": "passed",
+      "tests": 18,
+      "filter": "RepositoryAccessTests",
+      "log": "build/qa/repository-access-manager-core-2026-10-15.log"
+    },
+    "builds": [
+      {
+        "exit_code": 0,
+        "log": "build/qa/repository-access-manager-build-2026-10-15.log"
+      },
+      {
+        "exit_code": 0,
+        "log": "build/qa/repository-access-manager-layout-build-2026-10-15.log"
+      }
+    ],
+    "native": {
+      "result": "both final engine cases passed",
+      "cases": [
+        "repository-creation-owned/system Git",
+        "repository-creation-owned/bundled Git"
+      ],
+      "initial_log": "build/qa/repository-access-manager-native-2026-10-15.log",
+      "final_log": "build/qa/repository-access-manager-native-final-2026-10-15.log",
+      "initial_receivers_reaped": [
+        76431,
+        76711
+      ],
+      "final_receivers_reaped": [
+        77072,
+        77365
+      ],
+      "scope": "Native table columns, window reuse, independent renewal/status, failed bookmark creation, invalid/duplicate root choice, Cancel/default question, target captured before later selection, duplicate replies, busy/Quit gating, live scope after Forget, actual owned NSOpenPanel retirement and late picker/question replies, plus existing metadata-opening and Clone/Init ownership cases"
+    },
+    "visual": {
+      "reviewed": [
+        {
+          "path": "docs/site/assets/repository-access-light.png",
+          "sha256": "2f07fc8f6c6a08a9be542fbded218de13b8161e0f36ffce642a1cecea1b7810a",
+          "pixels": [
+            1800,
+            1424
+          ],
+          "theme": "light"
+        },
+        {
+          "path": "docs/site/assets/repository-access-dark.png",
+          "sha256": "74e5ab4aab51076d871ef13845a9e8b7462e8fe3be177fe9cfb9fba56a0df303",
+          "pixels": [
+            1800,
+            1424
+          ],
+          "theme": "dark"
+        }
+      ],
+      "repair": "The first behavioral checks passed, but screenshot review found the Close button clipped after hosting-controller initial sizing. Set an explicit content size and usable minimum size, then rebuilt and repeated both native cases with current light/dark captures. Initial captures were not published."
+    },
+    "hosted_snapshot": {
+      "previous_head": "04291cd6",
+      "pages_run": 38674244997,
+      "pages_conclusion": "success",
+      "macos_current_run": 38664961820,
+      "macos_status": "in_progress",
+      "active_step": "Native remote settings page",
+      "failed_steps": [],
+      "current_head_run": 38674245000,
+      "current_head_status": "pending"
+    },
+    "cleanup": {
+      "all_recorded_receivers_absent": true,
+      "method": "Runner reaped each receiver; subsequent ps check found initial/final owned PIDs absent. Native assertions retire owned access windows and close their sheets."
+    },
+    "documentation": {
+      "site_documents": 216,
+      "unresolved_fragments": [],
+      "coverage_ledger": "regenerated; counts unchanged because this is a native permission-management adaptation",
+      "log": "build/qa/repository-access-manager-site-2026-10-15.log"
+    }
+  },
+  "limits": [
+    "Signed sandbox/powerbox and physical Finder acceptance remain open",
+    "Check and Renew verifies bookmarks/readable directories, not Git repository consistency or complete operation permission",
+    "Windows already holding a grant retain it after its saved record is removed",
+    "Finder background watches use their own archive and Settings page",
+    "Physical keyboard/VoiceOver and all window sizes/screens remain separate acceptance work"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

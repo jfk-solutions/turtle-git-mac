@@ -1,10 +1,11 @@
 import AppKit
+import ScreenCaptureKit
 import TurtleGitCore
 
 private final class MetadataScopeProvider:RepositoryBookmarkProvider {
     var active:[String:Int]=[:],starts=0,stops=0,creates=0
-    var stale=false,invalid=Set<Data>()
-    func create(for url:URL) throws->Data { creates += 1;return Data(url.path.utf8) }
+    var stale=false,invalid=Set<Data>(),failCreation=false
+    func create(for url:URL) throws->Data { guard !failCreation else { throw RepositoryAccessFailure.securityScopeUnavailable };creates += 1;return Data(url.path.utf8) }
     func resolve(_ data:Data) throws->ResolvedBookmark { guard !invalid.contains(data) else { throw RepositoryAccessFailure.securityScopeUnavailable };return ResolvedBookmark(url:URL(fileURLWithPath:String(decoding:data,as:UTF8.self)),stale:stale) }
     func startAccessing(_ url:URL)->Bool { starts += 1;active[url.path,default:0] += 1;return true }
     func stopAccessing(_ url:URL) { stops += 1;active[url.path,default:0] -= 1;if active[url.path]==0 { active.removeValue(forKey:url.path) } }
@@ -127,6 +128,107 @@ private final class MetadataScopeProvider:RepositoryBookmarkProvider {
         late.open(linked);try await wait{reply != nil};lateHost.close();reply?.resume(returning:source.appendingPathComponent(".git"));try await wait{!late.busy && scopes.active.isEmpty}
         try require(late.root==nil && late.error==nil && oldRoot != nil && (try? Data(contentsOf:source.appendingPathComponent(".git/index")))==index,"Late permission reply adopted state or changed index")
         print("Workspace metadata access: ordinary/linked/submodule/shared repositories, saved/stale grant reuse with an unused expired grant, child Log scope lifetime, wrong-folder rollback, denied access, owned picker close and late reply rejection passed. All fake scopes released; no signed sandbox claim.")
+        try await managedAccess(root:root,source:source,linked:linked)
+    }
+
+    @MainActor static func managedAccess(root:URL,source:URL,linked:URL) async throws {
+        let scopes=MetadataScopeProvider(),store=try RepositoryAccessStore(storageURL:root.appendingPathComponent("managed-access.json"),provider:scopes)
+        let saved=try store.remember(source),other=try store.remember(linked)
+        let metadata=source.appendingPathComponent(".git"),expired=root.appendingPathComponent("expired-folder"),extra=root.appendingPathComponent("extra-folder")
+        try FileManager.default.createDirectory(at:expired,withIntermediateDirectories:true);try FileManager.default.createDirectory(at:extra,withIntermediateDirectories:true)
+        try store.addPermission(saved.id,url:metadata);try store.addPermission(saved.id,url:expired)
+        let bad=store.repositories.first{$0.id==saved.id}!.additionalPermissions!.last!
+        scopes.invalid=[Data(expired.path.utf8)];scopes.stale=true
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,savedAccessStore:store)
+        workspace.requiresRepositoryScope=true;workspace.repositoryBookmarkProvider=scopes
+        workspace.showRepositoryAccess(selected:saved.id)
+        var controller=NSApp.windows.compactMap{$0.delegate as? RepositoryAccessWindowController}.first!
+        defer {controller.close();workspace.stopMonitoringForTermination()}
+        let model=controller.model,number=controller.window!.windowNumber
+        workspace.showRepositoryAccess(selected:saved.id)
+        try require(NSApp.windows.filter{($0.delegate as? RepositoryAccessWindowController) != nil}.count==1 && controller.window?.windowNumber==number,"Access manager was not reused")
+        let before=store.repositories,starts=scopes.starts
+        workspace.busy=true;model.checkAccess();try require(scopes.starts==starts && !model.available,"Busy workspace allowed access mutation");workspace.busy=false
+        model.checkAccess()
+        try require(store.repositories.map(\.id)==before.map(\.id) && store.repositories.map(\.lastOpened)==before.map(\.lastOpened),"Checking bookmarks reordered Open Recent")
+        try require(model.checks[saved.id]=="Available" && model.checks[bad.id]=="Choose folder again" && model.checks.values.filter{$0=="Available"}.count==2 && scopes.active.isEmpty,"Independent bookmark renewal/status/scope cleanup failed")
+        scopes.stale=false
+        func tables(_ view:NSView)->[NSTableView] { (view as? NSTableView).map{[$0]} ?? view.subviews.flatMap{tables($0)} }
+        try await wait { controller.window?.contentView.map{tables($0).count==2}==true }
+        let native=controller.window!.contentView.map{tables($0)}!
+        try require(native.contains{$0.tableColumns.map(\.title)==["Repository","Folder","Access"]} && native.contains{$0.tableColumns.map(\.title)==["Folder","Access"]},"Native access tables/columns absent")
+        if ProcessInfo.processInfo.environment["TURTLEGIT_ACCESS_CAPTURE"]=="1",CommandLine.arguments[2]=="/usr/bin/git" { try await captureAccess(controller.window!) }
+        var panel:NSOpenPanel?,reply:((NSApplication.ModalResponse)->Void)?,chosen=extra,presentations=0
+        model.presentFolder={ picker,owner,completion in panel=picker;reply=completion;presentations += 1 }
+        model.selectedFolder={_ in chosen}
+        model.choose(.addPermission);model.choose(.addPermission)
+        try require(model.busy && presentations==1 && !controller.windowShouldClose(controller.window!),"Folder picker failed to lock manager")
+        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Quit ignored owned folder picker")
+        model.selection=other.id;reply?(.OK);reply?(.OK)
+        try require(!model.busy && store.repositories.first{$0.id==saved.id}?.additionalPermissions?.count==3 && store.repositories.first{$0.id==other.id}?.additionalPermissions==nil,"Folder reply changed later selection or ran twice")
+        model.selection=saved.id
+        let bytes=try Data(contentsOf:store.storageURL)
+        chosen=root;model.choose(.repository);reply?(.OK)
+        try require(model.error != nil && (try? Data(contentsOf:store.storageURL))==bytes,"Non-repository folder overwrote primary grant")
+        chosen=linked;model.choose(.repository);reply?(.OK)
+        try require(model.error != nil && (try? Data(contentsOf:store.storageURL))==bytes,"Duplicate repository replacement merged saved entries")
+        chosen=source;scopes.failCreation=true;model.choose(.repository);reply?(.OK);scopes.failCreation=false
+        try require(model.error != nil && (try? Data(contentsOf:store.storageURL))==bytes && scopes.active.isEmpty,"Failed bookmark save replaced record or leaked scope")
+        chosen=source;model.choose(.repository);reply?(.cancel)
+        try require((try? Data(contentsOf:store.storageURL))==bytes && !model.busy,"Picker Cancel changed saved grants")
+        model.choose(.repository);reply?(.OK)
+        try require(model.error==nil && store.repositories.first?.id==saved.id && workspace.recentRepositories==store.repositories,"Primary renewal did not update workspace Recents")
+        // Replace an unavailable grant independently, retaining its identity.
+        chosen=expired;model.choose(.replacePermission(bad.id));reply?(.OK)
+        try require(model.error==nil && model.permissions.contains{$0.id==bad.id && $0.path==expired.standardizedFileURL.resolvingSymlinksInPath().path},"Individual reauthorization lost saved grant identity")
+        var question:((NSApplication.ModalResponse)->Void)?,cancelDefault=false
+        model.presentQuestion={alert,owner,completion in
+            cancelDefault=alert.window.defaultButtonCell === (alert.buttons[0].cell as? NSButtonCell)
+            question=completion
+        }
+        model.remove(permission:bad.id);try require(cancelDefault,"Removal default was not Cancel");question?(.alertFirstButtonReturn)
+        try require(model.permissions.contains{$0.id==bad.id},"Cancelled removal discarded grant")
+        model.remove(permission:bad.id);model.selection=other.id;question?(.alertSecondButtonReturn);question?(.alertSecondButtonReturn)
+        try require(store.repositories.first{$0.id==saved.id}?.additionalPermissions?.contains{$0.id==bad.id}==false && store.repositories.first{$0.id==other.id} != nil,"Captured removal affected later selection or ran twice")
+        model.selection=saved.id
+        var live:RepositoryAccessLease?=try store.acquire(saved.id,requireSecurityScope:true).retainingRelatedScopes(store.acquireAdditionalPermissions(saved.id,requireSecurityScope:true))
+        let index=try Data(contentsOf:metadata.appendingPathComponent("index"))
+        model.remove();question?(.alertSecondButtonReturn)
+        try require(store.repositories.count==1 && workspace.recentRepositories==store.repositories && live?.contains(source)==true && !scopes.active.isEmpty && (try? Data(contentsOf:metadata.appendingPathComponent("index")))==index,"Forget dropped live scopes, deleted files or failed to update Recents")
+        live=nil;try require(scopes.active.isEmpty,"Live manager grant did not release")
+        model.choose(.addPermission);let pending=reply;controller.close();pending?(.OK)
+        try require(model.retired && !model.busy && store.repositories[0].additionalPermissions==nil && scopes.active.isEmpty,"Retired folder picker saved late access")
+        workspace.showRepositoryAccess(selected:other.id)
+        controller=NSApp.windows.compactMap{$0.delegate as? RepositoryAccessWindowController}.first{$0.model !== model}!
+        let fresh=controller.model
+        var lateQuestion:((NSApplication.ModalResponse)->Void)?
+        fresh.presentQuestion={_,_,completion in lateQuestion=completion}
+        fresh.remove();controller.close();lateQuestion?(.alertSecondButtonReturn)
+        try require(fresh.retired && store.repositories.count==1,"Retired question forgot repository")
+        // Exercise actual native sheet ownership and forced-close settlement.
+        workspace.showRepositoryAccess(selected:other.id)
+        controller=NSApp.windows.compactMap{$0.delegate as? RepositoryAccessWindowController}.first{$0.model !== model && $0.model !== fresh}!
+        controller.model.choose(.addPermission);try await wait{controller.window?.attachedSheet is NSOpenPanel}
+        let actual=controller.model;controller.close();try await wait{!actual.busy && actual.retired}
+        try require(store.repositories.count==1 && scopes.active.isEmpty,"Actual picker owner-close leaked/saved permission")
+        withExtendedLifetime(panel) {}
+        print("Repository access manager: native tables, window reuse, independent stale/failed grant checks, Recents order, busy/Quit gates, captured pickers/questions, invalid/duplicate/save-failed renewal, individual grant identity, Cancel, Forget/live scopes and actual picker/late-close settlement passed.")
+    }
+    @MainActor static func captureAccess(_ window:NSWindow) async throws {
+        guard #available(macOS 14.4,*) else { return }
+        NSApp.activate(ignoringOtherApps:true)
+        let output=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/qa/repository-access-captures-2026-10-15")
+        try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
+        for (name,appearance) in [("light",NSAppearance.Name.aqua),("dark",.darkAqua)] {
+            window.appearance=NSAppearance(named:appearance);window.contentView?.layoutSubtreeIfNeeded();window.makeKeyAndOrderFront(nil)
+            try await Task.sleep(nanoseconds:200_000_000)
+            let content=try await SCShareableContent.currentProcess
+            guard let own=content.windows.first(where:{$0.windowID==CGWindowID(window.windowNumber)}) else { throw Failure.assertion("Owned access window unavailable for capture") }
+            let config=SCStreamConfiguration();config.width=Int(window.frame.width*window.backingScaleFactor);config.height=Int(window.frame.height*window.backingScaleFactor);config.showsCursor=false;config.ignoreShadowsSingleWindow=true
+            let image=try await SCScreenshotManager.captureImage(contentFilter:SCContentFilter(desktopIndependentWindow:own),configuration:config)
+            guard let bytes=NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:]) else { throw Failure.assertion("Access window PNG failed") }
+            try bytes.write(to:output.appendingPathComponent("repository-access-"+name+".png"))
+        }
     }
 
 }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1BDA0DAE2D744061AA72AE3D /* RepositoryAccessWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11CD90E289AB4107B73987F8 /* RepositoryAccessWindow.swift */; };
 		003A4001BFAED871A45BC255 /* HistoryReferenceDeletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDFF34043A119AA7ED83853 /* HistoryReferenceDeletion.swift */; };
 		00475B7C3E3653BF83DB3E74 /* GitConfigurationPermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46261A3DA9CE7CED16FEC3AD /* GitConfigurationPermissions.swift */; };
 		00EAAAB986D762F4A6B93DBE /* MenuIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */; };
@@ -472,6 +473,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		11CD90E289AB4107B73987F8 /* RepositoryAccessWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccessWindow.swift; sourceTree = "<group>"; };
 		001BF3B476FF7414E244B9A6 /* IssueProviderWindows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueProviderWindows.swift; sourceTree = "<group>"; };
 		0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatistics.swift; sourceTree = "<group>"; };
 		018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSLocks.swift; sourceTree = "<group>"; };
@@ -944,6 +946,7 @@
 				72211FE8450E694C1BC89AB3 /* FormatPatchWindow.swift */,
 				2B2FB1E06EB9099598ACE6E4 /* GeneralSettings.swift */,
 				46261A3DA9CE7CED16FEC3AD /* GitConfigurationPermissions.swift */,
+				11CD90E289AB4107B73987F8 /* RepositoryAccessWindow.swift */,
 				3470143FDF20696E8A6C16FA /* GitConfigurationSettings.swift */,
 				9058AE332FC66665066DAE81 /* GitDaemonWindow.swift */,
 				E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */,
@@ -1887,6 +1890,7 @@
 				889A5713EF2EFE553723715F /* FormatPatchWindow.swift in Sources */,
 				6744229F9015EB71878F57B5 /* GeneralSettings.swift in Sources */,
 				00475B7C3E3653BF83DB3E74 /* GitConfigurationPermissions.swift in Sources */,
+				1BDA0DAE2D744061AA72AE3D /* RepositoryAccessWindow.swift in Sources */,
 				F68846D09AFFD3F61BC742A3 /* GitConfigurationSettings.swift in Sources */,
 				5E4F774D88C8BB0C81D39836 /* GitDaemonWindow.swift in Sources */,
 				CE62DD0C90CCBA058B0F7C1C /* GitProgressOutputState.swift in Sources */,

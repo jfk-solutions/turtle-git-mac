@@ -103,7 +103,9 @@ import UniformTypeIdentifiers
                 ForEach(model.recentRepositories) { saved in
                     Button(saved.name) { model.openRecent(saved) }.help(saved.lastKnownPath)
                 }
-            }.disabled(model.busy || model.recentRepositories.isEmpty)
+                Divider()
+                Button { model.showRepositoryAccess() } label: { CommandLabel(title:"Manage Repository Access…",icon:.settings) }
+            }.disabled(model.busy || model.confirmingQuit)
             Button("Close Repository") { model.closeRepository() }.disabled(model.busy || model.root == nil)
             Button("Clone…") { model.activate(.clone) }.keyboardShortcut("c", modifiers: [.command, .shift])
             Button("Create Repository…") { model.activate(.initialize) }.keyboardShortcut("r", modifiers: [.command, .shift])
