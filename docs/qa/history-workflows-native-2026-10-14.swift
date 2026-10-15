@@ -17,6 +17,7 @@ import TurtleGitCore
         prefs.set(16,forKey:"GitOutputLimitinKiB");prefs.set(true,forKey:"ShowAppContextMenuIcons");prefs.set(false,forKey:"EnableGravatar")
         defer { prefs.removePersistentDomain(forName:suite) }
         try await menuOwnership(repository:repo,entries:entries,preferences:prefs)
+        try await historyMenuCommands(repository:repo,entries:entries,preferences:prefs,git:git)
         let helper=root.appendingPathComponent("stream-git"),marker=root.appendingPathComponent("ready"),release=root.appendingPathComponent("release"),counter=root.appendingPathComponent("counter")
         let script = #"""
         #!/bin/sh
@@ -155,6 +156,98 @@ import TurtleGitCore
         let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterRefs=try await repository.run(["show-ref"]).stdout
         try require(afterHead==head && afterRefs==refs && (try? Data(contentsOf:repository.root.appendingPathComponent(".git/index")))==index,"Menu ownership checks modified repository state")
         print("Log popup ownership: original native selectors/icons/payloads, fresh callbacks after menu close, one-shot use, all stale selection leaves, blocked states, Unicode reference bytes, reload generation, working tree and retirement passed; private clipboard/HEAD/index/refs preserved.")
+    }
+
+    @MainActor static func historyMenuCommands(repository:GitRepository,entries:[LogEntry],preferences:UserDefaults,git:URL) async throws {
+        DialogGeometry.install(preferences:preferences)
+        let regexExecutable=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
+        let owner=LogWindowController(repository:repository,access:nil,labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false,historyRegexExecutable:regexExecutable)
+        defer{owner.close()}
+        let model=owner.model,window=owner.window!
+        owner.showWindow(nil);model.reload();try await wait{!model.busy}
+        try await wait{window.contentView.map{descendants($0).contains{$0 is HistoryTableView}}==true}
+        let table=descendants(window.contentView!).compactMap{$0 as? HistoryTableView}.first!,coordinator=table.delegate as! RevisionTable.Coordinator,menu=table.menu!
+        func leaves(_ menu:NSMenu)->[NSMenuItem] { menu.items.flatMap{$0.submenu.map{leaves($0)} ?? ($0.action == nil ? []:[$0])} }
+        func item(_ selector:String)->NSMenuItem? { leaves(menu).first{NSStringFromSelector($0.action!)==selector} }
+        func update(extended:Bool=false) { table.contextExtendedMenu=extended;coordinator.menuNeedsUpdate(menu) }
+        func send(_ item:NSMenuItem) { _=NSApp.sendAction(item.action!,to:item.target,from:item) }
+        func choose(_ hash:String) { let row=model.entries.firstIndex{$0.hash==hash}!;table.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false);model.select([hash]) }
+        var histories:[String]=[],dcommits=0,pushes=0
+        model.onShowHistory={histories.append($0)};model.onHistorySVNDCommit={dcommits += 1};model.onHistoryPush={_,_ in pushes += 1}
+        choose(entries[0].hash);update()
+        try require(item("showHistory:")?.isEnabled==true && item("showHistory:")?.image != nil && item("svnDCommitFromHistory:")==nil,"Ordinary HEAD menu lacks Show log or exposes SVN")
+        send(item("showHistory:")!);try require(histories==[entries[0].hash],"Show log did not capture selected SHA")
+        let svn=repository.root.appendingPathComponent(".git/svn"),hadSVN=FileManager.default.fileExists(atPath:svn.path)
+        try FileManager.default.createDirectory(at:svn,withIntermediateDirectories:true)
+        try Data().write(to:svn.appendingPathComponent(".metadata"))
+        defer{if !hadSVN{try? FileManager.default.removeItem(at:svn)}}
+        model.reload();try await wait{!model.busy};choose(entries[0].hash);update()
+        try require(model.hasGitSVN && item("svnDCommitFromHistory:")?.title==RepositoryAction.svnDCommit.title && item("svnDCommitFromHistory:")?.image != nil,"Git-SVN menu command/icon absent: svn=\(model.hasGitSVN), bare=\(model.bare), error=\(model.error ?? "none"), title=\(item("svnDCommitFromHistory:")?.title ?? "missing")")
+        let svnItem=item("svnDCommitFromHistory:")!;send(svnItem);send(svnItem)
+        try require(dcommits==1,"SVN command was lost or dispatched twice")
+        choose(entries[1].hash);update()
+        try require(item("showHistory:")==nil && item("pushCaptured:")==nil && item("svnDCommitFromHistory:")==nil,"Unreferenced row exposed normal extended commands")
+        update(extended:true);let extendedLog=item("showHistory:")!
+        table.contextExtendedMenu=false;send(extendedLog)
+        try require(histories.last==entries[1].hash,"Releasing Shift redirected/removed captured Show log")
+        update(extended:true);let extendedSVN=item("svnDCommitFromHistory:")!
+        table.contextExtendedMenu=false;send(extendedSVN);model.svnDCommitFromHistory(extended:false)
+        try require(dcommits==2,"Captured extended SVN gate was lost or normal gate bypassed")
+        update(extended:true);let stale=item("showHistory:")!;choose(entries[2].hash);send(stale)
+        try require(histories.count==2,"Stale Show log opened a later selection")
+        let row=model.entries.firstIndex{$0.hash==entries[2].hash}!
+        model.entries[row].references=[RevisionReference(name:"refs/stash")];choose(entries[2].hash);update()
+        try require(item("showHistory:")==nil && item("svnDCommitFromHistory:")==nil,"Normal stash exposed transport/history")
+        update(extended:true);try require(item("showHistory:") != nil && item("svnDCommitFromHistory:") != nil,"Extended stash lost source commands")
+        model.entries[row].references=[];model.bare=true;update(extended:true)
+        try require(item("svnDCommitFromHistory:")==nil,"Bare menu exposed SVN DCommit");model.bare=false
+        choose(entries[1].hash)
+        var popups=0,anchor=NSPoint.zero,popupTitles:[String]=[]
+        table.presentContextMenu={popup,point,_ in coordinator.menuNeedsUpdate(popup);popups += 1;anchor=point;popupTitles=leaves(popup).map(\.title)}
+        table.contextReference=(row:table.selectedRow,name:"refs/heads/not-a-keyboard-target")
+        let f10=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[.shift,.function],timestamp:0,windowNumber:window.windowNumber,context:nil,characters:"\u{f70d}",charactersIgnoringModifiers:"\u{f70d}",isARepeat:false,keyCode:109)!
+        try require(table.performKeyEquivalent(with:f10) && popups==1 && table.contextReference==nil && table.contextExtendedMenu && table.row(at:anchor)==table.selectedRow && popupTitles.contains("Show log…"),"Shift-F10 menu anchor/mode/target failed")
+        try require(table.accessibilityPerformShowMenu() && popups==2 && !table.contextExtendedMenu && !popupTitles.contains("Show log…"),"Accessibility context menu inherited Shift or label hit")
+        for key in [\LogWindowModel.busy,\.findBlocked,\.orderingBlocked,\.referencePickerBlocked] {
+            model[keyPath:key]=true;try require(!table.showKeyboardContextMenu() && !table.accessibilityPerformShowMenu(),"Blocked owner opened keyboard context menu");model[keyPath:key]=false
+        }
+        table.deselectAll(nil);try require(!table.showKeyboardContextMenu(),"Empty selection opened keyboard menu");choose(entries[1].hash)
+        var comparisons:[(ComparisonRevision,ComparisonRevision)]=[]
+        model.onCompare={comparisons.append(($0,$1))}
+        let oldDouble=preferences.object(forKey:"DiffByDoubleClickInLog")
+        defer{if let oldDouble{preferences.set(oldDouble,forKey:"DiffByDoubleClickInLog")}else{preferences.removeObject(forKey:"DiffByDoubleClickInLog")}}
+        preferences.set(false,forKey:"DiffByDoubleClickInLog");try require(table.onReturn?()==false,"Disabled Return diff was consumed")
+        preferences.set(true,forKey:"DiffByDoubleClickInLog")
+        let enter=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:window.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36)!
+        window.makeFirstResponder(table)
+        try require(window.performKeyEquivalent(with:enter),"Log window default button consumed Return before revision diff")
+        try require(comparisons.count==1 && comparisons[0].0 == .revision(entries[1].parents[0]) && comparisons[0].1 == .revision(entries[1].hash),"Return did not follow source double-click diff preference")
+        owner.close();try require(!table.showKeyboardContextMenu() && table.onReturn?() != true,"Retired native table accepted keyboard action")
+        // Exercise repository-bound handlers through the actual workspace factory.
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in false},comparisonMarks:WorkingComparisonMarkStore(storageURL:repository.root.appendingPathComponent("private-comparison-mark.json")))
+        let clipboard=NSPasteboard(name:NSPasteboard.Name("TurtleGit.HistoryMenus."+UUID().uuidString))
+        var logs:[LogWindowController]=[],leases:[RepositoryAccessLease?]=[],svnWindows:[SVNWindowController]=[],svnRoots:[URL]=[]
+        defer{logs.forEach{$0.close()};svnWindows.forEach{$0.close()};workspace.closeRepository();workspace.stopMonitoringForTermination();clipboard.releaseGlobally()}
+        workspace.logWindowFactory={repo,access in
+            let log=LogWindowController(repository:repo,access:access,labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false,historyRegexExecutable:regexExecutable);log.model.clipboard=clipboard;logs.append(log);leases.append(access);return log
+        }
+        workspace.svnWindowFactory={repo,access,operation in let child=SVNWindowController(repository:repo,access:access,operation:operation,preferences:preferences,clipboard:clipboard);svnWindows.append(child);return child}
+        workspace.svnPresentation={child in svnRoots.append(child.model.repository.root);child.close()}
+        workspace.open(repository.root);try await wait{!workspace.busy && workspace.root != nil};workspace.activate(.log)
+        try await wait{logs.count==1 && !logs[0].model.busy}
+        let parent=logs[0],hash=entries[1].hash
+        parent.model.select([hash]);parent.model.showHistory(extended:true)
+        try await wait{logs.count==2 && !logs[1].model.busy && logs[1].model.selected==[hash]}
+        let child=logs[1]
+        try require(child !== parent && child.model.endRevision==hash && child.model.repository.root==parent.model.repository.root && leases[0] === leases[1] && parent.model.endRevision==nil,"Show log changed parent scope or lost repository/grant")
+        child.model.select([hash]);child.model.showHistory(extended:true);try await wait{!child.model.busy}
+        try require(logs.count==2,"Same scoped history did not reuse its child")
+        parent.model.select([entries[0].hash]);parent.model.svnDCommitFromHistory(extended:false)
+        try require(svnRoots.count==1 && svnRoots[0]==parent.model.repository.root && svnWindows[0].model.operation == .dcommit,"History SVN command lost its captured repository")
+        workspace.closeRepository();parent.close()
+        try require(!child.model.isInvalidated && child.window?.isVisible==true,"Closing parent/workspace retired independent scoped history")
+        child.close()
+        print("Log source menu family: normal/extended/ref/stash/bare Show log and SVN DCommit, original icons, Shift snapshot and stale guards, selected-row Shift-F10/AX routes, Return diff preference, scoped child reuse/selection/grant and captured SVN repository passed. No SVN transport submitted; owned windows closed.")
     }
 
 }

@@ -86,6 +86,7 @@ final class LogHistoryWindow: NSWindow {
         if blocksInteraction() { return true }
         if event.type == .keyDown, event.charactersIgnoringModifiers?.lowercased() == "f",
            event.modifierFlags.intersection([.command, .option, .control, .shift]) == .command { find(); return true }
+        if let table=firstResponder as? HistoryTableView,table.performRevisionReturn(with:event) { return true }
         return super.performKeyEquivalent(with: event)
     }
     override func sendEvent(_ event: NSEvent) {
@@ -1306,6 +1307,24 @@ struct LogCommandRequest: Identifiable {
     var onPush: (String) -> Void = { _ in }
     var onHistoryPush: ((String, Bool) -> Void)?
     var onHistoryPull: (() -> Void)?
+    var onShowHistory: ((String) -> Void)?
+    var onHistorySVNDCommit: (() -> Void)?
+    func historyLogAvailable(extended:Bool)->Bool {
+        guard let revision else { return false }
+        return (!selectedIsStash && !revision.references.isEmpty) || extended
+    }
+    func historyPushAvailable(extended:Bool)->Bool {
+        guard let revision else { return false }
+        return (!selectedIsStash && revision.references.contains { $0.name.hasPrefix("refs/heads/") || $0.name.hasPrefix("refs/tags/") }) || extended
+    }
+    func showHistory(extended:Bool) {
+        guard canStartHistoryTransport,historyLogAvailable(extended:extended),let revision else { return }
+        onShowHistory?(revision.hash)
+    }
+    func svnDCommitFromHistory(extended:Bool) {
+        guard canStartHistoryTransport,!bare,hasGitSVN,historyPushAvailable(extended:extended) else { return }
+        onHistorySVNDCommit?()
+    }
     private var canStartHistoryTransport: Bool {
         !isInvalidated && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil &&
         !findBlocked && !orderingBlocked && !copyingDetails && !unifiedViewerBusy && window?.attachedSheet == nil
@@ -3061,6 +3080,14 @@ struct RevisionTable: NSViewRepresentable {
         table.doubleAction = #selector(Coordinator.doubleClickRevision); table.target = context.coordinator
         table.menu = NSMenu(); table.menu?.delegate = context.coordinator
         context.coordinator.table = table
+        table.contextMenuAvailable={ [weak coordinator=context.coordinator] in
+            guard let model=coordinator?.model else { return false }
+            return !model.isInvalidated && !model.busy && !model.findBlocked && !model.orderingBlocked && !model.referencePickerBlocked && model.window?.attachedSheet==nil
+        }
+        table.onReturn={ [weak coordinator=context.coordinator,weak table] in
+            guard let model=coordinator?.model,table?.contextMenuAvailable()==true,model.colorPreferences.bool(forKey:"DiffByDoubleClickInLog"),model.entries.contains(where:{model.selected.contains($0.hash)}) else { return false }
+            model.doubleClickRevision();return true
+        }
         context.coordinator.restoreColumns()
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
         scroll.borderType = .bezelBorder; scroll.documentView = table
@@ -3127,6 +3154,11 @@ struct RevisionTable: NSViewRepresentable {
             if visible.location != NSNotFound {
                 for row in visible.location..<min(NSMaxRange(visible), model.entries.count) { model.requestActions(model.entries[row]) }
             }
+        }
+    }
+    static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {
+        if let table=scroll.documentView as? HistoryTableView {
+            table.onReturn=nil;table.onFind=nil;table.presentContextMenu=nil;table.contextMenuAvailable={false}
         }
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
@@ -3353,6 +3385,10 @@ struct RevisionTable: NSViewRepresentable {
                 item(command.title, selector, icon: command.icon, enabled: model.canBisect(command))
             }
             if one && model.bisectAvailable(.skip) { menu.addItem(.separator()) }
+            let extended=(table as? HistoryTableView)?.contextExtendedMenu == true
+            if model.historyLogAvailable(extended:extended) {
+                item("Show log…",#selector(showHistory(_:)),icon:.log,enabled:!model.busy && model.onShowHistory != nil).representedObject=NSNumber(value:extended)
+            }
             item("Browse repository", #selector(browseRepository), icon: .repositoryBrowser, enabled: one && !model.busy && model.onBrowseRepository != nil)
             if model.integrationAvailable {
                 item(model.integrationTitle(.merge), #selector(mergeReference(_:)), icon: .merge, enabled: model.canIntegrate(.merge)).representedObject = pointed
@@ -3449,14 +3485,15 @@ struct RevisionTable: NSViewRepresentable {
             if model.bisectAvailable(.start) { menu.addItem(.separator()); item(LogBisectCommand.start.title, #selector(bisectStart), icon: .bisect, enabled: model.canBisect(.start)) }
             menu.addItem(.separator())
             if one, let entry = model.revision {
-                let extended = (table as? HistoryTableView)?.contextExtendedMenu == true
-                let local = entry.references.contains { $0.name.hasPrefix("refs/heads/") || $0.name.hasPrefix("refs/tags/") }
-                if (!model.selectedIsStash && local) || extended {
+                if model.historyPushAvailable(extended:extended) {
                     let label = pointed.flatMap { model.reference(for: $0) }.flatMap { ref -> String? in
                         let kind = ref.kind ?? HistoryReferenceLabel.shortName(ref.name).kind
                         return [.localBranch, .tag, .annotatedTag].contains(kind) ? "Push \"" + HistoryReferenceLabel.shortName(ref.name).text + "\"…" : nil
                     } ?? "Push…"
                     item(label, #selector(pushCaptured(_:)), icon: .push, enabled: !model.busy).representedObject = PushTarget(entry, pointedName: pointed?.name)
+                    if model.hasGitSVN,!model.bare {
+                        item(RepositoryAction.svnDCommit.title,#selector(svnDCommitFromHistory(_:)),icon:.commit,enabled:!model.busy && model.onHistorySVNDCommit != nil).representedObject=NSNumber(value:extended)
+                    }
                 }
                 if entry.isHead && !model.bare && !model.mergeActive && model.onHistoryPull != nil {
                     item("Pull…", #selector(pullFromHistory), icon: .pull, enabled: !model.busy)
@@ -3514,6 +3551,8 @@ struct RevisionTable: NSViewRepresentable {
             model.pushCaptured(target.entry, pointedName: target.pointedName)
         }
         @objc func pullFromHistory() { model.pullFromHistory() }
+        @objc func showHistory(_ sender:NSMenuItem) { model.showHistory(extended:(sender.representedObject as? NSNumber)?.boolValue ?? false) }
+        @objc func svnDCommitFromHistory(_ sender:NSMenuItem) { model.svnDCommitFromHistory(extended:(sender.representedObject as? NSNumber)?.boolValue ?? false) }
         @objc func pushReference(_ sender: NSMenuItem) { model.requestReference(.push, target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func switchBranchReference(_ sender: NSMenuItem) { if let target = sender.representedObject as? LogReferenceMenuTarget { model.switchBranch(target: target) } }
         @objc func mergeReference(_ sender: NSMenuItem) { model.requestIntegration(.merge, target: sender.representedObject as? LogReferenceMenuTarget) }
@@ -3647,6 +3686,8 @@ struct RevisionTable: NSViewRepresentable {
     @objc func combineRevisions(_ sender:NSMenuItem) { invoke(NSSelectorFromString("combineRevisions:"),sender:sender) }
     @objc func pushCaptured(_ sender:NSMenuItem) { invoke(NSSelectorFromString("pushCaptured:"),sender:sender) }
     @objc func pullFromHistory() { invoke(NSSelectorFromString("pullFromHistory")) }
+    @objc func showHistory(_ sender:NSMenuItem) { invoke(NSSelectorFromString("showHistory:"),sender:sender) }
+    @objc func svnDCommitFromHistory(_ sender:NSMenuItem) { invoke(NSSelectorFromString("svnDCommitFromHistory:"),sender:sender) }
     @objc func pushReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("pushReference:"),sender:sender) }
     @objc func switchBranchReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("switchBranchReference:"),sender:sender) }
     @objc func mergeReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("mergeReference:"),sender:sender) }
@@ -3697,18 +3738,40 @@ final class HistoryTableView: NSTableView {
     var contextExtendedMenu = false
     var onReturn: (() -> Bool)?
     var onFind: (() -> Bool)?
+    var contextMenuAvailable:()->Bool = { true }
+    var presentContextMenu:((NSMenu,NSPoint,NSView)->Void)?
+    private func isContextKey(_ event:NSEvent)->Bool {
+        event.keyCode==109 && event.modifierFlags.intersection([.shift,.command,.control,.option]) == .shift
+    }
+    @discardableResult func showKeyboardContextMenu(extended:Bool=false)->Bool {
+        guard contextMenuAvailable(),let row=selectedRowIndexes.first,row>=0,row<numberOfRows,let menu else { return false }
+        contextReference=nil;contextExtendedMenu=extended
+        scrollRowToVisible(row);layoutSubtreeIfNeeded();menu.update()
+        let visible=rect(ofRow:row).intersection(visibleRect)
+        let point=visible.isEmpty ? NSPoint(x:bounds.midX,y:rect(ofRow:row).midY) : NSPoint(x:visible.midX,y:visible.midY)
+        if let presentContextMenu { presentContextMenu(menu,point,self) }
+        else { menu.popUp(positioning:nil,at:point,in:self) }
+        return true
+    }
+    override func accessibilityPerformShowMenu()->Bool { showKeyboardContextMenu() }
     private func performFind(_ event: NSEvent) -> Bool {
         event.modifierFlags.intersection([.shift, .command, .control, .option]) == .command
             && event.charactersIgnoringModifiers?.lowercased() == "f" && onFind?() == true
     }
+    func performRevisionReturn(with event:NSEvent)->Bool {
+        event.type == .keyDown && [36,76].contains(event.keyCode) &&
+            event.modifierFlags.intersection([.command,.control]).isEmpty && onReturn?() == true
+    }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if performRevisionReturn(with:event) { return true }
+        if isContextKey(event) { return showKeyboardContextMenu(extended:true) }
         if performFind(event) { return true }
         return super.performKeyEquivalent(with: event)
     }
     override func keyDown(with event: NSEvent) {
+        if isContextKey(event),showKeyboardContextMenu(extended:true) { return }
         if performFind(event) { return }
-        if [36, 76].contains(event.keyCode), event.modifierFlags.intersection([.command, .control]).isEmpty,
-           onReturn?() == true { return }
+        if performRevisionReturn(with:event) { return }
         super.keyDown(with: event)
     }
     func reference(at point: NSPoint) -> (row: Int, name: String)? {
@@ -3720,6 +3783,7 @@ final class HistoryTableView: NSTableView {
         return (row, ref.name)
     }
     override func menu(for event: NSEvent) -> NSMenu? {
+        guard contextMenuAvailable() else { return nil }
         let point = convert(event.locationInWindow, from: nil), row = row(at: point)
         let mouse = event.type == .rightMouseDown || event.type == .leftMouseDown
         contextReference = mouse ? reference(at: point) : nil

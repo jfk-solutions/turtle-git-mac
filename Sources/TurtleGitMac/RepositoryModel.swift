@@ -99,7 +99,7 @@ import UniformTypeIdentifiers
     @Published var showIgnored = false
     @Published var finderStatus = "Finder cache not configured"
     @Published var workingComparisonMark: WorkingComparisonMarkSnapshot?
-    private let comparisonMarkStore = WorkingComparisonMarkStore(storageURL: WorkingComparisonMarkStore.defaultStorageURL)
+    private let comparisonMarkStore:WorkingComparisonMarkStore
     var comparisonMarkTitle: String { workingComparisonMark.map { "Compare with " + $0.path } ?? RepositoryAction.diffLater.title }
     @Published var recentRepositories: [SavedRepository] = [] { didSet { repositoryAccessWindow?.model.refresh() } }
     private var repositoryAccessWindow:RepositoryAccessWindowController?
@@ -117,6 +117,7 @@ import UniformTypeIdentifiers
     private var combineWindows: [UUID: HistoryCombineWindowController] = [:]
     private var historyRevertWindows: [UUID: HistoryRevertWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
+    var logWindowFactory:((GitRepository,RepositoryAccessLease?)->LogWindowController)?
     private var revisionGraphWindows: [String: RevisionGraphWindowController] = [:]
     private var referenceBrowserWindows: [String: ReferenceBrowserWindowController] = [:]
     private var browserWindows: [String: RepositoryBrowserWindowController] = [:]
@@ -139,6 +140,7 @@ import UniformTypeIdentifiers
     private var addUnifiedWindows: [String: PatchWindowController] = [:]
     private var svnWindows: [String: SVNWindowController] = [:]
     var svnPresentation: ((SVNWindowController) -> Void)?
+    var svnWindowFactory:((GitRepository,RepositoryAccessLease?,GitSVNOperation)->SVNWindowController)?
     private var daemonWindows: [String: GitDaemonWindowController] = [:]
     var daemonPresentation: ((GitDaemonWindowController) -> Void)?
     private var lfsLocksWindows: [String: LFSLocksWindowController] = [:]
@@ -248,7 +250,8 @@ import UniformTypeIdentifiers
         return eligible && (!action.ignoresByExtension || selected.contains { !($0.path as NSString).pathExtension.isEmpty })
     }
 
-    init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)? = nil,snapshotStore:FinderSnapshotStore? = nil,finderWatches:FinderWatchManager? = nil,savedAccessStore:RepositoryAccessStore? = nil) {
+    init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)? = nil,snapshotStore:FinderSnapshotStore? = nil,finderWatches:FinderWatchManager? = nil,savedAccessStore:RepositoryAccessStore? = nil,comparisonMarks:WorkingComparisonMarkStore? = nil) {
+        comparisonMarkStore=comparisonMarks ?? WorkingComparisonMarkStore(storageURL:WorkingComparisonMarkStore.defaultStorageURL)
         self.accessStore=savedAccessStore;recentRepositories=savedAccessStore?.repositories ?? []
         self.finderWatches=finderWatches
         self.repositoryFactory=repositoryFactory;self.snapshotWriter=snapshotWriter
@@ -1104,7 +1107,7 @@ import UniformTypeIdentifiers
             existing.window?.close()
         }
         if operation == .rebase, let existing = rebaseWindows[key] { existing.window?.makeKeyAndOrderFront(nil); error = "Close the existing Rebase dialog before starting SVN Rebase."; return }
-        let controller = SVNWindowController(repository: repository, access: access, operation: operation)
+        let controller = svnWindowFactory?(repository,access,operation) ?? SVNWindowController(repository: repository, access: access, operation: operation)
         controller.onClosed = { [weak self, weak controller] in
             guard let self, let controller, self.svnWindows[key] === controller else { return }
             self.svnWindows.removeValue(forKey: key)
@@ -1994,7 +1997,7 @@ import UniformTypeIdentifiers
             }
         } else { reusable = logWindows[baseKey].map { (key: baseKey, value: $0) } }
         let key = reusable?.key ?? (logWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
-        let controller = reusable?.value ?? LogWindowController(repository: repository, access: access)
+        let controller = reusable?.value ?? logWindowFactory?(repository,access) ?? LogWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: key) }
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
@@ -2004,7 +2007,7 @@ import UniformTypeIdentifiers
         controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
-        configureLogSwitch(controller.model, repository: repository, access: access)
+        configureLogMenus(controller.model, repository: repository, access: access)
         controller.model.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
         controller.model.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision, paths: paths) }
         controller.model.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
@@ -2078,7 +2081,9 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 
-    private func configureLogSwitch(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+    private func configureLogMenus(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        model.onShowHistory={ [weak self] hash in self?.showLog(repository:repository,access:access,paths:[],endRevision:hash,selectedRevision:hash) }
+        model.onHistorySVNDCommit={ [weak self] in self?.showSVN(.dcommit,repository:repository,access:access) }
         model.configureStartReferenceBrowser = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         model.onSwitchBranch = { [weak self, weak model] reference in
             guard let parent = model?.window, parent.attachedSheet == nil else { return }
@@ -2156,7 +2161,7 @@ import UniformTypeIdentifiers
             log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
-            self?.configureLogSwitch(log, repository: repository, access: access)
+            self?.configureLogMenus(log, repository: repository, access: access)
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
@@ -2248,7 +2253,7 @@ import UniformTypeIdentifiers
             log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
-            self?.configureLogSwitch(log, repository: repository, access: access)
+            self?.configureLogMenus(log, repository: repository, access: access)
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
@@ -2329,7 +2334,7 @@ import UniformTypeIdentifiers
             log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
-            self?.configureLogSwitch(log, repository: repository, access: access)
+            self?.configureLogMenus(log, repository: repository, access: access)
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }

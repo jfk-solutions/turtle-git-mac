@@ -2446,3 +2446,35 @@ The Debug build and both grouped engine cases passed; see
 [popup ownership evidence](qa/log-popup-ownership-2026-10-15.json). These checks
 retain the existing real Revert/Combine workflow assertions alongside the new
 menu ownership cases.
+
+## Source history/transport menu and keyboard family — October 15, 2026
+
+The native revision menu now supplies the source **Show log…** command before
+Browse Repository for referenced non-stash commits, or the Shift extended menu.
+It opens repository history ending at and selecting the captured commit, rather
+than changing the current Log's path/range. Existing scoped windows are reused
+by repository/revision. The repository and access grant follow the originating
+window even after the main workspace changes.
+
+Git-SVN working copies now offer **SVN DCommit…** alongside Push under the same
+local-branch/tag or Shift gate, with the original Commit icon. It opens the
+existing SVN workflow for the current repository; it does not reinterpret the
+selected revision as a dcommit range. These commands are configured for primary
+and picker Log windows. Shift mode is retained in each item's payload; releasing
+Shift cannot invalidate an already-open extended command. Existing popup lifetime
+checks reject changed selection/refs, reload and retired owners.
+
+Shift-F10 opens the revision popup at the selected visible row and clears any
+old mouse-label target. The native accessibility Show Menu route uses the same
+anchor with normal menu mode. Busy/Find/Ordering/reference-picker/sheet and retired
+owners refuse that presentation; an empty selection has no popup. Return now
+uses the existing DiffByDoubleClickInLog setting through the table's previously
+unbound Return route, including native previous-version handling. With the setting
+disabled, normal window/default-button handling remains available.
+
+Physical popup tracking, all conditional source masks, complete keyboard/VoiceOver
+acceptance and signed SVN/Finder/App Store behavior remain separate work.
+
+The Debug build and four grouped history/reference cases passed on system and
+bundled Git; see [source menu evidence](qa/log-source-menus-2026-10-15.json).
+Every owned receiver was reaped. No SVN transport was submitted by the fixture.

@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-15",
+  "scope": "Log source history/transport menu and keyboard family",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/GitLogListBase.cpp: Show Log and Push/SVN gates, Return",
+      "src/TortoiseProc/GitLogListAction.cpp: ID_LOG and ID_SVNDCOMMIT",
+      "src/TortoiseProc/LogDlg.cpp: Return preference"
+    ]
+  },
+  "implementation": [
+    "Referenced or Shift-extended Show log with original icon, captured SHA, independently scoped child selection/reuse and repository/access lifetime",
+    "SVN DCommit beside Push for Git-SVN working copies using source availability gate and Commit icon; current-repository SVN dialog routing",
+    "Captured Shift payloads and existing stale/one-shot popup relay for both new actions",
+    "Selected-row Shift-F10 and accessibility context menus clear stale mouse-reference targets and respect blocked/retired owners",
+    "Return follows DiffByDoubleClickInLog, routed before the native default button while the revision table has focus"
+  ],
+  "validation": {
+    "core": "Unchanged; not rerun",
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/log-source-menus-build-final-2026-10-15.log"
+    },
+    "native": {
+      "log": "build/qa/log-source-menus-native-complete-2026-10-15.log",
+      "result": "four grouped cases passed",
+      "cases": [
+        "history-workflows/system Git",
+        "log-reference-navigation/system Git",
+        "history-workflows/bundled Git",
+        "log-reference-navigation/bundled Git"
+      ],
+      "receivers_reaped_and_absent": [
+        89163,
+        89578,
+        90207,
+        90665
+      ],
+      "initial_failed_receivers_reaped_and_absent": [
+        88541,
+        88733,
+        88917
+      ],
+      "scope": "New source menu, keyboard, repository/grant lifetime and SVN dialog routing cases plus existing Revert/Combine output, cancellation, rollback, native Commit handoff and reference navigation checks"
+    },
+    "fixture_repairs": [
+      "Empty .git/svn directory did not satisfy the existing metadata gate; create svn/.metadata in the private fixture.",
+      "Git-SVN decoration in a command-line receiver needs its built IssueRegex helper explicitly injected; the production app resolves it from its bundle. No assertion removed."
+    ],
+    "documentation": {
+      "site_documents": 216,
+      "unresolved_fragments": [],
+      "coverage_ledger": "regenerated",
+      "log": "build/qa/log-source-menus-site-2026-10-15.log"
+    }
+  },
+  "limits": [
+    "SVN command routing verified without submitting SVN transport",
+    "Physical popup tracking and complete keyboard/VoiceOver acceptance remain open",
+    "All conditional source masks and full dialog visual parity remain partial",
+    "Signed Finder/App Store and full app parity remain open"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}
