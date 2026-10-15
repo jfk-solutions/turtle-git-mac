@@ -124,6 +124,11 @@ extension UserDefaults {
 }
 
 @MainActor final class SwitchWindowModel: ObservableObject, VersionPickerModel {
+    private(set) static var activeReads = 0
+    var onInitialReadSettled: () -> Void = {}
+    var initialReadActive: Bool { initialLoadToken != nil }
+    @discardableResult func cancelInitialRead() -> Bool { guard let initialLoadToken else { return false }; initialLoadToken.cancel(); return true }
+    var readInitialReferences: (OperationCancellation) async throws -> ([CheckoutReference], String)
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let initialRevision: String?
@@ -184,9 +189,10 @@ extension UserDefaults {
         guard !invalidated, !finished, pickerTarget == .branch else { return }
         referenceSelectionToken?.cancel(); let token = OperationCancellation(); referenceSelectionToken = token; busy = true
         let requested = name ?? revision, draft = commitRevision
+        Self.activeReads += 1
         Task {
             var applied = false
-            defer { if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
@@ -210,17 +216,24 @@ extension UserDefaults {
     var tags: [CheckoutReference] { let values = references.filter { $0.target == .tag }; return preferences.bool(forKey: "SortTagsReversed") ? Array(values.reversed()) : values }
     var revision: String { switch options.target { case .branch: return branchRevision; case .tag: return tagRevision; case .commit: return commitRevision } }
     var remote: Bool { options.target == .branch && references.first { $0.name.utf8.elementsEqual(branchRevision.utf8) }?.remote == true }
-    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; initialRevision = revision; self.preferences = preferences }
+    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; initialRevision = revision; self.preferences = preferences
+        readInitialReferences = { token in
+            let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
+            let current = try await repository.branch(cancellation: token)
+            return (catalog, current)
+        }
+    }
     func load(revision preset: String? = nil) {
         guard !busy, pickerTarget == nil, progress == nil, !hasPendingTagConflict, !invalidated, !finished else { return }; busy = true
         let token = OperationCancellation(); initialLoadToken = token
         let revision = preset ?? initialRevision
+        Self.activeReads += 1
         Task {
-            defer { if initialLoadToken === token { initialLoadToken = nil; busy = false } }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if initialLoadToken === token { initialLoadToken = nil; busy = false }; onInitialReadSettled() }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
-                let current = try await repository.branch(cancellation: token)
+                let (catalog, current) = try await readInitialReferences(token)
                 guard !invalidated, !finished, initialLoadToken === token, !token.isCancelled else { return }
                 references = catalog
                 branchRevision = branches.first { GitReferenceName.equal($0.name, "refs/heads/" + current) }?.name ?? branches.first?.name ?? ""

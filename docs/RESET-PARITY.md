@@ -181,3 +181,41 @@ disabled/retired/focus guards. Physical popup and complete dialog acceptance rem
 The connected [local command progress family](LOCAL-COMMAND-PROGRESS-PARITY.md)
 adds live Reset/Switch/Stash output, shared native log styling/copy controls,
 bounded presentation, independent ownership and once-only kill questions.
+
+## Connected chooser, confirmation and result ownership — October 15, 2026
+
+Pinned `ResetDlg.cpp` and `IDD_RESET` retain the source groups and order:
+current branch, Branch/Tag/Commit target, Soft/Mixed/Hard, full-width modified
+files action and OK/Cancel/Help. The native host now constrains vertical resize,
+matching the source's horizontal resize policy. It remains a native adaptation,
+not a complete visual parity certification.
+
+Reset now passes its preference domain into the shared chooser, its From/To
+modified-files comparison and its owned Log. The chooser honors private Fetch
+HEAD visibility, local-first reference ordering and reversed tag ordering. Log
+receives the entered revision before its view is created, uses the shared
+production command configuration and inherits the owner's appearance and opacity.
+Selected commits enter the editable revision session history.
+
+Reference and commit selections retain the initiating target, branch, tag, commit
+and reset mode. A result cannot overwrite changed inputs, consume a newer picker
+or apply before the owned child/sheet has retired. Cancel and refused presentation
+release ownership; forced parent close invalidates pending callbacks. Hard reset
+uses a distinct confirmation identity and the reviewed input snapshot; an old
+Yes callback cannot approve a newer question. The actual alert-to-progress
+transition waits for sheet detachment. Refusing progress presentation releases
+the model and never starts Reset.
+
+Initial branch/bare metadata, shared chooser references and reset preparation are
+cancellable and retain global Quit/access ownership until the reads settle, even
+after forced close. Window Close cancels reads and closes after both readers
+settle; the explicit Cancel control stops a read while retaining the dialog.
+Retired Reset models cannot reopen pickers/comparisons or initiate Reset. The
+legacy no-progress caller now retains mutation ownership and publishes completion
+only after clearing its busy state. Real reset execution still uses the pinned
+Core plan and changed-HEAD guard.
+
+The dated QA record identifies local native coverage and any failures/repairs.
+Complete physical keyboard/menu/VoiceOver behavior, all dialog layout/color
+comparisons, signed Finder invocation and App Store sandbox acceptance remain
+open. Earlier records remain historical evidence for their stated scope.

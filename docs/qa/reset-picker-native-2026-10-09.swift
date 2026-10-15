@@ -51,9 +51,9 @@ import TurtleGitCore
         let owner = ResetWindowController(repository: repo, access: nil, revision: prior, preferences: prefs); defer { owner.close() }
         owner.model.load(); try await wait([owner.window!]) { !owner.model.busy && !owner.model.chooser.busy && !owner.model.initialModeFocusPending }
         var callbacks: [(LogEntry?) -> Void] = [], presentations = 0
-        owner.makeCommitPicker = { repository, access, choose, preferences in
+        owner.makeCommitPicker = { repository, access, choose, preferences, initialRevision in
             callbacks.append(choose)
-            return LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences, savesColumnLayout: false)
+            return LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences, savesColumnLayout: false, initialRevision: initialRevision)
         }
         owner.presentCommitPicker = { [weak owner] parent, child in presentations += 1; parent.makeFirstResponder(nil); return parent === owner?.window && !parent.isVisible && !child.isVisible }
         phase("First full Log picker")

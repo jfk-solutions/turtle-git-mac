@@ -2,6 +2,14 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+struct ResetChooserDraft: Equatable {
+    let target: CheckoutTarget
+    let branch: GitReferenceName
+    let tag: GitReferenceName
+    let commit: GitReferenceName
+    let mode: ResetMode
+}
+
 @MainActor final class ResetWindowController: NSWindowController, NSWindowDelegate {
     let model: ResetWindowModel
     var onClosed: () -> Void = {}
@@ -12,12 +20,15 @@ import TurtleGitCore
     private var commitPickerRequest: UUID?
     private(set) var referencePicker: ReferenceBrowserWindowController?
     private var referencePickerRequest: UUID?
+    private var pendingSheetResult: (() -> Void)?
+    private let preferences: UserDefaults
+    var configureCommitPicker: (LogWindowModel) -> Void = { _ in }
     var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
     var presentReferencePicker: (NSWindow, NSWindow) -> Bool = { owner, child in
         guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true
     }
-    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController = { repository, access, choose, preferences in
-        LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences)
+    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults, String?) -> LogWindowController = { repository, access, choose, preferences, revision in
+        LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences, initialRevision: revision)
     }
     var presentCommitPicker: (NSWindow, NSWindow) -> Bool = { owner, child in
         guard owner.attachedSheet == nil else { return false }
@@ -29,20 +40,22 @@ import TurtleGitCore
         owner.beginSheet(child); return true
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) {
+        self.preferences = preferences
         model = ResetWindowModel(repository: repository, access: access, revision: revision, preferences: preferences)
         let size = NSSize(width: 690, height: 405)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Reset – TurtleGit"
-        window.contentMinSize = size; window.isReleasedWhenClosed = false
+        window.contentMinSize = size; window.contentMaxSize = NSSize(width: 4000, height: size.height); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ResetDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         window.setContentSize(size); window.center()
-        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.showingModifiedFiles, !self.model.showingCommitPicker, !self.model.showingReferencePicker, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.onReadSettled = { [weak self] in self?.finishReadClose() }
+        model.close = { [weak self] in guard let self else { return }; if self.model.cancelReads(closeAfter: true) { return }; guard !self.model.busy, !self.model.showingModifiedFiles, !self.model.showingCommitPicker, !self.model.showingReferencePicker, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onShowReferencePicker = { [weak self] in self?.showReferencePicker(preferences: preferences) }
         model.onShowCommitPicker = { [weak self] in self?.showCommitPicker(preferences: preferences) }
         model.onShowModified = { [weak self] in self?.showModifiedFiles() }
         model.onProgress = { [weak self] result in
-            guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
+            guard let self, !self.closed, let window = self.window, window.attachedSheet == nil else { self?.model.abandonProgressPresentation(result); return }
             let controller = ResetProgressWindowController(model: result)
             controller.onClosed = { [weak self, weak result] in guard let self, let result else { return }; self.progressController = nil; self.model.finish(result) }
             self.progressController = controller; if let child = controller.window { window.beginSheet(child) } else { result.abandonPresentation() }
@@ -53,56 +66,85 @@ import TurtleGitCore
             alert.messageText = "Discard all local changes?"
             alert.informativeText = "Hard reset replaces the index and tracked working files with \(plan.revision). Untracked files that obstruct checkout can also be removed."
             alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Reset")
-            alert.beginSheetModal(for: window) { response in choose(response == .alertSecondButtonReturn) }
+            alert.beginSheetModal(for: window) { [weak self] response in
+                guard let self, !self.closed else { return }
+                self.pendingSheetResult = { choose(response == .alertSecondButtonReturn) }; self.drainSheetResult()
+            }
         }
 
+        NotificationCenter.default.addObserver(self, selector: #selector(pickerSheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         DialogGeometry.attach(window, identifier: "ResetDialog", legacyName: "ResetDialog")
+    }
+    @objc private func pickerSheetEnded() { drainSheetResult() }
+    private func drainSheetResult() {
+        guard !closed, window?.attachedSheet == nil, referencePicker == nil, commitPicker == nil, let result = pendingSheetResult else { return }
+        pendingSheetResult = nil; result()
+    }
+    private func finishReadClose() {
+        guard !closed, model.closeAfterRead, !model.busy, !model.chooser.busy, window?.attachedSheet == nil else { return }
+        window?.close()
     }
     private func showReferencePicker(preferences: UserDefaults) {
         guard !closed, let owner = window, owner.attachedSheet == nil,
               referencePicker == nil, model.beginReferencePicker() else { return }
-        let request = UUID(); referencePickerRequest = request
+        let request = UUID(), draft = model.pickerDraft; referencePickerRequest = request
         let picker = ReferenceBrowserWindowController(repository: model.chooser.repository, access: model.access, initial: model.chooser.revision, preferences: preferences) { [weak self] name in
             guard let self, !self.closed, self.referencePickerRequest == request else { return }
-            self.model.acceptReferenceSelection(name) { [weak self] in if self?.referencePickerRequest == request { self?.referencePickerRequest = nil } }
+            guard self.pendingSheetResult == nil else { return }
+            self.pendingSheetResult = { [weak self] in
+                guard let self, self.referencePickerRequest == request else { return }
+                self.referencePickerRequest = nil
+                guard self.model.pickerDraft == draft else { self.model.finishReferencePicker(); return }
+                self.model.acceptReferenceSelection(name) {}
+            }
+            self.drainSheetResult()
         }
         referencePicker = picker; configureReferencePicker(picker.model)
         picker.onClosed = { [weak self, weak picker] in
             guard let self, let picker, self.referencePicker === picker else { return }
             if let child = picker.window, child.sheetParent === self.window { self.window?.endSheet(child) }
-            self.referencePicker = nil
+            self.referencePicker = nil; self.drainSheetResult()
         }
-        guard let child = picker.window, presentReferencePicker(owner, child) else {
-            picker.abandonPresentation(); referencePicker = nil; referencePickerRequest = nil; model.finishReferencePicker(); return
+        guard let child = picker.window else { picker.abandonPresentation(); referencePicker = nil; referencePickerRequest = nil; pendingSheetResult = nil; model.finishReferencePicker(); return }
+        child.appearance = owner.appearance; child.alphaValue = owner.alphaValue
+        guard presentReferencePicker(owner, child) else {
+            picker.abandonPresentation(); referencePicker = nil; referencePickerRequest = nil; pendingSheetResult = nil; model.finishReferencePicker(); return
         }
         picker.model.load()
     }
     private func showCommitPicker(preferences: UserDefaults) {
         guard !closed, let owner = window, owner.attachedSheet == nil,
               commitPicker == nil, model.beginCommitPicker() else { return }
-        let request = UUID(); commitPickerRequest = request
+        let request = UUID(), draft = model.pickerDraft; commitPickerRequest = request
+        let revision = model.chooser.commitRevision
         let picker = makeCommitPicker(model.chooser.repository, model.access, { [weak self] entry in
             guard let self, self.commitPickerRequest == request else { return }
-            if !self.closed, let entry { self.model.chooser.commitRevision = entry.hash }
-            self.commitPickerRequest = nil; self.model.finishCommitPicker()
-        }, preferences)
-        commitPicker = picker
+            guard !self.closed, self.pendingSheetResult == nil else { return }
+            self.pendingSheetResult = { [weak self] in
+                guard let self, self.commitPickerRequest == request else { return }
+                self.commitPickerRequest = nil
+                self.model.finishCommitPicker()
+                if self.model.pickerDraft == draft, let entry { self.model.chooser.selectCustomRevision(entry.hash) }
+            }
+            self.drainSheetResult()
+        }, preferences, revision.isEmpty ? nil : revision)
+        commitPicker = picker; configureCommitPicker(picker.model)
         picker.onClosed = { [weak self, weak picker] in
             guard let self, let picker, self.commitPicker === picker else { return }
             if let child = picker.window, child.sheetParent === self.window { self.window?.endSheet(child) }
-            self.commitPicker = nil
+            self.commitPicker = nil; self.drainSheetResult()
         }
-        let revision = model.chooser.commitRevision
-        picker.model.endRevision = revision.isEmpty ? nil : revision
-        guard let child = picker.window, presentCommitPicker(owner, child) else {
-            picker.close(); commitPicker = nil; commitPickerRequest = nil; model.finishCommitPicker(); return
+        guard let child = picker.window else { picker.close(); commitPicker = nil; commitPickerRequest = nil; pendingSheetResult = nil; model.finishCommitPicker(); return }
+        child.appearance = owner.appearance; child.alphaValue = owner.alphaValue
+        guard presentCommitPicker(owner, child) else {
+            picker.close(); commitPicker = nil; commitPickerRequest = nil; pendingSheetResult = nil; model.finishCommitPicker(); return
         }
         picker.model.reload()
     }
     private func showModifiedFiles() {
         guard !closed, let owner = window, owner.attachedSheet == nil,
               modifiedComparison == nil, model.beginModifiedFiles() else { return }
-        let controller = RevisionComparisonWindowController(repository: model.chooser.repository, access: model.access, from: .revision("HEAD"), to: .workingTree)
+        let controller = RevisionComparisonWindowController(repository: model.chooser.repository, access: model.access, from: .revision("HEAD"), to: .workingTree, preferences: preferences)
         modifiedComparison = controller
         configureModifiedComparison(controller.model)
         controller.onClosed = { [weak self, weak controller] in
@@ -110,14 +152,16 @@ import TurtleGitCore
             if let child = controller.window, child.sheetParent === self.window { self.window?.endSheet(child) }
             self.modifiedComparison = nil; self.model.finishModifiedFiles()
         }
-        guard let child = controller.window, presentModifiedComparison(owner, child) else {
+        guard let child = controller.window else { controller.close(); modifiedComparison = nil; model.finishModifiedFiles(); return }
+        child.appearance = owner.appearance; child.alphaValue = owner.alphaValue
+        guard presentModifiedComparison(owner, child) else {
             controller.close(); modifiedComparison = nil; model.finishModifiedFiles(); return
         }
         controller.model.load()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.showingModifiedFiles && !model.showingCommitPicker && !model.showingReferencePicker && !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.cancelReads(closeAfter: true) { return false }; return !model.showingModifiedFiles && !model.showingCommitPicker && !model.showingReferencePicker && !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
-        closed = true; model.invalidate()
+        guard !closed else { return }; closed = true; pendingSheetResult = nil; NotificationCenter.default.removeObserver(self); model.invalidate()
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
         progressController?.close(); progressController = nil
         referencePicker?.close(); referencePicker = nil; referencePickerRequest = nil
@@ -128,7 +172,22 @@ import TurtleGitCore
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ResetWindowModel: ObservableObject {
+    private(set) static var activeReads = 0
     let chooser: SwitchWindowModel
+    var readState: (OperationCancellation) async throws -> (String, Bool)
+    var preparePlan: (String, ResetMode, OperationCancellation) async throws -> ResetPlan
+    var onReadSettled: () -> Void = {}
+    private(set) var closeAfterRead = false
+    private var hardQuestion: UUID?
+    var pickerDraft: ResetChooserDraft { ResetChooserDraft(target: chooser.options.target, branch: GitReferenceName(chooser.branchRevision), tag: GitReferenceName(chooser.tagRevision), commit: GitReferenceName(chooser.commitRevision), mode: mode) }
+    func cancelReads(closeAfter: Bool = false) -> Bool {
+        let chooserReading = chooser.cancelInitialRead()
+        guard loadCancellation != nil || resetCancellation != nil || chooserReading else { return false }
+        closeAfterRead = closeAfterRead || closeAfter; loadCancellation?.cancel(); resetCancellation?.cancel(); return true
+    }
+    func abandonProgressPresentation(_ result: ResetProgressWindowModel) {
+        guard progress === result else { return }; result.abandonPresentation(); result.invalidate(); progress = nil; busy = false
+    }
     let access: RepositoryAccessLease?
     private let initialRevision: String?
     private let preferences: UserDefaults
@@ -161,7 +220,7 @@ import TurtleGitCore
     private var appliedReferenceFocusRequest = 0
     private var referenceSelectionToken: OperationCancellation?
     var onShowReferencePicker: () -> Void = {}
-    var canShowReferencePicker: Bool { referenceSelectionAvailable && !busy && !chooser.busy && chooser.browser == nil && !confirmingHard && progress == nil && !showingModifiedFiles && !showingCommitPicker && !showingReferencePicker && chooser.options.target == .branch }
+    var canShowReferencePicker: Bool { !invalidated && !closeAfterRead && referenceSelectionAvailable && !busy && !chooser.busy && chooser.browser == nil && !confirmingHard && progress == nil && !showingModifiedFiles && !showingCommitPicker && !showingReferencePicker && chooser.options.target == .branch }
     func showReferencePicker() { guard canShowReferencePicker else { return }; onShowReferencePicker() }
     func beginReferencePicker() -> Bool { guard canShowReferencePicker else { return false }; showingReferencePicker = true; return true }
     func finishReferencePicker() { referenceSelectionToken?.cancel(); referenceSelectionToken = nil; showingReferencePicker = false }
@@ -176,14 +235,15 @@ import TurtleGitCore
     func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void) {
         guard referenceSelectionAvailable, showingReferencePicker else { return }
         referenceSelectionToken?.cancel(); let token = OperationCancellation(); referenceSelectionToken = token
-        let revision = name ?? chooser.revision, commitDraft = chooser.commitRevision
+        let revision = name ?? chooser.revision, commitDraft = chooser.commitRevision, draft = pickerDraft
+        Self.activeReads += 1
         Task {
             var applied = false
-            defer { if referenceSelectionToken === token { referenceSelectionToken = nil; showingReferencePicker = false; if applied { initialModeFocusPending = false; referenceFocusRequest += 1 }; completion() } }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; showingReferencePicker = false; if applied { initialModeFocusPending = false; referenceFocusRequest += 1 }; completion() } }
             do {
                 try validateAccess()
-                let references = try await chooser.repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, cancellation: token)
-                guard referenceSelectionAvailable, referenceSelectionToken === token, !token.isCancelled else { return }
+                let references = try await chooser.repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
+                guard referenceSelectionAvailable, referenceSelectionToken === token, !token.isCancelled, pickerDraft == draft else { return }
                 chooser.references = references
                 if let reference = references.first(where: { GitReferenceName.equal($0.name, revision) }), let target = reference.target {
                     chooser.options.target = target
@@ -196,96 +256,111 @@ import TurtleGitCore
     }
     @Published private(set) var showingCommitPicker = false
     var onShowCommitPicker: () -> Void = {}
-    var canShowCommitPicker: Bool { !busy && !chooser.busy && chooser.browser == nil && !confirmingHard && progress == nil && !showingModifiedFiles && !showingCommitPicker && !showingReferencePicker && chooser.options.target == .commit }
+    var canShowCommitPicker: Bool { !invalidated && !closeAfterRead && !busy && !chooser.busy && chooser.browser == nil && !confirmingHard && progress == nil && !showingModifiedFiles && !showingCommitPicker && !showingReferencePicker && chooser.options.target == .commit }
     func showCommitPicker() { guard canShowCommitPicker else { return }; onShowCommitPicker() }
     func beginCommitPicker() -> Bool { guard canShowCommitPicker else { return false }; showingCommitPicker = true; return true }
     func finishCommitPicker() { showingCommitPicker = false }
     @Published private(set) var showingModifiedFiles = false
     var onShowModified: () -> Void = {}
-    var canShowModifiedFiles: Bool { !bare && !busy && !chooser.busy && chooser.browser == nil && !showingCommitPicker && !showingReferencePicker && !confirmingHard && progress == nil && !showingModifiedFiles }
+    var canShowModifiedFiles: Bool { !invalidated && !closeAfterRead && !bare && !busy && !chooser.busy && chooser.browser == nil && !showingCommitPicker && !showingReferencePicker && !confirmingHard && progress == nil && !showingModifiedFiles }
     func showModifiedFiles() { guard canShowModifiedFiles else { return }; onShowModified() }
     func beginModifiedFiles() -> Bool { guard canShowModifiedFiles else { return false }; showingModifiedFiles = true; return true }
     func finishModifiedFiles() { showingModifiedFiles = false }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String?, preferences: UserDefaults = .standard) {
-        chooser = SwitchWindowModel(repository: repository, access: access); self.access = access; initialRevision = revision; self.preferences = preferences
+        chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences); self.access = access; initialRevision = revision; self.preferences = preferences
+        readState = { token in try await (repository.branch(cancellation: token), repository.isBare(cancellation: token)) }
+        preparePlan = { try await repository.prepareReset(to: $0, mode: $1, cancellation: $2) }
+        chooser.onInitialReadSettled = { [weak self] in self?.onReadSettled() }
     }
     private var invalidated = false
     private var loadCancellation: OperationCancellation?
     private var loadTask: Task<Void, Never>?
     private var resetCancellation: OperationCancellation?
     func invalidate() {
-        invalidated = true; loadCancellation?.cancel(); loadTask?.cancel(); loadCancellation = nil; loadTask = nil
+        invalidated = true; hardQuestion = nil; loadCancellation?.cancel(); loadTask?.cancel(); loadCancellation = nil; loadTask = nil
         resetCancellation?.cancel(); resetCancellation = nil
         chooser.invalidate(); progress?.invalidate(); progress = nil; busy = false; confirmingHard = false
         invalidateInitialModeFocus(); invalidateReferenceSelection()
     }
     func load() {
-        guard !invalidated, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles else { return }
+        guard !invalidated, !closeAfterRead, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles else { return }
         busy = true; chooser.load(revision: initialRevision)
-        let request = OperationCancellation(), repository = chooser.repository
+        let request = OperationCancellation()
         loadCancellation = request
-        loadTask = Task { [weak self, access] in
-            _ = access
-            do {
-                let branch = try await repository.branch(cancellation: request), bare = try await repository.isBare(cancellation: request)
-                guard let self, !self.invalidated, self.loadCancellation === request, !request.isCancelled else { return }
-                self.currentBranch = branch; self.bare = bare; if bare { self.mode = .soft }
-            } catch {
-                guard let self, !self.invalidated, self.loadCancellation === request, !request.isCancelled else { return }
-                self.error = error.localizedDescription
+        Self.activeReads += 1
+        loadTask = Task { [self, access] in
+            defer {
+                Self.activeReads -= 1
+                if loadCancellation === request { loadCancellation = nil; loadTask = nil; busy = false; onReadSettled() }
+                withExtendedLifetime(access) {}
             }
-            guard let self, self.loadCancellation === request else { return }
-            self.loadCancellation = nil; self.loadTask = nil; self.busy = false
+            do {
+                try validateAccess()
+                let (branch, bare) = try await readState(request)
+                guard !invalidated, loadCancellation === request, !request.isCancelled else { return }
+                currentBranch = branch; self.bare = bare; if bare { mode = .soft }
+            } catch { if !invalidated, loadCancellation === request, !request.isCancelled { self.error = error.localizedDescription } }
         }
     }
+
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func reset() {
-        guard !invalidated, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
+        guard !invalidated, !closeAfterRead, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
         let revision = chooser.revision, mode = mode, request = OperationCancellation()
         resetCancellation = request
-        Task { [weak self, access, repository = chooser.repository] in
-            _ = access
-            do {
-                guard let self else { return }; try self.validateAccess()
-                let plan = try await repository.prepareReset(to: revision, mode: mode, cancellation: request)
-                guard !self.invalidated, self.resetCancellation === request, !request.isCancelled else { return }
-                self.resetCancellation = nil; self.busy = false
-                if mode == .hard {
-                    self.confirmingHard = true
-                    self.confirmHard(plan) { [weak self] accepted in guard let self, !self.invalidated, self.confirmingHard else { return }; self.confirmingHard = false; if accepted { self.apply(plan) } }
-                } else { self.apply(plan) }
-            } catch {
-                guard let self, !self.invalidated, self.resetCancellation === request, !request.isCancelled else { return }
-                self.resetCancellation = nil; self.error = error.localizedDescription; self.busy = false
+        let draft = pickerDraft
+        Self.activeReads += 1
+        Task { [self, access] in
+            defer {
+                Self.activeReads -= 1
+                if resetCancellation === request { resetCancellation = nil; busy = false; onReadSettled() }
+                withExtendedLifetime(access) {}
             }
+            do {
+                try validateAccess()
+                let plan = try await preparePlan(revision, mode, request)
+                guard !invalidated, resetCancellation === request, !request.isCancelled, pickerDraft == draft else { return }
+                resetCancellation = nil; busy = false
+                if mode == .hard {
+                    let question = UUID(); hardQuestion = question; confirmingHard = true
+                    confirmHard(plan) { [weak self] accepted in
+                        guard let self, !self.invalidated, self.hardQuestion == question else { return }
+                        self.hardQuestion = nil; self.confirmingHard = false
+                        if accepted, self.pickerDraft == draft { self.apply(plan) }
+                    }
+                } else { apply(plan) }
+            } catch { if !invalidated, resetCancellation === request, !request.isCancelled { self.error = error.localizedDescription } }
         }
     }
 
     func apply(_ plan: ResetPlan) {
-        guard !invalidated, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
+        guard !invalidated, !closeAfterRead, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
         do { try validateAccess() } catch { self.error = error.localizedDescription; busy = false; return }
         if let onProgress {
             let result = ResetProgressWindowModel(repository: chooser.repository, plan: plan, preferences: preferences, access: access)
             result.close = { [weak self, weak result] in guard let result else { return }; self?.finish(result) }
             result.onChanged = onChanged
             result.onPostAction = { [weak self] action in self?.onPostAction?(action) }
-            progress = result; onProgress(result); result.start()
+            progress = result; onProgress(result); if progress === result { result.start() }
         } else {
-            let request = OperationCancellation(); resetCancellation = request
-            Task { [weak self, access, repository = chooser.repository] in
-                _ = access
+            let request = OperationCancellation(); resetCancellation = request; LocalGitCommandProgress.begin()
+            Task { [self, access, repository = chooser.repository] in
+                var completedOutput: String?
+                defer {
+                    LocalGitCommandProgress.end(); withExtendedLifetime(access) {}
+                    if resetCancellation === request {
+                        resetCancellation = nil; busy = false
+                        if let output = completedOutput { onChanged(output); onReset(output); close() }
+                        else { onReadSettled() }
+                    }
+                }
                 do {
                     let output = try await repository.reset(plan, cancellation: request)
-                    guard let self, !self.invalidated, self.resetCancellation === request, !request.isCancelled else { return }
-                    self.onChanged(output); self.onReset(output); self.close()
-                } catch {
-                    guard let self, !self.invalidated, self.resetCancellation === request, !request.isCancelled else { return }
-                    self.error = error.localizedDescription
-                }
-                guard let self, self.resetCancellation === request else { return }
-                self.resetCancellation = nil; self.busy = false
+                    guard !invalidated, resetCancellation === request, !request.isCancelled else { return }
+                    completedOutput = output
+                } catch { if !invalidated, resetCancellation === request, !request.isCancelled { self.error = error.localizedDescription } }
             }
         }
     }
@@ -325,6 +400,7 @@ private struct ResetDialog: View {
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-reset.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }
         }.padding(12).disabled(model.busy || model.showingReferencePicker || model.showingCommitPicker || model.showingModifiedFiles || model.confirmingHard || chooser.busy).onAppear { model.load() }
+        .overlay(alignment: .bottomLeading) { if model.busy && model.progress == nil || chooser.initialReadActive { Button("Cancel") { model.cancelReads() }.padding(12) } }
         .sheet(item: $chooser.browser) { target in SwitchReferenceChooser(model: chooser, target: target) }
         .alert("Reset failed", isPresented: Binding(get: { model.error != nil || chooser.error != nil }, set: { if !$0 { model.error = nil; chooser.error = nil } })) { Button("OK") { model.error = nil; chooser.error = nil } } message: { Text(model.error ?? chooser.error ?? "") }
     }

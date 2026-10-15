@@ -960,6 +960,7 @@ import UniformTypeIdentifiers
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
+        controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureModifiedComparison = { [weak self] model in
             self?.configureRevisionComparisonInteractions(model, repository: repository, access: access)
         }
