@@ -390,6 +390,20 @@ private enum MergeSourceSide {
     @Published private(set) var locatorPreferences = MergeLocatorPreferences.load()
     @Published private(set) var locatorViewport = MergeLocatorViewport()
     private weak var locatorResultScroll: NSScrollView?
+    @Published private(set) var locatorHighlights = [MergeLocatorHighlights(), .init(), .init()]
+    private var locatorHighlightsScheduled = false
+    func refreshLocatorHighlights() {
+        guard !retired, !locatorHighlightsScheduled else { return }
+        locatorHighlightsScheduled = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }; self.locatorHighlightsScheduled = false
+            guard !self.retired else { return }
+            let left = self.sourceScrolls.first { $0.key.hasPrefix("Theirs") }?.value.view
+            let right = self.sourceScrolls.first { $0.key.hasPrefix("Mine") }?.value.view
+            let next: [MergeLocatorHighlights] = [.read(left), .read(self.locatorResultScroll), .read(right)]
+            if self.locatorHighlights != next { self.locatorHighlights = next }
+        }
+    }
     var locatorMap: MergeLocatorMap {
         let states = resultStates
         return MergeLocatorMap(columns: [sourceComparison?.rows.map { $0.theirs.state } ?? [], states, sourceComparison?.rows.map { $0.mine.state } ?? []])
@@ -861,7 +875,7 @@ private struct TextConflictDialog: View {
             if let document = model.document {
                 HStack(spacing: 0) {
                     if model.locatorPreferences.visible {
-                        MergeLocatorBar(map: model.locatorMap, viewport: model.locatorViewport, fishEye: model.locatorPreferences.fishEye,
+                        MergeLocatorBar(map: model.locatorMap, viewport: model.locatorViewport, highlights: model.locatorHighlights, fishEye: model.locatorPreferences.fishEye,
                                         enabled: !model.busy && !model.confirmingQuit, navigate: model.scrollLocator)
                             .frame(width: 44).help("Theirs, merged result, and Mine overview; click or drag to scroll")
                     }
@@ -997,7 +1011,9 @@ private struct MergeEditor: NSViewRepresentable {
         view.whitespaceRenderer.update(text: text, cells: sourceCells, otherCells: other, preferences: model.whitespaceDisplay)
         view.whitespaceRenderer.removal = sourceSide == .theirs
         view.whitespaceRenderer.highlightEndings = model.showInlineDiff
+        view.mergeFindHighlights.annotationsChanged = { [weak model] in model?.refreshLocatorHighlights() }
         view.mergeFindHighlights.refresh(in: view)
+        model.refreshLocatorHighlights()
         view.needsDisplay = true
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = sourceCells?.map(\.lineNumber)
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
@@ -1091,6 +1107,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         super.scrollRangeToVisible(range)
     }
     override func mouseDown(with event: NSEvent) {
+        if MergeMarkedWordInterface.mouse(event, in: self) { window?.makeFirstResponder(self); return }
         if model?.busy == false, model?.confirmingQuit == false, foldLayout.expand(at: event, in: self) { return }
         super.mouseDown(with: event)
     }

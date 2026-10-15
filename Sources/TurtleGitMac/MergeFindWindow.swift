@@ -18,6 +18,13 @@ import TurtleGitCore
     private(set) var options = MergeFindOptions()
     private(set) var ranges: [NSRange] = []
     private(set) var paintRanges: [NSRange] = []
+    private(set) var markedWord = ""
+    var previousMarkedWord = ""
+    private(set) var markedRanges: [NSRange] = []
+    private(set) var locatorHighlights = MergeLocatorHighlights()
+    var annotationsChanged: () -> Void = {}
+    private var cachedMarkedWord = "", cachedSeparators = ""
+    func mark(_ word: String, in text: NSTextView) { markedWord = word; refresh(in: text) }
     private var cachedText: String?
     private var cachedStates: [MergeSourceState] = []
     private var cachedQuery = ""
@@ -25,43 +32,111 @@ import TurtleGitCore
     func set(_ query: String, options: MergeFindOptions, in text: NSTextView) {
         self.query = query; self.options = options; refresh(in: text)
     }
-    static func intense(_ color: NSColor) -> NSColor {
+    static func intense(_ color: NSColor, scale: Int = 30) -> NSColor {
         NSColor(name: nil) { appearance in
             var resolved: NSColor = color
             appearance.performAsCurrentDrawingAppearance { resolved = color.usingColorSpace(.sRGB) ?? color }
             let units = [resolved.redComponent, resolved.greenComponent, resolved.blueComponent].map { Int(($0 * 255).rounded()) }
             let darken = units.reduce(0, +) / 3 > 127
-            let values = units.map { darken ? ($0 * 225 + 127) / 255 : $0 + ((255 - $0) * 30 + 127) / 255 }
+            let strength = min(255, max(0, scale))
+            let values = units.map { darken ? ($0 * (255 - strength) + 127) / 255 : $0 + ((255 - $0) * strength + 127) / 255 }
             return NSColor(srgbRed: CGFloat(values[0]) / 255, green: CGFloat(values[1]) / 255, blue: CGFloat(values[2]) / 255, alpha: resolved.alphaComponent)
         }
     }
     func refresh(in text: NSTextView) {
         guard let target = text as? MergeFindProviding, let storage = text.textStorage, let layout = text.layoutManager else { return }
         let all = NSRange(location: 0, length: storage.length)
-        for key in [NSAttributedString.Key.backgroundColor, .foregroundColor, .mergeFindMatch] { layout.removeTemporaryAttribute(key, forCharacterRange: all) }
+        for key in [NSAttributedString.Key.backgroundColor, .foregroundColor, .mergeFindMatch, .mergeMarkedWord] { layout.removeTemporaryAttribute(key, forCharacterRange: all) }
         let lines = target.mergeFindLines, states = lines.map(\.state)
-        if cachedText?.utf8.elementsEqual(text.string.utf8) != true || cachedStates != states || !cachedQuery.utf8.elementsEqual(query.utf8) || cachedOptions != options {
+        let contentChanged = cachedText?.utf8.elementsEqual(text.string.utf8) != true || cachedStates != states
+        if contentChanged || !cachedQuery.utf8.elementsEqual(query.utf8) || cachedOptions != options {
             ranges = MergeFind.matches(query, in: lines, options: options)
             var painting = options; painting.modifiedOnly = false
             paintRanges = options.modifiedOnly ? MergeFind.matches(query, in: lines, options: painting) : ranges
-            cachedText = text.string; cachedStates = states; cachedQuery = query; cachedOptions = options
+            cachedQuery = query; cachedOptions = options
         }
-        for range in paintRanges where NSMaxRange(range) <= storage.length {
-            storage.enumerateAttributes(in: range) { attributes, run, _ in
-                // A folded marker/hidden line retains its own drawing contract.
-                guard attributes[.mergeFoldHidden] == nil, attributes[.mergeFoldMarker] == nil else { return }
-                let background = attributes[.backgroundColor] as? NSColor ?? text.backgroundColor
-                let foreground = attributes[.foregroundColor] as? NSColor ?? text.textColor ?? .textColor
-                layout.addTemporaryAttributes([.backgroundColor: Self.intense(background), .foregroundColor: Self.intense(foreground), .mergeFindMatch: true], forCharacterRange: run)
+        let separators = MergeFindOptions.load(from: target.mergeFindDefaults).wordSeparators
+        if contentChanged || !cachedMarkedWord.utf8.elementsEqual(markedWord.utf8) || !cachedSeparators.utf8.elementsEqual(separators.utf8) {
+            markedRanges = MergeMarkedWord.matches(markedWord, in: lines, wordSeparators: separators)
+            cachedMarkedWord = markedWord; cachedSeparators = separators
+        }
+        cachedText = text.string; cachedStates = states
+        func paint(_ ranges: [NSRange], scale: Int, key: NSAttributedString.Key) {
+            for range in ranges where NSMaxRange(range) <= storage.length {
+                var cursor = range.location
+                while cursor < NSMaxRange(range) {
+                    var originalRun = NSRange(), temporaryRun = NSRange()
+                    let original = storage.attributes(at: cursor, effectiveRange: &originalRun)
+                    let temporary = layout.temporaryAttributes(atCharacterIndex: cursor, effectiveRange: &temporaryRun)
+                    let end = min(NSMaxRange(range), NSMaxRange(originalRun), NSMaxRange(temporaryRun))
+                    guard end > cursor else { break }
+                    defer { cursor = end }
+                    guard original[.mergeFoldHidden] == nil, original[.mergeFoldMarker] == nil else { continue }
+                    let background = temporary[.backgroundColor] as? NSColor ?? original[.backgroundColor] as? NSColor ?? text.backgroundColor
+                    let foreground = temporary[.foregroundColor] as? NSColor ?? original[.foregroundColor] as? NSColor ?? text.textColor ?? .textColor
+                    layout.addTemporaryAttributes([.backgroundColor: Self.intense(background, scale: scale), .foregroundColor: Self.intense(foreground, scale: scale), key: true], forCharacterRange: NSRange(location: cursor, length: end - cursor))
+                }
             }
         }
+        // Source draws marked words first, then Find over that transformed color.
+        paint(markedRanges, scale: 200, key: .mergeMarkedWord)
+        paint(paintRanges, scale: 30, key: .mergeFindMatch)
+        let highlights = MergeLocatorHighlights(search: MergeMarkedWord.rows(for: ranges, in: lines), marked: MergeMarkedWord.rows(for: markedRanges, in: lines))
+        if locatorHighlights != highlights { locatorHighlights = highlights; annotationsChanged() }
         text.needsDisplay = true
     }
 }
 extension NSAttributedString.Key {
     static let mergeFindMatch = NSAttributedString.Key("TurtleGit.MergeFindMatch")
+    static let mergeMarkedWord = NSAttributedString.Key("TurtleGit.MergeMarkedWord")
+}
+@MainActor enum MergeMarkedWordInterface {
+    static func panes(in view: NSView?) -> [NSTextView] {
+        guard let view else { return [] }
+        if let text = view as? NSTextView, text is MergeFindProviding { return [text] }
+        return view.subviews.flatMap { panes(in: $0) }
+    }
+    static func apply(_ word: String, local: Bool, in text: NSTextView) {
+        guard let target = text as? MergeFindProviding, target.mergeFindAllowed else { return }
+        for pane in local ? [text] : panes(in: text.window?.contentView) {
+            guard let owner = pane as? MergeFindProviding, owner.mergeFindAllowed else { continue }
+            owner.mergeFindHighlights.mark(word, in: pane)
+        }
+    }
+    static func select(at offset: Int, local: Bool, in text: NSTextView) {
+        guard let target = text as? MergeFindProviding, target.mergeFindAllowed else { return }
+        let separators = MergeFindOptions.load(from: target.mergeFindDefaults).wordSeparators
+        guard let line = target.mergeFindLines.first(where: { $0.offset <= offset && offset <= $0.offset + $0.text.utf16.count }),
+              line.state != .empty, let range = MergeMarkedWord.selection(at: offset - line.offset, in: line.text, wordSeparators: separators) else { return }
+        text.setSelectedRange(NSRange(location: line.offset + range.location, length: range.length))
+        let word = (line.text as NSString).substring(with: range).trimmingCharacters(in: .whitespacesAndNewlines)
+        let previous = target.mergeFindHighlights.markedWord
+        target.mergeFindHighlights.previousMarkedWord = previous
+        apply(word.utf8.elementsEqual(previous.utf8) ? "" : word, local: local, in: text)
+    }
+    static func mouse(_ event: NSEvent, in text: NSTextView) -> Bool {
+        guard let target = text as? MergeFindProviding, target.mergeFindAllowed else { return false }
+        if event.clickCount == 3 {
+            apply(target.mergeFindHighlights.previousMarkedWord, local: false, in: text)
+            return false // AppKit retains its native triple-click line selection.
+        }
+        guard event.clickCount == 2 else { return false }
+        select(at: text.characterIndexForInsertion(at: text.convert(event.locationInWindow, from: nil)), local: event.modifierFlags.contains(.option), in: text)
+        return true
+    }
+    static func appendCommands(to menu: NSMenu, text: NSTextView, defaults: UserDefaults) {
+        guard let target = text as? MergeFindProviding else { return }
+        for (title, selector) in [("Mark Word at Caret in All Panes", #selector(NSTextView.turtleMarkWord(_:))), ("Clear Marked Word", #selector(NSTextView.turtleClearMarkedWord(_:)))] {
+            let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
+            item.target = text; item.image = MenuIcon.mergeFind.contextImage(defaults: defaults)
+            item.isEnabled = target.mergeFindAllowed && (selector != #selector(NSTextView.turtleClearMarkedWord(_:)) || !target.mergeFindHighlights.markedWord.isEmpty)
+            menu.addItem(item)
+        }
+    }
 }
 extension NSTextView {
+    @objc func turtleMarkWord(_ sender: Any?) { MergeMarkedWordInterface.select(at: selectedRange().location, local: false, in: self) }
+    @objc func turtleClearMarkedWord(_ sender: Any?) { MergeMarkedWordInterface.apply("", local: false, in: self) }
     @objc func turtleShowMergeFind(_ sender: Any?) { MergeFindInterface.perform(.showFindInterface, in: self) }
     @objc func turtleFindSelectionNext(_ sender: Any?) { MergeFindInterface.selection(upwards: false, in: self) }
     @objc func turtleFindSelectionPrevious(_ sender: Any?) { MergeFindInterface.selection(upwards: true, in: self) }
@@ -106,6 +181,7 @@ extension NSTextView {
             else { item.keyEquivalent = "g"; item.keyEquivalentModifierMask = selector == #selector(NSTextView.turtleFindSelectionNext(_:)) ? [.command, .option] : [.command, .option, .shift] }
             menu.addItem(item)
         }
+        MergeMarkedWordInterface.appendCommands(to: menu, text: text, defaults: defaults)
     }
 
     static func perform(_ action: NSTextFinder.Action, in text: NSTextView) {

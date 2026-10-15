@@ -256,6 +256,20 @@ import TurtleGitCore
     }
     @Published private(set) var locatorPreferences = MergeLocatorPreferences.load()
     @Published private(set) var locatorViewport = MergeLocatorViewport()
+    @Published private(set) var locatorHighlights = [MergeLocatorHighlights(), .init(), .init()]
+    private var locatorHighlightsScheduled = false
+    func refreshLocatorHighlights() {
+        guard !retired, !locatorHighlightsScheduled else { return }
+        locatorHighlightsScheduled = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }; self.locatorHighlightsScheduled = false
+            guard !self.retired else { return }
+            let next: [MergeLocatorHighlights] = self.onePaneActive
+                ? [.read(self.scrolls[false]), .init(), .init()]
+                : [.read(self.scrolls[true]), .init(), .read(self.scrolls[false])]
+            if self.locatorHighlights != next { self.locatorHighlights = next }
+        }
+    }
     var locatorMap: MergeLocatorMap {
         if onePaneActive { return MergeLocatorMap(columns: [displayCells(base: false).map(\.state), [], []]) }
         return MergeLocatorMap(columns: [displayCells(base: true).map(\.state), [], displayCells(base: false).map(\.state)])
@@ -1265,7 +1279,7 @@ private struct FileComparisonDialog: View {
             Divider()
             HStack(spacing: 0) {
                 if model.locatorPreferences.visible {
-                    MergeLocatorBar(map: model.locatorMap, viewport: model.locatorViewport, fishEye: model.locatorPreferences.fishEye,
+                    MergeLocatorBar(map: model.locatorMap, viewport: model.locatorViewport, highlights: model.locatorHighlights, fishEye: model.locatorPreferences.fishEye,
                                     enabled: !model.busy && !model.filtering && !model.confirmingQuit, navigate: model.scrollLocator)
                         .frame(width: 44).help("Left and right file overview; click or drag to scroll")
                 }
@@ -1367,7 +1381,11 @@ struct FileComparisonEditor: NSViewRepresentable {
         (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.onePaneActive ? Set((model.combined?.rows ?? []).enumerated().compactMap { model.annotations(base: false).marked.contains($0.element.alignmentRow) ? $0.offset : nil }) : model.annotations(base: base).marked
         scroll.verticalRulerView?.needsDisplay = true
         model.registerViewportNavigation(base: base) { [weak coordinator = context.coordinator] in coordinator?.applyViewportSelection() }
-        (view as? MergeFindProviding)?.mergeFindHighlights.refresh(in: view)
+        if let target = view as? MergeFindProviding {
+            target.mergeFindHighlights.annotationsChanged = { [weak model] in model?.refreshLocatorHighlights() }
+            target.mergeFindHighlights.refresh(in: view)
+        }
+        model.refreshLocatorHighlights()
         // Navigation is consumed after wrapping/text extents settle, not while
         // the SwiftUI representable still has an empty initial viewport.
 
@@ -1604,6 +1622,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     }
     override func mouseDown(with event: NSEvent) {
         model?.activatePane(base: baseSide)
+        if MergeMarkedWordInterface.mouse(event, in: self) { window?.makeFirstResponder(self); return }
         if model?.contextCommandsAllowed == true, foldLayout.expand(at: event, in: self) { return }
         super.mouseDown(with: event)
     }

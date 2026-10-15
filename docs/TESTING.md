@@ -1717,3 +1717,13 @@ source/result queries, actual F3/selected-text key routes and original-icon menu
 Unicode Replace All, Undo/Redo, closed-owner guards and unchanged disk/index.
 See [the record](qa/merge-find-highlights-2026-10-15.json) for the initial fixture
 assertion repair and physical/signed limitations. Core matching was unchanged.
+
+## Shared word marking and locator bands
+
+The grouped `test-merge-find-highlights.py` receiver now includes marked-word
+selection/toggle/local/triple-click, source color layering and actual left/result/
+right locator publication. The 2026-10-15 batch passed 14 selected Core cases,
+Debug and both system/bundled Git native groups on their first attempts.
+[Evidence and reviewed component captures](qa/merge-marked-word-2026-10-15.json)
+record scope and cleanup. Synthetic AppKit handler dispatch does not prove
+physical gesture or signed sandbox acceptance.

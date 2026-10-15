@@ -60,6 +60,45 @@ viewport, not full-window layout or mouse/keyboard acceptance.
 Physical mouse tracking and drag, fish-eye hover rendering, keyboard/VoiceOver,
 three-pane scroll/layout/captures, resize/high-contrast/large-document behavior,
 Settings transaction interaction and signed sandbox acceptance remain open.
-Upstream find/marked-word overlays, folded-line integration, full three-pane
-result/source alignment and complete source-state equivalence remain pending.
+Full folded-line integration, three-pane result/source alignment and complete
+source-state equivalence remain pending. Find/marked-word overlays are implemented
+in the continuation below.
 This batch does not certify the full merge editor or application port.
+
+## Find bands and shared marked words — October 15, 2026
+
+The native locator now paints per-pane marked-word rows, then Find rows, over
+its state stripes using the pinned normal-color intensity scales 200 and 30.
+Find bands honor modified-only, case and whole-word navigation/count options;
+marked rows use the source case-sensitive character-group boundaries. Multiple
+occurrences on one row produce one band. Each band is at least two native points
+high. Both band families participate in the existing fish-eye rendering and
+normal theme changes. Accessibility reports marked/search row totals.
+
+Double-click selects a source character group and marks it across the owning
+document's panes. Repeating the same word toggles it off. Option-double-click
+marks only that pane, adapting the source Control modifier to macOS context-menu
+conventions. Triple-click restores the earlier marked word before AppKit's line
+selection. Native menus expose Mark Word at Caret and Clear Marked Word with the
+existing icon policy, so marking is also available without a pointer gesture.
+Optional Base participates in shared marking but does not add a locator stripe.
+
+Marked words have their own temporary paint and do not replace Find's query.
+Source per-run coloring applies intensity 200 before Find intensity 30 where they
+overlap. Edits, Undo/Redo, folding and presentation updates recompute ranges.
+Locator publication coalesces on the main actor after view updates, reads the
+current registered panes and refuses retired owners; it retains no pane/window.
+Marked words remain session-local and never change saved text or Undo history.
+The grouped checkpoint passed 14 Core cases, Debug compilation and both native
+engine groups. See [word/locator evidence](qa/merge-marked-word-2026-10-15.json).
+Physical
+multi-click/modifier/VoiceOver acceptance, full folded coordinate equivalence,
+full-window visual parity and signed sandbox acceptance remain open.
+
+Reviewed actual locator component captures show marked-word bands on the left
+and independent Find bands on the right over the existing source colors and
+viewport. These are component captures, not full-window visual certification.
+
+![Locator with marked-word and Find bands in light mode](site/assets/merge-search-locator-light.png)
+
+![Locator with marked-word and Find bands in dark mode](site/assets/merge-search-locator-dark.png)

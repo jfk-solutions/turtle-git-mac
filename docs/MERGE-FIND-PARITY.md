@@ -79,9 +79,12 @@ or persisted options. Repeated search with no active query does nothing.
 Commands recheck busy, pending-choice, attached-sheet and retired-owner gates.
 The three-way source and result panes have independent queries, as do the two
 comparison panes. Temporary paint is never an edit or save. Source Windows
-flash/no-match rendering, locator search bands, pane-relative Find geometry,
+flash/no-match rendering, pane-relative Find geometry,
 physical gestures/VoiceOver, exact platform font/case metrics and signed sandbox
 acceptance remain open. The Debug build and grouped native Find receiver passed
 with system and bundled Git after the recorded compile/fixture repairs. See
 [search painting evidence](qa/merge-find-highlights-2026-10-15.json). Core matching
 was unchanged and no Core suite was repeated.
+
+The connected [marked-word and locator continuation](MERGE-LOCATOR-PARITY.md#find-bands-and-shared-marked-words--october-15-2026) adds independent word marking,
+layered source paint and Find/marked-row bands, with its own grouped evidence.

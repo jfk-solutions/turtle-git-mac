@@ -18,7 +18,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseGitBlameENG.rc` / `IDD_GOTODLG` | partial | 4/4 mapped; 0 pending | [BLAME-PARITY](BLAME-PARITY.md); 8 QA records |
 | `src/Resources/TortoiseLoglistCommon.rc2` / `IDD_FIND` | partial-native-replacement | 11/11 mapped; 0 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_ABOUT` | partial-native-replacement | 0/7 mapped; 7 pending | No recorded family document; 0 QA records |
-| `src/Resources/TortoiseMergeENG.rc` / `IDD_DIFFLOCATOR` | partial-native-replacement | 0/0 mapped; 0 pending | [MERGE-LOCATOR-PARITY](MERGE-LOCATOR-PARITY.md); 1 QA records |
+| `src/Resources/TortoiseMergeENG.rc` / `IDD_DIFFLOCATOR` | partial-native-replacement | 0/0 mapped; 0 pending | [MERGE-LOCATOR-PARITY](MERGE-LOCATOR-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_LINEDIFF` | partial-native-replacement | 0/0 mapped; 0 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_FILEPATCHES` | partial-native-replacement | 3/3 mapped; 0 pending | [IMPORT-PATCH-PARITY](IMPORT-PATCH-PARITY.md); 26 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_OPENDLG` | partial-native-replacement | 0/24 mapped; 24 pending | [MERGE-OPEN-PARITY](MERGE-OPEN-PARITY.md); 4 QA records |

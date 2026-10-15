@@ -158,6 +158,12 @@ struct MergeFindNativeVerification {
         let resultFind = MergeFindWindowController(text: result, defaults: defaults); (result as! MergeFindProviding).mergeFindController = resultFind
         defer { resultFind.close() }
         let conflictViews = descendants(conflict.window?.contentView).compactMap { $0 as? NSTextView }.filter { $0 is MergeFindProviding }
+        let word = (result.string as NSString).range(of: "foo")
+        MergeMarkedWordInterface.select(at: word.location + 1, local: false, in: result)
+        try require(conflictViews.allSatisfy { ($0 as! MergeFindProviding).mergeFindHighlights.markedWord == "foo" })
+        try await wait { conflictModel.locatorHighlights.map { $0.marked.count } == [2, 3, 2] }
+        result.turtleClearMarkedWord(nil)
+        try await wait { conflictModel.locatorHighlights.allSatisfy { $0.marked.isEmpty } }
         for source in conflictViews where source !== result {
             let controller = MergeFindWindowController(text: source, defaults: defaults)
             (source as! MergeFindProviding).mergeFindController = controller

@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "aff71364",
+  "scope": "Connected Compare/Merge marked-word selection, shared/pane-local lifetime, layered match painting and locator search/word bands",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseMerge/BaseView.cpp::GetCharGroup / OnLButtonDblClk / OnLButtonTrippleClick",
+      "src/TortoiseMerge/BaseView.cpp::BuildMarkedWordArray / BuildFindStringArray and match color drawing",
+      "src/TortoiseMerge/LocatorBar.cpp marked-word/Find stripe overlays",
+      "src/TortoiseMerge/AppUtils.cpp::IntenseColor"
+    ]
+  },
+  "implementation": [
+    "Core UTF16 character-group selection and exact case-sensitive boundary matches, including punctuation/custom separators, synthetic gaps and deduplicated row bands",
+    "Document-owned shared marking, repeat toggle, Option-only pane marking, source triple-click previous-word restore and native menu actions",
+    "Marked-word scale200 layered before independent Find scale30, using temporary layout attributes without source-text/Undo changes",
+    "Locator left/result/right and one-pane projection uses live registered panes, marked then Find bands, source normal palette, two-native-point minimum and existing fish-eye repaint",
+    "Main-actor coalesced locator publication after native view update, weak model callback and retirement fence",
+    "Marked/search row totals in locator accessibility value"
+  ],
+  "validation": {
+    "core": {
+      "cases": 14,
+      "failures": 0,
+      "log": "build/qa/merge-marked-word-core.log",
+      "families": [
+        "MergeMarkedWordTests",
+        "MergeFindTests",
+        "MergeLocatorTests"
+      ]
+    },
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/merge-marked-word-build.log",
+      "diagnostics": "Existing warnings and unusual exit-zero/no-output diagnostics; not a clean-diagnostics claim"
+    },
+    "native": {
+      "exit_code": 0,
+      "log": "build/qa/merge-marked-word-native.log",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "groups": [
+        "Retained two/three-pane Find/Replace/Undo, augmented real conflict-pane shared marking and exact locator [2,3,2] marked-row counts",
+        "New marked-word workflow with actual double-click event handler, source group selection, repeated toggle, Option-local marking, triple-click helper restoration, independent foreign window, exact dynamic color layering, real menu dispatch, busy and closed-owner refusal, replacement/Undo and unchanged file bytes"
+      ],
+      "owned_reaped_pids": [
+        94132,
+        94186
+      ],
+      "execution": "Current Debug object library linked once; fixtures compiled together once; engines run sequentially; owned windows closed and receiver groups reaped",
+      "failures": []
+    },
+    "captures": {
+      "kind": "Unaltered bitmap captures of the actual custom locator NSView after bundled-Git case; not full-window or physical gesture certification",
+      "reviewed": true,
+      "assets": [
+        "site/assets/merge-search-locator-light.png",
+        "site/assets/merge-search-locator-dark.png"
+      ],
+      "observations": "Three source stripes, existing blue viewport and changed-row colors, stronger marked-word bands on left and independent lighter Find bands on right; expected inverse contrast in dark appearance"
+    }
+  },
+  "native_adaptations": [
+    "Option-double-click replaces source Control-double-click to preserve macOS contextual menus",
+    "Native character-index hit testing and AppKit triple-click line selection",
+    "Two native points for minimum band height instead of Windows device pixels",
+    "Optional Base participates in shared marking without adding a locator stripe"
+  ],
+  "limits": [
+    "Physical pointer multi-click/Option and VoiceOver client interaction",
+    "Full folded/display coordinate equivalence, very large documents and all pane-mode transitions",
+    "Full-window visual parity and rare Windows Unicode behavior",
+    "Signed sandbox/Finder/App Store acceptance",
+    "Complete application parity"
+  ]
+}

@@ -197,7 +197,7 @@ are not recursively audited.
 
 [Comment comparison](MERGE-COMMENTS-PARITY.md): pinned language profiles and source heuristic in both viewers; native profile editing/overrides are implemented; complete acceptance remains open.
 
-[Merge locator bar](MERGE-LOCATOR-PARITY.md): native colored overview, viewport/navigation and saved view settings in both editors; remaining acceptance is recorded.
+[Merge locator bar](MERGE-LOCATOR-PARITY.md): native colored overview, shared/pane-local word marking, Find bands, viewport/navigation and saved view settings in both editors, with reviewed light/dark component captures.
 
 [Merge save workflows](MERGE-SAVE-WORKFLOWS-PARITY.md): Backup original file, empty-result Delete/Keep, deleted-file recreation and exact deletion resolution retry.
 

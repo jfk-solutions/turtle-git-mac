@@ -90,6 +90,13 @@ struct MergeViewControls: View {
         }.fixedSize()
     }
 }
+struct MergeLocatorHighlights: Equatable {
+    var search = Set<Int>()
+    var marked = Set<Int>()
+    @MainActor static func read(_ scroll: NSScrollView?) -> Self {
+        (scroll?.documentView as? MergeFindProviding)?.mergeFindHighlights.locatorHighlights ?? .init()
+    }
+}
 struct MergeLocatorViewport: Equatable { var rows: Range<Int> = 0..<0 }
 @MainActor enum MergeLocatorScrolling {
     static func viewport(_ scroll: NSScrollView?) -> MergeLocatorViewport {
@@ -118,12 +125,13 @@ struct MergeLocatorViewport: Equatable { var rows: Range<Int> = 0..<0 }
 struct MergeLocatorBar: NSViewRepresentable {
     let map: MergeLocatorMap
     let viewport: MergeLocatorViewport
+    var highlights: [MergeLocatorHighlights] = []
     let fishEye: Bool
     let enabled: Bool
     let navigate: (Int) -> Void
     func makeNSView(context: Context) -> MergeLocatorNativeView { MergeLocatorNativeView() }
     func updateNSView(_ view: MergeLocatorNativeView, context: Context) {
-        view.map = map; view.viewport = viewport; view.fishEye = fishEye; view.enabled = enabled; view.navigate = navigate
+        view.map = map; view.viewport = viewport; view.highlights = highlights; view.fishEye = fishEye; view.enabled = enabled; view.navigate = navigate
         view.needsDisplay = true
     }
 }
@@ -132,6 +140,7 @@ struct MergeLocatorBar: NSViewRepresentable {
 @MainActor final class MergeLocatorNativeView: NSView {
     var map = MergeLocatorMap(columns: [])
     var viewport = MergeLocatorViewport()
+    var highlights: [MergeLocatorHighlights] = []
     var fishEye = true, enabled = true
     var navigate: (Int) -> Void = { _ in }
     private var hover: CGFloat?
@@ -165,6 +174,14 @@ struct MergeLocatorBar: NSViewRepresentable {
             for run in runs where run.state != .normal {
                 MergePalette.color(run.state).setFill()
                 NSRect(x: CGFloat(column) * width, y: CGFloat(run.rows.lowerBound) * scale, width: width, height: max(1, CGFloat(run.rows.count) * scale)).fill()
+            }
+            if highlights.indices.contains(column) {
+                for (rows, scaleAmount) in [(highlights[column].marked, 200), (highlights[column].search, 30)] {
+                    MergeFindHighlights.intense(MergePalette.color(.normal), scale: scaleAmount).setFill()
+                    for row in rows where row >= 0 && row < map.lineCount {
+                        NSRect(x: CGFloat(column) * width, y: CGFloat(row) * scale, width: width, height: max(2, scale)).fill()
+                    }
+                }
             }
         }
         NSColor.labelColor.setFill()
@@ -205,7 +222,7 @@ struct MergeLocatorBar: NSViewRepresentable {
         default: super.keyDown(with: event)
         }
     }
-    override func accessibilityValue() -> Any? { map.lineCount > 0 ? "Lines \(viewport.rows.lowerBound + 1)–\(min(map.lineCount, viewport.rows.upperBound)) of \(map.lineCount)" : "Empty document" }
+    override func accessibilityValue() -> Any? { map.lineCount > 0 ? "Lines \(viewport.rows.lowerBound + 1)–\(min(map.lineCount, viewport.rows.upperBound)) of \(map.lineCount); \(highlights.reduce(0) { $0 + $1.marked.count }) marked lines; \(highlights.reduce(0) { $0 + $1.search.count }) search lines" : "Empty document" }
     override func accessibilityPerformIncrement() -> Bool { guard enabled, map.lineCount > 0 else { return false }; navigate(min(map.lineCount - 1, viewport.rows.upperBound)); return true }
     override func accessibilityPerformDecrement() -> Bool { guard enabled, map.lineCount > 0 else { return false }; navigate(max(0, viewport.rows.lowerBound - max(1, viewport.rows.count))); return true }
 }

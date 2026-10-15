@@ -206,7 +206,8 @@
         "docs/MERGE-LOCATOR-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/merge-locator-2026-10-12.json"
+        "docs/qa/merge-locator-2026-10-12.json",
+        "docs/qa/merge-marked-word-2026-10-15.json"
       ]
     },
     {
