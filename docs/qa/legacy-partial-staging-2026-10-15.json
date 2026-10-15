@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-15",
+  "scope": "Byte-preserving legacy-text partial staging, display, export and clipboard family",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Original patch bytes and one-byte selection carrier independent of display Unicode",
+    "Per-line UTF-8/Windows-1252/reversible fallback display; preserve UTF-8 headers beside legacy body lines",
+    "Selected raw-data API retains context, content, function suffix, line ending and metadata bytes",
+    "Byte equality for fresh diff validation; cached apply writes selected raw bytes",
+    "Raw native partial-patch reads and export/clipboard document bytes",
+    "Unified read-only display shares per-line fallback after existing BOM handling",
+    "Hunk suffix regex uses all-scalar matching and absolute end so byte 0x85 cannot become a false Unicode line boundary"
+  ],
+  "validation": {
+    "build": {
+      "initial_exit_code": 0,
+      "log": "build/qa/legacy-partial-staging-build-2026-10-15.log",
+      "suffix_fix_exit_code": 0,
+      "suffix_fix_log": "build/qa/legacy-partial-staging-suffix-build-2026-10-15.log"
+    },
+    "core": {
+      "initial_checks": 21,
+      "initial_failures": 1,
+      "initial_log": "build/qa/legacy-partial-staging-core-2026-10-15.log",
+      "initial_failure": "Old UnifiedDiffViewer assertion required the UTF-8-only rejection. Replaced with actual raw-data parsing/selection assertions.",
+      "recheck_checks": 2,
+      "recheck_failures": 0,
+      "recheck_log": "build/qa/legacy-partial-staging-core-recheck-2026-10-15.log",
+      "scope": [
+        "Legacy line stage and reverse unstage with CRLF/no-final-newline and literal UTF-8 path headers",
+        "Unrelated staged bytes/HEAD/working contents retained",
+        "Legacy untracked addition, partial added unstage and partial deletion retain executable mode and original bytes",
+        "Undefined legacy bytes and 0x85 hunk suffix roundtrip",
+        "Existing hunk offsets/stale selection, metadata, whole patch data, BOM display and cancellation checks"
+      ]
+    },
+    "native": {
+      "result": "2 engine cases passed",
+      "log": "build/qa/legacy-partial-staging-native-2026-10-15.log",
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "owned_receiver_pids_reaped": [
+        98125,
+        98452
+      ],
+      "owned_receivers_absent": true,
+      "scope": [
+        "Actual Commit attached staging/unstaging pane",
+        "Readable legacy body and UTF-8 path display",
+        "Exact raw export and private custom clipboard flavor",
+        "Actual selected line stage and staged hunk unstage",
+        "Raw index contents, CRLF/no-final-newline, unrelated staging and working bytes retained",
+        "Existing full partial-patch UI/operation ownership/metadata/read-cancellation checks"
+      ]
+    },
+    "documentation": {
+      "reconciled": true,
+      "site_exit_code": 0,
+      "documents": 215,
+      "unresolved_fragments": []
+    }
+  },
+  "limits": [
+    "Display fallback is not arbitrary code-page detection or multibyte-file editing",
+    "Plain-text clipboard is Unicode; custom patch flavor and file export preserve bytes",
+    "Binary/copy/symlink/gitlink/no-text-hunk partial restrictions remain",
+    "No new physical selection/print/file-panel or whole-window visual acceptance",
+    "Signed Finder/minimum-OS/App Store and complete application parity remain open"
+  ],
+  "source": [
+    "src/TortoiseProc/StagingOperations.cpp FindFileHeaderBackwardsFrom and CreatePatchBufferToStageOrUnstageSelectedHunks/Lines preserve std::string source buffers"
+  ]
+}

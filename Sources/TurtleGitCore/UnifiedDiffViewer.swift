@@ -17,7 +17,7 @@ public struct UnifiedDiffDocument: Sendable {
             if (bytes.count - signature.count) % width == 0, let text = String(data: bytes.dropFirst(signature.count), encoding: encoding) { return text }
             return String(decoding: bytes, as: UTF8.self)
         }
-        return String(data: bytes, encoding: .utf8) ?? String(data: bytes, encoding: .windowsCP1252) ?? String(decoding: bytes, as: UTF8.self)
+        return GitPatch.displayText(bytes)
     }
     public func write(to url: URL) throws { try bytes.write(to: url, options: .atomic) }
 }

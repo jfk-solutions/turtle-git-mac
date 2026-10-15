@@ -9,9 +9,11 @@ public struct GitPatch: Sendable {
         public let newStart: Int
         public let newCount: Int
         public let suffix: String
+        fileprivate let sourceSuffix: String
     }
     public struct File: Sendable {
         public let header: [String]
+        fileprivate let sourceHeader: [String]
         public let hunks: [Hunk]
         public var hasSelectedTextMetadata: Bool {
             header.contains { $0.hasPrefix("rename from ") || $0.hasPrefix("old mode ") || $0.hasPrefix("new mode ") }
@@ -25,26 +27,47 @@ public struct GitPatch: Sendable {
             } && !hunks.isEmpty
         }
     }
+    public let bytes: Data
     public let text: String
     public let lines: [String]
+    private let sourceLines: [String]
     public let files: [File]
     public let includesUntracked: Bool
     public init(text: String, includesUntracked: Bool = false) {
-        self.includesUntracked = includesUntracked
-        self.text = text
-        var lines = text.components(separatedBy: "\n")
-        if lines.last == "" { lines.removeLast() }
-        self.lines = lines
-        let expression = try! NSRegularExpression(pattern: #"^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@(.*)$"#)
+        self.init(bytes:Data(text.utf8),includesUntracked:includesUntracked)
+    }
+    private static func carrier(_ bytes:Data)->String {
+        String(String.UnicodeScalarView(bytes.map {UnicodeScalar($0)}))
+    }
+    private static func carrierBytes(_ value:String)->Data {
+        // Every carrier scalar originated from one byte; generated patch syntax
+        // is ASCII. Display decoding is deliberately outside this representation.
+        Data(value.unicodeScalars.map {UInt8($0.value)})
+    }
+    private static func displayLine(_ value:String)->String {
+        let bytes=carrierBytes(value)
+        return String(data:bytes,encoding:.utf8) ?? String(data:bytes,encoding:.windowsCP1252) ?? value
+    }
+    public static func displayText(_ bytes:Data)->String {
+        carrier(bytes).components(separatedBy:"\n").map(displayLine).joined(separator:"\n")
+    }
+    public init(bytes:Data,includesUntracked:Bool = false) {
+        self.bytes=bytes;self.includesUntracked=includesUntracked
+        let source=Self.carrier(bytes)
+        self.text=Self.displayText(bytes)
+        var lines=source.components(separatedBy:"\n")
+        if lines.last == "" {lines.removeLast()}
+        self.sourceLines=lines;self.lines=lines.map(Self.displayLine)
+        let expression = try! NSRegularExpression(pattern: #"^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@([\s\S]*)\z"#)
         var files: [File] = [], header: [String] = [], hunks: [Hunk] = []
         var pending: (Int, Int, Int, Int, Int, String)?
         func finishHunk(_ end: Int) {
-            if let value = pending { hunks.append(Hunk(header: value.0, range: value.0 + 1..<end, oldStart: value.1, oldCount: value.2, newStart: value.3, newCount: value.4, suffix: value.5)) }
+            if let value = pending { hunks.append(Hunk(header: value.0, range: value.0 + 1..<end, oldStart: value.1, oldCount: value.2, newStart: value.3, newCount: value.4, suffix: Self.displayLine(value.5), sourceSuffix:value.5)) }
             pending = nil
         }
         func finishFile(_ end: Int) {
             finishHunk(end)
-            if !header.isEmpty { files.append(File(header: header, hunks: hunks)) }
+            if !header.isEmpty { files.append(File(header: header.map(Self.displayLine), sourceHeader:header, hunks: hunks)) }
             header = []; hunks = []
         }
         for (index, line) in lines.enumerated() {
@@ -62,7 +85,14 @@ public struct GitPatch: Sendable {
         guard lines.indices.contains(index), files.flatMap(\.hunks).contains(where: { $0.range.contains(index) }) else { return false }
         return lines[index].hasPrefix("+") || lines[index].hasPrefix("-")
     }
-    public func selectedPatch(lines selected: Set<Int>, entireHunks: Bool, reverse: Bool) throws -> String {
+    /// Text is for display/copy. Apply and patch export use selectedPatchData.
+    public func selectedPatch(lines selected:Set<Int>,entireHunks:Bool,reverse:Bool) throws -> String {
+        try selectedSourcePatch(lines:selected,entireHunks:entireHunks,reverse:reverse).components(separatedBy:"\n").map(Self.displayLine).joined(separator:"\n")
+    }
+    public func selectedPatchData(lines selected:Set<Int>,entireHunks:Bool,reverse:Bool) throws -> Data {
+        Self.carrierBytes(try selectedSourcePatch(lines:selected,entireHunks:entireHunks,reverse:reverse))
+    }
+    private func selectedSourcePatch(lines selected: Set<Int>, entireHunks: Bool, reverse: Bool) throws -> String {
         var result: [String] = []
         for file in files {
             let picked = file.hunks.filter { selected.contains($0.header) || $0.range.contains(where: { selected.contains($0) }) }
@@ -72,7 +102,7 @@ public struct GitPatch: Sendable {
             for hunk in picked {
                 var body: [String] = [], previousKept = false, changes = 0
                 for index in hunk.range {
-                    let line = self.lines[index]
+                    let line = self.sourceLines[index]
                     if line.hasPrefix("\\ No newline") {
                         if previousKept { body.append(line) }; continue
                     }
@@ -93,11 +123,11 @@ public struct GitPatch: Sendable {
                 let base = reverse ? hunk.newStart + (hunk.newCount == 0 ? 1 : 0) : hunk.oldStart + (hunk.oldCount == 0 ? 1 : 0)
                 let oldStart = (reverse ? base - delta : base) - (oldCount == 0 ? 1 : 0)
                 let newStart = (reverse ? base : base + delta) - (newCount == 0 ? 1 : 0)
-                output.append("@@ -\(oldStart),\(oldCount) +\(newStart),\(newCount) @@" + hunk.suffix)
+                output.append("@@ -\(oldStart),\(oldCount) +\(newStart),\(newCount) @@" + hunk.sourceSuffix)
                 output += body; delta += newCount - oldCount
             }
             if !output.isEmpty {
-                var header = file.header
+                var header = file.sourceHeader
                 // A partial removal of a new file leaves an ordinary indexed
                 // file. Likewise, partial deletion must retain its destination.
                 // Preserve Git's quoted/escaped path representation verbatim.
@@ -129,15 +159,14 @@ public enum PatchFailure: LocalizedError {
         case .unsupportedFile: return "Binary, symlink and copied files require whole-file staging. Metadata-only changes have no selectable text hunk."
         case .noChangesSelected: return "Select changed lines or a changed hunk first."
         case .changed: return "The diff has changed. Refresh the patch before applying the selection."
-        case .encoding: return "This patch is not valid UTF-8. Use whole-file staging until this encoding is supported."
+        case .encoding: return "This patch contains a path that cannot be represented safely."
         }
     }
 }
 
 extension GitRepository {
     public func workingTreePatch(paths: [String], base: String? = nil, cancellation: OperationCancellation? = nil) throws -> GitPatch {
-        guard let text = String(data: try workingTreePatchData(paths: paths, base: base, cancellation: cancellation), encoding: .utf8) else { throw PatchFailure.encoding }
-        return GitPatch(text: text)
+        GitPatch(bytes:try workingTreePatchData(paths:paths,base:base,cancellation:cancellation))
     }
     public func workingTreePatchData(paths: [String], base: String? = nil, cancellation: OperationCancellation? = nil) throws -> Data {
         let head = try run(["rev-parse", "--verify", "--quiet", "HEAD"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0
@@ -146,10 +175,9 @@ extension GitRepository {
         return try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
     }
     public func patch(paths: [String], staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil, includeUntracked: Bool = false) throws -> GitPatch {
-        guard let text = String(data: try patchData(paths: paths, staged: staged, base: base, cancellation: cancellation, includeUntracked: includeUntracked), encoding: .utf8) else { throw PatchFailure.encoding }
-        return GitPatch(text: text, includesUntracked: includeUntracked && !staged)
+        GitPatch(bytes:try patchData(paths:paths,staged:staged,base:base,cancellation:cancellation,includeUntracked:includeUntracked),includesUntracked:includeUntracked && !staged)
     }
-    /// Unified viewers receive original bytes; partial staging still requires UTF-8.
+    /// All patch consumers retain original bytes independently of display decoding.
     public func patchData(paths: [String], staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil, includeUntracked: Bool = false) throws -> Data {
         let options = ["--no-ext-diff", "--no-color", "--no-textconv", "--unified=3", "--src-prefix=a/", "--dst-prefix=b/"]
         var args = ["diff"] + diffDetection.comparisonArguments
@@ -175,11 +203,11 @@ extension GitRepository {
         return bytes
     }
     public func applyPatchSelection(_ document: GitPatch, paths: [String], staged: Bool, lines: Set<Int>, entireHunks: Bool, base: String? = nil) throws {
-        guard try patch(paths: paths, staged: staged, base: base, includeUntracked: document.includesUntracked).text == document.text else { throw PatchFailure.changed }
-        let text = try document.selectedPatch(lines: lines, entireHunks: entireHunks, reverse: staged)
+        guard try patch(paths: paths, staged: staged, base: base, includeUntracked: document.includesUntracked).bytes == document.bytes else { throw PatchFailure.changed }
+        let bytes = try document.selectedPatchData(lines: lines, entireHunks: entireHunks, reverse: staged)
         let url = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-patch-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: url) }
-        guard FileManager.default.createFile(atPath: url.path, contents: Data(text.utf8), attributes: [.posixPermissions: 0o600]) else {
+        guard FileManager.default.createFile(atPath: url.path, contents: bytes, attributes: [.posixPermissions: 0o600]) else {
             throw CocoaError(.fileWriteUnknown)
         }
         let args = ["apply", "--cached", "--unidiff-zero"] + (staged ? ["--reverse"] : [])

@@ -170,7 +170,7 @@ import UniformTypeIdentifiers
     var onApplied: () -> Void = {}
     var onSettled: (Bool) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, appearancePreferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.appearancePreferences = appearancePreferences }
-    var exportDocument: UnifiedDiffDocument { readOnly ? originalDiff ?? UnifiedDiffDocument(bytes: Data(document.text.utf8)) : UnifiedDiffDocument(bytes: Data(document.text.utf8)) }
+    var exportDocument: UnifiedDiffDocument { readOnly ? originalDiff ?? UnifiedDiffDocument(bytes: document.bytes) : UnifiedDiffDocument(bytes: document.bytes) }
     func copyPatch(to pasteboard: NSPasteboard = .general) {
         guard !retired, !busy, !confirmingQuit else { return }
         if !PatchClipboard.write(exportDocument, to: pasteboard) { error = "The patch could not be copied to the clipboard." }
@@ -212,9 +212,9 @@ import UniformTypeIdentifiers
                 let bytes: Data
                 if paths.isEmpty { bytes = Data() }
                 else if readOnly { bytes = try await repository.workingTreePatchData(paths: paths, base: base, cancellation: cancellation) }
-                else { bytes = Data(try await repository.patch(paths: paths, staged: staged, base: base, cancellation: cancellation, includeUntracked: !staged).text.utf8) }
+                else { bytes = try await repository.patchData(paths:paths,staged:staged,base:base,cancellation:cancellation,includeUntracked:!staged) }
                 guard !retired, request == generation, !cancellation.isCancelled, !Task.isCancelled else { return }
-                if readOnly { setReadOnlyDiff(bytes) } else { document = GitPatch(text: String(decoding: bytes, as: UTF8.self), includesUntracked: !staged) }
+                if readOnly { setReadOnlyDiff(bytes) } else { document = GitPatch(bytes:bytes,includesUntracked:!staged) }
             } catch {
                 if !retired && request == generation && !cancellation.isCancelled && !Task.isCancelled { self.error = error.localizedDescription }
             }

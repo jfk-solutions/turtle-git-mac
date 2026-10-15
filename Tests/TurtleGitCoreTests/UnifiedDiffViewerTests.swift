@@ -60,8 +60,12 @@ final class UnifiedDiffViewerTests: XCTestCase {
         let preview = try UnifiedDiffPreview.create(staged)
         defer { preview.discard() }
         _ = try await repository.run(["apply", "--cached", "--reverse", "--check", "--", preview.file.path])
-        do { _ = try await repository.patch(paths: [path], staged: true); XCTFail("Partial staging must retain its UTF-8 restriction") }
-        catch PatchFailure.encoding {}
+        let partial = try await repository.patch(paths:[path],staged:true)
+        XCTAssertEqual(partial.bytes,staged)
+        XCTAssertTrue(partial.files[0].supportsPartialChanges)
+        let selected = try partial.selectedPatchData(lines:[partial.files[0].hunks[0].header],entireHunks:true,reverse:true)
+        XCTAssertNotNil(selected.range(of:Data([0x2b,0xfe,0x0a])))
+        XCTAssertNotNil(selected.range(of:Data([0x2d,0xff,0x0a])))
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), workingBytes)
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
         let finalHead = try await repository.run(["rev-parse", "HEAD"]).stdout

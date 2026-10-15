@@ -11,6 +11,39 @@ import TurtleGitCore
     }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Partial patch failed: \(error)\n", stderr); exit(1) } }
+    @MainActor static func verifyLegacy(root:URL,engine:URL,prefs:UserDefaults) async throws {
+        let root=root.appendingPathComponent("legacy-scope");try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let repo=GitRepository(root:root,executable:engine),path="legacy 雪 &?.txt",file=root.appendingPathComponent(path)
+        _ = try await repo.run(["init","-b","main"])
+        for (key,value) in [("user.name","Legacy QA"),("user.email","legacy@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("core.quotepath","false")] {_ = try await repo.run(["config",key,value])}
+        let context=Data([99,97,102,0xe9,13,10]),first=Data([0x80,32,110,101,119,13,10]),second=Data([0xf1,32,109,111,114,101,13,10]),tail=Data("last".utf8),base=context+tail,working=context+first+second+tail
+        try base.write(to:file);try Data("other base\n".utf8).write(to:root.appendingPathComponent("other"));try await repo.stage([path,"other"]);_ = try await repo.commit(message:"legacy base")
+        try working.write(to:file);try Data([0xff,10]).write(to:root.appendingPathComponent("other"));try await repo.stage(["other"])
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,other=try await repo.run(["show",":other"]).stdout
+        let owner=CommitWindowController(repository:repo,access:nil,defaults:prefs);defer {owner.close()}
+        owner.model.reload();try await wait {!owner.model.busy}
+        owner.model.stagingEnabled=true;owner.model.stagingChanged();owner.model.reload();try await wait {!owner.model.busy}
+        owner.model.selection=[path];owner.model.showPartial(false)
+        try await wait {owner.partial != nil && owner.partial?.model.busy==false}
+        let patch=owner.partial!,model=patch.model
+        try require(model.error==nil && model.document.text.contains("café") && model.document.text.contains("€ new") && model.document.text.contains("雪"),"Legacy staging preview failed readable text/path decoding")
+        let raw=try await repo.patchData(paths:[path],staged:false,includeUntracked:true)
+        try require(model.document.bytes==raw && model.exportDocument.bytes==raw,"Legacy preview/export re-encoded Git bytes")
+        let board=NSPasteboard.withUniqueName();defer {board.releaseGlobally()};model.copyPatch(to:board)
+        try require(PatchClipboard.snapshot(from:board)==raw,"Legacy Copy lost the raw patch representation")
+        guard let selected=model.document.lines.firstIndex(where:{$0.hasPrefix("+€ new")}) else {throw Failure(description:"Legacy changed line missing")}
+        model.selectedLines=[selected];try require(model.canApplyLines,"Legacy line selection unavailable")
+        model.apply(entireHunks:false);try await wait {!model.busy && !owner.model.busy && PatchWindowModel.activeOperations==0}
+        let staged=try await repo.run(["show",":"+path]).stdout
+        try require(model.error==nil && staged==context+first+tail && Data(contentsOf:file)==working,"Legacy native line stage changed encoding/context/working bytes")
+        owner.model.selection=[path];owner.model.showPartial(true)
+        try await wait {!model.busy && model.staged && !model.document.files.isEmpty}
+        model.selectedLines=[model.document.files[0].hunks[0].header];try require(model.canApplyHunks,"Legacy unstage hunk unavailable")
+        model.apply(entireHunks:true);try await wait {!model.busy && !owner.model.busy && PatchWindowModel.activeOperations==0}
+        let restored=try await repo.run(["show",":"+path]).stdout,finalOther=try await repo.run(["show",":other"]).stdout,finalHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        try require(model.error==nil && restored==base && finalOther==other && finalHead==head && Data(contentsOf:file)==working,"Legacy native unstage lost original index/working/other-file bytes")
+        owner.close()
+    }
     @MainActor static func verify() async throws {
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), engine = URL(fileURLWithPath: CommandLine.arguments[2])
         let repo = GitRepository(root: root, executable: engine)
@@ -243,6 +276,7 @@ import TurtleGitCore
         }
         try require(copyModel!.document.files.contains { $0.header.contains { $0.hasPrefix("copy from ") } && !$0.supportsPartialChanges } && !copyModel!.canApplyHunks && !copyModel!.canApplyLines, "Commit copy preview lost its source or allowed partial staging")
         copyController.close()
+        try await verifyLegacy(root:root,engine:engine,prefs:prefs)
         print("Partial patch: source Staging/Unstaging menu gates and bottom Find/case/no-wrap boundaries, exact rendering and original-byte export; real line stage/hunk unstage, unrelated index preservation, superseded/cancelled/retired reads closed-mutation Quit/parent gates and owned process reaping passed.")
     }
 }

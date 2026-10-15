@@ -2244,3 +2244,36 @@ the application Quit guard remain held until owned work settles.
 
 Validation and remaining acceptance limits are recorded in
 [batch evidence](qa/commit-preflight-family-2026-10-15.json).
+
+
+## Byte-preserving legacy-text partial staging — October 15, 2026
+
+The attached staging/unstaging pane no longer requires an entirely UTF-8 diff.
+GitPatch retains its original byte data and a separate one-byte carrier for
+selection and hunk/header reconstruction. Display lines decode UTF-8 first,
+then Windows-1252, with a reversible byte fallback. UTF-8 paths in a legacy-body
+patch therefore retain their displayed spelling. Display text never supplies
+cached apply or raw patch export bytes.
+
+Selected line/hunk patches retain exact original context/content bytes, function
+suffixes, CRLF endings, no-final-newline markers and quoted/unquoted headers.
+Added/deleted file header rewriting and regular rename/mode metadata use the same
+byte carrier. Stage/unstage writes selected raw bytes; freshness compares the full
+original patch bytes. UTF-8 callers keep the existing text API, and byte consumers
+use selectedPatchData. The read-only unified viewer keeps its BOM handling and
+uses the same per-line legacy display fallback when there is no BOM.
+
+The native partial pane now reads raw patch data directly. Save As, printing's
+source document and the custom patch clipboard format retain those bytes. The
+plain-text clipboard flavor remains decoded Unicode for text applications.
+Unrelated staged entries, working contents and permissions remain outside cached
+partial application. Binary/copy/symlink/gitlink and no-text-hunk restrictions
+remain; this does not add arbitrary multibyte-file editing or encoding detection.
+UTF-16/32 files that Git classifies as binary still need whole-file controls.
+
+[Grouped evidence](qa/legacy-partial-staging-2026-10-15.json) records legacy line
+stage/reverse unstage, added/deleted executable text, undefined legacy bytes,
+actual attached pane rendering/export/copy and unrelated-index preservation.
+Physical line/hunk gestures, all legacy code pages, visual parity, signed Finder
+and App Store acceptance remain open. Earlier UTF-8-only descriptions above
+refer to prior checkpoints.
