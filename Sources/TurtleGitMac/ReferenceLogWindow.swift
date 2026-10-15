@@ -715,7 +715,7 @@ private struct ReferenceLogDialog: View {
                 Spacer()
                 Button("OK") { model.accept() }.disabled(model.selecting && model.selectedEntry == nil).keyboardShortcut(.defaultAction)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-reflog.html")!) }
+                Button("Help") { TurtleGitHelp.show(.reflog) }
             }
         }.padding(12).disabled(!model.commandSurfaceAvailable)
         .onChange(of: model.reference) { _ in model.selection = []; model.reload() }

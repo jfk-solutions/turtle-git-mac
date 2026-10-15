@@ -102,7 +102,7 @@ private struct CleanDialog: View {
                 Spacer()
                 Button("OK") { model.accept() }.keyboardShortcut(.defaultAction)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-cleanup.html")!) }
+                Button("Help") { TurtleGitHelp.show(.clean) }
             }
         }.padding(12)
         .alert("Clean failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

@@ -552,7 +552,7 @@ private struct PushDialog: View {
             HStack { if model.busy || model.preparingSource { ProgressView().controlSize(.small) }; if model.preparationNeedsRetry { Button("Retry loading", action: model.retryPreparation).disabled(model.busy || model.preparing) }; Spacer()
                 Button("OK") { model.push() }.keyboardShortcut(.defaultAction).disabled(model.busy || model.preparing || model.choosingReference || model.preparationNeedsRetry)
                 Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-push.html")!) }
+                Button("Help") { TurtleGitHelp.show(.push) }
             }
         }.padding(16)
         .onChange(of: model.options.source) { _ in model.sourceChanged() }

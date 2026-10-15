@@ -379,6 +379,8 @@
 		FE0A4FBD4DEB65683A8F6586 /* MergeMessageEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CE3CE517C60F5192533D85D /* MergeMessageEditor.swift */; };
 		FED983DAC1D3DA69EF249094 /* SubmoduleSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6627A941719314D5D2976D6E /* SubmoduleSync.swift */; };
 		FF0E5C4AB3547674CE31C89B /* PatchPageSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */; };
+		C210101600000000000000F1 /* TurtleGitHelp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101600000000000000F2 /* TurtleGitHelp.swift */; };
+		C210101600000000000000F3 /* TurtleGitHelp.help in Resources */ = {isa = PBXBuildFile; fileRef = C210101600000000000000F4 /* TurtleGitHelp.help */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -856,6 +858,8 @@
 		FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitPreferences.swift; sourceTree = "<group>"; };
 		FF916A1DC9051A8C70F0370C /* FileMove.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMove.swift; sourceTree = "<group>"; };
 		FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHIdentityAccess.swift; sourceTree = "<group>"; };
+		C210101600000000000000F2 /* TurtleGitHelp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitHelp.swift; sourceTree = "<group>"; };
+		C210101600000000000000F4 /* TurtleGitHelp.help */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources/TurtleGitHelp.help; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -989,6 +993,8 @@
 				C21010160000000000000006 /* MessageEditorStylingSession.swift */,
 				C210101600000000000000D2 /* LogMessageView.swift */,
 				C210101600000000000000E2 /* SourceMessageLinks.swift */,
+				C210101600000000000000F2 /* TurtleGitHelp.swift */,
+				C210101600000000000000F4 /* TurtleGitHelp.help */,
 				C210101500000000000000A2 /* PatchDocumentSession.swift */,
 				C210101500000000000000B2 /* ExternalDocumentApplication.swift */,
 				C12C65B53D4E28A9F6C52DF1 /* ImageConflictWindow.swift */,
@@ -1514,6 +1520,7 @@
 				F6F8AC92E0CCCF7FF9CECD59 /* Frameworks */,
 				ED03DD8CA52381A434D18935 /* Embed Foundation Extensions */,
 				C0FA93121C7653B8CED80394 /* Embed Frameworks */,
+				C210101600000000000000F5 /* Index bundled Mac help */,
 				68A72F01D32594C7CE89B214 /* Embed working copy revision utility */,
 				8478C5D94F5C183863E964A2 /* Embed Finder cache service */,
 				CB14EFA3B5008D888CD0A6A5 /* Embed and audit production runtimes */,
@@ -1632,6 +1639,7 @@
 			files = (
 				DD16EA85352150A590AED3FB /* LICENSE in Resources */,
 				B325035DE8116D7F3CCCC3FD /* NOTICE in Resources */,
+				C210101600000000000000F3 /* TurtleGitHelp.help in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1695,6 +1703,17 @@
 			shellPath = /bin/sh;
 			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-app-runtimes.py\" \"$BUILT_PRODUCTS_DIR\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\" \"$DERIVED_FILE_DIR/runtime-embedding-debug.json\"\n";
 		};
+		C210101600000000000000F5 /* Index bundled Mac help */ = {
+            isa = PBXShellScriptBuildPhase;
+            buildActionMask = 2147483647;
+            files = ();
+            inputPaths = ("$(SRCROOT)/Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json", "$(SRCROOT)/scripts/index-help.py");
+            name = "Index bundled Mac help";
+            outputPaths = ("$(TARGET_BUILD_DIR)/$(FULL_PRODUCT_NAME)/Contents/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/TurtleGitHelp.helpindex");
+            runOnlyForDeploymentPostprocessing = 0;
+            shellPath = /bin/sh;
+            shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/index-help.py\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
+        };
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -1954,6 +1973,7 @@
 				C21010160000000000000005 /* MessageEditorStylingSession.swift in Sources */,
 				C210101600000000000000D1 /* LogMessageView.swift in Sources */,
 				C210101600000000000000E1 /* SourceMessageLinks.swift in Sources */,
+				C210101600000000000000F1 /* TurtleGitHelp.swift in Sources */,
 				C210101500000000000000A1 /* PatchDocumentSession.swift in Sources */,
 				C210101500000000000000B1 /* ExternalDocumentApplication.swift in Sources */,
 				90C7E3E08BB57158CF31FB56 /* ImageConflictWindow.swift in Sources */,

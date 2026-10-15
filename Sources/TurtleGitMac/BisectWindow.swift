@@ -310,7 +310,7 @@ private struct BisectDialog: View {
                 if !model.showingProgress { Button("OK") { model.start() }.keyboardShortcut(.defaultAction).disabled(!model.canStart) }
                 if model.showingProgress && model.state?.active == false && model.lastExitCode != 0 { Button("Back") { model.returnToOptions() }.disabled(model.busy || model.hasPicker || model.confirmingCancellation) }
                 Button(model.busy ? (model.cancelling ? "Cancelling…" : "Cancel") : model.output.isEmpty ? "Cancel" : "Close") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction).disabled(model.cancelling || model.hasPicker || model.confirmingCancellation)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-bisect.html")!) }
+                Button("Help") { TurtleGitHelp.show(.bisect) }
             }
         }.padding(16)
         .alert("Bisect", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

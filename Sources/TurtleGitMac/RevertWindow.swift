@@ -149,7 +149,7 @@ private struct RevertDialog: View {
                 Spacer()
                 Button("OK") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.canApply)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-revert.html")!) }
+                Button("Help") { TurtleGitHelp.show(.revert) }
             }
         }.padding(12).disabled(model.busy || model.confirmingQuit)
         .dropDestination(for: URL.self) { urls, _ in model.addDropped(urls) }

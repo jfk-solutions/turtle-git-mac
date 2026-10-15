@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Git Properties</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="git-properties">Git Properties</h1>
+<p>Open <strong>Git Properties…</strong> from the TurtleGit app menu for the current repository
+or selected paths. The Finder add-on has the same entry for known repositories.
+This opens a TurtleGit window; it does not add a tab to Finder’s system Get Info
+window. Signed Finder activation remains a separate distribution requirement.</p>
+<p>The top fields show the current branch, tracked branch and its configured remote
+URL. <strong>HEAD</strong> shows its hash, subject, author and date. <strong>Last Modified</strong> appears
+for one indexed path and follows its content history, including the source
+merge-parent selection behavior. A mode-only change does not count as a content
+change. New indexed paths absent from HEAD have no last-modified commit.
+The values can be selected and copied.</p>
+<p><strong>Config</strong> shows effective AutoCrLf, SafeCrLf, User Name and User Email values.
+Use <strong>Settings</strong> to edit configuration in a sheet bound to this repository;
+changing the main workspace does not change that sheet’s repository.
+<strong>Show log</strong> opens the captured repository and selected paths.</p>
+<p>When every selected path has an index entry, the four checkboxes show its stored
+index properties. Mixed selections display an indeterminate state. Leaving a
+mixed field unchanged preserves each path’s current value.</p>
+<ul>
+<li><strong>Assume valid/unchanged</strong> sets the index’s assume-valid flag.</li>
+<li><strong>Skip worktree</strong> sets its skip-worktree flag.</li>
+<li><strong>Executable (+x)</strong> changes the stored Git file mode.</li>
+<li><strong>Symlink</strong> changes the stored Git object type without replacing the file on disk.</li>
+</ul>
+<p>Executable and Symlink exclude one another. If a selection contains a submodule,
+those two mode controls are hidden. An initialized selected submodule can also
+have a <strong>Git Submodule</strong> page for its parent’s gitlink and a <strong>Git</strong> page for its
+own repository. Parent metadata requires permission covering that repository.
+For unversioned paths or ordinary directories the index checkboxes are hidden.</p>
+<p><strong>Apply</strong> saves the changed index fields. It preserves the stored objects, staged
+contents, other entries and working files. <strong>OK</strong> applies and closes. <strong>Cancel</strong>
+discards unsaved fields; it does not undo earlier Apply actions. <strong>Refresh</strong> reads
+current metadata and replaces the draft. If another tool changed the index,
+Apply refuses the stale draft; refresh and review the fields again.</p>
+<p>The window stays busy through its owned reads and writes. <strong>Cancel operation</strong>
+requests cancellation before publication; the index is replaced atomically.
+Closing a busy window normally waits for the operation. A forced close retires
+its UI and keeps operation ownership until cleanup. Application Quit remains
+blocked while that work is active.</p>
+<p>Focused Core and native checks passed, with a physical light-mode check of the
+selected-file window and Apply. Full Finder, keyboard and appearance acceptance
+remain pending. See the
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/GIT-PROPERTIES-PARITY.html">source comparison and validation</a>.</p>
+<p>Finder’s Git Properties action follows the Settings entry’s first-level and
+Shift-only menu preferences. It uses no invented Windows MenuInfo bit.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

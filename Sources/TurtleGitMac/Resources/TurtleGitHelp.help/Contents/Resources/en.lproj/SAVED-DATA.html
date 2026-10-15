@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Saved Data settings</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-savedData"></a><h1 id="saved-data-settings">Saved Data settings</h1>
+<p>Open Settings → Saved Data to clear histories or make previously suppressed
+questions appear again. The controls follow TortoiseGit's Saved Data page.</p>
+<ul>
+<li><strong>URL history → Clear</strong> removes Clone URLs, Fetch/Pull URLs, repository-specific
+Push URLs, Request Pull URL history and Format Patch output-directory history.</li>
+<li><strong>Log messages (Input dialog) → Clear</strong> removes saved Commit message histories
+across repositories and the shared Merge message history. The history backend reloads storage on each access, so an
+existing history object sees the cleared entries and can save new messages.</li>
+<li><strong>Log messages (Show log dialog) → Clear</strong> clears TurtleGit's cached repository
+log file records. Other caches and repository files are preserved.</li>
+<li><strong>Authentication data → Clear…</strong> opens the saved SSH authentication dialog to
+review and remove selected TurtleGit Keychain entries. Git HTTP helper credentials
+and keys already loaded by a running operation are outside this control's scope.</li>
+<li><strong>SSH key file permissions → Manage…</strong> opens <strong>Key File Permissions</strong>. Review remembered key paths, authorize a file with the native picker, copy selected paths, or forget selected/all listed permissions after confirmation. Forgetting keeps the key files, saved passphrases, Git configuration and permissions held by running operations. Future key loading may ask for Browse again. This is a macOS addition for sandbox file access.</li>
+<li><strong>Dialog sizes and positions → Clear</strong> forgets saved native window frames;
+see <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/DIALOG-GEOMETRY.html">dialog geometry</a>.</li>
+<li><strong>Temp files (including Gravatar images) → Clear</strong> removes app-owned temporary
+files after an Abort/Proceed confirmation. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/TEMPORARY-FILES.html">temporary files</a>.</li>
+<li><strong>Stored decisions → Clear</strong> forgets remembered answers and suppressed warnings.
+This includes Fetch/Rebase decisions, Stash Pop changes questions, Merge conflict
+hints, Push All Branches confirmation and Commit cancellation/template hints.</li>
+<li><strong>Action log</strong> has its own line limit, Show and Clear controls. See the
+<a href="ACTION-LOG.html">Action log guide</a>.</li>
+</ul>
+<p>Hover over URL or input-message history controls to see the current number of
+saved entries and histories. Their Clear buttons are disabled when no matching
+saved history exists. Stored decisions can always be cleared, matching upstream.
+URL, input-message, stored-decision and action-log controls act immediately.
+Temporary-file cleanup asks for confirmation.</p>
+<p>Newly opened dialogs load the cleared histories. An already open dialog can keep
+its current text and loaded dropdown choices; clearing saved data does not cancel
+an operation or erase the text being edited. Its next submission can save a new
+history entry.</p>
+<p>These controls target explicit preference keys. They preserve repository bookmarks,
+working files, commits, indexes, SSH key-path history, branch/revision histories,
+ordinary dialog options, appearance settings and the separately managed action log.
+They do not delete private key files or credentials.</p>
+<h2 id="source-and-current-limits">Source and current limits</h2>
+<p>Adapted from pinned TortoiseGit <code>7338078f8ddd924b8cddee35f512f2286072136d</code>,
+<code>src/TortoiseProc/Settings/SetSavedDataPage.cpp/.h</code> and
+<code>src/Resources/TortoiseProcENG.rc</code>. The <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/upstream-saved-decisions.json">decision fixture</a>
+records all 21 source TortoiseGit decision keys and the source merge-editor key,
+with the source blob and pin. Native aliases map Commit and Stash choices to their
+macOS preference names. Windows registry histories become native preferences.
+URL histories include Request Pull's existing native list; its other per-repository
+input defaults are preserved.</p>
+<p>Remaining Saved Data groups include authentication data and
+Show Log cache and future approved-hook decisions.
+Merge input-message history is implemented; see <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-PARITY.html">Merge parity</a>.
+Clearing both histories fixes the pinned source asymmetry in which Merge is counted
+but only Commit is deleted. The merge-editor reset key is
+included for future use, but its corresponding prompt is not implemented. No
+completion claim covers those groups or physical/signed UI acceptance.</p>
+<p>Core tests check the source catalogue, reset scope, multiple Commit repositories,
+false/integer remembered answers and preserved neighboring keys. After a Debug
+build, <code>python3 scripts/test-saved-data.py</code> checks real native model loading, private
+histories, restored Stash Pop questions and a hidden settings host. These headless
+checks use isolated preferences and repositories; they do not launch the main app.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

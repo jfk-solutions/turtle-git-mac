@@ -494,7 +494,7 @@ private struct RepositoryBrowserDialog: View {
                 if model.busy { ProgressView().controlSize(.small) }
                 Button("OK", action: model.close).keyboardShortcut(.defaultAction).disabled(model.mutating)
                 Button("Cancel", action: model.close).keyboardShortcut(.cancelAction).disabled(model.mutating)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-repobrowser.html")!) }
+                Button("Help") { TurtleGitHelp.show(.browser) }
             }
         }.padding(12).disabled(model.confirmingQuit).alert("Repository Browser", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }

@@ -204,7 +204,7 @@ private struct FirstStartWizardDialog: View {
                     Text("English is the installed translation. Additional native translations will appear when available.").foregroundStyle(.secondary)
                 case .welcome:
                     Text("This wizard configures your Git engine, user information and authentication defaults.")
-                    Link("Read the TurtleGit documentation", destination: URL(string: "https://jfk-solutions.github.io/turtle-git-mac/")!)
+                    Button("Read the TurtleGit documentation") { TurtleGitHelp.show(.overview) }.buttonStyle(.link)
                     Text("Changes saved with Next remain saved if you cancel a later step. Git user and credential settings are stored globally and provide defaults for your repositories.")
                 case .git:
                     Text("TurtleGit requires Git for its operations. Use the bundled engine, or choose an installed Git executable.").fixedSize(horizontal: false, vertical: true)

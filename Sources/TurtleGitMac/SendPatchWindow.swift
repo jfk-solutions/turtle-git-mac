@@ -437,7 +437,7 @@ struct SendPatchDialog: View {
                 Spacer()
                 Button("Send") { model.submit() }.keyboardShortcut(.defaultAction).disabled(!model.canSubmit)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html")!) }
+                Button("Help") { TurtleGitHelp.show(.patches) }
             }
         }.padding(16).frame(minWidth: 620, minHeight: 380)
     }

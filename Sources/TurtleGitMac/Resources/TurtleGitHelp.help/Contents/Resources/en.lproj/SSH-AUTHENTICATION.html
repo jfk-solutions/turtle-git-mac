@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Saved SSH authentication</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-ssh"></a><h1 id="saved-ssh-authentication">Saved SSH authentication</h1>
+<p>When a network workflow loads an encrypted OpenSSH key, TurtleGit asks for its
+passphrase in a secure native field. <strong>Save authentication</strong> is off by default.
+Select it to save the passphrase in this Mac’s Keychain after the key loads
+successfully. An incorrect response or Cancel does not create a saved entry.</p>
+<p>On a later operation, TurtleGit first tries normal key loading, then tries the
+saved passphrase if one is available. A rejected saved response returns to the
+native prompt. Entering a new response with Save authentication unchecked uses
+it for that operation without replacing the saved entry. Select the checkbox to
+replace the entry after successful loading. If reading a saved entry fails,
+the prompt explains that it is unavailable and permits a manual response.</p>
+<p>This applies to the shared <strong>Auto-load SSH key</strong> workflow used by network dialogs
+and reference commands, including explicit selected keys in Clone and Submodule
+Add. It does not supply HTTP credentials, host-key trust decisions or an SSH
+server’s account password. Existing Git credential helpers still govern HTTP.</p>
+<p>Open <strong>Saved SSH Authentication…</strong> from the application menu or Credential
+settings to list saved key labels. Select entries and choose <strong>Remove…</strong> to
+remove them after confirmation. Cancel leaves the entries intact. Removal saves
+immediately; it is not part of Settings Apply/Cancel. It does not unload a key
+already held in an active operation’s private agent. That agent closes when its
+operation owner finishes.</p>
+<p>Entries identify the exact private-key file content by SHA-256, rather than its
+path. Replacing a key at the same filename does not reuse the old entry. Moving
+the same file can reuse its entry after granting access to the new path. Old
+entries remain listed until removed. Keychain stores the passphrase and filename
+label, not the private-key bytes or full path. Entries do not synchronize through
+iCloud and are accessible while this device is unlocked. The entry list requests
+metadata only; it does not read or display saved passphrases.</p>
+<p>The key-loading owner retains file permission through hashing, prompting and
+loading. Observable file changes are checked before and after loading. Cancel
+and retired-window replies cannot start another load or save. Quit waits for
+active preparation and credential management; a Keychain write already in
+progress may finish before cancellation is observed. Save failures report the
+Keychain error and stop preparation before network transport begins.</p>
+<p>Private checks use injected Keychain storage. Live signed Keychain behavior,
+physical keyboard/theme/VoiceOver acceptance and exhaustive file-replacement
+races remain unverified. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SSH-TRANSPORT-PARITY.html">SSH transport audit</a>.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

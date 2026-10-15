@@ -12,7 +12,7 @@ import TurtleGitCore
         window.title = "\(folder.path) – Git Init – TurtleGit"
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CreateRepositoryDialog(model: model))
-        super.init(window: window); window.delegate = self
+        super.init(window: window); TurtleGitHelp.attach(window, topic: .createRepository); window.delegate = self
         window.setContentSize(NSSize(width: 600, height: 190)); window.center()
         model.close = { [weak self] in guard let self, self.model.canClose else { return }; self.window?.close() }
         model.confirm = { [weak self, weak window] warning, completion in
@@ -160,7 +160,7 @@ private struct CreateRepositoryDialog: View {
                 Spacer()
                 Button("OK") { model.initialize() }.keyboardShortcut(.defaultAction).disabled(!model.ready || model.busy || model.asking || model.completed)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction).disabled(!model.canClose)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-create.html")!) }
+                Button("Help") { TurtleGitHelp.show(.createRepository) }
             }
         }.padding(16)
         .alert("Could not initialize a repository", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

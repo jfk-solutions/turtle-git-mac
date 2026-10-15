@@ -591,7 +591,6 @@ struct RebaseReferenceRequest {
     var isCherryPick: Bool { options.isCherryPick || state?.isCherryPick == true }
     var operationTitle: String { isCherryPick ? "Cherry Pick" : "Rebase" }
     var startTitle: String { isCherryPick ? "Continue" : "Start Rebase" }
-    var helpURL: URL { URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-" + (isCherryPick ? "cherrypick" : "rebase") + ".html")! }
     private var planGeneration = 0
     private var detailGeneration = 0
     private var conflictIdentity:RebaseConflictIdentity?
@@ -1599,7 +1598,7 @@ struct RebaseDialog: View {
                 Spacer()
                 Button(model.primaryActionTitle) { if model.finished { model.finishReplay() } else { model.request(model.active ? "continue" : "start") } }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
                 Button(model.active || model.isCherryPick ? "Abort" : "Cancel") { if model.active { model.request("abort") } else { model.finishReplay() } }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(model.helpURL) }
+                Button("Help") { TurtleGitHelp.show(model.isCherryPick ? .cherryPick : .rebase) }
             }
         }.padding(12).disabled(model.busy || model.selectingSplit || model.pickingReference != nil)
         .overlay(alignment: .bottomLeading) {

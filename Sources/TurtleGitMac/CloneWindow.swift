@@ -16,7 +16,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: 452)
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CloneDialog(model: model))
-        super.init(window: window); window.delegate = self; model.window = window
+        super.init(window: window); TurtleGitHelp.attach(window, topic: .clone); window.delegate = self; model.window = window
         window.setContentSize(NSSize(width: 820, height: 420)); window.center()
         model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onExplore = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
@@ -342,7 +342,7 @@ struct CloneDialog: View {
                     if model.busy { ProgressView().controlSize(.small); Text("Cloning…") }
                     Spacer(); Button(model.output == nil ? "OK" : "Retry") { model.clone() }.keyboardShortcut(.defaultAction)
                     Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-                    Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-clone.html")!) }
+                    Button("Help") { TurtleGitHelp.show(.clone) }
                 }
             }
         }.padding(16).textFieldStyle(.roundedBorder).toggleStyle(.checkbox).disabled(model.activeOperation)

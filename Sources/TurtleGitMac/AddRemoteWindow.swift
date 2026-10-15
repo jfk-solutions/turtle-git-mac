@@ -69,7 +69,7 @@ private struct AddRemoteDialog: View {
             HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer()
                 Button("OK") { model.save() }.keyboardShortcut(.defaultAction).disabled(!model.canSave)
                 Button("Cancel") { model.requestClose() }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-settings.html#tgit-dug-settings-remote")!) }
+                Button("Help") { TurtleGitHelp.show(.settings) }
             }
         }.textFieldStyle(.roundedBorder).padding(14)
     }

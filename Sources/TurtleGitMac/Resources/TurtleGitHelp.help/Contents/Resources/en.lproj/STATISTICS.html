@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Statistics</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-statistics"></a><h1 id="statistics">Statistics</h1>
+<p>Open <strong>Show Log</strong>, then choose <strong>Statistics</strong> below the revision list. The window
+uses the revisions currently shown in Log, excluding its working-copy row.
+Loading more history or refreshing Log does not change an already open Statistics
+window; close and reopen it to use the new list.</p>
+<p>Choose a graph type at the top:</p>
+<ul>
+<li><strong>Statistics</strong> shows totals and activity averages/minimums/maximums.</li>
+<li><strong>Commits by date</strong> compares commit activity over time.</li>
+<li><strong>Commits by author</strong> compares commit counts.</li>
+<li><strong>Percent of authorship</strong> uses TortoiseGit's weighted commit/file-change
+measure. It is different from line ownership shown by Blame.</li>
+<li><strong>Changed lines including added/deleted files by date</strong> includes those files'
+line totals.</li>
+<li><strong>Changed lines not including added/deleted files by date</strong> counts changes to other
+files.</li>
+</ul>
+<p>The initial summary avoids reading every commit's diff. Choose <strong>Calculate</strong> to
+load file/line totals. Authorship and line graphs start this calculation when
+selected. Progress appears at the bottom; <strong>Cancel</strong> stops the calculation. Closing
+or pressing Escape while it is running requests cancellation first.</p>
+<p>The four checkboxes control case-sensitive author grouping, author versus
+committer names, commit versus author dates, and sorting by commit count versus
+alphabetically. The author slider limits individual series; remaining authors
+are grouped as <strong>Others</strong>. If only one author would remain, that author keeps their
+name. These settings and the last graph page are remembered when the window closes.</p>
+<p>The five original graph icons select pie, stacked line, line, stacked bar and bar.
+Hover bars, pie wedges or line points in smaller graphs for the author, value,
+unit and percentage. Hovering the average region shows its value. Stacked-area
+polygons do not provide individual value tooltips. Zero-value intervals are omitted
+from bar graphs; ordinary bars share widths across the populated intervals.
+Line styles are unavailable for the author comparison graphs. Stacked bar for
+author comparisons shows one colored stack of authors. Ordinary bar and line
+graphs include the source average guide. Integer tick labels reflect commit/line
+counts. Graph titles and axis units follow the chosen metric and time interval;
+the original TortoiseGit palette is shared by all graph styles in light and dark
+appearance. Very high author counts retain the source palette's repeated colors.</p>
+<p>With a graph selected, choose <strong>File → Save Graph As…</strong>. Select PDF, PNG, JPEG,
+BMP or GIF in the save sheet's <strong>Format</strong> field and choose a destination. PDF is
+the native replacement for TortoiseGit's Windows metafile export. Pie exports
+use the current graph area size, just like the other styles. Date pies share one
+horizontal row and shrink to fit; zero-valued intervals leave no empty slot.
+All graph styles have a boxed legend on the right. Crowded legends keep the last
+group and show dots for omitted middle rows; narrow graphs hide the legend. The text summary cannot be exported
+through this command.</p>
+<p>This dialog is still being compared with TortoiseGit. Exact displayed label geometry, outlines/shading,
+dense history layouts, displayed save-sheet behavior and signed sandbox checks
+remain pending; see <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LOG-STATISTICS-PARITY.html">the parity record</a>.</p>
+<p>Cancel stops gathering file changes and keeps the previous complete summary.
+Use Calculate to retry. Closing during calculation first cancels the read, then
+closes after Git finishes. The summary page hides graph style and author-limit
+controls; those appear when you select a graph. Save Graph As opens an owned
+native save sheet; cancelling leaves the graph available for another export.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

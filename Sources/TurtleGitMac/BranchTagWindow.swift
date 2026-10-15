@@ -206,7 +206,7 @@ struct BranchTagDialog: View {
             HStack { if model.busy || chooser.busy || chooser.pickerTarget != nil { ProgressView().controlSize(.small) }; Spacer()
                 Button(model.retryDescription ? "Retry description" : model.createdBranch == nil ? "OK" : "Retry checkout") { model.create() }.keyboardShortcut(.defaultAction).disabled(model.options.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-branchtag.html")!) }
+                Button("Help") { TurtleGitHelp.show(.branchTag) }
             }
         }.padding(16).disabled(model.busy || chooser.busy || chooser.pickerTarget != nil)
         .onChange(of: chooser.branchRevision) { _ in model.changedBase() }

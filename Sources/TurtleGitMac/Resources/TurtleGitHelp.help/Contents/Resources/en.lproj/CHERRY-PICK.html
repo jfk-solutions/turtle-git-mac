@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Cherry Pick from Log</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-cherryPick"></a><h1 id="cherry-pick-from-log">Cherry Pick from Log</h1>
+<p>Open <strong>Show Log</strong>, select the commit or commits to copy to the current branch,
+and choose <strong>Cherry Pick this commit…</strong> or <strong>Cherry Pick selected commits…</strong>.
+The command opens a native Cherry Pick plan. Opening the plan does not apply any
+changes. A selection whose first visible row is HEAD, a bare repository or an active
+merge does not offer this operation. Stash commits can be selected, as upstream
+permits.</p>
+<p>The upper list preserves the selected Log order, newest first. Replay proceeds
+from the oldest retained entry. Its numbered rows show the action, commit hash,
+message, author and date. Select a row to inspect its changed files and message.
+Use the row's context menu to choose <strong>Pick</strong>, <strong>Skip</strong>, <strong>Edit</strong> or <strong>Squash</strong>.
+<strong>Up</strong> and <strong>Down</strong> change the replay order; <strong>Pick ALL</strong> and <strong>Options</strong> change
+multiple rows. Up/Down also move multiple selected rows together; hold Shift to
+move them to the top or bottom. With the list focused, P/S/Q/E choose actions,
+Space cycles them, and U/D move rows (Shift+U/D moves to the ends). The first
+retained entry cannot be Squash. <strong>Add</strong> opens a native Log picker that accepts multiple commits. They appear
+above the existing list, default to Pick and replay after the existing entries.
+Cancel leaves the plan unchanged. You can add the same commit again; repeated
+rows remain separately selectable after an interruption. An already-applied patch
+may stop as empty and require recovery.</p>
+<p>Enable <strong>add &quot;cherry picked from&quot;</strong> to append the original selected commit ID to
+the copied commit's message, like Git's <code>-x</code> option. This preference is remembered.
+Branch, Upstream and Onto are disabled because the destination is the current
+HEAD; Force Rebase and Preserve Merges are hidden in Cherry Pick mode.</p>
+<p>Choose <strong>Continue</strong> to begin, matching TortoiseGit’s Cherry Pick dialog. For each retained merge commit, TurtleGit
+asks which parent determines its patch. Parent buttons include the parent subject
+and abbreviated hash. Canceling a parent prompt stops preparation without changing
+HEAD. Before replay starts, <strong>Abort</strong> closes the plan. These prompts occur before replay begins; upstream asks as it reaches each
+merge commit.</p>
+<p>An <strong>Edit</strong> action stops after applying the commit. You can adjust and stage files
+in <strong>Open Working Tree</strong>, change the message and choose <strong>Amend</strong>, then <strong>Continue</strong>.
+For conflicts, resolve and stage the files in Working Tree, refresh the state and
+continue. <strong>Skip</strong> discards the current commit and its resolution edits; <strong>Abort</strong>
+restores the destination branch and HEAD captured when the plan started. Dirty
+working trees are rejected by the replay backend; automatic stash/restore is still
+pending.</p>
+<p>Interrupted operations retain Git's replay state. Opening Rebase or Cherry Pick
+again recovers the operation in Cherry Pick mode, with the original selected
+commit IDs, remaining actions and recovery controls. Closing its window leaves
+that state available for reopening.</p>
+<p>Squash groups pause in the Commit Message tab for multiline editing and Continue
+approval. Advanced <code>SquashDate</code> controls the author date; the first author is kept.
+See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REBASE-SQUASH.html">Squash workflow</a>.</p>
+<p>Edit also supports multiline message approval through Continue and Split commit
+through the full Commit selection workflow. See <a href="REBASE-SPLIT.html">Edit/Split</a>.</p>
+<p>This is a partial port. Full conflict tabs, remaining author overrides,
+complete keyboard/accessibility parity, displayed acceptance checks and
+signed App Store execution remain unfinished. See the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/CHERRY-PICK-PARITY.html">parity audit</a>
+for the verification scope. Current macOS screenshots are pending.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

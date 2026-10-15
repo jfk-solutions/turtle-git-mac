@@ -1909,7 +1909,7 @@ struct CommitDialog: View {
                     } label: { Image(systemName: "chevron.down") }.menuIndicator(.hidden).fixedSize().accessibilityLabel("Commit actions") }
                 }.disabled(!model.canCommit || model.inputsBlocked)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html")!) }.disabled(model.inputsBlocked)
+                Button("Help") { TurtleGitHelp.show(.commit) }.disabled(model.inputsBlocked)
             }
         }.padding(12)
         .onAppear { model.formattingEnabled = styleCommitMessages }

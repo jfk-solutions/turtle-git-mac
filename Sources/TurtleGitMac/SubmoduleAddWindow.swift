@@ -138,7 +138,7 @@ private struct SubmoduleAddDialog: View {
             HStack { Toggle("Branch", isOn: $model.useBranch).frame(width: 100, alignment: .leading); if model.useBranch { TextField("Branch", text: $model.branch) }; Spacer(minLength: 0) }
             Toggle("Force", isOn: $model.force)
             HStack { Toggle("Auto-load SSH key", isOn: $model.useKey).disabled(!model.sshAvailable); CloneHistoryCombo(value: $model.key, choices: model.keys, label: "OpenSSH private key").disabled(!model.useKey); Button("…") { model.pick(.key) }.disabled(!model.useKey) }
-            HStack { Spacer(); Button("OK") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.canApply); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-submodules.html")!) } label: { CommandLabel(title: "Help", icon: .help) } }
+            HStack { Spacer(); Button("OK") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.canApply); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button { TurtleGitHelp.show(.submodules) } label: { CommandLabel(title: "Help", icon: .help) } }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
         }.padding(12).disabled(model.picking || model.confirmingQuit)
     }

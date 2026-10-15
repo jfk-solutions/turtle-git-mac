@@ -39,6 +39,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private let heading = NSTextField(labelWithString: "General")
     let transaction = SettingsTransaction()
     private let applyButton = NSButton(title: "Apply", target: nil, action: nil)
+    private let helpButton = NSButton(title: "Help", target: nil, action: nil)
     private let okButton = NSButton(title: "OK", target: nil, action: nil)
     private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private let errorLabel = NSTextField(wrappingLabelWithString: "")
@@ -66,12 +67,12 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         let sidebar = NSScrollView(); sidebar.documentView = outline; sidebar.hasVerticalScroller = true; sidebar.autohidesScrollers = true
         sidebar.drawsBackground = false
         heading.font = .systemFont(ofSize: 17, weight: .semibold)
-        for (button, action) in [(okButton, #selector(acceptSettings)), (cancelButton, #selector(cancelSettings)), (applyButton, #selector(applySettings))] {
+        for (button, action) in [(okButton, #selector(acceptSettings)), (cancelButton, #selector(cancelSettings)), (applyButton, #selector(applySettings)), (helpButton, #selector(showPageHelp))] {
             button.target = self; button.action = action; button.bezelStyle = .rounded
         }
         okButton.keyEquivalent = "\r"; cancelButton.keyEquivalent = "\u{1b}"
         errorLabel.textColor = .systemRed
-        let footer = NSStackView(views: [errorLabel, NSView(), okButton, cancelButton, applyButton]); footer.orientation = .horizontal; footer.spacing = 8
+        let footer = NSStackView(views: [errorLabel, NSView(), okButton, cancelButton, applyButton, helpButton]); footer.orientation = .horizontal; footer.spacing = 8
         let right = NSStackView(views: [heading, NSBox(), content, footer]); right.orientation = .vertical; right.alignment = .leading; right.spacing = 8
         footer.widthAnchor.constraint(equalTo: right.widthAnchor).isActive = true
         transaction.changed = { [weak self] in self?.renderFooter() }
@@ -99,6 +100,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         guard let window = view.window, delegateProxy == nil else { return }
         let proxy = SettingsWindowDelegate(owner: self, original: window.delegate); delegateProxy = proxy; window.delegate = proxy
         transaction.window = window
+        TurtleGitHelp.attach(window, topic: TurtleGitHelp.settingsTopic(selected))
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
     var canDismiss: Bool { workspace.finderWatches?.busy != true && !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && view.window?.attachedSheet == nil }
@@ -230,7 +232,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             content.addSubview(busyShield)
             NSLayoutConstraint.activate([busyShield.leadingAnchor.constraint(equalTo: content.leadingAnchor), busyShield.trailingAnchor.constraint(equalTo: content.trailingAnchor), busyShield.topAnchor.constraint(equalTo: content.topAnchor), busyShield.bottomAnchor.constraint(equalTo: content.bottomAnchor)])
         } else { content.addSubview(busyShield, positioned: .above, relativeTo: controller.view) }
-        current = controller; selected = page; heading.stringValue = nodes.first(where: { $0.id == page })?.title ?? page.rawValue
+        current = controller; selected = page; TurtleGitHelp.attach(view.window, topic: TurtleGitHelp.settingsTopic(page)); heading.stringValue = nodes.first(where: { $0.id == page })?.title ?? page.rawValue
     }
     func invalidate() {
         transaction.invalidate(); emailDraft.invalidate(); hooks?.invalidate(); hooks = nil
@@ -238,6 +240,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         if let window = view.window, let delegateProxy, window.delegate === delegateProxy { window.delegate = delegateProxy.original }
         delegateProxy = nil; current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil; cache.removeAll()
     }
+    @objc private func showPageHelp() { TurtleGitHelp.show(TurtleGitHelp.settingsTopic(selected)) }
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int { (item as? SettingsPageNode)?.children.count ?? roots.count }
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any { (item as? SettingsPageNode)?.children[index] ?? roots[index] }
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool { (item as? SettingsPageNode)?.children.isEmpty == false }
@@ -308,7 +311,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         navigation = nil; controller = nil
     }
     static func showHelp() {
-        NSWorkspace.shared.open(URL(string: "https://jfk-solutions.github.io/turtle-git-mac/")!)
+        TurtleGitHelp.showContext()
     }
     static func showAbout() {
         TurtleGitAboutService.shared.show(.application)

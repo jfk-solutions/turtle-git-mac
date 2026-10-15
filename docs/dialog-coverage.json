@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 702,
-    "mapped_controls": 957,
+    "pending_control_reviews": 691,
+    "mapped_controls": 968,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -281,15 +281,26 @@
       "status": "partial-native-replacement",
       "source_blob": "b0c19b52528f5dc6a7adb62095e5cd7260abe5dd",
       "static_controls": 24,
-      "mapped_controls": 0,
-      "pending_control_reviews": 24,
+      "mapped_controls": 1,
+      "pending_control_reviews": 23,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/MergeOpenWindow.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/HELP-PARITY.md",
         "docs/MERGE-OPEN-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/help-book-2026-10-15.json",
         "docs/qa/merge-editor-open-2026-10-14.json",
         "docs/qa/merge-open-2026-10-12.json",
         "docs/qa/merge-open-lifecycle-2026-10-12.json",
@@ -823,16 +834,27 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 10,
-      "mapped_controls": 0,
-      "pending_control_reviews": 10,
+      "mapped_controls": 1,
+      "pending_control_reviews": 9,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/RepositoryBrowserWindow.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/HELP-PARITY.md",
         "docs/REPOSITORY-BROWSER-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/browser-tree-comparisons-2026-10-15.json",
+        "docs/qa/help-book-2026-10-15.json",
         "docs/qa/repository-browser-2026-10-05.json",
         "docs/qa/repository-browser-actions-2026-10-13.json",
         "docs/qa/repository-browser-export-2026-10-05.json",
@@ -1936,13 +1958,23 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 25,
-      "mapped_controls": 0,
-      "pending_control_reviews": 25,
+      "mapped_controls": 1,
+      "pending_control_reviews": 24,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FetchWindow.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/FETCH-PARITY.md",
+        "docs/HELP-PARITY.md",
         "docs/PULL-PARITY.md",
         "docs/UI-PARITY.md"
       ],
@@ -1955,6 +1987,7 @@
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/fetch-rebase-decisions-2026-10-08.json",
         "docs/qa/fetch-submodule-defaults-2026-10-07.json",
+        "docs/qa/help-book-2026-10-15.json",
         "docs/qa/history-deletion-2026-10-08.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/pull-cleanup-2026-10-09.json",
@@ -1974,12 +2007,22 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 29,
-      "mapped_controls": 0,
-      "pending_control_reviews": 29,
+      "mapped_controls": 1,
+      "pending_control_reviews": 28,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/PushWindow.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/HELP-PARITY.md",
         "docs/PUSH-PARITY.md",
         "docs/UI-PARITY.md"
       ],
@@ -1987,6 +2030,7 @@
         "docs/qa/branch-revision-number-2026-10-08.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
+        "docs/qa/help-book-2026-10-15.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-cancellation-2026-10-08.json",
         "docs/qa/push-history-2026-10-08.json",
@@ -2063,23 +2107,29 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 19,
-      "mapped_controls": 1,
-      "pending_control_reviews": 18,
+      "mapped_controls": 2,
+      "pending_control_reviews": 17,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/SwitchWindow.swift",
           "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
+          "origin": "recorded-control-mapping"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/HELP-PARITY.md",
         "docs/SWITCH-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
+        "docs/qa/help-book-2026-10-15.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/reference-switch-cleanup-2026-10-09.json",
@@ -2097,18 +2147,27 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 24,
-      "mapped_controls": 1,
-      "pending_control_reviews": 23,
+      "mapped_controls": 2,
+      "pending_control_reviews": 22,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/SwitchWindow.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/BranchTagWindow.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
           "origin": "recorded-control-mapping"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/BRANCH-TAG-PARITY.md",
+        "docs/HELP-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
@@ -2116,6 +2175,7 @@
         "docs/qa/creation-pickers-2026-10-09.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
+        "docs/qa/help-book-2026-10-15.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
@@ -2129,22 +2189,28 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 14,
-      "mapped_controls": 0,
-      "pending_control_reviews": 14,
+      "mapped_controls": 1,
+      "pending_control_reviews": 13,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/ImportPatchWindow.swift",
           "anchor": "ImportPatchWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
+          "origin": "recorded-control-mapping"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/HELP-PARITY.md",
         "docs/IMPORT-PATCH-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/file-patches-2026-10-13.json",
         "docs/qa/file-patches-display-2026-10-13.json",
+        "docs/qa/help-book-2026-10-15.json",
         "docs/qa/import-patch-close-2026-10-08.json",
         "docs/qa/import-patch-context-2026-10-08.json",
         "docs/qa/import-patch-drop-2026-10-08.json",
@@ -2379,12 +2445,22 @@
       "status": "partial-native",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 24,
-      "mapped_controls": 0,
-      "pending_control_reviews": 24,
+      "mapped_controls": 1,
+      "pending_control_reviews": 23,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/RebaseWindow.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/HELP-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
         "docs/REBASE-PARITY.md",
         "docs/REBASE-REFERENCE-PREPARATION-PARITY.md",
@@ -2393,6 +2469,7 @@
       "qa_records": [
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
+        "docs/qa/help-book-2026-10-15.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/rebase-columns-2026-10-13.json",
@@ -2500,15 +2577,26 @@
       "status": "partial",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 16,
-      "mapped_controls": 0,
-      "pending_control_reviews": 16,
+      "mapped_controls": 1,
+      "pending_control_reviews": 15,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SubmoduleAddWindow.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/HELP-PARITY.md",
         "docs/SUBMODULE-ADD-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/help-book-2026-10-15.json",
         "docs/qa/submodule-add-2026-10-09.json",
         "docs/qa/submodule-add-progress-styling-2026-10-09.json",
         "docs/qa/submodule-add-progress-window-2026-10-09.json"
@@ -2577,20 +2665,26 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 14,
-      "mapped_controls": 0,
-      "pending_control_reviews": 14,
+      "mapped_controls": 1,
+      "pending_control_reviews": 13,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/SendPatchWindow.swift",
           "anchor": "SendPatchWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
+          "origin": "recorded-control-mapping"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/HELP-PARITY.md",
         "docs/SEND-PATCH-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/help-book-2026-10-15.json",
         "docs/qa/send-mail-cancellation-2026-10-13.json"
       ]
     },
@@ -3027,20 +3121,26 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 11,
-      "mapped_controls": 0,
-      "pending_control_reviews": 11,
+      "mapped_controls": 1,
+      "pending_control_reviews": 10,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/ReferenceBrowserWindow.swift",
           "anchor": "ReferenceBrowserWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
+          "origin": "recorded-control-mapping"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/HELP-PARITY.md",
         "docs/REFERENCE-BROWSER-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/help-book-2026-10-15.json",
         "docs/qa/merge-cleanup-2026-10-09.json",
         "docs/qa/reference-batch-delete-2026-10-09.json",
         "docs/qa/reference-browser-2026-10-09.json",

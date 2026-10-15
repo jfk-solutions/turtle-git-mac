@@ -121,7 +121,7 @@ private struct StashDialog: View {
                 Spacer()
                 Button("OK") { model.save() }.keyboardShortcut(.defaultAction)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-stash.html")!) }
+                Button("Help") { TurtleGitHelp.show(.stash) }
             }
         }.padding(16).disabled(model.busy || model.confirmingUntracked)
         .alert("Stash failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

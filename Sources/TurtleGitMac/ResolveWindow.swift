@@ -356,7 +356,7 @@ private struct ResolveDialog: View {
                         Spacer()
                         Button("OK") { model.resolveChecked() }.disabled(model.checked.isEmpty || !model.canInteract).keyboardShortcut(.defaultAction)
                         Button(model.busy ? "Cancel read" : "Cancel") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction)
-                        Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-resolve.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
+                        Button { TurtleGitHelp.show(.resolve) } label: { CommandLabel(title: "Help", icon: .help) }
                     }
                 }.padding(12)
                 .background(Button("") { model.load() }.keyboardShortcut(KeyEquivalent("\u{f708}"), modifiers: []).hidden())

@@ -397,7 +397,7 @@ private struct ResetDialog: View {
             HStack { if model.busy || chooser.busy { ProgressView().controlSize(.small) }; Spacer()
                 Button("OK") { model.reset() }.keyboardShortcut(.defaultAction).disabled(chooser.revision.isEmpty)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-                Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-reset.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
+                Button { TurtleGitHelp.show(.reset) } label: { CommandLabel(title: "Help", icon: .help) }
             }
         }.padding(12).disabled(model.busy || model.showingReferencePicker || model.showingCommitPicker || model.showingModifiedFiles || model.confirmingHard || chooser.busy).onAppear { model.load() }
         .overlay(alignment: .bottomLeading) { if model.busy && model.progress == nil || chooser.initialReadActive { Button("Cancel") { model.cancelReads() }.padding(12) } }

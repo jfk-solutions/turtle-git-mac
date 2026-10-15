@@ -269,7 +269,7 @@ private struct MergeDialog: View {
                 Spacer()
                 Button("OK") { model.merge() }.keyboardShortcut(.defaultAction).disabled(model.busy || model.revision.isEmpty)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction).disabled(model.busy)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-merge.html")!) }
+                Button("Help") { TurtleGitHelp.show(.merge) }
             }
         }.padding(16).disabled(model.busy || model.pickerTarget != nil)
         .alert("Merge failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
@@ -870,7 +870,7 @@ private struct MergeAbortDialog: View {
                     }.pickerStyle(.radioGroup).labelsHidden().padding(8).frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Button { model.showModified() } label: { CommandLabel(title: "Show modified files in working tree", icon: .compare).frame(maxWidth: .infinity) }.disabled(model.hasChild || model.busy)
-                HStack { Spacer(); Button("OK") { model.abort() }.keyboardShortcut(.defaultAction); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-merge.html")!) } }
+                HStack { Spacer(); Button("OK") { model.abort() }.keyboardShortcut(.defaultAction); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button("Help") { TurtleGitHelp.show(.merge) } }
             }
         }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(nsColor: .windowBackgroundColor))
     }

@@ -269,7 +269,7 @@ struct ExportDialog: View {
                 Spacer()
                 Button("OK") { model.export() }.disabled(model.busy || model.destination.isEmpty || model.revision.isEmpty).keyboardShortcut(.defaultAction)
                 Button(model.busy ? "Cancel export" : (model.exported == nil ? "Cancel" : "Done")) { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-export.html")!) }
+                Button("Help") { TurtleGitHelp.show(.export) }
             }
         }.padding(16)
         .alert("Export failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

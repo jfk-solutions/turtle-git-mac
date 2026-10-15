@@ -393,7 +393,7 @@ struct SwitchDialog: View {
                 Spacer()
                 Button("OK") { model.checkout() }.keyboardShortcut(.defaultAction).disabled(model.revision.isEmpty)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-switch.html")!) }
+                Button("Help") { TurtleGitHelp.show(.checkout) }
             }
         }.padding(16).disabled(model.busy || model.pickerTarget != nil)
         .onChange(of: model.options.target) { _ in model.defaults() }

@@ -37,7 +37,7 @@ import TurtleGitCore
     let model: FileComparisonWindowModel
     private(set) var editorToolbar: MergeEditorToolbar?
     private(set) var imageToolbar: ImageEditorToolbar?
-    var showEditorHelp: () -> Void = { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug.html")!) }
+    var showEditorHelp: () -> Void = { TurtleGitHelp.show(.compare) }
     private let editorFileMenu = MergeEditorFileMenu()
     private weak var patchMenu: NSMenu?
     private var patchMenuItem: NSMenuItem?
@@ -120,7 +120,7 @@ import TurtleGitCore
         window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 800, height: 440)
         window.contentViewController = NSHostingController(rootView: FileComparisonDialog(model: model))
-        super.init(window: window); window.model = model; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; window.delegate = self; model.window = window; model.installMarkedSavePrompt()
+        super.init(window: window); TurtleGitHelp.attach(window, topic: .compare); window.model = model; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; window.delegate = self; model.window = window; model.installMarkedSavePrompt()
         model.externalDidOpen = { [weak window] in window?.close() }
         window.setContentSize(NSSize(width: 1120, height: 720))
         window.center()

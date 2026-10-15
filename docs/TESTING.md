@@ -2050,3 +2050,19 @@ needed when only this native operation layer changes.
 
 Unified Diff document waits now include `#line` in failures. The hosted bundled
 Git timeout remains unresolved; a local affected-case pass alone does not fix it.
+
+
+## Bundled contextual Help
+
+`build/site-venv/bin/python scripts/build-help.py --check` verifies the generated
+book against the selected Markdown guides and topic catalogue. Ordinary Xcode
+builds verify copied help files and generate Apple's local index before signing.
+
+`python3 scripts/test-help-book.py` links one native receiver to current Debug app
+objects. It verifies all 46 topic URLs/named anchors, one-time registration dispatch,
+local and online fallback, real Commit/Pull window context, F1 and modifier gates,
+sheet inheritance/overrides, close retirement and the actual Settings Help button.
+Viewer registration/opening is injected. The compiled bundle must contain a
+nonempty search/anchor index. All owned windows close and the receiver is reaped.
+Physical Help Viewer/search, actual browser startup, localization and signed
+acceptance are separate checks. Core code is unchanged by this family.

@@ -38,7 +38,8 @@ how checked-file commits differ from staging mode. The checkbox is named
 **Staging support (EXPERIMENTAL)**. Enabling it keeps the file list and changes
 its checkbox semantics; the partial-staging patch window opens to the right.
 
-[The documentation index](docs/README.md) links the workflow guides, source
+Dialog Help buttons and the Help menu now use [the bundled Mac help book](docs/HELP.md),
+with an offline browser fallback. [The documentation index](docs/README.md) links the workflow guides, source
 comparisons, dated verification records and remaining work. Older development
 updates are retained in [historical implementation notes](docs/IMPLEMENTATION-NOTES.md).
 Local build and receiver results do not establish signed sandbox behavior, full

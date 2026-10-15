@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Repository folder access</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-folderAccess"></a><h1 id="repository-folder-access">Repository folder access</h1>
+<p>A linked worktree or submodule can keep Git metadata outside its working folder.
+A shared clone can also read objects from another repository. In an App Store
+build, choosing the working folder alone does not grant access to those locations.</p>
+<p>When opening such a repository, TurtleGit shows <strong>Allow repository folder access</strong>
+with the reason and exact folder needed. Select that folder, or a parent folder
+containing it, then choose <strong>Allow Access</strong>. A narrow worktree metadata grant can
+reveal a second request for its common Git directory; granting the common directory
+covers both. External object-store chains can require additional choices.</p>
+<p>Cancel keeps the previous workspace. Choosing an unrelated folder reports an error
+and also keeps the previous workspace. Closing the initiating window cancels its
+picker; a late result cannot save access or open another repository.</p>
+<p>Successful opening remembers the extra folder grants with that repository in the
+app's private repository archive. Reopening renews available stale bookmarks and
+reuses valid grants. An unrelated expired grant does not prevent opening: the
+workspace asks only for currently required folders that remain uncovered. The
+Finder service retains its separate strict authorization policy.</p>
+<p>Open repository windows and their child tools keep these permissions active until
+they finish. Closing the workspace does not drop access from an already-open Log
+or other child window. Primary working-folder containment remains separate from
+metadata access, so a metadata choice does not change which repository was opened.
+Authorized metadata directories can participate in file monitoring, and an already
+authorized template or approved client hook can use that folder permission.</p>
+<p>Workspace grants live with the repository in Recents. Manage them through
+<strong>File → Open Recent → Manage Repository Access…</strong> as described below. Forgetting
+a saved repository discards its saved grants; opening it again asks for the needed
+folders. Active operations retain permissions they already acquired until their
+windows finish.</p>
+<p>Background Finder watches have a separate archive and authorization lifecycle.
+Their grants are managed under <strong>Settings → Icon Overlays → Watched Repositories →
+Additional folder access</strong>. Opening a workspace does not itself enable that service
+or copy its new grants into the watch archive.</p>
+<p>The current implementation covers Git files, common worktree directories, bare
+repositories, symlinked metadata and recursive <code>objects/info/alternates</code>, including
+quoted paths. It rejects malformed path metadata and bounds dependency traversal.
+Unsupported non-UTF-8 filesystem paths remain a separate native policy limitation.</p>
+<p><a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/workspace-metadata-access-2026-10-15.json">Recorded Core/native checks</a> use
+private repositories and an injected bookmark provider. They do not establish
+signed sandbox inheritance, physical powerbox behavior, network filesystem
+behavior or complete App Store acceptance. Local clone-source and SSH-key grants
+remain separate workflows.</p>
+<h2 id="manage-saved-workspace-access">Manage saved workspace access</h2>
+<p>Use <strong>File → Open Recent → Manage Repository Access…</strong> to open the native
+repository and additional-folder lists. The command is available even when
+Open Recent is empty. Select a repository to see its saved metadata/object folders.</p>
+<p><strong>Check and Renew Access</strong> resolves each bookmark independently, renews stale
+records and shows Available or Choose folder again. It does not open a repository,
+change the recent order or retain these temporary checking permissions.</p>
+<p><strong>Choose Repository Folder…</strong> renews the working-folder permission, including a
+repository that has moved. Choose its root folder. The existing saved identity and
+extra grants are retained; a non-repository folder or another already-saved
+repository is rejected. Opening subsequently performs Git discovery and asks for
+any uncovered metadata dependencies.</p>
+<p>Use <strong>Add…</strong> to grant an extra metadata/object folder, <strong>Choose Folder Again…</strong>
+to renew or replace a selected extra grant, and <strong>Remove…</strong> to discard it.
+<strong>Forget…</strong> removes the selected repository and its extra grants from Open Recent.
+Both removal questions default to Cancel. These operations affect future openings;
+already-open windows and operations retain their acquired permissions until they
+finish. Repository files are left on disk.</p>
+<p>Pickers and questions belong to the access window. Their pending choices prevent
+another action or normal close/Quit; forced owner retirement cancels the sheet
+and rejects late responses. Workspace operations also block saved-access edits.
+The access manager changes only the workspace archive; background Finder watches
+continue to use their separate Settings page.</p>
+<p>See <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/repository-access-manager-2026-10-15.json">manager implementation evidence</a>
+and the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/repository-access-light.png">light</a> /
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/repository-access-dark.png">dark</a> native window captures.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

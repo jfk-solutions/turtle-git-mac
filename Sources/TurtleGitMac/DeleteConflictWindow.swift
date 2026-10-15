@@ -146,7 +146,7 @@ private struct DeleteConflictDialog: View {
                 Button(model.details?.keepTitle ?? "Modified") { model.resolve(deleting: false) }.disabled(model.details == nil || !operation.canInteract)
                 Button("Delete") { model.resolve(deleting: true) }.disabled(model.details == nil || !operation.canInteract)
                 Button(model.busy ? "Cancel" : "Abort") { model.abort() }.keyboardShortcut(.defaultAction)
-                Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-resolve.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
+                Button { TurtleGitHelp.show(.resolve) } label: { CommandLabel(title: "Help", icon: .help) }
             }
         }.padding(12)
         }

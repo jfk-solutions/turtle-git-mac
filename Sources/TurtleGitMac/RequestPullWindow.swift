@@ -236,7 +236,7 @@ struct RequestPullDialog: View {
             HStack { if model.busy { ProgressView().controlSize(.small); Text(model.cancelling ? "Cancelling…" : model.loading ? "Loading revisions…" : "Creating pull-request...").font(.caption) }; if model.document != nil { Button("Open request") { model.openDocument() }.disabled(!model.optionsAvailable) }; Spacer()
                 Button("OK") { model.create() }.keyboardShortcut(.defaultAction).disabled(!model.optionsAvailable)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.isRetired || model.cancelling || model.composingMail || model.choosingStart)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html#tgit-dug-request-pull")!) }
+                Button("Help") { TurtleGitHelp.show(.patches) }
             }
         }.padding(16)
         .alert("Request pull", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

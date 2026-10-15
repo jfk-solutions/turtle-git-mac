@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Conflict side identities</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="conflict-side-identities">Conflict side identities</h1>
+<p>TurtleGit shares operation-aware side captions across Text Merge, Image Conflict,
+Delete/Modify Conflict, Submodule Conflict and external merge tools. The reference
+is <code>CAppUtils::GetConflictTitles</code> and <code>CGit::GuessRefForHash</code> at upstream commit
+<code>7338078f8ddd924b8cddee35f512f2286072136d</code>.</p>
+<p>Ordinary conflicts identify the local side as HEAD. The incoming side identifies
+MERGE_HEAD, CHERRY_PICK_HEAD or the parent of REVERT_HEAD, in that order. Merge
+heads can show a matching local branch, remote-tracking branch or tag, followed
+by eight hash characters. That priority and fixed eight-character length follow
+the pinned source. Annotated tags use their peeled commit; Git's core.abbrev and
+the separate Log hyperlink-length setting do not control these captions.</p>
+<p>During rebase, index stage 2 remains the accumulated destination and stage 3 the
+replayed source. The native editor's existing Mine/Theirs presentation swaps
+these stages: Mine shows the branch being rebased, Theirs the branch rebased onto.
+Captions read the known rebase branch and onto metadata, including modern Git's
+rebase-merge directory, the apply backend and upstream tgitrebase.active metadata.
+This modern-backend support is a deliberate native adaptation. Log targets retain
+captured actual HEAD and REBASE_HEAD commit identities; branch display text is
+never passed back as a revision to resolve a side.</p>
+<p>Settings → Advanced → <strong>ConflictDontGuessBranchNames</strong> defaults to false.
+Turning it on removes heuristic merge/onto guesses. Known rebase names still
+appear, matching the source distinction between recorded names and guessing.
+Without usable metadata, generic captions remain available. Reload captures the
+current preference and metadata. Text editor state keys remain independent of
+the displayed identities, preserving existing pane settings and editing routes.
+Saving/choosing a side retains its captured titles. Source panes rebound through
+Save As show their selected filenames instead of an obsolete repository caption.</p>
+<p>The reader uses Git's administrative-path resolution, not an assumed .git folder,
+and participates in existing owned cancellation and permission lifetimes. These
+are read-only identity queries; they do not stage files, resolve conflicts,
+continue a replay or modify refs. Temporary external-tool titles use the same
+captured identities and retain the existing parameter substitution/quoting rules.</p>
+<p>Full Windows locale/ref-order equivalence, unusual malformed/multi-head metadata,
+physical menu/keyboard/VoiceOver, signed sandbox and complete conflict-dialog
+parity remain unverified. Native-view captures illustrate current layout rather
+than certify physical interaction or every upstream state.</p>
+<h2 id="leading-text-and-ruler-geometry">Leading text and ruler geometry</h2>
+<p>The visual review exposed an existing shared editor defect: the wrapping adapter
+reset horizontal bounds to zero even when the ruler reserved a positive left
+clip-view inset. That hid initial glyphs beneath the ruler. The adapter now uses
+the leading inset position, retains the user offset when only ruler size changes,
+and measures wrapped text within the remaining inset-adjusted viewport. The fix
+is shared by Compare and three-pane Merge; source bytes and editor state remain
+independent of viewport geometry.</p>
+<h2 id="evidence-and-captures">Evidence and captures</h2>
+<p>The affected 50 Core cases passed cumulatively, followed by the final Debug app
+build and grouped native checks with system and prepared bundled Git. The native
+batch retains existing two-pane/three-pane wrapping/resize checks and adds
+leading-glyph visibility with an actual ruler. See the
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/conflict-identities-2026-10-15.json">batch record</a> for failures, repairs and
+limits. The <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/index.html">gallery</a> includes current light/dark merge,
+delete/modify and rebase window captures. Initial cache-rendered captures were
+rejected; published files use the owned-window compositor and were inspected.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

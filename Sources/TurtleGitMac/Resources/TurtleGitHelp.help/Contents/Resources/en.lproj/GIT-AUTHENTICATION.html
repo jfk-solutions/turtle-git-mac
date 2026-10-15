@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Git authentication prompts</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-authentication"></a><h1 id="git-authentication-prompts">Git authentication prompts</h1>
+<p>The Xcode app bundle includes a native Git askpass helper. When a network command
+needs an HTTPS username or password and configured credential helpers have not
+supplied it, Git opens <strong>Authentication – TurtleGit</strong> with its original request,
+one response field, OK and Cancel. Recognized username requests are visible;
+password and unfamiliar authentication requests are masked. Return accepts and
+Escape cancels. Closing the window returns no response and clears its field.</p>
+<p>The helper writes an accepted single-line response only to Git’s private pipe,
+then exits. It does not save passwords or create a credential file. Git’s
+configured credential helpers govern storage and approval after authentication.
+Configure them in Credential settings or the First Start Wizard. This CLI prompt
+has no Save authentication checkbox, matching the upstream SshAskPass resource;
+it is separate from the saved SSH key-passphrase workflow.</p>
+<p>Explicit <code>GIT_ASKPASS</code>, <code>core.askPass</code> (including an empty configured value),
+command-line overrides and <code>--config-env</code> choices take precedence over the
+bundled default. Terminal prompting remains disabled. For headless execution,
+<code>TURTLEGIT_DISABLE_ASKPASS=1</code> suppresses the bundled default; an explicitly selected
+external helper retains its own behavior. The standalone Swift Package app does
+not embed this tool: use the Xcode bundle or an installed credential helper.</p>
+<p>The helper is an accessory process with one native window and no persistent Dock
+instance. It exits after OK or Cancel. Its process belongs to the Git operation’s
+owned process group; cancellation uses that existing ownership. The app’s chosen
+light/dark appearance is passed to the helper. The dialog uses the original
+TortoiseSmall artwork from the packaged icon resources.</p>
+<p>This implements Git CLI responses, including the generic fallback used by HTTPS
+operations. Certificate dialogs,
+OAuth manager behavior and signed inherited-sandbox execution remain separate
+acceptance work. Private checks do not prove live public-server authentication
+or every credential-helper combination. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/GIT-AUTHENTICATION-PARITY.html">source audit</a>.</p>
+<h2 id="openssh-prompts">OpenSSH prompts</h2>
+<p>Network Git operations also supply a separate <code>TurtleGitOpenSSHAskpass</code> alias
+when the caller has not selected <code>SSH_ASKPASS</code>. OpenSSH receives the direct path
+and defaults to <code>SSH_ASKPASS_REQUIRE=force</code>, allowing native interaction without
+an X11 display. Existing helpers, an explicit <code>never</code>/<code>prefer</code> requirement and
+the headless disable flag retain precedence. The private SSH agent’s dedicated
+passphrase helper and saved-key workflow remain independent.</p>
+<p>SSH password and fallback passphrase fields are secure. Host-key questions and
+OpenSSH permission hints use a visible response field and <strong>Continue / Cancel</strong>;
+Cancel has initial focus and is the default button. Continue explicitly sends
+<code>yes</code> when the field is empty, or the entered fingerprint/answer otherwise.
+OpenSSH decides whether to accept it and where to store known hosts under its
+existing configuration. Retry questions keep the same confirmation mode.
+No host is trusted automatically. Escape cancels every prompt.</p>
+<p>OpenSSH’s <code>none</code> hint presents a notification, such as a request to touch a
+security key, without a response field or Continue action. The owning SSH
+process controls completion and termination; closing the notification does not
+itself guarantee cancellation of the security-key operation. SSH responses are
+limited to 1,023 UTF-8 bytes, matching the pinned OpenSSH reader. Oversized or
+multiline responses keep the dialog open instead of silently truncating input.</p>
+<p>This is a native OpenSSH adaptation, not certification of the complete upstream
+TortoisePlink host-key dialog. Live-server, security-key device and signed
+sandbox interaction remain acceptance work.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

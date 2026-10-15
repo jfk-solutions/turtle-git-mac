@@ -71,7 +71,7 @@ import UniformTypeIdentifiers
             }
         }
         CommandGroup(replacing: .help) {
-            Button("TurtleGit Help") { SettingsPresentationService.showHelp() }
+            Button("TurtleGit Help") { SettingsPresentationService.showHelp() }.keyboardShortcut("?", modifiers: .command)
         }
         CommandGroup(after: .appInfo) {
             Button("Check for Updates…") { ReleaseUpdateService.shared.show() }

@@ -178,7 +178,7 @@ private struct HookConfigurationDialog: View {
             HStack {
                 Toggle("Hide the script while running",isOn:Binding(get:{!draft.hook.show},set:{draft.hook.show = !$0}))
                 Spacer(); Button("OK",action:accept).keyboardShortcut(.defaultAction); Button("Cancel",action:cancel).keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string:"https://tortoisegit.org/docs/tortoisegit/tgit-dug-settings.html#tgit-dug-settings-hooks")!) }
+                Button("Help") { TurtleGitHelp.show(.settings) }
             }
             if let error = draft.error { Text(error).font(.caption).foregroundStyle(.red) }
         }.padding(16)

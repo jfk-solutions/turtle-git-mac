@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Saved progress action log</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="saved-progress-action-log">Saved progress action log</h1>
+<p>Settings → Saved Data contains TortoiseGit's <strong>Action log</strong> group: <strong>Max. lines
+in action log</strong>, <strong>Show</strong>, and <strong>Clear</strong>. The default is 4000 lines. Entering 0
+disables new records and leaves the existing log available for Show or Clear.
+Show opens the UTF-8 log in the system text viewer. Clear deletes this log only.</p>
+<p>The following native progress windows save their displayed output when closed:
+Clone, Commit, Push, Fetch, Pull, Merge, Abort Merge, Switch, Reset, Clean,
+Export, Format Patch, Stash Save, New Worktree, Worktree management progress, and Bisect. Each entry starts with an empty separator line, the
+local date and time, and the repository path (Clone uses its destination).
+Cancelled results append <strong>User cancelled</strong>. Quiet operations still save the
+header. The stored text follows the visible output limit, rather than the full
+raw output used internally to classify Git failures.</p>
+<p>Retry and repeated operations save the previous result before replacing it.
+Format Patch saves when its progress result returns to the options page or
+hands off to Mail. Clean preserves the preview before performing deletion.
+Worktree creation saves on Back/close; management saves on progress Close/abort
+and before a new attempt. Lock/unlock progress is a native CLI adaptation.
+Logging failures do not change the Git result or block its recovery actions.</p>
+<p>The line limit removes the oldest lines first. Like TortoiseGit, it always keeps
+the whole newest operation, even when that operation alone exceeds the limit.
+The app stores the log locally at <code>TurtleGit/logfile.txt</code> in its Application
+Support directory; sandboxed builds use their private container. Log files use
+owner-only permissions, and concurrent writers are serialized. This log can
+contain displayed Git/hook output, paths and remote addresses. It is not
+uploaded by TurtleGit.</p>
+<h2 id="source-and-verification">Source and verification</h2>
+<p>Compared against pinned TortoiseGit <code>7338078f8ddd924b8cddee35f512f2286072136d</code>:
+<code>src/TortoiseProc/LogFile.cpp/.h</code>, <code>ProgressDlg.cpp::WriteLog</code>,
+<code>Settings/SetSavedDataPage.cpp/.h</code>, and the Action log group in <code>Resources/TortoiseProcENG.rc</code>.
+Native storage, UTF-8 encoding, atomic replacement and file locking replace
+Windows local-app-data, MFC text files and sharing flags. Preferences save valid
+values immediately, following the macOS Settings convention.</p>
+<p>Core tests exercise source line splitting, Unicode, cancellation, permissions,
+retention, concurrent writers, disabling and clearing. The headless native
+receiver uses private temporary storage, real Git Reset results, actual hidden
+window controllers, Retry, quiet output, settings validation, Show/Clear
+callbacks and write-failure isolation. Run <code>swift test --filter ActionLogTests</code>
+and, after a Debug build, <code>python3 scripts/test-action-log.py</code>.</p>
+<p>The <a href="SAVED-DATA.html">Saved Data guide</a> covers URL/message histories and stored
+decisions. Other saved-data groups remain to be ported.
+Other progress implementations, including replay and reference restoration,
+have not yet been wired to this persistent log. Physical Show/text-viewer UI,
+signed sandbox persistence and App Store distribution remain unverified.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

@@ -158,7 +158,7 @@ private struct IgnoreDialog: View {
                 Spacer()
                 Button("OK") { model.apply() }.keyboardShortcut(.defaultAction)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-                Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-ignore.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
+                Button { TurtleGitHelp.show(.ignore) } label: { CommandLabel(title: "Help", icon: .help) }
             }
         }.padding(16).disabled(model.busy)
         .alert("Could not update ignore rules", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {

@@ -151,6 +151,7 @@ private struct AdvancedWindowProbe: NSViewRepresentable {
     private static var observers: [NSObjectProtocol] = []
     static func set(_ window: NSWindow?, repository: URL, location: URL? = nil, dialog: String, preferences: UserDefaults = .standard) {
         guard let window else { return }
+        TurtleGitHelp.attach(window, topic: TurtleGitHelp.topic(dialog: dialog))
         if observers.isEmpty {
             observers.append(NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { _ in
                 Task { @MainActor in refreshAll() }

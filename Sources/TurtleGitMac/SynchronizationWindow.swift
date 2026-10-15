@@ -2095,7 +2095,7 @@ private struct SynchronizationDialog: View {
                 } else {
                     Button("Close") { model.window?.performClose(nil) }.keyboardShortcut(.defaultAction)
                 }
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-sync.html")!) }
+                Button("Help") { TurtleGitHelp.show(.synchronization) }
             }
         }.padding(12).disabled(model.confirmingQuit).onAppear { model.reload(initial: true) }
     }

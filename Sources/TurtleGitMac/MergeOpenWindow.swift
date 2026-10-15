@@ -46,7 +46,7 @@ import TurtleGitCore
         self.preferences = preferences; self.pasteboard = pasteboard; grants = permissions
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 520), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "TurtleGitMerge"; window.isReleasedWhenClosed = false
-        super.init(window: window); window.delegate = self; window.center()
+        super.init(window: window); TurtleGitHelp.attach(window, topic: .compare); window.delegate = self; window.center()
         merging.target = self; merging.action = #selector(selectMerging); apply.target = self; apply.action = #selector(selectApply)
         clipboard.target = self; clipboard.action = #selector(clipboardChanged)
         let radios = NSStackView(views: [merging, apply]); radios.spacing = 24
@@ -230,5 +230,5 @@ import TurtleGitCore
     @objc private func clipboardChanged() { updateGates() }
     @objc private func browseClicked(_ sender: NSButton) { if let slot = Slot(rawValue: sender.tag) { browse(slot) } }
     @objc private func cancelClicked() { close() }
-    @objc private func helpClicked() { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-open.html")!) }
+    @objc private func helpClicked() { TurtleGitHelp.show(.compare) }
 }

@@ -322,7 +322,7 @@ import TurtleGitCore
     @objc func applyClicked() { model.apply() }
     @objc func okClicked() { model.apply(closeAfter: true) }
     @objc func cancelClicked() { if !model.busy { model.close() } }
-    @objc func helpClicked() { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-settings.html#tgit-dug-settings-remote")!) }
+    @objc func helpClicked() { TurtleGitHelp.show(.settings) }
     @objc func browseKey() {
         guard !model.busy, !model.closed, !model.hasChild, let window, window.attachedSheet == nil else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.allowsMultipleSelection = false; panel.title = "Select PuTTY key file for Windows interoperability"

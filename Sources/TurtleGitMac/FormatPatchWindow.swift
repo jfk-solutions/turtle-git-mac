@@ -491,7 +491,7 @@ struct FormatPatchDialog: View {
                 Button("OK") { model.export() }.keyboardShortcut(.defaultAction).disabled(!model.valid)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                     .environment(\.isEnabled, !model.isRetired && !model.hasOptionSheet && !model.progress && !model.finishScheduled && !model.composingMail && !model.openingViewer)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html")!) }
+                Button("Help") { TurtleGitHelp.show(.patches) }
             }
         }.padding(16).disabled(!model.optionsAvailable)
         .alert("Format Patch", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

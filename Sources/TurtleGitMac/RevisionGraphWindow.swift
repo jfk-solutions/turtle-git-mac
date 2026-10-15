@@ -597,7 +597,7 @@ enum RevisionGraphReferenceCommand {
         case "browse": if let hash = model.selectedNode?.hash { model.onBrowse(model.friendName(hash)) }
         case "copyRefs": model.copyRefNames()
         case "save": saveGraph()
-        case "help": NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-revgraph.html")!)
+        case "help": TurtleGitHelp.show(.revisionGraph)
         default: break
         }
         update()

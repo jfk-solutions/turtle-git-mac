@@ -52,5 +52,9 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleHelpBookFolder</key>
+	<string>TurtleGitHelp.help</string>
+	<key>CFBundleHelpBookName</key>
+	<string>org.turtlegit.macos.help</string>
 </dict>
 </plist>

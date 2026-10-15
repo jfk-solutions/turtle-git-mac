@@ -21,6 +21,9 @@ for baseline and update rules.
 ## Guides and project status
 
 - [Getting started with TurtleGit for Mac](GETTING-STARTED.md)
+- [Help and the offline Mac manual](HELP.md)
+- [Contextual Help source comparison](HELP-PARITY.md)
+- [Dialog guide](DIALOG-GUIDE.md)
 - [Saved progress action log](ACTION-LOG.md)
 - [Saved Data settings](SAVED-DATA.md)
 - [Dialog sizes and positions](DIALOG-GEOMETRY.md)

@@ -570,7 +570,7 @@ struct AddDialogView: View {
                 Spacer()
                 Button("OK") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.canApply)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-add.html")!) }
+                Button("Help") { TurtleGitHelp.show(.add) }
             }
         }.padding(12).disabled(model.confirmingQuit)
         .alert("Add failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

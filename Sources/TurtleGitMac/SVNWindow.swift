@@ -297,7 +297,7 @@ private struct SVNDialog: View {
                 if model.phase == .options { Button("OK") { model.start() }.keyboardShortcut(.defaultAction).disabled(model.busy) }
                 if model.phase == .finished && model.error != nil { Button("Retry") { model.retry() } }
                 Button(model.phase == .finished ? "Close" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction)
-                if model.operation != .ignore { Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/")!) } }
+                if model.operation != .ignore { Button("Help") { TurtleGitHelp.show(.svn) } }
             }
         }.padding(16)
     }

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Finding revisions in Log Messages</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="finding-revisions-in-log-messages">Finding revisions in Log Messages</h1>
+<p>Press <strong>Command-F</strong> in a Log Messages window to open Find. Pressing it again
+focuses the same Find window. Find is modeless, so the Log stays available while
+you enter a query. Closing the Log also closes its Find window.</p>
+<h2 id="full-text-search">Full text search</h2>
+<p>Enter text in <strong>Search for</strong>, then press Return or click <strong>Find</strong>. The result is
+selected and scrolled into view. Find searches the displayed rows, independently
+of the Log's history filter. It includes subjects and message bodies, authors and
+committers, both email addresses, revision hashes, notes, configured issue IDs,
+reference names, annotated-tag details and changed paths.</p>
+<p>The working-tree row can also match its message or changed paths. Uncached commit
+paths include root commits and changes against every merge parent. Cached file
+lists retain both the new and old names for renames.</p>
+<p><strong>Match case</strong> controls case-sensitive matching. <strong>Regular Expression</strong> uses the
+same bundled ECMAScript UTF-16 matcher as the other history searches. Plain-text
+queries retain TortoiseGit's quoted terms, exclusions and alternatives.</p>
+<p>Each Find starts after the parent's retained numeric row position and stops as
+soon as it finds a match. A new Log starts with position zero, so its first text
+search starts at the second displayed row. Successful text or reference searches
+update that position even when Shift preserves selection. Closing and reopening
+Find, changing its query or reloading the displayed history retains the numeric
+position. Ordinary selection does not change it; opening a revision context menu
+sets it to the selected row, matching TortoiseGit's selection-mark route.
+The search wraps once through the displayed rows and excludes the retained row. A status message reports wrapping or no
+further match. <strong>Shift-Return</strong>, or Shift while clicking Find, scrolls to the next
+match without changing the selected revision. Search text and the two checkbox
+preferences are shared with Revision Graph Find.</p>
+<h2 id="reference-navigation">Reference navigation</h2>
+<p>The reference list uses full reference names and the original colored tag,
+local-branch and remote-branch icons. It uses native Finder-style natural ordering,
+so <code>branch2</code> precedes <code>branch10</code>. Upstream <code>CGit::GetRefList</code> sorts with
+<code>LogicalComparePredicate</code> / <code>StrCmpLogicalW</code> by default. The macOS replacement is
+<a href="https://developer.apple.com/documentation/foundation/nsstring/localizedstandardcompare%28_%3A%29">Foundation's localized standard comparison</a>,
+which follows Finder and the current locale. Both native shell comparators can
+vary by OS/locale; <a href="https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-strcmplogicalw">Microsoft documents that limitation</a>
+for its API too. Names and the case-sensitive filter retain their exact spelling;
+Windows-specific punctuation ties and its <code>NoStrCmpLogical</code> system policy are not
+certified on macOS. Enter a literal, case-sensitive name fragment
+in <strong>Filter</strong> to narrow the list. The filter applies after a short typing pause.
+The filter compares literal UTF-16 text, following <code>CString::Find</code>: it is
+case-sensitive and does not merge composed and decomposed Unicode spellings.
+The native search uses <a href="https://developer.apple.com/documentation/foundation/nsstring/compareoptions/literal">Foundation's literal comparison option</a>.</p>
+<p>Click a reference to resolve its peeled commit and navigate to that displayed
+row. References outside the displayed history produce a no-match status.</p>
+<p>Refreshing Log also rebuilds an open Find reference list, following
+<code>CGitLogListBase::Refresh</code> and <code>CFindDlg::RefreshList</code>. The name filter, query and
+parent search position are retained while the old rows and reference selection
+are cleared. Loading disables Find until the new list is ready. A refresh
+supersedes any older reference read or active Find search, so its delayed reply
+cannot navigate or replace the new list. If a critical Find error is awaiting
+acknowledgment, refresh waits until that sheet is dismissed. Closing either
+window cancels the owned reads.</p>
+<p>Find waits for its initial reference read before enabling search. A failed read
+or resolution opens a critical sheet. Acknowledge it with <strong>OK</strong> or Return before
+continuing. <strong>Cancel</strong> closes Find; it does not change the history filter.</p>
+<h2 id="port-status">Port status</h2>
+<p>This adapts the shared upstream <code>IDD_FIND</code> / <code>CFindDlg</code> and
+<code>GitLogListBase::OnFindDialogMessage</code>, rather than replacing the history filter.
+The source full-text corpus is defined by <code>LogDlgFilter::operator()</code> with
+<code>LOGFILTER_ALL</code>; the uncached path list follows <code>GitRevLoglist::SafeGetSimpleList</code>.
+The native window shares the existing Revision Graph Find layout and reference
+artwork. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REVISION-GRAPH-PARITY.html">Revision Graph parity</a> for those source
+controls and the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LOG-PARITY.html">Log parity audit</a> for remaining Log work.</p>
+<p>Physical keyboard/mouse, accessibility, localization, very large histories,
+individual Log mutation-to-refresh routes, metadata changes during
+a search and signed sandbox acceptance still require verification. This does not
+certify complete Log dialog parity.</p>
+<p>Local verification is recorded in <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/log-find-2026-10-10.json">the Find evidence</a>.</p>
+<p>The numeric owner follows <code>GitLogListBase.h</code>'s <code>m_nSearchIndex = 0</code>,
+<code>GitLogListBase::OnContextMenu</code> and <code>OnFindDialogMessage</code> at the pinned upstream
+commit. Revision Graph uses the same ownership, starting value and successful
+match update from <code>RevisionGraphDlg.h/.cpp</code>. If a reload leaves the retained
+index outside the new rows, the native search scans the displayed rows once
+instead of entering the source's potentially unbounded wrap loop.</p>
+<p>The added cursor lifecycle and context-menu checks are recorded in
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/find-position-2026-10-10.json">Find position evidence</a>.</p>
+<p>The accepted Log reload route and reference-read replacement checks are recorded
+in <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/log-find-refresh-2026-10-10.json">reference refresh evidence</a>. Graph keeps
+its source initialization-only reference refresh route.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

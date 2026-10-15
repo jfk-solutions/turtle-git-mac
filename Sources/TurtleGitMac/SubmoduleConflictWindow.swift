@@ -164,7 +164,7 @@ private struct SubmoduleConflictDialog: View {
             HStack {
                 Text("Submodule \"\(model.path)\"").textSelection(.enabled).lineLimit(1).truncationMode(.middle)
                 Spacer()
-                Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-resolve.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
+                Button { TurtleGitHelp.show(.resolve) } label: { CommandLabel(title: "Help", icon: .help) }
             }
             if let details = model.details { section(details.base, base: true); section(details.mine); section(details.theirs) }
             else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }

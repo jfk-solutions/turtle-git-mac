@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Comparing images</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-images"></a><h1 id="comparing-images">Comparing images</h1>
+<p>Open an image’s <strong>Diff</strong> command from Working Tree, Commit or the changed-file
+list in Log. The built-in comparer displays the two versions in image panes.
+The headers identify each file and revision; a newly added or deleted image has
+an empty pane on the missing side. External comparison-tool settings can change
+which viewer opens.</p>
+<p>Hover over a toolbar button to read its command name. The <strong>View</strong> menu offers
+these same controls:</p>
+<ul>
+<li><strong>Arrange vertical</strong> changes the two panes from side-by-side to top/bottom.</li>
+<li><strong>Fit image widths</strong> or <strong>Fit image heights</strong> matches that dimension between
+the images. A single option preserves proportions; enabling both matches
+both dimensions.</li>
+<li><strong>Fit images in window</strong> shrinks images to the available space while keeping
+small images at their original size.</li>
+<li><strong>Original size</strong>, <strong>Zoom in</strong> and <strong>Zoom out</strong> control magnification. Linked
+dimension controls remain active during these commands.</li>
+<li><strong>Link image positions</strong> makes scrolling one pane move the other. Drag an
+image to pan, or use the scrollbars or trackpad.</li>
+<li><strong>Image info</strong> shows byte size, pixel dimensions, available resolution and
+decoded color depth.</li>
+<li><strong>Overlay images</strong> puts both versions in one pane. Move the vertical slider
+on the left to blend between them in 17 positions: top shows the first
+image, bottom the second. The button above it changes a nonzero blend to
+zero, then switches back to one. Control-Shift-wheel adjusts the blend.
+Overlay keeps image positions linked. Turn it off to return to two panes.</li>
+<li>With overlay enabled, turn <strong>Blend alpha</strong> off for XOR comparison. Identical
+areas appear white and changed pixels appear in color. Turn it back on to
+restore the alpha slider.</li>
+</ul>
+<p>Keyboard commands follow the source image viewer: <strong>O</strong> toggles overlay,
+<strong>F</strong> fits, <strong>S</strong> restores original size, <strong>W/H</strong> match widths/heights,
+<strong>I</strong> toggles information, <strong>+/−</strong> zoom, and <strong>Command-V</strong> switches arrangement.
+The arrow keys set alpha to zero (Up), one (Down), or half (Left/Right).
+<strong>Space</strong> toggles alpha endpoints and <strong>Escape</strong> closes the comparison.</p>
+<p>The image comparison is read-only. It does not stage, save or resolve files.
+The viewer follows the app’s light/dark appearance.</p>
+<p>Multi-image files have Previous/Next buttons and an image counter beneath the
+pane header. Navigation stops at the first or last image. GIF frames and TIFF
+pages offer Play/Stop; ICO variants offer navigation only. Linked panes receive
+the same player commands, while each file uses its own playback timing. Turn
+linking off to operate panes independently. Turning overlay on stops playback.
+Conflict panes have independent player controls; Select copies the complete
+original file, including all frames. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/IMAGE-FRAMES-PARITY.html">frame/page parity</a>.</p>
+<p>This portion of the port is still being completed. Broader image controls and
+format-specific behavior still need porting. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/IMAGE-COMPARISON-PARITY.html">image comparison parity</a> for
+the source comparison and verification scope.</p>
+<p>For an image conflict, <strong>Edit conflicts</strong> opens Mine, Base and Theirs. Each pane
+has <strong>Select</strong> at the bottom right. Select copies that image to the working file,
+then asks whether to mark it resolved. <strong>No</strong> keeps the chosen image and the
+unmerged stages, so you can inspect or select another side. <strong>Yes</strong> stages the
+chosen image and closes the viewer. It does not commit or continue a rebase.
+For add/add conflicts, Base is empty and cannot be selected. Rebase pane titles
+identify which branch each side represents. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/IMAGE-CONFLICT-PARITY.html">image conflict parity</a>.</p>
+<p>Use <strong>View → Transparent color…</strong> to choose a background behind transparent
+pixels. OK applies the chosen color to every pane in that window; Cancel keeps
+the current choice. <strong>View → Dark Mode</strong> (D) switches that image window's
+appearance and resets the transparency background to the theme default.</p>
+<p>Use the app's <strong>File → Load Images…</strong> to compare image files without opening a
+repository. In an image viewer, <strong>File → Open…</strong> or <strong>Cmd+O</strong> opens the same
+native two-path chooser. Use Browse for either side, leave a side blank for a
+single image, or choose the same image twice. Cancel keeps the existing view.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

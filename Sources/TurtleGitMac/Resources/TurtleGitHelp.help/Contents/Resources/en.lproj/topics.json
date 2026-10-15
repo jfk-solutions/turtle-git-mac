@@ -1,0 +1,230 @@
+{
+  "book_name": "TurtleGit for Mac Help",
+  "bundle_id": "org.turtlegit.macos.help",
+  "topics": [
+    {
+      "id": "overview",
+      "document": "GETTING-STARTED.md"
+    },
+    {
+      "id": "clone",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "clone-and-create"
+    },
+    {
+      "id": "createRepository",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "clone-and-create"
+    },
+    {
+      "id": "workingTree",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "working-tree-and-add"
+    },
+    {
+      "id": "add",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "working-tree-and-add"
+    },
+    {
+      "id": "commit",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "commit"
+    },
+    {
+      "id": "log",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "log-and-reflog"
+    },
+    {
+      "id": "reflog",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "log-and-reflog"
+    },
+    {
+      "id": "browser",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "repository-browser-and-references"
+    },
+    {
+      "id": "references",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "repository-browser-and-references"
+    },
+    {
+      "id": "branchTag",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "branch-tag-and-checkout"
+    },
+    {
+      "id": "checkout",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "branch-tag-and-checkout"
+    },
+    {
+      "id": "fetch",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "fetch-and-pull"
+    },
+    {
+      "id": "pull",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "fetch-and-pull"
+    },
+    {
+      "id": "push",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "push"
+    },
+    {
+      "id": "merge",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "merge-and-conflicts"
+    },
+    {
+      "id": "resolve",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "merge-and-conflicts"
+    },
+    {
+      "id": "rebase",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "rebase-and-cherry-pick"
+    },
+    {
+      "id": "cherryPick",
+      "document": "CHERRY-PICK.md"
+    },
+    {
+      "id": "stash",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "stash-revert-reset-and-clean"
+    },
+    {
+      "id": "revert",
+      "document": "REVERTING-FILES.md"
+    },
+    {
+      "id": "reset",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "stash-revert-reset-and-clean"
+    },
+    {
+      "id": "clean",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "stash-revert-reset-and-clean"
+    },
+    {
+      "id": "submodules",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "submodules-and-worktrees"
+    },
+    {
+      "id": "worktrees",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "submodules-and-worktrees"
+    },
+    {
+      "id": "patches",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "patches-and-export"
+    },
+    {
+      "id": "export",
+      "document": "REVISION-EXPORT.md"
+    },
+    {
+      "id": "bisect",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "bisect"
+    },
+    {
+      "id": "settings",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "settings"
+    },
+    {
+      "id": "finder",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "finder-and-permissions"
+    },
+    {
+      "id": "folderAccess",
+      "document": "REPOSITORY-FOLDER-ACCESS.md"
+    },
+    {
+      "id": "statistics",
+      "document": "STATISTICS.md"
+    },
+    {
+      "id": "revisionGraph",
+      "document": "REVISION-GRAPH.md"
+    },
+    {
+      "id": "blame",
+      "document": "BLAME-FILE-OPEN.md"
+    },
+    {
+      "id": "compare",
+      "document": "GETTING-STARTED.md",
+      "fragment": "standalone-comparison-and-merging"
+    },
+    {
+      "id": "images",
+      "document": "IMAGE-COMPARISON.md"
+    },
+    {
+      "id": "unifiedDiff",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "patches-and-export"
+    },
+    {
+      "id": "svn",
+      "document": "SVN-AUTHENTICATION.md"
+    },
+    {
+      "id": "authentication",
+      "document": "GIT-AUTHENTICATION.md"
+    },
+    {
+      "id": "ssh",
+      "document": "SSH-AUTHENTICATION.md"
+    },
+    {
+      "id": "savedData",
+      "document": "SAVED-DATA.md"
+    },
+    {
+      "id": "privacy",
+      "document": "PRIVACY.md"
+    },
+    {
+      "id": "notes",
+      "document": "GIT-NOTES.md"
+    },
+    {
+      "id": "moving",
+      "document": "MOVING-AND-COPYING.md"
+    },
+    {
+      "id": "synchronization",
+      "document": "GETTING-STARTED.md",
+      "fragment": "inspect-commits-in-synchronization"
+    },
+    {
+      "id": "ignore",
+      "document": "DIALOG-GUIDE.md",
+      "fragment": "working-tree-and-add"
+    }
+  ],
+  "additional_guides": [
+    "LOG-FIND.md",
+    "REBASE-CONFLICT-FILES.md",
+    "REBASE-SPLIT.md",
+    "REBASE-REFERENCE-RECOVERY.md",
+    "SAVE-AS-TARGETS.md",
+    "CONFLICT-IDENTITIES.md",
+    "GIT-PROPERTIES.md",
+    "ACTION-LOG.md"
+  ]
+}

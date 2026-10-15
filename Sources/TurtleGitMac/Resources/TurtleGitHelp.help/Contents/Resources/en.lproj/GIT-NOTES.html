@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Editing Git notes</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-notes"></a><h1 id="editing-git-notes">Editing Git notes</h1>
+<p>Git notes add information to an existing commit without changing that commit.
+TurtleGit displays them below the commit message in Log Messages.</p>
+<ol>
+<li>Open Log Messages and select one commit.</li>
+<li>Open its context menu and choose <strong>Edit Notes</strong>.</li>
+<li>Edit the note. <strong>OK</strong> saves it; <strong>Cancel</strong> keeps the existing note.</li>
+</ol>
+<p>Command-Return also saves. Escape cancels. If your project requires a minimum
+message length, OK is disabled until the note meets it. Configure your Git name
+and email before editing; TurtleGit reports an identity error when Git cannot
+create the note. Editing is unavailable for stash rows.</p>
+<p>The editor loads the active Git notes ref. Additional notes refs configured for
+Log display are not combined into the editable text. It saves back to the ref
+that was active when you opened the editor. Clearing the text saves an empty note;
+it does not delete the note association. Notes are separate from the commit and
+need their own fetch/push configuration; see the <a href="https://git-scm.com/docs/git-notes">Git notes manual</a>.</p>
+<p>Wait for saving to finish before closing the editor. If the write fails, the draft
+remains available for correction or retry. If the app says notes were saved but
+could not be refreshed, refresh Log to read them again. Refresh an existing Notes
+search after editing so its matches are recalculated.</p>
+<p>The current implementation and outstanding UI verification are recorded in
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/EDIT-NOTES-PARITY.html">Edit Notes parity</a>. macOS screenshots for this workflow are
+still pending.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

@@ -122,7 +122,7 @@ private struct SubmoduleUpdateDialog: View {
                 if model.busy { ProgressView().controlSize(.small) }
                 Button("OK") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.canApply)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-                Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-submodules.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
+                Button { TurtleGitHelp.show(.submodules) } label: { CommandLabel(title: "Help", icon: .help) }
             }
         }.padding(12).disabled(model.busy || model.confirmingQuit).onAppear { model.load() }
         .alert("Submodule update failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Revision Export</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-export"></a><h1 id="revision-export">Revision Export</h1>
+<p>TurtleGit for Mac now provides <strong>Export this version…</strong> in the single-revision
+Log menu, with TortoiseGit's original Export icon. It is available in bare
+repositories too; stash entries do not offer it. A selected tag is preferred
+as the initial revision, otherwise the selected commit hash is used.</p>
+<p>The native Export window follows upstream <code>IDD_EXPORT</code>: <strong>Export Zip File</strong>
+with a destination field and file picker, <strong>Revision</strong> with HEAD, Branch, Tag
+and Commit choices, reference browsing and a Log commit picker, then <strong>Whole
+Project</strong>, OK, Cancel and Help. HEAD includes the current branch name. The
+Whole Project control is checked and disabled for a repository-root export.
+A Log scoped to one existing directory can instead export that directory.
+The repository sidebar also offers Export, and Finder offers it for one
+repository folder or a bare repository. Finder preserves the selected directory
+in its captured URL request; choosing the repository root opens Whole Project.
+The shell position follows upstream, after Create Tag.
+A file-scoped Log exports the whole repository, matching upstream's directory
+check. Native branch/tag popup controls share the other revision dialogs.</p>
+<p>OK exports a ZIP using <code>git archive</code>. It reads the chosen revision, rather
+than dirty working files or staged contents. Git handles <code>export-ignore</code>,
+<code>export-subst</code>, executable modes and symlinks. Directory exports run from the
+selected directory so Git removes the directory prefix and keeps the commit
+metadata used for substitution. Submodule contents follow Git archive behavior;
+this command does not recursively archive checked-out submodule repositories.</p>
+<p>An existing file requires Replace confirmation. The archive is produced in a
+unique temporary file and only replaces the destination after Git succeeds.
+Failures and cancellation preserve an existing archive; temporary files are
+removed. Export owns a separate native progress sheet with live verbose output,
+source completion colors and <strong>Close</strong> / <strong>Abort</strong> controls. Abort cancels the
+owned Git process; Close is disabled until completion. Success offers <strong>Show in
+Finder</strong> with the original Explorer icon and split menu. Captured auto-close
+preferences govern acknowledgement without automatically invoking Finder.
+Failed acknowledgement restores the options for another reviewed export.
+Forced closure cancels and reaps the operation before releasing the owner; a
+late overwrite answer cannot start an archive after the options owner closes.
+See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/EXPORT-PARITY.html">Export parity</a> for progress and cancellation evidence.</p>
+<p>The destination picker retains its security-scoped lease for the operation.
+The AppStore configuration requires a grant for the exact chosen output file
+and a retained repository grant. A typed alternate path requires a new picker
+grant. Signed sandbox execution, including creation of the adjacent temporary
+archive under a save-panel grant, remains <strong>unverified</strong>. No App Store readiness
+is claimed by the unsigned build.</p>
+<h2 id="evidence-and-limits">Evidence and limits</h2>
+<p>The upstream comparison uses pinned TortoiseGit commit
+<code>7338078f8ddd924b8cddee35f512f2286072136d</code>, <code>ExportDlg.cpp</code>, <code>IDD_EXPORT</code> in
+<code>TortoiseProcENG.rc</code>, <code>CAppUtils::Export</code> in <code>AppUtils.cpp</code>, and the normal Git
+<code>ID_EXPORT</code> handler in <code>GitLogListAction.cpp</code>. The older SVN handler is not the
+basis of this implementation.</p>
+<p><code>RevisionArchiveTests</code> verifies exact committed binary bytes despite working
+changes, archive attributes, commit substitution, executable mode, symlinks,
+whole-project versus directory scope, annotated tags, bare export, rejected
+revision/scope/metadata destinations, pre-cancelled operations, unchanged HEAD
+and index, preserved output on failure and temporary-file cleanup.</p>
+<p>The headless native receiver checks the actual Log menu icon and selector,
+selected-tag handoff, tag/hash model presets, archive generation and both
+Cancel and Replace responses through the real model. It does not display the
+window or click the native save/confirmation panels. A follow-up hidden
+controller check hosts the real Export dialog and verifies HEAD/Branch presets,
+root/subdirectory scope normalization, the busy-close guard and window cleanup. Screenshot/layout,
+keyboard/accessibility, signed sandbox, activated Finder dispatch and broader
+Export entry-point parity remain pending. Full Log and application parity remain
+incomplete.</p>
+<p>Finder uses the same pinned <code>MenuInfo.cpp</code> Export clauses (single folder in Git,
+or bare repository). The native menu-builder receiver verifies source order,
+original icons, enabled state, captured folder request and URL round-trip,
+file/multiple-file exclusion, and the bare menu. This uses cached repository
+metadata without activating the Finder extension. Application Quit refuses an
+active Export operation or attached sheet so a pending archive is not abandoned.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

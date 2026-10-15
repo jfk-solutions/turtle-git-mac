@@ -2540,7 +2540,7 @@ import TurtleGitCore
     model.setAction(.squash, ids: [side.hash]); precondition(!model.canStart)
     model.setAction(.skip, ids: [side.hash]); model.setAction(.edit, ids: [merge.hash]); precondition(model.canStart)
     let dialog = NSHostingView(rootView: RebaseDialog(model: model)); dialog.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); dialog.layoutSubtreeIfNeeded()
-    precondition(dialog.fittingSize.width > 0 && model.helpURL.absoluteString.hasSuffix("tgit-dug-cherrypick.html"))
+    precondition(dialog.fittingSize.width > 0 && model.isCherryPick && TurtleGitHelp.topic(dialog:model.operationTitle) == .cherryPick)
     var prompted = 0
     model.chooseMainline = { commit, choices in
         prompted += 1; precondition(commit.hash == merge.hash && choices.count == 2)

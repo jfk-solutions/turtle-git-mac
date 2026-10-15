@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "fe13d36e",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "25 Mac guides and 46 typed/anchored Help topics in a portable bundled help book",
+    "Existing dialog Help links, Help menu/Command-?, F1/Help key, First Start, Settings footer and Compare/Merge actions",
+    "Weak contextual window/sheet bindings, selected Settings page, close retirement, offline/online fallback",
+    "Xcode/SwiftPM resources, book metadata, verified copy and pre-signing local search/anchor indexing",
+    "Eleven source Help-control partial mappings; complete dialogs remain uncertified"
+  ],
+  "build": {
+    "final_log": "build/qa/help-book-final-build.log",
+    "exit": 0,
+    "earlier_logs": [
+      "build/qa/help-book-build.log",
+      "build/qa/help-book-build-repair.log"
+    ],
+    "repairs": [
+      "F1 event monitor now returns only Bool through MainActor.assumeIsolated, avoiding unavailable NSEvent Sendable conformance warning",
+      "Close observer explicitly discards removed binding result; keyboard monitor installs at app launch",
+      "Initial/focused/final builds all exited zero; final log has no TurtleGitHelp-specific warning. Existing project diagnostics remain."
+    ]
+  },
+  "core": {
+    "run": false,
+    "reason": "Native help/service/resources only; no Core behavior changed."
+  },
+  "native": {
+    "command": "python3 scripts/test-help-book.py",
+    "fixture": "docs/qa/help-book-native-2026-10-15.swift",
+    "final_log": "build/qa/help-book-final-native.log",
+    "earlier_log": "build/qa/help-book-native.log",
+    "exit": 0,
+    "receiver_pids": [
+      43404,
+      43669
+    ],
+    "all_receiver_pids_absent": true,
+    "checks": [
+      "Every enum topic exists in the compiled application catalogue, resolves to an existing local page and contains its named anchor",
+      "One-time injected registration, correct bundle ID/anchor dispatch, no browser during successful anchor routing",
+      "Registration failure retains local topic fragment; missing help book uses Mac online guide",
+      "Actual Commit/Pull controller context; scoped title refresh keeps context; Cherry Pick and Request Pull route checks",
+      "Visible F1 action selects owning topic; modified F1 is refused",
+      "Owned sheet inherits parent context and can override it; close removes its old context",
+      "Actual native Settings footer Help button routes selected Saved Data page",
+      "Compiled bundle contains nonempty Apple search/anchor index"
+    ],
+    "simulations": "Viewer/browser registration and startup injected. Native Settings workspace has monitoring/preferences initialization disabled; private preferences and temporary repo directory. No external app launched."
+  },
+  "resources": {
+    "checker": "build/site-venv/bin/python scripts/build-help.py --check",
+    "documents": 25,
+    "topics": 46,
+    "files": 31,
+    "bytes_before_search_index": 185990,
+    "result": "pass"
+  },
+  "limitations": [
+    "Actual Help Viewer registration/display/search and browser startup not exercised",
+    "Some related/settings/progress contexts share English semantic routing; localization/full keyboard layouts/physical/VoiceOver acceptance open",
+    "Source Help controls without native implementations remain pending",
+    "No new public screenshots or signed distribution validation; no dialog certified complete"
+  ],
+  "documentation": {
+    "site_documents": 233,
+    "unresolved_fragments": 0,
+    "ledger": {
+      "mapped_controls": 968,
+      "pending_control_reviews": 691,
+      "certified_dialogs": 0
+    }
+  },
+  "hosted_ci": {
+    "pages_previous_commit": "38789793700 success for fe13d36e",
+    "macos_previous_commit": "38789793740 pending for fe13d36e; 38785757109 running for 0ad4cadc",
+    "full_macos_pass_claimed": false
+  }
+}

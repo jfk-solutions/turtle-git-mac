@@ -109,6 +109,10 @@ targets:
     platform: macOS
     sources:
       - path: Sources/TurtleGitMac
+        excludes: [Resources]
+      - path: Sources/TurtleGitMac/Resources/TurtleGitHelp.help
+        type: folder
+        buildPhase: resources
       - path: LICENSE
         buildPhase: resources
       - path: NOTICE
@@ -132,6 +136,8 @@ targets:
       path: Configuration/App-Info.plist
       properties:
         CFBundleName: TurtleGit
+        CFBundleHelpBookFolder: TurtleGitHelp.help
+        CFBundleHelpBookName: org.turtlegit.macos.help
         CFBundleDisplayName: TurtleGit for Mac
         CFBundleShortVersionString: '0.1.0'
         CFBundleVersion: '1'
@@ -147,6 +153,10 @@ targets:
           - CFBundleURLName: org.turtlegit.macos.action
             CFBundleURLSchemes: [turtlegit]
     postBuildScripts:
+      - name: Index bundled Mac help
+        script: /usr/bin/python3 "$SRCROOT/scripts/index-help.py" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
+        inputFiles: ["$(SRCROOT)/Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json", "$(SRCROOT)/scripts/index-help.py"]
+        outputFiles: ["$(TARGET_BUILD_DIR)/$(FULL_PRODUCT_NAME)/Contents/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/TurtleGitHelp.helpindex"]
       - name: Embed working copy revision utility
         script: |
           /usr/bin/python3 "$SRCROOT/scripts/embed-wcrev.py" "$BUILT_PRODUCTS_DIR/TurtleGitWCRev" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"

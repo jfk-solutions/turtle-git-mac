@@ -1,6 +1,8 @@
 import AppKit
 
 @MainActor final class TurtleGitApplicationDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) { TurtleGitHelp.install() }
+    @objc func showHelp(_ sender: Any?) { TurtleGitHelp.showContext() }
     weak var repositoryModel: RepositoryModel?
     private var confirmingQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }

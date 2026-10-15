@@ -523,7 +523,7 @@ struct ImportPatchDialog: View {
                 Spacer()
                 Button(model.finished ? "OK" : "Apply") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.editable || model.items.isEmpty)
                 Button(model.busy ? "Abort" : "Cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.confirmingQuit || model.receivingDrop || model.closing || model.stopRequested && model.busy)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html")!) }
+                Button("Help") { TurtleGitHelp.show(.patches) }
             }
         }.padding(16)
         .alert("Apply Patch Serial", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

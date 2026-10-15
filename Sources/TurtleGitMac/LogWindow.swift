@@ -2869,7 +2869,7 @@ struct LogDialog: View {
                     .contextMenu { TurtleGitContextMenu { startReferenceActions } }
                 }.frame(width: 220, alignment: .leading)
                 LogFilterField(model: model, kind: .paths).frame(minWidth: 180, maxWidth: .infinity)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-showlog.html")!) }
+                Button("Help") { TurtleGitHelp.show(.log) }
             }
             HStack {
                 Button("Refresh") { model.reload() }.disabled(model.busy)

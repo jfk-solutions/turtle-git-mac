@@ -650,7 +650,7 @@ struct ReferenceBrowserDialog: View {
                     }.disabled(!model.canAccept)
                 } else { Button("OK") { model.accept() }.keyboardShortcut(.defaultAction).disabled(!model.canFinish) }
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.busy || model.renameReference != nil)
-                Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-browse-ref.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
+                Button { TurtleGitHelp.show(.references) } label: { CommandLabel(title: "Help", icon: .help) }
             }
         }.padding(10).disabled(model.hasChild).onAppear { model.load() }
         .alert("Browse references failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Getting started with TurtleGit for Mac</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-overview"></a><h1 id="getting-started-with-turtlegit-for-mac">Getting started with TurtleGit for Mac</h1>
+<p>This first manual chapter covers opening a repository, committing and inspecting
+history in the development app. The complete port and manual remain in progress.
+For build and signing instructions, start with the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/README.md">project README</a>
+and <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/DISTRIBUTION.html">distribution guide</a>.</p>
+<h2 id="open-clone-or-create">Open, clone or create</h2>
+<p>Use <strong>Open Repository…</strong> (Command-O) to select an existing repository folder.
+Use <strong>Clone…</strong> (Command-Shift-C) for a remote or local source, or <strong>Create
+Repository…</strong> (Command-Shift-R) for a new repository. Clone has its own options
+and progress windows; inspect the result before continuing. A failed Clone can
+leave partial files: retry does not delete them for you. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/CLONE-PARITY.html">Clone parity</a>
+for supported options, cancellation and remaining authentication work.</p>
+<p>Opening a working repository enables the status, commit and history workflows.
+Bare repositories support history and remote operations but do not have a
+working tree to edit or commit. If saved folder access cannot be renewed, select
+the folder again through Open Repository.</p>
+<h2 id="commit-with-checked-files">Commit with checked files</h2>
+<p>Open <strong>Commit</strong> for the current repository. The message sits above the changed
+file list. With <strong>Staging support (EXPERIMENTAL)</strong> off, check the files whose
+current whole-file contents you want to commit. Highlighting a row is separate
+from checking it. Category links such as All and None change the checked set.
+Unrelated staged changes are preserved outside the checked-file commit.</p>
+<p><strong>Show Unversioned Files</strong> includes files that Git does not yet track. <strong>Show
+Whole Project</strong> expands a scoped selection to the repository. Double-click a
+file to inspect its diff before committing. <strong>Do not autoselect submodules</strong>
+controls automatic submodule selection in checked-file mode; it is disabled in
+staging mode.</p>
+<p>The dialog includes <strong>Amend Last Commit</strong>, <strong>Set author date</strong>, <strong>Set author</strong>
+and <strong>Message only</strong>. The commit choice offers <strong>Commit</strong>, <strong>ReCommit</strong> and
+<strong>Commit &amp; Push</strong>. Options have eligibility rules; inspect the enabled controls
+and result before continuing. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/COMMIT-PARITY.html">Commit parity</a> records their
+source comparisons, verification and remaining work.</p>
+<h2 id="use-the-staging-area">Use the staging area</h2>
+<p>Enable <strong>Staging support (EXPERIMENTAL)</strong> to use the Git index. The same file list
+shows unstaged, staged and mixed checkbox states. Mixed means that a file has
+both staged contents and later working-tree changes. Stage/Unstage commands act
+on selected rows; enabling the mode alone does not change the index.</p>
+<p>Staging mode commits <strong>all staged changes</strong>, including changes outside the
+currently displayed scope. Later unstaged edits remain in the working tree.
+Inspect the staged diff rather than relying on highlighted rows.</p>
+<p>Partial staging opens an attached patch window to the right of Commit. Select
+lines or hunks to stage or unstage. It changes the index while preserving
+working-tree contents; a stale patch is rejected. Partial operations support modified, added and deleted regular UTF-8 text files.
+Selected untracked files can be previewed without first adding them to the index.
+Renames and executable-bit changes that include text hunks are applied together
+with the selected text, as shown by the patch header. Unstaging a rename hunk
+can move the index entry back to its original path while leaving working files
+unchanged. Pure metadata changes, copies, binary files and symlinks require
+whole-file staging; see the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/COMMIT-PARITY.html">Commit audit</a> for exact limits.</p>
+<h2 id="inspect-history-and-differences">Inspect history and differences</h2>
+<p>Open <strong>Log</strong> to inspect the revision list with its graph before the list columns.
+Revision and file context menus provide history and comparison commands, with
+original upstream artwork. Colored unified patches and native file comparison
+windows are available through supported routes. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LOG-PARITY.html">Log parity</a>,
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LOG-GRAPH.html">Log graph</a> and <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SUBMODULE-DIFF-PARITY.html">comparison parity</a> for
+implemented commands and remaining differences.</p>
+<p>The existing <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/commit-controls.png">Commit screenshot</a>,
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/partial-staging.png">partial-staging screenshot</a> and
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/log-messages.png">Log screenshot</a> show actual native windows at
+previous development checkpoints. Updated screenshots and the remaining manual
+chapters still need work; see the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MANUAL-PLAN.html">manual plan</a>.</p>
+<p>Return to the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/README.html">documentation index</a> for other workflows.</p>
+<h2 id="browse-references">Browse references</h2>
+<p>Choose <strong>Browse References</strong> in the TurtleGit menu or sidebar to inspect branches,
+tags and other reference namespaces. The standalone window supports multiple
+selection. Select two references and use their context menu to open a Log range;
+the last selected reference is the right endpoint. Double-click opens Log, or
+Repo-browser for a tree object. Copy ref names copies selected shortened
+names in displayed order (branch names, or tags/remotes with their namespace). Revision pickers in other dialogs remain single-selection.</p>
+<p>Single-reference menus include Fetch, Merge, Switch, creation, rename, tracking and
+deletion where applicable. Some standalone and batch menus remain unfinished; see
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REFERENCE-BROWSER-PARITY.html">reference-browser parity</a> for the current limits.</p>
+<p>To delete several references, select branches, tags or remote branches from one
+namespace and choose <strong>Delete N…</strong> in the context menu. Review the confirmation:
+remote branches are removed on the remote, and branch batches do not check whether
+every branch is merged. A failed batch can leave earlier deletions completed.</p>
+<p>Select two references to use <strong>Compare selected refs</strong> for their changed-file list
+or <strong>Show changes as unified diff</strong> for a patch. Comparisons follow the displayed
+list order; Log ranges put the last-selected reference on the right. Unified Diff
+uses the displayed object IDs even if a branch moves afterward. Hold Shift to
+reverse the configured built-in/external unified viewer choice.</p>
+<p>Right-click a branch or tag folder in Browse References to create a branch or tag
+from HEAD. <strong>Delete all tags</strong> applies to the tag rows currently displayed in that
+folder and filter. Tags outside the displayed list remain intact.</p>
+<p>Use <strong>Delete remote tags on &quot;remote&quot;…</strong> in a tag folder to open the remote tag list.
+Select tags, click Delete and confirm; Abort is the default. The dialog refreshes
+and stays open after deletion. Local tags remain intact. Remote folders also offer
+Fetch and Delete remote tags for their configured remote.</p>
+<p>In <strong>Git Synchronization</strong>, click <strong>Manage</strong> beside Remote URL to edit remotes.
+Use <strong>Add New/Save</strong> to add a name and URL, or select an existing remote and
+apply its URL, Push URL, tag, prune or Push Default changes. Closing Remote
+settings refreshes Synchronization's remote list and outgoing results.
+Unapplied edits are discarded when you cancel. The complete Settings tree
+and full upstream dialog parity are still being ported.</p>
+<p>In Synchronization, use <strong>…</strong> beside Local Branch to choose a local branch and
+load its tracking destination. Use <strong>…</strong> beside Remote Branch to choose a stored
+remote-tracking reference; its remote and branch populate both fields. These
+choices prepare Sync without checking out a branch or changing Git configuration.
+Cancel leaves your current fields unchanged.</p>
+<a name="topic-synchronization"></a><h2 id="inspect-commits-in-synchronization">Inspect commits in Synchronization</h2>
+<p>In <strong>Git Synchronization</strong>, open <strong>Out Commits</strong> to inspect the outgoing history.
+<strong>In Commits</strong> appears when incoming history is available. Each list has a compact
+revision graph and a context menu for the selected commits.</p>
+<p>For one commit, <strong>Compare with working tree</strong> opens its changed-file comparison.
+<strong>Compare with previous revision</strong> compares it with its parent; merge commits
+offer a parent submenu. Root commits have no previous revision. <strong>Show changes as
+unified diff</strong> opens the patch, and merges provide additional modes under
+<strong>Unified diff with</strong>. <strong>Browse repository</strong> opens the files at that revision.</p>
+<p>Select two commit rows to open <strong>Compare revisions</strong>, a unified diff, or one of
+three <strong>Show log of</strong> ranges. The menu labels identify the endpoints:</p>
+<table>
+<thead>
+<tr>
+<th>Range</th>
+<th>Commits shown</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>A..B</code></td>
+<td>Commits reachable from B that are not reachable from A</td>
+</tr>
+<tr>
+<td><code>B..A</code></td>
+<td>Commits reachable from A that are not reachable from B</td>
+</tr>
+<tr>
+<td><code>A...B</code></td>
+<td>Commits reachable from either endpoint, excluding their shared history</td>
+</tr>
+</tbody>
+</table>
+<p>A range can be empty. Menu captions abbreviate the hashes; the opened Log uses the
+full commit IDs. <strong>Compare change sets</strong> opens a read-only comparison of the two
+commit patches in displayed row order. This currently cannot compare a root
+commit; merge patches follow the first-parent range behavior of TortoiseGit.</p>
+<p>For a single commit, choose <strong>Show branches this commit is on</strong> to list references
+whose history contains it. These can include descendant branches and tags, not
+just references pointing directly at the commit. The dialog's <strong>Show log</strong> button
+opens Log at that commit. Its reference rows provide Log, repository browsing and
+comparison commands. Navigation back to a commit targets the list that opened
+the dialog. If you have changed tabs, return to that commit tab to see the requested
+row; reopening the tab later does not repeat an already-handled navigation.
+Normal reference navigation selects the commit. Hold Shift while double-clicking
+a reference to highlight the commit in italics while keeping the selection.
+If its commit is outside that list, the reference dialog explains that it is not
+visible; your selection remains unchanged.</p>
+<p>Choose <strong>Find</strong> from a commit list's context menu, or press <strong>Cmd+F</strong> with that
+list focused. Incoming and outgoing lists keep separate Find windows and search
+positions. Search includes commit text, metadata and changed paths; Match case
+and Regular Expression refine it. Click a reference to navigate to its commit.
+<strong>Shift+Return</strong> highlights a text match without changing the selected rows.
+If you switch tabs while a Find window is open, its results still belong to its
+original list. See the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/sync-find-light.png">light Find capture</a> and
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/sync-find-dark.png">dark Find capture</a>.</p>
+<p>For a single commit, <strong>Export this version…</strong> opens Export options attached to
+Sync. Choose the destination ZIP and export the whole project or a directory.
+When that commit has a tag, the dialog initially selects the first tag. Use
+the Branch <strong>…</strong> button to browse references; selecting a tag there switches to
+Tag. The Commit <strong>…</strong> button opens Log at the typed revision so you can choose
+one commit. Cancel keeps the current choice. Close the
+completed progress result to return to Sync; Cancel dismisses the options. See
+the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/sync-export-light.png">light Export sheet</a> and
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/sync-export-dark.png">dark Export sheet</a>.</p>
+<p>The existing <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/git-synchronization-light.png">light Sync screenshot</a>
+and <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/git-synchronization-dark.png">dark Sync screenshot</a> show native
+windows at earlier development checkpoints. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SYNCHRONIZATION-PARITY.html">Sync parity</a>
+for the tested commands and remaining UI, Finder and signed acceptance work.</p>
+<a name="topic-compare"></a><h2 id="standalone-comparison-and-merging">Standalone comparison and merging</h2>
+<p>Choose <strong>Tools → Open in TurtleGitMerge…</strong> without needing a repository.
+Use <strong>Merging</strong> and select Base, Their and My files. Two selected files open a
+comparison; three open a three-pane merge. You can drop a file onto a path field
+or use <strong>Browse…</strong>. Path suggestions follow accessible folders; App Store builds
+require file/folder authorization for paths outside the app container.</p>
+<p>Three-file results start unnamed. <strong>Save</strong> asks for a destination; later Save
+uses that file. <strong>Save As…</strong> chooses another destination, and Cancel keeps the
+current one. Inputs stay unchanged unless you explicitly select an input file
+as the output. Shared input paths are supported. If another program changes an
+input or an already-saved output, reload/review the changes before saving again.</p>
+<p>Choose <strong>Apply unified diff</strong> for a patch file and target directory, or select
+<strong>Use Unified Diff from clipboard</strong>. The checkbox follows clipboard format
+availability without reading clipboard text until OK. If clipboard contents
+are cleared while selected, you can uncheck it and choose a patch file. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-OPEN-PARITY.html">Merge Open parity</a> for current validation and limitations.</p>
+<h2 id="text-encoding-and-line-endings">Text encoding and line endings</h2>
+<p>In an editable comparison or merged-result pane, choose <strong>Encoding…</strong> beside
+its format indicators. Choose the output encoding and EOL, then OK. <strong>Auto</strong>
+preserves mixed endings and unended final lines. Cancel changes nothing. The
+chooser edits the draft; use Save or Save As to write it. A format that cannot
+represent the text without loss is rejected. Go To Line uses the source file's
+numbered lines, excludes alignment gaps and is unavailable for one-line panes.</p>
+<p>In a two-file text comparison, enable <strong>Line diff bar</strong> to see Base above Mine
+beneath the panes. Move the pointer over a line to inspect its inline changes,
+spaces, tabs and original ending, even with the pane display options hidden.
+The bar follows the source font, colors, word mode and horizontal scroll positions.
+Its visibility is saved; one-file and ordinary three-pane views hide it. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-LINE-DIFF-PARITY.html">Line Diff Bar parity</a> for remaining acceptance.</p>
+<p>Choose <strong>Create patch file</strong> in a two-file comparison's toolbar or File menu to
+export a unified diff of the saved inputs. Unsaved pane edits are excluded, as
+in TortoiseMerge. In <strong>Settings → Diff Viewer → Merge Editor → Diffing</strong>, set
+<strong>Context lines for patches</strong> (-1 for Git's default, 0 for no context, up to 1000).
+Apply saves the setting; Cancel discards changes. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-PATCH-PARITY.html">Create patch parity</a> for scope and remaining acceptance.</p>
+<p>In <strong>Settings → Diff Viewer → Merge Editor → Colors</strong>, choose Light or Dark
+and use a swatch's dropdown for <strong>Automatic</strong> or <strong>More colors…</strong>. Automatic
+restores that foreground/background channel; Restore Default restores the
+selected palette. Both palettes remain drafts until Apply. Cancel discards
+both. The custom picker accepts RGB colors, with opacity excluded. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-COLORS-PARITY.html">Merge Colors parity</a> for remaining acceptance.</p>
+<p>In a two-file comparison, uncheck <strong>Two-pane view</strong> for a combined Base–Mine list.
+Removed lines precede added lines. The combined editor saves Mine and leaves
+untouched removed lines out of the result. Switching with unsaved edits offers
+Save/Don’t Save/Cancel. Set the default in <strong>Merge Editor → Misc → Use one-pane
+view as default for 2-file diff</strong>. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-ONE-PANE-PARITY.html">one-pane parity</a>.</p>
+<p>In a combined comparison, Copy includes removed text; Cut/Paste edit Mine.
+Two-view transfer commands are disabled because the opposite pane is hidden.
+Mark/Unmark actions belong to the two-pane right view. The combined popup orders
+clipboard commands before format choices. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-ONE-PANE-CONTEXT-PARITY.html">one-pane context parity</a>.</p>
+<p><strong>Merge Editor → Misc → Default to UTF-8 encoding</strong> controls detection for
+ASCII files when opening or reloading. It defaults off, matching upstream.
+BOMs and valid non-ASCII UTF-8 retain their formats. Applying it does not recode
+an open draft. The initial legacy adapter is Windows-1252; see
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-DEFAULT-ENCODING-PARITY.html">default encoding parity</a>.</p>
+<p>Choose <strong>View → Wrap long lines</strong> in a comparison or merge viewer to wrap text
+to the pane width. The choice is saved and horizontal scrolling is disabled
+while wrapped. Corresponding source rows remain vertically aligned; resizing
+reflows them. File bytes and logical edit/Find/Undo offsets stay unchanged. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-WRAPPING-PARITY.html">wrapping parity</a> for remaining acceptance.</p>
+<h2 id="refreshing-the-working-tree">Refreshing the Working Tree</h2>
+<p>Use <strong>Refresh</strong>, Command-R or F5 in the Working Tree window. The progress label
+shows the current operation; <strong>Cancel</strong> stops its owned work. A failed or
+cancelled refresh retains the last complete table. Closing while work is running
+requests cancellation and keeps the window until it settles. Completed staging
+or index changes are retained; refresh to inspect them after cancellation.</p>
+<p>Show unversioned files and Show all staged files are remembered. Show Whole
+Project is remembered per repository for file/folder-scoped windows. Ignored
+and locally ignored flags remain choices for the current window. Successful
+refresh preserves selected paths that are still visible.</p>
+<p>Working Tree’s file menu offers history, old-name history for renames, and Blame
+for existing tracked files, including a missing file’s committed history. Select
+two files for <strong>Compare two files</strong>. <strong>Open</strong>, <strong>Open With…</strong> and the configured
+alternative editor use working contents. <strong>Export…</strong> preserves the relative
+paths and current working contents in the chosen folder.</p>
+<p>Context <strong>Delete</strong> asks before moving paths to Trash and removes any corresponding
+index entries. Hold Shift for permanent deletion. The Delete key applies when
+the focus mark has an unversioned or ignored working copy; context Delete also applies to missing
+tracked rows. Confirming a mixed selection acts on the entire selected set.</p>
+<p>Working Tree displays status categories and saved changelists as group headings.
+Use <strong>Move to changelist</strong> to name or reorganize selected files, or <strong>Remove from
+changelist</strong> to return them to their status category. <strong>ignore-on-commit</strong> keeps
+files out of automatic checked-file selection in Commit; assigning it in Working
+Tree does not change staging. <strong>Keep changelists</strong> shares Commit’s preference for
+retaining membership after a successful commit. Clipboard copies follow the
+visible group order and omit headings.</p>
+<p>For a submodule row, <strong>Show log</strong> shows changes to its gitlink in the parent
+repository; <strong>Show submodule log</strong> opens the child checkout’s current history.
+The latter is available in Commit and Working Tree and requires an initialized
+child checkout. Submodule Diff’s From/To Log buttons instead open history at the
+respective displayed child revision. Its Cancel button stops an active refresh
+while retaining the prior From/To information.</p>
+<p>Log shows a read count while Git loads revisions, then displays complete row
+batches while later notes and metadata are still being read. History actions
+remain gated until the load finishes. Cancelling a replacement read restores
+the previous stable list and graph; an interrupted prefix is not treated as a
+completed history.</p>
+<p>Advanced’s <strong>NoSortLocalBranchesFirst</strong> changes branch ordering on the next
+reference load. <strong>LogTooManyItemsThreshold</strong> controls when Log suppresses an
+oversized changed-file list. <strong>NumDiffWarning</strong> controls the warning before opening multiple file viewers
+from Log, Commit, Working Tree, Add and Changed Files. Log’s parent groups count
+as one selected-file action. The minimum threshold is three, matching TortoiseGit.
+Closing the initiating window cancels pending confirmation and Git preparation.
+Aggregated unified patches remain a single viewer; Changed Files’ per-file
+unified command uses the many-viewer warning.</p>
+<p>The comparison and conflict editors offer <strong>Inline diff</strong> and <strong>Inline diff
+word-wise</strong>. Inline visibility is remembered; word mode applies to the current
+window. In two-pane view, <strong>Next/Previous inline difference</strong> move between change
+boundaries on the current line with Control-Option-Right/Left. They do not wrap.
+Three-pane merge sources show inline colors while their result pane remains
+editable; inline navigation is disabled in that layout, matching TortoiseGit.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

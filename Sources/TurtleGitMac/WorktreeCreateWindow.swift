@@ -265,7 +265,7 @@ private struct WorktreeCreateDialog: View {
                 HStack { if model.busy || chooser.busy || chooser.pickerTarget != nil { ProgressView().controlSize(.small) }; Spacer()
                     Button("OK") { model.create() }.keyboardShortcut(.defaultAction).disabled(model.directory.isEmpty || model.createBranch && model.branchName.isEmpty)
                     Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-                    Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-worktrees.html#tgit-dug-worktree-create")!) }
+                    Button("Help") { TurtleGitHelp.show(.worktrees) }
                 }
             }
         }.padding(16)

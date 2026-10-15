@@ -380,7 +380,7 @@ private struct WorktreeListDialog: View {
                 if model.busy { ProgressView().controlSize(.small) }
                 Spacer()
                 Button("OK") { model.close() }.keyboardShortcut(.defaultAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-worktrees.html")!) }
+                Button("Help") { TurtleGitHelp.show(.worktrees) }
             }
         }.padding(12).disabled(!model.canInteract)
         .background(WorktreeRefreshShortcut(action: model.reload))

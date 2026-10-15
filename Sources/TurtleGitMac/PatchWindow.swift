@@ -58,7 +58,7 @@ import UniformTypeIdentifiers
         // Patch content scrolls; its intrinsic size must not replace window limits.
         host.sizingOptions = []
         window.contentViewController = host
-        super.init(window: window); window.delegate = self
+        super.init(window: window); window.delegate = self; TurtleGitHelp.attach(window, topic: .unifiedDiff)
         documentSession = PatchDocumentSession(owner: self); window.documentSession = documentSession
         window.setContentSize(NSSize(width: width, height: 760))
         model.saveDocument = { [weak self] in self?.documentSession.saveDocument() }

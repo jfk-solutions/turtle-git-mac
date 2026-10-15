@@ -180,7 +180,7 @@ private enum MergeSourceSide {
     @objc func reloadEditor(_ sender: Any?) { guard !preparingReplacement, !model.exportingSource, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
     func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.confirmingQuit && !model.retired && !model.exportingSource && window?.attachedSheet == nil }
     private(set) var editorToolbar: MergeEditorToolbar?
-    var showEditorHelp: () -> Void = { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) }
+    var showEditorHelp: () -> Void = { TurtleGitHelp.show(.resolve) }
     let model: TextConflictWindowModel
     var onClosed: () -> Void = {}
     var editorOpenWorkflow: MergeEditorOpenWorkflow?
@@ -213,7 +213,7 @@ private enum MergeSourceSide {
         hosting.sizingOptions = [.minSize]
         window.contentViewController = hosting
         window.setContentSize(NSSize(width: 1120, height: 780))
-        super.init(window: window); window.delegate = self; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; window.center(); model.window = window; model.close = { [weak window] in window?.close() }
+        super.init(window: window); TurtleGitHelp.attach(window, topic: .resolve); window.delegate = self; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; window.center(); model.window = window; model.close = { [weak window] in window?.close() }
 
 
         installEditorToolbar()
@@ -861,7 +861,7 @@ private struct TextConflictDialog: View {
                 Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }.help("Reload the current conflict stages; offer to save an edited result first.")
 
                 Spacer()
-                Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
+                Button { TurtleGitHelp.show(.resolve) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
             }
             HStack {
