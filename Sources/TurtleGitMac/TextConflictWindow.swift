@@ -134,6 +134,7 @@ private enum MergeSourceSide {
             return super.performKeyEquivalent(with: event)
         }
         guard mergedText != nil else { return super.performKeyEquivalent(with: event) }
+        if (firstResponder as? NSTextView)?.isFieldEditor != true, MergeFindInterface.performKey(event, in: activeText) { return true }
         if event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command, event.charactersIgnoringModifiers?.lowercased() == "o" { openMergeDocument(); return true }
         let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
         if modifiers == .command || modifiers == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", let undo = mergedText?.undoManager {
@@ -996,6 +997,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.whitespaceRenderer.update(text: text, cells: sourceCells, otherCells: other, preferences: model.whitespaceDisplay)
         view.whitespaceRenderer.removal = sourceSide == .theirs
         view.whitespaceRenderer.highlightEndings = model.showInlineDiff
+        view.mergeFindHighlights.refresh(in: view)
         view.needsDisplay = true
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = sourceCells?.map(\.lineNumber)
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
@@ -1063,9 +1065,10 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     var mergeEditable = false
     var sourceSide: MergeSourceSide?
     var sourceCells: [MergeSourceCell]?
+    let mergeFindHighlights = MergeFindHighlights()
     var mergeFindController: MergeFindWindowController?
     var mergeFindDefaults: UserDefaults { model?.comparisonDefaults ?? .standard }
-    var mergeFindAllowed: Bool { model?.busy == false && model?.confirmingQuit == false && window?.attachedSheet == nil }
+    var mergeFindAllowed: Bool { window != nil && model?.retired == false && model?.busy == false && model?.preparing == false && model?.confirmingQuit == false && window?.attachedSheet == nil }
     var mergeFindWritable: Bool { mergeFindAllowed && mergeEditable && isEditable }
     var mergeFindLines: [MergeFindLine] {
         if let sourceCells { return MergeFindLine.displayCells(sourceCells) }
@@ -1208,6 +1211,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         menu.addItem(.separator())
         let find = NSMenuItem(title: "Find…", action: #selector(showFind(_:)), keyEquivalent: "")
         find.target = self; find.image = MenuIcon.mergeFind.contextImage(defaults: defaults); menu.addItem(find)
+        MergeFindInterface.appendSelectionCommands(to: menu, text: self, defaults: defaults)
         let navigationImage = MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? NSImage(systemSymbolName: "number", accessibilityDescription: "Go to Line") : nil
         editingItem("Go to Line…", #selector(goToSourceLine(_:)), navigationImage, canNavigateToSourceLine)
         menu.items.last?.keyEquivalent = "g"; menu.items.last?.keyEquivalentModifierMask = .control

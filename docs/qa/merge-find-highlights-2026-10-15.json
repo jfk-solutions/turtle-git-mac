@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "cdab7f10",
+  "scope": "Connected Compare/Merge pane-local search paint, selected-text search commands, native context/shortcut routing and edit lifecycle",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseMerge/BaseView.cpp::OnFindDialogMessage / BuildFindStringArray / DrawSingleLine",
+      "src/TortoiseMerge/BaseView.cpp::OnEditFindnextStart / OnEditFindprevStart / Search / StringFound",
+      "src/TortoiseMerge/AppUtils.cpp::IntenseColor",
+      "src/Resources/TortoiseMergeENG.rc F3 accelerators"
+    ]
+  },
+  "implementation": [
+    "Per-pane committed search survives modeless Find closure",
+    "Temporary layout foreground/background paint uses original per-run diff and inline colors with source intensity scale30; source styles/file bytes/Undo independent",
+    "Navigation/count/replacement use modified-only; painting follows source all-line matching; folded marker/hidden runs excluded from paint",
+    "Exact UTF8 text/line-state/query/options cache refreshes across editor style projection, edits and Undo/Redo",
+    "Selected-text next/previous resets temporary case/modified/whole-word options without changing persisted defaults or dialog draft; empty selection clears",
+    "Original-icon application context commands, Command-Option-G and Shift variant, source F3/Control-F3 families and existing Command-G repeat",
+    "Runtime busy/pending choice/sheet/retirement gates and independent two/three-pane ownership"
+  ],
+  "validation": {
+    "core": {
+      "rerun": false,
+      "reason": "Core matching/calculation unchanged; actual native commands, stored ranges, layout paint and ownership are directly exercised"
+    },
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/merge-find-highlights-build-recheck.log",
+      "initial_log": "build/qa/merge-find-highlights-build.log",
+      "initial_failure": "New comparison menu referenced an absent local showFind method; added shared NSTextView selector and corrected menu route.",
+      "diagnostics": "Existing warnings and unusual exit-zero/no-output diagnostics; not a clean-diagnostics claim"
+    },
+    "native": {
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/merge-find-highlights-native-recheck.log",
+      "initial_log": "build/qa/merge-find-highlights-native.log",
+      "initial_failure": "Fixture assumed modified-only still persisted true after another pane explicitly saved false. Now captures preferences immediately before selected-text search and asserts exact preservation; production behavior unchanged by fixture repair.",
+      "scope": [
+        "Actual two-pane and three-pane NSTextViews, no installed app launch",
+        "Find/Count/modified-only and wrapped navigation",
+        "Temporary attributes separate from NSTextStorage and existing palette, light/dark dynamic resolution and white/black source scale endpoints",
+        "Pane-local source queries, closed Find persistence, empty-selection clear, F3 repeat and Command-Option-Shift-G selection search",
+        "Real menu targets and icon-on/off policy with private pasteboards",
+        "Native Unicode Replace All, grouped Undo/Redo, source gap mapping and unchanged file/index bytes",
+        "Busy execution refusal and retained closed-owner command rejection"
+      ],
+      "owned_reaped_pids": [
+        93270,
+        93322,
+        93371
+      ],
+      "execution": "One current Debug-object library reused; only changed fixture recompiled after failed assertion; engines run sequentially; each owned receiver closes its windows and is reaped"
+    }
+  },
+  "limits": [
+    "Physical Find/menu/keyboard gestures and VoiceOver",
+    "Displayed full light/dark screenshots and minimum-size layout",
+    "Source flash/no-match rendering and locator search bands",
+    "Pane-relative Find dialog geometry",
+    "Exact rare Unicode Windows case behavior",
+    "Signed Finder/App Store and full application parity"
+  ]
+}

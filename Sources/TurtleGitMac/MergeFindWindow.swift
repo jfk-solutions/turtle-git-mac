@@ -3,6 +3,7 @@ import TurtleGitCore
 
 @MainActor protocol MergeFindProviding: AnyObject {
     var mergeFindController: MergeFindWindowController? { get set }
+    var mergeFindHighlights: MergeFindHighlights { get }
     var mergeFindDefaults: UserDefaults { get }
     var mergeFindAllowed: Bool { get }
     var mergeFindWritable: Bool { get }
@@ -10,15 +11,117 @@ import TurtleGitCore
     @discardableResult func replaceFindMatches(_ ranges: [NSRange], with replacement: String) -> Bool
 }
 
+/// Search paint belongs to the pane, so closing Find does not discard it.
+/// Temporary layout attributes leave file bytes, source styles and Undo intact.
+@MainActor final class MergeFindHighlights {
+    private(set) var query = ""
+    private(set) var options = MergeFindOptions()
+    private(set) var ranges: [NSRange] = []
+    private(set) var paintRanges: [NSRange] = []
+    private var cachedText: String?
+    private var cachedStates: [MergeSourceState] = []
+    private var cachedQuery = ""
+    private var cachedOptions = MergeFindOptions()
+    func set(_ query: String, options: MergeFindOptions, in text: NSTextView) {
+        self.query = query; self.options = options; refresh(in: text)
+    }
+    static func intense(_ color: NSColor) -> NSColor {
+        NSColor(name: nil) { appearance in
+            var resolved: NSColor = color
+            appearance.performAsCurrentDrawingAppearance { resolved = color.usingColorSpace(.sRGB) ?? color }
+            let units = [resolved.redComponent, resolved.greenComponent, resolved.blueComponent].map { Int(($0 * 255).rounded()) }
+            let darken = units.reduce(0, +) / 3 > 127
+            let values = units.map { darken ? ($0 * 225 + 127) / 255 : $0 + ((255 - $0) * 30 + 127) / 255 }
+            return NSColor(srgbRed: CGFloat(values[0]) / 255, green: CGFloat(values[1]) / 255, blue: CGFloat(values[2]) / 255, alpha: resolved.alphaComponent)
+        }
+    }
+    func refresh(in text: NSTextView) {
+        guard let target = text as? MergeFindProviding, let storage = text.textStorage, let layout = text.layoutManager else { return }
+        let all = NSRange(location: 0, length: storage.length)
+        for key in [NSAttributedString.Key.backgroundColor, .foregroundColor, .mergeFindMatch] { layout.removeTemporaryAttribute(key, forCharacterRange: all) }
+        let lines = target.mergeFindLines, states = lines.map(\.state)
+        if cachedText?.utf8.elementsEqual(text.string.utf8) != true || cachedStates != states || !cachedQuery.utf8.elementsEqual(query.utf8) || cachedOptions != options {
+            ranges = MergeFind.matches(query, in: lines, options: options)
+            var painting = options; painting.modifiedOnly = false
+            paintRanges = options.modifiedOnly ? MergeFind.matches(query, in: lines, options: painting) : ranges
+            cachedText = text.string; cachedStates = states; cachedQuery = query; cachedOptions = options
+        }
+        for range in paintRanges where NSMaxRange(range) <= storage.length {
+            storage.enumerateAttributes(in: range) { attributes, run, _ in
+                // A folded marker/hidden line retains its own drawing contract.
+                guard attributes[.mergeFoldHidden] == nil, attributes[.mergeFoldMarker] == nil else { return }
+                let background = attributes[.backgroundColor] as? NSColor ?? text.backgroundColor
+                let foreground = attributes[.foregroundColor] as? NSColor ?? text.textColor ?? .textColor
+                layout.addTemporaryAttributes([.backgroundColor: Self.intense(background), .foregroundColor: Self.intense(foreground), .mergeFindMatch: true], forCharacterRange: run)
+            }
+        }
+        text.needsDisplay = true
+    }
+}
+extension NSAttributedString.Key {
+    static let mergeFindMatch = NSAttributedString.Key("TurtleGit.MergeFindMatch")
+}
+extension NSTextView {
+    @objc func turtleShowMergeFind(_ sender: Any?) { MergeFindInterface.perform(.showFindInterface, in: self) }
+    @objc func turtleFindSelectionNext(_ sender: Any?) { MergeFindInterface.selection(upwards: false, in: self) }
+    @objc func turtleFindSelectionPrevious(_ sender: Any?) { MergeFindInterface.selection(upwards: true, in: self) }
+    @objc func turtleClearFindHighlights(_ sender: Any?) {
+        guard let target = self as? MergeFindProviding, target.mergeFindAllowed else { return }
+        target.mergeFindHighlights.set("", options: target.mergeFindHighlights.options, in: self)
+    }
+}
+
 @MainActor enum MergeFindInterface {
+    /// Source FindnextStart/FindprevStart mean selected-text search, not a jump
+    /// to the start/end of the document. No selection clears the search paint.
+    static func selection(upwards: Bool, in text: NSTextView) {
+        guard let target = text as? MergeFindProviding, target.mergeFindAllowed else { return }
+        let selected = text.selectedRange(), value = text.string as NSString
+        let query = selected.length > 0 && NSMaxRange(selected) <= value.length ? value.substring(with: selected) : ""
+        var options = MergeFindOptions.load(from: target.mergeFindDefaults)
+        options.matchCase = false; options.modifiedOnly = false; options.wholeWord = false
+        target.mergeFindHighlights.set(query, options: options, in: text)
+        guard !query.isEmpty, let match = MergeFind.next(in: target.mergeFindHighlights.ranges, selection: selected, upwards: upwards) else { return }
+        text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range)
+    }
+    static func performKey(_ event: NSEvent, in text: NSTextView?) -> Bool {
+        guard let text, !text.isFieldEditor, text is MergeFindProviding else { return false }
+        let flags = event.modifierFlags.intersection([.command, .shift, .control, .option])
+        if event.keyCode == 99, flags.isSubset(of: [.control, .shift]) {
+            if flags.contains(.control) { selection(upwards: flags.contains(.shift), in: text) }
+            else { perform(flags.contains(.shift) ? .previousMatch : .nextMatch, in: text) }
+            return true
+        }
+        if event.charactersIgnoringModifiers?.lowercased() == "g", flags == [.command, .option] || flags == [.command, .option, .shift] {
+            selection(upwards: flags.contains(.shift), in: text); return true
+        }
+        return false
+    }
+    static func appendSelectionCommands(to menu: NSMenu, text: NSTextView, defaults: UserDefaults) {
+        guard let target = text as? MergeFindProviding else { return }
+        for (title, selector, icon) in [("Find Next Selected Text", #selector(NSTextView.turtleFindSelectionNext(_:)), MenuIcon.jumpDown), ("Find Previous Selected Text", #selector(NSTextView.turtleFindSelectionPrevious(_:)), .jumpUp), ("Clear Search Highlights", #selector(NSTextView.turtleClearFindHighlights(_:)), .mergeFind)] {
+            let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
+            item.target = text; item.image = icon.contextImage(defaults: defaults); item.isEnabled = target.mergeFindAllowed
+            if selector == #selector(NSTextView.turtleClearFindHighlights(_:)) { item.isEnabled = item.isEnabled && !target.mergeFindHighlights.query.isEmpty }
+            else { item.keyEquivalent = "g"; item.keyEquivalentModifierMask = selector == #selector(NSTextView.turtleFindSelectionNext(_:)) ? [.command, .option] : [.command, .option, .shift] }
+            menu.addItem(item)
+        }
+    }
+
     static func perform(_ action: NSTextFinder.Action, in text: NSTextView) {
         guard let target = text as? MergeFindProviding else { return }
         if action == .hideFindInterface { target.mergeFindController?.close(); return }
         guard target.mergeFindAllowed else { return }
+        if action == .previousMatch || action == .nextMatch {
+            let state = target.mergeFindHighlights; state.refresh(in: text)
+            let upwards = action == .previousMatch
+            guard let match = MergeFind.next(in: state.ranges, selection: text.selectedRange(), upwards: upwards) else { return }
+            text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range)
+            target.mergeFindController?.reportNavigation(wrapped: match.wrapped, upwards: upwards)
+            return
+        }
         if target.mergeFindController == nil { target.mergeFindController = MergeFindWindowController(text: text, defaults: target.mergeFindDefaults) }
-        let controller = target.mergeFindController!
-        if action == .showFindInterface { controller.present() }
-        else if action == .previousMatch || action == .nextMatch { controller.find(upwards: action == .previousMatch) }
+        if action == .showFindInterface { target.mergeFindController?.present() }
     }
 }
 
@@ -90,7 +193,7 @@ private final class MergeFindNativeWindow: NSWindow {
         if let owner = text.window {
             ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.close() } }
         }
-        textObserver = NotificationCenter.default.addObserver(forName: NSText.didChangeNotification, object: text, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.updateGates() } }
+        textObserver = NotificationCenter.default.addObserver(forName: NSText.didChangeNotification, object: text, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.updateGates(); self?.refreshHighlights() } }
         updateGates()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -104,6 +207,7 @@ private final class MergeFindNativeWindow: NSWindow {
         defaults.set(values, forKey: "TurtleGitMerge.History.Find." + key)
         combo.removeAllItems(); combo.addItems(withObjectValues: values); combo.stringValue = value
     }
+    func refreshHighlights() { if let text { target?.mergeFindHighlights.refresh(in: text) } }
     func updateGates() {
         let allowed = target?.mergeFindAllowed == true, writable = target?.mergeFindWritable == true
         findButton.isEnabled = allowed && !search.stringValue.isEmpty
@@ -129,7 +233,9 @@ private final class MergeFindNativeWindow: NSWindow {
         guard target?.mergeFindAllowed == true, !search.stringValue.isEmpty, !replacing || target?.mergeFindWritable == true else { return nil }
         status.stringValue = ""; options.save(to: defaults); remember("Search", combo: search)
         if replacing { remember("Replace", combo: replacement) }
-        return MergeFind.matches(search.stringValue, in: target?.mergeFindLines ?? [], options: options)
+        guard let text else { return nil }
+        target?.mergeFindHighlights.set(search.stringValue, options: options, in: text)
+        return target?.mergeFindHighlights.ranges ?? []
     }
     func find(upwards: Bool? = nil) {
         guard let text, let matches = prepare() else { return }
@@ -137,7 +243,10 @@ private final class MergeFindNativeWindow: NSWindow {
             status.stringValue = "\"\(search.stringValue)\" not found."; status.textColor = .systemRed; return
         }
         text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range)
-        status.stringValue = match.wrapped ? ((upwards ?? options.searchUp) ? "Top reached. Search continued from the bottom." : "Bottom reached. Search continued from the top.") : ""
+        reportNavigation(wrapped: match.wrapped, upwards: upwards ?? options.searchUp)
+    }
+    func reportNavigation(wrapped: Bool, upwards: Bool) {
+        status.stringValue = wrapped ? (upwards ? "Top reached. Search continued from the bottom." : "Bottom reached. Search continued from the top.") : ""
         status.textColor = .systemGreen
     }
     func count() {

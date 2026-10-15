@@ -1707,3 +1707,13 @@ does not activate Finder or establish signed extension acceptance.
 The 2026-10-15 checkpoint passed 44 selected Core cases, one repaired Debug build,
 and both actual Finder-menu receivers. Initial failures and focused repairs are
 recorded in [Finder context QA](qa/finder-selection-context-2026-10-15.json).
+
+## Compare/Merge search painting and selection commands
+
+`python3 scripts/test-merge-find-highlights.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"`
+links current Debug objects once and runs the connected Find family sequentially
+with both engines. The 2026-10-15 run passed pane-local temporary paint, independent
+source/result queries, actual F3/selected-text key routes and original-icon menus,
+Unicode Replace All, Undo/Redo, closed-owner guards and unchanged disk/index.
+See [the record](qa/merge-find-highlights-2026-10-15.json) for the initial fixture
+assertion repair and physical/signed limitations. Core matching was unchanged.

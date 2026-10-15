@@ -51,7 +51,37 @@ exact scope and the initial fixture correction. Offscreen captures were rejected
 for missing native controls; no new screenshot was published.
 
 Still partial: physical keyboard/menu/VoiceOver acceptance, full screenshots in
-light/dark and minimum-size windows, signed sandbox acceptance, source search
-highlight painting in every pane, pane-relative geometry, and exact Windows
+light/dark and minimum-size windows, signed sandbox acceptance, pane-relative geometry, and exact Windows
 case-conversion differences for rare Unicode expansions. The result's modified
 states inherit the existing locator projection rather than adding a new engine.
+
+## Pane-local painting and selected-text search — October 15, 2026
+
+Find, Count and Replace now retain a pane-local search snapshot and paint every
+match over the existing diff/inline colors using the source `IntenseColor(30)`
+rule. The layout manager owns temporary foreground/background attributes; source
+text styles, saved bytes and Undo history stay independent. Closing Find retains
+the search. Text/state changes, Undo/Redo, filtering, folding and theme updates
+refresh the paint; folded marker/hidden rows retain their own rendering. As in
+source drawing, modified-only restricts navigation/count/replacement while the
+query still paints matches on unchanged lines. Matching
+ranges are cached against exact UTF-8 text, line states, query and options.
+
+Source `OnEditFindnextStart`/`OnEditFindprevStart` use the selected text as a new
+case-insensitive, unrestricted, non-whole-word query. The native commands follow
+that behavior, with Command-Option-G / Shift-Command-Option-G and original icons
+in both editor context menus. Control-F3 / Control-Shift-F3 retain the source
+shortcuts; F3 / Shift-F3 and Command-G / Shift-Command-G repeat the pane's committed
+search. No selection clears its search, as upstream. Clear Search Highlights is
+also explicit in the native menus. These commands do not overwrite Find's draft
+or persisted options. Repeated search with no active query does nothing.
+
+Commands recheck busy, pending-choice, attached-sheet and retired-owner gates.
+The three-way source and result panes have independent queries, as do the two
+comparison panes. Temporary paint is never an edit or save. Source Windows
+flash/no-match rendering, locator search bands, pane-relative Find geometry,
+physical gestures/VoiceOver, exact platform font/case metrics and signed sandbox
+acceptance remain open. The Debug build and grouped native Find receiver passed
+with system and bundled Git after the recorded compile/fixture repairs. See
+[search painting evidence](qa/merge-find-highlights-2026-10-15.json). Core matching
+was unchanged and no Core suite was repeated.

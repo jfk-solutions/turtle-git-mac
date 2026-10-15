@@ -16,6 +16,7 @@ import TurtleGitCore
             return super.performKeyEquivalent(with: event)
         }
         if event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command, event.charactersIgnoringModifiers?.lowercased() == "o" { openMergeDocument(); return true }
+        if (firstResponder as? NSTextView)?.isFieldEditor != true, MergeFindInterface.performKey(event, in: model?.activeFindText) { return true }
         let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
         if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", (firstResponder as? NSTextView)?.isFieldEditor != true {
             if flags.contains(.shift) { model?.redo() } else { model?.undo() }; return true
@@ -1142,10 +1143,12 @@ import TurtleGitCore
             text.scrollRangeToVisible(text.selectedRange())
         }
     }
-    func find(_ action: NSTextFinder.Action) {
-        let text = scrolls.values.compactMap { $0.documentView as? NSTextView }.first { $0.window?.firstResponder === $0 }
+    var activeFindText: NSTextView? {
+        scrolls.values.compactMap { $0.documentView as? NSTextView }.first { $0.window?.firstResponder === $0 }
             ?? (scrolls[activeBase]?.documentView as? NSTextView)
-        if let text { MergeFindInterface.perform(action, in: text) }
+    }
+    func find(_ action: NSTextFinder.Action) {
+        if let text = activeFindText { MergeFindInterface.perform(action, in: text) }
     }
     func replaceFindMatches(_ ranges: [NSRange], cells: [MergeSourceCell], base: Bool, replacement: String) -> Bool {
         guard canTransfer(toBase: base), let actions = editorActions[base], !ranges.isEmpty else { return false }
@@ -1364,6 +1367,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.onePaneActive ? Set((model.combined?.rows ?? []).enumerated().compactMap { model.annotations(base: false).marked.contains($0.element.alignmentRow) ? $0.offset : nil }) : model.annotations(base: base).marked
         scroll.verticalRulerView?.needsDisplay = true
         model.registerViewportNavigation(base: base) { [weak coordinator = context.coordinator] in coordinator?.applyViewportSelection() }
+        (view as? MergeFindProviding)?.mergeFindHighlights.refresh(in: view)
         // Navigation is consumed after wrapping/text extents settle, not while
         // the SwiftUI representable still has an empty initial viewport.
 
@@ -1580,9 +1584,10 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     }
     override func mouseExited(with event: NSEvent) { previewLine(atDisplayOffset: nil) }
 
+    let mergeFindHighlights = MergeFindHighlights()
     var mergeFindController: MergeFindWindowController?
     var mergeFindDefaults: UserDefaults { model?.comparisonDefaults ?? .standard }
-    var mergeFindAllowed: Bool { model?.busy == false && model?.confirmingQuit == false && model?.filtering == false && window?.attachedSheet == nil }
+    var mergeFindAllowed: Bool { window != nil && model?.contextCommandsAllowed == true && model?.filtering == false }
     var mergeFindWritable: Bool { mergeFindAllowed && isEditable }
     var mergeFindLines: [MergeFindLine] { MergeFindLine.displayCells(sourceCells) }
     func replaceFindMatches(_ ranges: [NSRange], with replacement: String) -> Bool {
@@ -1736,6 +1741,8 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
 
         }
         menu.addItem(.separator())
+        add("Find…", #selector(turtleShowMergeFind(_:)), MenuIcon.mergeFind.image(), model.contextCommandsAllowed)
+        MergeFindInterface.appendSelectionCommands(to: menu, text: self, defaults: defaults)
         add("Next inline difference", #selector(nextInlineDifference(_:)), MenuIcon.mergeNextInline.image(), canNavigateInline(forward: true))
         add("Previous inline difference", #selector(previousInlineDifference(_:)), MenuIcon.mergePreviousInline.image(), canNavigateInline(forward: false))
         add("Go to Line…", #selector(goToSourceLine(_:)), NSImage(systemSymbolName: "number", accessibilityDescription: "Go to Line"), canNavigateToSourceLine)
