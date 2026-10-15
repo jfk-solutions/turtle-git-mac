@@ -35,6 +35,36 @@ source/transitive keys and unconditional validation. Valid packages are saved
 before app tests, so later failures do not discard dependency build work. Full
 Core/native/embedding checks still run. See [runtime reuse](CI-RUNTIME-CACHES.md).
 
+## Reusing the Debug app in native checks
+
+The 82 runners listed in `scripts/native-receiver-migrations.json` link their
+existing Swift fixtures against one shared library made from the Debug app's
+built objects. Build Debug after changing app sources; the helper refuses stale
+or missing objects. It does not silently compile a separate app variant.
+
+The cache includes app sources and objects, fixture sources, imported app/Core/
+SMTP modules and binaries, helper implementation, architecture, compiler, SDK
+and compilation settings. Each fixture retains its own entry point, arguments,
+Git selections and assertions. Original source locations are preserved for
+resource lookups. Synchronous fixtures keep their own event loop; asynchronous
+fixtures run on the main actor with an AppKit loop. The library and receivers
+live in `build/qa/native-receivers/linked`; deleting that directory is safe.
+
+Ordinary runner execution has a bounded owned process group, including cleanup
+on success, failure and timeout. Runners with existing custom process ownership
+retain it. This change does not remove native CI steps or establish signed UI,
+Finder, visual parity or App Store acceptance. Run the lightweight ownership and
+cache contracts with `python3 scripts/test-native-receiver.py`.
+
+The migration checkpoint compiled all 82 retained fixture groups against the
+pre-repair Debug app, with a 1.5-second median fixture compilation time. Four
+existing workflow groups passed with system and prepared bundled Git. A later
+focused Import Patch check covers actual clipboard dispatch and its busy/Quit/
+retired gates after an app repair. The full Import Patch fixture still fails its
+later Save As option-lock assertion; the old hosted reference-family compilation
+also exceeded its 300-second limit. Neither is claimed resolved by this migration.
+See [the migration evidence and open failures](qa/native-receiver-migration-2026-10-15.json).
+
 ## Native LFS transition checkpoints
 
 The grouped LFS/mail receiver now has a `--lfs-only` diagnosis mode using its

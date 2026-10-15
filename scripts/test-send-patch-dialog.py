@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Hidden native Send Patch dialog/model verification. Private loopback SMTP only; no real mail service/Keychain."""
+from native_receiver import build_receiver, run_receiver
 from pathlib import Path
 import os
 import json
@@ -12,12 +13,7 @@ root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
 with tempfile.TemporaryDirectory(prefix='turtlegit-send-patch-dialog-native-') as temporary:
     directory = Path(temporary)
-    app = root / 'Sources/TurtleGitMac/TurtleGitMacApp.swift'
-    copy = directory / app.name
-    copy.write_text(app.read_text().replace('@main struct', 'struct', 1))
-    sources = sorted(str(p) for p in (root / 'Sources/TurtleGitMac').glob('*.swift') if p != app)
-    executable = directory / 'send-patch-dialog-native-receiver'
-    subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products), *sources, str(copy), str(root / 'docs/qa/send-patch-dialog-native-2026-10-10.swift'), '-framework', 'TurtleGitCore', '-o', str(executable)], cwd=root, check=True)
+    executable = build_receiver(root, [root / 'docs/qa/send-patch-dialog-native-2026-10-10.swift'], directory)
     fixture = directory / 'fixture'; fixture.mkdir()
     environment = os.environ.copy(); environment['DYLD_FRAMEWORK_PATH'] = str(products)
     environment.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1', GIT_AUTHOR_NAME='', GIT_AUTHOR_EMAIL='')
@@ -26,7 +22,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-send-patch-dialog-native-') a
         ready = fixture / 'ready.json'; deadline = time.monotonic() + 10
         while not ready.exists() and server.poll() is None and time.monotonic() < deadline: time.sleep(.01)
         port = json.loads(ready.read_text())['port']
-        subprocess.run([str(executable), str(fixture), str(port)], cwd=root, env=environment, check=True, timeout=90)
+        run_receiver([str(executable), str(fixture), str(port)], cwd=root, env=environment, check=True, timeout=90)
         assert server.wait(timeout=10) == 0
         state = json.loads((fixture / 'result.json').read_text())
         assert state['accepted'] == 1 and state['auth'] == 0 and state['data'] == 1

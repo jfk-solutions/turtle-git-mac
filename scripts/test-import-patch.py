@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Headless native Import Patch workflow checks. No displayed UI or signed acceptance."""
+from native_receiver import build_receiver
 import argparse
 import os
 import signal
@@ -43,12 +44,7 @@ root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
 with tempfile.TemporaryDirectory(prefix='turtlegit-import-patch-native-') as temporary:
     directory = Path(temporary)
-    app = root / 'Sources/TurtleGitMac/TurtleGitMacApp.swift'
-    copy = directory / app.name
-    copy.write_text(app.read_text().replace('@main struct', 'struct', 1))
-    sources = sorted(str(p) for p in (root / 'Sources/TurtleGitMac').glob('*.swift') if p != app)
-    executable = directory / 'import-patch-native-receiver'
-    subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products), *sources, str(copy), str(root / 'docs/qa/import-patch-native-2026-10-08.swift'), str(root / 'docs/qa/import-patch-lifecycle-native-2026-10-11.swift'), '-framework', 'TurtleGitCore', '-o', str(executable)], cwd=root, check=True)
+    executable = build_receiver(root, [root / 'docs/qa/import-patch-native-2026-10-08.swift', root / 'docs/qa/import-patch-lifecycle-native-2026-10-11.swift'], directory)
     environment = os.environ.copy()
     if args.lifecycle_only: environment['TURTLEGIT_IMPORT_LIFECYCLE_ONLY'] = '1'
     environment['DYLD_FRAMEWORK_PATH'] = str(products)

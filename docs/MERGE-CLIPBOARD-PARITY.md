@@ -24,8 +24,8 @@ is highlighted, but `RemoveSelectedText` then returns without deleting anything.
 Highlighted text is copied and deleted through the native editor, retaining Undo.
 Paste inserts plain text through that same editor and uses the document's
 predominant ending style. Read-only panes omit Cut/Paste; busy/Quit/sheet/retired
-checks reject stale mutation actions. Two-pane Copy keeps its existing operation
-availability gate; three-pane read-only Copy remains usable while processing.
+checks reject stale mutation actions. Read-only Copy remains usable while processing or confirming Quit in both
+editors. Two-pane Copy also refuses retained actions after retirement.
 
 Both context-menu families own their supplied pasteboard via a retained command
 target with a weak editor reference. Three-pane context actions previously accepted

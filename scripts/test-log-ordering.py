@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Headless native Log commit ordering and owned-sheet lifecycle checks."""
+from native_receiver import build_receiver, run_receiver
 import argparse
 import os
 from pathlib import Path
@@ -21,12 +22,7 @@ for git in engines:
         parser.error('Git executable is missing: ' + str(git))
 with tempfile.TemporaryDirectory(prefix='turtlegit-log-ordering-native-') as temporary:
     directory = Path(temporary)
-    app = root / 'Sources/TurtleGitMac/TurtleGitMacApp.swift'
-    copy = directory / app.name
-    copy.write_text(app.read_text().replace('@main struct', 'struct', 1))
-    sources = sorted(str(p) for p in (root / 'Sources/TurtleGitMac').glob('*.swift') if p != app)
-    executable = directory / 'log-ordering-native-receiver'
-    subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products), *sources, str(copy), str(root / 'docs/qa/log-ordering-native-2026-10-10.swift'), '-framework', 'TurtleGitCore', '-o', str(executable)], cwd=root, check=True)
+    executable = build_receiver(root, [root / 'docs/qa/log-ordering-native-2026-10-10.swift'], directory)
     environment = os.environ.copy()
     environment['DYLD_FRAMEWORK_PATH'] = str(products)
     for index, git in enumerate(engines):
@@ -35,7 +31,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-log-ordering-native-') as tem
         command = [str(executable), str(fixture), str(git.resolve())]
         if index == 0 and args.capture_dir:
             command.append(str(args.capture_dir.resolve()))
-        result = subprocess.run(command, cwd=root, env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        result = run_receiver(command, cwd=root, env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         print(result.stdout, end='', flush=True)
         result.check_returncode()
         if 'PASS: Native Log ordering' not in result.stdout:

@@ -205,14 +205,28 @@ import TurtleGitCore
         let menu = comparisonMenus.comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard)
         precondition(!menu.item(withTitle: "Go to Line…")!.isEnabled) // Source single-line gate.
         precondition(["Copy", "Cut", "Paste"].allSatisfy { menu.item(withTitle: $0)?.image != nil && menu.item(withTitle: $0)?.isEnabled == true })
-        precondition(["Copy", "Cut", "Paste"].allSatisfy { (menu.item(withTitle: $0)?.target as? NSTextView) === editedView })
+        // Clipboard commands now own the injected private pasteboard through a
+        // retained adapter. Verify its actual route instead of requiring the
+        // text view itself to be the Objective-C action target.
+        let copyCommand = menu.item(withTitle: "Copy")!
+        precondition(copyCommand.target != nil && ["Cut", "Paste"].allSatisfy { menu.item(withTitle: $0)?.target === copyCommand.target })
+        let copiedSelection = (editedView.string as NSString).substring(with: editedView.selectedRange())
+        precondition(NSApp.sendAction(copyCommand.action!, to: copyCommand.target, from: copyCommand))
+        precondition(menuClipboard.string(forType: .string) == copiedSelection && copiedSelection.count == 4)
+        menuClipboard.clearContents(); menuClipboard.setString("private paste", forType: .string)
         prefs.set(false, forKey: "ShowAppContextMenuIcons")
         precondition(comparisonMenus.comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard).items.allSatisfy { $0.image == nil })
         prefs.removeObject(forKey: "ShowAppContextMenuIcons")
         for quit in [false, true] {
             edit.editor!.busy = !quit; edit.editor!.confirmingQuit = quit
             let lockedMenu = comparisonMenus.comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard)
-            precondition(!lockedMenu.item(withTitle: "Cut")!.isEnabled && !lockedMenu.item(withTitle: "Paste")!.isEnabled && lockedMenu.item(withTitle: "Copy")!.isEnabled)
+            let commandStates = ["Copy", "Cut", "Paste"].map { lockedMenu.item(withTitle: $0)!.isEnabled }
+            precondition(commandStates == [true, false, false], "Clipboard gates quit=\(quit), Copy/Cut/Paste=\(commandStates)")
+            menuClipboard.clearContents()
+            let lockedCopy = lockedMenu.item(withTitle: "Copy")!
+            precondition(NSApp.sendAction(lockedCopy.action!, to: lockedCopy.target, from: lockedCopy))
+            precondition(menuClipboard.string(forType: .string) == copiedSelection)
+            menuClipboard.clearContents(); menuClipboard.setString("private paste", forType: .string)
         }
         edit.editor!.busy = false; edit.editor!.confirmingQuit = false
         menuClipboard.clearContents()
@@ -223,6 +237,18 @@ import TurtleGitCore
         precondition(!beforeMenu.item(withTitle: "Cut")!.isEnabled && !beforeMenu.item(withTitle: "Paste")!.isEnabled)
         beforeView.setSelectedRange(NSRange(location: 0, length: 0)); editedView.setSelectedRange(NSRange(location: 0, length: 0)); edit.editor!.selectedRows = nil
         print("PASS: actual aligned comparison menu clipboard targets/artwork, icon-off policy without standard-selector glyph fallback, private Paste availability, read-only and busy/Quit editing metadata. No synthetic context events or general clipboard writes.")
+        @MainActor func verifyRetiredCopy(_ editor: FileComparisonWindowModel) {
+            editor.retireImageLoader()
+            precondition(!editor.copyCommandsAllowed)
+            menuClipboard.clearContents(); menuClipboard.setString("retired sentinel", forType: .string)
+            precondition(NSApp.sendAction(copyCommand.action!, to: copyCommand.target, from: copyCommand))
+            precondition(menuClipboard.string(forType: .string) == "retired sentinel", "Retained Copy must not publish after retirement")
+        }
+        if ProcessInfo.processInfo.environment["TURTLEGIT_IMPORT_CLIPBOARD_ONLY"] == "1" {
+            verifyRetiredCopy(edit.editor!)
+            print("PASS: two-pane Copy dispatch while busy/Quit, guarded Cut/Paste and retained retired-editor Copy refusal; private clipboard only")
+            return
+        }
         precondition(edit.editor!.window === editController.window)
         let exportEditor = edit.editor!
         let exportDraft = "exported edit\nno final newline"
@@ -710,6 +736,7 @@ import TurtleGitCore
         precondition(context.preview.contains("Unicode") && !context.preview.contains("�") && context.previewDocument.exportDocument.bytes == bytes)
         context.selection = [contextIDs[0], contextIDs[2]]; precondition(context.preview.isEmpty && context.previewDocument.exportDocument.bytes.isEmpty)
         print("PASS: source 250 MiB preview guard using sparse file; UTF-16 BOM preview decoded with original bytes retained; multiple-selection clear.")
+        verifyRetiredCopy(exportEditor)
         try await ImportPatchLifecycleVerification.run(root: root, git: git)
         precondition(RepositoryAction.importPatch.icon == .patch && RepositoryAction.importPatch.requiresWorkingTree)
         print("PASS: hidden native patch table/preview; order, check, fixed batch options and mutation guards; two real mail commits/signoff; retained conflict cursor Abort/Skip/Resolved; close Cancel/Keep/Abort; real hook stop finishes current command without closing; original patch icon; no main app")

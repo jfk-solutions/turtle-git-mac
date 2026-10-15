@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-15",
+  "scope": "Reuse current Debug app objects across 82 native QA runners; preserve original fixtures/CLI/engine coverage; repair two-pane read-only Copy gates",
+  "base_commit": "252d5ba4d608cb050a31499399bc8dc1c52a90ff",
+  "implementation": [
+    "One shared dylib of actual Debug app objects; fixture-only compilation, sync/async entry points, original source locations and framework rpaths",
+    "Content keys cover objects, sources, imported modules/frameworks, helper, fixture, compiler, SDK, architecture and flags; refuse stale objects",
+    "Owned process groups bounded and cleaned on success/failure/timeout; existing custom owners retained",
+    "Default CI native steps retained, plus four helper contracts",
+    "Read-only Compare Copy remains available during busy/Quit; Cut/Paste mutation guards retained and retired Copy refused"
+  ],
+  "migration": {
+    "runners": 82,
+    "runtimeCLI_AST_unchanged": 82,
+    "bespoke_runner_retained": "scripts/test-log-message-line.py requires same-file private Blame instrumentation",
+    "initial_compile_attempts": 83,
+    "initial_compile_failures": 1,
+    "retained_groups_compiled": 82,
+    "retained_compile_failures": 0,
+    "initial_batch_seconds": 223.16,
+    "median_fixture_compile_seconds": 1.5,
+    "receiver_bytes_total": 25541344,
+    "shared_library_bytes": 82876504,
+    "scope_note": "All retained groups compiled against 252d5ba4 before the subsequent Copy repair. Only the affected Import Patch fixture was compiled/executed after the production repair. The original compile batch includes the excluded Blame compile failure."
+  },
+  "validation": {
+    "helper_contracts": {
+      "cases": 4,
+      "failures": 0,
+      "log": "build/qa/native-receiver-contracts.log"
+    },
+    "native_before_Copy_repair": [
+      {
+        "runner": "submodule-sync",
+        "returncode": 0,
+        "seconds": 10.45
+      },
+      {
+        "runner": "clone-stream",
+        "returncode": 0,
+        "seconds": 7.13
+      },
+      {
+        "runner": "reference-browser",
+        "returncode": 0,
+        "seconds": 18.82
+      },
+      {
+        "runner": "image-comparison",
+        "returncode": 0,
+        "seconds": 18.13
+      },
+      {
+        "runner": "import-patch",
+        "returncode": 1,
+        "seconds": 10.31
+      }
+    ],
+    "native_Copy_repair": {
+      "git_engines": [
+        "Apple Git 2.54.0",
+        "prepared bundled Git 2.55.0"
+      ],
+      "accepted_pairs": 2,
+      "exit_code": 0,
+      "command": "TURTLEGIT_IMPORT_CLIPBOARD_ONLY=1 python3 scripts/test-import-patch.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "log": "build/qa/native-receiver-copy-focused.log",
+      "coverage": [
+        "actual retained adapter Copy to private board",
+        "busy/Quit Copy availability and actual dispatch",
+        "Cut/Paste blocked while busy/Quit, read-only pane gates and icon policy",
+        "retained Copy after retirement leaves private board unchanged"
+      ],
+      "scope_note": "The opt-in diagnostic returns before unrelated later export checks; the default full fixture is retained unchanged in scope."
+    },
+    "app_build": {
+      "initial_exit_code": 65,
+      "initial_reason": "Access to private retired state; repaired with copyCommandsAllowed policy",
+      "final_exit_code": 0,
+      "final_log": "build/qa/native-receiver-copy-build-final.log"
+    },
+    "core": "No Core changes; no Core suite rerun",
+    "processes": {
+      "logged_owned_pids": [
+        42071,
+        42423,
+        42743,
+        43080,
+        43419,
+        43530,
+        43626,
+        43893,
+        44249,
+        44293
+      ],
+      "still_present": [],
+      "current_shared_receiver_pids": [],
+      "custom_import_owner": "Existing Popen wait/finally close_receiver retained; no matching receiver alive after final run"
+    }
+  },
+  "failures_and_repairs": [
+    "Excluded original same-file Blame instrumented runner after compile exposed its private helper dependency; no assertion removed",
+    "Initial relocated app Git path could not find submodule; corrected validation to prepared runtime, preserving runner Git path semantics",
+    "Import Patch expected text view action target despite retained clipboard adapter; now dispatches actual Copy and checks payload/target retention",
+    "Busy/Quit Copy failed in menu and payload lookup; repaired both. Initial private-state build error repaired. Affected clipboard checks passed with both Git engines"
+  ],
+  "open_failures": [
+    {
+      "kind": "local full Import Patch",
+      "log": "build/qa/native-receiver-import-copy-final.log",
+      "assertion": "Save As option lock, original line 256 before later diagnostic additions",
+      "state": "unresolved; full default fixture not passing"
+    },
+    {
+      "kind": "hosted CI",
+      "run_id": 38688088886,
+      "job_id": 116270555472,
+      "source_sha_prefix": "883d19c4",
+      "step": 82,
+      "failure": "Grouped reference receiver swiftc compile exceeded timeout=300 before execution",
+      "state": "unresolved; this batch migrates separate standalone runners, not the WIP reference runner"
+    }
+  ],
+  "limitations": [
+    "No complete hosted CI success claimed",
+    "No all-dialog visual parity, physical Finder, signed sandbox or App Store acceptance",
+    "Existing AppKit layout and compiler warnings remain"
+  ],
+  "hashes": {
+    "scripts/native_receiver.py": "efc620db09a70a06fb03c3cb52110507f6889dc44da7f316d019d2ccdb45d0ee",
+    "scripts/native-receiver-migrations.json": "625e510f4e6087ad87b78ea9dd458322df7f3cc3ecdafea556ae9e100c664344",
+    "scripts/test-native-receiver.py": "86ee83abcf3eeec76b4dafaebfa0c4b98d7f2b8e9de78cd84e23895c026c09ea",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "82a68b2f31f4356ebbb11557531f432e14efcad3c27bbd42cf72bf3cb773052d",
+    "docs/qa/import-patch-native-2026-10-08.swift": "69225ed5b0e378b874e315587b4cecb3b2744f216a2bb8bdca6c7f3536c3bec7"
+  }
+}

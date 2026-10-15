@@ -1,0 +1,500 @@
+{
+  "version": 1,
+  "runners": [
+    {
+      "script": "scripts/test-action-log.py",
+      "fixtures": [
+        "docs/qa/action-log-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-branch-revision-number.py",
+      "fixtures": [
+        "docs/qa/branch-revision-number-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-branch-tag-handoff.py",
+      "fixtures": [
+        "docs/qa/branch-tag-handoff-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-clean-dialog.py",
+      "fixtures": [
+        "docs/qa/clean-native-receiver-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-clean-progress-policy.py",
+      "fixtures": [
+        "docs/qa/clean-progress-policy-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-clone-progress.py",
+      "fixtures": [
+        "docs/qa/clone-progress-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-clone-stream.py",
+      "fixtures": [
+        "docs/qa/clone-stream-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-amend-focus.py",
+      "fixtures": [
+        "docs/qa/commit-amend-focus-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-author-field.py",
+      "fixtures": [
+        "docs/qa/commit-author-field-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-branch-focus.py",
+      "fixtures": [
+        "docs/qa/commit-branch-focus-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-column-sorting.py",
+      "fixtures": [
+        "docs/qa/commit-column-sorting-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-conflict-hints.py",
+      "fixtures": [
+        "docs/qa/commit-conflict-hints-native-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-dirty-submodule.py",
+      "fixtures": [
+        "docs/qa/commit-dirty-submodule-native-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-history.py",
+      "fixtures": [
+        "docs/qa/commit-history-native-2026-10-10.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-last-action.py",
+      "fixtures": [
+        "docs/qa/commit-last-action-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-message-encoding.py",
+      "fixtures": [
+        "docs/qa/commit-message-encoding-native-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-message-file.py",
+      "fixtures": [
+        "docs/qa/commit-message-file-native-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-metadata.py",
+      "fixtures": [
+        "docs/qa/commit-metadata-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-refresh.py",
+      "fixtures": [
+        "docs/qa/commit-refresh-native-2026-10-10.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-commit-selection-settings.py",
+      "fixtures": [
+        "docs/qa/commit-selection-settings-native-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-dialog-geometry.py",
+      "fixtures": [
+        "docs/qa/dialog-geometry-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-fetch-cancellation.py",
+      "fixtures": [
+        "docs/qa/fetch-cancellation-native-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-fetch-clipboard.py",
+      "fixtures": [
+        "docs/qa/fetch-clipboard-native-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-fetch-progress.py",
+      "fixtures": [
+        "docs/qa/fetch-progress-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-fetch-pull-stream.py",
+      "fixtures": [
+        "docs/qa/fetch-pull-stream-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-fetch-rebase-decisions.py",
+      "fixtures": [
+        "docs/qa/fetch-rebase-decisions-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-fetch-submodule-defaults.py",
+      "fixtures": [
+        "docs/qa/fetch-submodule-defaults-native-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-history-deletion.py",
+      "fixtures": [
+        "docs/qa/history-deletion-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-history-picker.py",
+      "fixtures": [
+        "docs/qa/history-picker-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-image-colors.py",
+      "fixtures": [
+        "docs/qa/image-colors-native-2026-10-10.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-image-comparison.py",
+      "fixtures": [
+        "docs/qa/image-comparison-native-2026-10-10.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-image-conflict.py",
+      "fixtures": [
+        "docs/qa/image-conflict-native-2026-10-10.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-image-frames.py",
+      "fixtures": [
+        "docs/qa/image-frames-native-2026-10-10.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-image-open.py",
+      "fixtures": [
+        "docs/qa/image-open-native-2026-10-10.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-import-patch.py",
+      "fixtures": [
+        "docs/qa/import-patch-native-2026-10-08.swift",
+        "docs/qa/import-patch-lifecycle-native-2026-10-11.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-lfs-locks.py",
+      "fixtures": [
+        "docs/qa/lfs-locks-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-log-double-click.py",
+      "fixtures": [
+        "docs/qa/log-double-click-native-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-log-find.py",
+      "fixtures": [
+        "docs/qa/log-find-native-2026-10-10.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-log-gravatar.py",
+      "fixtures": [
+        "docs/qa/log-gravatar-native-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-log-history-limits.py",
+      "fixtures": [
+        "docs/qa/log-history-limits-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-log-ordering.py",
+      "fixtures": [
+        "docs/qa/log-ordering-native-2026-10-10.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-log-palette.py",
+      "fixtures": [
+        "docs/qa/log-palette-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-log-rebase-font.py",
+      "fixtures": [
+        "docs/qa/log-rebase-font-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-log-rollup.py",
+      "fixtures": [
+        "docs/qa/log-rollup-native-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-log-table-font.py",
+      "fixtures": [
+        "docs/qa/log-table-font-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-merge-abort-dialog.py",
+      "fixtures": [
+        "docs/qa/merge-abort-dialog-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-merge-cleanup.py",
+      "fixtures": [
+        "docs/qa/merge-cleanup-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-merge-conflict-hint.py",
+      "fixtures": [
+        "docs/qa/merge-conflict-hint-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-merge-history.py",
+      "fixtures": [
+        "docs/qa/merge-history-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-merge-progress.py",
+      "fixtures": [
+        "docs/qa/merge-progress-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-merge-stream.py",
+      "fixtures": [
+        "docs/qa/merge-stream-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-message-font.py",
+      "fixtures": [
+        "docs/qa/message-font-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-pull-cleanup.py",
+      "fixtures": [
+        "docs/qa/pull-cleanup-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-pull-progress.py",
+      "fixtures": [
+        "docs/qa/pull-progress-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-push-cancellation.py",
+      "fixtures": [
+        "docs/qa/push-cancellation-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-push-history.py",
+      "fixtures": [
+        "docs/qa/push-history-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-push-preferences.py",
+      "fixtures": [
+        "docs/qa/push-preferences-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-push-progress.py",
+      "fixtures": [
+        "docs/qa/push-progress-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-push-result-refresh.py",
+      "fixtures": [
+        "docs/qa/push-result-refresh-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-push-source-pickers.py",
+      "fixtures": [
+        "docs/qa/push-source-pickers-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-push-stream.py",
+      "fixtures": [
+        "docs/qa/push-stream-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-reference-browser.py",
+      "fixtures": [
+        "docs/qa/reference-browser-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-reference-rename.py",
+      "fixtures": [
+        "docs/qa/reference-rename-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-reference-standalone.py",
+      "fixtures": [
+        "docs/qa/reference-standalone-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-reference-tracking.py",
+      "fixtures": [
+        "docs/qa/reference-tracking-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-reflog-actions.py",
+      "fixtures": [
+        "docs/qa/reflog-actions-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-reflog-deletion.py",
+      "fixtures": [
+        "docs/qa/reflog-deletion-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-reflog-partial-failure.py",
+      "fixtures": [
+        "docs/qa/reflog-partial-failure-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-reflog-search.py",
+      "fixtures": [
+        "docs/qa/reflog-search-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-remote-settings.py",
+      "fixtures": [
+        "docs/qa/remote-settings-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-remote-tags.py",
+      "fixtures": [
+        "docs/qa/remote-tags-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-reset-modified-files.py",
+      "fixtures": [
+        "docs/qa/reset-modified-files-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-reset-picker.py",
+      "fixtures": [
+        "docs/qa/reset-picker-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-revision-graph-window.py",
+      "fixtures": [
+        "docs/qa/revision-graph-window-native-2026-10-10.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-saved-data.py",
+      "fixtures": [
+        "docs/qa/saved-data-native-2026-10-08.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-send-patch-dialog.py",
+      "fixtures": [
+        "docs/qa/send-patch-dialog-native-2026-10-10.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-statistics-dialog.py",
+      "fixtures": [
+        "docs/qa/statistics-native-receiver-2026-10-07.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-submodule-progress-output.py",
+      "fixtures": [
+        "docs/qa/submodule-progress-output-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-submodule-sync.py",
+      "fixtures": [
+        "docs/qa/submodule-sync-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-submodule-update-progress.py",
+      "fixtures": [
+        "docs/qa/submodule-update-progress-native-2026-10-09.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-synchronization-dialog.py",
+      "fixtures": [
+        "docs/qa/synchronization-native-2026-10-11.swift",
+        "docs/qa/synchronization-apply-native-2026-10-11.swift",
+        "docs/qa/synchronization-email-native-2026-10-11.swift"
+      ]
+    },
+    {
+      "script": "scripts/test-temporary-files.py",
+      "fixtures": [
+        "docs/qa/temporary-files-native-2026-10-08.swift"
+      ]
+    }
+  ]
+}

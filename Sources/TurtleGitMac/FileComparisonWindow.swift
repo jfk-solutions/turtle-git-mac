@@ -472,6 +472,7 @@ import TurtleGitCore
     var redo: () -> Void = {}
     var canTransfer: Bool { canTransfer(toBase: activeBase) }
     func canTransfer(toBase base: Bool) -> Bool { sourceSnapshotRoot == nil && drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !confirmingQuit && !filtering }
+    var copyCommandsAllowed: Bool { !retired }
     var contextCommandsAllowed: Bool { !retired && !busy && !confirmingQuit && window?.attachedSheet == nil }
     var oppositeViewCommandsAllowed: Bool { !onePaneActive && contextCommandsAllowed }
     var transferRows: Range<Int>? { selectedRows ?? alignment.flatMap { $0.differences.indices.contains(difference) ? $0.differences[difference] : nil } }
@@ -1520,7 +1521,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         if selectedRange().length > 0 { insertText("", replacementRange: selectedRange()) }
     }
     fileprivate var clipboardText: String? {
-        guard let model, model.contextCommandsAllowed, window != nil else { return nil }
+        guard let model, model.copyCommandsAllowed, window != nil else { return nil }
         model.updateSelection(selectedRange(), cells: sourceCells)
         var rows = model.transferRows
         if model.onePaneActive, let selected = rows, let combined = model.combined {
@@ -1530,7 +1531,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         return try? MergeClipboard.sourceText(selection: selectedRange(), cells: sourceCells, blockRows: rows)
     }
     @discardableResult fileprivate func copySelection(to pasteboard: NSPasteboard) -> Bool {
-        guard let text = clipboardText, !text.isEmpty else { return false }
+        guard model?.copyCommandsAllowed == true, let text = clipboardText, !text.isEmpty else { return false }
         pasteboard.clearContents(); return pasteboard.setString(text, forType: .string)
     }
     override func menu(for event: NSEvent) -> NSMenu? {
@@ -1576,7 +1577,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         }
         func clipboardItems() {
             menu.addItem(.separator())
-            add("Copy", #selector(ComparisonClipboardCommands.copySelection(_:)), MenuIcon.copy.image(), model.contextCommandsAllowed && !(clipboardText ?? "").isEmpty)
+            add("Copy", #selector(ComparisonClipboardCommands.copySelection(_:)), MenuIcon.copy.image(), model.copyCommandsAllowed && !(clipboardText ?? "").isEmpty)
             menu.items.last?.target = clipboard; menu.items.last?.representedObject = clipboard
             if !model.onePaneActive || isEditable && model.canTransfer(toBase: baseSide) {
                 add("Cut", #selector(ComparisonClipboardCommands.cutSelection(_:)), NSImage(systemSymbolName: "scissors", accessibilityDescription: nil), isEditable && model.canTransfer(toBase: baseSide) && !(clipboardText ?? "").isEmpty)
