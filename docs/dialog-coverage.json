@@ -3716,7 +3716,8 @@
         "docs/GIT-PROPERTIES-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/git-properties-2026-10-13.json"
+        "docs/qa/git-properties-2026-10-13.json",
+        "docs/qa/git-properties-parents-2026-10-15.json"
       ]
     },
     {

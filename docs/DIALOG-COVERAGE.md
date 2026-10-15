@@ -135,6 +135,6 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/TortoiseIDiff/TortoiseIDiff.rc` / `IDD_OPEN` | partial-native-replacement | 8/8 mapped; 0 pending | [IMAGE-OPEN-PARITY](IMAGE-OPEN-PARITY.md), [UI-PARITY](UI-PARITY.md); 8 QA records |
 | `src/TortoiseIDiff/TortoiseIDiff.rc` / `IDD_ABOUT` | partial-native-replacement | 0/5 mapped; 5 pending | No recorded family document; 0 QA records |
 | `src/TortoisePlink/Windows/TortoisePlink.rc` / `IDD_LOGIN` | pending-review | 0/4 mapped; 4 pending | No recorded family document; 0 QA records |
-| `src/TortoiseShell/resourceshell.rc` / `IDD_PROPPAGE` | partial-native-replacement | 31/31 mapped; 0 pending | [GIT-PROPERTIES-PARITY](GIT-PROPERTIES-PARITY.md); 1 QA records |
+| `src/TortoiseShell/resourceshell.rc` / `IDD_PROPPAGE` | partial-native-replacement | 31/31 mapped; 0 pending | [GIT-PROPERTIES-PARITY](GIT-PROPERTIES-PARITY.md); 2 QA records |
 | `src/TortoiseUDiff/TortoiseUDiff.rc` / `IDD_FINDBAR` | partial-native-replacement | 0/6 mapped; 6 pending | [UNIFIED-DIFF-VIEWER-PARITY](UNIFIED-DIFF-VIEWER-PARITY.md); 6 QA records |
 | `test/Cache/Cache.rc` / `IDD_CACHE_DIALOG` | pending-review | 0/12 mapped; 12 pending | No recorded family document; 0 QA records |

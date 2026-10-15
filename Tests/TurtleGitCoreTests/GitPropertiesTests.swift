@@ -12,6 +12,54 @@ final class GitPropertiesTests: XCTestCase {
         return (repo,root)
     }
     func commit(_ repo:GitRepository,_ text:String) async throws -> String { try await repo.run(["commit","-am",text]).stdout; return try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines) }
+    func testBatchObjectFramingRejectsTruncationAndRetainsLiteralNames() throws {
+        let a = String(repeating: "a", count: 40), b = String(repeating: "b", count: 64), object = String(repeating: "c", count: 40)
+        let queries = [a + ":snow 雪\t:file missing", b + ":absent file"]
+        XCTAssertEqual(try GitPropertyObjectBatch.parse(Data((object + "\n" + queries[1] + " missing\n").utf8), expressions: queries), [object, nil])
+        XCTAssertEqual(try GitPropertyObjectBatch.parse(Data((object + " submodule\n" + b + " submodule\n").utf8), expressions: queries), [object, b])
+        XCTAssertThrowsError(try GitPropertyObjectBatch.parse(Data(("invalid submodule\n" + queries[1] + " missing\n").utf8), expressions: queries))
+        XCTAssertEqual(try GitPropertyObjectBatch.parse(Data(), expressions: []), [])
+        for data in [Data(), Data((object + "\n").utf8), Data((object + "\nwrong missing\n").utf8), Data((b + "\n" + queries[1] + " missing\n").utf8), Data((object + "\n" + queries[1] + " missing\nextra\n").utf8)] {
+            XCTAssertThrowsError(try GitPropertyObjectBatch.parse(data, expressions: queries))
+        }
+    }
+    func testLastModifiedBatchReducesProcessesWithoutChangingSourceWalk() async throws {
+        let (repo, root) = try await repo()
+        var input = "blob\nmark :1\ndata 5\nbase\n"
+        for index in 0..<145 {
+            input += "commit refs/heads/main\nmark :\(index + 2)\ncommitter Property Author <properties@example.invalid> \(1700000000 + index) +0000\ndata 1\nx\n"
+            if index > 0 { input += "from :\(index + 1)\n" } else { input += "M 100644 :1 file.txt\n" }
+            input += "\n"
+        }
+        _ = try await repo.run(["fast-import", "--quiet"], input: Data(input.utf8)); _ = try await repo.run(["reset", "--hard", "main"])
+        let first = try await repo.run(["rev-list", "--max-parents=0", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let engine = repo.executable, helper = root.appendingPathComponent("count-properties"), countFile = root.appendingPathComponent("counts")
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+        let script = "#!/bin/sh\nfor task_arg in \"$@\"; do\n case \"$task_arg\" in cat-file|ls-tree) printf '%s\\n' \"$task_arg\" >> " + quote(countFile.path) + ";; esac\ndone\nexec " + quote(engine.path) + " \"$@\"\n"
+        try script.write(to: helper, atomically: true, encoding: .utf8); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let before = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let info = try await GitRepository(root: root, executable: helper).gitProperties(paths: ["file.txt"])
+        XCTAssertEqual(info.lastModified?.hash, first)
+        let counts = try String(contentsOf: countFile, encoding: .utf8).split(separator: "\n")
+        XCTAssertEqual(counts.filter { $0 == "cat-file" }.count, 3)
+        XCTAssertEqual(counts.filter { $0 == "ls-tree" }.count, 0)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), before)
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(after, head)
+    }
+    func testLiteralNewlinePathsAndUnavailableGitlinkObjectsRetainLastModified() async throws {
+        let (repo, root) = try await repo()
+        let paths = ["snow 雪\t:name.txt", "line\nname.txt", "line\rname.txt"]
+        for path in paths { try Data("base\n".utf8).write(to: root.appendingPathComponent(path)) }
+        try await repo.stage(paths); let first = try await commit(repo, "initial")
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "unchanged"])
+        for path in paths { let info = try await repo.gitProperties(paths: [path]); XCTAssertEqual(info.lastModified?.hash, first) }
+        let unavailable = String(repeating: "a", count: 40)
+        _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + unavailable + ",module"])
+        _ = try await repo.run(["commit", "-m", "gitlink"])
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let info = try await repo.gitProperties(paths: ["module"])
+        XCTAssertEqual(info.lastModified?.hash, head); XCTAssertTrue(info.hasSubmodule)
+    }
     func testBranchHeadTrackingConfigurationAndSourceLastContentChange() async throws {
         let (repo,root) = try await repo(); let path = "雪\t:file.txt"
         let unborn = try await repo.gitProperties(paths:["."]); XCTAssertEqual(unborn.branch,"main"); XCTAssertNil(unborn.head); XCTAssertFalse(unborn.allVersioned)

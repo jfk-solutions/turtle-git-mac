@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "0ff30964",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseShell/GITPropertyPage.cpp:AddPages and Last Modified parent walk",
+    "src/TortoiseShell/resourceshell.rc:IDD_PROPPAGE",
+    "https://git-scm.com/docs/git-cat-file"
+  ],
+  "scope": [
+    "Live registered-parent discovery without Finder cache; parent Git Submodule page before ordinary child Git page",
+    "Refresh rebuilds derived contexts and restores repository/path selection; resolved path identities prevent duplicate pages",
+    "Primary grant containment before parent probing; live primary scope required before reads and writes",
+    "Bounded object-ID batches preserve source merge-parent pruning and mode-only behavior; exact CR/LF scalar paths and missing gitlink records",
+    "Captured page Log/Settings, parent index flag Apply/restoration, child index/worktree preservation and discovery retirement/Quit/reaping"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/git-properties-parents-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/git-properties-parents-repair-build.log",
+      "exit": 0,
+      "reason": "Handle valid OID submodule batch records"
+    },
+    {
+      "log": "build/qa/git-properties-parents-identity-build.log",
+      "exit": 0,
+      "reason": "Use resolved path identity for native property pages"
+    }
+  ],
+  "core": {
+    "initial": {
+      "log": "build/qa/git-properties-parents-core.log",
+      "exit": 1,
+      "cases": 11,
+      "failures": 1,
+      "detail": "Eight property cases plus three Finder submodule registration cases. New missing-gitlink case exposed rejected valid cat-file submodule record; other ten cases passed."
+    },
+    "repair": {
+      "log": "build/qa/git-properties-parents-repair-core.log",
+      "exit": 0,
+      "cases": 8,
+      "detail": "All eight GitPropertiesTests passed after parser repair; the unchanged three Finder registration cases were not repeated."
+    },
+    "process_count": "145-commit unchanged-file history: three cat-file invocations, zero ls-tree invocations; HEAD/index unchanged. Not a general timing benchmark."
+  },
+  "native": {
+    "runner": "scripts/test-git-properties-family.py",
+    "fixture": "docs/qa/git-properties-parents-native-2026-10-15.swift",
+    "retained_fixture": "docs/qa/git-properties-native-2026-10-13.swift",
+    "attempts": [
+      {
+        "log": "build/qa/git-properties-parents-native.log",
+        "exit": 1,
+        "detail": "Retained system-Git property case passed; new parent case exposed the same missing-gitlink parser bug."
+      },
+      {
+        "log": "build/qa/git-properties-parents-repair-native.log",
+        "exit": 1,
+        "detail": "Retained system-Git case passed; parent case exposed a duplicate child caused by differing trailing-slash URL identities."
+      },
+      {
+        "log": "build/qa/git-properties-parents-final-native.log",
+        "exit": 0,
+        "cases": 4,
+        "detail": "Retained properties and new parent workflows passed with both system and bundled Git; each reached completion marker."
+      }
+    ],
+    "receiver_pids": [
+      24762,
+      24853,
+      25671,
+      25761,
+      25912,
+      26002,
+      26212,
+      26303
+    ],
+    "all_receiver_pids_absent": true,
+    "held_children": "Each forced-close case checks both helper and sleep descendant PIDs absent before completion.",
+    "scope_provider": "Injected successful RepositoryBookmarkProvider with requiresScopes; narrow primary lease proved no parent-discovery helper invocation; broad lease supplied both pages; missing lease refused reading."
+  },
+  "ci": {
+    "checked_run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38754805059",
+    "state": "Still running at native LFS/Send Mail step70; Core integration step completed successfully. This earlier run does not cover this unpushed batch.",
+    "addition": "New parent workflow runs with both engines; retained properties remains in existing native reference groups."
+  },
+  "limitations": [
+    "No signed sandbox/App Store acceptance",
+    "No physical Finder/Get Info interaction acceptance",
+    "No new light/dark screenshot or exhaustive layout/keyboard/accessibility review",
+    "No compiled Windows/libgit2 history oracle; clock skew, exhaustive merge shapes, huge-history timing and all index extension/crash scenarios remain open",
+    "No dialog certified complete"
+  ]
+}

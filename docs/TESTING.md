@@ -1873,3 +1873,29 @@ font, caret, accessibility and Undo checks. `--captures build/qa/message-style-c
 the actual Notes window in light/dark; inspect the raw images before publishing.
 Each owned case/process must reach its final marker and is reaped on every exit.
 See [scope](SHARED-MESSAGE-STYLES.md) and [evidence](qa/message-styles-2026-10-15.json).
+
+## Git Properties parent pages and history batches
+
+After building Debug, run this connected checkpoint:
+
+```sh
+TURTLEGIT_CORE_ONLY=1 swift test --filter 'GitPropertiesTests|FinderSubmoduleMetadataTests'
+python3 scripts/test-git-properties-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The runner links current app objects and uses stable receiver source paths. It
+combines the retained property controls/index/close fixture with live registered
+parent discovery, parent-first pages, selected child retention, registration
+removal on Refresh, page-scoped Log/Settings callbacks, flag Apply/restoration,
+primary-grant boundaries and forced-close discovery cancellation. Each process
+must reach its completion marker and is reaped. `--only parents` or `properties`
+limits an affected repair. CI adds the parent fixture for both engines; the
+retained property fixture remains in the existing reference groups.
+
+Core fixtures retain merge-parent pruning, mode-only changes, SHA-1/SHA-256 index
+versions 2–4, split indexes, conflicted stages, stale/lock/cancel refusal and
+literal filenames. A 145-commit fixture checks three bounded object-query
+processes without per-commit tree queries. Missing gitlink objects and strict
+batch-frame validation are covered separately. Injected scopes are model checks,
+not signed sandbox acceptance. See [parity scope](GIT-PROPERTIES-PARITY.md) and
+[dated evidence](qa/git-properties-parents-2026-10-15.json).

@@ -25,18 +25,24 @@ Last Modified compares the same path’s object with every parent, excluding
 histories of differing parents and retaining source fallback to the final walked
 commit if no qualifying change remains. Missing HEAD paths are blank. It does
 not follow renames or treat mode-only changes as content changes. The walk uses
-Git CLI reverse-walk order; a compiled Windows/libgit2 oracle, clock-skew/large
-history performance, encoding edge cases and all merge shapes remain unverified.
+Git CLI reverse-walk order. Object IDs are read in bounded batches without
+loading blob bodies; CR/LF names retain the scalar NUL-delimited reader. Missing
+objects also use the tree reader, since a gitlink commit need not exist in the
+superproject. A compiled Windows/libgit2 oracle, clock-skew performance, encoding
+edge cases and all merge shapes remain unverified.
 
 All selected indexed paths are required before displaying flags. The source’s
 first index entry for a conflicted path is retained; other stages are untouched.
 Uniform fields use two-state checkboxes and originally mixed fields permit an
 indeterminate state. Executable/Symlink exclusion and hiding these modes when a
 submodule is selected follow the source. Unchanged mixed fields preserve per-path
-values. Initialized gitlinks can add the child Git page. Known parent contexts
-are added only inside the captured repository grant; discovery never grants access.
-Parent discovery without cached metadata and signed shared-admin permission
-acceptance remain open.
+values. Initialized gitlinks can add the child Git page. Opening a sole repository root discovers its live registered parent using the
+source `.gitmodules` rule, independent of Finder metadata. The parent Git
+Submodule page precedes the child Git page. Refresh rebuilds derived pages and
+retains the selected repository/path when it still exists. In scoped execution,
+the primary grant must cover the parent before probing it; related metadata
+grants do not expand that boundary. Missing/invalid primary scopes refuse
+property reads and writes. Signed shared-admin permission acceptance remains open.
 
 Apply locks and checks the actual index against the loaded snapshot. Metadata
 edits preserve objects, stat data, paths, stages and intent-to-add in index
@@ -78,3 +84,24 @@ including first-level and Shift-only choices. Its direct title remains Git
 Properties without a duplicated Git prefix. Source MenuInfo rules/order remain
 independently checked; the native adaptation is recorded separately in the
 condition fixture and verified alongside the original Finder command sets.
+
+## Parent pages and batched history — 2026-10-15
+
+The connected update adds live registered-parent discovery, source page ordering,
+refresh of derived contexts, primary-grant read/write guards and bounded Last
+Modified object queries. Log and Settings continue to use the selected page's
+captured repository and paths. Forced retirement during parent discovery retains
+operation accounting until its owned Git/helper processes settle and refuses
+late context publication. No permission is acquired by discovery.
+
+The object query uses Git's documented
+[`cat-file --batch-check` protocol](https://git-scm.com/docs/git-cat-file),
+validating one full-width object ID, an explicit submodule-OID response, or the
+exact missing-expression frame per query. It preserves the existing source parent walk and mode-only behavior.
+The 145-commit unchanged-file fixture checks three batch processes and no
+scalar tree queries; this is a process-count check rather than a general
+performance benchmark.
+
+Validation results and limitations are recorded in the dated
+[batch evidence](qa/git-properties-parents-2026-10-15.json). Native scope tests use
+injected lease providers; they do not establish signed App Store acceptance.

@@ -2037,14 +2037,7 @@ import UniformTypeIdentifiers
         let selection = paths.isEmpty ? ["."] : paths
         let key = repository.root.path + "\0" + selection.map { Data($0.utf8).base64EncodedString() }.joined(separator:"\0")
         if let existing = gitPropertyWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
-        var contexts = [GitPropertiesContext(repository:repository,paths:selection,access:access,submodule:false)]
-        if selection == ["."], let parent = FinderSnapshot.read()?.repositories[repository.root.path]?.submoduleParentRoot {
-            let root = URL(fileURLWithPath:parent,isDirectory:true)
-            if access?.contains(root) == true, repository.root.path.hasPrefix(root.path + "/") {
-                let path = String(repository.root.path.dropFirst(root.path.count + 1))
-                contexts.insert(GitPropertiesContext(repository:GitRepository(root:root,executable:repository.executable),paths:[path],access:access,submodule:true),at:0)
-            }
-        }
+        let contexts = [GitPropertiesContext(repository:repository,paths:selection,access:access,submodule:false)]
         let controller = GitPropertiesWindowController(contexts:contexts)
         controller.onClosed = { [weak self,weak controller] in guard self?.gitPropertyWindows[key] === controller else { return }; self?.gitPropertyWindows.removeValue(forKey:key) }
         controller.model.onLog = { [weak self] context in self?.showLog(repository:context.repository,access:context.access,paths:context.paths == ["."] ? [] : context.paths) }

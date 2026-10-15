@@ -38,16 +38,39 @@ public struct GitPropertySnapshot: Sendable {
     }
 }
 public enum GitPropertyFailure: LocalizedError {
-    case selection, stale, indexFormat, mode
+    case selection, stale, indexFormat, mode, history
     public var errorDescription: String? {
         switch self {
         case .selection: return "Select paths belonging to this repository. Index properties require versioned entries."
         case .stale: return "The Git index changed. Refresh Git Properties before applying these fields."
         case .indexFormat: return "The Git index is corrupt or has an unsupported format. No property changes were written."
         case .mode: return "Executable and Symlink cannot both be enabled."
+        case .history: return "Git returned incomplete property history. Refresh Git Properties."
         }
     }
 }
+/// The input expressions are already full object IDs plus one literal path.
+/// Never infer absence from arbitrary output or decode binary object contents.
+enum GitPropertyObjectBatch {
+    static func parse(_ data: Data, expressions: [String]) throws -> [String?] {
+        if expressions.isEmpty { guard data.isEmpty else { throw GitPropertyFailure.history }; return [] }
+        let rows = data.split(separator: 10, omittingEmptySubsequences: false)
+        guard rows.count == expressions.count + 1, rows.last?.isEmpty == true else { throw GitPropertyFailure.history }
+        return try zip(expressions, rows).map { expression, row in
+            guard let colon = expression.firstIndex(of: ":"), HistoryMetadataProtocol.objectID(String(expression[..<colon])), !expression.contains("\n"), !expression.contains("\r"), !expression.contains("\0") else { throw GitPropertyFailure.history }
+            let value = String(decoding: row, as: UTF8.self)
+            if value.utf8.count == expression[..<colon].utf8.count && HistoryMetadataProtocol.objectID(value) { return value }
+            if value.hasSuffix(" submodule") {
+                let object = String(value.dropLast(" submodule".count))
+                guard object.utf8.count == expression[..<colon].utf8.count && HistoryMetadataProtocol.objectID(object) else { throw GitPropertyFailure.history }
+                return object
+            }
+            guard Data(row) == Data((expression + " missing").utf8) else { throw GitPropertyFailure.history }
+            return nil
+        }
+    }
+}
+
 extension GitRepository {
     private func propertyIndexLocation(cancellation: OperationCancellation?) throws -> URL {
         var bytes = try run(["rev-parse","--git-path","index"],cancellation:cancellation).stdout
@@ -75,7 +98,7 @@ extension GitRepository {
     /// excludes differing parent histories. Mode-only changes are not content
     /// changes; renames are not followed. A missing path at HEAD is blank.
     private func propertyLastCommit(head: String, path: String, cancellation: OperationCancellation?) throws -> GitPropertyCommit? {
-        func object(_ hash:String) throws -> String? {
+        func scalarObject(_ hash:String) throws -> String? {
             let bytes = try run(["ls-tree","--full-tree","-z",hash,"--",path],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout
             for row in bytes.split(separator:0) {
                 guard let tab = row.firstIndex(of:9), Data(row[row.index(after:tab)...]) == Data(path.utf8) else { continue }
@@ -84,7 +107,30 @@ extension GitRepository {
             return nil
         }
         let walk = try run(["rev-list","--parents",head,"--"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).text.split(separator:"\n").map { $0.split(separator:" ").map(String.init) }
-        let parents = Dictionary(uniqueKeysWithValues:walk.filter { !$0.isEmpty }.map { ($0[0],Array($0.dropFirst())) })
+        guard !walk.isEmpty, walk.allSatisfy({ !$0.isEmpty && $0.allSatisfy(HistoryMetadataProtocol.objectID) }), Set(walk.compactMap { $0.first }).count == walk.count else { throw GitPropertyFailure.history }
+        let parents = Dictionary(uniqueKeysWithValues:walk.map { ($0[0],Array($0.dropFirst())) })
+        let ordered = walk.compactMap { $0.first }, positions = Dictionary(uniqueKeysWithValues: walk.enumerated().compactMap { index, row in row.first.map { ($0, index) } })
+        var objects: [String: String] = [:]
+        func object(_ hash: String) throws -> String? {
+            try cancellation?.check()
+            if let value = objects[hash] { return value.isEmpty ? nil : value }
+            // Legacy Git's batch protocol uses LF output. Keep exact newline/CR
+            // paths on the scalar -z reader, rather than quote or rewrite them.
+            guard !path.contains("\n"), !path.contains("\r"), let start = positions[hash] else {
+                let value = try scalarObject(hash); objects[hash] = value ?? ""; return value
+            }
+            let batch = ordered[start..<min(start + 64, ordered.count)].filter { objects[$0] == nil }
+            let expressions = batch.map { $0 + ":" + path }
+            let bytes = try run(["cat-file", "--batch-check=%(objectname)", "--buffer"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation, input: Data((expressions.joined(separator: "\n") + "\n").utf8)).stdout
+            let values = try GitPropertyObjectBatch.parse(bytes, expressions: expressions)
+            for (commit, value) in zip(batch, values) {
+                // Missing expressions on older Git still use ls-tree so an
+                // unavailable object cannot erase an existing tree entry's OID.
+                objects[commit] = try value ?? scalarObject(commit) ?? ""
+            }
+            guard let value = objects[hash] else { throw GitPropertyFailure.history }
+            return value.isEmpty ? nil : value
+        }
         var hidden = Set<String>(), last: String?
         func hide(_ hash:String) { var todo = [hash]; while let next = todo.popLast() { if hidden.insert(next).inserted { todo.append(contentsOf:parents[next] ?? []) } } }
         for row in walk where !row.isEmpty && !hidden.contains(row[0]) {

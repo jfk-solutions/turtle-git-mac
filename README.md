@@ -257,3 +257,8 @@ with captured request policy and shared bounded visible-output settings.
 
 Finder context now shares normalized selections, nearest repository ownership and
 explicit ignore inheritance; see [selection context](docs/FINDER-SELECTION-CONTEXT.md).
+
+[Git Properties](docs/GIT-PROPERTIES-PARITY.md) exposes repository metadata and
+index flags, including live registered-parent/submodule pages and captured
+Log/Settings actions. Last Modified uses bounded history object queries while
+retaining the source's mode-only and merge-parent rules.

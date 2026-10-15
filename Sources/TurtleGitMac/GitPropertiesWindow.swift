@@ -19,6 +19,8 @@ struct GitPropertiesContext {
     @Published var error: String?
     private(set) var retired = false
     private let preferences: UserDefaults
+    private let invocationContexts: [GitPropertiesContext]
+    private let requiresScopes: Bool
     private var generation = 0
     private var task: Task<Void,Never>?
     private var cancellation: OperationCancellation?
@@ -26,11 +28,11 @@ struct GitPropertiesContext {
     var onChanged: (GitRepository) -> Void = { _ in }
     var onLog: (GitPropertiesContext) -> Void = { _ in }
     var onSettings: (GitPropertiesContext) -> Void = { _ in }
-    init(contexts: [GitPropertiesContext], preferences: UserDefaults = .standard) { self.preferences = preferences; self.contexts = contexts; snapshots = contexts.map { _ in nil }; drafts = contexts.map { _ in GitPropertyDraft() } }
+    init(contexts: [GitPropertiesContext], preferences: UserDefaults = .standard, requiresScopes: Bool = GitRuntime.isAppStoreBuild) { self.preferences = preferences; self.invocationContexts = contexts; self.requiresScopes = requiresScopes; self.contexts = contexts; snapshots = contexts.map { _ in nil }; drafts = contexts.map { _ in GitPropertyDraft() } }
     var current: GitPropertySnapshot? { snapshots.indices.contains(selected) ? snapshots[selected] : nil }
     var draft: GitPropertyDraft { drafts.indices.contains(selected) ? drafts[selected] : GitPropertyDraft() }
     var changed: Bool { snapshots.indices.contains { index in snapshots[index].map { $0.allVersioned && drafts[index] != $0.draft } ?? false } }
-    var canInteract: Bool { !retired && !busy && !hasSettings && error == nil }
+    var canInteract: Bool { !retired && !busy && !hasSettings && error == nil && contexts.indices.contains(selected) }
     func date(_ date:Date) -> String {
         if date.timeIntervalSince1970 == 0 { return "" }
         let settings = HistoryDateSettings(shortDate:(preferences.object(forKey:"LogDateFormat") as? NSNumber)?.boolValue ?? false,relative:false,useSystemLocale:(preferences.object(forKey:"UseSystemLocaleForDates") as? NSNumber)?.boolValue ?? true)
@@ -45,16 +47,42 @@ struct GitPropertiesContext {
         if key == \GitPropertyDraft.symlink && value == .on { next.executable = .off }
         drafts[selected] = next
     }
+    private func sameRoot(_ first: URL, _ second: URL) -> Bool {
+        Data(first.resolvingSymlinksInPath().standardizedFileURL.path.utf8) == Data(second.resolvingSymlinksInPath().standardizedFileURL.path.utf8)
+    }
+    private func requireAccess(_ context: GitPropertiesContext) throws {
+        if requiresScopes && (context.access?.hasSecurityScope != true || context.access?.contains(context.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
+    private func parentContext(_ context: GitPropertiesContext, cancellation: OperationCancellation) async throws -> GitPropertiesContext? {
+        guard context.paths == ["."], !context.submodule else { return nil }
+        // An existing primary grant may cover both repositories. Retained admin
+        // grants keep Git alive but never expand repository ownership boundaries.
+        if requiresScopes && context.access?.contains(context.repository.root.deletingLastPathComponent()) != true { return nil }
+        guard let parent = try await context.repository.registeredSubmoduleParent(cancellation: cancellation),
+              !requiresScopes || context.access?.contains(parent) == true,
+              RepositoryAccessLease.pathIsContained(context.repository.root, by: parent) else { return nil }
+        let prefix = parent.standardizedFileURL.path + "/", child = context.repository.root.standardizedFileURL.path
+        guard child.hasPrefix(prefix) else { return nil }
+        let access = context.access?.contains(parent) == true ? context.access : nil
+        return GitPropertiesContext(repository: GitRepository(root: parent, executable: context.repository.executable), paths: [String(child.dropFirst(prefix.count))], access: access, submodule: true)
+    }
     func load() {
         guard !retired, !busy, !hasSettings else { return }
         generation += 1; let request = generation, token = OperationCancellation()
         cancellation = token; busy = true; error = nil; Self.activeOperations += 1
+        let previous = contexts.indices.contains(selected) && snapshots.contains(where: { $0 != nil }) ? contexts[selected] : nil
         task = Task {
             defer { Self.activeOperations -= 1; busy = false; cancelling = false; cancellation = nil; task = nil }
             do {
+                var next = invocationContexts
+                for context in next { try requireAccess(context) }
+                if next.count == 1, let context = next.first, let parent = try await parentContext(context, cancellation: token) { next.insert(parent, at: 0) }
+                guard !retired, request == generation, !token.isCancelled else { return }
+                selected = 0; contexts = next; snapshots = next.map { _ in nil }; drafts = next.map { _ in GitPropertyDraft() }
                 var index = 0
                 while index < contexts.count {
                     let context = contexts[index]
+                    try requireAccess(context)
                     let snapshot = try await context.repository.gitProperties(paths:context.paths,cancellation:token)
                     guard !retired, request == generation, !token.isCancelled else { return }
                     snapshots[index] = snapshot; drafts[index] = snapshot.draft
@@ -63,15 +91,16 @@ struct GitPropertiesContext {
                     // captured grant, never an arbitrary selected directory.
                     if context.paths.count == 1, snapshot.hasSubmodule, let entry = snapshot.entries.first {
                         let child = context.repository.root.appendingPathComponent(entry.path)
-                        if (context.access?.contains(child) ?? !GitRuntime.isAppStoreBuild), !contexts.contains(where:{ $0.repository.root.standardizedFileURL == child.standardizedFileURL }) {
+                        if (!requiresScopes || context.access?.hasSecurityScope == true && context.access?.contains(child) == true), !contexts.contains(where:{ sameRoot($0.repository.root, child) }) {
                             let repo = GitRepository(root:child,executable:context.repository.executable)
-                            if let discovered = try? await repo.discoverRoot(cancellation:token), !retired, request == generation, !token.isCancelled, discovered.standardizedFileURL == child.standardizedFileURL {
+                            if let discovered = try? await repo.discoverRoot(cancellation:token), !retired, request == generation, !token.isCancelled, sameRoot(discovered, child) {
                                 contexts.append(GitPropertiesContext(repository:repo,paths:["."],access:context.access,submodule:false)); snapshots.append(nil); drafts.append(GitPropertyDraft())
                             }
                         }
                     }
                     index += 1
                 }
+                if let previous, let restored = contexts.firstIndex(where: { sameRoot($0.repository.root, previous.repository.root) && $0.paths.map { Data($0.utf8) } == previous.paths.map { Data($0.utf8) } }) { selected = restored }
             } catch { if !retired && !token.isCancelled && request == generation { self.error = error.localizedDescription } }
         }
     }
@@ -91,11 +120,12 @@ struct GitPropertiesContext {
             }
             do {
                 for (context,snapshot,draft) in changes {
+                    try requireAccess(context)
                     let updated = try await context.repository.applyGitProperties(draft,snapshot:snapshot,cancellation:token)
                     // Refresh live owners after a completed write, even when the
                     // property window was forced closed during the operation.
                     onChanged(context.repository)
-                    if !retired, let index = contexts.firstIndex(where:{ $0.repository.root == context.repository.root }) {
+                    if !retired, let index = contexts.firstIndex(where:{ sameRoot($0.repository.root, context.repository.root) }) {
                         snapshots[index] = updated; drafts[index] = updated.draft
                     }
                 }
@@ -116,8 +146,8 @@ struct GitPropertiesContext {
     var onClosed: () -> Void = {}
     private var settings: (window:NSWindow, navigation:SettingsNavigationController, workspace:RepositoryModel)?
     private var settingsObserver: NSObjectProtocol?
-    init(contexts: [GitPropertiesContext], preferences: UserDefaults = .standard) {
-        model = GitPropertiesWindowModel(contexts:contexts,preferences:preferences)
+    init(contexts: [GitPropertiesContext], preferences: UserDefaults = .standard, requiresScopes: Bool = GitRuntime.isAppStoreBuild) {
+        model = GitPropertiesWindowModel(contexts:contexts,preferences:preferences,requiresScopes:requiresScopes)
         let window = NSWindow(contentRect:NSRect(x:0,y:0,width:680,height:680),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
         let paths = contexts[0].paths
         let label = paths.count == 1 && paths[0] != "." ? paths[0] : paths.count > 1 ? "\(paths.count) items" : contexts[0].repository.root.lastPathComponent
