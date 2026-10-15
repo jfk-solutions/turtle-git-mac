@@ -79,6 +79,7 @@ import AppKit
         if HookSettingsModel.activeSaves > 0 { return .terminateCancel }
         if AutotextTesterModel.activeRequests > 0 { return .terminateCancel }
         if IssueRegexTesterModel.activeRequests > 0 { return .terminateCancel }
+        if ProjectDialogSettingsModel.activeSaves > 0 || ProjectDialogSettingsModel.activeReads > 0 || GitConfigurationSettingsModel.activeReads > 0 || IssueTrackerSettingsModel.activeReads > 0 { return .terminateCancel }
         if IssueTrackerSettingsModel.activeSaves > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? SynchronizationWindowController }).contains(where: { $0.model.busy || $0.model.hasBlockingChild || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? RevisionGraphWindowController }).contains(where: { $0.model.busy || $0.hasExportSheet || $0.window?.attachedSheet != nil }) { return .terminateCancel }

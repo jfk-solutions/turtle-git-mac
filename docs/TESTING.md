@@ -2035,3 +2035,18 @@ resets both settings and checks that closed windows stop receiving updates.
 It preserves the private repository's exact HEAD/index and closes owned windows.
 This is a presentation check; repeating it with another Git engine is optional.
 Physical tooltip hover, every dialog layout and signed acceptance are separate.
+
+
+## Hierarchical settings lifecycle
+
+`python3 scripts/test-configuration-lifecycle.py --git /usr/bin/git --git build/git-runtime/Git/bin/git`
+checks Git, Dialogs 3 and Issue Tracker settings using one cached native fixture
+compilation. It holds configuration discovery across cancellation, holds actual
+local writes across retirement, checks captured drafts/destinations and Quit
+ownership, cached Apply, late-confirmation refusal and native private hierarchy
+hint suppression. HEAD/index bytes stay unchanged. Authorization is injected;
+physical/signed folder grants are separate acceptance work. No Core rerun is
+needed when only this native operation layer changes.
+
+Unified Diff document waits now include `#line` in failures. The hosted bundled
+Git timeout remains unresolved; a local affected-case pass alone does not fix it.

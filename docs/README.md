@@ -25,6 +25,7 @@ for baseline and update rules.
 - [Saved Data settings](SAVED-DATA.md)
 - [Dialog sizes and positions](DIALOG-GEOMETRY.md)
 - [Repository titles and file path tooltips](REPOSITORY-PRESENTATION-PARITY.md)
+- [Hierarchical settings operation ownership](CONFIGURATION-LIFECYCLE-PARITY.md)
 - [Temporary files and Saved Data cleanup](TEMPORARY-FILES.md)
 - [Editing Git notes](GIT-NOTES.md)
 - [Reverting a commit from Log](REVERT-COMMIT.md)

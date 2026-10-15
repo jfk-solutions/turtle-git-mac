@@ -177,10 +177,10 @@ struct SettingsNavigation: NSViewControllerRepresentable {
                 guard let context = try? workspace.gitConfigurationContext(globalOnly: globalOnly) else { return }
                 controller = host(HookSettingsPage(model: draft, repository: context.localAvailable ? context.repository : nil, access: context.access))
             case .dialogs2: controller = host(DialogsBehaviorSettings(defaults: preferences))
-            case .dialogs3: controller = host(ProjectDialogSettingsPage(workspace: workspace, globalOnly: globalOnly))
+            case .dialogs3: controller = host(ProjectDialogSettingsPage(workspace: workspace, globalOnly: globalOnly, preferences: preferences))
             case .commit: controller = host(CommitEditorSettings(editorOnly: true, preferences: preferences))
             case .alternativeEditor: controller = host(AlternativeEditorSettings(preferences: preferences))
-            case .git: controller = host(GitConfigurationSettingsPage(workspace: workspace, globalOnly: globalOnly))
+            case .git: controller = host(GitConfigurationSettingsPage(workspace: workspace, globalOnly: globalOnly, preferences: preferences))
             case .credential:
                 guard let context = try? workspace.gitConfigurationContext(globalOnly: globalOnly) else { return }
                 controller = host(CredentialSettingsPage(model: CredentialSettingsModel(repository: context.repository, access: context.access, localAvailable: context.localAvailable)))
@@ -196,7 +196,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .contextMenu: controller = host(FinderContextMenuSettingsPage(model: contextMenuDraft))
             case .contextMenu2: controller = host(FinderContextMenuSettingsPage(model: contextMenuDraft, extendedOnly: true))
             case .issueProviders: controller = host(IssueProviderSettingsPage(workspace: workspace, preferences: preferences))
-            case .issueTracker: controller = host(IssueTrackerSettingsPage(workspace: workspace, globalOnly: globalOnly))
+            case .issueTracker: controller = host(IssueTrackerSettingsPage(workspace: workspace, globalOnly: globalOnly, preferences: preferences))
             case .email: controller = host(EmailSettingsPage(model: emailDraft))
             case .diff: controller = host(DiffToolSettings(preferences: preferences))
             case .mergeTool: controller = host(MergeToolSettings(preferences: preferences))

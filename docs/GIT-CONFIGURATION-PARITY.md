@@ -76,3 +76,10 @@ and inventory counts are unchanged.
 The native tree now hosts this page and conditional Remote. See
 [Settings navigation](SETTINGS-NAVIGATION-PARITY.md) for implemented shared draft handling
 and remaining acceptance scope.
+
+
+The [hierarchical settings lifecycle batch](CONFIGURATION-LIFECYCLE-PARITY.md)
+adds shared read/Quit ownership, Dialogs 3 save ownership, captured confirmation
+context and owning hierarchy-hint preferences. Its
+[grouped checkpoint](qa/configuration-lifecycle-2026-10-15.json) records native
+checks and the remaining physical/signed scope.

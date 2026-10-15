@@ -5,6 +5,12 @@ import TurtleGitCore
 
 @MainActor final class GitConfigurationSettingsModel: ObservableObject {
     private(set) static var activeSaves = 0
+    private(set) static var activeReads = 0
+    private let preferences: UserDefaults
+    init(preferences: UserDefaults = .standard) { self.preferences = preferences }
+    var authorizeFile: ((URL) async -> Bool)?
+    var readConfigurationFiles: (GitRepository, Bool, OperationCancellation?) async throws -> GitConfigurationFiles = { try await $0.gitConfigurationFiles(hasRepository: $1, cancellation: $2) }
+    var writeSettings: (GitRepository, GitConfigurationSettings, GitConfigurationSource) async throws -> Void = { try await $0.saveGitConfiguration($1, destination: $2) }
     @Published private(set) var source: GitConfigurationSource = .effective
     @Published var destination: GitConfigurationSource = .local
     private var savedDestination: GitConfigurationSource = .local
@@ -59,12 +65,12 @@ import TurtleGitCore
         readToken?.cancel(); let token = OperationCancellation(), request = UUID(); generation = request; readToken = token
         self.source = source; loaded = false; busy = true; error = nil
         if source == .local || source == .global { destination = source }
-        Task { [weak self, access] in
-            guard let self else { return }
-            defer { if self.generation == request { self.readToken = nil; self.busy = false } }
+        Self.activeReads += 1
+        Task { [self, access] in
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if self.generation == request { self.readToken = nil; self.busy = false } }
             do {
                 try self.checkAccess(repository, access: access, local: self.hasRepository)
-                let files = try await repository.gitConfigurationFiles(hasRepository: self.hasRepository, cancellation: token)
+                let files = try await self.readConfigurationFiles(repository, self.hasRepository, token)
                 guard self.active, self.generation == request, !token.isCancelled else { return }
                 self.files = files
                 if source == .effective || source == .global {
@@ -86,7 +92,7 @@ import TurtleGitCore
         }
     }
     private func showHierarchyHint() {
-        guard active, !hintShown, !UserDefaults.standard.bool(forKey: "HintHierarchicalConfig"), let window, window.attachedSheet == nil else { return }
+        guard active, !hintShown, !preferences.bool(forKey: "HintHierarchicalConfig"), let window, window.attachedSheet == nil else { return }
         hintShown = true
         let alert = NSAlert(); alert.messageText = "Git configuration"
         alert.informativeText = "Git uses hierarchical configuration: settings in higher levels override lower levels. Effective shows the read-only values for the current scope. Select a level to see its stored values. To change settings, select a level, enter the values and choose where to save them."
@@ -96,7 +102,7 @@ import TurtleGitCore
             guard let self, self.alert === alert else { return }
             self.alert = nil
             if response == .alertFirstButtonReturn && alert.suppressionButton?.state == .on {
-                UserDefaults.standard.set(true, forKey: "HintHierarchicalConfig")
+                self.preferences.set(true, forKey: "HintHierarchicalConfig")
             }
         }
     }
@@ -129,12 +135,12 @@ import TurtleGitCore
     func cancelDraft() { guard !saving else { return }; draft = saved; destination = savedDestination }
     private func performApply(completion: @escaping (Bool) -> Void) {
         guard active, editable, changed, window?.attachedSheet == nil, let repository, destination != .local || hasRepository else { completion(false); return }
-        let value = draft, destination = destination, request = generation, access = access
+        let value = draft, destination = destination, source = source, request = generation, access = access
         busy = true; saving = true; error = nil
         Self.activeSaves += 1
         Task { [weak self] in
             var success = false
-            defer { Self.activeSaves -= 1; completion(success) }
+            defer { Self.activeSaves -= 1; withExtendedLifetime(access) {}; completion(success) }
             guard let self else { return }
             defer {
                 self.saving = false
@@ -145,7 +151,7 @@ import TurtleGitCore
                 }
             }
             do {
-                if self.source != destination { guard await self.confirmSave(to: destination) else { return } }
+                if source != destination { guard await self.confirmSave(to: destination) else { return } }
                 guard self.active, self.generation == request else { return }
                 try self.checkAccess(repository, access: access, local: self.hasRepository)
                 if destination == .global, let files = self.files {
@@ -155,13 +161,14 @@ import TurtleGitCore
                 }
                 // Each Git config write holds its own lock. Retain the grant and
                 // allow this source-ordered batch to finish after owner closure.
-                try await repository.saveGitConfiguration(value, destination: destination)
+                try await self.writeSettings(repository, value, destination)
                 guard self.active, self.generation == request else { return }
                 self.saved = value; self.savedDestination = destination; success = true
             } catch { if self.active, self.generation == request { self.error = error.localizedDescription } }
         }
     }
     private func ensurePermission(for file: URL) async -> Bool {
+        if let authorizeFile { return await authorizeFile(file) }
         if GitConfigurationPermissions.authorized(file) || access?.contains(file) == true && access?.hasSecurityScope == true { return true }
         guard active, let window, window.attachedSheet == nil, permissionPanel == nil else { return false }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
@@ -207,9 +214,9 @@ import TurtleGitCore
         guard active, !busy, let repository, let files, let file = files[kind] else { return }
         let request = UUID(), token = OperationCancellation(), access = access
         generation = request; readToken = token; busy = true; error = nil
-        Task { [weak self] in
-            guard let self else { return }
-            defer { if self.generation == request { self.readToken = nil; self.busy = false } }
+        Self.activeReads += 1
+        Task { [self] in
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if self.generation == request { self.readToken = nil; self.busy = false } }
             do {
                 try self.checkAccess(repository, access: access, local: self.hasRepository)
                 let target: URL
@@ -244,9 +251,9 @@ import TurtleGitCore
     func viewConfiguration(_ source: GitConfigurationSource) {
         guard active, !busy, let repository else { return }
         let token = OperationCancellation(), request = UUID(); generation = request; readToken = token; busy = true; error = nil
-        Task { [weak self, access] in
-            guard let self else { return }
-            defer { if self.generation == request { self.readToken = nil; self.busy = false } }
+        Self.activeReads += 1
+        Task { [self, access] in
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if self.generation == request { self.readToken = nil; self.busy = false } }
             do {
                 try self.checkAccess(repository, access: access, local: self.hasRepository)
                 let text: String
@@ -267,7 +274,11 @@ struct GitConfigurationSettingsPage: View {
     @ObservedObject var workspace: RepositoryModel
     var globalOnly = false
     @Environment(\.settingsTransaction) private var transaction
-    @StateObject private var model = GitConfigurationSettingsModel()
+    @StateObject private var model: GitConfigurationSettingsModel
+    init(workspace: RepositoryModel, globalOnly: Bool = false, preferences: UserDefaults = .standard, model: GitConfigurationSettingsModel? = nil) {
+        self.workspace = workspace; self.globalOnly = globalOnly
+        _model = StateObject(wrappedValue: model ?? GitConfigurationSettingsModel(preferences: preferences))
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             GroupBox("Config source") {

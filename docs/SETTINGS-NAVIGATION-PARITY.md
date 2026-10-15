@@ -372,3 +372,10 @@ usable for executable tools, and disabling blocking clears Trust as upstream doe
 App bundles retain their success question. See
 [tool parity and grouped evidence](DIFF-TOOLS-PARITY.md#executable-tool-family-and-trusted-merge-status--october-15-2026).
 Physical Browse, complete keyboard/VoiceOver and signed sandbox launches remain open.
+
+
+The [hierarchical settings lifecycle batch](CONFIGURATION-LIFECYCLE-PARITY.md)
+adds shared read/Quit ownership, Dialogs 3 save ownership, captured confirmation
+context and owning hierarchy-hint preferences. Its
+[grouped checkpoint](qa/configuration-lifecycle-2026-10-15.json) records native
+checks and the remaining physical/signed scope.

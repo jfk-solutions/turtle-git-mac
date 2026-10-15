@@ -7,9 +7,9 @@ import TurtleGitCore
 @main struct UnifiedDocumentVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
-    @MainActor static func wait(_ condition: @escaping () -> Bool) async throws {
+    @MainActor static func wait(line: UInt = #line, _ condition: @escaping () -> Bool) async throws {
         for _ in 0..<1500 { if condition() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(description: "Unified document did not settle")
+        throw Failure(description: "Unified document did not settle at fixture line \(line)")
     }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
     @MainActor static func capture(_ owner: PatchWindowController, _ text: PatchTextView.PatchText) async throws {

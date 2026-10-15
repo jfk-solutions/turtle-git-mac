@@ -5,6 +5,12 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class IssueTrackerSettingsModel: ObservableObject {
+    private(set) static var activeReads = 0
+    private let preferences: UserDefaults
+    init(preferences: UserDefaults = .standard) { self.preferences = preferences }
+    var readConfigurationFiles: (GitRepository, Bool, OperationCancellation?) async throws -> GitConfigurationFiles = { try await $0.gitConfigurationFiles(hasRepository: $1, cancellation: $2) }
+    var writeSettings: (GitRepository, IssueTrackerSettings, ProjectDialogSettingsSource, Bool) async throws -> Void = { try await $0.saveIssueTrackerSettings($1, destination: $2, hasRepository: $3) }
+
     private(set) static var activeSaves = 0
     @Published private(set) var hasTester = false
     private var tester: IssueRegexTesterController?
@@ -72,11 +78,12 @@ import TurtleGitCore
         token?.cancel(); let cancellation = OperationCancellation(), generation = UUID(); token = cancellation; request = generation
         self.source = source; loaded = false; busy = true; error = nil
         if [.local, .project, .global].contains(source) { destination = source }
+        Self.activeReads += 1
         Task { [self, access] in
-            defer { if request == generation { token = nil; busy = false } }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if request == generation { token = nil; busy = false } }
             do {
                 try checkAccess(repository)
-                let files = try await repository.gitConfigurationFiles(hasRepository: localAvailable, cancellation: cancellation)
+                let files = try await readConfigurationFiles(repository, localAvailable, cancellation)
                 guard active, !invalidated, request == generation, !cancellation.isCancelled else { return }
                 bare = files.bare
                 if source == .effective || source == .global {
@@ -87,7 +94,6 @@ import TurtleGitCore
                 let value = try await repository.issueTrackerSettings(source: source, hasRepository: localAvailable, cancellation: cancellation)
                 guard active, !invalidated, request == generation, !cancellation.isCancelled else { return }
                 draft = value; saved = value; savedDestination = destination; loaded = true
-                withExtendedLifetime(access) {}
             } catch { if active, !invalidated, request == generation, !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
@@ -95,7 +101,7 @@ import TurtleGitCore
         if busy || hasTester { return "Finish the issue-tracker operation first." }
         return draft.valid ? nil : "Configuration values cannot contain NUL characters."
     }
-    private func confirmDestination() async -> Bool {
+    private func confirmDestination(source: ProjectDialogSettingsSource, destination: ProjectDialogSettingsSource) async -> Bool {
         if source == destination { return true }
         if let confirmSavingTo { return await confirmSavingTo(destination) }
         guard let window, window.attachedSheet == nil else { return false }
@@ -116,11 +122,11 @@ import TurtleGitCore
         guard !invalidated, !hasTester else { return false }; if !modified { return true }
         guard loaded, source != .effective, !busy, validationError == nil, let repository else { return false }
         let wasActive = active; active = true; if window == nil { window = owner }
-        let generation = request, settings = draft, destination = destination, grant = access
+        let generation = request, settings = draft, destination = destination, source = source, grant = access, local = localAvailable
         busy = true; saving = true; error = nil; Self.activeSaves += 1
         defer { saving = false; busy = false; Self.activeSaves -= 1; if request == generation { active = wasActive }; withExtendedLifetime(grant) {} }
         do {
-            guard await confirmDestination(), !invalidated, request == generation else { return false }
+            guard await confirmDestination(source: source, destination: destination), !invalidated, request == generation else { return false }
             try checkAccess(repository)
             if destination == .global {
                 let files = try await repository.gitConfigurationFiles(hasRepository: localAvailable)
@@ -129,7 +135,7 @@ import TurtleGitCore
                 }
             }
             // Allow source-ordered locked writes to finish after forced closure.
-            try await repository.saveIssueTrackerSettings(settings, destination: destination, hasRepository: localAvailable)
+            try await writeSettings(repository, settings, destination, local)
             guard !invalidated, request == generation else { return false }
             saved = settings; savedDestination = destination; return true
         } catch { if !invalidated, request == generation { self.error = error.localizedDescription }; return false }
@@ -157,9 +163,9 @@ import TurtleGitCore
     var globalOnly = false
     @StateObject private var model: IssueTrackerSettingsModel
     private let contextProvider: (() throws -> (repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool))?
-    init(workspace: RepositoryModel, globalOnly: Bool = false, model: IssueTrackerSettingsModel? = nil, contextProvider: (() throws -> (repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool))? = nil) {
+    init(workspace: RepositoryModel, globalOnly: Bool = false, model: IssueTrackerSettingsModel? = nil, contextProvider: (() throws -> (repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool))? = nil, preferences: UserDefaults = .standard) {
         self.workspace = workspace; self.globalOnly = globalOnly; self.contextProvider = contextProvider
-        _model = StateObject(wrappedValue: model ?? IssueTrackerSettingsModel())
+        _model = StateObject(wrappedValue: model ?? IssueTrackerSettingsModel(preferences: preferences))
     }
     @Environment(\.settingsTransaction) private var transaction
     var body: some View {

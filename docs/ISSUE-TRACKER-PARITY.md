@@ -370,3 +370,10 @@ owns editable link activation and captured icon menus across Commit, Merge,
 Rebase and Input/Notes/Description. It records the source's dormant relative-root
 helper instead of inventing a remote mapping. Existing byte styling/escaping is
 unchanged; physical/signed acceptance remains partial.
+
+
+The [hierarchical settings lifecycle batch](CONFIGURATION-LIFECYCLE-PARITY.md)
+adds shared read/Quit ownership, Dialogs 3 save ownership, captured confirmation
+context and owning hierarchy-hint preferences. Its
+[grouped checkpoint](qa/configuration-lifecycle-2026-10-15.json) records native
+checks and the remaining physical/signed scope.

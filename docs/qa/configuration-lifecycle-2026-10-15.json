@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "b5ecda0b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/Settings/GitSettings.h:WarnUserSafeToDifferentDestination/SafeData",
+    "src/TortoiseProc/Settings/SetDialogs3.cpp",
+    "src/TortoiseProc/Settings/SettingGitConfig.cpp",
+    "src/TortoiseProc/Settings/SettingsBugtraqConfig.cpp",
+    "src/Resources/TortoiseProcENG.rc:IDD_SETTINGSDIALOGS3"
+  ],
+  "scope": [
+    "Git/Dialogs 3/Issue configuration read ownership across cancellation and closure",
+    "Dialogs 3 counted save ownership; captured source/destination confirmation",
+    "Owning hierarchy hint preferences; original scoped/ordered writes retained",
+    "Partial visible Dialogs 3 control mappings; hidden unused English combo and literal hierarchy separators retained pending"
+  ],
+  "build": {
+    "log": "build/qa/configuration-lifecycle-build.log",
+    "exit": 0,
+    "diagnostics": "Existing exit-zero command noise and warnings remain."
+  },
+  "core": {
+    "run": false,
+    "reason": "Native-only task lifetime/preferences; configuration serialization unchanged."
+  },
+  "native": {
+    "command": "python3 scripts/test-configuration-lifecycle.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "fixture": "docs/qa/configuration-lifecycle-native-2026-10-15.swift",
+    "log": "build/qa/configuration-lifecycle-native-repair.log",
+    "exit": 0,
+    "cases": 2,
+    "receiver_pids": [
+      40971,
+      41097
+    ],
+    "all_receiver_pids_absent": true,
+    "checks": [
+      "All three pages hold discovery across cancellation: exact token cancellation, operation count/Quit and no late values/error/reactivation",
+      "Cached inactive Apply in all three pages; held real local writes finish captured value/destination after invalidation without late UI",
+      "Dialogs 3 late injected destination confirmation after invalidation cannot create .tgitconfig",
+      "Actual native Project/Git suppression buttons update isolated preferences and preserve standard HintHierarchicalConfig",
+      "Exact private repository HEAD/index unchanged"
+    ],
+    "simulations": "Discovery/write boundaries held by continuations; file authorization injected; local configuration serialization uses real selected Git."
+  },
+  "fixture_failures": [
+    {
+      "log": "build/qa/configuration-lifecycle-native.log",
+      "result": "Compile-only failure: NSApplication legacy endSheet expects Int; switched fixture to typed NSWindow.endSheet. No receiver started and no app rebuild needed."
+    }
+  ],
+  "ci_investigation": {
+    "failed_run": 38778092594,
+    "failed_job": 116573435120,
+    "observed_result": "Core 1467 cases / two skipped / zero failures; native system document and handoffs passed, bundled document timed out with generic wait diagnostic.",
+    "local_command": "python3 scripts/test-unified-document-family.py --only document --git build/git-runtime/Git/bin/git",
+    "local_log": "build/qa/unified-document-ci-repro.log",
+    "local_exit": 0,
+    "receiver_pid": 40547,
+    "receiver_absent": true,
+    "result": "Not reproduced locally. Added source-line failure diagnostic without changing timeout or assertions. Hosted issue remains open.",
+    "latest_observed": {
+      "pages": "38788408282 success for b5ecda0b",
+      "macos": "38788408176 pending for b5ecda0b; 38785757109 in progress for 0ad4cadc"
+    }
+  },
+  "limitations": [
+    "No new full visual/screenshot certification",
+    "Signed sandbox/folder grants and all partial-write interleavings unverified",
+    "Native held-task checks do not prove physical Finder or complete application parity",
+    "No dialog newly certified"
+  ]
+}

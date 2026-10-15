@@ -26,6 +26,15 @@ import TurtleGitCore
 }
 
 @MainActor final class ProjectDialogSettingsModel: ObservableObject {
+    private(set) static var activeReads = 0
+    private let preferences: UserDefaults
+    init(preferences: UserDefaults = .standard) { self.preferences = preferences }
+    var readConfigurationFiles: (GitRepository, Bool, OperationCancellation?) async throws -> GitConfigurationFiles = { try await $0.gitConfigurationFiles(hasRepository: $1, cancellation: $2) }
+    var writeSettings: (GitRepository, ProjectDialogSettings, ProjectDialogSettingsSource, Bool) async throws -> Void = { try await $0.saveProjectDialogSettings($1, destination: $2, hasRepository: $3) }
+    private(set) static var activeSaves = 0
+    var authorizeFile: ((URL) async -> Bool)?
+    var confirmSavingTo: ((ProjectDialogSettingsSource) async -> Bool)?
+
     @Published private(set) var source: ProjectDialogSettingsSource = .effective
     @Published var destination: ProjectDialogSettingsSource = .local
     @Published var draft = ProjectDialogSettings()
@@ -61,6 +70,7 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && localAvailable && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func permit(_ file: URL) async -> Bool {
+        if let authorizeFile { return await authorizeFile(file) }
         if GitConfigurationPermissions.authorized(file) || (access?.hasSecurityScope == true && access?.contains(file) == true) { return true }
         guard active, !invalidated, let window, window.attachedSheet == nil else { return false }
         let chooser = NSOpenPanel(); chooser.canChooseFiles = false; chooser.canChooseDirectories = true; chooser.canCreateDirectories = true
@@ -85,11 +95,12 @@ import TurtleGitCore
         token?.cancel(); let cancellation = OperationCancellation(), generation = UUID(); token = cancellation; request = generation
         self.source = source; loaded = false; busy = true; error = nil
         if [.local, .project, .global].contains(source) { destination = source }
+        Self.activeReads += 1
         Task { [self, access] in
-            defer { if request == generation { token = nil; busy = false } }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if request == generation { token = nil; busy = false } }
             do {
                 try checkAccess(repository)
-                let files = try await repository.gitConfigurationFiles(hasRepository: localAvailable, cancellation: cancellation)
+                let files = try await readConfigurationFiles(repository, localAvailable, cancellation)
                 guard active, !invalidated, request == generation, !cancellation.isCancelled else { return }
                 bare = files.bare
                 if source == .effective || source == .global {
@@ -101,12 +112,11 @@ import TurtleGitCore
                 guard active, !invalidated, request == generation, !cancellation.isCancelled else { return }
                 draft = value; saved = value; savedDestination = destination; loaded = true
                 showHierarchyHint()
-                withExtendedLifetime(access) {}
             } catch { if active, !invalidated, request == generation, !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func showHierarchyHint() {
-        guard active, loaded, !hintShown, !UserDefaults.standard.bool(forKey: "HintHierarchicalConfig"), let window, window.attachedSheet == nil else { return }
+        guard active, loaded, !hintShown, !preferences.bool(forKey: "HintHierarchicalConfig"), let window, window.attachedSheet == nil else { return }
         hintShown = true
         let question = NSAlert(); question.messageText = "Git configuration"
         question.informativeText = "Git uses hierarchical configuration: settings in higher levels override lower levels. Effective shows the read-only values for the current scope. Select a level to see its stored values. To change settings, select a level, enter the values and choose where to save them."
@@ -115,7 +125,7 @@ import TurtleGitCore
         question.beginSheetModal(for: window) { [weak self] response in
             guard let self, self.alert === question else { return }; self.alert = nil
             if response == .alertFirstButtonReturn && question.suppressionButton?.state == .on {
-                UserDefaults.standard.set(true, forKey: "HintHierarchicalConfig")
+                self.preferences.set(true, forKey: "HintHierarchicalConfig")
             }
         }
     }
@@ -126,8 +136,9 @@ import TurtleGitCore
         if !draft.language.inherit && ProjectLanguages.code(draft.language.value) == nil { return "Choose a project language." }
         return nil
     }
-    private func confirmDestination() async -> Bool {
+    private func confirmDestination(source: ProjectDialogSettingsSource, destination: ProjectDialogSettingsSource) async -> Bool {
         if source == destination { return true }
+        if let confirmSavingTo { return await confirmSavingTo(destination) }
         guard let window, window.attachedSheet == nil else { return false }
         let question = NSAlert(); question.messageText = "Are you sure you want to save to \"\(destination.rawValue)\"?"
         question.informativeText = "The selected config source differs from the save destination."
@@ -146,11 +157,11 @@ import TurtleGitCore
         guard !invalidated else { return false }; if !modified { return true }
         guard loaded, source != .effective, !busy, validationError == nil, let repository else { return false }
         let wasActive = active; active = true; if window == nil { window = owner }
-        let generation = request, settings = draft, destination = destination, grant = access
-        busy = true; saving = true; error = nil
-        defer { saving = false; busy = false; if !wasActive { active = false }; withExtendedLifetime(grant) {} }
+        let generation = request, settings = draft, destination = destination, source = source, grant = access, local = localAvailable
+        busy = true; saving = true; error = nil; Self.activeSaves += 1
+        defer { saving = false; busy = false; Self.activeSaves -= 1; if request == generation { active = wasActive }; withExtendedLifetime(grant) {} }
         do {
-            guard await confirmDestination(), !invalidated, request == generation else { return false }
+            guard await confirmDestination(source: source, destination: destination), !invalidated, request == generation else { return false }
             try checkAccess(repository)
             if destination == .global {
                 let files = try await repository.gitConfigurationFiles(hasRepository: localAvailable)
@@ -159,7 +170,7 @@ import TurtleGitCore
                 }
             }
             // Allow source-ordered locked writes to finish after forced closure.
-            try await repository.saveProjectDialogSettings(settings, destination: destination, hasRepository: localAvailable)
+            try await writeSettings(repository, settings, destination, local)
             guard !invalidated, request == generation else { return false }
             saved = settings; savedDestination = destination; return true
         } catch { if !invalidated, request == generation { self.error = error.localizedDescription }; return false }
@@ -186,7 +197,11 @@ struct ProjectDialogSettingsPage: View {
     @ObservedObject var workspace: RepositoryModel
     var globalOnly = false
     @Environment(\.settingsTransaction) private var transaction
-    @StateObject private var model = ProjectDialogSettingsModel()
+    @StateObject private var model: ProjectDialogSettingsModel
+    init(workspace: RepositoryModel, globalOnly: Bool = false, preferences: UserDefaults = .standard, model: ProjectDialogSettingsModel? = nil) {
+        self.workspace = workspace; self.globalOnly = globalOnly
+        _model = StateObject(wrappedValue: model ?? ProjectDialogSettingsModel(preferences: preferences))
+    }
     private var language: Binding<String> {
         Binding(get: { model.draft.language.inherit ? "" : model.draft.language.value }, set: { model.draft.language = .init(value: $0, inherit: $0.isEmpty) })
     }
