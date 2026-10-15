@@ -194,6 +194,7 @@ final class StatusNativeWindow: NSWindow {
     @Published var lfsLockedPaths = Set<String>()
     @Published var lfsOwnershipKnown = false
     private let defaults: UserDefaults
+    var colorPreferences: UserDefaults { defaults }
     private var ownerCancellation: OperationCancellation?
     var queryLFSOwners: (OperationCancellation) async throws -> [LFSLock]
     var ownersVisible: Bool { hasLFS && showLFSOwners }
@@ -650,7 +651,7 @@ struct StatusDialog: View {
             Table(model.tableRows, selection: $model.selection, sortOrder: Binding(get: { model.sortOrder.map { StatusGroupedSort(column: $0.column, order: $0.order) } }, set: { model.setSortOrder($0.map { StatusFileSort(column: $0.column, order: $0.order) }) })) {
                 TableColumn("Path", sortUsing: StatusGroupedSort(column: .path)) { item in
                     if let row = item.contents {
-                        HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id))).lineLimit(1) }
+                        HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).lineLimit(1) }
                             .help(row.file.entry.originalPath.map { "Renamed from \($0)" } ?? row.path)
                     } else if let group = item.row.group { Text(group.title).font(.headline).foregroundStyle(Color.accentColor).accessibilityLabel(group.title) }
                 }.width(min: 250, ideal: 380)
@@ -793,7 +794,7 @@ struct StatusDialog: View {
 
     }
     @ViewBuilder private func groupCell(_ item: StatusGroupedRow, column: StatusListColumn) -> some View {
-        if let row = item.contents { Text(model.columnText(row, column)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id))) }
+        if let row = item.contents { Text(model.columnText(row, column)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)) }
         else { Rectangle().fill(Color.accentColor.opacity(0.35)).frame(height: 1).padding(.vertical, 8) }
     }
 

@@ -192,8 +192,8 @@ struct SendPatchNotification: Identifiable, Equatable {
     var auxiliary: Bool { kind != .sending }
     @MainActor func color(preferences: UserDefaults) -> NSColor {
         switch kind {
-        case .sending: return StatusTextPalette.native(.modified, preferences: preferences)
-        case .error: return StatusTextPalette.native(.conflict, preferences: preferences)
+        case .sending: return StatusTextPalette.text(.modified, preferences: preferences)
+        case .error: return StatusTextPalette.text(.conflict, preferences: preferences)
         case .notice: return .textColor
         case .finishedSuccess: return NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? .textColor : SubmoduleProgressTextView.successColor
         case .finishedFailure: return SubmoduleProgressTextView.color(error: true)

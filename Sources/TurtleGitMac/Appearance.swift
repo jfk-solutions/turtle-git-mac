@@ -98,7 +98,7 @@ struct SourceColorSettings: View {
                     }.padding(10)
                 }
                 Toggle("Dark theme", isOn: Binding(get: { appearance.choice == .dark }, set: { appearance.choice = $0 ? .dark : .light }))
-                Text("Follow System is available on General. Colors use TortoiseGit’s dark-mode conversion.").font(.caption).foregroundStyle(.secondary)
+                Text("Follow System is available on General. Saved colors use TortoiseGit’s conversion; dark status text is lightened when needed for macOS table backgrounds.").font(.caption).foregroundStyle(.secondary)
             } else if page == .colors2 {
                 GroupBox("Log Graphic") {
                     VStack(spacing: 10) {
@@ -232,6 +232,59 @@ enum StatusTextPalette {
             return NSColor(srgbRed: CGFloat(channels[0]) / 255, green: CGFloat(channels[1]) / 255, blue: CGFloat(channels[2]) / 255, alpha: 1)
         }
     }
+    /// Keep source RGB persistence/conversion independent of native text contrast.
+    static func text(_ role: StatusTextRole, preferences: UserDefaults = .standard) -> NSColor {
+        let base = StatusColorPreferences.load(preferences).rgb(role)
+        return NSColor(name: nil) { appearance in
+            let mode = appearanceTraits(appearance)
+            var channels = transform(base, dark: mode.dark, highContrast: mode.highContrast)
+            if mode.dark {
+                channels = StatusTextContrast.adapt(channels, backgrounds: StatusTextContrast.backgrounds(appearance), minimum: mode.highContrast ? 7 : 4.5)
+            }
+            return NSColor(srgbRed: CGFloat(channels[0]) / 255, green: CGFloat(channels[1]) / 255, blue: CGFloat(channels[2]) / 255, alpha: 1)
+        }
+    }
+}
+
+/// A native dark-table adaptation, applied only after the pinned source transform.
+/// Mixing toward white retains hue and needs no changes to saved color values.
+enum StatusTextContrast {
+    static func luminance(_ rgb: [Double]) -> Double {
+        let linear = rgb.map { $0 <= 0.04045 ? $0 / 12.92 : pow(($0 + 0.055) / 1.055, 2.4) }
+        return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
+    }
+    static func ratio(_ rgb: [Int], background: [Double]) -> Double {
+        let foreground = luminance(rgb.map { Double($0) / 255 }), backdrop = luminance(background)
+        return (max(foreground, backdrop) + 0.05) / (min(foreground, backdrop) + 0.05)
+    }
+    static func backgrounds(_ appearance: NSAppearance) -> [[Double]] {
+        var result: [[Double]] = []
+        appearance.performAsCurrentDrawingAppearance {
+            let surface = NSColor.textBackgroundColor.usingColorSpace(.sRGB)!
+            let backdrop = [Double(surface.redComponent), Double(surface.greenComponent), Double(surface.blueComponent)]
+            for color in NSColor.alternatingContentBackgroundColors + [.controlBackgroundColor, .textBackgroundColor, .windowBackgroundColor] {
+                if let value = color.usingColorSpace(.sRGB) {
+                    let alpha = Double(value.alphaComponent)
+                    let channels = [Double(value.redComponent), Double(value.greenComponent), Double(value.blueComponent)]
+                    // AppKit's alternating-row tint can be translucent white.
+                    // Contrast is against the composited row, not opaque white.
+                    result.append(zip(channels, backdrop).map { $0 * alpha + $1 * (1 - alpha) })
+                }
+            }
+        }
+        return result
+    }
+    static func adapt(_ rgb: [Int], backgrounds: [[Double]], minimum: Double) -> [Int] {
+        func passes(_ value: [Int]) -> Bool { backgrounds.allSatisfy { ratio(value, background: $0) >= minimum } }
+        guard !passes(rgb) else { return rgb }
+        func mixed(_ amount: Int) -> [Int] { rgb.map { ($0 * (255 - amount) + 255 * amount + 127) / 255 } }
+        var low = 0, high = 255
+        while low < high {
+            let middle = (low + high) / 2
+            if passes(mixed(middle)) { high = middle } else { low = middle + 1 }
+        }
+        return mixed(high)
+    }
 }
 
 extension StatusEntry {
@@ -248,7 +301,7 @@ extension StatusEntry {
     }
     func statusTextColor(selected: Bool = false, preferences: UserDefaults = .standard) -> Color {
         if selected { return .primary }
-        return statusTextRole.map { Color(nsColor: StatusTextPalette.native($0, preferences: preferences)) } ?? Color(nsColor: .labelColor)
+        return statusTextRole.map { Color(nsColor: StatusTextPalette.text($0, preferences: preferences)) } ?? Color(nsColor: .labelColor)
     }
 }
 
@@ -268,7 +321,7 @@ extension CommitFile {
     func statusTextColor(selected: Bool = false, gray: Bool = false, preferences: UserDefaults = .standard) -> Color {
         if selected { return .primary }
         if gray { return .secondary }
-        return statusTextRole.map { Color(nsColor: StatusTextPalette.native($0, preferences: preferences)) } ?? .primary
+        return statusTextRole.map { Color(nsColor: StatusTextPalette.text($0, preferences: preferences)) } ?? .primary
     }
 }
 
@@ -283,14 +336,14 @@ extension FileState {
         case .conflicted: role = .conflict
         case .normal, .untracked, .ignored: role = nil
         }
-        return role.map { Color(nsColor: StatusTextPalette.native($0, preferences: preferences)) } ?? Color(nsColor: .labelColor)
+        return role.map { Color(nsColor: StatusTextPalette.text($0, preferences: preferences)) } ?? Color(nsColor: .labelColor)
     }
 }
 
 extension LFSFileResult {
     /// Source LFS file notifications are neutral; ReportError uses Conflict.
     var resultTextColor: Color { resultTextColor(preferences: .standard) }
-    func resultTextColor(preferences: UserDefaults) -> Color { success ? .primary : Color(nsColor: StatusTextPalette.native(.conflict, preferences: preferences)) }
+    func resultTextColor(preferences: UserDefaults) -> Color { success ? .primary : Color(nsColor: StatusTextPalette.text(.conflict, preferences: preferences)) }
 }
 
 struct StatusColorPreferences: Equatable {

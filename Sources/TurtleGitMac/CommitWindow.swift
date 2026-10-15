@@ -2194,7 +2194,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
         if let entry = row.entry {
             let count: Int? = added ? statistics[entry.path]?.added : statistics[entry.path]?.removed
             let label = count.map { String($0) } ?? "–"
-            Text(label).foregroundStyle(entry.statusTextColor(selected: selected.contains(entry.id)))
+            Text(label).foregroundStyle(entry.statusTextColor(selected: selected.contains(entry.id), preferences: model.colorPreferences))
         } else { groupRule }
     }
     private var groupRule: some View { Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1) }

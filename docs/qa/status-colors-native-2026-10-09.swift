@@ -106,7 +106,10 @@ import SwiftUI
         for (_,name) in appearances {
             NSAppearance(named: name)!.performAsCurrentDrawingAppearance {
                 let color = NSColor(failure.resultTextColor(preferences: preferences)).usingColorSpace(.sRGB)!
-                precondition([color.redComponent,color.greenComponent,color.blueComponent].map { Int(($0 * 255).rounded()) } == reference["conflict"]!["light"]!)
+                let actual = [color.redComponent,color.greenComponent,color.blueComponent].map { Int(($0 * 255).rounded()) }
+                let shared = StatusTextPalette.text(.conflict, preferences: preferences).usingColorSpace(.sRGB)!
+                let expected = [shared.redComponent,shared.greenComponent,shared.blueComponent].map { Int(($0 * 255).rounded()) }
+                precondition(actual == expected, "LFS error must use shared native text color: \(actual) vs \(expected)")
             }
         }
         for (name,rgb) in [("black",[0,0,0]),("white",[255,255,255]),("custom",[3,127,249]),("bright",[250,240,230])] {
@@ -204,6 +207,6 @@ import SwiftUI
         precondition(reopened.draft.rgb(.added) == StatusTextRole.added.rgb && StatusColorPreferences.load(preferences).rgb(.added) == [3,127,249])
         window.close()
         precondition(Set(StatusTextRole.allCases.map { StatusTextPalette.rgb($0, dark: false).description }).count == 6)
-        print("PASS: six status and eighteen Log roles match independently compiled upstream C++ light/dark/high-contrast numeric functions; native dynamic Aqua/Dark and named accessibility appearances follow the actual system Increase Contrast flag; mixed index/worktree priority, conflict precedence, rename/copy distinctions, neutral normal/unversioned/ignored roles and semantic selected text, neutral LFS success and Conflict LFS error verified. Custom RGB/black/white/clamp reference checks, private preference Apply/Cancel/default/reopening/validation/alias/notification, preserved unrelated preferences and native settings action targets pass. Log draft/Apply/Cancel/Restore/preserved noneditable preferences, eight-color cycling and custom/default bisect term boundaries pass. Injected accessibility notification invalidates the observer; actual system setting toggle, shared color-panel and pixel/physical visual acceptance not claimed.")
+        print("PASS: six status and nineteen Log roles match independently compiled upstream C++ light/dark/high-contrast numeric functions; native dynamic Aqua/Dark and named accessibility appearances follow the actual system Increase Contrast flag; mixed index/worktree priority, conflict precedence, rename/copy distinctions, neutral normal/unversioned/ignored roles and semantic selected text, neutral LFS success and Conflict LFS error verified. Custom RGB/black/white/clamp reference checks, private preference Apply/Cancel/default/reopening/validation/alias/notification, preserved unrelated preferences and native settings action targets pass. Log draft/Apply/Cancel/Restore/preserved noneditable preferences, eight-color cycling and custom/default bisect term boundaries pass. Injected accessibility notification invalidates the observer; actual system setting toggle, shared color-panel and pixel/physical visual acceptance not claimed.")
     }
 }

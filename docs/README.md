@@ -153,6 +153,7 @@ for baseline and update rules.
 ## Settings, artwork and helpers
 
 - [Appearance and color parity](APPEARANCE.md)
+- [Native status text and dark-mode contrast](STATUS-TEXT-APPEARANCE.md)
 - [Application context-menu icon preference](CONTEXT-MENU-ICONS-PARITY.md)
 - [Finder Context Menu and Context Menu 2 settings](CONTEXT-MENU-SETTINGS-PARITY.md)
 - [Finder overlay settings and original icon sets](FINDER-OVERLAY-SETTINGS-PARITY.md)

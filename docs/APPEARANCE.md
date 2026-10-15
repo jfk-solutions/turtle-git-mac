@@ -203,3 +203,10 @@ metadata, source gates and remaining border/shape/physical acceptance scope.
 Reference-name/classification checks, including annotated tags and configured bisect terms, are recorded in [reference-kind QA](qa/log-reference-kinds-2026-10-09.json). Physical rendering and full dialog parity remain unverified.
 
 Log reference badges now use native TextKit glyph drawing with source bevels, tracking shadows and annotated-tag tips. See [painter QA](qa/log-reference-painter-2026-10-09.json) and `python3 scripts/test-log-reference-painter-oracle.py` for the independent geometry/color check. It does not establish physical screenshot or full UI parity.
+
+The [native status-text continuation](STATUS-TEXT-APPEARANCE.md) preserves raw
+source colors and conversion while adapting low-contrast status text to native
+dark backgrounds. It also connects private Working Tree and Commit line-count
+color stores and verifies live updates across existing Log/Commit/Working Tree
+windows. This supersedes the earlier absence of rendered status-color evidence;
+its own QA record identifies exactly which captures and appearances were checked.

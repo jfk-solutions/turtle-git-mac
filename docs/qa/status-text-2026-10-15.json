@@ -1,0 +1,145 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "1d8771d5",
+  "scope": "Shared native status-text contrast across Commit/Working Tree/Log and other status text consumers, owning-store fixes, source RGB persistence and live Apply/Cancel/Default",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "validation": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/status-text-composite-build.log"
+    },
+    "source_oracle": {
+      "exit": 0,
+      "log": "build/qa/status-text-source-fetch.log",
+      "inputs": 29,
+      "modes": [
+        "light",
+        "dark",
+        "highContrastDark"
+      ],
+      "source_blobs": "Both source files downloaded by the no-checkout fallback and checked against docs/upstream-files.csv Git blob IDs; compiled pinned C++ RGB/HSL functions; existing native settings/role/preference tests passed on final Debug objects."
+    },
+    "native_text": {
+      "exit": 0,
+      "log": "build/qa/status-text-native-composite.log",
+      "engines": 2,
+      "completion_markers": 2,
+      "first_engine_rendered_checks": [
+        "Rendered status-text-commit-light rename RGB=[0, 0, 255] matching pixels=1840",
+        "Rendered status-text-commit-dark rename RGB=[129, 129, 255] matching pixels=2056",
+        "Rendered status-text-working-tree-light rename RGB=[0, 0, 255] matching pixels=2968",
+        "Rendered status-text-working-tree-dark rename RGB=[129, 129, 255] matching pixels=3327",
+        "Rendered status-text-log-light rename RGB=[0, 0, 255] matching pixels=1937",
+        "Rendered status-text-log-dark rename RGB=[129, 129, 255] matching pixels=2184",
+        "Rendered status-text-custom-commit-dark rename RGB=[55, 154, 255] matching pixels=68",
+        "Rendered status-text-custom-working-tree-dark rename RGB=[55, 154, 255] matching pixels=3270",
+        "Rendered status-text-custom-log-dark rename RGB=[55, 154, 255] matching pixels=2150"
+      ],
+      "scope": "Private real renamed/staged/modified/deleted repositories, six dynamic role bounds, source light RGB, live custom RGB/Apply/Cancel/Default, owning stores, no HEAD/index/status/global color mutations. Actual compositor rename pixels in nine first-engine windows; second engine has model/palette checks without capture."
+    },
+    "core": "Not rerun; no Core source or Git-operation changes.",
+    "owned_receiver_pids_reaped_and_checked_absent": [
+      5483,
+      5628,
+      5752,
+      5760,
+      5820,
+      5886,
+      5996,
+      6277
+    ],
+    "repairs": [
+      {
+        "kind": "oracle_input",
+        "log": "build/qa/status-text-native.log",
+        "detail": "Older oracle omitted FilterMatch; its pinned source input was added without removing role assertions."
+      },
+      {
+        "kind": "old_text_expectation",
+        "log": "build/qa/status-text-native-recheck.log",
+        "detail": "LFS error text now uses the shared native presentation color. Its wiring check was updated while raw source RGB/HSL oracle comparisons remain exact."
+      },
+      {
+        "kind": "production_background_compositing",
+        "logs": [
+          "build/qa/status-text-native-text-recheck.log",
+          "build/qa/status-text-native-diagnosis.log"
+        ],
+        "detail": "Alternating-row tint was incorrectly treated as opaque white. Native text now calculates contrast against the tint composited over the table surface. Contrast assertions retained; only affected text cases repeated after the repair."
+      }
+    ],
+    "hosted_ci": {
+      "run": 38736892584,
+      "head": "0c73f0ab",
+      "job": 116428891347,
+      "conclusion": "failure",
+      "core_tests": 1453,
+      "core_skipped": 1,
+      "core_failures": 0,
+      "native_failure": "Rebase columns: Native committer pixels missing. Remains a separate hosted rendering blocker."
+    }
+  },
+  "screenshots": [
+    {
+      "path": "docs/site/assets/status-text-commit-dark.png",
+      "sha256": "04a0e1fd0afb548c29b4a57149f65b212871c8147185864055ad1eea20feee1a",
+      "capture": "Unaltered current-process ScreenCaptureKit compositor",
+      "review": "Reviewed source light colors, adjusted dark rename text, live private custom Apply across three dialogs. No complete physical/selection/theme acceptance claim."
+    },
+    {
+      "path": "docs/site/assets/status-text-commit-light.png",
+      "sha256": "0a0c852e474b716fa49d7d03013091d4a714ff9055257eef61dfecf21e4bda33",
+      "capture": "Unaltered current-process ScreenCaptureKit compositor",
+      "review": "Reviewed source light colors, adjusted dark rename text, live private custom Apply across three dialogs. No complete physical/selection/theme acceptance claim."
+    },
+    {
+      "path": "docs/site/assets/status-text-custom-commit-dark.png",
+      "sha256": "3202ee77afc0aab546e59706abd77e0118c2a503fa0ef03114a527cc6a1d73c7",
+      "capture": "Unaltered current-process ScreenCaptureKit compositor",
+      "review": "Reviewed source light colors, adjusted dark rename text, live private custom Apply across three dialogs. No complete physical/selection/theme acceptance claim."
+    },
+    {
+      "path": "docs/site/assets/status-text-custom-log-dark.png",
+      "sha256": "483bfe3fd6404ac7f282bea68cb3eb66c5272175a569d6520415c36eb6485ab5",
+      "capture": "Unaltered current-process ScreenCaptureKit compositor",
+      "review": "Reviewed source light colors, adjusted dark rename text, live private custom Apply across three dialogs. No complete physical/selection/theme acceptance claim."
+    },
+    {
+      "path": "docs/site/assets/status-text-custom-working-tree-dark.png",
+      "sha256": "7bcd33a36156e1f5991fa3e7ea20ceb9f54c7c49eafd2d29e4a66b90e99df33b",
+      "capture": "Unaltered current-process ScreenCaptureKit compositor",
+      "review": "Reviewed source light colors, adjusted dark rename text, live private custom Apply across three dialogs. No complete physical/selection/theme acceptance claim."
+    },
+    {
+      "path": "docs/site/assets/status-text-log-dark.png",
+      "sha256": "fa3d2fcc9c6e41c61781100967e72e3d21de02d366e922085bcc568bd2e7c1e6",
+      "capture": "Unaltered current-process ScreenCaptureKit compositor",
+      "review": "Reviewed source light colors, adjusted dark rename text, live private custom Apply across three dialogs. No complete physical/selection/theme acceptance claim."
+    },
+    {
+      "path": "docs/site/assets/status-text-log-light.png",
+      "sha256": "4ebb1eb83e73e10feacd27330dc9d1187b7cc049de3f4be50caef8f7c203c71a",
+      "capture": "Unaltered current-process ScreenCaptureKit compositor",
+      "review": "Reviewed source light colors, adjusted dark rename text, live private custom Apply across three dialogs. No complete physical/selection/theme acceptance claim."
+    },
+    {
+      "path": "docs/site/assets/status-text-working-tree-dark.png",
+      "sha256": "d746d6fa34628e452fd598854321edd5e9940e11aa907fd7e55e19f32a07e093",
+      "capture": "Unaltered current-process ScreenCaptureKit compositor",
+      "review": "Reviewed source light colors, adjusted dark rename text, live private custom Apply across three dialogs. No complete physical/selection/theme acceptance claim."
+    },
+    {
+      "path": "docs/site/assets/status-text-working-tree-light.png",
+      "sha256": "99b2d2231d57bdbb6a6603ff4a0cee339e2761bb5a0d1a51ee75dd14a2ebe2ef",
+      "capture": "Unaltered current-process ScreenCaptureKit compositor",
+      "review": "Reviewed source light colors, adjusted dark rename text, live private custom Apply across three dialogs. No complete physical/selection/theme acceptance claim."
+    }
+  ],
+  "limits": [
+    "Raw saved RGB and source conversion preserved; dark text contrast is an explicit macOS adaptation",
+    "Numerical bounds cover native color APIs, not every compositing/selection/scale setting",
+    "Actual system Increase Contrast toggling and physical gestures unverified",
+    "Other dialogs sharing the renderer were not all captured",
+    "Full application/Finder/signed/App Store acceptance remains open"
+  ]
+}

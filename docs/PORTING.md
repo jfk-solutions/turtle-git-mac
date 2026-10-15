@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The shared status-text family now preserves raw source colors and conversion
+while adapting low-contrast dark text against composited native table backgrounds.
+Working Tree and Commit count columns use their owning stores. The final Debug
+build, pinned 29-input C++/settings oracle and both native engine cases passed;
+nine real captures include live custom-color Apply pixels. See
+[status text](STATUS-TEXT-APPEARANCE.md). Full physical, selected-row, all-dialog
+and signed acceptance remain open.
+
 The connected Log scope/information family now adds source revision endpoints,
 file-selection and line/status totals, old/current-name word queries, hidden-file
 selection cleanup and persisted Whole Project history/title/reopening with Follow,

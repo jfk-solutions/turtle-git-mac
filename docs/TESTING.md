@@ -1777,3 +1777,20 @@ hidden-file selection pruning, source information totals, Whole Project
 persistence/reopening/titles and Follow/busy/retired refusal. Its affected Core
 group is `HistoryPresentationTests` plus
 `CommitHistoryTests.testPlainQueryRulesFromUpstreamFilterHelper`.
+
+## Source palette and native status text
+
+After a current Debug build, run `python3 scripts/test-status-colors.py --git
+/usr/bin/git --git build/git-runtime/Git/bin/git` on one line. It retains the
+independent pinned C++ source conversion oracle and links both native receivers
+to current app objects. Optional `--captures build/qa/status-text-captures` adds
+actual Commit/Working Tree/Log light/dark compositor pixels and custom-color
+Apply captures for the first engine. The fixture requires its completion marker
+and preserves repository files/HEAD/index/status and global color preferences.
+No Core logic changes are involved in the native presentation policy.
+
+The color oracle can run from a clean checkout: when the upstream Git checkout
+is absent, it fetches only pinned Theme.cpp/Colors.cpp and checks Git blob IDs
+against the inventory before compiling. `--only-oracle` checks that source and
+settings portion; `--only-text` repeats only the affected text/dialog receivers.
+These flags were used to avoid repeating passed unrelated checks after a failure.

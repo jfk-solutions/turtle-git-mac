@@ -57,8 +57,9 @@ source has no implementation in its multiple-selection branch either. This
 batch does not certify full Log, Finder or application parity.
 
 The current minimum-width compositor captures show the source information line
-and permanent Whole Project control in both appearances. Dark rename text still
-needs contrast review; these are current behavior evidence, not theme certification.
+and permanent Whole Project control in both appearances. The later [native status-text batch](STATUS-TEXT-APPEARANCE.md) addresses the
+observed dark rename contrast with new captures and rendered-pixel checks.
+These earlier images remain historical behavior evidence, not theme certification.
 
 ![Current Log scope and information, light](site/assets/log-scope-information-light.png)
 

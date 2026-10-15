@@ -54,3 +54,9 @@ The later October 15 [scope/information batch](LOG-FOOTER-PARITY.md) adds the
 permanent Whole Project checkbox and full source information line. Its current
 light/dark captures retain the earlier filter/header arrangement. Dark rename-row
 contrast remains open and is not certified by these captures.
+
+The [native status-text continuation](STATUS-TEXT-APPEARANCE.md) adds current
+Commit/Working Tree/Log source light and adapted dark captures, plus actual
+custom-color Apply pixels. It addresses the rename-text issue recorded in the
+preceding footer captures. Physical/selected-row and full appearance certification
+remain open.
