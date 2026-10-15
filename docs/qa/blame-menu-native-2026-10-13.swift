@@ -197,6 +197,54 @@ import TurtleGitCore
         try await wait { root.contentView?.layoutSubtreeIfNeeded();return sideSplit(root)?.arrangedSubviews.count==2 }
         let sides=sideSplit(root)!;sides.setPosition(sides.bounds.width-316-sides.dividerThickness,ofDividerAt:0)
         try await wait { abs(prefs.double(forKey:"Blame.Pane.Dock.right.Extent")-316)<1 }
+        // Native tab containers preserve pane/model identity and the selected tab.
+        model.tabPane(.log,joined:true)
+        func paneTabs()->NSTabView? { descendants(root.contentView!).compactMap{$0 as? NSTabView}.first{$0.tabViewItems.compactMap{$0.identifier as? String} == ["log","properties"]} }
+        try await wait { root.contentView?.layoutSubtreeIfNeeded();return paneTabs() != nil }
+        try require(model.panesAreTabbed && model.paneLayout.log == .right && paneTabs()?.selectedTabViewItem?.identifier as? String == "log","Tab group placement/initial selection failed")
+        paneTabs()?.selectTabViewItem(withIdentifier:"properties")
+        try await wait {model.paneLayout.activeTab == .properties}
+        try require(BlamePaneLayout.load(prefs)==model.paneLayout,"Native tab selection did not persist")
+        try await wait { descendants(root.contentView!).compactMap{$0 as? NSSegmentedControl}.contains{$0.segmentCount==2 && $0.label(forSegment:0)=="Git Revision List" && $0.selectedSegment==1 && $0.frame.width>200} }
+        let selector=descendants(root.contentView!).compactMap{$0 as? NSSegmentedControl}.first{$0.segmentCount==2 && $0.label(forSegment:0)=="Git Revision List"}!
+        selector.selectedSegment=0;try require(selector.sendAction(selector.action!,to:selector.target),"Native tab selector action missing")
+        try await wait {model.paneLayout.activeTab == .log && paneTabs()?.selectedTabViewItem?.identifier as? String == "log"}
+        selector.selectedSegment=1;_=selector.sendAction(selector.action!,to:selector.target)
+        try await wait {model.paneLayout.activeTab == .properties && paneTabs()?.selectedTabViewItem?.identifier as? String == "properties"}
+
+        model.busy=true;paneTabs()?.selectTabViewItem(withIdentifier:"log")
+        try require(paneTabs()?.selectedTabViewItem?.identifier as? String == "properties" && model.paneLayout.activeTab == .properties,"Busy native tab selection changed layout");model.busy=false
+        model.setPaneAutoHidden(.log,true)
+        try require(model.paneAutoHidden(.log) && model.paneAutoHidden(.properties),"Group auto-hide split its state")
+        model.setPaneAutoHidden(.properties,false)
+        try await wait { root.contentView?.layoutSubtreeIfNeeded();return paneTabs()?.selectedTabViewItem?.identifier as? String == "properties" }
+        model.setPaneVisible(.properties,false)
+        try require(!model.finishPaneDrag(model.paneDragData(.properties),at:.zero,outsideWorkspace:true,cancelled:false,operation:[]),"Hidden pane accepted outside drag")
+        try await wait { root.contentView?.layoutSubtreeIfNeeded();return paneTabs()==nil }
+        model.setPaneVisible(.properties,true)
+        try await wait { root.contentView?.layoutSubtreeIfNeeded();return paneTabs() != nil }
+        // Older saved layouts contain neither new optional field.
+        let profile=prefs.data(forKey:"Blame.PaneLayout")!
+        var oldProfile=try JSONSerialization.jsonObject(with:profile) as! [String:Any];oldProfile.removeValue(forKey:"tabbed");oldProfile.removeValue(forKey:"activeTab")
+        prefs.set(try JSONSerialization.data(withJSONObject:oldProfile),forKey:"Blame.PaneLayout")
+        try require(BlamePaneLayout.load(prefs).log == .right && BlamePaneLayout.load(prefs).tabbed==nil,"Legacy layout did not migrate")
+        prefs.set(profile,forKey:"Blame.PaneLayout")
+        model.setPanePlacement(.log,.bottom)
+        try require(!model.panesAreTabbed && model.paneLayout.properties == .right,"Moving a tab did not separate its group")
+        try await wait { root.contentView?.layoutSubtreeIfNeeded();return descendants(root.contentView!).contains{$0 is BlamePaneCaptionButton} }
+        let caption=descendants(root.contentView!).compactMap{$0 as? BlamePaneCaptionButton}.first{$0.pane == .log}!
+        try require(caption.model === model && caption.accessibilityPerformPress(),"Native pane caption accessibility action unavailable")
+        try require(model.paneLayout.log == .floating && owner.floatingPaneWindow(.log) != nil,"Native caption failed to float")
+        try await wait { owner.floatingPaneWindow(.log)?.titlebarAccessoryViewControllers.forEach{$0.view.layoutSubtreeIfNeeded()};return owner.floatingPaneWindow(.log)?.titlebarAccessoryViewControllers.flatMap{descendants($0.view)}.contains{$0 is BlamePaneCaptionButton} == true }
+        let accessory=owner.floatingPaneWindow(.log)!.titlebarAccessoryViewControllers.flatMap{descendants($0.view)}.compactMap{$0 as? BlamePaneCaptionButton}.first!
+        try require(accessory.accessibilityPerformPress() && model.paneLayout.log == .bottom,"Floating titlebar caption did not dock")
+        let payload=model.paneDragData(.log),point=NSPoint(x:root.frame.minX-40,y:root.frame.maxY-40),layout=model.paneLayout
+        try require(!model.finishPaneDrag(payload,at:point,outsideWorkspace:true,cancelled:true,operation:[]) && !model.finishPaneDrag(payload,at:point,outsideWorkspace:false,cancelled:false,operation:[]) && !model.finishPaneDrag(payload,at:point,outsideWorkspace:true,cancelled:false,operation:.move) && model.paneLayout==layout,"Cancelled/inside/handled drag floated pane")
+        model.busy=true;try require(!model.finishPaneDrag(payload,at:point,outsideWorkspace:true,cancelled:false,operation:[]),"Busy pane accepted outside drag");model.busy=false
+        try require(model.finishPaneDrag(payload,at:point,outsideWorkspace:true,cancelled:false,operation:[]),"Outside drag did not float")
+        let dragged=owner.floatingPaneWindow(.log)!,screen=dragged.screen?.visibleFrame ?? NSScreen.main!.visibleFrame
+        try require(screen.contains(dragged.frame) && prefs.string(forKey:"Blame.Pane.log.FloatingFrame") != nil,"Drag floating frame was not clamped/saved")
+        model.setPanePlacement(.log,.bottom)
         for edge in [BlamePanePlacement.left,.top,.right,.bottom] {
             model.setPanePlacement(.log,edge);root.contentView?.layoutSubtreeIfNeeded()
             try require(model.paneLayout.placement(.log)==edge && BlamePaneLayout.load(prefs)==model.paneLayout,"Dock edge not persisted")
@@ -230,7 +278,7 @@ import TurtleGitCore
         second.model.setPanePlacement(.properties,.floating)
         let foreign=second.model.paneDragProvider(.log)
         let foreignData:Data=try await withCheckedThrowingContinuation { reply in foreign.loadDataRepresentation(forTypeIdentifier:BlamePane.dragType) { bytes,error in if let bytes { reply.resume(returning:bytes) } else { reply.resume(throwing:error ?? Failure(description:"Missing pane payload")) } } }
-        try require(!model.applyPaneDropData(foreignData,placement:.left) && model.paneLayout.log == .floating,"Foreign pane payload changed layout")
+        try require(!model.applyPaneDropData(foreignData,placement:.left) && !model.finishPaneDrag(foreignData,at:point,outsideWorkspace:true,cancelled:false,operation:[]) && model.paneLayout.log == .floating,"Foreign pane payload changed layout")
         // File Open replaces the model and retires floating views before rebinding.
         let old=second.model,oldLog=second.floatingPaneWindow(.log)!
         second.chooseFile={ _,_,reply in reply(model.repository.root.appendingPathComponent("unrelated.txt")) }
@@ -242,7 +290,7 @@ import TurtleGitCore
         let visibleBeforeClose=BlamePane.allCases.compactMap{second.floatingPaneWindow($0)}
         second.close()
         try require(visibleBeforeClose.allSatisfy{!$0.isVisible && $0.parent==nil} && prefs.bool(forKey:"Blame.ShowLog") && prefs.bool(forKey:"Blame.ShowProperties"),"Owner close leaked panels or discarded saved visibility")
-        try require(!old.applyPaneDropData(foreignData,placement:.bottom),"Retired document applied pane drop")
+        try require(!old.applyPaneDropData(foreignData,placement:.bottom) && !old.finishPaneDrag(foreignData,at:point,outsideWorkspace:true,cancelled:false,operation:[]),"Retired document applied pane drop/float")
         model.setPanePlacement(.properties,.right);model.setPanePlacement(.log,.bottom);model.setPaneAutoHidden(.log,true)
         root.makeKeyAndOrderFront(nil)
         try require(model.paneAutoHidden(.log) && model.showLog && model.canFind,"Auto-hide state did not install: \(model.paneLayout), retired=\(model.retired), busy=\(model.busy)")
@@ -267,6 +315,10 @@ import TurtleGitCore
             for (dark,name) in [(false,"light"),(true,"dark")] {
                 model.restorePaneLayout();owner.setDarkMode(dark);root.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)
                 try await capturePane(root,to:output.appendingPathComponent("blame-panes-"+name+".png"))
+                model.setPanePlacement(.properties,.bottom);model.tabPane(.log,joined:true)
+                try await capturePane(root,to:output.appendingPathComponent("blame-tabs-log-"+name+".png"))
+                model.selectPaneTab(.properties)
+                try await capturePane(root,to:output.appendingPathComponent("blame-tabs-properties-"+name+".png"))
                 model.setPanePlacement(.log,.floating);model.setPanePlacement(.properties,.floating)
                 try await wait { owner.floatingPaneWindow(.log)?.isVisible==true && owner.floatingPaneWindow(.properties)?.isVisible==true }
                 for pane in BlamePane.allCases { try await capturePane(owner.floatingPaneWindow(pane)!,to:output.appendingPathComponent("blame-floating-"+pane.rawValue+"-"+name+".png")) }

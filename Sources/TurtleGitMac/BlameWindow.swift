@@ -155,6 +155,10 @@ private struct BlameParentMenuTarget {
             guard let self,let current,self.model === current,!current.retired else { return }
             self.refreshPaneLayout()
         }
+        model.onPaneFloatRequested={ [weak self,weak current] pane,point in
+            guard let self,let current,self.model === current,!current.retired else { return }
+            self.floatingPanes[pane]?.position(at:point)
+        }
         refreshPaneLayout()
     }
     func refreshPaneLayout() {
@@ -226,7 +230,7 @@ private struct BlameParentMenuTarget {
     }
     func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy && !model.openingDocument && !model.resettingHistoryColumns && !hasBlockingHistoryChild }
     func windowWillClose(_ notification:Notification) {
-        model.onPaneLayoutChanged={};retireFloatingPanes()
+        model.onPaneLayoutChanged={};model.onPaneFloatRequested={_,_ in};retireFloatingPanes()
         feedbackGeneration += 1;openingGeneration += 1;documentOpener.cancel()
         if let alert=columnAlert { alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close();columnAlert=nil }
         Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:]
@@ -392,6 +396,22 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published private(set) var paneLayout=BlamePaneLayout() { didSet { guard !retired else { return };if let data=try? JSONEncoder().encode(paneLayout) { labelDefaults.set(data,forKey:"Blame.PaneLayout") };onPaneLayoutChanged() } }
     @Published var paneDropPreview:BlamePanePlacement?
     var onPaneLayoutChanged:()->Void={}
+    var onPaneFloatRequested:(BlamePane,CGPoint)->Void={_,_ in}
+    var panesAreTabbed:Bool { paneLayout.tabbed == true && paneLayout.log == paneLayout.properties && paneLayout.log != .floating }
+    func tabPane(_ pane:BlamePane,joined:Bool) {
+        guard canFind else { return };var next=paneLayout
+        if joined {
+            let other:BlamePane=pane == .log ? .properties : .log
+            let edge=next.placement(other) == .floating ? next.lastDock(other) : next.placement(other)
+            next.place(pane,edge);next.place(other,edge);next.setAutoHidden(pane,false);next.setAutoHidden(other,false)
+            showLog=true;showProperties=true;next.activeTab=pane
+        }
+        next.tabbed=joined;paneLayout=next
+    }
+    func selectPaneTab(_ pane:BlamePane) {
+        guard canFind,panesAreTabbed,paneVisible(pane),paneLayout.activeTab != pane else { return }
+        var next=paneLayout;next.activeTab=pane;paneLayout=next
+    }
     private let paneDragID=UUID()
     func paneVisible(_ pane:BlamePane)->Bool { pane == .log ? showLog : showProperties }
     func paneAutoHidden(_ pane:BlamePane)->Bool { paneLayout.autoHidden(pane) && paneLayout.placement(pane) != .floating }
@@ -401,7 +421,9 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     func togglePaneFloating(_ pane:BlamePane) { setPanePlacement(pane,paneLayout.placement(pane) == .floating ? paneLayout.lastDock(pane) : .floating) }
     func setPaneAutoHidden(_ pane:BlamePane,_ value:Bool) {
-        guard canFind,paneLayout.placement(pane) != .floating else { return };var next=paneLayout;next.setAutoHidden(pane,value);paneLayout=next
+        guard canFind,paneLayout.placement(pane) != .floating else { return };var next=paneLayout;next.setAutoHidden(pane,value)
+        if panesAreTabbed { next.setAutoHidden(pane == .log ? .properties : .log,value);next.activeTab=pane }
+        paneLayout=next
     }
     @Published private(set) var paneLayoutRevision=0
     func restorePaneLayout() {
@@ -410,7 +432,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         paneLayoutRevision += 1;paneLayout=BlamePaneLayout();showLog=true;showProperties=true
     }
     func paneDragProvider(_ pane:BlamePane)->NSItemProvider {
-        let provider=NSItemProvider(),data=Data((paneDragID.uuidString+"\n"+pane.rawValue).utf8)
+        let provider=NSItemProvider(),data=paneDragData(pane)
         provider.registerDataRepresentation(forTypeIdentifier:BlamePane.dragType,visibility:.ownProcess) { reply in reply(data,nil);return nil }
         return provider
     }
@@ -425,11 +447,21 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         }
         return true
     }
-    @discardableResult func applyPaneDropData(_ data:Data,placement:BlamePanePlacement)->Bool {
-        guard canFind,placement != .floating else { return false }
+    func paneDragData(_ pane:BlamePane)->Data { Data((paneDragID.uuidString+"\n"+pane.rawValue).utf8) }
+    private func draggedPane(_ data:Data)->BlamePane? {
+        guard canFind else { return nil }
         let pieces=String(decoding:data,as:UTF8.self).split(separator:"\n")
-        guard pieces.count==2,pieces[0]==paneDragID.uuidString,let pane=BlamePane(rawValue:String(pieces[1])),paneVisible(pane) else { return false }
+        guard pieces.count==2,pieces[0]==paneDragID.uuidString,let pane=BlamePane(rawValue:String(pieces[1])),paneVisible(pane) else { return nil }
+        return pane
+    }
+    @discardableResult func applyPaneDropData(_ data:Data,placement:BlamePanePlacement)->Bool {
+        guard placement != .floating,let pane=draggedPane(data) else { return false }
         setPanePlacement(pane,placement);return true
+    }
+    @discardableResult func finishPaneDrag(_ data:Data,at point:CGPoint,outsideWorkspace:Bool,cancelled:Bool,operation:NSDragOperation)->Bool {
+        paneDropPreview=nil
+        guard operation.isEmpty,!cancelled,outsideWorkspace,point.x.isFinite,point.y.isFinite,let pane=draggedPane(data) else { return false }
+        setPanePlacement(pane,.floating);onPaneFloatRequested(pane,point);return true
     }
     @Published var showStatusBar=true { didSet { labelDefaults.set(showStatusBar,forKey:"Blame.ShowStatusBar") } }
     @Published private(set) var darkOverride:Bool?
@@ -602,7 +634,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         followRenames = enabled; GitBlamePreferences.update(in:labelDefaults) { $0.followRenames = enabled }; reload(saveThresholds: true)
     }
     func retire() {
-        retired=true;onPaneLayoutChanged={};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
+        retired=true;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
     func invalidate() { loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
@@ -1990,6 +2022,8 @@ struct BlamePaneLayout:Codable,Equatable {
     var log:BlamePanePlacement = .bottom,properties:BlamePanePlacement = .right
     var logLastDock:BlamePanePlacement = .bottom,propertiesLastDock:BlamePanePlacement = .right
     var logAutoHide=false,propertiesAutoHide=false
+    // Optional additions preserve decoding of profiles saved before pane tabs.
+    var tabbed:Bool?=nil,activeTab:BlamePane?=nil
     static func load(_ preferences:UserDefaults)->Self {
         guard let data=preferences.data(forKey:"Blame.PaneLayout"),var value=try? JSONDecoder().decode(Self.self,from:data) else { return Self() }
         if value.logLastDock == .floating { value.logLastDock = .bottom }
@@ -2004,6 +2038,7 @@ struct BlamePaneLayout:Codable,Equatable {
         if pane == .log { log=value;if value != .floating { logLastDock=value } }
         else { properties=value;if value != .floating { propertiesLastDock=value } }
         if value == .floating { setAutoHidden(pane,false) }
+        if log != properties || value == .floating { tabbed=false;activeTab=nil }
     }
 }
 struct BlamePaneLayoutMenu:View {
@@ -2023,6 +2058,7 @@ private struct BlamePaneChoices:View {
             Toggle(placement.title,isOn:Binding(get:{model.paneLayout.placement(pane)==placement},set:{_ in model.setPanePlacement(pane,placement)}))
         }
         Divider()
+        Toggle("Tab with "+(pane == .log ? "Properties" : "Log"),isOn:Binding(get:{model.panesAreTabbed},set:{model.tabPane(pane,joined:$0)}))
         Toggle("Auto Hide",isOn:Binding(get:{model.paneAutoHidden(pane)},set:{model.setPaneAutoHidden(pane,$0)})).disabled(model.paneLayout.placement(pane) == .floating)
     }
 }
@@ -2031,14 +2067,81 @@ private struct BlamePaneHeader:View {
     let pane:BlamePane
     var body:some View {
         HStack(spacing:6) {
-            CommandLabel(title:pane.caption,icon:pane.icon).font(.caption.bold()).lineLimit(1)
-                .onDrag { model.paneDragProvider(pane) }.onTapGesture(count:2) { model.togglePaneFloating(pane) }
-                .help("Drag to an edge to dock; double-click to float or dock.")
+            BlamePaneCaption(model:model,pane:pane).frame(height:18)
+                .help("Drag to an edge to dock, or outside the workspace to float; double-click to float or dock.")
             Spacer(minLength:2)
             Menu { BlamePaneChoices(model:model,pane:pane) } label: { Image(systemName:"chevron.down") }.menuStyle(.borderlessButton).fixedSize().accessibilityLabel(pane.title+" pane placement")
             Button { model.setPaneVisible(pane,false) } label: { Image(systemName:"xmark") }.buttonStyle(.plain).accessibilityLabel("Hide "+pane.title)
         }.padding(5).background(Color(nsColor:.controlBackgroundColor)).disabled(!model.canFind)
     }
+}
+private struct BlamePaneCaption:NSViewRepresentable {
+    @ObservedObject var model:BlameWindowModel
+    let pane:BlamePane
+    var compact=false
+    func makeNSView(context:Context)->BlamePaneCaptionButton {
+        let button=BlamePaneCaptionButton();button.isBordered=false;button.alignment = .left
+        button.font = .boldSystemFont(ofSize:11);button.setAccessibilityLabel("Drag "+pane.caption)
+        return button
+    }
+    func updateNSView(_ button:BlamePaneCaptionButton,context:Context) {
+        button.model=model;button.pane=pane;button.title=compact ? "" : pane.caption
+        button.image=pane.icon.contextImage();button.imagePosition=compact ? .imageOnly : .imageLeft
+        button.isEnabled=model.canFind && context.environment.isEnabled
+    }
+    static func dismantleNSView(_ button:BlamePaneCaptionButton,coordinator:()) { button.retire() }
+}
+/// Owns the native drag session so unsuccessful outside drops can float a pane.
+/// Escape is observed only inside this process and always cancels that transition.
+@MainActor final class BlamePaneCaptionButton:NSButton,NSDraggingSource {
+    weak var model:BlameWindowModel?
+    var pane:BlamePane = .log
+    private var initialEvent:NSEvent?
+    private var data:Data?
+    private var workspaceFrame=NSRect.zero
+    private var escapePressed=false
+    private var escapeMonitor:Any?
+    override func acceptsFirstMouse(for event:NSEvent?)->Bool { true }
+    override func accessibilityPerformPress()->Bool {
+        guard isEnabled,let model,model.canFind else { return false };model.togglePaneFloating(pane);return true
+    }
+    override func mouseDown(with event:NSEvent) {
+        guard isEnabled,model?.canFind==true else { return }
+        if event.clickCount==2 { model?.togglePaneFloating(pane);initialEvent=nil }
+        else { initialEvent=event }
+    }
+    override func mouseUp(with event:NSEvent) { initialEvent=nil }
+    override func mouseDragged(with event:NSEvent) {
+        guard isEnabled,data==nil,let initialEvent,let model,model.canFind,model.paneVisible(pane),let window,
+              hypot(event.locationInWindow.x-initialEvent.locationInWindow.x,event.locationInWindow.y-initialEvent.locationInWindow.y)>3 else { return }
+        self.initialEvent=nil;escapePressed=false
+        data=model.paneDragData(pane)
+        var ancestor: NSView?=self
+        while let view=ancestor,!(view is BlameDockRootSplit) { ancestor=view.superview }
+        if let ancestor { workspaceFrame=window.convertToScreen(ancestor.convert(ancestor.bounds,to:nil)) }
+        else { let owner=window.parent ?? window;workspaceFrame=owner.contentView.map{owner.convertToScreen($0.convert($0.bounds,to:nil))} ?? owner.frame }
+        let item=NSPasteboardItem();item.setData(data!,forType:NSPasteboard.PasteboardType(BlamePane.dragType))
+        let dragging=NSDraggingItem(pasteboardWriter:item)
+        let snapshot=bitmapImageRepForCachingDisplay(in:bounds)
+        if let snapshot { cacheDisplay(in:bounds,to:snapshot) }
+        let image=NSImage(size:bounds.size);if let snapshot { image.addRepresentation(snapshot) }
+        dragging.setDraggingFrame(bounds,contents:image)
+        escapeMonitor=NSEvent.addLocalMonitorForEvents(matching:.keyDown) { [weak self] event in if event.keyCode==53 { self?.escapePressed=true };return event }
+        let session=beginDraggingSession(with:[dragging],event:event,source:self)
+        session.animatesToStartingPositionsOnCancelOrFail=false
+    }
+    func draggingSession(_ session:NSDraggingSession,sourceOperationMaskFor context:NSDraggingContext)->NSDragOperation { context == .withinApplication ? .move : [] }
+    func ignoreModifierKeys(for session:NSDraggingSession)->Bool { true }
+    func draggingSession(_ session:NSDraggingSession,endedAt screenPoint:NSPoint,operation:NSDragOperation) {
+        let payload=data,cancelled=escapePressed;clearSession()
+        guard let payload else { return }
+        _=model?.finishPaneDrag(payload,at:screenPoint,outsideWorkspace:!workspaceFrame.insetBy(dx:-8,dy:-8).contains(screenPoint),cancelled:cancelled,operation:operation)
+    }
+    private func clearSession() {
+        if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) };escapeMonitor=nil;data=nil;initialEvent=nil
+    }
+    func retire() { clearSession();model=nil }
+    deinit { if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) } }
 }
 private struct BlamePaneContent:View {
     @ObservedObject var model:BlameWindowModel
@@ -2143,7 +2246,10 @@ private struct BlamePaneWorkspace:View {
         panel.contentViewController=NSHostingController(rootView:BlamePaneContent(model:owner.model,pane:pane))
         super.init(window:panel)
         let accessory=NSTitlebarAccessoryViewController()
-        accessory.view=NSHostingView(rootView:Menu { BlamePaneChoices(model:owner.model,pane:pane) } label: { Image(systemName:"rectangle.split.2x1") }.menuStyle(.borderlessButton).accessibilityLabel(pane.title+" pane placement").frame(width:28,height:22))
+        accessory.view=NSHostingView(rootView:HStack(spacing:2) {
+            BlamePaneCaption(model:owner.model,pane:pane,compact:true).frame(width:24,height:20).help("Drag to dock this pane")
+            Menu { BlamePaneChoices(model:owner.model,pane:pane) } label: { Image(systemName:"rectangle.split.2x1") }.menuStyle(.borderlessButton).accessibilityLabel(pane.title+" pane placement")
+        }.frame(width:56,height:22))
         accessory.layoutAttribute = .right;panel.addTitlebarAccessoryViewController(accessory)
         var frame=preferences.string(forKey:frameKey).map(NSRectFromString) ?? panel.frame
         if ![frame.minX,frame.minY,frame.width,frame.height].allSatisfy({$0.isFinite}) || frame.width<260 || frame.height<160 { frame=panel.frame }
@@ -2156,6 +2262,15 @@ private struct BlamePaneWorkspace:View {
         owner.window?.addChildWindow(panel,ordered:.above)
     }
     required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
+    func position(at point:CGPoint) {
+        guard let window else { return }
+        let screen=NSScreen.screens.first{NSMouseInRect(point,$0.visibleFrame,false)}?.visibleFrame ?? blameOwner?.window?.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? window.frame
+        var frame=window.frame
+        frame.size.width=min(frame.width,screen.width);frame.size.height=min(frame.height,screen.height)
+        frame.origin.x=min(max(point.x-30,screen.minX),screen.maxX-frame.width)
+        frame.origin.y=min(max(point.y-frame.height+15,screen.minY),screen.maxY-frame.height)
+        window.setFrame(frame,display:true);saveFrame()
+    }
     private func saveFrame() { if let window { preferences.set(NSStringFromRect(window.frame),forKey:frameKey) } }
     func windowDidMove(_ notification:Notification) { saveFrame() }
     func windowDidResize(_ notification:Notification) { saveFrame() }
@@ -2177,9 +2292,31 @@ private struct BlameNativeDockWorkspace:NSViewControllerRepresentable {
     var afterLayout:()->Void={}
     override func layout() { super.layout();afterLayout() }
 }
-@MainActor private final class BlameDockWorkspaceController:NSViewController,NSSplitViewDelegate {
+/// Explicit native tab selector avoids AppKit's theme-transition label collapse
+/// when a reusable NSTabView is detached and reattached to dock groups.
+@MainActor private final class BlamePaneTabGroup:NSView {
+    let tabs=NSTabView(),selector=NSSegmentedControl()
+    let minimumWidth:CGFloat=250
+    override init(frame:NSRect) {
+        super.init(frame:frame)
+        tabs.tabViewType = .noTabsNoBorder;tabs.autoresizingMask=[.width,.height]
+        selector.segmentCount=2;selector.trackingMode = .selectOne;selector.segmentStyle = .rounded
+        selector.controlSize = .small;selector.font = .systemFont(ofSize:11)
+        for (index,pane) in BlamePane.allCases.enumerated() { selector.setLabel(pane.caption,forSegment:index);selector.setWidth(index==0 ? 135 : 90,forSegment:index) }
+        selector.setAccessibilityLabel("Blame pane tabs")
+        addSubview(tabs);addSubview(selector)
+    }
+    required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
+    override func layout() {
+        super.layout()
+        tabs.frame=NSRect(x:0,y:0,width:bounds.width,height:max(0,bounds.height-26))
+        selector.frame=NSRect(x:max(0,(bounds.width-230)/2),y:max(0,bounds.height-24),width:230,height:22)
+    }
+}
+@MainActor private final class BlameDockWorkspaceController:NSViewController,NSSplitViewDelegate,NSTabViewDelegate {
     private var model:BlameWindowModel
-    private let root=BlameDockRootSplit(),center=NSSplitView()
+    private let root=BlameDockRootSplit(),center=NSSplitView(),tabGroup=BlamePaneTabGroup(frame:.zero)
+    private var tabs:NSTabView { tabGroup.tabs }
     private var groups:[BlamePanePlacement:NSSplitView]=[:]
     private let source:NSHostingView<BlameTable>
     private var hosts:[BlamePane:NSHostingView<BlameDockedPane>]=[:]
@@ -2198,6 +2335,7 @@ private struct BlameNativeDockWorkspace:NSViewControllerRepresentable {
     required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
     override func loadView() {
         root.isVertical=false;center.isVertical=true
+        tabs.delegate=self;tabGroup.selector.target=self;tabGroup.selector.action=#selector(selectPaneTab(_:))
         for (edge,split) in groups { split.isVertical=[.top,.bottom].contains(edge) }
         for split in [root,center]+Array(groups.values) { split.dividerStyle = .thin;split.delegate=self;split.autoresizingMask=[.width,.height] }
         root.afterLayout={ [weak self] in self?.applyPendingFrames() };view=root
@@ -2210,15 +2348,35 @@ private struct BlameNativeDockWorkspace:NSViewControllerRepresentable {
             previousLayout=nil
         }
         guard isViewLoaded else { return }
+        tabGroup.selector.isEnabled=model.canFind
+        tabGroup.selector.selectedSegment=(model.paneLayout.activeTab ?? .log) == .log ? 0 : 1
+        if var previousLayout,previousLog==model.showLog,previousProperties==model.showProperties,previousRevision==model.paneLayoutRevision {
+            previousLayout.activeTab=model.paneLayout.activeTab
+            if previousLayout==model.paneLayout {
+                if model.panesAreTabbed,tabs.numberOfTabViewItems>0 {
+                    applying=true;tabs.selectTabViewItem(withIdentifier:(model.paneLayout.activeTab ?? .log).rawValue);applying=false
+                }
+                self.previousLayout=model.paneLayout;return
+            }
+        }
         if previousLayout != model.paneLayout || previousLog != model.showLog || previousProperties != model.showProperties || previousRevision != model.paneLayoutRevision { rebuild() }
     }
     private func rebuild() {
         applying=true;defer { applying=false }
         previousLayout=model.paneLayout;previousLog=model.showLog;previousProperties=model.showProperties;previousRevision=model.paneLayoutRevision
+        for item in tabs.tabViewItems { tabs.removeTabViewItem(item) }
         for split in [root,center]+Array(groups.values) { for child in split.arrangedSubviews { child.removeFromSuperview() } }
         for edge in BlamePanePlacement.allCases where edge != .floating {
             let panes=BlamePane.allCases.filter{model.paneVisible($0) && model.paneLayout.placement($0)==edge};edgePanes[edge]=panes
-            for pane in panes { if let host=hosts[pane] { groups[edge]?.addArrangedSubview(host) } }
+            if model.panesAreTabbed,panes.count==2,!panes.contains(where:{model.paneAutoHidden($0)}) {
+                tabGroup.frame=NSRect(x:0,y:0,width:max(280,groups[edge]!.bounds.width),height:max(100,groups[edge]!.bounds.height))
+                for pane in panes {
+                    let item=NSTabViewItem(identifier:pane.rawValue);item.label=pane.caption;item.view=hosts[pane];tabs.addTabViewItem(item)
+                }
+                tabs.selectTabViewItem(withIdentifier:(model.paneLayout.activeTab ?? .log).rawValue)
+                tabGroup.selector.selectedSegment=(model.paneLayout.activeTab ?? .log) == .log ? 0 : 1
+                groups[edge]?.addArrangedSubview(tabGroup)
+            } else { for pane in panes { if let host=hosts[pane] { groups[edge]?.addArrangedSubview(host) } } }
         }
         if has(.top) { root.addArrangedSubview(groups[.top]!) }
         root.addArrangedSubview(center)
@@ -2227,6 +2385,15 @@ private struct BlameNativeDockWorkspace:NSViewControllerRepresentable {
         center.addArrangedSubview(source)
         if has(.right) { center.addArrangedSubview(groups[.right]!) }
         pending=true;root.needsLayout=true
+    }
+    @objc private func selectPaneTab(_ sender:NSSegmentedControl) {
+        guard model.canFind,BlamePane.allCases.indices.contains(sender.selectedSegment) else { return }
+        model.selectPaneTab(BlamePane.allCases[sender.selectedSegment])
+    }
+    func tabView(_ tabView:NSTabView,shouldSelect tabViewItem:NSTabViewItem?)->Bool { applying || model.canFind }
+    func tabView(_ tabView:NSTabView,didSelect tabViewItem:NSTabViewItem?) {
+        guard !applying,let id=tabViewItem?.identifier as? String,let pane=BlamePane(rawValue:id) else { return }
+        model.selectPaneTab(pane)
     }
     private func has(_ edge:BlamePanePlacement)->Bool { !(edgePanes[edge] ?? []).isEmpty }
     private func collapsed(_ edge:BlamePanePlacement)->Bool { (edgePanes[edge] ?? []).allSatisfy{model.paneAutoHidden($0)} }
@@ -2259,7 +2426,10 @@ private struct BlameNativeDockWorkspace:NSViewControllerRepresentable {
     private func minimum(_ child:NSView,in split:NSSplitView)->CGFloat {
         if child === source { return 450 }
         if child === center { return 90 }
-        if let edge=groups.first(where:{$0.value === child})?.key { return collapsed(edge) ? ([.top,.bottom].contains(edge) ? 34 : 115) : (split.isVertical ? 160 : 80) }
+        if let edge=groups.first(where:{$0.value === child})?.key {
+            if collapsed(edge) { return [.top,.bottom].contains(edge) ? 34 : 115 }
+            return split.isVertical ? (model.panesAreTabbed ? tabGroup.minimumWidth : 160) : 80
+        }
         return split.isVertical ? 120 : 60
     }
     func splitView(_ splitView:NSSplitView,constrainSplitPosition proposedPosition:CGFloat,ofSubviewAt dividerIndex:Int)->CGFloat {

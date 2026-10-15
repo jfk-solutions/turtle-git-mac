@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The Blame pane interaction family now adds saved native tab groups, group
+auto-hide/pinning, caption drag sessions and outside-workspace floating with
+captured-document guards. Native pane/File Open checks passed on both engines;
+the final pane-only recheck passed after the documented layout/selector repairs.
+Four current light/dark tab captures were reviewed. See
+[pane evidence](qa/blame-pane-tabs-2026-10-15.json). Physical drag, full MFC docking
+and signed acceptance remain open.
+
 The workspace permission family now includes a native access manager under
 File → Open Recent. It connects repository/extra-folder lists, independent stale
 renewal, captured Add/Replace pickers and confirmed Remove/Forget, with workspace

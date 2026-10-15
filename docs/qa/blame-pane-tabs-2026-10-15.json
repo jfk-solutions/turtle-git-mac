@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-15",
+  "scope": "Blame pane tab groups, native caption drag sessions and outside-workspace floating",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "reference": "src/TortoiseGitBlame/MainFrm.cpp: DT_SMART docking, all dock edges, floating and auto-hide panes"
+  },
+  "implementation": [
+    "Native shared Log/Commit Info tab container with saved selection, group auto-hide/pinning, member hide/show and separation on moving/floating",
+    "Optional saved fields preserve old layout decoding; restore defaults retains existing behavior",
+    "Native AppKit caption drag source with own-document payload, Escape monitor, handled/inside/busy/hidden/foreign/retired refusal and screen-clamped saved floating placement",
+    "Original-icon floating titlebar drag handle, caption double-click and accessibility Float/Dock action",
+    "Stable native content container with an explicit NSSegmentedControl selector avoids AppKit theme/reparenting label collapse; native tab and selector busy guards"
+  ],
+  "validation": {
+    "core": "Unchanged; not rerun",
+    "final_build": {
+      "exit_code": 0,
+      "log": "build/qa/blame-pane-tabs-selector-build-2026-10-15.log"
+    },
+    "native": {
+      "result": "passed",
+      "final_pane_cases": [
+        "blame-menus/system Git",
+        "blame-menus/bundled Git"
+      ],
+      "final_log": "build/qa/blame-pane-tabs-native-complete-2026-10-15.log",
+      "final_receivers_reaped": [
+        81354,
+        81685
+      ],
+      "earlier_grouped_cases": [
+        "blame-menus/system Git",
+        "blame-file-open/system Git",
+        "blame-menus/bundled Git",
+        "blame-file-open/bundled Git"
+      ],
+      "earlier_grouped_logs": [
+        "build/qa/blame-pane-tabs-native-final-2026-10-15.log",
+        "build/qa/blame-pane-tabs-native-caption-2026-10-15.log"
+      ],
+      "scope": "Native tab/segmented selection, saved layout and legacy decoding, hide/show, group auto-hide, busy refusal, caption accessibility actions, real owned float/dock/frame persistence, outside-drag completion and cancellation guards, same/foreign/retired payloads, File Open model rebinding and child cleanup, exact annotation selection and HEAD/index/file preservation"
+    },
+    "repairs": [
+      {
+        "log": "build/qa/blame-pane-tabs-native-2026-10-15.log",
+        "description": "Initial fixture force-unwrapped the floating titlebar before AppKit constructed its hosted caption; wait for the actual control before asserting docking."
+      },
+      {
+        "log": "build/qa/blame-pane-tabs-native-caption-2026-10-15.log",
+        "description": "Behavior passed, but reviewed screenshots exposed a stretching caption and AppKit tab-label collapse after theme/reparenting. Constrain caption height, preserve content on tab selection, and use an explicit native segmented selector with stable label widths. Initial captures were not published."
+      },
+      {
+        "log": "build/qa/blame-pane-tabs-native-selector-2026-10-15.log",
+        "description": "The new selector check set Busy before its asynchronous native selection update settled. Await both model and native selected item, then retain the busy-state refusal assertion."
+      }
+    ],
+    "visual": {
+      "reviewed": [
+        {
+          "path": "docs/site/assets/blame-tabs-log-light.png",
+          "sha256": "9d3727d024ba4d15f8dadd50f50a51b509522e059da0d2af65f9f442fbcfd54d",
+          "pixels": [
+            2240,
+            1464
+          ]
+        },
+        {
+          "path": "docs/site/assets/blame-tabs-log-dark.png",
+          "sha256": "660da7965d41d5ffc9195dfd4bdb8c94e3d1f9696bdc555092f471aa00180b43",
+          "pixels": [
+            2240,
+            1464
+          ]
+        },
+        {
+          "path": "docs/site/assets/blame-tabs-properties-light.png",
+          "sha256": "2f40e89b896f23fa52a46a33af20e3733b90581ca11ce77e3e157ba13907406c",
+          "pixels": [
+            2240,
+            1464
+          ]
+        },
+        {
+          "path": "docs/site/assets/blame-tabs-properties-dark.png",
+          "sha256": "f9362e6d9638bb410a7c4b7e3f890bb667835cc62b77bd85f2caaecd28210468",
+          "pixels": [
+            2240,
+            1464
+          ]
+        }
+      ],
+      "fixture": "Actual production viewer with disposable two-line source and three-revision history; optional bottom tab group, not the default arrangement",
+      "excluded": "Intermediate compressed-caption/collapsed-label captures and floating compositor captures"
+    },
+    "hosted_failure_observed": {
+      "run": 38664961820,
+      "job": 116195757360,
+      "step": "Native SSH transport coordinator",
+      "failure": "Owned remote picker",
+      "status": "Separate failure under investigation; local pane passes do not establish hosted CI success"
+    },
+    "cleanup": {
+      "all_receivers_absent": [
+        78168,
+        78457,
+        78772,
+        78903,
+        79194,
+        79399,
+        79703,
+        79835,
+        80126,
+        80371,
+        80679,
+        81070,
+        81354,
+        81685
+      ],
+      "method": "Runner reaped each receiver; subsequent ps check found all absent. Fixture closes owned panels/popovers/windows and verifies detachment."
+    },
+    "documentation": {
+      "site_documents": 216,
+      "unresolved_fragments": [],
+      "coverage_ledger": "regenerated",
+      "log": "build/qa/blame-pane-tabs-site-2026-10-15.log"
+    }
+  },
+  "limits": [
+    "Physical mouse drag/Escape, multi-display and complete VoiceOver acceptance remain open; outside-drag completion uses native adapter/model dispatch in the receiver",
+    "Full MFC smart/nested tab groups and toolbar/menu-bar docking remain open",
+    "Signed Finder/App Store and full application parity remain open"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

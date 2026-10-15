@@ -21,9 +21,21 @@ use the supplied store, rather than writing global defaults from private viewers
 Dark Mode installs a Blame-window appearance override, also applied to Find and
 native picker/information panels. Follow System Appearance removes the override.
 New viewers inherit persisted layout/appearance defaults; existing independent
-viewers retain their current layout until changed. Native split panes replace
-Windows docking. Floating/docking layout persistence, physical menu
-click/accelerator and VoiceOver acceptance remain open.
+viewers retain their current layout until changed. Native split panes, utility
+panels and tab containers adapt Windows docking. Pane captions and View →
+Toolbars and Panes provide all dock edges, Float, Auto Hide, Tab with the other
+pane, and Restore Default Pane Layout. Tab selection and floating frames persist.
+
+Drag a caption to a workspace edge to dock, or release it outside the workspace
+to float there. Floating titlebars include an original-icon drag handle for
+docking back. Double-click a caption to Float/Dock; its accessibility press action
+also toggles placement. Escape cancels a caption drag. Group auto-hide applies to
+both panes; pinning either restores their tabs. Moving one pane to another edge
+or floating it separates the group. Hiding a member preserves the association.
+
+Physical pointer/Escape/multi-screen, full menu/accelerator and VoiceOver
+acceptance remain open. These native interactions do not certify every MFC
+smart-docking or toolbar/menu-bar gesture.
 
 The native fixture exercises current/Find/unrelated/second/retired window routing,
 visible state, busy/detection gates, hide/restore source selection, window/panel
@@ -80,3 +92,6 @@ The Debug build, 22 unique focused Core tests (initial UTF-16 mapping failure
 fixed and the three affected tests rerun), four grouped native receivers across
 system/bundled Git, and two site documentation checks passed within those scopes.
 All four owned native receivers were reaped. [Evidence](qa/blame-encoding-2026-10-13.json).
+
+[Pane grouping and drag evidence](qa/blame-pane-tabs-2026-10-15.json) records
+the native interaction scope and remaining physical/signed checks.

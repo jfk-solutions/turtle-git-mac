@@ -1263,9 +1263,10 @@ Body text; its caption and values no longer squeeze under nested SwiftUI splits.
 [Grouped native evidence](qa/blame-pane-layout-2026-10-15.json) records placement,
 focus, permission-independent File Open, real auto-hide tab/popover and cleanup
 scope. Core Git behavior is unchanged and is not retested for this native layout
-batch. Full MFC tab-group/smart-docking equivalence, dragging outside the workspace
-to float, complete physical divider behavior, multi-screen/keyboard/VoiceOver,
-complete visual comparison and signed sandbox acceptance remain open. The native
+batch. The next continuation adds native tab groups and outside-caption floating.
+Full MFC smart-docking equivalence, complete physical divider/drag behavior,
+multi-screen/keyboard/VoiceOver, complete visual comparison and signed sandbox
+acceptance remain open. The native
 placement controls do not certify every upstream docking gesture.
 
 
@@ -1282,3 +1283,35 @@ physical gesture. No Core tests were repeated for these native-only changes.
 ![Current light Blame pane layout](site/assets/blame-panes-current-light.png)
 
 ![Current dark Blame pane layout](site/assets/blame-panes-current-dark.png)
+
+## Pane tab groups and outside-caption floating — October 15, 2026
+
+The native pane family now provides **Tab with Properties/Log** from caption,
+window and main pane menus, following the smart-docking behavior enabled by
+`MainFrm.cpp`. A native tab container hosts the existing Log and Commit Info
+views together at any dock edge. Native tab selection persists with the layout;
+hiding/showing a member preserves the association. Moving a member to a different
+edge or floating it separates the group. Group auto-hide collapses both members
+into their compact tabs; pinning either restores the group with that tab selected.
+Older saved profiles decode without losing their placements.
+
+Native caption controls now own AppKit drag sessions. An unhandled drop outside
+the initiating workspace floats that pane at the release position, clamped to a
+visible screen and saved with the existing floating frame. Escape, handled/inside
+drops, busy, hidden, foreign and retired documents cannot apply that transition.
+Docked captions retain double-click Float/Dock and an accessibility press action;
+floating titlebars include an original-icon drag handle for docking back through
+the existing edge receiver. Local event monitoring is retired with the control
+and its drag session. File Open/owner Close retire the old model's placement and
+floating callbacks.
+
+This remains a native adaptation of MFC docking. Cross-document pane sharing,
+arbitrary MFC nested tab groups, physical drag/Escape across displays, complete
+VoiceOver interaction, toolbar/menu-bar docking and signed sandbox acceptance
+remain open. Recorded native checks do not claim physical pointer coverage.
+
+See [pane-interaction evidence](qa/blame-pane-tabs-2026-10-15.json) and the
+[Log tab in light](site/assets/blame-tabs-log-light.png) /
+[dark](site/assets/blame-tabs-log-dark.png) and
+[Commit Info tab in light](site/assets/blame-tabs-properties-light.png) /
+[dark](site/assets/blame-tabs-properties-dark.png) captures.
