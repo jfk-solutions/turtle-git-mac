@@ -9,8 +9,8 @@ import TurtleGitCore
         if let result = view as? T, label == nil || result.accessibilityLabel() == label { return result }
         for child in view.subviews { if let result = find(type, child, label: label) { return result } }; return nil
     }
-    @MainActor static func wait(_ windows: [NSWindow], _ ready: () -> Bool) async throws {
-        for _ in 0..<3000 { windows.forEach { $0.contentView?.layoutSubtreeIfNeeded() }; if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(description: "Timed out")
+    @MainActor static func wait(_ windows: [NSWindow], line: Int = #line, _ ready: () -> Bool) async throws {
+        for _ in 0..<3000 { windows.forEach { $0.contentView?.layoutSubtreeIfNeeded() }; if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(description: "Timed out at line \(line)")
     }
     @MainActor static func main() async { do { try await verify() } catch { print("FAIL: \(error)"); exit(1) } }
     static func phase(_ message: String) { print("PHASE: " + message); fflush(stdout) }
@@ -31,7 +31,7 @@ import TurtleGitCore
         owner.model.load(); try await wait([owner.window!]) { !owner.model.busy && !owner.model.references.isEmpty }
         var presentations = 0, callbacks: [(LogEntry?) -> Void] = []
         owner.presentPicker = { parent, child in presentations += 1; parent.makeFirstResponder(nil); return !parent.isVisible && !child.isVisible }
-        owner.makeCommitPicker = { repo, access, choose, prefs in callbacks.append(choose); return LogWindowController(repository: repo,access: access,onChoose: choose,labelDefaults: prefs,savesColumnLayout: false) }
+        owner.makeCommitPicker = { repo, access, choose, prefs, initialRevision in callbacks.append(choose); return LogWindowController(repository: repo,access: access,onChoose: choose,labelDefaults: prefs,savesColumnLayout: false,initialRevision: initialRevision) }
         var configuredNames: [String] = []
         owner.configureReferencePicker = { model in model.onLog = { configuredNames.append($0) }; model.onBrowse = { configuredNames.append($0) }; model.onCompare = { configuredNames.append($0) } }
         owner.model.options.noCommit = true; owner.model.options.squash = true; owner.model.message = "Preserved merge message"; owner.model.commitRevision = "saved commit draft"
@@ -104,7 +104,7 @@ import TurtleGitCore
         let closing=MergeWindowController(repository:repo,access:nil,preferences:prefs); defer { closing.close() }
         closing.model.load(revision: prior); try await wait([closing.window!]) { !closing.model.busy }
         var lateCallback: ((LogEntry?) -> Void)?
-        closing.makeCommitPicker={repo,access,choose,prefs in lateCallback=choose; return LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false) }
+        closing.makeCommitPicker={repo,access,choose,prefs,initialRevision in lateCallback=choose; return LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false,initialRevision:initialRevision) }
         closing.presentPicker={parent,_ in parent.makeFirstResponder(nil); return true}; closing.model.browse(.commit)
         guard let closingLog=closing.commitPicker else { throw Failure(description:"Forced Log missing") }; try await wait([closingLog.window!]) { !closingLog.model.busy }
         closing.close(); lateCallback?(entry); closing.model.browse(.commit)

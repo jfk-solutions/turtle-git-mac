@@ -9,8 +9,8 @@ import TurtleGitCore
         if let result = view as? T, label == nil || result.accessibilityLabel() == label { return result }
         for child in view.subviews { if let result = find(type, child, label: label) { return result } }; return nil
     }
-    @MainActor static func wait(_ windows: [NSWindow], _ ready: () -> Bool) async throws {
-        for _ in 0..<3000 { windows.forEach { $0.contentView?.layoutSubtreeIfNeeded() }; if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(description: "Timed out")
+    @MainActor static func wait(_ windows: [NSWindow], line: Int = #line, _ ready: () -> Bool) async throws {
+        for _ in 0..<3000 { windows.forEach { $0.contentView?.layoutSubtreeIfNeeded() }; if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(description: "Timed out at line \(line)")
     }
     @MainActor static func main() async { do { try await verify() } catch { print("FAIL: \(error)"); exit(1) } }
     static func phase(_ message: String) { print("PHASE: " + message); fflush(stdout) }
@@ -31,7 +31,7 @@ import TurtleGitCore
         owner.model.load(); try await wait([owner.window!]) { !owner.model.busy && !owner.model.references.isEmpty }
         var presentations = 0, callbacks: [(LogEntry?) -> Void] = []
         owner.presentPicker = { parent, child in presentations += 1; parent.makeFirstResponder(nil); return !parent.isVisible && !child.isVisible }
-        owner.makeCommitPicker = { repo, access, choose, prefs in callbacks.append(choose); return LogWindowController(repository: repo,access: access,onChoose: choose,labelDefaults: prefs,savesColumnLayout: false) }
+        owner.makeCommitPicker = { repo, access, choose, prefs, initialRevision in callbacks.append(choose); return LogWindowController(repository: repo,access: access,onChoose: choose,labelDefaults: prefs,savesColumnLayout: false,initialRevision: initialRevision) }
         var configuredNames: [String] = []
         owner.configureReferencePicker = { model in model.onLog = { configuredNames.append($0) }; model.onBrowse = { configuredNames.append($0) }; model.onCompare = { configuredNames.append($0) } }
         owner.model.options.overwriteChanges = true; owner.model.options.merge = true; owner.model.commitRevision = "saved commit draft"
@@ -53,9 +53,9 @@ import TurtleGitCore
             try require(presentations==count && !owner.model.busy && owner.model.progress == nil && owner.commitPicker == nil,"Duplicate/cross-target/checkout/reload escaped")
             let choice=child.model.snapshot!.initialSelection(name); child.model.setFolder(choice.folder); child.model.selected=choice.reference; child.model.accept()
             try await wait([owner.window!]) { owner.model.pickerTarget == nil && !owner.model.busy && owner.model.options.target == target }
+            try require(owner.referencePicker == nil && owner.model.revision == name && owner.model.options.createBranch == newBranch && owner.model.options.tracking == tracking,"Handoff/defaults differ for \(name): got \(owner.model.revision), error=\(owner.model.error ?? "none")")
             guard let control=find(NSControl.self,owner.window!.contentView!,label:label) else { throw Failure(description:"Revision control missing") }
             try await wait([owner.window!]) { if owner.window!.firstResponder === control { return true }; if let editor=(control as? NSTextField)?.currentEditor() { return owner.window!.firstResponder === editor }; return false }
-            try require(owner.referencePicker == nil && owner.model.revision == name && owner.model.options.createBranch == newBranch && owner.model.options.tracking == tracking,"Handoff/defaults differ")
             try require(owner.model.options.overwriteChanges && owner.model.options.merge,"Selection erased force/merge options")
             if target != .commit { try require(owner.model.commitRevision == "saved commit draft","Unused commit draft overwritten") }
             if name == "refs/remotes/origin/HEAD" { try require(owner.model.options.branchName == "team/topic","Symbolic remote suggestion differs") }
@@ -100,7 +100,7 @@ import TurtleGitCore
         let closing=SwitchWindowController(repository:repo,access:nil,revision:prior,preferences:prefs); defer { closing.close() }
         closing.model.load(); try await wait([closing.window!]) { !closing.model.busy }
         var lateCallback: ((LogEntry?) -> Void)?
-        closing.makeCommitPicker={repo,access,choose,prefs in lateCallback=choose; return LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false) }
+        closing.makeCommitPicker={repo,access,choose,prefs,initialRevision in lateCallback=choose; return LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false,initialRevision:initialRevision) }
         closing.presentPicker={parent,_ in parent.makeFirstResponder(nil); return true}; closing.model.browse(.commit)
         guard let closingLog=closing.commitPicker else { throw Failure(description:"Forced Log missing") }; try await wait([closingLog.window!]) { !closingLog.model.busy }
         closing.close(); lateCallback?(entry); closing.model.browse(.commit)

@@ -10,7 +10,7 @@ import TurtleGitCore
     var commitPicker: LogWindowController? { pickers.commitPicker }
     var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void { get { pickers.configureReferencePicker } set { pickers.configureReferencePicker = newValue } }
     var presentPicker: (NSWindow, NSWindow) -> Bool { get { pickers.presentPicker } set { pickers.presentPicker = newValue } }
-    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
+    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults, String?) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
     private var historyWindow: NSWindow?
     private(set) var progressController: MergeProgressWindowController?
     var presentProgress: (NSWindow, NSWindow) -> Void = { owner, child in owner.beginSheet(child) }
@@ -67,6 +67,8 @@ import TurtleGitCore
 }
 
 @MainActor final class MergeWindowModel: ObservableObject, VersionPickerModel {
+    private(set) static var activeReads = 0
+    var versionPickerDraft: [GitReferenceName] { [target.rawValue, branchRevision, tagRevision, commitRevision].map { GitReferenceName($0) } }
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     let messageHistory: MergeMessageHistory
@@ -116,16 +118,17 @@ import TurtleGitCore
     }
     func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void) {
         guard !invalidated, pickerTarget == .branch else { return }
-        let requested = name ?? revision, draft = commitRevision
+        let requested = name ?? revision, draft = commitRevision, selectionDraft = versionPickerDraft
         let token = OperationCancellation(); referenceSelectionToken = token; busy = true
+        Self.activeReads += 1
         Task {
             var applied = false
-            defer { if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
                 let current = try await repository.branch(cancellation: token)
-                guard !invalidated, referenceSelectionToken === token, !token.isCancelled else { return }
+                guard !invalidated, referenceSelectionToken === token, !token.isCancelled, versionPickerDraft == selectionDraft else { return }
                 references = catalog; currentBranch = current
                 if let reference = catalog.first(where: { GitReferenceName.equal($0.name, requested) }), let target = reference.target {
                     self.target = target
@@ -142,7 +145,7 @@ import TurtleGitCore
     }
     func acceptCommitSelection(_ entry: LogEntry?) {
         guard !invalidated, pickerTarget == .commit else { return }
-        if let entry { commitRevision = entry.hash; referenceFocusRequest += 1 }
+        if let entry { selectCustomRevision(entry.hash); referenceFocusRequest += 1 }
         finishPicker()
     }
     private var historyHandled = false
@@ -160,8 +163,9 @@ import TurtleGitCore
     func load(revision preset: String? = nil) {
         guard !busy, pickerTarget == nil, !invalidated else { return }; busy = true
         let token = OperationCancellation(); loadToken = token
+        Self.activeReads += 1
         Task {
-            defer { if loadToken === token { loadToken = nil; busy = false } }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if loadToken === token { loadToken = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let current = try await repository.branch(cancellation: token), catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)

@@ -232,6 +232,7 @@ enum SynchronizationHistoryOperation: Equatable {
 }
 
 @MainActor final class SynchronizationWindowController: NSWindowController, NSWindowDelegate {
+    var configureExport: (ExportWindowController) -> Void = { _ in }
     private static var placementSequence = 0
     let model: SynchronizationWindowModel
     var onClosed: () -> Void = {}
@@ -347,6 +348,7 @@ enum SynchronizationHistoryOperation: Equatable {
                   !self.model.confirmingCancellation, !self.model.hasBlockingChild,
                   self.historyExportController == nil, let parent = self.window, parent.attachedSheet == nil else { return }
             let child = ExportWindowController(repository: self.model.repository, access: self.model.access, revision: revision, preferences: self.model.preferences)
+            self.configureExport(child)
             self.historyExportController = child; self.model.exportingHistory = true
             child.onClosed = { [weak self, weak child, weak parent] in
                 if let window = child?.window, window.sheetParent === parent { parent?.endSheet(window) }

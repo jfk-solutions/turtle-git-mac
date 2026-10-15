@@ -11,6 +11,7 @@ extension UserDefaults {
     var repository: GitRepository { get }
     var revision: String { get }
     var commitRevision: String { get }
+    var versionPickerDraft: [GitReferenceName] { get }
     var error: String? { get }
     var onBrowsePicker: ((CheckoutTarget) -> Void)? { get set }
     func beginPicker(_ target: CheckoutTarget) -> Bool
@@ -28,49 +29,88 @@ extension UserDefaults {
     private let allowed: () -> Bool
     private var invalidated = false
     var onSelection: () -> Void = {}
+    var contextualDraft: () -> [GitReferenceName] = { [] }
     private(set) var referencePicker: ReferenceBrowserWindowController?
     private(set) var commitPicker: LogWindowController?
     private var pickerRequest: UUID?
+    private var pendingResult: (() -> Void)?
     var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
     var configureCommitPicker: (LogWindowModel) -> Void = { _ in }
     var presentPicker: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
-    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController = { repository, access, choose, preferences in
-        LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences)
+    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults, String?) -> LogWindowController = { repository, access, choose, preferences, revision in
+        LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences, initialRevision: revision)
     }
     init(window: NSWindow, model: any VersionPickerModel, access: RepositoryAccessLease?, preferences: UserDefaults, allowed: @escaping () -> Bool = { true }) {
         self.window = window; self.model = model; self.access = access; self.preferences = preferences; self.allowed = allowed
         model.onBrowsePicker = { [weak self] target in self?.showPicker(target) }
+        NotificationCenter.default.addObserver(self, selector: #selector(sheetEnded), name: NSWindow.didEndSheetNotification, object: window)
+    }
+    @objc private func sheetEnded() { drainResult() }
+    private func drainResult() {
+        guard !invalidated, window?.attachedSheet == nil, referencePicker == nil, commitPicker == nil, let result = pendingResult else { return }
+        pendingResult = nil; result()
     }
     private func showPicker(_ target: CheckoutTarget) {
         guard !invalidated, allowed(), let owner = window, owner.attachedSheet == nil, referencePicker == nil, commitPicker == nil, model.beginPicker(target) else { return }
-        let request = UUID(); pickerRequest = request
+        let request = UUID(), draft = model.versionPickerDraft, context = contextualDraft(); pickerRequest = request
         if target == .branch {
             let child = ReferenceBrowserWindowController(repository: model.repository, access: access, initial: model.revision, preferences: preferences) { [weak self] name in
-                guard let self, self.pickerRequest == request else { return }
-                self.model.acceptReferenceSelection(name) { [weak self] in if let self, self.pickerRequest == request { self.pickerRequest = nil; if self.model.error == nil { self.onSelection() } } }
+                guard let self, !self.invalidated, self.pickerRequest == request, self.pendingResult == nil else { return }
+                self.pendingResult = { [weak self] in
+                    guard let self, self.pickerRequest == request else { return }
+                    guard self.allowed(), self.model.versionPickerDraft == draft, self.contextualDraft() == context else { self.pickerRequest = nil; self.model.finishPicker(); return }
+                    self.model.acceptReferenceSelection(name) { [weak self] in
+                        guard let self, !self.invalidated, self.pickerRequest == request else { return }
+                        self.pickerRequest = nil; if self.model.error == nil { self.onSelection() }
+                    }
+                }
+                self.drainResult()
             }
             referencePicker = child; configureReferencePicker(child.model)
             child.onClosed = { [weak self, weak child] in
                 guard let self, let child, self.referencePicker === child else { return }
-                if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }; self.referencePicker = nil
+                if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+                self.referencePicker = nil; self.drainResult()
             }
-            guard let window = child.window, presentPicker(owner, window) else { child.abandonPresentation(); referencePicker = nil; pickerRequest = nil; model.finishPicker(); return }
+            guard let window = child.window else { abandonReference(child); return }
+            window.appearance = owner.appearance; window.alphaValue = owner.alphaValue
+            guard presentPicker(owner, window) else { abandonReference(child); return }
             child.model.load()
         } else {
+            let revision = model.commitRevision
             let child = makeCommitPicker(model.repository, access, { [weak self] entry in
-                guard let self, self.pickerRequest == request else { return }; self.pickerRequest = nil; self.model.acceptCommitSelection(entry); if entry != nil { self.onSelection() }
-            }, preferences)
+                guard let self, !self.invalidated, self.pickerRequest == request, self.pendingResult == nil else { return }
+                self.pendingResult = { [weak self] in
+                    guard let self, self.pickerRequest == request else { return }; self.pickerRequest = nil
+                    guard self.allowed(), self.model.versionPickerDraft == draft, self.contextualDraft() == context else { self.model.finishPicker(); return }
+                    self.model.acceptCommitSelection(entry); if entry != nil { self.onSelection() }
+                }
+                self.drainResult()
+            }, preferences, revision.isEmpty ? nil : revision)
             commitPicker = child; configureCommitPicker(child.model)
             child.onClosed = { [weak self, weak child] in
                 guard let self, let child, self.commitPicker === child else { return }
-                if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }; self.commitPicker = nil
+                if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+                self.commitPicker = nil; self.drainResult()
             }
-            child.model.endRevision = model.commitRevision.isEmpty ? nil : model.commitRevision
-            guard let window = child.window, presentPicker(owner, window) else { child.close(); commitPicker = nil; pickerRequest = nil; model.finishPicker(); return }
+            guard let window = child.window else { abandonCommit(child); return }
+            window.appearance = owner.appearance; window.alphaValue = owner.alphaValue
+            guard presentPicker(owner, window) else { abandonCommit(child); return }
             child.model.reload()
         }
     }
-    func invalidate() { invalidated = true; pickerRequest = nil; model.invalidate(); referencePicker?.close(); referencePicker = nil; commitPicker?.close(); commitPicker = nil }
+    private func abandonReference(_ child: ReferenceBrowserWindowController) {
+        pickerRequest = nil; pendingResult = nil; child.abandonPresentation(); referencePicker = nil; model.finishPicker()
+    }
+    private func abandonCommit(_ child: LogWindowController) {
+        pickerRequest = nil; pendingResult = nil; child.close(); commitPicker = nil; model.finishPicker()
+    }
+    func invalidate() {
+        guard !invalidated else { return }; invalidated = true; pickerRequest = nil; pendingResult = nil
+        NotificationCenter.default.removeObserver(self); model.invalidate()
+        if let sheet = window?.attachedSheet, sheet === referencePicker?.window || sheet === commitPicker?.window { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
+        referencePicker?.close(); referencePicker = nil; commitPicker?.close(); commitPicker = nil
+    }
 }
 
 @MainActor final class SwitchWindowController: NSWindowController, NSWindowDelegate {
@@ -85,8 +125,9 @@ extension UserDefaults {
     var referencePicker: ReferenceBrowserWindowController? { pickers.referencePicker }
     var commitPicker: LogWindowController? { pickers.commitPicker }
     var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void { get { pickers.configureReferencePicker } set { pickers.configureReferencePicker = newValue } }
+    var configureCommitPicker: (LogWindowModel) -> Void { get { pickers.configureCommitPicker } set { pickers.configureCommitPicker = newValue } }
     var presentPicker: (NSWindow, NSWindow) -> Bool { get { pickers.presentPicker } set { pickers.presentPicker = newValue } }
-    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
+    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults, String?) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) {
         model = SwitchWindowModel(repository: repository, access: access, revision: revision, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 370),
@@ -129,6 +170,7 @@ extension UserDefaults {
     var initialReadActive: Bool { initialLoadToken != nil }
     @discardableResult func cancelInitialRead() -> Bool { guard let initialLoadToken else { return false }; initialLoadToken.cancel(); return true }
     var readInitialReferences: (OperationCancellation) async throws -> ([CheckoutReference], String)
+    var versionPickerDraft: [GitReferenceName] { [options.target.rawValue, branchRevision, tagRevision, commitRevision].map { GitReferenceName($0) } }
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let initialRevision: String?
@@ -188,7 +230,7 @@ extension UserDefaults {
     func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void) {
         guard !invalidated, !finished, pickerTarget == .branch else { return }
         referenceSelectionToken?.cancel(); let token = OperationCancellation(); referenceSelectionToken = token; busy = true
-        let requested = name ?? revision, draft = commitRevision
+        let requested = name ?? revision, draft = commitRevision, selectionDraft = versionPickerDraft
         Self.activeReads += 1
         Task {
             var applied = false
@@ -196,7 +238,7 @@ extension UserDefaults {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
-                guard !invalidated, !finished, referenceSelectionToken === token, !token.isCancelled else { return }
+                guard !invalidated, !finished, referenceSelectionToken === token, !token.isCancelled, versionPickerDraft == selectionDraft else { return }
                 references = catalog
                 if let reference = catalog.first(where: { GitReferenceName.equal($0.name, requested) }), let target = reference.target {
                     options.target = target
@@ -208,7 +250,7 @@ extension UserDefaults {
     }
     func acceptCommitSelection(_ entry: LogEntry?) {
         guard !invalidated, !finished, pickerTarget == .commit else { return }
-        if let entry { commitRevision = entry.hash; defaults(); referenceFocusRequest += 1 }; finishPicker()
+        if let entry { selectCustomRevision(entry.hash); defaults(); referenceFocusRequest += 1 }; finishPicker()
     }
     var close: () -> Void = {}
     var onSwitched: (String) -> Void = { _ in }

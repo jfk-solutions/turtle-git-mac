@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-15",
+  "scope": "Shared ChooseVersion reference/Log handoffs across Switch, Branch/Tag, Merge, New Worktree and Export",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/ChooseVersion.h: OnBnClickedChooseVersion, OnBnClickedButtonBrowseRef, SelectRef, InitChooseVersion"
+    ]
+  },
+  "implementation": [
+    "Construct single-selection Log with entered revision before first view; no working-tree row; use private preferences and parent appearance/opacity",
+    "Shared production Log commands for Switch, Branch/Tag, Worktree, Merge and Export; Export reference commands also connected in main and Synchronization routes",
+    "One request owns first callback through child retirement and actual sheet detachment; ignore duplicates, stale/changed/retired/refused results",
+    "Byte-exact target/revision input snapshots; exclude derived Switch defaults that SwiftUI legitimately refreshes",
+    "Preserve Branch HEAD/name/follow-up context, Worktree HEAD/destination/branch context and Export target/destination/whole-project context",
+    "Revalidate selection draft when refreshed catalogs return; Cancel refreshes unchanged catalog selections",
+    "Accepted hashes join editable session revision choices in Switch/Merge/Export",
+    "Global Merge/Export catalog and Branch metadata read accounting retains Quit/access ownership after forced close"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/version-picker-build-repair-2026-10-15.log",
+      "initial_failure": "Adding required selection draft exposed Export as another shared coordinator consumer; included Export implementation rather than weakening protocol.",
+      "diagnostics": "Existing warnings and exit-code-zero/no-output SwiftCompile diagnostics; not a clean diagnostics claim."
+    },
+    "core": {
+      "rerun": false,
+      "reason": "No TurtleGitCore changes; native cases execute real Git reads and assert unchanged HEAD/index/config."
+    },
+    "native": {
+      "status": "passed",
+      "accepted_pairs": [
+        "Switch/system",
+        "Merge/system",
+        "shared lifecycle/system",
+        "shared lifecycle/bundled",
+        "Switch/bundled",
+        "Merge/bundled"
+      ],
+      "logs": {
+        "system_regression": "build/qa/version-picker-native-repair-2026-10-15.log",
+        "lifecycle_both_engines": "build/qa/version-picker-lifecycle-final-2026-10-15.log",
+        "bundled_regression": "build/qa/version-picker-bundled-2026-10-15.log"
+      },
+      "repairs": [
+        "Fixture compile: two older maker callbacks needed initial-revision argument; new reference selection uses public method",
+        "Production Switch snapshot initially included derived defaults; SwiftUI refresh rejected valid selection. Narrowed to actual target/revision inputs; regression then passed.",
+        "New fixture selected tag outside current browser folder; navigate folder before selection. No production relaxation."
+      ],
+      "owned_receivers_reaped_and_verified_absent": [
+        33910,
+        34018,
+        34236,
+        34437,
+        34691,
+        34811,
+        35061,
+        35349,
+        35552
+      ],
+      "coverage": [
+        "Existing Switch/Merge reference namespaces, native context icons/commands, focus, defaults, drafts, late/F5/Cancel catalogs, Log ancestry/table/graph, stale/refused/duplicate/forced-close/Quit routes",
+        "Actual owned Log sheet first-result/duplicate delivery deferred until child close and sheet detachment",
+        "Byte-exact Unicode draft changes rejected",
+        "Branch HEAD change invalidates prior choice; accepted hash retained in session choices",
+        "Worktree destination change invalidates prior choice; retired parent rejects late selection",
+        "Export actual picker sheet rejects changed destination and retains accepted hash in session choices",
+        "Private preferences/repos, unchanged read-only HEAD/index/config; all owned windows closed"
+      ]
+    },
+    "documentation": {
+      "site_exit_code": 0,
+      "unresolved_fragments": 0,
+      "ledger": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_static_controls": 876,
+        "pending_control_reviews": 783
+      }
+    },
+    "hosted_observation": {
+      "sha": "e91b5d8a",
+      "github_pages": "success",
+      "macOS": "pending",
+      "macOS_run_id": 38698084755
+    }
+  },
+  "limitations": [
+    "Programmatic native cases and injected presenters do not prove all physical keyboard/mouse/VoiceOver or light/dark layout parity",
+    "No full dialog/application parity claim",
+    "Signed Finder, App Store sandbox/distribution and full hosted macOS CI remain unverified"
+  ]
+}

@@ -10,8 +10,9 @@ import TurtleGitCore
     var referencePicker: ReferenceBrowserWindowController? { pickers.referencePicker }
     var commitPicker: LogWindowController? { pickers.commitPicker }
     var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void { get { pickers.configureReferencePicker } set { pickers.configureReferencePicker = newValue } }
+    var configureCommitPicker: (LogWindowModel) -> Void { get { pickers.configureCommitPicker } set { pickers.configureCommitPicker = newValue } }
     var presentPicker: (NSWindow, NSWindow) -> Bool { get { pickers.presentPicker } set { pickers.presentPicker = newValue } }
-    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
+    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults, String?) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
 
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = WorktreeCreateWindowModel(repository: repository, access: access, preferences: preferences)
@@ -21,6 +22,7 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: WorktreeCreateDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         pickers = VersionPickerCoordinator(window: window, model: model.chooser, access: access, preferences: preferences, allowed: { [weak model] in model?.canPickBase == true })
+        pickers.contextualDraft = { [weak model] in guard let model else { return [] }; return [String(model.useHead), model.directory, model.branchName, String(model.createBranch), String(model.detach), String(model.force), String(model.checkout)].map { GitReferenceName($0) } }
         pickers.onSelection = { [weak model] in if model?.useHead == false { model?.changedBase() } }
         window.setContentSize(NSSize(width: 660, height: 420)); window.contentMinSize = NSSize(width: 640, height: 420)
         window.center()

@@ -1303,6 +1303,7 @@ import UniformTypeIdentifiers
         let key = repository.root.path, access = activeAccess
         if let existing = synchronizationWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = SynchronizationWindowController(repository: repository, access: access)
+        controller.configureExport = { [weak self] child in self?.configureExportInteractions(child, repository: repository, access: access) }
         controller.configureBranchPicker = { [weak self] model in self?.configureReferenceBrowser(model, repository: repository, access: access) }
         controller.configureHistoryReference = { [weak self] child in self?.configureReferenceInteractions(child, repository: repository, access: access) }
         controller.configureHistoryContainingReferences = { [weak self] child in
@@ -1861,6 +1862,7 @@ import UniformTypeIdentifiers
         controller.model.onSubmodules = { [weak self] path, lease in
             self?.showSubmoduleUpdate(repository: GitRepository(root: path, executable: repository.executable), access: lease, scope: [])
         }
+        controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
@@ -2199,6 +2201,10 @@ import UniformTypeIdentifiers
         controller.model.onSubmoduleUpdate = { [weak self] in self?.showSubmoduleUpdate(repository: repository, access: access, scope: []) }
         bisectWindows[root.path] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func configureExportInteractions(_ controller: ExportWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
+        controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
+        controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
+    }
     private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = []) {
         let root = repository.root
         let directory = ExportWindowModel.directoryScope(root: root, paths: paths)
@@ -2209,6 +2215,7 @@ import UniformTypeIdentifiers
         }
         let key = reusable?.key ?? (exportWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? ExportWindowController(repository: repository, access: access, revision: revision, directory: directory)
+        configureExportInteractions(controller, repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }
         exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -2241,22 +2248,7 @@ import UniformTypeIdentifiers
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
-        controller.model.configureLogPicker = { [weak self] log in
-            log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
-            log.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
-            log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-            log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
-            log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
-            self?.configureLogMenus(log, repository: repository, access: access)
-            log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
-            log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
-            log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
-            log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
-            log.onRevertRevisions = { [weak self, weak log] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: log?.window) }
-            self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
-                log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
-            log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
-        }
+        controller.model.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.model.showStashPop = showStashPop
         controller.model.onAbortRequested = { [weak self] in self?.showMergeAbort(repository: repository, access: access) }
         controller.model.onPostAction = { [weak self] action, request in
@@ -2545,6 +2537,7 @@ import UniformTypeIdentifiers
             self.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, completion: done)
         }
         controller.model.onPushTag = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+        controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
@@ -2623,6 +2616,7 @@ import UniformTypeIdentifiers
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access) }
+        controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }

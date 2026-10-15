@@ -70,6 +70,8 @@ import TurtleGitCore
 }
 
 @MainActor final class ExportWindowModel: ObservableObject, VersionPickerModel {
+    private(set) static var activeReads = 0
+    var versionPickerDraft: [GitReferenceName] { [String(describing: target), branch, tag, commit, destination, String(wholeProject)].map { GitReferenceName($0) } }
     enum Target { case head, branch, tag, commit }
     let repository: GitRepository
     let access: RepositoryAccessLease?
@@ -104,14 +106,18 @@ import TurtleGitCore
     }
     func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void) {
         guard !invalidated, pickerTarget == .branch else { return }
-        let requested = name ?? revision, draft = commit, request = OperationCancellation(), repository = repository
+        let requested = name ?? revision, draft = commit, request = OperationCancellation(), repository = repository, selectionDraft = versionPickerDraft
         referenceSelectionToken = request; busy = true
-        referenceSelectionTask = Task { [weak self, access] in
-            _ = access
+        Self.activeReads += 1
+        referenceSelectionTask = Task { [self, access] in
+            defer {
+                Self.activeReads -= 1; withExtendedLifetime(access) {}
+                if referenceSelectionToken === request { referenceSelectionToken = nil; referenceSelectionTask = nil; busy = false; pickerTarget = nil; completion() }
+            }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: request)
-                guard let self, !self.invalidated, self.referenceSelectionToken === request, !request.isCancelled, !Task.isCancelled else { return }
+                guard !invalidated, referenceSelectionToken === request, !request.isCancelled, !Task.isCancelled, versionPickerDraft == selectionDraft else { return }
                 self.references = catalog
                 if let reference = catalog.first(where: { GitReferenceName.equal($0.name, requested) }), let kind = reference.target {
                     if kind == .branch { self.target = .branch; self.branch = requested }
@@ -120,11 +126,9 @@ import TurtleGitCore
                 } else if requested == "HEAD" { self.target = .head }
                 else { self.target = .commit; self.selectCustomRevision(requested) }
             } catch {
-                guard let self, !self.invalidated, self.referenceSelectionToken === request, !request.isCancelled else { return }
+                guard !invalidated, referenceSelectionToken === request, !request.isCancelled else { return }
                 self.error = error.localizedDescription
             }
-            guard let self, self.referenceSelectionToken === request else { return }
-            self.referenceSelectionToken = nil; self.referenceSelectionTask = nil; self.busy = false; self.pickerTarget = nil; completion()
         }
     }
     func selectCustomRevision(_ value: String) {
@@ -133,7 +137,7 @@ import TurtleGitCore
     }
     func acceptCommitSelection(_ entry: LogEntry?) {
         guard !invalidated, pickerTarget == .commit else { return }
-        if let entry { commit = entry.hash }; finishPicker()
+        if let entry { selectCustomRevision(entry.hash) }; finishPicker()
     }
     private let preferences: UserDefaults
     private var invalidated = false
@@ -173,12 +177,17 @@ import TurtleGitCore
         guard !invalidated, !busy, progress == nil, pickerTarget == nil else { return }; busy = true
         let repository = repository, request = OperationCancellation()
         loadCancellation = request
-        loadTask = Task { [weak self, access] in
-            _ = access
+        Self.activeReads += 1
+        loadTask = Task { [self, access] in
+            defer {
+                Self.activeReads -= 1; withExtendedLifetime(access) {}
+                if loadCancellation === request { loadCancellation = nil; loadTask = nil; busy = false }
+            }
             do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let references = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: request)
                 let currentBranch = try await repository.branch(cancellation: request)
-                guard let self, !self.invalidated, self.loadCancellation === request, !request.isCancelled, !Task.isCancelled else { return }
+                guard !invalidated, loadCancellation === request, !request.isCancelled, !Task.isCancelled else { return }
                 self.references = references; self.currentBranch = currentBranch
                 self.branch = self.branches.first?.name ?? ""; self.tag = self.tags.first?.name ?? ""
                 if preset == "HEAD" || preset.isEmpty { self.target = .head }
@@ -186,11 +195,9 @@ import TurtleGitCore
                 else if self.branches.contains(where: { $0.name == preset }) { self.target = .branch; self.branch = preset }
                 else { self.target = .commit; self.selectCustomRevision(preset) }
             } catch {
-                guard let self, !self.invalidated, self.loadCancellation === request, !request.isCancelled else { return }
+                guard !invalidated, loadCancellation === request, !request.isCancelled else { return }
                 self.error = error.localizedDescription
             }
-            guard let self, self.loadCancellation === request else { return }
-            self.loadCancellation = nil; self.loadTask = nil; self.busy = false
         }
     }
     func export() {
