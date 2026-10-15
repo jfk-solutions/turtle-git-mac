@@ -41,6 +41,8 @@ import Darwin
     @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
+        let captureDirectory = CommandLine.arguments.count > 3 && Int(CommandLine.arguments[3]) == nil ? URL(fileURLWithPath: CommandLine.arguments[3]) : root.appendingPathComponent("captures", isDirectory: true)
+        try FileManager.default.createDirectory(at: captureDirectory, withIntermediateDirectories: true)
         let repo = GitRepository(root: root,executable: git)
         _ = try await repo.run(["init","-b","main"])
         _ = try await repo.run(["config","user.name","Image Frame Tests"])
@@ -80,7 +82,7 @@ import Darwin
         try press("Previous image (Base)"); try require(frame(true) == 0 && frame(false) == 1)
         try press("Previous image (Second image)"); try require(frame(false) == 0)
         if CommandLine.arguments.count > 3 {
-            let directory = URL(fileURLWithPath: CommandLine.arguments[3])
+            let directory = captureDirectory
             for (name,appearance) in [("light",NSAppearance.Name.aqua),("dark",NSAppearance.Name.darkAqua)] {
                 window.appearance = NSAppearance(named: appearance); model.showInfo = true
                 try await settle(); host.layoutSubtreeIfNeeded()
@@ -116,7 +118,9 @@ import Darwin
         // TIFF pages and ICO variants share navigation; ICO has no Play button.
         let pages = root.appendingPathComponent("pages.dat"), icon = root.appendingPathComponent("icon.dat")
         try sequence(type: "public.tiff" as CFString,colors: [.red,.blue],sizes: [CGSize(width: 80,height: 60),CGSize(width: 20,height: 90)]).write(to: pages)
-        let sourceIcon = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources/TurtleGitCore/Resources/Icons/fitinwindow.ico")
+        let sourceRelative = "Sources/TurtleGitCore/Resources/Icons/fitinwindow.ico"
+        let sourceCandidate = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(sourceRelative)
+        let sourceIcon = FileManager.default.fileExists(atPath: sourceCandidate.path) ? sourceCandidate : URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(sourceRelative)
         try Data(contentsOf: sourceIcon).write(to: icon)
         let pageController = FileComparisonWindowController(comparison: try WorkingFileComparison(base: pages,destination: icon),permissions: [])
         let pageWindow = pageController.window!
@@ -139,6 +143,24 @@ import Darwin
         let afterHead = try await repo.run(["rev-parse","HEAD"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterA = try Data(contentsOf: left), afterB = try Data(contentsOf: right)
         try require(afterHead == head && afterIndex == index && afterA == a && afterB == b)
+        // CUR shares ICO's representations, but its directory words are hotspots.
+        // The encoded file must remain unchanged when selecting a representation.
+        let cursorFile = root.appendingPathComponent("cursor.cur")
+        var cursorBytes = try Data(contentsOf: sourceIcon); cursorBytes[2] = 2
+        let variants = Int(cursorBytes[4]) | Int(cursorBytes[5]) << 8
+        for entry in 0..<variants { let offset = 6 + entry * 16; cursorBytes[offset + 4] = 2; cursorBytes[offset + 5] = 0; cursorBytes[offset + 6] = 3; cursorBytes[offset + 7] = 0 }
+        try cursorBytes.write(to: cursorFile)
+        let cursorController = FileComparisonWindowController(comparison: try WorkingFileComparison(base: cursorFile, destination: cursorFile), permissions: [])
+        defer { cursorController.close() }
+        cursorController.model.load(); try await wait { !cursorController.model.busy }
+        cursorController.window?.contentView?.layoutSubtreeIfNeeded()
+        try await wait { (cursorController.window as? ImageComparisonKeyRouting)?.imageKeyModel != nil }
+        let cursorModel = (cursorController.window as! ImageComparisonKeyRouting).imageKeyModel!
+        try require(cursorModel.currentImage(base: true)?.isIconVariants == true && cursorModel.currentImage(base: true)?.cursorHotspot == CGPoint(x: 2, y: 3))
+        cursorModel.togglePlayback(base: true); try require(cursorModel.playing.isEmpty)
+        if variants > 1 { cursorModel.stepImage(base: true, forward: true); try require(cursorModel.currentImage(base: true)?.cursorHotspot == CGPoint(x: 2, y: 3)) }
+        let cursorAfter = try Data(contentsOf: cursorFile); try require(cursorAfter == cursorBytes)
+        cursorController.close()
         // A real multi-frame conflict: selecting a later visible frame must
         // copy the original full GIF and retain unmerged stages on No.
         _ = try await repo.run(["switch","-c","frame-side"])

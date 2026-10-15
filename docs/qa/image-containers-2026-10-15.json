@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-15",
+  "scope": "Image comparison compatibility for packed DIB, CUR representations/hotspots and SVGZ; existing frame/alpha/XOR workflows",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseIDiff/MainWindow.cpp: Load Images filter",
+      "src/Utils/MiscUI/Picture.cpp: GDI+/FreeImage/Direct2D decoding"
+    ]
+  },
+  "implementation": [
+    "Packed DIB BMP-header adaptation accounting for Core/Info/extended headers, indexed palettes and bitfield masks",
+    "CUR per-entry decoding handles PNG-backed rectangular representations and bitmap-backed single ICO entries; preserve directory order and hotspots",
+    "CUR entries are image variants rather than animations; retain identity on frame navigation; show hotspot in image information",
+    "System zlib bounded gzip SVGZ with CRC/truncation checks and concatenated members",
+    "Native AppKit vector fallback rasterized at declared size independently of Retina scaling; entirely in memory; original bytes unchanged"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/image-containers-build-cursor-2026-10-15.log",
+      "diagnostics": "Existing warnings and exit-code-zero/no-output SwiftCompile diagnostics; not a clean-diagnostics claim."
+    },
+    "core": {
+      "unique_cases": 17,
+      "initial_cases": 17,
+      "initial_failures": 2,
+      "initial_log": "build/qa/image-containers-core-2026-10-15.log",
+      "repairs": [
+        "Direct ImageIO CUR decoding and then ICO normalization rejected small rectangular PNG entries; use individual representation sources",
+        "AppKit vector fallback initially produced Retina-scaled pixels; rasterize to declared dimensions"
+      ],
+      "first_affected_recheck": {
+        "cases": 2,
+        "failures": 1,
+        "log": "build/qa/image-containers-core-repair-2026-10-15.log",
+        "passed": "SVGZ gzip members/CRC/truncation; CUR remained rejected"
+      },
+      "final_affected_recheck": {
+        "cases": 1,
+        "failures": 0,
+        "log": "build/qa/image-containers-core-cursor-2026-10-15.log"
+      },
+      "scope_note": "15 initial passes plus the repaired SVGZ and CUR cases cover all 17 unique cases cumulatively. The complete Core suite was not rerun.",
+      "coverage": [
+        "DIB Core/Info 24-bit RGB, indexed palette and 16-bit masks with pixel colors and byte preservation",
+        "SVGZ dimensions, concatenated members, corrupt CRC, truncated gzip and SVG recognition",
+        "CUR rectangular PNG entries, hotspot metadata, dimensions, stable identity and no animation",
+        "Existing geometry/frame/conflict source behavior"
+      ]
+    },
+    "native": {
+      "accepted_pairs": [
+        "image frames/system",
+        "image comparison/system",
+        "image frames/bundled",
+        "image comparison/bundled"
+      ],
+      "logs": {
+        "frames_system": "build/qa/image-containers-native-accepted-2026-10-15.log",
+        "comparison_system": "build/qa/image-containers-slider-drawn-2026-10-15.log",
+        "bundled": "build/qa/image-containers-native-bundled-2026-10-15.log"
+      },
+      "fixture_repairs": [
+        "New cursor check initially called private setImage; use production stepImage",
+        "Older fixtures required a screenshot output directory and original source-file location; preserve explicit capture arguments and use private grouped-run fallback paths",
+        "NSSliderCell knobRect returned cached midpoint before drawing; force hidden native control drawing and retain direction assertion. Drawn positions were 10 and 170 in flipped 180-point bounds. No slider production change."
+      ],
+      "coverage": [
+        "Actual image-window GIF/TIFF/ICO frame navigation, playback and conflict full-file copy behavior",
+        "New cursor load through shared window, hotspot retention, next representation, no playback and unchanged cursor bytes",
+        "Actual image routing without extension, alpha/XOR raster pixels, slider mouse/accessibility and width/height/zoom controls",
+        "Original HEAD/index/file preservation around read-only routes and original encoded GIF copying for conflict selection"
+      ],
+      "owned_receivers_reaped_and_verified_absent": [
+        40038,
+        40135,
+        40209,
+        40257,
+        40357,
+        40405,
+        40456,
+        40503
+      ],
+      "captures": "Existing fixture raster captures were generated inside private roots; no new published screenshot/physical visual parity claim."
+    }
+  },
+  "limitations": [
+    "Not full Windows bitmap subtype/color-profile or all SVG feature equivalence",
+    "Current CUR directory cap is 256 entries; gzip expansion cap 64 MiB; vector fallback caps dimensions at 32768 per side and 67108864 pixels",
+    "EMF/WMF and other unsupported native codecs remain open",
+    "Signed sandbox/App Store, older macOS runtime, physical pointer/keyboard/VoiceOver and complete application parity remain unverified"
+  ]
+}

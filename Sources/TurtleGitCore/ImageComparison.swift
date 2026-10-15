@@ -1,6 +1,8 @@
 import Foundation
 import ImageIO
 import CoreGraphics
+import zlib
+import AppKit
 
 /// Decode the original Git/file bytes; no temporary previews or file mutations.
 public struct ComparisonImage {
@@ -12,19 +14,52 @@ public struct ComparisonImage {
     public let frameIndex: Int
     public let animationDelay: TimeInterval
     public let isIconVariants: Bool
+    public let cursorHotspot: CGPoint?
+    private let cursorHotspots: [CGPoint]
+    private let cursorFrames: [CGImageSource]?
     private let source: CGImageSource
     public var canAnimate: Bool { frameCount > 1 && !isIconVariants }
     public var size: CGSize { CGSize(width: pixels.width, height: pixels.height) }
     public init?(bytes: Data) {
-        guard let source = CGImageSourceCreateWithData(bytes as CFData, nil) else { return nil }
-        self.init(source: source, index: 0, id: UUID())
+        if bytes.starts(with: [0, 0, 2, 0]) {
+            let hotspots = ImageComparisonContainers.cursorHotspots(bytes)
+            guard !hotspots.isEmpty, let payloads = ImageComparisonContainers.cursorPayloads(bytes) else { return nil }
+            let sources = payloads.compactMap { CGImageSourceCreateWithData($0 as CFData, nil) }
+            guard sources.count == payloads.count, let first = sources.first else { return nil }
+            self.init(source: first, index: 0, id: UUID(), cursorHotspots: hotspots, cursorFrames: sources); return
+        }
+        guard let payload = ImageComparisonContainers.payload(bytes) else { return nil }
+        if let source = CGImageSourceCreateWithData(payload as CFData, nil),
+           let image = Self(source: source, index: 0, id: UUID(), cursorHotspots: ImageComparisonContainers.cursorHotspots(bytes)) { self = image; return }
+        // AppKit supplies native vector rendering on systems whose ImageIO does
+        // not rasterize SVG directly. Keep the private raster entirely in memory.
+        guard ImageComparisonContainers.isSVG(payload), let native = NSImage(data: payload),
+              native.size.width > 0, native.size.height > 0, native.size.width <= 32_768, native.size.height <= 32_768,
+              native.size.width * native.size.height <= 67_108_864,
+              let pixels = native.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let width = max(1, Int(ceil(native.size.width))), height = max(1, Int(ceil(native.size.height)))
+        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        context.interpolationQuality = .high; context.draw(pixels, in: CGRect(x: 0, y: 0, width: width, height: height))
+        guard let raster = context.makeImage() else { return nil }
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(destination, raster, nil)
+        guard CGImageDestinationFinalize(destination), let source = CGImageSourceCreateWithData(data, nil) else { return nil }
+        self.init(source: source, index: 0, id: UUID(), cursorHotspots: [])
     }
-    private init?(source: CGImageSource, index: Int, id: UUID) {
-        let count = CGImageSourceGetCount(source)
-        guard (0..<count).contains(index), let pixels = CGImageSourceCreateImageAtIndex(source, index, nil) else { return nil }
+    private init?(source: CGImageSource, index: Int, id: UUID, cursorHotspots: [CGPoint], cursorFrames: [CGImageSource]? = nil) {
+        let count = cursorFrames?.count ?? CGImageSourceGetCount(source)
+        guard (0..<count).contains(index) else { return nil }
+        let selectedSource = cursorFrames?[index] ?? source, selectedIndex = cursorFrames == nil ? index : 0
+        guard let pixels = CGImageSourceCreateImageAtIndex(selectedSource, selectedIndex, nil) else { return nil }
+        self.cursorFrames = cursorFrames
         self.id = id; self.source = source; self.pixels = pixels; frameCount = count; frameIndex = index
-        isIconVariants = (CGImageSourceGetType(source) as String?) == "com.microsoft.ico"
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+        self.cursorHotspots = cursorHotspots
+        cursorHotspot = cursorHotspots.indices.contains(index) ? cursorHotspots[index] : nil
+        let type = CGImageSourceGetType(source) as String?
+        isIconVariants = type == "com.microsoft.ico" || type == "com.microsoft.cur" || !cursorHotspots.isEmpty
+        let properties = CGImageSourceCopyPropertiesAtIndex(selectedSource, selectedIndex, nil) as? [CFString: Any]
         dpiX = (properties?[kCGImagePropertyDPIWidth] as? NSNumber)?.doubleValue
         dpiY = (properties?[kCGImagePropertyDPIHeight] as? NSNumber)?.doubleValue
         let gif = properties?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
@@ -36,8 +71,107 @@ public struct ComparisonImage {
         animationDelay = ImageComparisonFrames.delay(delay)
     }
     /// Decode only the requested frame/page/ICO representation, retaining source bytes.
-    public func frame(at index: Int) -> ComparisonImage? { Self(source: source, index: index, id: id) }
+    public func frame(at index: Int) -> ComparisonImage? { Self(source: source, index: index, id: id, cursorHotspots: cursorHotspots, cursorFrames: cursorFrames) }
 }
+/// Adapt packed Windows DIBs and compressed image data to native ImageIO without
+/// writing temporary files or modifying the original Git/file bytes.
+enum ImageComparisonContainers {
+    static func payload(_ bytes: Data) -> Data? {
+        if bytes.starts(with: [0x1f, 0x8b]) { return inflateGzip(bytes) }
+        guard let header = u32(bytes, 0), [12, 40, 52, 56, 64, 108, 124].contains(header) else { return bytes }
+        guard bytes.count >= header, u16(bytes, header == 12 ? 8 : 12) == 1,
+              let bits = u16(bytes, header == 12 ? 10 : 14), [1, 4, 8, 16, 24, 32].contains(bits) else { return nil }
+        let colors: Int, masks: Int
+        if header == 12 { colors = bits <= 8 ? 1 << bits : 0; masks = 0 }
+        else {
+            guard let compression = u32(bytes, 16), let used = u32(bytes, 32), used <= 65_536 else { return nil }
+            if bits <= 8, used > 1 << bits { return nil }
+            colors = used > 0 ? used : bits <= 8 ? 1 << bits : 0
+            masks = header == 40 ? (compression == 3 ? 12 : compression == 6 ? 16 : 0) : 0
+        }
+        let offset = header + masks + colors * (header == 12 ? 3 : 4)
+        guard offset < bytes.count, bytes.count <= Int(UInt32.max) - 14 else { return nil }
+        var result = Data([0x42, 0x4d]); append32(bytes.count + 14, to: &result)
+        result.append(contentsOf: [0, 0, 0, 0]); append32(offset + 14, to: &result); result.append(bytes)
+        return result
+    }
+    static func cursorHotspots(_ bytes: Data) -> [CGPoint] {
+        guard u16(bytes, 0) == 0, u16(bytes, 2) == 2, let count = u16(bytes, 4), count > 0, count <= 256,
+              bytes.count >= 6 + count * 16 else { return [] }
+        var values: [CGPoint] = []
+        for index in 0..<count {
+            let entry = 6 + index * 16
+            guard let x = u16(bytes, entry + 4), let y = u16(bytes, entry + 6),
+                  let size = u32(bytes, entry + 8), let offset = u32(bytes, entry + 12), size > 0,
+                  offset >= 6 + count * 16, offset <= bytes.count, size <= bytes.count - offset else { return [] }
+            values.append(CGPoint(x: x, y: y))
+        }
+        return values
+    }
+    static func cursorPayloads(_ bytes: Data) -> [Data]? {
+        let hotspots = cursorHotspots(bytes)
+        guard !hotspots.isEmpty else { return nil }
+        return hotspots.indices.map { index in
+            let entry = 6 + index * 16, size = u32(bytes, entry + 8)!, offset = u32(bytes, entry + 12)!
+            let payload = bytes.subdata(in: (bytes.startIndex + offset)..<(bytes.startIndex + offset + size))
+            if payload.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]) { return payload }
+            let header = u32(payload, 0)
+            let bits = u16(payload, header == 12 ? 10 : 14) ?? 32
+            var icon = Data([0, 0, 1, 0, 1, 0])
+            icon.append(bytes.subdata(in: (bytes.startIndex + entry)..<(bytes.startIndex + entry + 4)))
+            icon.append(contentsOf: [1, 0, UInt8(bits & 255), UInt8((bits >> 8) & 255)])
+            append32(size, to: &icon); append32(22, to: &icon); icon.append(payload); return icon
+        }
+    }
+    private final class SVGProbe: NSObject, XMLParserDelegate {
+        var found = false
+        func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName: String?, attributes: [String: String]) {
+            found = elementName == "svg"; parser.abortParsing()
+        }
+    }
+    static func isSVG(_ bytes: Data) -> Bool {
+        let parser = XMLParser(data: bytes), probe = SVGProbe()
+        parser.shouldResolveExternalEntities = false; parser.shouldProcessNamespaces = true; parser.delegate = probe
+        _ = parser.parse(); return probe.found
+    }
+    private static func u16(_ data: Data, _ index: Int) -> Int? {
+        guard index >= 0, index <= data.count - 2 else { return nil }
+        return Int(data[data.startIndex + index]) | Int(data[data.startIndex + index + 1]) << 8
+    }
+    private static func u32(_ data: Data, _ index: Int) -> Int? {
+        guard index >= 0, index <= data.count - 4 else { return nil }
+        return (0..<4).reduce(0) { $0 | Int(data[data.startIndex + index + $1]) << ($1 * 8) }
+    }
+    private static func append32(_ value: Int, to data: inout Data) { for shift in stride(from: 0, to: 32, by: 8) { data.append(UInt8((value >> shift) & 255)) } }
+    /// A bounded RFC 1952 stream, including concatenated members. CRC/truncation
+    /// errors and decompression bombs fail before reaching the image decoder.
+    private static func inflateGzip(_ bytes: Data) -> Data? {
+        guard bytes.count <= Int(UInt32.max) else { return nil }
+        var stream = z_stream()
+        guard inflateInit2_(&stream, 15 + 16, ZLIB_VERSION, Int32(MemoryLayout<z_stream>.size)) == Z_OK else { return nil }
+        defer { inflateEnd(&stream) }
+        return bytes.withUnsafeBytes { input in
+            stream.next_in = UnsafeMutablePointer(mutating: input.bindMemory(to: UInt8.self).baseAddress)
+            stream.avail_in = UInt32(bytes.count)
+            var result = Data(), chunk = [UInt8](repeating: 0, count: 65_536)
+            while true {
+                var status: Int32 = Z_OK
+                let produced = chunk.withUnsafeMutableBytes { output -> Int in
+                    stream.next_out = output.bindMemory(to: UInt8.self).baseAddress; stream.avail_out = UInt32(output.count)
+                    status = inflate(&stream, Z_NO_FLUSH)
+                    return output.count - Int(stream.avail_out)
+                }
+                guard result.count <= 67_108_864 - produced else { return nil }
+                result.append(contentsOf: chunk.prefix(produced))
+                if status == Z_STREAM_END {
+                    if stream.avail_in == 0 { return result }
+                    guard inflateReset(&stream) == Z_OK else { return nil }
+                } else if status != Z_OK || produced == 0 && stream.avail_in == 0 { return nil }
+            }
+        }
+    }
+}
+
 public enum ImageComparisonFrames {
     public static func next(_ current: Int, count: Int, forward: Bool, wrapping: Bool = false) -> Int {
         guard count > 0 else { return 0 }

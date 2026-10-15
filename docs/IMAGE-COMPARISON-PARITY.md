@@ -167,3 +167,35 @@ resets it to the native theme default, matching upstream SetTheme. See
 
 Native Load Images and standalone viewing are now implemented; see
 [Open parity](IMAGE-OPEN-PARITY.md) for control mapping and acceptance limits.
+
+## Windows containers and compressed SVG — October 15, 2026
+
+Compared TortoiseIDiff's Load Images filters in `MainWindow.cpp` and the GDI+/
+FreeImage/Direct2D loader in `Utils/MiscUI/Picture.cpp` at the pinned source.
+The native loader no longer assumes every accepted format has a directly
+usable ImageIO container. The adaptation keeps original Git/file bytes intact.
+
+Packed DIB input receives an in-memory BMP header with the correct pixel offset.
+Core/Info/V2/V3/V4/V5 header sizes, indexed color tables and external bitfield masks
+are accounted for before ImageIO decoding. Header/palette truncation and invalid
+counts fail. This delegates actual bitmap compression/color-profile support to
+ImageIO; every possible Windows bitmap subtype is not certified.
+
+CUR entries retain directory order and per-representation hotspots. PNG-backed
+entries decode individually, including non-square/small representations that the
+native ICO decoder rejects. Bitmap-backed entries use single-representation ICO
+containers. Variant changes preserve document identity and hotspot metadata;
+cursor representations never enable animation. Image Information shows the
+hotspot. The original cursor bytes remain available for conflict-side selection.
+
+SVGZ uses system zlib's CRC-checked gzip decoding, including concatenated members,
+with a 64 MiB expanded-data limit. Truncated/invalid streams fail. Systems that
+do not rasterize SVG through ImageIO use AppKit's vector renderer with an explicit
+bitmap at the declared image dimensions, independent of Retina scale. Vector
+rendering stays in memory; no temporary previews or converted repository files
+are written. Native SVG geometry/color/rendering equivalence for every SVG feature
+is not certified. EMF/WMF and any remaining unsupported native codecs stay open.
+
+[Container QA](qa/image-containers-2026-10-15.json) records actual pixel/metadata,
+format failure/repair and native window evidence. Full upstream image-format,
+physical layout/input and signed sandbox/App Store acceptance remain unfinished.

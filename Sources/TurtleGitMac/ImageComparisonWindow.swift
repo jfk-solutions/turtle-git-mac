@@ -191,6 +191,7 @@ import TurtleGitCore
                         if let x = image.dpiX, let y = image.dpiY { Text(String(format: "Resolution: %.1f × %.1f dpi", x, y)) }
                         Text("Depth: \(image.pixels.bitsPerPixel) bits")
                         if image.frameCount > 1 { Text("Image \(image.frameIndex + 1) of \(image.frameCount)") }
+                        if let hotspot = image.cursorHotspot { Text("Cursor hotspot: \(Int(hotspot.x)), \(Int(hotspot.y))") }
                     }.font(.caption).padding(8).background(.regularMaterial).padding(12).allowsHitTesting(false)
                 }
             }

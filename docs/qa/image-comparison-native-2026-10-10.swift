@@ -35,6 +35,8 @@ import Darwin
     @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1])
+        let captureDirectory = CommandLine.arguments.count > 3 && Int(CommandLine.arguments[3]) == nil ? URL(fileURLWithPath: CommandLine.arguments[3]) : root.appendingPathComponent("captures", isDirectory: true)
+        try FileManager.default.createDirectory(at: captureDirectory, withIntermediateDirectories: true)
         let repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
         _ = try await repo.run(["init", "-b", "main"])
         _ = try await repo.run(["config", "user.name", "Image Tests"])
@@ -69,7 +71,7 @@ import Darwin
         let colors = try scrolls().map { try pixel($0.documentView!) }
         try require(colors[0].redComponent > 0.9 && colors[1].blueComponent > 0.9)
         if CommandLine.arguments.count > 3 {
-            let directory = URL(fileURLWithPath: CommandLine.arguments[3])
+            let directory = captureDirectory
             for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", NSAppearance.Name.darkAqua)] {
                 window.appearance = NSAppearance(named: appearance); model.showInfo = true
                 try await settle(); host.layoutSubtreeIfNeeded()
@@ -107,9 +109,12 @@ import Darwin
             try require(abs((slider.accessibilityValue() as! NSNumber).doubleValue - fraction * 100) < 0.001)
         }
         slider.doubleValue = 1
+        if let bitmap = slider.bitmapImageRepForCachingDisplay(in: slider.bounds) { slider.cacheDisplay(in: slider.bounds, to: bitmap) }
         let topKnob = sliderCell.knobRect(flipped: slider.isFlipped).midY
         slider.doubleValue = 0
+        if let bitmap = slider.bitmapImageRepForCachingDisplay(in: slider.bounds) { slider.cacheDisplay(in: slider.bounds, to: bitmap) }
         let bottomKnob = sliderCell.knobRect(flipped: slider.isFlipped).midY
+        print("KNOB direction", topKnob, bottomKnob, "flipped", slider.isFlipped, "bounds", slider.bounds, "vertical", sliderCell.isVertical, "range", slider.minValue, slider.maxValue)
         try require(slider.isFlipped ? topKnob < bottomKnob : topKnob > bottomKnob)
         slider.setAccessibilityValue(NSNumber(value: 50))
         try require(model.alpha == 0.5)
