@@ -164,12 +164,20 @@ import TurtleGitCore
         let scrollModel = scrollController.model
         for _ in 0..<1000 {
             scrollController.window?.contentView?.layoutSubtreeIfNeeded()
-            if !scrollModel.busy && scrollModel.beforeScroll != nil && scrollModel.afterScroll != nil { break }
+            if !scrollModel.busy && scrollModel.editor?.filtering == false,
+               let left = scrollModel.beforeScroll, let right = scrollModel.afterScroll,
+               (left.documentView?.frame.height ?? 0) > left.contentView.bounds.height + 220,
+               (right.documentView?.frame.height ?? 0) > right.contentView.bounds.height + 220 { break }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         precondition(!scrollModel.busy && scrollModel.alignment?.rows.count == 120)
         let leftScroll = scrollModel.beforeScroll!, rightScroll = scrollModel.afterScroll!
         leftScroll.contentView.scroll(to: NSPoint(x: 0, y: 220)); leftScroll.reflectScrolledClipView(leftScroll.contentView)
+        for _ in 0..<1000 {
+            scrollController.window?.contentView?.layoutSubtreeIfNeeded()
+            if leftScroll.contentView.bounds.minY > 0 && abs(leftScroll.contentView.bounds.minY - rightScroll.contentView.bounds.minY) < 1 { break }
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
         precondition(leftScroll.contentView.bounds.minY > 0 && abs(leftScroll.contentView.bounds.minY - rightScroll.contentView.bounds.minY) < 1)
         scrollModel.navigate(1)
         precondition(scrollModel.difference == 0 && (rightScroll.documentView as! NSTextView).selectedRange().location > 0)

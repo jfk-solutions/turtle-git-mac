@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "e2c401332f440dc7d219cb030dbbc37fb54f9c50",
+  "scope": "Compare/Review/three-pane source Save As target binding, later Save/Reload, owned permissions and approved Quit Save; CI headless rebase editor configuration",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseMerge/MainFrm.cpp::OnFileSaveAs / FileSaveAs",
+      "src/TortoiseMerge/BaseView.cpp::SaveFileTo / SaveFile"
+    ]
+  },
+  "implementation": [
+    "Save As UI rebinds independent source panes and records saved bytes/encoding/permissions; later Save/Reload use selected file, skip obsolete original paths, reject stale snapshots",
+    "Explicit internal copy-export API retained; repository merged-result copies and standalone output target workflows remain distinct",
+    "Review rebound-result Save and Quit Save write chosen file without applying or staging original proposal; selected grants retained",
+    "Read-only stage snapshots remain protected until explicit Save As outside private snapshot directory; chosen file survives snapshot cleanup",
+    "Three-pane source bindings feed Reload/Compare and merged-save validation; result draft retained, own output writes recorded, Continue resolving menu with source icon",
+    "Ordinary pane Save owns cancellation/permissions through held choices, retirement and completion; late empty-file responses cannot delete files",
+    "Application delegate uses owner-approved Compare/Merge Quit Save routes while ordinary mutation fences remain",
+    "CI builds Xcode app before Core-only SwiftPM tests and sets TURTLEGIT_REBASE_EDITOR to real app headless editor; no duplicate UI build"
+  ],
+  "validation": {
+    "core": {
+      "unique_cases": 55,
+      "initial_tests": 55,
+      "initial_failures": 2,
+      "failure": "Two new SwiftPM cases used bundled app lookup rather than repository prepared-runtime configuration",
+      "focused_recheck_cases": 5,
+      "focused_recheck_failures": 0,
+      "logs": [
+        "build/qa/save-as-targets-core.log",
+        "build/qa/save-as-targets-core-recheck.log"
+      ]
+    },
+    "debug": {
+      "final_exit": 0,
+      "log": "build/qa/save-as-targets-build-quit.log",
+      "earlier_failures": [
+        "An unnecessary Base enum check was introduced during review; compiler rejected it and it was removed because Base already uses nil source side",
+        "Native freshness guard refused an older TextConflictWindow object after reverting identical source; object was regenerated before receiver execution"
+      ]
+    },
+    "native_targets": {
+      "exit": 0,
+      "git": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/save-as-targets-native-accepted.log",
+      "coverage": [
+        "actual icon-bearing context menu dispatch",
+        "UTF16 BOM/Unicode and absent final newline",
+        "subsequent Save and approved Quit Save target bytes",
+        "stale refusal, independent Reload with deleted originals",
+        "private read-only snapshot Save As/edit/Save/cleanup",
+        "Review real repository unchanged file/raw index/HEAD/applied flags including actual delegate Quit routing",
+        "three-pane source rebind/Reload/Save, Continue resolving and late retirement"
+      ],
+      "fixture_repairs": [
+        "Use LF for native insertion into LF document; Core covers CRLF separately",
+        "Capture raw-index baseline after repository diff/restore/preview setup",
+        "After clearing Quit fence wait for actual native editability before inserting next edit"
+      ]
+    },
+    "ci_editor": {
+      "observed_failed_run": 38712257314,
+      "failed_job": 116352207378,
+      "cause": "Core-only SwiftPM excludes app; rebase tests fell back to missing .build/debug/TurtleGitMac, causing recovery failures and later fixture crash",
+      "local_rebase_snapshot_tests": 84,
+      "local_replay_fetch_tests": 6,
+      "failures": 0,
+      "logs": [
+        "build/qa/rebase-ci-editor.log",
+        "build/qa/rebase-ci-editor-io.log"
+      ],
+      "hosted_repair_verified": false
+    },
+    "import_regression": {
+      "status": "passed",
+      "log": "build/qa/save-as-targets-import-accepted.log",
+      "earlier": "System Git full regression passed; bundled Git failed linked-scroll assertion before final text-view layout. Fixture now awaits authoritative engine/layout and linked-scroll notification without removing bounds assertion.",
+      "exit_code": 0,
+      "git": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "coverage": "Full retained Import Patch/Review, real am recovery, editor/Undo/EOL, marked saves, Close/Quit, drop/splitter/styles and output ownership receiver on both engines"
+    },
+    "cleanup": {
+      "sampled_owned_pids": [
+        62978,
+        65160,
+        66579,
+        67037,
+        76932,
+        76992,
+        77060,
+        77228,
+        78376
+      ],
+      "remaining": [],
+      "ownership": "new runner reaps exact process group on success/failure; retained Import Patch runner finally closes/reaps each receiver; all fixture windows close"
+    }
+  },
+  "limits": [
+    "No full hosted green claim",
+    "No physical panel/keyboard/VoiceOver acceptance",
+    "No signed sandbox/Finder/App Store certification",
+    "No full dialog/layout/application equivalence",
+    "Source serialization and overwrite/alias variants remain partial"
+  ],
+  "unrelated_wip_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

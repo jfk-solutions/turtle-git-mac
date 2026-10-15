@@ -231,3 +231,6 @@ commit ordering and font family, with graph zoom sizing and matching export font
 The [working-copy revision utility](docs/WORKING-COPY-REVISION.md) generates version
 files from TortoiseGit-style templates and exposes repository status as JSON for
 macOS build scripts. Build it with `swift build --product TurtleGitWCRev`.
+
+Compare and Review source panes support Save As to a new working file, including
+subsequent Save and Reload. See [Save As behavior and limitations](docs/SAVE-AS-TARGETS.md).

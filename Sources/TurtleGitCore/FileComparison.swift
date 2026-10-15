@@ -205,7 +205,7 @@ extension GitRepository {
         guard snapshot.files.contains(where: { $0.path == path && !$0.isSubmodule }) else { throw RevisionComparisonFailure.selection }
         return try comparisonFile(snapshot, path: path, cancellation: cancellation).destination
     }
-    public func comparisonFile(_ snapshot: RevisionComparisonSnapshot, path: String, cancellation: OperationCancellation? = nil) throws -> FileComparisonDocument {
+    public func comparisonFile(_ snapshot: RevisionComparisonSnapshot, path: String, replacements: [Bool: ComparisonFileContent] = [:], cancellation: OperationCancellation? = nil) throws -> FileComparisonDocument {
         try cancellation?.check()
         func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
             try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
@@ -237,8 +237,8 @@ extension GitRepository {
             }
             throw RevisionComparisonFailure.selection
         }
-        return FileComparisonDocument(base: try content(snapshot.from, file.oldPath ?? path, absent: file.action.hasPrefix("A")),
-                                      destination: try content(snapshot.to, path, absent: file.action.hasPrefix("D")))
+        return FileComparisonDocument(base: try replacements[true] ?? content(snapshot.from, file.oldPath ?? path, absent: file.action.hasPrefix("A")),
+                                      destination: try replacements[false] ?? content(snapshot.to, path, absent: file.action.hasPrefix("D")))
     }
 }
 
@@ -266,8 +266,8 @@ public struct WorkingFileComparison: Sendable {
         let mode = type == .typeSymbolicLink ? "120000" : (permissions ?? 0) & 0o111 != 0 ? "100755" : "100644"
         return ComparisonFileContent(path: url.path, revision: .workingTree, bytes: bytes, mode: mode, permissions: permissions)
     }
-    public func read() throws -> FileComparisonDocument {
-        return FileComparisonDocument(base: try Self.workingContent(at: base), destination: try Self.workingContent(at: destination))
+    public func read(replacements: [Bool: ComparisonFileContent] = [:]) throws -> FileComparisonDocument {
+        return FileComparisonDocument(base: try replacements[true] ?? Self.workingContent(at: base), destination: try replacements[false] ?? Self.workingContent(at: destination))
     }
     public func save(_ document: FileComparisonDocument, base editingBase: Bool, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> FileComparisonDocument {
         guard document.base.path == base.path, document.destination.path == destination.path else { throw RevisionComparisonFailure.selection }
@@ -300,10 +300,10 @@ extension GitRepository {
         let snapshot = RevisionComparisonSnapshot(root: root, from: .workingTree, to: .revision(hash), fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
         return HistoricalWorkingFileComparison(workingFile: url, snapshot: snapshot, path: path)
     }
-    public func comparisonFile(_ comparison: HistoricalWorkingFileComparison, cancellation: OperationCancellation? = nil) throws -> FileComparisonDocument {
+    public func comparisonFile(_ comparison: HistoricalWorkingFileComparison, replacements: [Bool: ComparisonFileContent] = [:], cancellation: OperationCancellation? = nil) throws -> FileComparisonDocument {
         try cancellation?.check()
         guard comparison.snapshot.root == root, case .revision(let hash) = comparison.snapshot.to else { throw RevisionComparisonFailure.selection }
-        return FileComparisonDocument(base: try WorkingFileComparison.workingContent(at: comparison.workingFile), destination: try historicalFile(revision: hash, path: comparison.path, cancellation: cancellation))
+        return FileComparisonDocument(base: try replacements[true] ?? WorkingFileComparison.workingContent(at: comparison.workingFile), destination: try replacements[false] ?? historicalFile(revision: hash, path: comparison.path, cancellation: cancellation))
     }
 }
 

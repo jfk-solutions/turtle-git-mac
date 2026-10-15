@@ -58,7 +58,7 @@ import TurtleGitCore
         guard !preparingReplacement, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load()
     }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        if item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return !preparingReplacement && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.filtering && !model.confirmingQuit && window?.attachedSheet == nil }
+        if item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return !preparingReplacement && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.hasPendingEditorChoice && !model.filtering && !model.confirmingQuit && window?.attachedSheet == nil }
         return item.action == #selector(createPatchFile(_:)) && model.canCreateUnifiedPatch
     }
     var onClosed: () -> Void = {}
@@ -68,7 +68,7 @@ import TurtleGitCore
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
     var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
     @objc func openMergeDocument(_ sender: Any?) {
-        guard !preparingReplacement, editorOpenWorkflow == nil, let window, !model.busy, !model.filtering, !model.confirmingQuit, window.attachedSheet == nil else { return }
+        guard !preparingReplacement, editorOpenWorkflow == nil, let window, !model.busy, !model.hasPendingEditorChoice, !model.filtering, !model.confirmingQuit, window.attachedSheet == nil else { return }
         let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
         editorOpenWorkflow = workflow
         workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil }
@@ -76,7 +76,7 @@ import TurtleGitCore
         workflow.start(dirty: model.dirty, description: model.unsavedFilesDescription, save: { [weak self] completion in self?.model.saveAll(completion: completion) })
     }
     func replaceEditor(_ request: MergeOpenRequest, permissions: [RepositoryAccessLease]) throws {
-        guard let window, !model.busy, !model.filtering, !model.confirmingQuit else { return }
+        guard let window, !model.busy, !model.hasPendingEditorChoice, !model.filtering, !model.confirmingQuit else { return }
         let owner = sharedReplacementOwner ?? replacementOwner ?? MergeEditorReplacementOwner(onClosed: onClosed)
         if sharedReplacementOwner == nil { replacementOwner = owner }
         try owner.replace(request, permissions: permissions, preferences: model.comparisonDefaults, window: window, previous: self)
@@ -145,6 +145,14 @@ import TurtleGitCore
     var retainedImageModel: ImageComparisonViewModel?
     var makeImageLoader: (String, [RepositoryAccessLease]) -> ImageLoadWindowController = { ImageLoadWindowController(leftPath: $0, permissions: $1) }
     private var workingPermissions: [RepositoryAccessLease] = []
+    private(set) var paneTargets: [Bool: SavedMergePane] = [:]
+    private var originalPaneDocument: FileComparisonDocument?
+    func savedPaneURL(base: Bool) -> URL? { paneTargets[base]?.url }
+    private func mutablePane(_ base: Bool) -> Bool { sourceSnapshotRoot == nil || paneTargets[base] != nil }
+    private func savingContext(_ document: FileComparisonDocument) -> FileComparisonDocument {
+        guard let originalPaneDocument else { return document }
+        return paneTargets.keys.reduce(document) { $0.replacingPane(base: $1, content: $1 ? originalPaneDocument.base : originalPaneDocument.destination) }
+    }
     private var sourceSnapshotRoot: URL?
     func retainSourceSnapshotDirectory(_ folder: URL) throws {
         let root = folder.resolvingSymlinksInPath().standardizedFileURL
@@ -426,16 +434,16 @@ import TurtleGitCore
     @Published private var drafts: FileComparisonDrafts?
     @Published private(set) var activeBase = false
     var editingEnabled: Bool {
-        get { sourceSnapshotRoot == nil && !retired && drafts?.editingEnabled(base: activeBase) == true }
-        set { guard sourceSnapshotRoot == nil, !retired, !busy, !hasPendingEditorChoice, !confirmingQuit else { return }; drafts?.setEditing(newValue, base: activeBase) }
+        get { mutablePane(activeBase) && !retired && drafts?.editingEnabled(base: activeBase) == true }
+        set { guard mutablePane(activeBase), !retired, !busy, !hasPendingEditorChoice, !confirmingQuit else { return }; drafts?.setEditing(newValue, base: activeBase) }
     }
-    func canEdit(base: Bool) -> Bool { sourceSnapshotRoot == nil && !retired && drafts?.canEdit(base: base) == true }
+    func canEdit(base: Bool) -> Bool { mutablePane(base) && !retired && drafts?.canEdit(base: base) == true }
     func draftText(base: Bool) -> String { drafts?.text(base: base) ?? "" }
     func updateDraft(_ text: String, base: Bool) {
-        guard sourceSnapshotRoot == nil, !retired, !hasPendingEditorChoice else { return }
+        guard mutablePane(base), !retired, !hasPendingEditorChoice || updatingSaveDecision else { return }
         do { try drafts?.update(text: text, base: base) } catch { self.error = error.localizedDescription }
     }
-    func updateAnnotations(_ value: FileComparisonEditing.Annotations, base: Bool) { guard !retired, !hasPendingEditorChoice else { return }; drafts?.update(annotations: value, base: base) }
+    func updateAnnotations(_ value: FileComparisonEditing.Annotations, base: Bool) { guard !retired, !hasPendingEditorChoice || updatingSaveDecision else { return }; drafts?.update(annotations: value, base: base) }
     @Published var canUndo = false
     @Published var canRedo = false
     @Published var selectedRows: Range<Int>?
@@ -475,7 +483,7 @@ import TurtleGitCore
     var undo: () -> Void = {}
     var redo: () -> Void = {}
     var canTransfer: Bool { canTransfer(toBase: activeBase) }
-    func canTransfer(toBase base: Bool) -> Bool { sourceSnapshotRoot == nil && drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !hasPendingEditorChoice && !confirmingQuit && !filtering }
+    func canTransfer(toBase base: Bool) -> Bool { mutablePane(base) && drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !hasPendingEditorChoice && !confirmingQuit && !filtering }
     var copyCommandsAllowed: Bool { !retired }
     var contextCommandsAllowed: Bool { !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
     var oppositeViewCommandsAllowed: Bool { !onePaneActive && contextCommandsAllowed }
@@ -508,7 +516,7 @@ import TurtleGitCore
     }
     func encoding(base: Bool) -> ComparisonTextEncoding? { drafts?.encoding(base: base) }
     private var formatRequest: UUID?
-    var hasPendingEditorChoice: Bool { exporting || formatRequest != nil }
+    var hasPendingEditorChoice: Bool { exporting || formatRequest != nil || paneSave != nil }
     var chooseFormat: (NSWindow, String, MergeFormatSelection) async -> MergeFormatSelection? = MergeFormatPrompt.choose
     func showFormatDialog(base: Bool) {
         guard canTransfer(toBase: base), let window, window.attachedSheet == nil,
@@ -595,6 +603,7 @@ import TurtleGitCore
         init(permissions: [RepositoryAccessLease]) { self.permissions = permissions }
     }
     private var outputRequest: OutputRequest?
+    var canSavePaneAs: Bool { canBeginOutput && document != nil }
     private var canBeginOutput: Bool { !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
     private func beginOutput() -> OutputRequest? {
         guard canBeginOutput else { return nil }
@@ -638,12 +647,16 @@ import TurtleGitCore
     lazy var chooseExportLocation: (NSWindow, String, URL) async -> URL? = { [weak self] window, name, directory in
         await self?.chooseOutput(window, name: name, directory: directory, patch: false)
     }
-    func export(base: Bool) {
+    func export(base: Bool) { writePane(base: base, rebind: false) }
+    func saveAs(base: Bool) { writePane(base: base, rebind: true) }
+    private func writePane(base: Bool, rebind: Bool) {
         guard canBeginOutput, let window, let document else { return }
         let content = base ? document.base : document.destination
         do {
             let bytes = try drafts?.exported(base: base) ?? content.bytes
-            let directory = snapshot.root, name = (content.path as NSString).lastPathComponent
+            let directory = paneTargets[base]?.url.deletingLastPathComponent() ?? (sourceSnapshotRoot == nil ? snapshot.root : FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.homeDirectoryForCurrentUser)
+            let name = (content.path as NSString).lastPathComponent
+            let selectedEncoding = drafts?.encoding(base: base) ?? content.encoding
             let chooser = chooseExportLocation
             guard let request = beginOutput() else { return }
             Task {
@@ -652,7 +665,17 @@ import TurtleGitCore
                 let permission = RepositoryAccessLease(url: url)
                 do {
                     guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    if rebind, let sourceSnapshotRoot,
+                       url.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(sourceSnapshotRoot.path + "/") { throw FileComparisonEditFailure.unsupported }
                     try withExtendedLifetime(permission) { try bytes.write(to: url, options: .atomic) }
+                    if rebind, acceptsOutput(request) {
+                        let target = try SavedMergePane(url: url, writtenBytes: bytes, encoding: selectedEncoding)
+                        if originalPaneDocument == nil { originalPaneDocument = document }
+                        paneTargets[base] = target; retainPermissions([permission])
+                        self.document = document.replacingPane(base: base, content: target.content)
+                        try drafts?.didSaveAs(target.content, base: base)
+                        selectEditorActions(); rebuildAlignment(); reloadEditorConfig()
+                    }
                 } catch { if acceptsOutput(request) { self.error = error.localizedDescription } }
             }
         } catch { self.error = error.localizedDescription }
@@ -744,7 +767,7 @@ import TurtleGitCore
     init(patchComparison: WorkingTreePatchFileComparison, access: RepositoryAccessLease?, preferences: UserDefaults) {
         repository = nil; self.access = access; snapshot = patchComparison.snapshot; path = patchComparison.document.destination.path
         let value = patchComparison.editingDocument.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: preferences))
-        document = value; drafts = FileComparisonDrafts(value)
+        document = value; originalPaneDocument = value; drafts = FileComparisonDrafts(value)
         drafts?.setEditing(false, base: false); showInlineDiff = false
         editorPreferences = .load(from: preferences); showLineNumbers = editorPreferences.showLineNumbers
         editorConfigEnabled = [true: editorPreferences.enableEditorConfig, false: editorPreferences.enableEditorConfig]
@@ -761,7 +784,7 @@ import TurtleGitCore
         folding.retire()
         loadSession?.cancel(); closeAfterLoad = false
         lineWrapping.retire(); viewportNavigation.removeAll()
-        cancelOutput()
+        cancelOutput(); cancelPaneSave()
         formatRequest = nil; previewRow = nil
         onExportStateChanged = {}
         retired = true; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
@@ -844,8 +867,14 @@ import TurtleGitCore
             }
             do {
                 try await session.run(selectedCount: 0) { [self] token in
-                    let value: FileComparisonDocument
-                    if let conflictBaseEntry, let repository {
+                    var replacements: [Bool: ComparisonFileContent] = [:]
+                    for (base, target) in paneTargets {
+                        guard !GitRuntime.isAppStoreBuild || openPermissions.contains(where: { $0.hasSecurityScope && $0.contains(target.url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                        replacements[base] = try target.read()
+                    }
+                    var value: FileComparisonDocument
+                    if replacements.count == 2, let originalPaneDocument { value = originalPaneDocument }
+                    else if let conflictBaseEntry, let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                         value = try await repository.conflictBaseComparison(conflictBaseEntry, cancellation: token).document
                     } else if let changeSetDocument {
@@ -855,14 +884,20 @@ import TurtleGitCore
                         value = try standaloneImages.read()
                     } else if let historicalWorkingComparison, let repository {
                         try validateHistoricalWorkingAccess(historicalWorkingComparison)
-                        value = try await repository.comparisonFile(historicalWorkingComparison, cancellation: token)
+                        value = try await repository.comparisonFile(historicalWorkingComparison, replacements: replacements, cancellation: token)
                     } else if let workingComparison {
                         try validateWorkingAccess(workingComparison)
-                        value = try workingComparison.read()
+                        value = try workingComparison.read(replacements: replacements)
                     } else if let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                        value = try await repository.comparisonFile(snapshot, path: path, cancellation: token)
+                        value = try await repository.comparisonFile(snapshot, path: path, replacements: replacements, cancellation: token)
                     } else { throw RevisionComparisonFailure.selection }
+                    var original = value
+                    for (base, replacement) in replacements {
+                        if let prior = originalPaneDocument { original = original.replacingPane(base: base, content: base ? prior.base : prior.destination) }
+                        value = value.replacingPane(base: base, content: replacement)
+                    }
+                    originalPaneDocument = original
                     guard !retired, !token.isCancelled else { return }
                     if !externalAttempted {
                         externalOpened = try await openExternalComparison(value, snapshot.root, workingPermissions + [access].compactMap { $0 }, alternateTool)
@@ -871,6 +906,7 @@ import TurtleGitCore
                 }
                 let adapted = value.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults))
                 document = adapted
+                for (base, target) in paneTargets { paneTargets[base] = try target.recording(base ? adapted.base : adapted.destination) }
                 imagePresentation.openImages = { [weak self] in self?.chooseImageFiles() }
                 imageComparison = standaloneImages == nil ? ImageComparisonDocument(adapted) : ImageComparisonDocument(base: ComparisonImage(bytes: adapted.base.bytes), destination: ComparisonImage(bytes: adapted.destination.bytes))
                 window?.title = "\(standaloneImages == nil ? path : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
@@ -966,6 +1002,21 @@ import TurtleGitCore
         save(sides: [base], completion: completion)
     }
     func saveAll(completion: ((Bool) -> Void)? = nil) { save(sides: drafts?.dirtySides ?? [], completion: completion) }
+    func saveAllForQuit(completion: @escaping (Bool) -> Void) {
+        guard confirmingQuit else { completion(false); return }
+        save(sides: drafts?.dirtySides ?? [], ownerInitiated: true, completion: completion)
+    }
+    func saveReboundResultFromOwner(completion: @escaping (Bool) -> Void) {
+        guard paneTargets[false] != nil else { completion(false); return }
+        save(sides: [false], ownerInitiated: true, completion: completion)
+    }
+    private var paneSave: OperationCancellation?
+    private var updatingSaveDecision = false
+    func cancelPaneSave() { paneSave?.cancel() }
+    private func ensurePaneSave(_ request: OperationCancellation) throws {
+        guard !retired, paneSave === request else { throw OperationCancellationFailure.cancelled }
+        try request.check()
+    }
     var chooseMarkedSave: () async -> FileComparisonEditing.MarkedSaveChoice? = { nil }
     var chooseEmptyResult: ((String) async -> MergeEmptyResult)?
     func installMarkedSavePrompt() {
@@ -989,21 +1040,27 @@ import TurtleGitCore
             }
         }
     }
-    private func save(sides: [Bool], completion: ((Bool) -> Void)?) {
-        guard !busy, !hasPendingEditorChoice, !confirmingQuit, !retired, window?.attachedSheet == nil, document != nil else { completion?(false); return }
-        busy = true
+    private func save(sides: [Bool], ownerInitiated: Bool = false, completion: ((Bool) -> Void)?) {
+        guard paneSave == nil, (!busy && !confirmingQuit || ownerInitiated), !hasPendingEditorChoice, !retired, window?.attachedSheet == nil, document != nil else { completion?(false); return }
+        let request = OperationCancellation(), permissions = openPermissions
+        paneSave = request; Self.activePaneExports += 1; busy = true
         Task {
             var saved = false
-            defer { busy = false; completion?(saved) }
+            defer {
+                if paneSave === request { paneSave = nil; busy = false }
+                Self.activePaneExports -= 1; withExtendedLifetime(permissions) {}; completion?(saved)
+            }
             do {
+                try ensurePaneSave(request)
                 for base in sides where drafts?.isDirty(base: base) == true {
                     // Upstream FileSave resolves marks in Mine; the writable Base save
                     // and automatic PatchSave use separate paths without this prompt.
                     if !base, !annotations(base: false).marked.isEmpty {
                         guard let choice = await chooseMarkedSave() else { return }
+                        try ensurePaneSave(request)
                         guard let alignment, let actions = editorActions[false] else { throw FileComparisonEditFailure.unsupported }
                         let text = try FileComparisonEditing.resolvingMarkedBlocks(alignment, targetBase: false, annotations: annotations(base: false), choice: choice)
-                        actions.resolveForSave(text)
+                        updatingSaveDecision = true; actions.resolveForSave(text); updatingSaveDecision = false
                     }
                     guard let document, let text = drafts?.text(base: base) else { throw FileComparisonEditFailure.unsupported }
                     let choice: MergeEmptyResult
@@ -1013,30 +1070,41 @@ import TurtleGitCore
                         else { choice = await MergeEmptyResultPrompt.choose(window: window, path: savePath) }
                     }
                     else { choice = .keep }
+                    try ensurePaneSave(request)
                     let options = MergeFileSaveOptions(backupOriginal: MergeFileSaveOptions.backupEnabled(from: comparisonDefaults), emptyResult: choice)
                     let result: FileComparisonDocument
-                    if let conflictBaseEntry, let repository {
+                    let context = savingContext(document)
+                    if let target = paneTargets[base] {
+                        guard !GitRuntime.isAppStoreBuild || openPermissions.contains(where: { $0.hasSecurityScope && $0.contains(target.url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                        result = try target.save(document, base: base, text: text, encoding: drafts?.encoding(base: base), options: options)
+                    } else if let conflictBaseEntry, let repository {
                         guard !base else { throw FileComparisonEditFailure.unsupported }
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                        result = try await repository.saveConflictBaseComparison(conflictBaseEntry, document: document, text: text, encoding: drafts?.encoding(base: base), options: options)
+                        result = try await repository.saveConflictBaseComparison(conflictBaseEntry, document: context, text: text, encoding: drafts?.encoding(base: base), options: options)
                     } else if let historicalWorkingComparison {
                         try validateHistoricalWorkingAccess(historicalWorkingComparison)
                         guard base else { throw FileComparisonEditFailure.unsupported }
                         guard try authorizeWorkingReplacement(at: historicalWorkingComparison.workingFile) else { return }
-                        result = try historicalWorkingComparison.saveBase(document, text: text, encoding: drafts?.encoding(base: base), options: options)
+                        result = try historicalWorkingComparison.saveBase(context, text: text, encoding: drafts?.encoding(base: base), options: options)
                     } else if let workingComparison {
                         try validateWorkingAccess(workingComparison)
                         guard try authorizeWorkingReplacement(at: base ? workingComparison.base : workingComparison.destination) else { return }
-                        result = try workingComparison.save(document, base: base, text: text, encoding: drafts?.encoding(base: base), options: options)
+                        result = try workingComparison.save(context, base: base, text: text, encoding: drafts?.encoding(base: base), options: options)
                     } else if let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                        result = try await repository.saveComparisonFile(snapshot, document: document, base: base, text: text, encoding: drafts?.encoding(base: base), options: options)
+                        result = try await repository.saveComparisonFile(snapshot, document: context, base: base, text: text, encoding: drafts?.encoding(base: base), options: options)
                     } else { throw RevisionComparisonFailure.selection }
-                    self.document = result
-                    try drafts?.didSave(base ? result.base : result.destination, base: base)
+                    try ensurePaneSave(request)
+                    var combined = result
+                    for other in paneTargets.keys where other != base { combined = combined.replacingPane(base: other, content: other ? document.base : document.destination) }
+                    self.document = combined
+                    let savedContent = base ? result.base : result.destination
+                    try drafts?.didSave(savedContent, base: base)
+                    if let target = paneTargets[base] { paneTargets[base] = try target.recording(savedContent) }
+                    else { originalPaneDocument = originalPaneDocument?.replacingPane(base: base, content: savedContent) }
                 }
                 rebuildAlignment(); saved = true
-            } catch { self.error = error.localizedDescription }
+            } catch { if !retired && !request.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func remapOtherAnnotations(from old: FileComparisonAlignment, to new: FileComparisonAlignment, changedBase: Bool) {
@@ -1142,7 +1210,7 @@ private struct FileComparisonDialog: View {
         VStack(spacing: 0) {
             HStack {
                 Button { model.save() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.disabled(!model.activeDirty)
-                Menu { if !model.onePaneActive { Button("Save left pane as…") { model.export(base: true) } }; Button("Save right pane as…") { model.export(base: false) } } label: { CommandLabel(title: "Save As", icon: .mergeSaveAs) }.disabled(model.document == nil)
+                Menu { if !model.onePaneActive { Button("Save left pane as…") { model.saveAs(base: true) } }; Button("Save right pane as…") { model.saveAs(base: false) } } label: { CommandLabel(title: "Save As", icon: .mergeSaveAs) }.disabled(!model.canSavePaneAs)
                 Button { model.undo() } label: { Image(nsImage: MenuIcon.mergeUndo.image() ?? NSImage()) }.help("Undo").accessibilityLabel("Undo").disabled(!model.canUndo)
                 Button { model.redo() } label: { Image(nsImage: MenuIcon.mergeRedo.image() ?? NSImage()) }.help("Redo").accessibilityLabel("Redo").disabled(!model.canRedo)
                 Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }
@@ -1672,7 +1740,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         add("Previous inline difference", #selector(previousInlineDifference(_:)), MenuIcon.mergePreviousInline.image(), canNavigateInline(forward: false))
         add("Go to Line…", #selector(goToSourceLine(_:)), NSImage(systemSymbolName: "number", accessibilityDescription: "Go to Line"), canNavigateToSourceLine)
         menu.items.last?.keyEquivalent = "g"; menu.items.last?.keyEquivalentModifierMask = .control
-        add("Save As…", #selector(exportPane), MenuIcon.mergeSaveAs.image(), !model.busy && !model.confirmingQuit)
+        add("Save As…", #selector(exportPane), MenuIcon.mergeSaveAs.image(), model.canSavePaneAs)
         add("Undo", #selector(undoEdit), MenuIcon.mergeUndo.image(), model.canUndo && !model.busy && !model.confirmingQuit)
         add("Redo", #selector(redoEdit), MenuIcon.mergeRedo.image(), model.canRedo && !model.busy && !model.confirmingQuit)
         if !model.onePaneActive { clipboardItems() }
@@ -1701,7 +1769,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     @objc private func markBlock() { model?.markBlock(true, targetBase: false) }
     @objc private func unmarkBlock() { model?.markBlock(false, targetBase: false) }
     @objc private func leaveOnlyMarked() { model?.leaveOnlyMarked(targetBase: false) }
-    @objc private func exportPane() { model?.export(base: baseSide) }
+    @objc private func exportPane() { model?.saveAs(base: baseSide) }
     @objc private func undoEdit() { model?.undo() }
     @objc private func redoEdit() { model?.redo() }
 

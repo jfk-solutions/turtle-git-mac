@@ -14,8 +14,10 @@ Source encodings and original endings are retained by the captured export.
 
 Source exports own a Save sheet, captured immutable bytes and the selected lease.
 Cancel and retired owners refuse late answers. Active export work guards Quit;
-source Open/Close are fenced during export. These are copies: rebinding source
-paths and source modified-state parity with SaveFileTo remain open.
+source Open/Close are fenced during export. Successful source Save As now rebinds the pane, matching SaveFileTo.
+Later source comparisons and Reload read the chosen file; source snapshots are
+validated before merged Save. The selected lease remains with the owner.
+See [Save As target behavior](SAVE-AS-TARGETS.md).
 
 Compare Mine/Theirs with Base opens an independent native comparison, matching
 the source's separate process. It uses private read-only captured stage files,
@@ -27,9 +29,10 @@ Merged-result copies from repository conflicts now use the same owned export
 sheet and capture their selected encoding before presentation. Unresolved-marker
 confirmation is owned and defaults to Cancel. Standalone output Save As retains
 its existing guarded output/snapshot save workflow. Read-only source comparisons
-also refuse direct model editing and block transfers, beyond file permissions.
+refuse direct editing and transfers until that pane is explicitly saved to a
+user-selected file outside its private snapshot directory.
 
-Validation passed: Debug build, 16 focused Core checks and one grouped native
+Earlier copy-only validation passed: Debug build, 16 focused Core checks and one grouped native
 source-tools/two-pane/three-pane receiver. The first compile found missing explicit
 self references in the export Task; repaired before successful build/Core run.
 The first native fixture requested emoji output in Windows-1252. Encoding failure
@@ -42,5 +45,9 @@ Undo/Save and three-pane reload regressions passed. All owned receivers were
 reaped. See [validation evidence](qa/merge-source-tools-2026-10-14.json).
 
 Physical Save/Compare gestures, warning-button input/VoiceOver, exact captures,
-source path rebinding after SaveFileTo, complete conflict-gap/EOL equivalence,
+complete conflict-gap/EOL equivalence,
 signed/container grants and full upstream/application parity remain open.
+
+The subsequent [source target batch](qa/save-as-targets-2026-10-15.json) records
+source Save As rebinding, later Save/Reload and owner-approved Quit Save checks,
+with remaining acceptance limits.

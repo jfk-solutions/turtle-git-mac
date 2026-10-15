@@ -72,3 +72,14 @@ and helper closed; the installed main application was not launched.
 Remaining: physical Delete/Cancel/Escape and Settings Apply/Cancel, failure UI,
 close/Quit while the sheet is active, cross-platform empty-format edge cases,
 minimum-OS and signed sandbox acceptance, complete merge/editor/application parity.
+
+## Source Save As targets
+
+Source pane Save As now establishes a new file and clean baseline. Later Save
+uses the same guarded backup/empty-result rules described above; initial Save As
+uses its atomic destination write. Repository merged-result copies retain their
+separate behavior. See [target semantics](SAVE-AS-TARGETS.md).
+
+The subsequent [source target batch](qa/save-as-targets-2026-10-15.json) records
+source Save As rebinding, later Save/Reload and owner-approved Quit Save checks,
+with remaining acceptance limits.

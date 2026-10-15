@@ -268,7 +268,16 @@ jobs:
         run: |
           python3 scripts/test-dialog-coverage.py
           python3 scripts/reconcile-dialog-coverage.py --check
+      - name: Application and embedded Finder extension
+        run: >-
+          xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac
+          -configuration Debug -destination 'platform=macOS'
+          -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
       - name: Git integration tests
+        env:
+          # Rebase tests invoke the real app's headless editor entry point.
+          # Core-only SwiftPM deliberately does not build .build/debug/TurtleGitMac.
+          TURTLEGIT_REBASE_EDITOR: ${{ github.workspace }}/build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac
         run: TURTLEGIT_CORE_ONLY=1 swift test
       - name: Working copy revision utility and upstream templates
         run: python3 scripts/test-wcrev.py --tool .build/debug/TurtleGitWCRev --git /usr/bin/git --git build/git-runtime/Git/bin/git
@@ -278,11 +287,6 @@ jobs:
         run: TURTLEGIT_CORE_ONLY=1 swift test --skip-build --filter GitSVNTests
       - name: Native historical file and folder item-provider receivers
         run: scripts/verify-browser-item-provider.sh
-      - name: Application and embedded Finder extension
-        run: >-
-          xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac
-          -configuration Debug -destination 'platform=macOS'
-          -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
       - name: Verify app, extension and original icon resources
         run: |
           python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
@@ -373,6 +377,8 @@ jobs:
         run: python3 scripts/test-merge-stream.py
       - name: Native Import Patch batch and recovery
         run: python3 scripts/test-import-patch.py
+      - name: Native Save As source targets
+        run: python3 scripts/test-save-as-targets.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Mail patch import and recovery
         run: python3 scripts/test-mail-patch.py
       - name: Native revision table optional font

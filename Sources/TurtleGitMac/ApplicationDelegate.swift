@@ -184,7 +184,7 @@ import AppKit
                 alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
                 switch alert.runModal() {
                 case .alertFirstButtonReturn:
-                    let saved = await withCheckedContinuation { continuation in controller.model.saveAll { continuation.resume(returning: $0) } }
+                    let saved = await withCheckedContinuation { continuation in controller.model.saveAllForQuit { continuation.resume(returning: $0) } }
                     if !saved { allowQuit = false }
                 case .alertSecondButtonReturn: break
                 default: allowQuit = false
@@ -198,7 +198,7 @@ import AppKit
                 switch alert.runModal() {
                 case .alertFirstButtonReturn:
                     let saved = await withCheckedContinuation { continuation in
-                        controller.model.save(markResolved: false) { continuation.resume(returning: $0) }
+                        controller.model.saveForQuit { continuation.resume(returning: $0) }
                     }
                     if !saved { allowQuit = false }
                 case .alertSecondButtonReturn: break

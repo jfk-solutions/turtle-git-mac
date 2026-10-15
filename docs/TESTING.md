@@ -1653,3 +1653,23 @@ objects require a Debug rebuild. Compiler and native receiver process groups are
 owned and cleaned on success/failure/timeout; no test case is dropped to avoid a
 slow compilation. See [the grouped checkpoint](qa/reference-groups-2026-10-15.json)
 for exact local scope and the separate hosted result.
+
+## Source Save As target batch
+
+After building the current Debug app, run
+`python3 scripts/test-save-as-targets.py --git /usr/bin/git --git build/git-runtime/Git/bin/git`.
+This owns a native receiver for Compare, Review and three-pane target binding,
+later Save/Reload, stale refusal and late-response cleanup. The fixture uses
+private files/preferences/clipboard and injected decisions; it does not certify
+physical sheets, signed sandbox access or full dialog parity.
+
+## Core-only rebase editor configuration
+
+Core-only SwiftPM excludes the UI executable. The hosted job therefore builds
+Debug with Xcode before integration tests and sets `TURTLEGIT_REBASE_EDITOR` to
+`build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac` using
+an absolute path. Git invokes its real headless sequence/message editor entry
+points; no second SwiftUI compilation or replacement editor implementation is
+needed. The previous `c8a2cee4` hosted run failed because tests fell back to the
+absent `.build/debug/TurtleGitMac`, causing rebase/Fetch recovery failures and a
+later fixture crash. Local focused checks do not establish a hosted green run.

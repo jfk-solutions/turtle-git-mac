@@ -353,6 +353,12 @@ public struct FileComparisonDrafts {
     }
     public var dirtySides: [Bool] { [false, true].filter { isDirty(base: $0) } }
     public var dirtyPaths: [String] { dirtySides.compactMap { panes[$0]?.content.path } }
+    mutating func rebindSavedPane(_ content: ComparisonFileContent, base: Bool) {
+        guard var pane = panes[base] else { return }
+        pane.content = content; pane.text = content.text; pane.encoding = content.encoding
+        pane.savedMarks = pane.annotations.marked
+        panes[base] = pane
+    }
     public mutating func didSave(_ content: ComparisonFileContent, base: Bool) throws {
         guard let pane = panes[base], pane.content.path == content.path, pane.content.revision == content.revision else { throw RevisionComparisonFailure.selection }
         panes[base]?.content = content

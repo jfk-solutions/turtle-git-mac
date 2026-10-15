@@ -224,6 +224,16 @@ public actor WorkingTextMerge {
         let identity: String?
     }
     private var inputs: [String: Snapshot] = [:]
+    private var savedSources: [Bool: SavedMergePane] = [:]
+    public func bindSource(mine: Bool, target: SavedMergePane) throws {
+        try target.validate()
+        savedSources[mine] = target
+        let paths = Set([baseURL.path, (savedSources[true]?.url ?? mineURL).path, (savedSources[false]?.url ?? theirsURL).path])
+        inputs = inputs.filter { paths.contains($0.key) }
+        let value = try snapshot(target.url, absentPermissions: target.content.permissions ?? 0o644)
+        inputs[target.url.path] = value
+        if outputs[target.url.path] != nil { outputs[target.url.path] = value }
+    }
     private var outputs: [String: Snapshot] = [:]
     private func snapshot(_ url: URL, absentPermissions: Int) throws -> Snapshot {
         do {
@@ -249,10 +259,11 @@ public actor WorkingTextMerge {
     }
     public func read(engine: SubversionMergeConfiguration, mergePreferUTF8: Bool? = nil, cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
         try cancellation?.check()
-        let base = try source(baseURL, mergePreferUTF8: mergePreferUTF8), theirs = try source(theirsURL, mergePreferUTF8: mergePreferUTF8), mine = try source(mineURL, mergePreferUTF8: mergePreferUTF8)
+        let activeMine = savedSources[true]?.url ?? mineURL, activeTheirs = savedSources[false]?.url ?? theirsURL
+        let base = try source(baseURL, mergePreferUTF8: mergePreferUTF8), theirs = try source(activeTheirs, mergePreferUTF8: mergePreferUTF8), mine = try source(activeMine, mergePreferUTF8: mergePreferUTF8)
         let presentation = try SubversionMergePresentation(plan: engine.plan(base: base.text!, mine: mine.text!, theirs: theirs.text!, cancellation: cancellation))
         try cancellation?.check()
-        for (url, content) in [(baseURL,base), (theirsURL,theirs), (mineURL,mine)] {
+        for (url, content) in [(baseURL,base), (activeTheirs,theirs), (activeMine,mine)] {
             let value = try snapshot(url, absentPermissions: content.permissions ?? 0o644)
             guard value.bytes == content.bytes, value.permissions == content.permissions else { throw TextConflictFailure.changedWorkingFile }
             inputs[url.path] = value
@@ -339,5 +350,27 @@ public enum MergeOpenRequest: Sendable {
         let files = [baseURL, theirsURL, mineURL].compactMap { $0 }
         guard !files.isEmpty else { throw RevisionComparisonFailure.selection }
         return .compare(base: files[0], mine: files.last!, single: files.count == 1)
+    }
+}
+
+extension TextConflictDocument {
+    /// Keep conflict/index identity and the current result snapshot while Reload
+    /// reads source panes whose SaveFileTo target has changed.
+    public func replacingSources(mine: ComparisonFileContent?, theirs: ComparisonFileContent?, engine: SubversionMergeConfiguration, cancellation: OperationCancellation? = nil) throws -> Self {
+        let mineText = mine?.text ?? self.mine, theirsText = theirs?.text ?? self.theirs
+        let presentation = try SubversionMergePresentation(plan: engine.plan(base: base, mine: mineText, theirs: theirsText, cancellation: cancellation))
+        var next = Self(entry: entry, base: base, mine: mineText, theirs: theirsText, mineStage: mineStage, theirsStage: theirsStage,
+            initialResult: initialResult, generatedResult: presentation.result, workingContents: workingContents, permissions: permissions,
+            encoding: encoding, baseEncoding: baseEncoding, mineEncoding: mine?.encoding ?? mineEncoding, theirsEncoding: theirs?.encoding ?? theirsEncoding)
+        next.mergeSources = presentation.sources
+        return next
+    }
+    public func recordingOwnedWorkingWrite(_ content: ComparisonFileContent) throws -> Self {
+        guard let text = content.text, let encoding = content.encoding, let permissions = content.permissions else { throw TextConflictFailure.encoding }
+        var next = Self(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage,
+            initialResult: text, generatedResult: generatedResult, workingContents: content.bytes, permissions: permissions,
+            encoding: encoding, baseEncoding: baseEncoding, mineEncoding: mineEncoding, theirsEncoding: theirsEncoding)
+        next.mergeSources = mergeSources
+        return next
     }
 }

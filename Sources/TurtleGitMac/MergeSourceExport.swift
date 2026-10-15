@@ -1,8 +1,8 @@
 import AppKit
 import TurtleGitCore
 
-/// An export captures pane bytes before its sheet. It neither resolves an index
-/// nor changes the source editor, and cannot publish after owner retirement.
+/// Captures pane bytes before its sheet. The optional successful-save callback
+/// can rebind that pane; no callback or write publishes after owner retirement.
 @MainActor final class MergeSourceExport {
     static private(set) var activeExports = 0
     private(set) var panel: NSSavePanel?
@@ -14,7 +14,7 @@ import TurtleGitCore
     var present: (NSSavePanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, owner, completion in panel.beginSheetModal(for: owner, completionHandler: completion) }
     var presentQuestion: (NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { alert, owner, completion in alert.beginSheetModal(for: owner, completionHandler: completion) }
     var selectedURL: (NSSavePanel) -> URL? = { $0.url }
-    func save(_ bytes: Data, name: String, owner: NSWindow, warning: String? = nil) {
+    func save(_ bytes: Data, name: String, owner: NSWindow, warning: String? = nil, didSave: (@MainActor (URL, RepositoryAccessLease) async throws -> Void)? = nil) {
         guard !retired, !writing, panel == nil, question == nil, owner.attachedSheet == nil else { return }
         window = owner; stateChanged(true)
         if let warning {
@@ -24,11 +24,11 @@ import TurtleGitCore
             presentQuestion(alert, owner) { [weak self, alert, weak owner] response in
                 guard let self, !self.retired, self.question === alert else { return }; self.question = nil
                 guard response == .alertSecondButtonReturn, let owner else { self.stateChanged(false); return }
-                self.showPanel(bytes, name: name, owner: owner)
+                self.showPanel(bytes, name: name, owner: owner, didSave: didSave)
             }
-        } else { showPanel(bytes, name: name, owner: owner) }
+        } else { showPanel(bytes, name: name, owner: owner, didSave: didSave) }
     }
-    private func showPanel(_ bytes: Data, name: String, owner: NSWindow) {
+    private func showPanel(_ bytes: Data, name: String, owner: NSWindow, didSave: (@MainActor (URL, RepositoryAccessLease) async throws -> Void)?) {
         guard !retired, panel == nil, owner.attachedSheet == nil else { stateChanged(false); return }
         let panel = NSSavePanel(); panel.nameFieldStringValue = name; panel.canCreateDirectories = true
         self.panel = panel; window = owner
@@ -42,7 +42,10 @@ import TurtleGitCore
             Task { [self, lease] in
                 defer { self.writing = false; Self.activeExports -= 1; withExtendedLifetime(lease) {}; if !self.retired { self.stateChanged(false) } }
                 guard !self.retired else { return }
-                do { try bytes.write(to: url, options: .atomic) }
+                do {
+                    try bytes.write(to: url, options: .atomic)
+                    if !self.retired { try await didSave?(url, lease) }
+                }
                 catch { if !self.retired { self.failure(error.localizedDescription) } }
             }
         }

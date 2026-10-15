@@ -297,6 +297,8 @@ private enum MergeSourceSide {
         for row in visibility.indices where visibility[row] == .hidden && (row == 0 || visibility[row - 1] == .shown) { visibility[row] = .marker }
         resultFolding.install(visibility: visibility)
     }
+    private(set) var sourceTargets: [Bool: SavedMergePane] = [:]
+    func sourceTargetURL(mine: Bool) -> URL? { sourceTargets[mine]?.url }
     @Published private(set) var exportingSource = false
     lazy var sourceExporter: MergeSourceExport = {
         let value = MergeSourceExport()
@@ -310,14 +312,27 @@ private enum MergeSourceSide {
         do {
             let encoding = (mine ? document.mineEncoding : document.theirsEncoding) ?? document.encoding
             let bytes = try MergePaneSaveAs.sourceBytes(rows: sourceComparison.rows, mine: mine, encoding: encoding)
-            sourceExporter.save(bytes, name: (mine ? "Mine-" : "Theirs-") + (path as NSString).lastPathComponent, owner: window)
+            let name = sourceTargets[mine]?.url.lastPathComponent ?? (mine ? "Mine-" : "Theirs-") + (path as NSString).lastPathComponent
+            sourceExporter.save(bytes, name: name, owner: window) { [weak self] url, lease in
+                guard let self, !self.retired else { return }
+                let target = try SavedMergePane(url: url, writtenBytes: bytes, encoding: encoding)
+                if let workingMerge = self.workingMerge { try await workingMerge.bindSource(mine: mine, target: target) }
+                guard !self.retired else { return }
+                self.sourceTargets[mine] = target; self.workingMergePermissions.append(lease)
+                let output = self.workingMerge == nil ? self.repository.root.appendingPathComponent(self.path).standardizedFileURL : self.workingMergeOutput
+                if output?.standardizedFileURL.path == target.url.path, let current = self.document {
+                    self.document = try current.recordingOwnedWorkingWrite(target.content)
+                    if self.workingMerge != nil { self.standaloneSavedResult = target.content.text; self.standaloneSavedEncoding = target.content.encoding }
+                }
+                self.objectWillChange.send()
+            }
         } catch { self.error = error.localizedDescription }
     }
     func compareSourceWithBase(mine: Bool) {
         guard sourceToolsAllowed, let document else { return }
         do {
             let base = try (document.baseEncoding ?? document.encoding).encode(document.base)
-            let side = try ((mine ? document.mineEncoding : document.theirsEncoding) ?? document.encoding).encode(mine ? document.mine : document.theirs)
+            let side = try sourceTargets[mine]?.read().bytes ?? ((mine ? document.mineEncoding : document.theirsEncoding) ?? document.encoding).encode(mine ? document.mine : document.theirs)
             try MergeSourceComparisonWindows.open(base: base, side: side, name: path, sideName: mine ? "Mine" : "Theirs", preferences: comparisonDefaults)
         } catch { self.error = error.localizedDescription }
     }
@@ -610,7 +625,7 @@ private enum MergeSourceSide {
         let options = pendingComparisonOptions ?? MergeComparisonOptions.load(from: comparisonDefaults)
         let profiles = try MergeCommentProfileFile.load(at: commentProfileURL)
         engine.filter = filter; engine.options = options; engine.commentTokens = profiles.tokens(paths: [path])
-        let next: TextConflictDocument
+        var next: TextConflictDocument
         if let workingMerge {
             if GitRuntime.isAppStoreBuild {
                 for url in [workingMerge.baseURL, workingMerge.theirsURL, workingMerge.mineURL] {
@@ -620,6 +635,10 @@ private enum MergeSourceSide {
             next = try await workingMerge.read(engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), cancellation: cancellation)
         }
         else { next = try await repository.textConflictDocument(path: path, engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), cancellation: cancellation) }
+        if workingMerge == nil, !sourceTargets.isEmpty {
+            next = try next.replacingSources(mine: sourceTargets[true]?.read(), theirs: sourceTargets[false]?.read(), engine: engine, cancellation: cancellation)
+        }
+        for (mine, target) in sourceTargets { sourceTargets[mine] = try target.recording(target.read()) }
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
         resetHistory()
@@ -636,6 +655,14 @@ private enum MergeSourceSide {
         let difference = firstChanged.flatMap { ranges.indices.contains($0) ? ranges[$0] : nil }
         selectionRequest = generalPreferences.initialTarget(difference: difference, conflict: blocks.first?.range)
         reloadEditorConfig()
+    }
+    func continueResolving() {
+        guard sourceToolsAllowed, let block = blocks.first else { return }
+        selectConflict(0)
+        if let view = locatorResultScroll?.documentView as? NSTextView {
+            window?.makeFirstResponder(view)
+            if NSMaxRange(block.range) <= (view.string as NSString).length { view.setSelectedRange(block.range); view.scrollRangeToVisible(block.range) }
+        }
     }
     func selectConflict(_ index: Int) {
         let blocks = blocks; guard !blocks.isEmpty else { return }
@@ -660,8 +687,12 @@ private enum MergeSourceSide {
     }
     var chooseEmptyResult: ((String) async -> MergeEmptyResult)?
     weak var window: NSWindow?
-    func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, chooseNewOutput: Bool = false, completion: ((Bool) -> Void)? = nil) {
-        guard !busy, !confirmingQuit, !retired, !markResolved || workingMerge == nil, window?.attachedSheet == nil, let document else { completion?(false); return }
+    func saveForQuit(completion: @escaping (Bool) -> Void) {
+        guard confirmingQuit else { completion(false); return }
+        save(markResolved: false, quitApproved: true, completion: completion)
+    }
+    func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, chooseNewOutput: Bool = false, quitApproved: Bool = false, completion: ((Bool) -> Void)? = nil) {
+        guard !busy, (!confirmingQuit || quitApproved), !retired, !markResolved || workingMerge == nil, window?.attachedSheet == nil, let document else { completion?(false); return }
         if !markResolved && MergeText.hasMarkers(result) {
             let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = "Save with unresolved conflict markers?"
             alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Save")
@@ -679,6 +710,7 @@ private enum MergeSourceSide {
                     else { standaloneOutput = await chooseMergeOutput() }
                     guard !retired, standaloneOutput != nil else { return }
                 } else { standaloneOutput = nil }
+                for target in sourceTargets.values { try target.validate() }
                 if workingMerge == nil && GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let choice: MergeEmptyResult
                 if text.isEmpty {
@@ -765,7 +797,10 @@ private struct TextConflictDialog: View {
         let smartTab = model.smartTabPanes[title] ?? model.editorPreferences.smartTab
         let encoding = editable ? model.encoding : (side == .mine ? model.document?.mineEncoding : side == .theirs ? model.document?.theirsEncoding : model.document?.baseEncoding)
         return VStack(spacing: 0) {
-            HStack { Text(title).font(.headline); Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
+            HStack {
+                Text(title).font(.headline)
+                if let side, let url = model.sourceTargetURL(mine: side == .mine) { Text(url.lastPathComponent).font(.caption).lineLimit(1).help(url.path) }
+                Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
             let counts=MergeLineStatistics(states:cells?.map(\.state) ?? model.resultStates)
             if !counts.isEmpty {MergeLineStatisticsView(statistics:counts).padding(.horizontal,7).padding(.vertical,2)}
@@ -785,6 +820,7 @@ private struct TextConflictDialog: View {
                     Button { model.exportSource(mine: false) } label: { CommandLabel(title: "Save left pane as…", icon: .mergeSaveAs) }
                     Button { model.exportSource(mine: true) } label: { CommandLabel(title: "Save right pane as…", icon: .mergeSaveAs) }
                     Button { model.export() } label: { CommandLabel(title: "Save merged result as…", icon: .mergeSaveAs) }
+                    if !model.blocks.isEmpty { Button { model.continueResolving() } label: { CommandLabel(title: "Continue resolving conflicts", icon: .mergeNextConflict) } }
                 } label: { CommandLabel(title: "Save As…", icon: .mergeSaveAs) }.disabled(!model.sourceToolsAllowed)
                 Menu("Compare sources") {
                     Button { model.compareSourceWithBase(mine: false) } label: { CommandLabel(title: "Compare Theirs with Base", icon: .compare) }

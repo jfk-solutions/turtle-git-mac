@@ -626,7 +626,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var onClosed: () -> Void = {}
     private var approvedClose = false
     private var retired = false
-    var activeOperation: Bool { editorOpenWorkflow != nil || model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.hasPendingEditorChoice == true || window?.attachedSheet != nil }
+    var activeOperation: Bool { editorOpenWorkflow != nil || model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.hasPendingEditorChoice == true || model.editor?.busy == true || window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1, automaticallyRefresh: Bool = true) {
         model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, initialStripCount: initialStripCount)
         let window = TextConflictNSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -672,7 +672,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     let directoryMode: Bool
     let isGitWorkingTree: Bool
     var openPreferences: UserDefaults { preferences }
-    var openPermissions: [RepositoryAccessLease] { [access, fileAccess].compactMap { $0 } }
+    var openPermissions: [RepositoryAccessLease] { [access, fileAccess].compactMap { $0 } + (editor?.openPermissions ?? []) }
     private let preferences: UserDefaults
     private let access: RepositoryAccessLease?
     private let fileAccess: RepositoryAccessLease?
@@ -739,7 +739,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var dirty: Bool { editor?.dirty == true }
     var editingEnabled: Bool { editor?.patchEditingEnabled == true }
     var canReplaceComparison: Bool { editable && !dirty && !editingEnabled }
-    var canEditResult: Bool { editable && !requiresRefresh && comparison.map({ !appliedPaths.contains(Data($0.document.destination.path.utf8)) }) == true && alignment != nil && editor?.canEdit(base: false) == true }
+    var canEditResult: Bool { editable && !requiresRefresh && (editor?.savedPaneURL(base: false) != nil || comparison.map({ !appliedPaths.contains(Data($0.document.destination.path.utf8)) }) == true) && alignment != nil && editor?.canEdit(base: false) == true }
     var canSaveDraft: Bool { canEditResult && editingEnabled }
     @Published private(set) var focusedFile: Int?
     @Published private(set) var comparisonNotice = ""
@@ -757,7 +757,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var onMutationStopped: () -> Void = {}
     var onBusyChanged: () -> Void = {}
     var parentActive: () -> Bool = { false }
-    var editable: Bool { !retired && !busy && editor?.hasPendingEditorChoice != true && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
+    var editable: Bool { !retired && !busy && editor?.busy != true && editor?.hasPendingEditorChoice != true && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
     private func begin() -> OperationCancellation? {
         guard !retired, !busy else { return nil }
         let token = OperationCancellation(); operation = token; busy = true; Self.activeOperations += 1
@@ -780,7 +780,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private func ensure(_ token: OperationCancellation) throws {
         guard !retired, operation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
     }
-    func cancelOperation() { operation?.cancel(); editor?.cancelOutput() }
+    func cancelOperation() { operation?.cancel(); editor?.cancelOutput(); editor?.cancelPaneSave() }
     func retire() {
         guard !retired else { return }; retired = true; operation?.cancel()
         fileListGeneration = UUID()
@@ -939,6 +939,14 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     private func performSave(_ token: OperationCancellation) async -> Bool {
         guard !retired, let comparison, let editor, editor.canEdit(base: false) else { return false }
+        if editor.savedPaneURL(base: false) != nil {
+            let saved = await withCheckedContinuation { continuation in editor.saveReboundResultFromOwner { continuation.resume(returning: $0) } }
+            if saved { onChanged("Saved selected pane: " + (editor.savedPaneURL(base: false)?.path ?? "")) }
+            else { onMutationStopped() }
+            guard !retired, operation === token, !token.isCancelled else { return false }
+            if saved { output += "Saved selected pane: " + (editor.savedPaneURL(base: false)?.path ?? "") + "\n" }
+            return saved
+        }
         let text = editor.draftText(base: false), encoding = editor.encoding(base: false)
         let autoAdd = MergeEditorPreferences.load(from: preferences).autoAdd
         var reported = false
