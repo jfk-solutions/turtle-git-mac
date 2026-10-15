@@ -25,9 +25,10 @@ public struct MergeResultPresentation: Sendable, Equatable {
     public let foldAnchors: MergeFoldAnchors
     public let ignoredConflicts: [IgnoredMergeConflict]
     public let navigationMap: MergeNavigationMap
-    public static func == (a: Self, b: Self) -> Bool { a.text.utf8.elementsEqual(b.text.utf8) && a.runs == b.runs && a.foldAnchors == b.foldAnchors && a.ignoredConflicts == b.ignoredConflicts && a.navigationMap == b.navigationMap }
+    public let sourceChoiceRevision: UInt64
+    public static func == (a: Self, b: Self) -> Bool { a.text.utf8.elementsEqual(b.text.utf8) && a.runs == b.runs && a.foldAnchors == b.foldAnchors && a.ignoredConflicts == b.ignoredConflicts && a.navigationMap == b.navigationMap && a.sourceChoiceRevision == b.sourceChoiceRevision }
     public init(text: String, states: [MergeSourceState], foldAnchors: MergeFoldAnchors = .init(), ignoredConflicts: [IgnoredMergeConflict] = [], navigationMap: MergeNavigationMap = .init()) {
-        self.text = text; self.foldAnchors = foldAnchors; self.navigationMap = navigationMap
+        self.text = text; self.foldAnchors = foldAnchors; self.navigationMap = navigationMap; self.sourceChoiceRevision = 0
         let count = text.utf16.count, source = text as NSString
         self.ignoredConflicts = ignoredConflicts.filter { item in
             item.range.location >= 0 && item.range.length > 0 && item.range.location <= count && item.range.length <= count - item.range.location && source.substring(with:item.range).utf8.elementsEqual(item.mine.utf8)
@@ -36,7 +37,7 @@ public struct MergeResultPresentation: Sendable, Equatable {
             Run(range: range.location..<NSMaxRange(range), state: states.indices.contains(index) && states[index] != .conflictedIgnored ? states[index] : .normal)
         })
     }
-    private init(text: String, runs: [Run], foldAnchors: MergeFoldAnchors, ignoredConflicts: [IgnoredMergeConflict], navigationMap: MergeNavigationMap) { self.navigationMap = navigationMap; self.text = text; self.runs = Self.compact(runs); self.foldAnchors = foldAnchors; self.ignoredConflicts = ignoredConflicts }
+    private init(text: String, runs: [Run], foldAnchors: MergeFoldAnchors, ignoredConflicts: [IgnoredMergeConflict], navigationMap: MergeNavigationMap, sourceChoiceRevision: UInt64) { self.sourceChoiceRevision = sourceChoiceRevision; self.navigationMap = navigationMap; self.text = text; self.runs = Self.compact(runs); self.foldAnchors = foldAnchors; self.ignoredConflicts = ignoredConflicts }
     private static func compact(_ runs: [Run]) -> [Run] {
         var result: [Run] = []
         for run in runs where !run.range.isEmpty {
@@ -62,7 +63,7 @@ public struct MergeResultPresentation: Sendable, Equatable {
         while suffix < min(old.count, new.count) - prefix, old[old.count - suffix - 1] == new[new.count - suffix - 1] { suffix += 1 }
         return remap(NSRange(location: prefix, length: old.count - prefix - suffix), replacementLength: new.count - prefix - suffix, text: value, state: state)
     }
-    private func remap(_ range: NSRange, replacementLength: Int, text value: String, state: MergeSourceState) -> Self {
+    private func remap(_ range: NSRange, replacementLength: Int, text value: String, state: MergeSourceState, markJoinedLine: Bool = true) -> Self {
         let end = NSMaxRange(range), delta = replacementLength - range.length
         var before: [Run] = [], after: [Run] = []
         for run in runs {
@@ -73,7 +74,7 @@ public struct MergeResultPresentation: Sendable, Equatable {
         }
         if replacementLength > 0 { before.append(Run(range: range.location..<range.location + replacementLength, state: state)) }
         var output = before + after
-        if replacementLength == 0, !value.isEmpty {
+        if markJoinedLine, replacementLength == 0, !value.isEmpty {
             // A deletion edits the joined line even though it inserts no units.
             let point = min(range.location, value.utf16.count - 1)
             if let index = output.firstIndex(where: { $0.range.contains(point) }) {
@@ -91,7 +92,7 @@ public struct MergeResultPresentation: Sendable, Equatable {
             if touched { return nil }
             return item.range.location >= end ? item.shifted(by:delta) : item
         }
-        return Self(text: value, runs: output, foldAnchors: anchors, ignoredConflicts:remaining, navigationMap:navigationMap.replacing(range,replacementLength:replacementLength))
+        return Self(text: value, runs: output, foldAnchors: anchors, ignoredConflicts:remaining, navigationMap:navigationMap.replacing(range,replacementLength:replacementLength),sourceChoiceRevision:sourceChoiceRevision)
     }
     /// Source navigation groups adjacent ignored lines; marker conflicts keep
     /// their normal parsing and original EOF/separator rules.
@@ -127,5 +128,72 @@ public struct MergeResultPresentation: Sendable, Equatable {
             }
             return value
         }
+    }
+}
+
+
+/// A source block replacement is a value snapshot, including its result text.
+/// The native owner additionally fences the source generation and modal state.
+public struct MergeSourceBlockEdit: Sendable {
+    public let sourceRows: Range<Int>
+    public let range: NSRange
+    public let replacement: String
+    public let expectedText: String
+    public let runs: [MergeResultPresentation.Run]
+    public init?(comparison: MergeSourceComparison, presentation: MergeResultPresentation,
+                 rows: Range<Int>, choice: MergeBlockChoice) {
+        guard !rows.isEmpty, rows.lowerBound >= 0, rows.upperBound <= comparison.rows.count,
+              let range = presentation.navigationMap.exactResultRange(sourceRows:rows),
+              range.location >= 0, NSMaxRange(range) <= presentation.text.utf16.count else { return nil }
+        let ending = MergeLineEndings.predominantStyle(in:presentation.text).rawValue
+        func payload(mine: Bool, normalize: Bool) -> (String, [MergeResultPresentation.Run]) {
+            var value = "", runs: [MergeResultPresentation.Run] = [], offset = 0
+            for row in rows {
+                let cell = mine ? comparison.rows[row].mine : comparison.rows[row].theirs
+                // BaseView::SaveFile excludes removed and empty view records;
+                // ResolveState makes ConflictAdded writable, not ConflictEmpty.
+                guard !cell.state.isRemoval, cell.state != .empty, cell.state != .conflictEmpty else { continue }
+                var line = cell.text
+                if normalize {
+                    line = cell.displayText
+                    if MergeLineEndings.hasFinalEnding(cell.text) || row < comparison.rows.count - 1 { line += ending }
+                }
+                let length = line.utf16.count
+                if length > 0 { runs.append(.init(range:offset..<(offset + length),state:cell.state.isConflict ? .resolved : cell.state)) }
+                value += line; offset += length
+            }
+            return (value, runs)
+        }
+        func joined(_ first: (String,[MergeResultPresentation.Run]), _ second: (String,[MergeResultPresentation.Run])) -> (String,[MergeResultPresentation.Run]) {
+            let offset = first.0.utf16.count
+            return (first.0 + second.0, first.1 + second.1.map { .init(range:($0.range.lowerBound + offset)..<($0.range.upperBound + offset),state:$0.state) })
+        }
+        let text: (String,[MergeResultPresentation.Run])
+        switch choice {
+        case .mine: text = payload(mine:true,normalize:true)
+        case .theirs: text = payload(mine:false,normalize:true)
+        case .mineThenTheirs: text = joined(payload(mine:true,normalize:true),payload(mine:false,normalize:false))
+        case .theirsThenMine: text = joined(payload(mine:false,normalize:true),payload(mine:true,normalize:false))
+        }
+        sourceRows = rows; self.range = range; replacement = text.0; runs = text.1; expectedText = presentation.text
+    }
+}
+
+extension MergeResultPresentation {
+    public func applyingSourceBlock(_ edit: MergeSourceBlockEdit) -> Self? {
+        guard text.utf8.elementsEqual(edit.expectedText.utf8),
+              navigationMap.exactResultRange(sourceRows:edit.sourceRows) == edit.range,
+              let map = navigationMap.applyingSourceRows(edit.sourceRows,replacementLength:edit.replacement.utf16.count),
+              edit.range.location >= 0, NSMaxRange(edit.range) <= text.utf16.count else { return nil }
+        let value = (text as NSString).replacingCharacters(in:edit.range,with:edit.replacement)
+        let next = remap(edit.range,replacementLength:edit.replacement.utf16.count,text:value,state:.resolved,markJoinedLine:false)
+        let inserted = NSRange(location:edit.range.location,length:edit.replacement.utf16.count)
+        var runs: [Run] = []
+        for run in next.runs {
+            if run.range.lowerBound < inserted.location { runs.append(.init(range:run.range.lowerBound..<min(run.range.upperBound,inserted.location),state:run.state)) }
+            if run.range.upperBound > NSMaxRange(inserted) { runs.append(.init(range:max(run.range.lowerBound,NSMaxRange(inserted))..<run.range.upperBound,state:run.state)) }
+        }
+        runs += edit.runs.map { .init(range:($0.range.lowerBound + inserted.location)..<($0.range.upperBound + inserted.location),state:$0.state) }
+        return Self(text:next.text,runs:runs.sorted { $0.range.lowerBound < $1.range.lowerBound },foldAnchors:next.foldAnchors,ignoredConflicts:next.ignoredConflicts,navigationMap:map,sourceChoiceRevision:sourceChoiceRevision &+ 1)
     }
 }

@@ -10,6 +10,25 @@ final class SubversionMergePresentationTests: XCTestCase {
     private func presentation(_ base: String, _ mine: String, _ theirs: String, filter: MergeRegexFilter? = nil) throws -> SubversionMergePresentation {
         try .init(plan: configuration(filter).plan(base: base, mine: mine, theirs: theirs))
     }
+    func testNonConflictingRowsMapIndividuallyIncludingRemovedAnchors() throws {
+        let value = try presentation("head\nold1\nold2\ntail\n", "head\nnew1\nnew2\ntail\n", "head\nold1\nold2\ntail\n")
+        let rows = value.sources.rows
+        let removed = try XCTUnwrap(rows.firstIndex { $0.mine.state == .yoursRemoved })
+        let added = try XCTUnwrap(rows.firstIndex { $0.mine.displayText == "new1" })
+        XCTAssertEqual(value.sources.navigationMap.exactResultRange(sourceRows:removed..<(removed + 1)),NSRange(location:5,length:0))
+        XCTAssertEqual(value.sources.navigationMap.exactResultRange(sourceRows:added..<(added + 1)),NSRange(location:5,length:5))
+        let result = MergeResultPresentation(text:value.result,states:[],navigationMap:value.sources.navigationMap)
+        let edit = try XCTUnwrap(MergeSourceBlockEdit(comparison:value.sources,presentation:result,rows:added..<(added + 1),choice:.theirs))
+        XCTAssertEqual(result.applyingSourceBlock(edit)?.text,"head\nnew2\ntail\n")
+    }
+    func testTheirsOnlyAndDeletionHaveExactWritableMappings() throws {
+        for (mine,theirs,state) in [("head\nold\ntail\n","head\nnew\ntail\n",MergeSourceState.theirsAdded),("head\ntail\n","head\nold\ntail\n",.yoursRemoved)] {
+            let value = try presentation("head\nold\ntail\n",mine,theirs)
+            let row = try XCTUnwrap(value.sources.rows.firstIndex { $0.mine.state == state || $0.theirs.state == state })
+            XCTAssertNotNil(value.sources.navigationMap.exactResultRange(sourceRows:row..<(row + 1)))
+            XCTAssertEqual(value.sources.navigationMap.exactResultRange(sourceRows:0..<value.sources.rows.count),NSRange(location:0,length:value.result.utf16.count))
+        }
+    }
     func testNavigationMapsEngineGroupsAcrossMarkerLinesAndUnequalSources() throws {
         let base = "head 🦎\nbase1\nsepA\nbase2\nsepB\nbase3\ntail\n"
         let mine = "head 🦎\nmine1a\nmine1b\nsepA\nmine2\nsepB\nbase3\ntail\n"

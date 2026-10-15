@@ -1,5 +1,14 @@
 # Testing TurtleGit for Mac
 
+The grouped `scripts/test-merge-ignored.py` receiver also includes `--only blocks`
+for ordinary source/result block choices: captured menu targets, all four choices,
+single-row changes beside other additions, zero-byte removed-row anchors, repeated
+alternatives, Undo/Redo maps/colors/modified state and stale owner/edit/reload/Quit
+gates. Core `MergeSourceBlockEditTests` and the engine presentation tests cover
+Unicode offsets, mixed/final endings, omitted states, map gaps, stale text and
+same-byte choice history. The full grouped run retains ignored-conflict and
+three-pane engine/history/color workflows; it compiles the actual app objects once.
+
 `python3 scripts/test-reference-menu-targets.py --git /usr/bin/git --git
 build/git-runtime/Git/bin/git` links the current Debug app objects once and runs
 owned sequential receivers for captured reference-menu commands and retained

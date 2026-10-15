@@ -1,5 +1,44 @@
 # Merge block navigation
 
+## Ordinary block choices — October 16, 2026
+
+The source and result context menus now also apply Mine, Theirs and both source
+orders to ordinary and non-conflicting changed blocks. Non-conflicting engine
+groups record a mapping for each aligned row: removed Base records have an exact
+zero-byte result anchor, while additions have their own payload ranges. Selecting
+one addition no longer implies its neighboring addition. After a source choice,
+the chosen rows retain their new result range and later rows shift by the actual
+UTF-16 delta. Both text selection and independent block selection are supported.
+
+`MergeSourceBlockEdit` follows BottomView::UseBlock/UseBothBlocks serialization:
+removed/empty records are omitted, the first chosen block uses result endings,
+and the appended second block retains its captured endings. Source states/colors
+remain intact except that conflict states resolve. An explicit choice carries a
+presentation revision, including when it changes no bytes; the modified/savepoint
+state, Undo and Redo retain that revision. Result history retains the exact map,
+colors, ignored-conflict metadata and choice revision together.
+
+Each native block menu entry captures its rows, choice, result presentation,
+source generation and owner identity. Later selection changes keep that target;
+edits, reloads, busy/modal/Quit state and closed owners reject an obsolete action.
+Unresolved marker/ignored conflicts keep their existing atomic block resolution.
+
+This is still partial editor parity. Marker groups and groups produced by a
+multi-row choice can retain a whole-group mapping; selecting only part of such
+a group is disabled until a complete alignment can represent it precisely.
+Arbitrary edits crossing mappings can invalidate them. The full aligned result
+view (including removed/empty records), editable source panes, wrapped screen-row
+traversal, source-state mutations after UseBothBlocks, physical input/VoiceOver,
+large-file performance and signed acceptance remain open.
+
+[Batch evidence](qa/merge-source-blocks-2026-10-16.json) records both builds,
+focused Core results, the retained fixture selection repair, four passing grouped
+native receivers and cleanup.
+
+Source inspection of BaseView::CheckOtherView and IsViewGood also confirms that
+inline navigation requires a visible opposite pane. Combined mode correctly
+keeps it disabled; it is not a missing navigation feature.
+
 This partial port follows pinned TortoiseGit
 `7338078f8ddd924b8cddee35f512f2286072136d`, especially
 `BaseView.cpp::LinesInOneChange`, `SelectNextBlock`, `SetupAllSelection`, and the
@@ -73,10 +112,10 @@ column zero and does not automatically advance inline. Copy reads that existing
 block or ordinary text selection; it no longer invents a block from a bare caret.
 Combined Removed and Added context blocks remain separate even when adjacent.
 
-Remaining source parity includes wrapped screen-row traversal, combined-view
-inline navigation/advancement, the complete aligned result view
-including removed/empty rows, and
-editable source-pane block application beyond unresolved marker/ignored conflicts.
+At that checkpoint, remaining source parity included wrapped screen-row traversal,
+the complete aligned result view including removed/empty rows, and source-pane
+block application beyond unresolved marker/ignored conflicts. The October 16
+continuation above adds ordinary block choices; the complete alignment remains open.
 A changed group can map several distinct source-state blocks to one result
 payload. Missing mappings after edits require engine recomputation or a future
 complete alignment model. Physical keyboard/VoiceOver, large-file performance,
@@ -112,7 +151,7 @@ checks still gate navigation. Initial selection consumes after layout, avoiding
 publication from representable updates.
 
 Remaining acceptance includes physical input, selected-text direction/affinity,
-wrapped-screen-row behavior, combined inline navigation, complete result alignment,
+wrapped-screen-row behavior, complete result alignment,
 large-file performance and signed installed behavior.
 
 [Initial navigation and input ownership evidence](qa/merge-initial-navigation-2026-10-16.json)

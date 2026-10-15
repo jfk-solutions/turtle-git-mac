@@ -229,6 +229,34 @@ public struct MergeNavigationMap: Equatable, Sendable {
     }
     public let entries: [Entry]
     public init(entries: [Entry] = []) { self.entries = entries }
+    /// A writable source selection must cover complete known mappings. Unlike
+    /// navigation's union, this never expands a partial row selection to an
+    /// entire engine conflict/group or bridges a mapping invalidated by typing.
+    public func exactResultRange(sourceRows: Range<Int>) -> NSRange? {
+        guard !sourceRows.isEmpty else { return nil }
+        let matches = entries.filter { $0.sourceRows.overlaps(sourceRows) }.sorted { $0.sourceRows.lowerBound < $1.sourceRows.lowerBound }
+        guard let first = matches.first else { return nil }
+        var row = sourceRows.lowerBound, end = first.resultRange.location
+        for entry in matches {
+            guard entry.sourceRows.lowerBound == row, entry.sourceRows.upperBound <= sourceRows.upperBound,
+                  entry.resultRange.location == end else { return nil }
+            row = entry.sourceRows.upperBound; end = NSMaxRange(entry.resultRange)
+        }
+        guard row == sourceRows.upperBound else { return nil }
+        return NSRange(location:first.resultRange.location,length:end - first.resultRange.location)
+    }
+    public func applyingSourceRows(_ rows: Range<Int>, replacementLength: Int) -> Self? {
+        guard let range = exactResultRange(sourceRows:rows) else { return nil }
+        let delta = replacementLength - range.length
+        let retained = entries.compactMap { entry -> Entry? in
+            if entry.sourceRows.overlaps(rows) { return nil }
+            if entry.sourceRows.lowerBound >= rows.upperBound {
+                return Entry(sourceRows:entry.sourceRows,resultRange:NSRange(location:entry.resultRange.location + delta,length:entry.resultRange.length))
+            }
+            return entry
+        }
+        return Self(entries:(retained + [Entry(sourceRows:rows,resultRange:NSRange(location:range.location,length:replacementLength))]).sorted { $0.sourceRows.lowerBound < $1.sourceRows.lowerBound })
+    }
     public func resultRange(sourceRows: Range<Int>) -> NSRange? {
         let matches = entries.filter { $0.sourceRows.overlaps(sourceRows) }.map(\.resultRange)
         guard let first = matches.first else { return nil }

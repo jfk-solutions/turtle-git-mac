@@ -145,7 +145,22 @@ public struct SubversionMergePresentation: Sendable {
                 append(separator + "<<<<<<< Mine\n" + separated(mineText) + "||||||| Base\n" + separated(baseText) + "=======\n" + separated(theirsText) + ">>>>>>> Theirs\n", state: .conflicted)
             }
             if rows.count > sourceStart {
-                navigation.append(.init(sourceRows:sourceStart..<rows.count,resultRange:NSRange(location:resultStart,length:outputLength - resultStart)))
+                if segment.kind == .conflict {
+                    navigation.append(.init(sourceRows:sourceStart..<rows.count,resultRange:NSRange(location:resultStart,length:outputLength - resultStart)))
+                } else {
+                    // Removed Base rows occupy real aligned rows but no saved
+                    // result bytes. Added rows map individually, so choosing a
+                    // sub-block never replaces its neighboring additions.
+                    let removedCount = max(segment.base.count, resolvedPadding)
+                    var offset = resultStart
+                    let lines = segment.kind == .latest ? Array(theirs[segment.theirs]) : Array(plan.mine[segment.mine])
+                    for row in sourceStart..<rows.count {
+                        let added = row - sourceStart - removedCount
+                        let length = added >= 0 && lines.indices.contains(added) ? lines[added].utf16.count : 0
+                        navigation.append(.init(sourceRows:row..<(row + 1),resultRange:NSRange(location:offset,length:length)))
+                        offset += length
+                    }
+                }
             }
         }
         sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans), resultAnchors: anchors, ignoredConflicts: ignoredConflicts, navigationMap:.init(entries:navigation)); result = output

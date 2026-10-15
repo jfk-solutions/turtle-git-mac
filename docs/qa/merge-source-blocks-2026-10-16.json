@@ -1,0 +1,112 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "156321b8",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "BottomView.cpp UseBlock/UseBothBlocks/UseViewBlock",
+    "BaseView.cpp ResolveState, SaveFile, CheckOtherView and IsViewGood"
+  ],
+  "scope": [
+    "Ordinary/nonconflicting source and result block choices, both source orderings and original menu icons",
+    "Per-row nonconflicting engine result mappings and exact zero-byte removed-row anchors",
+    "Captured source-row/choice/result/generation/owner commands survive selection changes and reject stale edits/reload/busy/modal/Quit/closed owners",
+    "Exact complete-row mapping check refuses partial or invalidated groups",
+    "First block result EOL normalization, original second-block endings, omitted removed/empty records and source state colors",
+    "Presentation source-choice revision retains same-byte modified state, Undo/Redo snapshot and savepoint baseline"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/merge-source-blocks-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/merge-source-blocks-provenance-build.log",
+      "exit": 0,
+      "reason": "Source review after first pass identified ordinary-source color retention and same-byte explicit-choice history; completed both before native verification"
+    }
+  ],
+  "core": [
+    {
+      "log": "build/qa/merge-source-blocks-core.log",
+      "tests": 44,
+      "failures": 0,
+      "suites": [
+        "MergeSourceBlockEditTests",
+        "MergeNavigationMapTests",
+        "SubversionMergePresentationTests",
+        "MergeResultPresentationTests",
+        "MergeBlockNavigationTests"
+      ]
+    },
+    {
+      "log": "build/qa/merge-source-blocks-provenance-core.log",
+      "tests": 19,
+      "failures": 0,
+      "suites": [
+        "MergeSourceBlockEditTests",
+        "MergeNavigationMapTests",
+        "MergeResultPresentationTests"
+      ],
+      "reason": "Only changed provenance and dependent mapping suites repeated; engine/navigation suites unchanged after first pass"
+    }
+  ],
+  "native": [
+    {
+      "log": "build/qa/merge-source-blocks-native.log",
+      "receivers_reaped": [
+        68515
+      ],
+      "result": "failed fixture, repaired",
+      "failure": "Retained ignored-conflict receiver waited at line 67 after invoking the footer choice following Undo, which clears selection. Fixture now explicitly selects the restored ignored conflict and asserts canChooseConflict before its next choice; no assertion weakened."
+    },
+    {
+      "log": "build/qa/merge-source-blocks-native-repair.log",
+      "receivers_reaped": [
+        68627,
+        68688,
+        68749,
+        69043
+      ],
+      "result": "pass",
+      "failure": null
+    }
+  ],
+  "native_passed_scope": [
+    "System Git ignored-conflict workflow",
+    "Bundled Git ignored-conflict workflow",
+    "Retained three-pane source/result navigation, engine/filter/reload/save and result colors/history in one owned receiver",
+    "New ordinary source/result block workflow, all four choices, zero-byte insertion, neighboring additions, captured selection, repeated alternatives, Undo/Redo, stale edit/reload/Quit/close and unchanged inputs"
+  ],
+  "cleanup": {
+    "owned_receiver_count": 5,
+    "all_reaped": true,
+    "ps_after_checks": "none present",
+    "unrelated_processes_terminated": false
+  },
+  "documentation": {
+    "bundled_help_documents": 26,
+    "topics": 47,
+    "files": 32,
+    "bytes": 194110
+  },
+  "hosted_state": {
+    "live_run": 38814893133,
+    "sha": "cb7724af",
+    "step": 58,
+    "step_name": "Git integration tests",
+    "pending_run": 38819073740,
+    "pending_sha": "156321b8",
+    "pages_run": 38819073686,
+    "pages_sha": "156321b8",
+    "pages_conclusion": "success",
+    "latest_full_macos_pass": false
+  },
+  "limits": [
+    "Complete aligned result view with removed/empty records remains open",
+    "Whole-group conflict and multi-row-choice mappings can refuse later partial selection; crossing edits can invalidate mappings",
+    "Source panes remain read-only; UseBothBlocks source-state mutations are not reproduced",
+    "No native current-batch save of the new ordinary-choice revision was exercised; retained conflict save/savepoint tests and implementation baseline checks passed",
+    "Physical keyboard/mouse/VoiceOver, wrapping, large-file performance and signed Finder/App Store acceptance remain open",
+    "No new public screenshots or complete dialog certification"
+  ]
+}

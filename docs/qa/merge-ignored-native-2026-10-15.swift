@@ -64,6 +64,10 @@ import TurtleGitCore
         var savedMine:Bool?;model.save(markResolved:false){savedMine = $0};try await wait {savedMine != nil && !model.busy}
         try require(savedMine == true && !model.dirty && Data(contentsOf:file) == Data(mine.utf8) && Data(contentsOf:root.appendingPathComponent(".git/index")) == index,"Same-byte resolution Save lost savepoint or staged early")
         model.undo();try await wait {model.blocks.first?.isIgnored == true && model.dirty}
+        // Undo clears selections. Select the restored conflict explicitly
+        // before exercising the next footer choice, rather than relying on a
+        // delayed native selection callback to revive the old footer target.
+        model.selectConflict(0);try require(model.canChooseConflict,"Restored ignored conflict cannot be selected")
         model.choose(.theirs);try await wait {model.blocks.isEmpty && model.result == theirs && view.string == theirs}
         model.undo();try await wait {model.blocks.first?.isIgnored == true && model.result == mine}
         model.redo();try await wait {model.blocks.isEmpty && model.result == theirs}
