@@ -1,0 +1,120 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "1e03c7c8",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "DiffData.cpp DoThreeWayDiff result records, removal states, blank conflict slots and logical numbering",
+    "BaseView.cpp SaveFile removed/empty filtering and source block resolution"
+  ],
+  "scope": [
+    "Retain one initial result record per aligned source row with removed Base payloads, blank conflict slots and logical result numbering, independently of serialized marker text",
+    "Checked current projection for result HUD, locator color bands, search/marked highlights, viewport and click conversion",
+    "Single-side source/footer/result choices retain per-row UTF-16 ranges for subsequent partial alternatives, with Undo/Redo and unchanged input files",
+    "Refuse unknown or multi-copy mappings instead of guessing geometry; existing serialized editor remains available"
+  ],
+  "build": {
+    "log": "build/qa/merge-aligned-rows-build.log",
+    "exit": 0
+  },
+  "core": {
+    "log": "build/qa/merge-aligned-rows-core.log",
+    "tests": 42,
+    "failures": 0,
+    "suites": [
+      "SubversionMergePresentationTests",
+      "MergeSourceBlockEditTests",
+      "MergeNavigationMapTests",
+      "MergeResultPresentationTests"
+    ],
+    "repeated_after_fixture_only_repair": false
+  },
+  "native": [
+    {
+      "log": "build/qa/merge-aligned-rows-native.log",
+      "passed": [
+        "Ignored workflow with system Git",
+        "Ignored workflow with bundled Git",
+        "Retained engine/navigation/result history",
+        "Source block choices"
+      ],
+      "failed": "New aligned fixture incorrectly asserted the number of compressed locator color bands equals the number of rows",
+      "receivers_reaped": [
+        74081,
+        74142,
+        74209,
+        74503,
+        74506
+      ]
+    },
+    {
+      "log": "build/qa/merge-aligned-rows-native-repair.log",
+      "result": "Diagnostic confirmed valid 124-record projection and three locator columns of four compressed color bands; fixture assertion was incorrect",
+      "receivers_reaped": [
+        74744
+      ]
+    },
+    {
+      "log": "build/qa/merge-aligned-rows-native-repair-2.log",
+      "result": "PASS, focused aligned case only after fixture repair",
+      "verified": [
+        "Projection and compressed locator band row extents",
+        "Logical conflict/removal counts",
+        "Marker-to-source offsets",
+        "Actual locator click scroll coordinates",
+        "Footer Mine resolution",
+        "Native source and result context-menu one-row alternatives without replacing neighbors",
+        "Undo/Redo initial aligned metadata",
+        "Unchanged Base/Mine/Theirs bytes",
+        "Owned window closed and active regex requests zero"
+      ],
+      "receivers_reaped": [
+        74778
+      ]
+    }
+  ],
+  "ci": {
+    "macos": {
+      "run": 38824056371,
+      "sha": "1e03c7c8",
+      "last_observed": "pending"
+    },
+    "pages": {
+      "run": 38824056491,
+      "sha": "1e03c7c8",
+      "conclusion": "success"
+    },
+    "full_current_macos_pass": false
+  },
+  "limitations": [
+    "Editable result still renders serialized marker text; full aligned result editor and edits inside gap/conflict/removal records remain open",
+    "Both-order choices retain whole-group maps; expanded duplicate geometry and source-view mutations remain open",
+    "Unknown/multiline arbitrary-edit mappings fall back to serialized coordinates",
+    "Complete wrapped/large-file three-pane geometry and signed installed acceptance remain unverified",
+    "No complete dialog or application parity certification"
+  ],
+  "documentation": {
+    "bundled_help": {
+      "documents": 26,
+      "topics": 47,
+      "files": 32,
+      "bytes": 195559,
+      "check": "passed"
+    },
+    "site": {
+      "documents": 235,
+      "unresolved_fragments": 0
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 974,
+      "pending_control_reviews": 685
+    }
+  },
+  "cleanup": {
+    "all_seven_owned_receiver_pids_absent": true,
+    "windows_closed_by_fixture_defer": true
+  }
+}

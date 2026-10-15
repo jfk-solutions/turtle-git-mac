@@ -1,5 +1,15 @@
 # Testing TurtleGit for Mac
 
+`scripts/test-merge-ignored.py --only aligned` checks actual three-pane logical
+result counts and locator coordinates, footer resolution followed by one-row
+source/result alternatives, exact neighboring payload preservation, Undo/Redo
+metadata and unchanged inputs. The grouped default retains ignored-conflict,
+engine/save/history/color and ordinary-source workflows. Core presentation tests
+verify removed records, logical numbers, blank conflict slots versus serialized
+markers, precise post-resolution row maps, Unicode offsets, edited provenance and
+refusal to invent unknown or multi-copy coordinates. Full aligned result editing
+is not covered or implemented by this checkpoint.
+
 `scripts/test-merge-whitespace-states.py --only savepoints` checks real native
 saved/branched same-byte edits, global cross-pane Undo/Redo, inserted-line deletion
 cleanup, owned option/filter Cancel/discard/failed Save, Save-left/right/both,

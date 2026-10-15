@@ -65,6 +65,12 @@ public struct SubversionMergePresentation: Sendable {
         var spans: [(Range<Int>, MergeSourceState)] = [], outputLength = 0
         var ignoredConflicts: [IgnoredMergeConflict] = []
         var navigation: [MergeNavigationMap.Entry] = []
+        var resultRows: [MergeSourceCell] = [], resultLine = 0
+        func appendResultRow(_ text: String, state: MergeSourceState) {
+            let numbered = !state.isRemoval && state != .empty && state != .conflictEmpty
+            if numbered { resultLine += 1 }
+            resultRows.append(.init(text:text,lineNumber:numbered ? resultLine : nil,state:state))
+        }
         func append(_ text: String, state: MergeSourceState) {
             let count = text.utf16.count
             if count > 0 { spans.append((outputLength..<outputLength + count, state)); outputLength += count }
@@ -103,6 +109,7 @@ public struct SubversionMergePresentation: Sendable {
                     let b = segment.base.lowerBound + offset, m = segment.mine.lowerBound + offset, t = segment.theirs.lowerBound + offset
                     let state: MergeSourceState = ignored(b,m,t) ? .conflictAdded : equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered
                     rows.append(.init(mine: cell(plan.mine, m, state), theirs: cell(theirs, t, state)))
+                    appendResultRow(plan.mine[m],state:ignored(b,m,t) ? .conflictedIgnored : state)
                 }
                 for offset in 0..<segment.mine.count {
                     let m = segment.mine.lowerBound + offset, b = segment.base.lowerBound + offset, t = segment.theirs.lowerBound + offset
@@ -123,6 +130,7 @@ public struct SubversionMergePresentation: Sendable {
                 rows.append(.init(
                     mine: segment.kind == .latest ? cell(plan.mine, segment.mine.lowerBound + offset, .normal) : removed,
                     theirs: segment.kind == .modified ? cell(theirs, segment.theirs.lowerBound + offset, .normal) : removed))
+                appendResultRow(removed.text,state:removedState)
             }
             let mineAdded = segment.kind == .latest ? 0 : segment.mine.count
             let theirsAdded = segment.kind == .modified ? 0 : segment.theirs.count
@@ -133,6 +141,9 @@ public struct SubversionMergePresentation: Sendable {
                 let state: MergeSourceState = segment.kind == .conflict || hiddenConflict ? .conflictAdded : segment.kind == .latest ? .theirsAdded : .identicalAdded
                 rows.append(.init(mine: offset < mineAdded ? cell(plan.mine, segment.mine.lowerBound + offset, state) : gap(segment.kind == .conflict ? .conflictEmpty : .empty),
                                   theirs: offset < theirsAdded ? cell(theirs, segment.theirs.lowerBound + offset, state) : gap(segment.kind == .conflict ? .conflictEmpty : .empty)))
+                if segment.kind == .conflict { appendResultRow("",state:.conflicted) }
+                else if segment.kind == .latest { appendResultRow(theirs[segment.theirs.lowerBound + offset],state:.theirsAdded) }
+                else { appendResultRow(plan.mine[segment.mine.lowerBound + offset],state:hiddenConflict ? .conflictedIgnored : segment.kind == .modified ? .yoursAdded : .identicalAdded) }
             }
             switch segment.kind {
             case .common: break
@@ -163,6 +174,6 @@ public struct SubversionMergePresentation: Sendable {
                 }
             }
         }
-        sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans), resultAnchors: anchors, ignoredConflicts: ignoredConflicts, navigationMap:.init(entries:navigation)); result = output
+        sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans), resultAnchors: anchors, ignoredConflicts: ignoredConflicts, navigationMap:.init(entries:navigation),alignedResultRows:resultRows); result = output
     }
 }

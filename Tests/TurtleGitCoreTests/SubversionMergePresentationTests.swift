@@ -10,6 +10,66 @@ final class SubversionMergePresentationTests: XCTestCase {
     private func presentation(_ base: String, _ mine: String, _ theirs: String, filter: MergeRegexFilter? = nil) throws -> SubversionMergePresentation {
         try .init(plan: configuration(filter).plan(base: base, mine: mine, theirs: theirs))
     }
+    func testAlignedResultRetainsRemovedRecordsAndLogicalNumbers() throws {
+        let value = try presentation("head\nold\ntail\n","head\nold\ntail\n","head\nnew\ntail\n")
+        let rows = try XCTUnwrap(value.sources.alignedResultRows)
+        XCTAssertEqual(rows.map(\.displayText),["head","old","new","tail"])
+        XCTAssertEqual(rows.map(\.state),[.normal,.theirsRemoved,.theirsAdded,.normal])
+        XCTAssertEqual(rows.map(\.lineNumber),[1,nil,2,3])
+        XCTAssertEqual(rows.count,value.sources.rows.count)
+        let result = MergeResultPresentation(text:value.result,states:value.sources.resultLocator!.states,navigationMap:value.sources.navigationMap)
+        let projected = try XCTUnwrap(MergeAlignedResultProjection(comparison:value.sources,presentation:result))
+        XCTAssertEqual(projected.cells.map(\.displayText),rows.map(\.displayText))
+        XCTAssertEqual(projected.serializedRanges[1],NSRange(location:5,length:0))
+    }
+    func testConflictMarkerLinesAreNotAlignedResultRecords() throws {
+        let value = try presentation("head\nold1\nold2\ntail\n","head\nmine1\nmine2\ntail\n","head\ntheirs1\ntheirs2\ntail\n")
+        let initial = try XCTUnwrap(value.sources.alignedResultRows)
+        XCTAssertEqual(initial.map(\.state),[.normal,.identicalRemoved,.identicalRemoved,.conflicted,.conflicted,.normal])
+        XCTAssertEqual(initial.map(\.displayText),["head","old1","old2","","","tail"])
+        XCTAssertEqual(initial.map(\.lineNumber),[1,nil,nil,2,3,4])
+        let result = MergeResultPresentation(text:value.result,states:value.sources.resultLocator!.states,navigationMap:value.sources.navigationMap)
+        let projection = try XCTUnwrap(MergeAlignedResultProjection(comparison:value.sources,presentation:result))
+        XCTAssertEqual(projection.cells.filter { $0.state == .conflicted }.count,2)
+        XCTAssertGreaterThan(result.states(conflicts:result.conflicts().map(\.range)).filter { $0 == .conflicted }.count,2)
+        let block = try XCTUnwrap(result.conflicts().first)
+        XCTAssertEqual(projection.sourceRows(intersecting:block.range),[3,4])
+    }
+    func testSingleSideResolutionKeepsExactRowsForLaterPartialChoice() throws {
+        let value = try presentation("head\nold1\nold2\ntail\n","head\nmine1\nmine2\ntail\n","head\ntheirs 🐢\ntheirs2\ntail\n")
+        let before = MergeResultPresentation(text:value.result,states:value.sources.resultLocator!.states,navigationMap:value.sources.navigationMap)
+        let conflict = try XCTUnwrap(before.conflicts().first)
+        let sourceRows = try XCTUnwrap(before.navigationMap.sourceRows(resultRange:conflict.range))
+        let mine = try XCTUnwrap(MergeSourceBlockEdit(comparison:value.sources,presentation:before,rows:sourceRows,choice:.mine))
+        let resolved = try XCTUnwrap(before.applyingSourceBlock(mine))
+        XCTAssertEqual(resolved.text,"head\nmine1\nmine2\ntail\n")
+        XCTAssertEqual(resolved.navigationMap.exactResultRange(sourceRows:3..<4),NSRange(location:5,length:6))
+        XCTAssertEqual(resolved.navigationMap.exactResultRange(sourceRows:4..<5),NSRange(location:11,length:6))
+        let partial = try XCTUnwrap(MergeSourceBlockEdit(comparison:value.sources,presentation:resolved,rows:3..<4,choice:.theirs))
+        let after = try XCTUnwrap(resolved.applyingSourceBlock(partial))
+        XCTAssertEqual(after.text,"head\ntheirs 🐢\nmine2\ntail\n")
+        let projection = try XCTUnwrap(MergeAlignedResultProjection(comparison:value.sources,presentation:after))
+        XCTAssertEqual(projection.cells.map(\.displayText),["head","old1","old2","theirs 🐢","mine2","tail"])
+        XCTAssertEqual(projection.sourceRows(intersecting:after.navigationMap.exactResultRange(sourceRows:4..<5)!),[4])
+        XCTAssertEqual(before.conflicts().count,1)
+    }
+    func testUnknownAndMultiCopyCoordinatesRefuseAlignedProjection() throws {
+        let value = try presentation("head\nold\ntail\n","head\nmine\ntail\n","head\ntheirs\ntail\n")
+        let result = MergeResultPresentation(text:value.result,states:value.sources.resultLocator!.states,navigationMap:value.sources.navigationMap)
+        let rows = try XCTUnwrap(result.navigationMap.sourceRows(resultRange:result.conflicts()[0].range))
+        let edit = try XCTUnwrap(MergeSourceBlockEdit(comparison:value.sources,presentation:result,rows:rows,choice:.mineThenTheirs))
+        XCTAssertNil(MergeAlignedResultProjection(comparison:value.sources,presentation:try XCTUnwrap(result.applyingSourceBlock(edit))))
+        XCTAssertNil(MergeAlignedResultProjection(comparison:value.sources,presentation:result.reconciling("prefix\n" + result.text)))
+    }
+    func testPartialTypingKeepsEditedRowStateAndExactSerializedOffsets() throws {
+        let value = try presentation("head\nline text\ntail\n","head\nline text\ntail\n","head\nline text\ntail\n")
+        let original = MergeResultPresentation(text:value.result,states:value.sources.resultLocator!.states,navigationMap:value.sources.navigationMap)
+        let changed = try XCTUnwrap(original.replacing(NSRange(location:7,length:1),with:"🐢"))
+        let projection = try XCTUnwrap(MergeAlignedResultProjection(comparison:value.sources,presentation:changed))
+        XCTAssertEqual(projection.cells[1].state,.edited)
+        XCTAssertEqual(projection.cells[1].text,"li🐢e text\n")
+        XCTAssertEqual(projection.serializedRanges[2].location,"head\nli🐢e text\n".utf16.count)
+    }
     func testNonConflictingRowsMapIndividuallyIncludingRemovedAnchors() throws {
         let value = try presentation("head\nold1\nold2\ntail\n", "head\nnew1\nnew2\ntail\n", "head\nold1\nold2\ntail\n")
         let rows = value.sources.rows

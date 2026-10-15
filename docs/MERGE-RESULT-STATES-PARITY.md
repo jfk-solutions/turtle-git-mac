@@ -1,5 +1,37 @@
 # Merge resolved and edited presentation
 
+## Aligned result records and precise resolution — October 16, 2026
+
+The Subversion presentation now retains the pinned DiffData result records in
+source-row order. Removed Base records retain their payload, removal state and
+absent result number. Common/added records carry logical result numbers; each
+conflicted source slot has a blank Conflicted result record rather than becoming
+the several serialized marker lines. Ignored conflicts retain their plain Mine
+payload and separate unresolved state. These records are distinct from saved
+file text and the existing editable marker-text view.
+
+A checked projection combines those initial records with the current result
+mapping and provenance. Result statistics and the middle locator column use it
+when every source and serialized position is accounted for. Search/marked locator
+rows and locator clicks convert between serialized and aligned coordinates.
+Unknown mappings or expanded multi-copy/multi-line groups retain the existing
+serialized-view fallback; no correspondence is fabricated. The cache invalidates
+when source comparison or result presentation changes.
+
+Single-side block resolutions now retain a separate result range for each
+source row, including zero-byte removed/empty records. Footer, source and result
+context choices use that path for ordinary complete marker groups. Selecting one
+line afterward can take its opposite source without replacing neighboring lines;
+Undo/Redo retains each precise map. Both ordering choices retain a whole-group map
+until their duplicated source-row geometry is implemented. Ignored and unusual
+leading-separator conflicts keep their existing atomic resolution path.
+
+This is the row-model and coordinate phase of full three-pane alignment. The
+editable result still displays serialized text. Rendering removed/empty/conflict
+records in that editor, edits directly in those records, resolved-empty aliases,
+multi-copy source mutations and complete wrapped three-pane geometry remain open.
+No full aligned-window, dialog or application certification is claimed.
+
 Baseline: `7338078f8ddd924b8cddee35f512f2286072136d`,
 `BaseView` resolved-state conversion/editing and `SetColorPage::SaveData`.
 
@@ -126,3 +158,5 @@ The connected [one-pane whitespace continuation](MERGE-ONE-PANE-PARITY.md#source
 [Three-pane navigation](MERGE-NAVIGATION-PARITY.md) uses those result states and
 engine source/result mappings, retaining the mappings through block choices and
 Undo/Redo. This remains a partial port of the fully aligned upstream result view.
+
+Aligned row-model evidence: [October 16 grouped verification](qa/merge-aligned-rows-2026-10-16.json).

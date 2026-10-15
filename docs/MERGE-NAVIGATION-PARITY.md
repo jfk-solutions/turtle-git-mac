@@ -1,5 +1,11 @@
 # Merge block navigation
 
+The October 16 [aligned result-record continuation](MERGE-RESULT-STATES-PARITY.md)
+adds logical result counts/locator coordinates and exact per-row mappings after
+single-side marker resolution. Later source/result one-row choices can reuse
+those mappings. Whole-group mappings remain for both-order copies and fallback
+conflicts; the fully aligned editable result view remains in progress.
+
 ## Ordinary block choices — October 16, 2026
 
 The source and result context menus now also apply Mine, Theirs and both source
@@ -162,3 +168,5 @@ configuration race and repaired grouped native checks.
 Three-pane source views are read-only in the pinned MainFrm::LoadViews; only
 Bottom/result is writable. Two-pane Base/Mine editing is separate and now retains
 Edited records through input, history and Save; see [in-place editing](MERGE-ONE-PANE-PARITY.md).
+
+Aligned row-model evidence: [October 16 grouped verification](qa/merge-aligned-rows-2026-10-16.json).

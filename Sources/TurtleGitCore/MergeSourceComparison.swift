@@ -59,10 +59,15 @@ public struct MergeSourceComparison: Sendable {
     public let resultAnchors: [Int: Int]
     public let ignoredConflicts: [IgnoredMergeConflict]
     public let navigationMap: MergeNavigationMap
-    public init(rows: [MergeSourceRow], resultLocator: MergeLocatorResult? = nil, resultAnchors: [Int: Int] = [:], ignoredConflicts: [IgnoredMergeConflict] = [], navigationMap: MergeNavigationMap = .init()) {
+    /// Diff3 view records, distinct from serialized marker lines. Removed Base
+    /// records and blank conflict/empty records retain their aligned positions.
+    public let alignedResultRows: [MergeSourceCell]?
+    public init(rows: [MergeSourceRow], resultLocator: MergeLocatorResult? = nil, resultAnchors: [Int: Int] = [:], ignoredConflicts: [IgnoredMergeConflict] = [], navigationMap: MergeNavigationMap = .init(), alignedResultRows: [MergeSourceCell]? = nil) {
+        self.alignedResultRows = alignedResultRows?.count == rows.count ? alignedResultRows : nil
         self.navigationMap = navigationMap; self.rows = rows; self.resultLocator = resultLocator; self.resultAnchors = resultAnchors; self.ignoredConflicts = ignoredConflicts
     }
     public init(base: String, mine: String, theirs: String) {
+        alignedResultRows = nil
         resultLocator = nil; resultAnchors = [:]; ignoredConflicts = []; navigationMap = .init()
         let baseLines = Self.lines(base), mineLines = Self.lines(mine), theirLines = Self.lines(theirs)
         let mineHunks = Self.hunks(base: baseLines, side: mineLines, mine: true)
@@ -245,8 +250,11 @@ public struct MergeNavigationMap: Equatable, Sendable {
         guard row == sourceRows.upperBound else { return nil }
         return NSRange(location:first.resultRange.location,length:end - first.resultRange.location)
     }
-    public func applyingSourceRows(_ rows: Range<Int>, replacementLength: Int) -> Self? {
+    public func applyingSourceRows(_ rows: Range<Int>, replacementLength: Int, replacementEntries: [Entry]? = nil) -> Self? {
         guard let range = exactResultRange(sourceRows:rows) else { return nil }
+        let replacement = replacementEntries ?? [Entry(sourceRows:rows,resultRange:NSRange(location:range.location,length:replacementLength))]
+        let proposed = Self(entries:replacement)
+        guard proposed.exactResultRange(sourceRows:rows) == NSRange(location:range.location,length:replacementLength) else { return nil }
         let delta = replacementLength - range.length
         let retained = entries.compactMap { entry -> Entry? in
             if entry.sourceRows.overlaps(rows) { return nil }
@@ -255,7 +263,7 @@ public struct MergeNavigationMap: Equatable, Sendable {
             }
             return entry
         }
-        return Self(entries:(retained + [Entry(sourceRows:rows,resultRange:NSRange(location:range.location,length:replacementLength))]).sorted { $0.sourceRows.lowerBound < $1.sourceRows.lowerBound })
+        return Self(entries:(retained + replacement).sorted { $0.sourceRows.lowerBound < $1.sourceRows.lowerBound })
     }
     public func resultRange(sourceRows: Range<Int>) -> NSRange? {
         let matches = entries.filter { $0.sourceRows.overlaps(sourceRows) }.map(\.resultRange)

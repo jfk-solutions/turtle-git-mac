@@ -148,6 +148,10 @@ choices for selected ordinary or changed source blocks, as well as unresolved
 conflicts. A choice affects the captured block even if you later move the
 selection. Removed source rows and empty alignment gaps do not become saved
 content; choosing the unchanged opposite side can restore text at that position.
+After choosing Mine or Theirs for a conflict, select an individual line to take
+the other source for that line while retaining its neighbors. Undo/Redo restores
+the earlier choices. The result overview uses logical row counts rather than
+counting each conflict marker as another conflicted row.
 Choices retain source colors and count as modifications even when the selected
 text is unchanged. Missing mappings after manual edits disable the affected
 choices; Reload regenerates mappings and replaces the current draft after its

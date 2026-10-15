@@ -260,7 +260,7 @@ private enum MergeSourceSide {
     let path: String
     private let access: RepositoryAccessLease?
     @Published var document: TextConflictDocument?
-    @Published var sourceComparison: MergeSourceComparison? { didSet { inlineCache = [:] } }
+    @Published var sourceComparison: MergeSourceComparison? { didSet { inlineCache = [:]; alignedResultCache = nil } }
     lazy var folding: MergeFoldingController = {
         let value = makeFoldingController()
         value.expanded = { [weak self] _ in self?.synchronizeResultFolding() }
@@ -404,12 +404,17 @@ private enum MergeSourceSide {
             guard !self.retired else { return }
             let left = self.sourceScrolls.first { $0.key.hasPrefix("Theirs") }?.value.view
             let right = self.sourceScrolls.first { $0.key.hasPrefix("Mine") }?.value.view
-            let next: [MergeLocatorHighlights] = [.read(left), .read(self.locatorResultScroll), .read(right)]
+            var result = MergeLocatorHighlights.read(self.locatorResultScroll)
+            if let projection = self.alignedResultProjection {
+                result.search = projection.sourceRows(serializedRows:result.search,text:self.result)
+                result.marked = projection.sourceRows(serializedRows:result.marked,text:self.result)
+            }
+            let next: [MergeLocatorHighlights] = [.read(left), result, .read(right)]
             if self.locatorHighlights != next { self.locatorHighlights = next }
         }
     }
     var locatorMap: MergeLocatorMap {
-        let states = resultStates
+        let states = alignedResultStates
         return MergeLocatorMap(columns: [sourceComparison?.rows.map { $0.theirs.state } ?? [], states, sourceComparison?.rows.map { $0.mine.state } ?? []])
     }
     func setLocatorPreferences(_ value: MergeLocatorPreferences) {
@@ -417,15 +422,25 @@ private enum MergeSourceSide {
         locatorPreferences = value; value.save(to: comparisonDefaults)
     }
     func registerLocatorResult(_ scroll: NSScrollView) { locatorResultScroll = scroll }
-    func refreshLocatorViewport() {
-        let primary = sourceScrolls.first { $0.key.hasPrefix("Theirs") }?.value.view ?? locatorResultScroll
-        let value = MergeLocatorScrolling.viewport(primary)
+    func refreshLocatorViewport(from scroll: NSScrollView? = nil) {
+        let primary = scroll ?? sourceScrolls.first { $0.key.hasPrefix("Theirs") }?.value.view ?? locatorResultScroll
+        var value = MergeLocatorScrolling.viewport(primary)
+        if primary === locatorResultScroll, let projection = alignedResultProjection {
+            let rows = projection.sourceRows(serializedRows:Set(value.rows),text:result)
+            if let first = rows.min(), let last = rows.max() { value = .init(rows:first..<(last + 1)) }
+        }
         if value != locatorViewport { locatorViewport = value }
     }
     func scrollLocator(to row: Int) {
         guard !retired, !busy, !confirmingQuit else { return }
         for reference in sourceScrolls.values { if let scroll = reference.view { MergeLocatorScrolling.scroll(scroll, to: row) } }
-        if let locatorResultScroll { MergeLocatorScrolling.scroll(locatorResultScroll, to: row) }
+        if let locatorResultScroll {
+            let rawRow: Int
+            if let projection = alignedResultProjection, projection.serializedRanges.indices.contains(row) {
+                rawRow = max(0,MergeLineEndings.lineNumber(in:result,utf16Offset:projection.serializedRanges[row].location) - 1)
+            } else { rawRow = row }
+            MergeLocatorScrolling.scroll(locatorResultScroll, to:rawRow)
+        }
         refreshLocatorViewport()
     }
     private var pendingComparisonOptions: MergeComparisonOptions?
@@ -474,6 +489,15 @@ private enum MergeSourceSide {
     @Published private(set) var resultPresentation = MergeResultPresentation(text: "", states: [])
     @Published var result = "" { didSet { if !resultPresentation.text.utf8.elementsEqual(result.utf8) { resultPresentation = resultPresentation.reconciling(result) } } }
     var resultStates: [MergeSourceState] { resultPresentation.states(conflicts: blocks.map(\.range)) }
+    private var alignedResultCache: (generation: Int, presentation: MergeResultPresentation, projection: MergeAlignedResultProjection?)?
+    var alignedResultProjection: MergeAlignedResultProjection? {
+        guard let comparison = sourceComparison else { return nil }
+        if let cached = alignedResultCache, cached.generation == loadGeneration, cached.presentation == resultPresentation { return cached.projection }
+        let value = MergeAlignedResultProjection(comparison:comparison,presentation:resultPresentation)
+        alignedResultCache = (loadGeneration,resultPresentation,value)
+        return value
+    }
+    var alignedResultStates: [MergeSourceState] { alignedResultProjection?.cells.map(\.state) ?? resultStates }
     func updateResultPresentation(_ value: MergeResultPresentation) { resultPresentation = value }
 
     @Published var encoding: ComparisonTextEncoding = .utf8
@@ -549,6 +573,10 @@ private enum MergeSourceSide {
         // Marker and ignored conflicts keep their existing atomic resolution
         // behavior. Ordinary blocks use complete, exact source-row mappings.
         if let conflict = blocks.first(where: { NSIntersectionRange($0.range,mapped).length > 0 || mapped.length == 0 && NSLocationInRange(mapped.location,$0.range) }) {
+            if !conflict.isIgnored, let whole = resultPresentation.navigationMap.sourceRows(resultRange:conflict.range),
+               let edit = MergeSourceBlockEdit(comparison:comparison,presentation:resultPresentation,rows:whole,choice:choice), edit.range == conflict.range {
+                return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,expected:resultPresentation,conflict:nil,edit:edit,choice:choice)
+            }
             return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,expected:resultPresentation,conflict:conflict,edit:nil,choice:choice)
         }
         guard let edit = MergeSourceBlockEdit(comparison:comparison,presentation:resultPresentation,rows:rows,choice:choice) else { return nil }
@@ -871,7 +899,9 @@ private enum MergeSourceSide {
         guard sourceToolsAllowed, canChooseConflict else { return }
         let index = navigationOwnsChoice ? conflictIndex(in:navigationChoiceRange)! : min(selectedConflict, blocks.count - 1)
         do {
-            if let applyBlock { let block = blocks[index]; applyBlock(block.range, block.replacement(choice)) }
+            let block = blocks[index]
+            if let rows = resultPresentation.navigationMap.sourceRows(resultRange:block.range), let command = sourceBlockCommand(rows:rows,choice:choice) { performSourceBlock(command) }
+            else if let applyBlock { applyBlock(block.range, block.replacement(choice)) }
             else { let block = blocks[index], replacement = block.replacement(choice); if let presentation = resultPresentation.replacing(block.range, with: replacement, state: .resolved) { resultPresentation = presentation; result = presentation.text } }
             selectConflict(index)
         }
@@ -1007,7 +1037,7 @@ private struct TextConflictDialog: View {
                 if let side, let url = model.sourceTargetURL(mine: side == .mine) { Text(url.lastPathComponent).font(.caption).lineLimit(1).help(url.path) }
                 Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
-            let counts=MergeLineStatistics(states:cells?.map(\.state) ?? model.resultStates)
+            let counts=MergeLineStatistics(states:cells?.map(\.state) ?? (editable ? model.alignedResultStates : []))
             if !counts.isEmpty {MergeLineStatisticsView(statistics:counts).padding(.horizontal,7).padding(.vertical,2)}
             HStack {
                 MergeFormatControls(label: title, encoding: encoding, text: text, editable: editable && !model.busy && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, showFormatDialog:model.showFormatDialog)
@@ -1227,7 +1257,7 @@ private struct MergeEditor: NSViewRepresentable {
             scroll.contentView.postsBoundsChangedNotifications = true
             NotificationCenter.default.addObserver(self, selector: #selector(sourceScrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         }
-        @objc func locatorScrolled(_ notification: Notification) { model.refreshLocatorViewport() }
+        @objc func locatorScrolled(_ notification: Notification) { model.refreshLocatorViewport(from:(notification.object as? NSClipView)?.enclosingScrollView) }
         @objc private func sourceScrolled(_ notification: Notification) { if let sourceScroll { model.sourceDidScroll(sourceScroll) } }
         deinit { NotificationCenter.default.removeObserver(self) }
         func textDidChange(_ notification: Notification) {
