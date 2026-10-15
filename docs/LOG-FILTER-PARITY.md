@@ -23,7 +23,8 @@ Typing coalesces for one second, following `LOGFILTER_TIMER`/`FILEFILTER_TIMER`.
 Return and clearing submit immediately. Escape clears a nonempty native field;
 this uses the native search-field convention for history and the explicit source
 path-filter shortcut. IME marked text is not submitted until committed. Path
-filtering retains the existing local path-match semantics without reading Git.
+filtering now uses source word/phrase/negative/alternative/inverted matching over
+current and old names without reading Git; see [scope and information](LOG-FOOTER-PARITY.md).
 
 ECMAScript validation uses the same owned UTF-16 helper as actual Log matching,
 including case mode and leading inversion. Invalid patterns retain the existing
@@ -58,8 +59,9 @@ The final unaltered captures were reviewed against the pinned Log screenshot
 and resource layout. From is readable at the minimum size; the graph, colorful
 reference badges, three panes and source command rows are present. These do not
 certify physical input, all source states or selected-row contrast in every theme.
-The info line still lacks upstream range/line totals, and Whole Project remains
-contextual rather than always present; those existing differences remain open.
+The following [scope/information batch](LOG-FOOTER-PARITY.md) adds the source
+range/line totals and permanently visible Whole Project control; its own dated
+record separates later evidence from these initial captures.
 
 ![Native Log filter layout in light mode](site/assets/log-native-filters-light.png)
 

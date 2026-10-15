@@ -41,7 +41,7 @@ import TurtleGitCore
         _ = try await repo.run(["switch", "-c", "feature/colorful-status"])
         try Data("struct StatusBadge {}\n".utf8).write(to: root.appendingPathComponent("Badge.swift")); try await repo.stage(["."]); _ = try await repo.commit(message: "Add colorful status badges")
         _ = try await repo.run(["switch", "main"])
-        try Data("# Harbor\n\nBlue status palette\n".utf8).write(to: root.appendingPathComponent("README.md")); try Data("struct Repository { let blue = true }\n".utf8).write(to: root.appendingPathComponent("Repository.swift")); try await repo.stage(["."]); _ = try await repo.commit(message: "Use blue status colors")
+        try Data("# Harbor\n\nBlue status palette\n".utf8).write(to: root.appendingPathComponent("README.md")); try FileManager.default.moveItem(at: root.appendingPathComponent("Repository.swift"), to: root.appendingPathComponent("Implementation.swift")); try await repo.stage(["."]); _ = try await repo.commit(message: "Use blue status colors")
         _ = try await repo.run(["merge", "--no-ff", "--no-edit", "feature/colorful-status"])
         _ = try await repo.run(["tag", "v0.1-preview"])
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index")), status = try await repo.run(["status", "--porcelain=v1", "-z"]).stdout
@@ -109,18 +109,49 @@ import TurtleGitCore
         await closeGate.release(true); try await wait { LogWindowModel.activeFilterValidations == 0 }
         try require(late.model.entries.count == 4 && late.model.searchFilterError == nil, "Closed validation published a late result")
         model.select([blue.hash]); try await wait { !model.busy && model.files.count == 2 }
+        try require(model.information.revisionCount == 4 && model.information.selectedRevisionCount == 1 && model.information.newest == String(model.entries.first!.hash.prefix(8)), "Native information range/counts wrong")
+        model.fileTableSelection.wrappedValue = Set(model.files.map(\.id))
+        try require(model.information.selectedFileCount == 2 && model.information.renamed == 1 && model.information.modified == 2 && model.information.addedLines == 2, "Native source statistics or occurrence selection wrong")
+        model.editPathFilter("repository -README", submit: true)
+        try require(model.visibleFiles.count == 1 && model.visibleFiles.first?.path == "Implementation.swift" && model.information.selectedFileCount == 1, "Old-name query or hidden-selection cleanup failed")
+        model.editPathFilter("missing +readme", submit: true)
+        try require(model.visibleFiles.count == 1 && model.visibleFiles.first?.path == "README.md" && model.selectedFiles.isEmpty, "Source alternative query retained hidden selection")
+        model.editPathFilter("!readme", submit: true)
+        try require(model.visibleFiles.count == 1 && model.visibleFiles.first?.oldPath == "Repository.swift", "Source inverted old/new path query failed")
+        model.editPathFilter("", submit: true)
+        model.setPathScope(["README.md"])
+        try await wait { !model.busy && model.entries.count == 2 && model.canChangeWholeProject }
+        try require(!model.showWholeProject && owner.window!.title.contains("/README.md"), "Source path scope default/title wrong")
+        model.setWholeProject(true)
+        try await wait { !model.busy && model.entries.count == 4 }
+        try require(HistoryWholeProjectPreference.load(root: root, defaults: prefs) && !owner.window!.title.contains("/README.md"), "Whole Project did not persist/load/title the complete history")
+        let restored = LogWindowController(repository: repo, access: nil, labelDefaults: prefs, savesColumnLayout: false, savesGeometry: false, historyRegexExecutable: helper); defer { restored.close() }
+        restored.model.setPathScope(["README.md"]); try await wait { !restored.model.busy && restored.model.entries.count == 4 }
+        try require(restored.model.showWholeProject && restored.model.canChangeWholeProject, "Reopened path Log lost saved Whole Project")
+        restored.close()
+        model.busy = true; model.setWholeProject(false); try require(model.showWholeProject, "Busy scope action was accepted"); model.busy = false
+        model.setWholeProject(false); try await wait { !model.busy && model.entries.count == 2 && model.canFollowRenames }
+        model.toggleHistoryWalk(.followRenames); try await wait { !model.busy && model.historyWalk.followRenames }
+        try require(!model.canChangeWholeProject, "Follow renames allowed Whole Project")
+        model.setWholeProject(true); try require(!model.showWholeProject && !HistoryWholeProjectPreference.load(root: root, defaults: prefs), "Disabled Follow scope mutated preferences")
+        model.toggleHistoryWalk(.followRenames); try await wait { !model.busy }
+        model.setPathScope([]); model.reload(); try await wait { !model.busy && model.entries.count == 4 }
+        model.select([blue.hash]); try await wait { model.files.count == 2 }
+        try require(!model.canChangeWholeProject, "Unscoped root Log enabled Whole Project")
         owner.window!.setContentSize(NSSize(width: 1080, height: 740)); owner.window!.contentView!.layoutSubtreeIfNeeded()
         for field in [history, paths] { try require(field.bounds.width >= 140 && owner.window!.contentView!.bounds.contains(field.convert(field.bounds, to: owner.window!.contentView!)), "Filter clipped at native minimum size") }
         try await capture(owner, directory: output)
         let held = coordinator.makeMenu().item(withTitle: "Case-sensitive")!, sensitive = model.searchCaseSensitive
         model.editSearch("closed draft"); model.editPathFilter("closed path"); owner.close()
         _ = NSApp.sendAction(held.action!, to: held.target, from: held)
+        let scopeAfterClose = model.historyPaths; model.setWholeProject(true); model.setPathScope(["late-path"])
+        try require(model.historyPaths == scopeAfterClose && !HistoryWholeProjectPreference.load(root: root, defaults: prefs), "Retired scope action changed state/preferences")
         try await Task.sleep(nanoseconds: 1_100_000_000)
         try require(model.isInvalidated && model.searchCaseSensitive == sensitive && model.filterPaths.isEmpty && LogWindowModel.activeHistoryLoads == 0, "Closed timer/menu restarted work")
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterStatus = try await repo.run(["status", "--porcelain=v1", "-z"]).stdout
         try require(afterHead == head && afterStatus == status && (try Data(contentsOf: root.appendingPathComponent(".git/index"))) == index, "Filter UI changed repository state")
         try require(NSDictionary(dictionary: global).isEqual(to: UserDefaults.standard.dictionaryRepresentation().filter { keys.contains($0.key) }), "Private Log changed global filters")
-        print("PASS: Log filters completed: source menu/order/private preferences and icons, one-use/closed actions, coalesced one-second typing, immediate clear/Return/Escape, actual ECMAScript validation, query replacement and forced-close/Quit lifetime, minimum geometry and unchanged HEAD/index/status. All owned windows closed.")
+        print("PASS: Log filters completed: source menu/order/private preferences and icons, one-use/closed actions, coalesced one-second typing, immediate clear/Return/Escape, actual ECMAScript validation, query replacement and forced-close/Quit lifetime, source footer range/file/line totals, old-name/word path filtering and hidden-selection cleanup, persisted Whole Project/title/reopen/Follow/busy/closed rules, minimum geometry and unchanged HEAD/index/status. All owned windows closed.")
     }
 }
 actor LogFilterValidationGate {

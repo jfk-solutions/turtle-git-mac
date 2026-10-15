@@ -946,6 +946,19 @@ struct LogCommandRequest: Identifiable {
     @Published var revisionRange: HistoryRevisionRange?
     @Published var historyPaths: [String] = []
     @Published var showWholeProject = true
+    var canChangeWholeProject: Bool { !busy && canEditPathFilter && !historyPaths.isEmpty && !historyWalk.followRenames }
+    func setWholeProject(_ enabled: Bool) {
+        guard canChangeWholeProject, enabled != showWholeProject else { return }
+        showWholeProject = enabled
+        HistoryWholeProjectPreference.save(enabled, root: repository.root, defaults: labelDefaults)
+        updatePathScopeTitle()
+        reload()
+    }
+    private func updatePathScopeTitle() {
+        let location = repository.root.lastPathComponent + (!showWholeProject && historyPaths.count == 1 ? "/" + historyPaths[0] : "")
+        let scope = revisionRange.map { " " + $0.expression } ?? endRevision.map { " at " + $0.prefix(7) } ?? ""
+        window?.title = location + " – Log Messages" + scope + " – TurtleGit"
+    }
     @Published private(set) var unrelatedPathMode = HistoryUnrelatedPathMode.gray
     @Published private(set) var pathScopes: [HistoryPathScope] = []
     func unrelatedFile(_ file: CommitFile) -> Bool {
@@ -1264,7 +1277,13 @@ struct LogCommandRequest: Identifiable {
             if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "NoJumpNotFoundWarning") }
         }
     }
-    @Published var filterPaths = "" { didSet { pathFilterDraft = filterPaths; refreshPatchPreview() } }
+    @Published var filterPaths = "" { didSet {
+        pathFilterDraft = filterPaths
+        let visible = Set(visibleFiles.map(\.id)), retained = selectedFiles.intersection(visible)
+        if fileSelectionMark.map({ !retained.contains($0) }) == true { fileSelectionMark = visibleFiles.first { retained.contains($0.id) }?.id }
+        if focusedChangedFile.map({ !visible.contains($0) }) == true { focusedChangedFile = nil }
+        if retained != selectedFiles { selectedFiles = retained } else { refreshPatchPreview() }
+    } }
     @Published var from = Date(timeIntervalSince1970: 0)
     @Published var to = Date()
     @Published private(set) var historyLimit = HistoryLimitScope()
@@ -1558,8 +1577,10 @@ struct LogCommandRequest: Identifiable {
     var hidesTooManyFiles: Bool { AdvancedListBehavior(defaults: labelDefaults).hidesFileList(count: files.count) }
     var visibleFiles: [CommitFile] {
         guard !hidesTooManyFiles else { return [] }
-        return files.filter { (unrelatedPathMode != .hide || !unrelatedFile($0)) && (filterPaths.isEmpty || $0.path.localizedCaseInsensitiveContains(filterPaths)) }
+        let filter = HistoryFileFilter(filterPaths)
+        return files.filter { (unrelatedPathMode != .hide || !unrelatedFile($0)) && filter.matches($0) }
     }
+    var information: HistoryInformation { .init(entries: entries, selected: selected, files: files, selectedFiles: selectedFiles, visibleFileIDs: Set(visibleFiles.map(\.id))) }
     var message: String {
         if selectedWorkingTree, let snapshot = workingTreeSnapshot { return "Working tree changes\n" + snapshot.entry.message + (snapshot.entry.parents.first.map { "\nHEAD: " + $0 } ?? "") }
         guard let revision else { return selected.isEmpty ? "Select a revision to see its commit message and changed files." : "\(selected.count) revisions selected." }
@@ -1586,6 +1607,7 @@ struct LogCommandRequest: Identifiable {
         self.searchFields = LogSearchSelection.load(defaults: labelDefaults)
         self.searchRegex = labelDefaults.bool(forKey: "UseRegexFilter")
         self.searchCaseSensitive = labelDefaults.bool(forKey: "FilterCaseSensitively")
+        self.showWholeProject = HistoryWholeProjectPreference.load(root: repository.root, defaults: labelDefaults)
         self.showBranchRevisionNumber = labelDefaults.bool(forKey: "ShowBranchRevisionNumber")
         self.gravatar = gravatar ?? LogGravatar(defaults: labelDefaults)
         sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
@@ -1627,10 +1649,12 @@ struct LogCommandRequest: Identifiable {
         else { close() }
     }
     func setPathScope(_ paths: [String]) {
+        guard !isInvalidated, !referencePickerBlocked, !busy || loadingHistory else { return }
         let scope = paths.contains(".") ? [] : paths
-        guard historyPaths != scope || showWholeProject != scope.isEmpty else { return }
+        let whole = HistoryWholeProjectPreference.load(root: repository.root, defaults: labelDefaults)
+        guard historyPaths != scope || showWholeProject != whole else { return }
         historyWalk.followRenames = false; canFollowRenames = false
-        historyPaths = scope; showWholeProject = scope.isEmpty; reload()
+        historyPaths = scope; showWholeProject = whole; updatePathScopeTitle(); reload()
     }
     func canReuseForRange(_ range: HistoryRevisionRange, paths:[String] = []) -> Bool {
         !isInvalidated && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !unifiedViewerBusy && !copyingDetails &&
@@ -2813,14 +2837,12 @@ struct LogDialog: View {
                     model.selectedFiles = ids; model.primaryFileAction(ids)
                 }
             }
-            Text("Showing \(model.entries.filter { !$0.hash.isEmpty }.count) revision(s) • \(model.selectedWorkingTree ? "Working tree selected" : "\(model.revisions.count) revision(s) selected") • \(model.files.count) changed file(s)")
-                .font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
+            Text(model.information.text).font(.system(size: 11)).lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).help(model.information.text)
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                if !model.historyPaths.isEmpty {
-                    Toggle("Show Whole Project", isOn: $model.showWholeProject).toggleStyle(.checkbox).disabled(model.historyWalk.followRenames).onChange(of: model.showWholeProject) { _ in model.reload() }
+                    Toggle("Show Whole Project", isOn: Binding(get: { model.showWholeProject }, set: model.setWholeProject)).toggleStyle(.checkbox).disabled(!model.canChangeWholeProject)
                         .help(model.historyPaths.joined(separator: "\n"))
-                }
                 LogReferenceScopeCheckbox(scope: model.effectiveReferenceScope, enabled: model.canChangeStartReference && !model.historyWalk.followRenames) { model.chooseReferenceScope($0 ? .all : .current) }
                     .contextMenu { TurtleGitContextMenu { startReferenceActions } }
                 }.frame(width: 220, alignment: .leading)

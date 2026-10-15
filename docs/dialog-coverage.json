@@ -567,11 +567,16 @@
         {
           "path": "Sources/TurtleGitMac/LogFilterField.swift",
           "anchor": "struct LogFilterField"
+        },
+        {
+          "path": "Sources/TurtleGitCore/CommitHistory.swift",
+          "origin": "recorded-control-mapping"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/LOG-FILTER-PARITY.md",
+        "docs/LOG-FOOTER-PARITY.md",
         "docs/LOG-PARITY.md"
       ],
       "qa_records": [
@@ -595,6 +600,7 @@
         "docs/qa/log-double-click-2026-10-07.json",
         "docs/qa/log-file-clipboard-2026-10-07.json",
         "docs/qa/log-filters-2026-10-15.json",
+        "docs/qa/log-footer-2026-10-15.json",
         "docs/qa/log-graph-accessibility-2026-10-10.json",
         "docs/qa/log-graph-parents-2026-10-07.json",
         "docs/qa/log-gravatar-2026-10-07.json",

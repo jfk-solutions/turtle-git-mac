@@ -263,6 +263,54 @@ public struct HistoryDateSettings: Equatable, Sendable {
 
 /// Plain-text query rules ported from upstream FilterHelper.cpp (GPL-2.0-or-later).
 /// Conditions operate on the combined selected-field text, not each field alone.
+/// LogDlgFileFilter matches the current and old Git names as one text record.
+public struct HistoryFileFilter {
+    private let query: HistoryTextQuery
+    public init(_ text: String) { query = HistoryTextQuery(text, caseSensitive: false) }
+    public func matches(_ file: CommitFile) -> Bool {
+        query.matches(file.path + (file.oldPath.map { "\n" + $0 } ?? ""))
+    }
+}
+
+/// UpdateLogInfoLabel and GetStatisticsString(simple), projected without Git I/O.
+public struct HistoryInformation: Equatable, Sendable {
+    public let revisionCount: Int, selectedRevisionCount: Int, selectedFileCount: Int
+    public let oldest: String, newest: String
+    public let addedLines: Int, removedLines: Int, modified: Int, added: Int, deleted: Int, renamed: Int
+    public init(entries: [LogEntry], selected: Set<String>, files: [CommitFile], selectedFiles: Set<String>, visibleFileIDs: Set<String>) {
+        let start = entries.count > 1 && entries.first?.hash.isEmpty == true ? 1 : 0
+        revisionCount = entries.count - start
+        newest = entries.indices.contains(start) ? String(entries[start].hash.prefix(8)) : ""
+        oldest = entries.last.map { String($0.hash.prefix(8)) } ?? ""
+        selectedRevisionCount = entries.filter { selected.contains($0.hash) }.count
+        selectedFileCount = selectedRevisionCount > 0 ? selectedFiles.intersection(visibleFileIDs).count : 0
+        func total(_ key: KeyPath<CommitFile, Int?>) -> Int {
+            files.reduce(0) { partial, file in
+                let value = max(0, file[keyPath: key] ?? 0), next = partial.addingReportingOverflow(value)
+                return next.overflow ? Int.max : next.partialValue
+            }
+        }
+        addedLines = total(\.added); removedLines = total(\.removed)
+        modified = files.filter { ["M", "R", "T"].contains($0.action.first.map(String.init) ?? "") }.count
+        added = files.filter { ["A", "C"].contains($0.action.first.map(String.init) ?? "") }.count
+        deleted = files.filter { ["D", "K"].contains($0.action.first.map(String.init) ?? "") }.count
+        renamed = files.filter { $0.action.hasPrefix("R") }.count
+    }
+    public var text: String {
+        var value = "Showing \(revisionCount) revision(s), from revision \(oldest) to revision \(newest) - \(selectedRevisionCount) revision(s) selected, \(selectedFileCount) file(s) selected"
+        if selectedRevisionCount == 1 {
+            value += "; line: \(addedLines)(+) \(removedLines)(-) files: Modified = \(modified) Added = \(added) Deleted = \(deleted) Renamed = \(renamed)"
+        }
+        return value
+    }
+}
+
+public enum HistoryWholeProjectPreference {
+    public static func key(root: URL) -> String { "LogDialog.ShowWholeProject." + root.standardizedFileURL.path }
+    public static func load(root: URL, defaults: UserDefaults = .standard) -> Bool { defaults.bool(forKey: key(root: root)) }
+    public static func save(_ value: Bool, root: URL, defaults: UserDefaults = .standard) { defaults.set(value, forKey: key(root: root)) }
+}
+
 struct HistoryTextQuery {
     private enum Prefix { case and, andNot, or }
     private struct Condition { var text: String; var prefix: Prefix; var nextOr = 0 }

@@ -33,7 +33,7 @@ struct LogFilterField: NSViewRepresentable {
             field.isEnabled = available
             field.placeholderString = kind == .history ? cue : "Filter paths"
             field.setAccessibilityLabel(kind == .history ? "Filter revisions" : "Filter changed paths")
-            field.toolTip = kind == .history ? (model.searchFilterError ?? (model.searchRegex ? "ECMAScript regular expression; begin with ! to invert. Invalid expressions keep the current history." : "Require words, exclude with -word, offer alternatives with +word, quote phrases, or begin with ! to invert.")) : "Filter changed paths. Return applies immediately; Escape clears the filter."
+            field.toolTip = kind == .history ? (model.searchFilterError ?? (model.searchRegex ? "ECMAScript regular expression; begin with ! to invert. Invalid expressions keep the current history." : "Require words, exclude with -word, offer alternatives with +word, quote phrases, or begin with ! to invert.")) : "Filter current and old paths: require words, exclude with -word, add alternatives with +word, quote phrases, or begin with ! to invert. Return applies immediately; Escape clears."
             field.textColor = kind == .history && model.searchFilterError != nil ? .systemRed : .labelColor
             field.setAccessibilityHelp(field.toolTip)
             if kind == .history {

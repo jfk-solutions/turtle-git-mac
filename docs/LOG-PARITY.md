@@ -2629,3 +2629,14 @@ and retirement, with started validation counted through settlement for Quit.
 [Filter workflow details](LOG-FILTER-PARITY.md) records source references,
 validation and remaining physical/signed acceptance. This remains partial Log
 parity; rearranging controls does not certify every source menu or dialog.
+
+## Scope, path filtering and information family — October 15, 2026
+
+The lower information line now includes source revision endpoints, selected file
+counts and single-revision line/status totals, including full merge-parent
+occurrences. Changed-path queries now reuse the source word/phrase/exclusion/
+alternative/inversion parser over current and old rename names, and remove hidden
+file selection before preview refresh. Whole Project is always visible, restores
+repository-specific choices for path Logs and preserves Follow renames/busy/
+retired guards, with matching window titles and the existing owned history reader.
+[Source details and limits](LOG-FOOTER-PARITY.md) describe the full family.

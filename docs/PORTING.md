@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected Log scope/information family now adds source revision endpoints,
+file-selection and line/status totals, old/current-name word queries, hidden-file
+selection cleanup and persisted Whole Project history/title/reopening with Follow,
+busy and retired guards. Debug, five Core cases and both native engine cases
+passed; current footer captures are reviewed. See [scope/information](LOG-FOOTER-PARITY.md).
+Physical/signed and complete visual acceptance, including dark rename contrast,
+remain open.
+
 The Log filter/layout family now combines source-ordered native filter menus,
 one-second typing, immediate clear/Return/Escape, actual ECMAScript validation,
 owner preferences and cancellation/retirement/Quit accounting. Header and footer

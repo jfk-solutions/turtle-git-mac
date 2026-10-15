@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "19c6fc6c",
+  "scope": "Connected Log source information line, current/old-path plain query language, selection reconciliation and per-repository Whole Project persistence/title/guards",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "files": [
+      "src/TortoiseProc/LogDlg.cpp",
+      "src/TortoiseProc/LogDlgFileFilter.cpp",
+      "src/TortoiseProc/FilterHelper.cpp",
+      "src/Git/GitStatusListCtrl.cpp",
+      "src/Git/Git.cpp"
+    ]
+  },
+  "validation": {
+    "core": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'HistoryPresentationTests|CommitHistoryTests.testPlainQueryRulesFromUpstreamFilterHelper'",
+      "tests": 5,
+      "failures": 0,
+      "log": "build/qa/log-footer-core.log"
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/log-footer-build.log"
+    },
+    "native": {
+      "command": "python3 scripts/test-log-filters.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --captures build/qa/log-footer-native-captures",
+      "engines": 2,
+      "exit": 0,
+      "completion_markers": 2,
+      "log": "build/qa/log-footer-native.log",
+      "owned_pids_checked_absent": [
+        3517,
+        3993
+      ],
+      "scope": "Real renamed-file history, independent selected-file totals, hidden-file cleanup, source queries, path/whole history queries, private persisted reopening, scope title, Follow/busy/retired refusal, existing native menu/timing/regex/close/Quit assertions, raw HEAD/index/porcelain preservation",
+      "physical_events": false
+    },
+    "failures": []
+  },
+  "screenshots": [
+    {
+      "path": "docs/site/assets/log-scope-information-light.png",
+      "sha256": "35f8717069db1bc41aaea2904a84c425aebbf92534fd1d8296e2ca428a933891",
+      "capture": "Unaltered ScreenCaptureKit current-process window image",
+      "review": "Information text and permanent Whole Project visible at minimum width; original graph/reference artwork retained. Dark rename-row contrast remains open; not full visual acceptance."
+    },
+    {
+      "path": "docs/site/assets/log-scope-information-dark.png",
+      "sha256": "0d5d978e913259b923df6f669b3608f48c2841fb8cec4c1c5b823b928130b1be",
+      "capture": "Unaltered ScreenCaptureKit current-process window image",
+      "review": "Information text and permanent Whole Project visible at minimum width; original graph/reference artwork retained. Dark rename-row contrast remains open; not full visual acceptance."
+    }
+  ],
+  "remaining": [
+    "Physical selection/filter/checkbox/IME and VoiceOver",
+    "All locales/large lists/minimum OS/signed sandbox",
+    "Dark rename-row contrast review and complete theme acceptance",
+    "Full source Log masks/commands and all-dialog parity",
+    "Installed Finder and signed/App Store distribution"
+  ]
+}

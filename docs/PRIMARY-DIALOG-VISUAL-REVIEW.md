@@ -49,3 +49,8 @@ older Log header/footer captures with an integrated native filter menu and sourc
 command rows. Its light/dark compositor captures were reviewed after correcting
 From compression and ordinary/selector footer differences. Complete source and
 physical/signed acceptance remain open.
+
+The later October 15 [scope/information batch](LOG-FOOTER-PARITY.md) adds the
+permanent Whole Project checkbox and full source information line. Its current
+light/dark captures retain the earlier filter/header arrangement. Dark rename-row
+contrast remains open and is not certified by these captures.

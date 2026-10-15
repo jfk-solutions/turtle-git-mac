@@ -1770,3 +1770,10 @@ IssueRegexTests`, including actual ECMAScript syntax and stalled-helper cleanup.
 The native fixture verifies source menu order, independent owner settings,
 clear/Return/Escape, deferred filtering, invalid-expression retention, Quit and
 retired callback fences, minimum geometry and unchanged HEAD/index/status.
+
+The source scope/information continuation extends the same native Log filter
+receiver with a real rename, old-name/exclusion/alternative/inversion queries,
+hidden-file selection pruning, source information totals, Whole Project
+persistence/reopening/titles and Follow/busy/retired refusal. Its affected Core
+group is `HistoryPresentationTests` plus
+`CommitHistoryTests.testPlainQueryRulesFromUpstreamFilterHelper`.
