@@ -247,6 +247,7 @@ import TurtleGitCore
         viewer.retireImageLoader()
         try await wait { !viewer.busy && FileListComparisonSession.activeOperations == 0 }
         try require(viewer.document == nil && viewer.error == nil, "Retired blob read published a document/error")
+        try await verifyRevisionControls(repo: repo, prefs: prefs)
         try await verifyFileActions(executable:executable,prefs:prefs)
         try await verifyFinderChoices(executable:executable,prefs:prefs)
         try await verifyTools(repo: repo, prefs: prefs, snapshot: snapshot)
@@ -279,6 +280,93 @@ import TurtleGitCore
         for path in paths { try require(try Data(contentsOf: root.appendingPathComponent(path)) == Data("changed\n".utf8), "Comparison routes modified working bytes") }
         print("Comparison launch: captured working/historical/grouped targets, No/Yes/equality, pending question/Quit, late approval refusal, actual owned sheet teardown and started Git cancellation; Commit/Working Tree/Log patch routes and repository preservation passed. Owners closed; no external viewers launched.")
     }
+    @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+    @MainActor static func verifyRevisionControls(repo: GitRepository, prefs: UserDefaults) async throws {
+        let helper = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
+        let controller = RevisionComparisonWindowController(repository: repo, access: nil, from: .revision("HEAD"), to: .workingTree, preferences: prefs, historyRegexExecutable: helper)
+        defer { controller.close() }; controller.window!.alphaValue = 0; controller.showWindow(nil)
+        let model = controller.model; model.load()
+        try await wait { !model.busy && model.snapshot != nil }
+        try await wait { descendants(controller.window!.contentView!).contains { $0 is CommitFileInteraction.Probe } }
+        let probe = descendants(controller.window!.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first!
+        try require(probe.leadingColumnCount == 0 && !probe.keyboardDeleteEnabled && probe.rows.allSatisfy { $0.group == nil }, "Changed Files native list used checkbox/group/Delete semantics")
+        if ProcessInfo.processInfo.environment["TURTLEGIT_COMPARISON_CAPTURE"] == "1" {
+            let window = controller.window!; window.alphaValue = 1
+            defer { window.alphaValue = 0 }
+            for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", NSAppearance.Name.darkAqua)] {
+                window.appearance = NSAppearance(named: appearance); window.contentView!.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                try await Task.sleep(nanoseconds: 200_000_000)
+                let path = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/qa/changed-files-controls-" + name + ".png")
+                let capture = Process(); capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                capture.arguments = ["-x", "-o", "-l", String(window.windowNumber), path.path]
+                try capture.run(); capture.waitUntilExit()
+                try require(capture.terminationStatus == 0, "Owned Changed Files compositor capture failed")
+            }
+            window.appearance = NSAppearance(named: .aqua)
+        }
+        try require(model.completionNames.contains("main") && model.completionNames.contains("HEAD"), "Comparison revision completion omitted branch/HEAD")
+        model.filter = "one +two"
+        try require(Set(model.visibleFiles.map(\.path)) == ["one", "two"], "Comparison filter did not use source OR grammar")
+        model.filter = ""
+        model.setFileColumn(.removed, visible: false)
+        try require(model.saveFileLayout(order: [.status, .path], widths: [.path: 420, .status: 180]), "Changed Files layout refused idle update")
+        let restored = RevisionComparisonWindowModel(repository: repo, access: nil, from: .revision("HEAD"), to: .workingTree, preferences: prefs)
+        defer { restored.invalidate() }
+        try require(!restored.fileColumns.visible.contains(.removed) && restored.fileColumns.order.first == .status && restored.fileColumns.widths[.path] == 420 && restored.fileColumns.widths[.status] == 180, "Changed Files layout did not restore from private preferences")
+        try await wait {
+            probe.configureColumns()
+            return descendants(controller.window!.contentView!).compactMap { $0 as? NSTableView }.first?.tableColumns.first(where: { $0.title == "Action" })?.width == 180
+        }
+        var accepted = 0
+        model.resetFileColumns(choose: { false }, accepted: { accepted += 1 })
+        try await wait { !model.resettingColumns }
+        try require(!model.fileColumns.visible.contains(.removed) && accepted == 0, "Declined columns reset changed layout")
+        model.resetFileColumns(choose: { true }, accepted: { accepted += 1 })
+        try await wait { !model.resettingColumns }
+        try require(model.fileColumns == StatusListColumnSettings() && accepted == 1, "Accepted columns reset did not restore default five columns")
+        model.editRevision("definitely-invalid-turtlegit-ref", side: .base)
+        try require(model.snapshot == nil && !model.inputMessage.isEmpty && !model.busy, "Typed revision retained stale file actions or skipped input delay")
+        try await wait { !model.busy && model.inputMessage.hasPrefix("Invalid reference:") }
+        try require(model.snapshot == nil && model.error == nil && controller.window!.attachedSheet == nil, "Typed invalid revision opened a modal error or retained rows")
+        model.editRevision("another-invalid-ref", side: .base)
+        model.editRevision("HEAD", side: .base)
+        try await wait { !model.busy && model.snapshot != nil }
+        try require(model.from == "HEAD" && model.inputMessage.isEmpty, "Superseded delayed input published stale invalid result")
+        var referenceConfigured = false, logConfigured = false
+        model.configureReferencePicker = { referenceConfigured = $0.preferences === prefs }
+        model.configureLogPicker = { logConfigured = $0.colorPreferences === prefs }
+        controller.showReferencePicker(side: .base)
+        try await wait { controller.referencePicker?.model.busy == false }
+        guard let picker = controller.referencePicker else { throw Failure(message: "Shared reference picker was not retained") }
+        try require(referenceConfigured && controller.window!.attachedSheet === picker.window && picker.window!.alphaValue == 0, "Comparison picker lost owner/preferences/hidden alpha")
+        controller.showHistoryPicker(side: .base, reflog: false)
+        try require(controller.logPicker == nil, "Blocked comparison presented a second picker")
+        picker.model.select(["refs/heads/main"], last: "refs/heads/main"); picker.model.accept()
+        try await wait { controller.referencePicker == nil && controller.window!.attachedSheet == nil && !model.busy && model.from == "refs/heads/main" }
+        try require(model.snapshot != nil, "Reference selection did not reload comparison")
+        controller.showHistoryPicker(side: .base, reflog: false)
+        try await wait { controller.logPicker?.model.busy == false }
+        guard let log = controller.logPicker else { throw Failure(message: "Comparison Log picker missing") }
+        try require(logConfigured && log.model.endRevision == "refs/heads/main", "Log picker lost current typed revision/private routing")
+        guard let entry = log.model.entries.first(where: { !$0.hash.isEmpty }) else { throw Failure(message: "Comparison Log picker did not load: " + (log.model.error ?? "")) }
+        log.model.finishSelection(entry)
+        try await wait { controller.logPicker == nil && controller.window!.attachedSheet == nil && !model.busy && model.from == entry.hash }
+        controller.showHistoryPicker(side: .base, reflog: true)
+        try await wait { controller.reflogPicker?.model.commandSurfaceAvailable == true && controller.reflogPicker?.model.entries.isEmpty == false }
+        guard let reflog = controller.reflogPicker else { throw Failure(message: "Comparison RefLog picker missing") }
+        try require(reflog.model.selecting && reflog.window!.alphaValue == 0, "RefLog selection owner/alpha lost")
+        let before = model.from; reflog.model.close()
+        try await wait { controller.reflogPicker == nil && controller.window!.attachedSheet == nil }
+        try require(model.from == before, "Cancelled RefLog changed revision")
+        controller.showReferencePicker(side: .destination)
+        try await wait { controller.referencePicker?.model.busy == false }
+        controller.close()
+        try await wait { model.closed && controller.window?.attachedSheet == nil && RevisionComparisonWindowModel.activeFileOperations == 0 }
+        try require(controller.referencePicker == nil && model.from == before, "Forced close retained picker or applied late choice")
+        restored.editRevision("HEAD~9", side: .base); restored.invalidate()
+        print("Changed Files revision/list controls: delayed invalid/corrected input, source path filter, completion catalog, private layout/reset, shared reference acceptance, Log acceptance, RefLog cancel, blocked/forced picker ownership passed.")
+    }
+
     @MainActor static func verifyFileActions(executable:URL,prefs:UserDefaults) async throws {
         DialogGeometry.install(preferences:prefs)
         let oldRecycle=prefs.object(forKey:"RevertWithRecycleBin");prefs.set(false,forKey:"RevertWithRecycleBin")

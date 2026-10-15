@@ -391,14 +391,35 @@ unverified.
 
 ## Revision selection and metadata follow-up
 
-Both revision buttons now offer Browse References, Log and RefLog, alongside
-HEAD/Working tree/Empty tree conveniences. Browse References lists full ref
-names (including refs outside branches/tags/remotes) with filtering and explicit
-OK/Cancel. It is a flat native chooser; the upstream browser's full tree and
-context operations remain pending. Log uses the existing selectable Log window,
-starting at the chosen comparison commit. RefLog uses its existing native window
-in selection mode; OK requires exactly one entry, double-click accepts it,
-Cancel returns no choice, and stash apply/delete/clear are disabled in that mode.
+Both revision buttons offer Browse References, Log and RefLog. Browse References
+now uses the shared native reference tree/list, scope/filter and context operations,
+with canonical single-selection acceptance. Log starts at the current revision
+text, and RefLog uses its native selection mode. All three children inherit the
+comparison preferences and parent visibility, use a single owned sheet request,
+and reject late completion after forced parent retirement. The selected revision
+is applied only after the sheet ends; Cancel preserves the current text. Root
+comparison consumers configure the shared reference and Log action routes.
+
+Revision text uses a native completion field with branch/tag/remote short names
+and HEAD, including branch names containing slashes. Editing immediately clears
+stale file rows, metadata and patch content, then validates after one second;
+Return validates immediately. Invalid typed references appear in the empty list
+rather than an error sheet. Superseded input and retired windows cancel their
+pending work. Comparison metadata reads retain the repository grant and global
+operation ownership until cancellation actually settles.
+
+The path filter now uses the same case-insensitive literal query parser as Log:
+space-separated conditions, quoted terms, minus exclusions, plus alternatives
+and leading whole-query negation, evaluated over the combined current/old paths.
+Filtering is immediate on macOS; the source's separate filter debounce is not
+mirrored. The five source columns retain their names/order by default, use source
+rename-path display and the configured file-list font, and now support native
+header visibility, reordering, width persistence and confirmed reset. Settings
+live under the comparison-specific FileDiff.Columns key in the supplied defaults;
+this header persistence is a macOS usability adaptation. Keyboard column copying
+shares the native list integration; Delete does not mutate files in this list.
+RefLog OK requires exactly one entry; double-click accepts it, Cancel returns no
+choice, and stash apply/delete/clear remain disabled in selection mode.
 Normal RefLog behavior retains its existing inspection and stash operations.
 
 Each comparison snapshot includes immutable commit metadata: configured short
@@ -523,8 +544,7 @@ Ignore/Abort choice, with Abort as default. Revert shows its completed count in
 an owned acknowledgment sheet. Folder selection, error/result sheets, cancellation
 and requested/forced Close participate in the native operation lifetime.
 
-Complete source revision-entry timing and chooser behavior, file-table layout
-persistence/physical menu acceptance, concurrent filesystem/index writers,
+Physical revision-entry/completion and menu acceptance, concurrent filesystem/index writers,
 physical Trash/Finder behavior and signed export/submodule grants remain open.
 This is a connected file-action implementation, not complete FileDiffDlg parity.
 

@@ -2,6 +2,22 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RevisionComparisonTests: XCTestCase {
+    func testChangedFilesLiteralFilterUsesBothRenamePathsAndSourceGrammar() {
+        func matches(_ text: String, _ path: String = "Sources/new file.swift", _ old: String? = "Legacy/old file.swift") -> Bool {
+            ComparisonPathFilter(text).matches(path: path, oldPath: old)
+        }
+        XCTAssertTrue(matches("sources legacy"))
+        XCTAssertTrue(matches("\"new file\""))
+        XCTAssertTrue(matches("missing +legacy"))
+        XCTAssertFalse(matches("sources -legacy"))
+        XCTAssertFalse(matches("!legacy"))
+        XCTAssertTrue(matches("!missing"))
+        XCTAssertTrue(matches(""))
+        XCTAssertFalse(matches(".*")) // Literal query, never a regex.
+        XCTAssertTrue(matches("雪", "雪\n?.txt", nil))
+        XCTAssertFalse(matches("legacy", "Sources/file.swift", nil))
+    }
+
     func testDiffDetectionPreferenceBoundariesAndCapturedSession() throws {
         let suite = "TurtleGit.DiffDetection." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }

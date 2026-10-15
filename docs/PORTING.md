@@ -6,8 +6,9 @@
 The connected Changed Files action family now adds both-version Revert, Blame,
 Export and child-submodule Log with source rename/deletion rules, pinned data,
 owned folder/error/result sheets and protected checkout cancellation/Close
-lifetimes. See [Changed Files parity](SUBMODULE-DIFF-PARITY.md). Complete revision
-entry/chooser, physical and signed acceptance remain open.
+lifetimes. See [Changed Files parity](SUBMODULE-DIFF-PARITY.md). Revision entry now has delayed validation and native completion, shared owned
+reference/Log/RefLog pickers, source query filtering and saved file-table layout.
+Physical and signed acceptance remain open.
 
 
 The connected Revision Graph command family now adds source menu groups and

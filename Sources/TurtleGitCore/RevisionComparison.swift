@@ -20,6 +20,15 @@ public struct GitDiffDetection: Equatable, Sendable {
     public var historyArguments: [String] { percentage == 0 ? ["--no-renames"] : comparisonArguments }
 }
 
+/// FileDiffDlg uses the same literal query grammar as Log, over both rename paths.
+public struct ComparisonPathFilter {
+    private let query: HistoryTextQuery
+    public init(_ text: String) { query = HistoryTextQuery(text, caseSensitive: false) }
+    public func matches(path: String, oldPath: String? = nil) -> Bool {
+        query.matches(path + (oldPath.map { "\n" + $0 } ?? ""))
+    }
+}
+
 public enum ComparisonRevision: Hashable, Sendable {
     case revision(String), workingTree, emptyTree
     public var label: String {

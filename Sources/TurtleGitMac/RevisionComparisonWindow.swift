@@ -14,22 +14,36 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
 @MainActor final class RevisionComparisonWindowController: NSWindowController, NSWindowDelegate {
     let model: RevisionComparisonWindowModel
     var onClosed: () -> Void = {}
-    private var logPicker: LogWindowController?
-    private var reflogPicker: ReferenceLogWindowController?
+    private(set) var referencePicker: ReferenceBrowserWindowController?
+    private var pickerRequest: UUID?
+    private weak var pickerFocus: NSResponder?
+    private var pendingPickerSelection: (String?, ComparisonSide)?
+    private(set) var logPicker: LogWindowController?
+    private(set) var reflogPicker: ReferenceLogWindowController?
     private var exportFolderPanel:NSOpenPanel?
-    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = [], preferences: UserDefaults = .standard) {
+    private let revisionEditor = RevisionGraphCompletionEditor()
+    private let historyRegexExecutable: URL?
+    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = [], preferences: UserDefaults = .standard, historyRegexExecutable: URL? = nil) {
+        self.historyRegexExecutable = historyRegexExecutable
         model = RevisionComparisonWindowModel(repository: repository, access: access, from: from, to: to, paths: paths, preferences: preferences)
         let size = NSSize(width: 1000, height: 700)
         let window = RevisionComparisonNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "\(paths.isEmpty ? repository.root.lastPathComponent : paths.joined(separator: ", ")) – Changed Files – TurtleGit"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 900, height: 530)
-        window.contentViewController = NSHostingController(rootView: RevisionComparisonDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: RevisionComparisonDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
+        revisionEditor.isFieldEditor = true; revisionEditor.isAutomaticTextCompletionEnabled = false
+        revisionEditor.isAutomaticSpellingCorrectionEnabled = false; revisionEditor.isContinuousSpellCheckingEnabled = false
         window.setContentSize(size); window.center()
+        model.pickReferences = { [weak self] side in self?.showReferencePicker(side: side) }
         model.pickHistory = { [weak self] side, reflog in self?.showHistoryPicker(side: side, reflog: reflog) }
         model.window = window; model.close={ [weak window] in window?.performClose(nil) };installFileActions(); window.refresh = { [weak model] in model?.load() }
 
+        NotificationCenter.default.addObserver(self, selector: #selector(pickerSheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         DialogGeometry.attach(window, identifier: "FileDiffDialog", legacyName: "FileDiffDialog")
+    }
+    func windowWillReturnFieldEditor(_ sender: NSWindow, to client: Any?) -> Any? {
+        client is ComparisonRevisionNativeField ? revisionEditor : nil
     }
     private func installFileActions() {
         model.chooseExportFolder={ [weak self] in
@@ -54,22 +68,52 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             let primary=alert.buttons.last!;primary.keyEquivalent="\r";alert.window.defaultButtonCell=primary.cell as? NSButtonCell
         }
     }
-    private func showHistoryPicker(side: ComparisonSide, reflog: Bool) {
-        guard let window, window.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return }
-        if reflog {
-            let picker = ReferenceLogWindowController(repository: model.repository, access: model.access, reference: "HEAD") { [weak model] entry in
-                if let entry { model?.choose(entry.hash, side: side) }
+    private func beginPicker() -> UUID? {
+        guard let window, window.attachedSheet == nil, !model.closed, !model.busy,
+              !model.confirmingQuit, pickerRequest == nil else { return nil }
+        model.cancelPendingInput(); pickerFocus = (window.firstResponder as? NSTextView).flatMap { $0.isFieldEditor ? $0.delegate as? NSResponder : $0 } ?? window.firstResponder
+        let request = UUID(); pickerRequest = request; return request
+    }
+    private func finishPicker(_ request: UUID, revision: String?, side: ComparisonSide) {
+        guard pickerRequest == request else { return }
+        pickerRequest = nil; referencePicker = nil; logPicker = nil; reflogPicker = nil
+        guard !model.closed else { pickerFocus = nil; return }
+        pendingPickerSelection = (revision, side); pickerSheetEnded()
+    }
+    @objc private func pickerSheetEnded() {
+        guard !model.closed, pickerRequest == nil, let window, window.attachedSheet == nil,
+              let (revision, side) = pendingPickerSelection else { return }
+        pendingPickerSelection = nil
+        if let focus = pickerFocus { window.makeFirstResponder(focus) }; pickerFocus = nil
+        if let revision { model.choose(revision, side: side) }
+        else if model.snapshot == nil { model.load(inlineErrors: true) }
+    }
+    func showReferencePicker(side: ComparisonSide) {
+        guard let request = beginPicker(), let window else { return }
+        let picker = ReferenceBrowserWindowController(repository: model.repository, access: model.access,
+            initial: side == .base ? model.from : model.to, preferences: model.preferences) { [weak self] value in
+                self?.finishPicker(request, revision: value, side: side)
             }
-            reflogPicker = picker; picker.onClosed = { [weak self] in self?.reflogPicker = nil }
-            if let child = picker.window { window.beginSheet(child) }
+        referencePicker = picker; model.configureReferencePicker(picker.model)
+        if let child = picker.window { child.alphaValue = window.alphaValue; window.beginSheet(child) }
+        picker.model.load()
+    }
+    func showHistoryPicker(side: ComparisonSide, reflog: Bool) {
+        guard let request = beginPicker(), let window else { return }
+        if reflog {
+            let picker = ReferenceLogWindowController(repository: model.repository, access: model.access, reference: "HEAD", onChoose: { [weak self] entry in
+                self?.finishPicker(request, revision: entry?.hash, side: side)
+            }, preferences: model.preferences)
+            reflogPicker = picker
+            if let child = picker.window { child.alphaValue = window.alphaValue; window.beginSheet(child) }
         } else {
-            let picker = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak model] entry in
-                if let entry { model?.choose(entry.hash, side: side) }
-            })
-            logPicker = picker; picker.onClosed = { [weak self] in self?.logPicker = nil }
-            let revision = side == .base ? model.snapshot?.from : model.snapshot?.to
-            if case .revision(let hash) = revision { picker.model.endRevision = hash; picker.model.reload() }
-            if let child = picker.window { window.beginSheet(child) }
+            let revision = side == .base ? model.from : model.to
+            let initial = ["working tree", "empty tree"].contains(revision.lowercased()) ? "HEAD" : revision
+            let picker = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak self] entry in
+                self?.finishPicker(request, revision: entry?.hash, side: side)
+            }, labelDefaults: model.preferences, initialRevision: initial, historyRegexExecutable: historyRegexExecutable)
+            logPicker = picker; model.configureLogPicker(picker.model)
+            if let child = picker.window { child.alphaValue = window.alphaValue; window.beginSheet(child) }
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -80,7 +124,15 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
         return true
     }
-    func windowWillClose(_ notification: Notification) { if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }; model.invalidate(); logPicker?.close(); reflogPicker?.close(); model.patchWindow?.close(); Array(model.unifiedWindows.values).forEach { $0.close() }; Array(model.comparisonWindows.values).forEach { $0.close() }; onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        NotificationCenter.default.removeObserver(self)
+        pickerRequest = nil; pickerFocus = nil; pendingPickerSelection = nil; model.invalidate()
+        if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
+        referencePicker?.abandonPresentation(); referencePicker = nil
+        logPicker?.close(); logPicker = nil; reflogPicker?.close(); reflogPicker = nil
+        model.patchWindow?.close(); Array(model.unifiedWindows.values).forEach { $0.close() }
+        Array(model.comparisonWindows.values).forEach { $0.close() }; onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RevisionComparisonWindowModel: ObservableObject {
@@ -91,7 +143,12 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     @Published var from: String
     @Published var to: String
     @Published var references: [CheckoutReference] = []
-    @Published var browser: ComparisonSide?
+    var pickReferences: (ComparisonSide) -> Void = { _ in }
+    var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
+    var configureLogPicker: (LogWindowModel) -> Void = { _ in }
+    @Published private(set) var inputMessage = ""
+    private var inputTask: Task<Void, Never>?
+    private var inputGeneration = UUID()
     var pickHistory: (ComparisonSide, Bool) -> Void = { _, _ in }
     @Published var snapshot: RevisionComparisonSnapshot?
     @Published var selection = Set<String>()
@@ -106,7 +163,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var unifiedWindows: [String: PatchWindowController] = [:]
     private var patchGeneration = 0
     private(set) static var activeFileOperations = 0
-    private let preferences: UserDefaults
+    let preferences: UserDefaults
     var confirmManyDiffs: ((Int) async -> Bool)?
     var openComparedFile: ((RevisionComparisonSnapshot, CommitFile) -> Void)?
     private var comparisonSessions: [UUID: FileListComparisonSession] = [:]
@@ -127,15 +184,84 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var onFilesChanged:()->Void = {}
     private(set) var actionTrash:[URL]=[]
     private(set) var closed = false
-    func invalidate() { closed = true;actionGeneration=UUID();fileActionToken?.cancel();cancelFilePicker();closeAfterFileAction=false; comparisonSessions.values.forEach { $0.cancel() }; patchTokens.values.forEach { $0.cancel() }; patchTokens.removeAll(); loadToken?.cancel(); loadToken = nil; patchGeneration += 1; busy = false }
+    func invalidate() { closed = true; cancelPendingInput();actionGeneration=UUID();fileActionToken?.cancel();cancelFilePicker();closeAfterFileAction=false; comparisonSessions.values.forEach { $0.cancel() }; patchTokens.values.forEach { $0.cancel() }; patchTokens.removeAll(); loadToken?.cancel(); loadToken = nil; patchGeneration += 1; busy = false }
     var onLog: (String?) -> Void = { _ in }
     var onFileLog: (String, String?) -> Void = { _, _ in }
     var onSubmoduleCompare: (String, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _ in }
     var comparisonWindows: [String: FileComparisonWindowController] = [:]
-    var visibleFiles: [CommitFile] { snapshot?.files.filter { filter.isEmpty || $0.path.localizedCaseInsensitiveContains(filter) || $0.oldPath?.localizedCaseInsensitiveContains(filter) == true }.sorted(using: sortOrder) ?? [] }
-    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = [], preferences: UserDefaults = .standard) { self.preferences = preferences; self.repository = repository; self.access = access; self.from = from.label; self.to = to.label; scopePaths = paths }
+    @Published var fileColumns: StatusListColumnSettings
+    @Published var focusedFile: String?
+    @Published private(set) var resettingColumns = false
+    private var columnsRequest = UUID()
+    static let columnsKey = "FileDiff.Columns"
+    var canChangeColumns: Bool { !closed && !busy && !confirmingQuit && !resettingColumns && window?.attachedSheet == nil }
+    @discardableResult func saveFileLayout(order: [StatusListColumn], widths: [StatusListColumn: Double]) -> Bool {
+        guard canChangeColumns else { return false }
+        let allowed = Set(StatusListColumn.defaultColumns)
+        let next = StatusListColumnSettings(visible: fileColumns.visible.intersection(allowed), order: order, widths: widths.filter { allowed.contains($0.key) })
+        if next != fileColumns { fileColumns = next; next.save(to: preferences, key: Self.columnsKey) }
+        return true
+    }
+    func setFileColumn(_ column: StatusListColumn, visible: Bool) {
+        guard canChangeColumns, StatusListColumn.defaultColumns.contains(column), column != .path else { return }
+        if visible { fileColumns.visible.insert(column) } else { fileColumns.visible.remove(column) }
+        fileColumns.save(to: preferences, key: Self.columnsKey)
+    }
+    func resetFileColumns(choose: @escaping () async -> Bool, accepted: @escaping () -> Void) {
+        guard canChangeColumns else { return }
+        let request = UUID(); columnsRequest = request; resettingColumns = true
+        Task { [weak self] in
+            guard let self else { return }; let yes = await choose()
+            guard !closed, columnsRequest == request else { return }; resettingColumns = false
+            guard yes, !busy else { return }
+            fileColumns = StatusListColumnSettings(); fileColumns.save(to: preferences, key: Self.columnsKey); accepted()
+        }
+    }
+    func fileText(_ file: CommitFile, column: StatusListColumn) -> String {
+        switch column {
+        case .path: return StatusListClipboard.displayedPath(file, abbreviate: preferences.bool(forKey: "AbbreviateRenamings"))
+        case .fileExtension: return StatusListClipboard.fileExtension(file.path, isDirectory: file.isSubmodule)
+        case .status: return file.status
+        case .added: return file.addedText
+        case .removed: return file.removedText
+        default: return ""
+        }
+    }
+    var completionNames: [String] {
+        Array(Set(["HEAD"] + references.map { ref in
+            if ref.name.hasPrefix("refs/heads/") { return String(ref.name.dropFirst(11)) }
+            if ref.name.hasPrefix("refs/tags/") { return String(ref.name.dropFirst(10)) }
+            if ref.name.hasPrefix("refs/remotes/") { return String(ref.name.dropFirst(13)) }
+            return ref.name
+        })).sorted()
+    }
+    var visibleFiles: [CommitFile] {
+        let query = ComparisonPathFilter(filter)
+        return snapshot?.files.filter { query.matches(path: $0.path, oldPath: $0.oldPath) }.sorted(using: sortOrder) ?? []
+    }
+    init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = [], preferences: UserDefaults = .standard) {
+        self.preferences = preferences; self.repository = repository; self.access = access
+        self.from = from.label; self.to = to.label; scopePaths = paths
+        fileColumns = StatusListColumnSettings.load(from: preferences, key: Self.columnsKey)
+    }
+    func cancelPendingInput() { inputGeneration = UUID(); inputTask?.cancel(); inputTask = nil }
+    func editRevision(_ value: String, side: ComparisonSide) {
+        guard !closed, !confirmingQuit, !busy || loadToken != nil, window?.attachedSheet == nil else { return }
+        if side == .base { from = value } else { to = value }
+        cancelPendingInput(); loadToken?.cancel()
+        if loadToken != nil { loadToken = nil; busy = false }
+        actionGeneration = UUID(); snapshot = nil; selection = []; patchGeneration += 1
+        patchWindow?.model.document = GitPatch(text: ""); patchWindow?.model.busy = false
+        inputMessage = "Wait for input to validate version…"
+        let request = inputGeneration
+        inputTask = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: 1_000_000_000) } catch { return }
+            guard let self, !closed, inputGeneration == request else { return }
+            inputTask = nil; load(inlineErrors: true)
+        }
+    }
     func canReuseForComparison(from requestedFrom: ComparisonRevision, to requestedTo: ComparisonRevision, paths: [String] = []) -> Bool {
-        !busy && !confirmingQuit && scopePaths == paths && from == requestedFrom.label && to == requestedTo.label &&
+        !closed && inputTask == nil && !resettingColumns && !busy && !confirmingQuit && scopePaths == paths && from == requestedFrom.label && to == requestedTo.label &&
         patchWindow?.model.busy != true && patchWindow?.window?.attachedSheet == nil &&
         !unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } &&
         !comparisonWindows.values.contains { $0.model.busy || $0.model.dirty }
@@ -143,27 +269,30 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     private func side(_ input: String) -> ComparisonRevision {
         switch input.lowercased() { case "working tree": return .workingTree; case "empty tree": return .emptyTree; default: return .revision(input) }
     }
-    func load() {
-        guard !closed, !busy, !confirmingQuit else { return }; busy = true
+    func load(inlineErrors: Bool = false) {
+        guard !closed, !busy, !confirmingQuit else { return }; cancelPendingInput(); busy = true; inputMessage = ""; error = nil
         let token = OperationCancellation(); loadToken = token;actionGeneration=UUID()
         let old = side(from), new = side(to), settings = options
         snapshot = nil; selection = []; patchGeneration += 1; patchWindow?.model.document = GitPatch(text: ""); patchWindow?.model.busy = false
+        Self.activeFileOperations += 1
         Task {
-            defer { if loadToken === token { loadToken = nil; busy = false } }
+            defer { Self.activeFileOperations -= 1; if loadToken === token { loadToken = nil; busy = false }; withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeAll: true, includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
+                guard !closed, loadToken === token, !token.isCancelled else { return }; references = catalog
                 let isBare=try await repository.isBare(cancellation:token)
                 let result = try await repository.revisionComparison(from: old, to: new, options: settings, cancellation: token, paths: scopePaths)
                 guard !closed, loadToken === token, !token.isCancelled else { return }
                 bare=isBare;references = catalog; snapshot = result
                 if showingPatch { updatePatch() }
             }
-            catch { if !closed, loadToken === token, !token.isCancelled { self.error = error.localizedDescription } }
+            catch { if !closed, loadToken === token, !token.isCancelled { if inlineErrors { inputMessage = "Invalid reference: " + error.localizedDescription } else { self.error = error.localizedDescription } } }
         }
     }
     func choose(_ revision: String, side: ComparisonSide) {
         guard !closed, !busy, !confirmingQuit else { return }
+        cancelPendingInput()
         if side == .base { from = revision } else { to = revision }
         load()
     }
@@ -227,8 +356,14 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
     }
     func copyPaths(_ ids: Set<String>, extended: Bool = false) {
+        guard !closed, !busy, !confirmingQuit else { return }
         let files = visibleFiles.filter { ids.contains($0.path) }; guard !files.isEmpty else { return }
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ComparisonFileList.clipboard(files, extended: extended), forType: .string)
+    }
+    func copyColumn(_ ids: Set<String>, column: StatusListColumn) {
+        guard !closed, !busy, !confirmingQuit else { return }
+        let files = visibleFiles.filter { ids.contains($0.path) }; guard !files.isEmpty else { return }
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(files.map { fileText($0, column: column) }.joined(separator: "\r\n"), forType: .string)
     }
     func saveList(_ ids: Set<String>) {
         guard !closed, !busy, !confirmingQuit, let snapshot, let window else { return }
@@ -446,15 +581,11 @@ private struct RevisionComparisonDialog: View {
         GroupBox(model.revisionTitle(base: base)) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    TextField("Revision", text: value).textFieldStyle(.roundedBorder).onSubmit { model.load() }
+                    ComparisonRevisionField(value: value.wrappedValue, completions: model.completionNames, changed: { model.editRevision($0, side: base ? .base : .destination) }, submitted: { model.load(inlineErrors: true) })
                     Menu("HEAD") {
-                        Button { model.browser = base ? .base : .destination } label: { CommandLabel(title: "Browse references…", icon: .branch) }
+                        Button { model.pickReferences(base ? .base : .destination) } label: { CommandLabel(title: "Browse references…", icon: .branch) }
                         Button { model.pickHistory(base ? .base : .destination, false) } label: { CommandLabel(title: "Log…", icon: .log) }
                         Button { model.pickHistory(base ? .base : .destination, true) } label: { CommandLabel(title: "RefLog…", icon: .log) }
-                        Divider()
-                        Button("HEAD") { value.wrappedValue = "HEAD"; model.load() }
-                        Button("Working tree") { value.wrappedValue = "Working tree"; model.load() }
-                        Button("Empty tree") { value.wrappedValue = "Empty tree"; model.load() }
                     }.frame(width: 100)
                 }
                 Text(model.revisionDescription(base: base)).font(.system(.caption, design: .monospaced)).textSelection(.enabled).lineLimit(1).help(model.revisionTooltip(base: base))
@@ -482,12 +613,24 @@ private struct RevisionComparisonDialog: View {
             revisionGroup("Version 2", value: $model.to, base: false)
             HStack { TextField("Filter paths", text: $model.filter).textFieldStyle(.roundedBorder); if !model.filter.isEmpty { Button("Clear") { model.filter = "" } } }
             Table(model.visibleFiles, selection: $model.selection, sortOrder: $model.sortOrder) {
-                TableColumn("File", value: \.sortPath) { file in HStack { Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(file.path).foregroundStyle(model.selection.contains(file.path) ? Color.primary : state(file).textColor) }.help(file.oldPath.map { "Renamed from \($0)" } ?? file.path) }.width(min: 350, ideal: 500)
-                TableColumn("Extension", value: \.sortExtension) { file in Text(file.fileExtension) }.width(75)
-                TableColumn("Action", value: \.sortAction) { file in Text(file.status) }.width(100)
-                TableColumn("Lines added", value: \.sortAdded) { file in Text(file.addedText) }.width(85)
-                TableColumn("Lines deleted", value: \.sortRemoved) { file in Text(file.removedText) }.width(95)
-            }.fileListFont().contextMenu(forSelectionType: String.self) { ids in
+                TableColumn("File", value: \.sortPath) { file in HStack { Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(model.fileText(file, column: .path)).foregroundStyle(model.selection.contains(file.path) ? Color.primary : state(file).textColor) }.help(file.oldPath.map { "Renamed from \($0)" } ?? file.path) }.width(min: 350, ideal: 500)
+                TableColumn("Extension", value: \.sortExtension) { file in Text(model.fileText(file, column: .fileExtension)) }.width(min: 45, ideal: 75, max: 320)
+                TableColumn("Action", value: \.sortAction) { file in Text(file.status) }.width(min: 65, ideal: 100, max: 320)
+                TableColumn("Lines added", value: \.sortAdded) { file in Text(file.addedText) }.width(min: 65, ideal: 85, max: 320)
+                TableColumn("Lines deleted", value: \.sortRemoved) { file in Text(file.removedText) }.width(min: 65, ideal: 95, max: 320)
+            }.fileListFont()
+            .background(CommitFileInteraction(rows: model.visibleFiles.compactMap { StatusEntry.parse(Data((" M " + $0.path + "\0").utf8)).first.map(StatusListRow.file) },
+                leadingColumnCount: 0, keyboardDeleteEnabled: false, nativeColumns: StatusListColumn.defaultColumns,
+                rowTexts: model.visibleFiles.map { file in Dictionary(uniqueKeysWithValues: StatusListColumn.defaultColumns.map { ($0, model.fileText(file, column: $0)) }) },
+                itemIDs: model.visibleFiles.map(\.path), copyIDs: { model.copyPaths(Set($0), extended: $1) },
+                copyColumnIDs: { model.copyColumn(Set($0), column: $1) }, preferences: model.preferences,
+                visibleColumns: model.fileColumns.visible, availableColumns: Set(StatusListColumn.defaultColumns), columnText: { _, _ in "" },
+                savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,
+                saveLayout: { model.saveFileLayout(order: $0, widths: $1) }, setColumnVisible: model.setFileColumn,
+                resetColumns: { model.resetFileColumns(choose: $0, accepted: $1) }, focusedPath: $model.focusedFile,
+                enabled: model.canChangeColumns, delete: { _, _, _ in }, copy: { _, _ in }, copyColumn: { _, _ in }, toggleCheck: { _, _ in }))
+            .overlay { if !model.inputMessage.isEmpty { Text(model.inputMessage).foregroundStyle(.secondary).padding().textSelection(.enabled) } }
+            .contextMenu(forSelectionType: String.self) { ids in
                 let context=model.captureFileMenu(ids)
                 TurtleGitContextMenu {
                     Button { if model.claimFileMenu(context) {model.compare(ids)} } label: { CommandLabel(title: "Compare revisions", icon: .compare) }.disabled(ids.isEmpty)
@@ -520,28 +663,54 @@ private struct RevisionComparisonDialog: View {
         .onChange(of: model.options) { _ in model.load() }
         .onChange(of: model.selection) { _ in model.updatePatch() }
         .onChange(of: model.filter) { _ in model.selection.formIntersection(model.visibleFiles.map(\.path)); model.updatePatch() }
-        .sheet(item: $model.browser) { side in ComparisonReferenceChooser(model: model, side: side) }
         .alert("Comparison failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }
 
-private struct ComparisonReferenceChooser: View {
-    @ObservedObject var model: RevisionComparisonWindowModel
-    let side: ComparisonSide
-    @State private var filter = ""
-    @State private var selection: String?
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Browse references").font(.headline)
-            TextField("Filter references", text: $filter).textFieldStyle(.roundedBorder)
-            List(selection: $selection) {
-                ForEach(model.references.filter { filter.isEmpty || $0.name.localizedCaseInsensitiveContains(filter) }) { ref in
-                    HStack { Image(nsImage: (ref.name.hasPrefix("refs/tags/") ? MenuIcon.tag : MenuIcon.branch).image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(ref.name) }.tag(ref.name)
-                }
-            }
-            HStack { Spacer(); Button("Cancel") { model.browser = nil }.keyboardShortcut(.cancelAction)
-                Button("OK") { if let selection { model.browser = nil; model.choose(selection, side: side) } }.disabled(selection == nil).keyboardShortcut(.defaultAction)
-            }
-        }.padding(16).frame(width: 640, height: 430)
+
+/// Keep Git revision completion in a native text field, including slashes in
+/// branch names; accepting a completion goes through the same delayed validation.
+private final class ComparisonRevisionNativeField: NSTextField {}
+private struct ComparisonRevisionField: NSViewRepresentable {
+    @Environment(\.isEnabled) private var enabled
+    let value: String
+    let completions: [String]
+    let changed: (String) -> Void
+    let submitted: () -> Void
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    func makeNSView(context: Context) -> NSTextField {
+        let field = ComparisonRevisionNativeField(string: value)
+        field.placeholderString = "Revision"; field.bezelStyle = .roundedBezel
+        field.delegate = context.coordinator; field.setAccessibilityLabel("Revision")
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return field
+    }
+    func updateNSView(_ field: NSTextField, context: Context) {
+        context.coordinator.parent = self; field.isEnabled = enabled
+        if field.stringValue != value { field.stringValue = value }
+    }
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: ComparisonRevisionField
+        private var completing = false
+        init(_ parent: ComparisonRevisionField) { self.parent = parent }
+        func controlTextDidChange(_ notification: Notification) {
+            guard let field = notification.object as? NSTextField, field.isEnabled else { return }
+            parent.changed(field.stringValue)
+            guard !completing, let editor = field.currentEditor() as? NSTextView,
+                  !editor.hasMarkedText(), let event = NSApp.currentEvent, event.type == .keyDown,
+                  ![51, 117, 53].contains(event.keyCode) else { return }
+            completing = true; editor.complete(nil); completing = false
+        }
+        func control(_ control: NSControl, textView: NSTextView, completions words: [String], forPartialWordRange range: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String] {
+            let text = textView.string as NSString
+            guard range.location <= text.length, range.length <= text.length - range.location else { return [] }
+            let prefix = text.substring(with: range); index.pointee = -1
+            guard !prefix.isEmpty else { return [] }
+            return parent.completions.filter { $0.range(of: prefix, options: [.anchored, .caseInsensitive, .literal]) != nil }
+        }
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+            if selector == #selector(NSResponder.insertNewline(_:)) { parent.submitted(); return true }
+            return false
+        }
     }
 }

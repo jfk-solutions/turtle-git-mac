@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-15",
+  "scope": "Connected Changed Files revision entry, picker and native list controls",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "FileDiffDlg.cpp: OnTextUpdate, OnTimer, ClickRevButton, LoadRefThread, OnRefLoad, five-column setup",
+      "FilterHelper.cpp and LogDlgFileFilter.cpp: literal query grammar and joined rename paths",
+      "TortoiseProcENG.rc: IDD_DIFFFILES"
+    ]
+  },
+  "implementation": [
+    "Native revision text fields with short-reference/HEAD completion, including slash-containing names via shared field-editor completion ranges",
+    "One-second typed validation; Return immediate; clear stale rows/metadata/patch; inline invalid-reference text; cancel superseded and retired inputs",
+    "Shared canonical reference tree/list picker and existing Log/RefLog selection; single owned sheet, inherited preferences/alpha, request identity, post-sheet publication/focus and forced-close fencing",
+    "Shared root reference/Log action configuration, current input as Log start revision",
+    "Source literal query parser over current/old paths, including quoted/excluded/alternative/whole-query-negated terms",
+    "Five source columns and renamed-path rendering; native visibility/order/width settings and confirmed reset; non-path columns now resizable; native keyboard/column copy without Delete mutation",
+    "Cancellable comparison reads retain access/global operation ownership through actual settlement"
+  ],
+  "validation": {
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/changed-files-controls-build-widths-2026-10-15.log"
+    },
+    "core": {
+      "count": 21,
+      "failures": 0,
+      "filter": "RevisionComparisonTests",
+      "log": "build/qa/changed-files-controls-core-2026-10-15.log"
+    },
+    "native": {
+      "case": "comparison-launch",
+      "git": [
+        "/usr/bin/git",
+        "Debug TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+      ],
+      "status": "passed",
+      "log": "build/qa/changed-files-controls-native-complete-2026-10-15.log",
+      "coverage": [
+        "Invalid/corrected delayed input, stale-row clearing and no modal invalid error",
+        "Literal OR query and short-name catalog",
+        "Private visibility/order/width reopen, both reset choices and actual Action column widening to 180 points",
+        "Reference accept, Log accept, RefLog Cancel through its UI callback, blocked second picker, forced parent retirement",
+        "Existing comparison launches, protected file actions, exports, submodule routing, process/window ownership and repository preservation"
+      ],
+      "exit_code": 0,
+      "owned_receivers_reaped": [
+        8688,
+        9323
+      ]
+    },
+    "site": {
+      "documents": 216,
+      "unresolved_fragments": [],
+      "log": "build/qa/changed-files-controls-site-final-2026-10-15.log"
+    },
+    "visual": {
+      "method": "Actual owned compositor windows, screencapture -x -o -l windowNumber; no raster edits",
+      "review": "Light and dark captures inspected: revision groups and controls visible without clipping, five list headers and colored status rows visible",
+      "assets": [
+        "docs/site/assets/changed-files.png",
+        "docs/site/assets/changed-files-dark.png"
+      ]
+    }
+  },
+  "repairs": [
+    {
+      "log": "build/qa/changed-files-controls-native-2026-10-15.log",
+      "result": "Timeout using NSWindow.performClose on a sheet; fixture now waits for RefLog command availability/entries and invokes the actual Cancel callback. Owned receiver 7188 reaped."
+    },
+    {
+      "log": "build/qa/changed-files-controls-native-final-2026-10-15.log",
+      "result": "Both Git cases passed before final width-limit repair; owned receivers 7400 and 8023 reaped."
+    },
+    {
+      "result": "Direct NSView bitmap caching omitted SwiftUI-rendered content; discarded in favor of actual compositor captures. No partial bitmap published."
+    }
+  ],
+  "remaining": [
+    "Physical typing/IME/completion-popup and Finder interaction acceptance",
+    "Source filter timer remains immediate on macOS; header persistence is an explicit macOS adaptation",
+    "Revert whole-selection preflight failure still aborts before per-file Ignore/Abort in some missing-side/copy cases",
+    "Concurrent filesystem/index writers, physical Trash, signed App Store grants and all-dialog parity remain unverified"
+  ],
+  "hosted_ci_snapshot": {
+    "head": "046a7a0e2",
+    "macos_run": 38685734371,
+    "macos_status": "pending",
+    "pages_run": 38685734360,
+    "pages_status": "success"
+  },
+  "preserved_unrelated_wip": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}
