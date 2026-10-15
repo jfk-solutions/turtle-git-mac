@@ -397,3 +397,60 @@ are documented in [Commit parity](COMMIT-PARITY.md#attached-patch-window-find-an
 Read-only viewers retain their existing toolbar and native macOS Find. External
 owners' custom loaders and physical print/save/panel acceptance remain separate
 from the default-read coverage of this batch.
+
+## Editable documents, file actions and source Find — October 15, 2026
+
+Standalone built-in UDiff windows now enable editing after their patch loads,
+following `MainWindow.cpp` `InitEditor`/`SetupWindow`. Commit's partial patch and
+embedded import previews retain their separate staging/read-only gates. Native
+plain-text editing disables automatic quotes/dashes/replacements; syntax style
+updates change attributes without replacing the edited text or clearing Undo.
+Loading another document resets selection and Undo, even for identical text.
+Undo back to the saved display text restores the original export bytes.
+
+The focused UDiff window's File → Open (Command-O), Save (Command-S) and Save As
+(Command-Shift-S) own the chosen patch file. Open accepts a single patch/diff or
+other text file, holds its selected permission, refuses files reaching the source
+250 MiB limit and fences late reads after forced closure. A file permission does
+not select or grant a repository. Save As establishes the new destination; later
+Save uses it. Direct Save refuses an externally changed file instead of replacing
+it silently. Writes use atomic replacement. Original bytes are retained until
+editing; edited files preserve detected UTF-8/UTF-16/UTF-32 BOM/endianness or the
+existing Windows-1252 fallback. Unrepresentable legacy edits report an error and
+leave the file unchanged. There is no encoding-conversion picker yet.
+
+Close, Open, Refresh/replacement and app Quit resolve modified documents using
+Save / Don’t Save / Cancel. Cancelled questions/panels retain the edits and Undo.
+Normal parent closure for Graph, Changed Files, Format Patch and Send Mail first
+routes an edited child through its own close decision. Forced retirement fences
+late UI publication and retains operation/Quit accounting through owned file I/O.
+The file-document session captures its own window; shared menu commands recheck
+the focused controller and refuse background windows and active sheets.
+
+`src/TortoiseUDiff/TortoiseUDiff.rc` **IDD_FINDBAR** now maps its six controls to
+the shared native bottom bar, in source order: upstream `cancel-normal.ico`,
+Find label, search field, Previous, Next and Match case. Command-F seeds selected
+text and focuses Find; typing resets the cursor to zero and searches forward.
+Next/Previous use the current selection end/start, stop without wrapping and
+flash the owning frame on a boundary. Escape hides Find before closing its
+window. Command-G/Shift-Command-G and F3/Shift-F3 use the same search actions.
+Match case changes the next query; there is no extra regex or wrap option.
+The same source bar remains available in attached partial patches. Embedded
+Import/Review previews have no bottom-bar host and retain AppKit Find, with
+read-only text and native show/hide checked separately.
+
+The native checkpoint checks actual NSTextView edits/Undo and clean savepoints,
+raw bytes, UTF-16 saves, legacy-encoding refusal, file-open/save cancellation,
+external-change refusal, Cancel Quit, focused menu routing, source Find and an
+uncooperative read settling after forced closure. The retained partial fixture
+checks real line stage/hunk unstage, index isolation and Git process cleanup.
+See [dated evidence](qa/unified-document-2026-10-15.json).
+
+This remains a partial port. Source-specific byte/codepage search equivalence,
+all physical panel/keyboard/context-menu gestures, multi-owner replacement titles
+and interleavings, all ordinary parent-close decisions, arbitrary encodings,
+huge/network-file behavior, filesystem publication cancellation races, signed
+file grants, App Store execution and full UDiff layout/accessibility acceptance
+remain open. In-flight writes may finish after a forced close; their late UI
+result is suppressed. This batch does not add Apply Patch routing or certify the
+dialog complete. Earlier read-only/native-Find descriptions document older states.

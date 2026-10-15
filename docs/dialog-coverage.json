@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 758,
-    "mapped_controls": 901,
+    "pending_control_reviews": 752,
+    "mapped_controls": 907,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -3285,6 +3285,7 @@
         "docs/qa/commit-close-log-unified-2026-10-05.json",
         "docs/qa/unified-appearance-footer-2026-10-05.json",
         "docs/qa/unified-appearance-navigation-2026-10-05.json",
+        "docs/qa/unified-document-2026-10-15.json",
         "docs/qa/unified-file-menu-2026-10-05.json",
         "docs/qa/unified-font-preview-2026-10-05.json",
         "docs/qa/unified-page-setup-2026-10-05.json"
@@ -3727,13 +3728,13 @@
       "status": "partial-native-replacement",
       "source_blob": "1a5c590842d2d99b38eb53a6f11aa640f0d1cbca",
       "static_controls": 6,
-      "mapped_controls": 0,
-      "pending_control_reviews": 6,
+      "mapped_controls": 6,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/PatchWindow.swift",
-          "anchor": "usesFindBar"
+          "anchor": "PartialPatchFindBar"
         }
       ],
       "missing_native_references": [],
@@ -3744,6 +3745,7 @@
         "docs/qa/commit-close-log-unified-2026-10-05.json",
         "docs/qa/unified-appearance-footer-2026-10-05.json",
         "docs/qa/unified-appearance-navigation-2026-10-05.json",
+        "docs/qa/unified-document-2026-10-15.json",
         "docs/qa/unified-file-menu-2026-10-05.json",
         "docs/qa/unified-font-preview-2026-10-05.json",
         "docs/qa/unified-page-setup-2026-10-05.json"

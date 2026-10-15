@@ -5,8 +5,12 @@ import UniformTypeIdentifiers
 
 @MainActor private final class PatchNSWindow: NSWindow {
     weak var patchText: NSTextView?
+    weak var documentSession: PatchDocumentSession?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
+        if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "o", documentSession?.enabled == true { documentSession?.openDocument(); return true }
+        if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "s", documentSession?.enabled == true { documentSession?.saveDocument(); return true }
+        if event.keyCode == 99, modifiers.isEmpty || modifiers == .shift { find(modifiers == .shift ? .previousMatch : .nextMatch); return true }
         if modifiers == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "s" {
             (patchText as? PatchTextView.PatchText)?.savePatch(nil); return true
         }
@@ -35,6 +39,7 @@ import UniformTypeIdentifiers
 
 @MainActor final class PatchWindowController: NSWindowController, NSWindowDelegate {
     let model: PatchWindowModel
+    private(set) var documentSession: PatchDocumentSession!
     var onClosed: () -> Void = {}
     var onMoved: () -> Void = {}
     private let preferences: UserDefaults
@@ -43,6 +48,7 @@ import UniformTypeIdentifiers
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         self.preferences = preferences
         model = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
+        model.usesSourceFindBar = true
         let savedWidth = preferences.double(forKey: "PartialPatchWindowWidth")
         let width = savedWidth >= 460 && savedWidth <= 4000 ? savedWidth : 600
         let window = PatchNSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 760),
@@ -53,7 +59,10 @@ import UniformTypeIdentifiers
         host.sizingOptions = []
         window.contentViewController = host
         super.init(window: window); window.delegate = self
+        documentSession = PatchDocumentSession(owner: self); window.documentSession = documentSession
         window.setContentSize(NSSize(width: width, height: 760))
+        model.saveDocument = { [weak self] in self?.documentSession.saveDocument() }
+        model.openDocument = { [weak self] in self?.documentSession.openDocument() }
         model.saveAs = { [weak window] in (window?.patchText as? PatchTextView.PatchText)?.savePatch(nil) }
         model.printDiff = { [weak window] in (window?.patchText as? PatchTextView.PatchText)?.printPatch(nil) }
 
@@ -73,11 +82,23 @@ import UniformTypeIdentifiers
     }
     func windowWillClose(_ notification: Notification) {
         flashGeneration += 1; window?.contentView?.layer?.borderWidth = 0
-        model.retire()
+        documentSession.retire(); model.retire()
         if let window { preferences.set(window.frame.width, forKey: "PartialPatchWindowWidth") }
         onClosed()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.confirmingQuit && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !model.busy, !model.confirmingQuit, sender.attachedSheet == nil else { return false }
+        if documentSession.dirty { documentSession.requestClose(); return false }
+        return true
+    }
+    static func focusedOwner(_ initial: NSWindow?) -> PatchWindowController? {
+        var candidate = initial, seen = Set<ObjectIdentifier>()
+        while let window = candidate, seen.insert(ObjectIdentifier(window)).inserted {
+            if let owner = window.delegate as? PatchWindowController { return owner }
+            candidate = window.sheetParent ?? window.parent
+        }
+        return nil
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -87,10 +108,35 @@ import UniformTypeIdentifiers
     let appearancePreferences: UserDefaults
     @Published var document = GitPatch(text: "") { didSet { originalDiff = nil } }
     private var originalDiff: UnifiedDiffDocument?
+    var usesSourceFindBar = false
+    @Published var allowsDocumentEditing = false
+    @Published private(set) var documentDirty = false
+    @Published private(set) var documentResetRevision = 0
+    private var savedDocument: UnifiedDiffDocument?
+    private var approvedReplacementText: String?
+    private var savedText = ""
+    var savedDocumentBytes: Data { savedDocument?.bytes ?? Data() }
+    var requestReplacement: ((Data) -> Void)?
+    var requestReload: (([String], Bool) -> Void)?
+    var documentChanged: () -> Void = {}
+    var canEditText: Bool { allowsDocumentEditing && readOnly && canFind && error == nil }
+    func editDocument(_ text: String) {
+        guard canEditText else { return }
+        approvedReplacementText = nil
+        document = GitPatch(text: text); documentDirty = text != savedText
+        if !documentDirty { originalDiff = savedDocument }
+        documentChanged()
+    }
+    func markDocumentSaved(_ bytes: Data) {
+        savedText = document.text; savedDocument = UnifiedDiffDocument(bytes: bytes)
+        originalDiff = savedDocument; documentDirty = false; documentChanged()
+    }
     @Published var selectedLines = Set<Int>()
     @Published var staged = false
     @Published var readOnly = false { didSet { if !readOnly { originalDiff = nil } } }
     @Published var refreshAvailable = true
+    var saveDocument: () -> Void = {}
+    var openDocument: () -> Void = {}
     var saveAs: () -> Void = {}
     var printDiff: () -> Void = {}
     @Published var showPageSetup = false
@@ -104,7 +150,7 @@ import UniformTypeIdentifiers
     var base: String?
     @Published var busy = false
     @Published var confirmingQuit = false
-    @Published var error: String?
+    @Published var error: String? { didSet { if error != nil { approvedReplacementText = nil } } }
     @Published var paths: [String] = []
     private var generation = 0
     private var readTask: Task<Void, Never>?
@@ -130,7 +176,7 @@ import UniformTypeIdentifiers
         guard canFind else { return }
         let selected = sourceSelection(), text = document.text as NSString
         if selected.length > 0, selected.location <= text.length, NSMaxRange(selected) <= text.length {
-            findText = text.substring(with: selected)
+            changeFindText(text.substring(with: selected))
         }
         findVisible = true; findFocusRequest += 1
     }
@@ -163,7 +209,8 @@ import UniformTypeIdentifiers
         guard !retired else { return }; retired = true; generation += 1
         readCancellation?.cancel(); readTask?.cancel()
         sourceSelection = { NSRange(location: 0, length: 0) }; selectSource = { _ in }; focusSource = {}; onFindBoundary = {}
-        saveAs = {}; printDiff = {}; customRefresh = nil; onApplied = {}; onApplying = { _ in }; onSettled = { _ in }
+        requestReplacement = nil; requestReload = nil; documentChanged = {}
+        saveDocument = {}; openDocument = {}; saveAs = {}; printDiff = {}; customRefresh = nil; onApplied = {}; onApplying = { _ in }; onSettled = { _ in }
         findVisible = false
     }
     var onApplying: (Bool) -> Void = { _ in }
@@ -175,10 +222,13 @@ import UniformTypeIdentifiers
         guard !retired, !busy, !confirmingQuit else { return }
         if !PatchClipboard.write(exportDocument, to: pasteboard) { error = "The patch could not be copied to the clipboard." }
     }
-    func setReadOnlyDiff(_ bytes: Data) {
+    func setReadOnlyDiff(_ bytes: Data, discardingEdits: Bool = false) {
         guard !retired else { return }
+        if allowsDocumentEditing && documentDirty && !discardingEdits && approvedReplacementText != document.text { requestReplacement?(bytes); return }
+        approvedReplacementText = nil
         let source = UnifiedDiffDocument(bytes: bytes)
         readOnly = true; document = GitPatch(text: source.displayText); originalDiff = source
+        savedText = document.text; savedDocument = source; documentDirty = false; documentResetRevision += 1; documentChanged()
     }
     var canApplyLines: Bool { !retired && !readOnly && !busy && !confirmingQuit && selectedLines.contains(where: { document.changedLine($0) }) }
     var canApplyHunks: Bool { !retired && !readOnly && !busy && !confirmingQuit && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }
@@ -191,9 +241,10 @@ import UniformTypeIdentifiers
         if document.files.contains(where: { $0.hasSelectedTextMetadata }) { return "Rename and file mode changes are applied with the selected text. Right-click for staging actions." }
         return "Select changed lines, or place the caret in a hunk. Right-click for staging actions."
     }
-    func reload(paths: [String], staged: Bool) {
+    func reload(paths: [String], staged: Bool, discardingEdits: Bool = false) {
         guard !retired, !applying, !confirmingQuit, !showPageSetup else { return }
-        if let customRefresh { customRefresh(); return }
+        if documentDirty && !discardingEdits { requestReload?(paths, staged); return }
+        if let customRefresh { if discardingEdits { approvedReplacementText = document.text }; customRefresh(); return }
         readCancellation?.cancel(); readTask?.cancel()
         generation += 1; let request = generation, cancellation = OperationCancellation()
         readCancellation = cancellation
@@ -253,9 +304,9 @@ struct PatchDialog: View {
                 if model.refreshAvailable { Button("Refresh") { model.reload(paths: model.paths, staged: model.staged) }.disabled(model.busy) }
             } }
             PatchTextView(model: model).frame(minWidth: 430, minHeight: 360)
-            if !model.readOnly && model.findVisible { PartialPatchFindBar(model: model) }
+            if model.findVisible { PartialPatchFindBar(model: model) }
             if model.loading { HStack { ProgressView(model.cancelling ? "Cancelling…" : "Loading patch…").controlSize(.small); Button("Cancel") { model.cancelRead() }.disabled(model.cancelling) } }
-            if model.readOnly { Text(model.information).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            if model.readOnly { Text(model.documentDirty ? "Modified patch document" : model.information).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
         }.padding(model.readOnly ? 12 : 0).disabled(model.confirmingQuit)
         .sheet(isPresented: $model.showPageSetup, onDismiss: { model.busy = false }) { PatchPageSetup(model: model) }
         .onReceive(NotificationCenter.default.publisher(for: .unifiedDiffAppearanceChanged)) { _ in model.objectWillChange.send() }
@@ -270,12 +321,12 @@ private struct PartialPatchFindBar: View {
     @FocusState private var focused: Bool
     var body: some View {
         HStack(spacing: 6) {
-            Button { model.hideFind() } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help("Close Find")
+            Button { model.hideFind() } label: { Image(nsImage: MenuIcon.originalImage(resource: "cancel-normal", size: 16) ?? NSImage(systemSymbolName: "xmark", accessibilityDescription: "Close Find")!) }.buttonStyle(.plain).help("Close Find")
             Text("Find:")
             TextField("Find", text: Binding(get: { model.findText }, set: { model.changeFindText($0) }))
                 .textFieldStyle(.roundedBorder).focused($focused).onSubmit { model.search(previous: false) }
                 .onExitCommand { model.hideFind() }
-                .accessibilityIdentifier("PartialPatch.FindText")
+                .accessibilityIdentifier(model.readOnly ? "UnifiedDiff.FindText" : "PartialPatch.FindText")
             Button("‹ Previous") { model.search(previous: true) }
             Button("Next ›") { model.search(previous: false) }
             Toggle("Match case", isOn: $model.findMatchCase).toggleStyle(.checkbox)
@@ -318,10 +369,11 @@ struct PatchTextView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView {
         let text = PatchText()
-        text.isEditable = false; text.isSelectable = true; text.delegate = context.coordinator
+        text.isEditable = model.canEditText; text.allowsUndo = true; text.isSelectable = true; text.delegate = context.coordinator
+        text.isAutomaticQuoteSubstitutionEnabled = false; text.isAutomaticDashSubstitutionEnabled = false; text.isAutomaticTextReplacementEnabled = false; text.isAutomaticSpellingCorrectionEnabled = false
         text.coordinator = context.coordinator
         text.isRichText = false; text.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        text.usesFindBar = model.readOnly; text.isIncrementalSearchingEnabled = model.readOnly
+        text.usesFindBar = !model.usesSourceFindBar; text.isIncrementalSearchingEnabled = !model.usesSourceFindBar
         text.isHorizontallyResizable = true; text.isVerticallyResizable = true
         text.autoresizingMask = []
         text.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -335,7 +387,8 @@ struct PatchTextView: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard !model.retired, let text = scroll.documentView as? PatchText else { return }
         context.coordinator.model = model
-        text.usesFindBar = model.readOnly; text.isIncrementalSearchingEnabled = model.readOnly
+        text.isEditable = model.canEditText
+        text.usesFindBar = !model.usesSourceFindBar; text.isIncrementalSearchingEnabled = !model.usesSourceFindBar
         model.sourceOwnerID = context.coordinator.identity
         model.sourceSelection = { [weak text] in text?.selectedRange() ?? NSRange(location: 0, length: 0) }
         model.selectSource = { [weak text] range in
@@ -346,8 +399,10 @@ struct PatchTextView: NSViewRepresentable {
         model.focusSource = { [weak text] in guard let text else { return }; text.window?.makeFirstResponder(text) }
         let settings = UnifiedDiffAppearance.load(from: model.appearancePreferences), dark = scheme == .dark, highContrast = contrast == .increased
         let cache = context.coordinator
-        guard cache.lastText != model.document.text || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
-        let contentChanged = cache.lastText != model.document.text, selection = text.selectedRange()
+        guard !text.hasMarkedText() else { return }
+        guard cache.needsStyling || cache.resetRevision != model.documentResetRevision || cache.lastText != model.document.text || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
+        let contentChanged = cache.resetRevision != model.documentResetRevision || cache.lastText != model.document.text, selection = text.selectedRange()
+        cache.resetRevision = model.documentResetRevision; cache.needsStyling = false
         cache.lastText = model.document.text; cache.lastAppearance = settings; cache.dark = dark; cache.highContrast = highContrast
         let font = NSFont(name: settings.fontName, size: CGFloat(settings.fontSize)) ?? NSFontManager.shared.font(withFamily: settings.fontName, traits: [], weight: 5, size: CGFloat(settings.fontSize)) ?? NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
         let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
@@ -365,9 +420,13 @@ struct PatchTextView: NSViewRepresentable {
                 .foregroundColor: highContrast ? NSColor.labelColor : color(palette.foreground),
                 .backgroundColor: highContrast ? NSColor.textBackgroundColor : color(palette.background)]))
         }
-        text.textStorage?.setAttributedString(value)
+        if text.string == value.string {
+            text.textStorage?.beginEditing()
+            value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in text.textStorage?.setAttributes(attributes, range: range) }
+            text.textStorage?.endEditing()
+        } else { text.textStorage?.setAttributedString(value) }
         text.needsDisplay = true
-        if contentChanged { (scroll as? PatchScrollView)?.resetToStart = true; text.setSelectedRange(NSRange(location: 0, length: 0)) }
+        if contentChanged { text.undoManager?.removeAllActions(); (scroll as? PatchScrollView)?.resetToStart = true; text.setSelectedRange(NSRange(location: 0, length: 0)) }
         else {
             let location = min(selection.location, value.length)
             text.setSelectedRange(NSRange(location: location, length: min(selection.length, value.length - location)))
@@ -386,9 +445,15 @@ struct PatchTextView: NSViewRepresentable {
         let identity = UUID()
         var model: PatchWindowModel
         var lastText: String?
+        var resetRevision = -1, needsStyling = true
         var lastAppearance: UnifiedDiffAppearance?
         var dark = false, highContrast = false
         init(model: PatchWindowModel) { self.model = model }
+        func textDidChange(_ notification: Notification) {
+            guard let text = notification.object as? NSTextView, !text.hasMarkedText(), model.canEditText else { return }
+            lastText = text.string; needsStyling = true; model.editDocument(text.string)
+        }
+        func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool { model.canEditText }
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !model.retired, let view = notification.object as? NSTextView else { return }
             let selected = view.selectedRange(); var offset = 0, lines = Set<Int>()
@@ -466,22 +531,23 @@ struct PatchTextView: NSViewRepresentable {
         }
         func find(_ action: NSTextFinder.Action) {
             guard let model = coordinator?.model, model.canFind else { return }
-            if !model.readOnly {
-                switch action {
-                case .showFindInterface: model.showFind()
-                case .hideFindInterface: model.hideFind()
-                case .nextMatch: model.search(previous: false)
-                case .previousMatch: model.search(previous: true)
-                default: break
+            if !model.usesSourceFindBar {
+                if action == .showFindInterface, selectedRange().length > 0 {
+                    let selected = NSMenuItem(); selected.tag = NSTextFinder.Action.setSearchString.rawValue; super.performTextFinderAction(selected)
                 }
-                return
+                let item = NSMenuItem(); item.tag = action.rawValue; super.performTextFinderAction(item); return
             }
-            if action == .showFindInterface, selectedRange().length > 0 {
-                let selection = NSMenuItem(); selection.tag = NSTextFinder.Action.setSearchString.rawValue
-                performTextFinderAction(selection)
+            switch action {
+            case .showFindInterface: model.showFind()
+            case .hideFindInterface: model.hideFind()
+            case .nextMatch: model.search(previous: false)
+            case .previousMatch: model.search(previous: true)
+            default: break
             }
-            let item = NSMenuItem(); item.tag = action.rawValue
-            performTextFinderAction(item)
+        }
+        override func unmarkText() {
+            super.unmarkText()
+            if let coordinator, coordinator.model.canEditText { coordinator.lastText = string; coordinator.needsStyling = true; coordinator.model.editDocument(string) }
         }
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
             let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
@@ -502,6 +568,7 @@ struct PatchTextView: NSViewRepresentable {
         }
         @objc func savePatch(_ sender: Any?) {
             guard let window, window.attachedSheet == nil, let model = coordinator?.model, !model.retired, !model.busy, !model.confirmingQuit else { return }
+            if model.allowsDocumentEditing, let session = (window.delegate as? PatchWindowController)?.documentSession { session.saveDocument(as: true); return }
             let snapshot = model.exportDocument
             let panel = NSSavePanel(); panel.nameFieldStringValue = "changes.patch"
             panel.allowedContentTypes = [UTType(filenameExtension: "patch") ?? .plainText]
@@ -510,6 +577,13 @@ struct PatchTextView: NSViewRepresentable {
                 do { try snapshot.write(to: url) }
                 catch { model.error = error.localizedDescription }
             }
+        }
+        @objc func undoPatch(_ sender: Any?) { guard coordinator?.model.canEditText == true else { return }; undoManager?.undo() }
+        @objc func redoPatch(_ sender: Any?) { guard coordinator?.model.canEditText == true else { return }; undoManager?.redo() }
+        override func performTextFinderAction(_ sender: Any?) {
+            if coordinator?.model.usesSourceFindBar != true { super.performTextFinderAction(sender); return }
+            guard let tag = (sender as? NSMenuItem)?.tag, let action = NSTextFinder.Action(rawValue: tag) else { return }
+            find(action)
         }
         @objc func showFind(_ sender: Any?) { find(.showFindInterface) }
         override func menu(for event: NSEvent) -> NSMenu? {
@@ -531,6 +605,15 @@ struct PatchTextView: NSViewRepresentable {
                     item.target = coordinator; item.image = (coordinator.model.staged ? MenuIcon.revert : .add).contextImage(); item.isEnabled = enabled; menu.addItem(item)
                 }
                 menu.addItem(.separator())
+            }
+            if coordinator.model.canEditText {
+                for (title, selector, icon) in [("Undo", #selector(undoPatch(_:)), MenuIcon.mergeUndo), ("Redo", #selector(redoPatch(_:)), .mergeRedo), ("Paste", #selector(NSText.paste(_:)), .mergePaste)] {
+                    let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(); menu.addItem(item)
+                }
+            }
+            if coordinator.model.canEditText {
+                let cut = NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: ""); cut.target = self
+                cut.image = MenuPresentationSettings.applicationContextIcons() ? NSImage(systemSymbolName: "scissors", accessibilityDescription: "Cut") : nil; menu.addItem(cut)
             }
             let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
             copy.target = self; copy.image = MenuIcon.copy.contextImage(); menu.addItem(copy)

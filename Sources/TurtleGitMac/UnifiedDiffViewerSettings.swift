@@ -14,11 +14,12 @@ import TurtleGitCore
     private(set) static var activeRequests = 0
     static func presentBuiltin(_ bytes: Data, repository: GitRepository, access: RepositoryAccessLease?, existing: PatchWindowController?, title: String, onClosed: @escaping () -> Void) -> PatchWindowController {
         let controller = existing ?? PatchWindowController(repository: repository, access: access)
+        controller.model.allowsDocumentEditing = true
         controller.model.setReadOnlyDiff(bytes)
         controller.model.refreshAvailable = false
         controller.model.customRefresh = nil
         controller.model.comparisonTitle = title
-        controller.model.readOnlyInformation = bytes.isEmpty ? "No changes in this comparison." : "Read-only unified diff. Use Save As to export the original patch bytes."
+        controller.model.readOnlyInformation = bytes.isEmpty ? "No changes in this comparison." : "Edit the patch document; Save As exports it without changing repository files."
         controller.window?.title = "\(repository.root.lastPathComponent) – Unified Diff – TurtleGit"
         controller.onClosed = onClosed
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

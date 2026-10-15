@@ -106,6 +106,7 @@ import AppKit
         if sender.windows.compactMap({ $0.delegate as? ReferenceBrowserWindowController }).contains(where: { $0.model.busy || $0.model.hasChild || $0.model.renameReference != nil || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? BranchTagWindowController }).contains(where: { $0.model.busy || $0.model.chooser.busy || $0.model.chooser.pickerTarget != nil || $0.model.hasPendingNameConflict || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? StashRestoreWindowController }).contains(where: { $0.model.busy || $0.model.prompt != nil || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if PatchDocumentSession.activeOperations != 0 { return .terminateCancel }
         if PatchWindowModel.activeOperations != 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? PatchWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? LogWindowController }).contains(where: { $0.model.busy || $0.model.orderingBlocked || $0.window?.attachedSheet != nil }) { return .terminateCancel }
@@ -149,12 +150,14 @@ import AppKit
         if updateProgress.contains(where: { $0.model.activeOperation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         let updates = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateWindowController }
         let submoduleDiffs = sender.windows.compactMap { $0.delegate as? SubmoduleDiffWindowController }
+        let patchDocuments = sender.windows.compactMap { $0.delegate as? PatchWindowController }.filter { $0.documentSession.enabled }
         let comparisons = sender.windows.compactMap { $0.delegate as? RevisionComparisonWindowController }
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
         guard !adds.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !submoduleDiffs.contains(where: { $0.model.busy || $0.model.hasUpdateChild }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) else { return .terminateCancel }
-        guard !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) else { return finishBackgroundWatches(sender) }
+        guard patchDocuments.contains(where: { $0.documentSession.dirty }) || !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) else { return finishBackgroundWatches(sender) }
         confirmingQuit = true
+        for controller in patchDocuments { controller.model.confirmingQuit = true }
         for controller in lfsLocks { controller.model.confirmingQuit = true }
         for controller in statuses { controller.model.confirmingQuit = true }
         for controller in imports { controller.setQuitConfirmation(true) }
@@ -176,7 +179,10 @@ import AppKit
         for controller in controllers { controller.model.confirmingQuit = true }
         Task {
             var allowQuit = true
-            for controller in reviews where controller.model.dirty {
+            for controller in patchDocuments where controller.documentSession.dirty {
+                if !(await controller.documentSession.resolveChanges()) { allowQuit = false; break }
+            }
+            for controller in reviews where allowQuit && controller.model.dirty {
                 if !(await controller.model.resolveDraft(discardImmediately: false)) { allowQuit = false; break }
             }
             for controller in fileComparisons where allowQuit && controller.model.dirty {
@@ -239,6 +245,7 @@ import AppKit
             for controller in controllers { controller.model.confirmingQuit = false }
             for controller in imports { controller.setQuitConfirmation(false) }
             for controller in reviews { controller.setQuitConfirmation(false) }
+            for controller in patchDocuments { controller.model.confirmingQuit = false }
             for controller in lfsLocks { controller.model.confirmingQuit = false }
             for controller in statuses { controller.model.confirmingQuit = false }
             if allowQuit { repositoryModel?.stopMonitoringForTermination();await repositoryModel?.finderWatches?.shutdown() }

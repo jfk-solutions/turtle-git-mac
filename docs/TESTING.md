@@ -1899,3 +1899,22 @@ processes without per-commit tree queries. Missing gitlink objects and strict
 batch-frame validation are covered separately. Injected scopes are model checks,
 not signed sandbox acceptance. See [parity scope](GIT-PROPERTIES-PARITY.md) and
 [dated evidence](qa/git-properties-parents-2026-10-15.json).
+
+## Unified Diff editable document family
+
+After a current Debug build:
+
+```sh
+python3 scripts/test-unified-document-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The runner links current app objects once and combines the new standalone
+file-document fixture with the retained partial-staging fixture. Each case uses
+private files/repositories/preferences and must emit a completion marker before
+its owned receiver is reaped. `--only document` or `partial` limits a repair.
+`--captures build/qa/unified-document-captures` captures the actual UDiff window
+with source Find in light/dark through ScreenCaptureKit; inspect raw originals
+before publishing. A capture-only fixture correction does not repeat staging
+or Core checks. No Core algorithm changed in this native document batch.
+See [scope](UNIFIED-DIFF-VIEWER-PARITY.md#editable-documents-file-actions-and-source-find--october-15-2026)
+and [evidence](qa/unified-document-2026-10-15.json).

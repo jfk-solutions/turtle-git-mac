@@ -72,7 +72,8 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.cancelRead(closeAfter: true) { return false }
-        return !activeOperation && sender.attachedSheet == nil && patch?.model.busy != true && patch?.window?.attachedSheet == nil
+        guard !activeOperation && sender.attachedSheet == nil && patch?.model.busy != true && patch?.window?.attachedSheet == nil else { return false }
+        return PatchDocumentSession.permitOwnerClose(patch.map { [$0] } ?? [])
     }
     func windowWillClose(_ notification: Notification) {
         guard !retired else { return }; retired = true
@@ -184,6 +185,7 @@ import TurtleGitCore
             }
         } catch { model.error = error.localizedDescription; return }
         let controller = patch ?? PatchWindowController(repository: model.repository, access: model.access)
+        controller.model.allowsDocumentEditing = true
         controller.model.setReadOnlyDiff(bytes)
         controller.model.comparisonTitle = "HEAD → Working tree"
         controller.model.readOnlyInformation = "Unified diff since HEAD. Right-click to save the patch."

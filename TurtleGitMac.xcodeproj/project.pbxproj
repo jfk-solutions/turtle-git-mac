@@ -364,6 +364,7 @@
 		F985838996B74756D7DE40B9 /* FinderTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EECCE7959BF8AB6672556218 /* FinderTransfer.swift */; };
 		FAB82E3107DA7034BF3479F6 /* PatchTargetMatching.swift in Sources */ = {isa = PBXBuildFile; fileRef = D621E333B5222878393878C2 /* PatchTargetMatching.swift */; };
 		C21010160000000000000005 /* MessageEditorStylingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21010160000000000000006 /* MessageEditorStylingSession.swift */; };
+		C210101500000000000000A1 /* PatchDocumentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101500000000000000A2 /* PatchDocumentSession.swift */; };
 		C21010160000000000000003 /* ImageEditorToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21010160000000000000004 /* ImageEditorToolbar.swift */; };
 		C21010160000000000000001 /* SubversionInlineDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21010160000000000000002 /* SubversionInlineDiff.swift */; };
 		FB06077C7097755667D83917 /* CommitHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6352B22FB03878FC59F470 /* CommitHistory.swift */; };
@@ -804,6 +805,7 @@
 		DE3C7BF5278D5807BDDF4B21 /* Reset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reset.swift; sourceTree = "<group>"; };
 		DF564D01D7A2390D6F148B73 /* MergeResultPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeResultPresentation.swift; sourceTree = "<group>"; };
 		C21010160000000000000006 /* MessageEditorStylingSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorStylingSession.swift; sourceTree = "<group>"; };
+		C210101500000000000000A2 /* PatchDocumentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchDocumentSession.swift; sourceTree = "<group>"; };
 		C21010160000000000000004 /* ImageEditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageEditorToolbar.swift; sourceTree = "<group>"; };
 		C21010160000000000000002 /* SubversionInlineDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubversionInlineDiff.swift; sourceTree = "<group>"; };
 		DF6352B22FB03878FC59F470 /* CommitHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitHistory.swift; sourceTree = "<group>"; };
@@ -977,6 +979,7 @@
 				8C9B173C5B4A10A0D415C859 /* ImageComparisonWindow.swift */,
 				C21010160000000000000004 /* ImageEditorToolbar.swift */,
 				C21010160000000000000006 /* MessageEditorStylingSession.swift */,
+				C210101500000000000000A2 /* PatchDocumentSession.swift */,
 				C12C65B53D4E28A9F6C52DF1 /* ImageConflictWindow.swift */,
 				8B42920DE9933183EF4D9AD8 /* ImageLoadWindow.swift */,
 				8507AEE60EB25AB3DFDC1830 /* ImageWindowPresentation.swift */,
@@ -1936,6 +1939,7 @@
 				4452DB2F9B5533ACBEAAD448 /* ImageComparisonWindow.swift in Sources */,
 				C21010160000000000000003 /* ImageEditorToolbar.swift in Sources */,
 				C21010160000000000000005 /* MessageEditorStylingSession.swift in Sources */,
+				C210101500000000000000A1 /* PatchDocumentSession.swift in Sources */,
 				90C7E3E08BB57158CF31FB56 /* ImageConflictWindow.swift in Sources */,
 				3ECB98AE97E907C10D655116 /* ImageLoadWindow.swift in Sources */,
 				36CCF97A9662F8905E4612BA /* ImageWindowPresentation.swift in Sources */,

@@ -119,6 +119,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if sender.attachedSheet==nil,model.cancelFileAction(closeAfter:true) { return false }
         guard sender.attachedSheet == nil, !model.busy, model.patchWindow?.model.busy != true, model.patchWindow?.window?.attachedSheet == nil, !model.unifiedWindows.values.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !model.comparisonWindows.values.contains(where: { $0.model.busy }) else { return false }
+        guard PatchDocumentSession.permitOwnerClose(Array(model.unifiedWindows.values)) else { return false }
         if let child = model.comparisonWindows.values.first(where: { $0.model.dirty }) {
             child.window?.makeKeyAndOrderFront(nil); child.window?.performClose(nil); return false
         }
@@ -408,6 +409,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                     guard !closed, !token.isCancelled else { return }
                     if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences), !closed, !token.isCancelled {
                         let controller = unifiedWindows[file.path] ?? PatchWindowController(repository: repository, access: access)
+                        controller.model.allowsDocumentEditing = true
                         controller.model.setReadOnlyDiff(bytes)
                         controller.model.paths = [file.path]
                         controller.model.comparisonTitle = "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))"

@@ -262,3 +262,8 @@ explicit ignore inheritance; see [selection context](docs/FINDER-SELECTION-CONTE
 index flags, including live registered-parent/submodule pages and captured
 Log/Settings actions. Last Modified uses bounded history object queries while
 retaining the source's mode-only and merge-parent rules.
+
+Standalone [Unified Diff documents](docs/UNIFIED-DIFF-VIEWER-PARITY.md#editable-documents-file-actions-and-source-find--october-15-2026)
+support native editing/Undo, Open, Save/Save As, unsaved-change decisions and the
+source-style bottom Find bar. Editing a patch document does not stage or apply
+its changes to a repository.

@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "8979230d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseUDiff/MainWindow.cpp:InitEditor, SetupWindow, LoadFile, SaveFile, canCloseWhenModified, DoSearch and DoCommand",
+    "src/TortoiseUDiff/FindBar.cpp",
+    "src/TortoiseUDiff/TortoiseUDiff.rc:IDD_FINDBAR and accelerators",
+    "src/Resources/cancel-normal.ico"
+  ],
+  "scope": [
+    "Standalone UDiff native plain-text editing with Undo and source savepoints; staging/import previews retain separate gates",
+    "Open/Save/Save As, selected file permission lifetime, 250 MiB read bound, preserved BOM/legacy encoding and refusal of unrepresentable Save",
+    "External-file change refusal, atomic write, dirty Close/Open/replacement/Refresh/Quit decisions and ordinary parent-close routing",
+    "Source bottom Find controls/order/artwork, case-sensitive option, incremental reset, selection cursors, no wrap and boundary flash; Command-F/G and F3 adaptations",
+    "Per-owner command callbacks, focused app menus and file-read retirement/Quit accounting"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/unified-document-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/unified-document-ownership-build.log",
+      "exit": 0,
+      "reason": "Include normal parent-close guards after source ownership review"
+    },
+    {
+      "log": "build/qa/unified-document-final-build.log",
+      "exit": 0,
+      "reason": "Include upstream close artwork and final toolbar arrangement"
+    },
+    {
+      "log": "build/qa/unified-document-embedded-build.log",
+      "exit": 0,
+      "reason": "Preserve AppKit Find for embedded previews without a standalone bottom bar"
+    }
+  ],
+  "core": "No Core algorithms changed; no Core suites repeated. The added icon is a byte-for-byte copy from the pinned source.",
+  "native": {
+    "runner": "scripts/test-unified-document-family.py",
+    "fixtures": [
+      "docs/qa/unified-document-native-2026-10-15.swift",
+      "docs/qa/partial-patch-native-2026-10-13.swift"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/unified-document-native.log",
+        "exit": 0,
+        "cases": 4,
+        "detail": "Document and retained partial staging checks passed with system and bundled Git."
+      },
+      {
+        "log": "build/qa/unified-document-capture-final.log",
+        "exit": 0,
+        "cases": 1,
+        "detail": "System document case repeated only to correct fixture title/hint and let the prior boundary flash settle before light/dark captures. No app source or assertion weakened; Core/partial/bundled not repeated."
+      },
+      {
+        "log": "build/qa/unified-document-embedded-native.log",
+        "exit": 0,
+        "cases": 1,
+        "detail": "System document workflow plus actual embedded read-only NSTextView native Find show/hide passed after embedded/source-bar ownership repair. Partial and bundled cases were not repeated; their source-bar paths remain equivalent."
+      }
+    ],
+    "exact_checks": [
+      "Actual NSTextView editing, Undo/Redo, original-byte restoration at saved display text and dirty window indicator",
+      "First Save establishes destination; Cancel Save As preserves edits/Undo",
+      "Open resets prior Undo; actual UTF-16 LE BOM file edit/save preserves encoding",
+      "Direct Save refuses externally changed disk bytes; unsupported Windows-1252 character fails without file changes",
+      "Cancel ordinary close and real application delegate Quit sequence preserve dirty document and release confirmation gates",
+      "Find selection seed, Match case, UTF-16 offsets, forward/reverse boundary selection and no-wrap flash count",
+      "Focused PatchMenuContext refuses background Save",
+      "Injected uncooperative file read after forced close retains Quit count through settlement, then refuses late publication",
+      "Retained partial case stages lines/unstages hunks with real Git, preserves unrelated index entries, and checks superseded/cancelled/retired Git reader and mutation process ownership",
+      "HEAD, original index and working-tree file remain unchanged by standalone document operations",
+      "Actual embedded read-only view retains usesFindBar and AppKit show/hide, remains noneditable and does not request a nonexistent source bar."
+    ],
+    "panels": "Real session file reads/writes; panel URLs and unsaved decisions injected. Physical Open/Save/alert gestures not established.",
+    "receiver_pids": [
+      27534,
+      27550,
+      27884,
+      27897,
+      28301,
+      28530
+    ],
+    "all_receiver_pids_absent": true
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/unified-document-light.png",
+      "width": 1200,
+      "height": 1584,
+      "sha256": "7bdd4495241d4635741ac57b2705d01741cefdf80820d04128344e8fd108dd4b",
+      "reviewed": true,
+      "method": "Unmodified ScreenCaptureKit current-process window compositor; inactive accessory window with private fixture/prefs."
+    },
+    {
+      "path": "docs/site/assets/unified-document-dark.png",
+      "width": 1200,
+      "height": 1584,
+      "sha256": "de9375481709bb273e1801773ce2f149b65845f917a1ca00d42426179986c8f2",
+      "reviewed": true,
+      "method": "Unmodified ScreenCaptureKit current-process window compositor; inactive accessory window with private fixture/prefs."
+    }
+  ],
+  "ci": {
+    "prior_run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38766386937",
+    "status": "Still running when inspected; previous commit Pages passed. This batch has not yet run hosted CI.",
+    "addition": "Standalone document case runs with both engines; existing reference groups retain partial staging."
+  },
+  "limitations": [
+    "No signed sandbox/App Store or physical Finder acceptance",
+    "No exhaustive physical keyboard/panel/menu/VoiceOver acceptance",
+    "Parent close guards compiled but all ordinary parent decisions not independently driven",
+    "Source-specific byte/codepage search equivalence, arbitrary encodings, encoding conversion picker and all BOM variants unverified",
+    "Multiple replacement requests and caller-owned comparison titles/metadata interleavings remain open",
+    "Very large/network-file behavior and filesystem publication cancellation races unverified; in-flight atomic write may finish after forced close, with late UI publication suppressed",
+    "Apply Patch routing/full UDiff parity remains incomplete; no dialog certified complete"
+  ],
+  "source_icon_sha256": "40db8089d4fa80c81dd9b62ff3e5366f6ac1fe9600633c3da4b9643c777dd33c"
+}

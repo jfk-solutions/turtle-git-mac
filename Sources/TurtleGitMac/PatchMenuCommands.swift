@@ -7,6 +7,7 @@ import TurtleGitCore
 /// Repository, Settings and other editors must not act on a background diff.
 @MainActor final class PatchMenuContext: ObservableObject {
     @Published private(set) var available = false
+    @Published private(set) var documentAvailable = false
     @Published private(set) var partialAvailable = false
     @Published private(set) var stageLinesAvailable = false
     @Published private(set) var stageHunksAvailable = false
@@ -45,6 +46,8 @@ import TurtleGitCore
         }
         let enabled = controller.map { !$0.model.retired && !$0.model.busy && !$0.model.confirmingQuit && $0.model.error == nil && $0.window?.attachedSheet == nil } ?? false
         if available != enabled { available = enabled }
+        let document = enabled && controller?.documentSession.enabled == true
+        if documentAvailable != document { documentAvailable = document }
         let partial = controller.map { !$0.model.retired && !$0.model.readOnly } ?? false
         if partialAvailable != partial { partialAvailable = partial }
         let model = controller?.model
@@ -63,6 +66,7 @@ import TurtleGitCore
         model.apply(entireHunks: entireHunks)
     }
     func copyPatch() { refresh(); guard available else { return }; current?.model.copyPatch() }
+    func saveDocument() { refresh(); guard documentAvailable else { return }; current?.documentSession.saveDocument() }
     func saveAs() { refresh(); guard available else { return }; current?.model.saveAs() }
     func printDiff() { refresh(); guard available else { return }; current?.model.printDiff() }
     func pageSetup() { refresh(); guard available else { return }; current?.model.pageSetup() }
@@ -82,6 +86,7 @@ struct PatchFileCommands: Commands {
             }
         }
         CommandGroup(after: .saveItem) {
+            if context.documentAvailable { Button { context.saveDocument() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s") }
             Button { context.copyPatch() } label: { CommandLabel(title: "Copy Patch", icon: .copy) }.disabled(!context.available)
             Button("Save As…") { context.saveAs() }
                 .keyboardShortcut("s", modifiers: [.command, .shift]).disabled(!context.available)

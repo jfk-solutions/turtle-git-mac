@@ -374,6 +374,7 @@ enum RevisionGraphReferenceCommand {
             let opened=try await self.openUnifiedExternal(bytes,alternate)
             guard !opened,!Task.isCancelled,!self.model.closed,!self.closing,self.model.generation==request,self.model.selectionGeneration==selection else { return }
             let viewer=self.unifiedViewer ?? PatchWindowController(repository:repository,access:access,preferences:preferences)
+            viewer.model.allowsDocumentEditing = true
             viewer.window?.alphaValue=self.window?.alphaValue ?? 1
             self.unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: viewer, title: "Revision Graph changes", onClosed: { [weak self] in self?.unifiedViewer = nil })
         }
@@ -682,6 +683,7 @@ enum RevisionGraphReferenceCommand {
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard sender.attachedSheet == nil, !hasFindError, filter == nil, !exporting, unifiedViewer?.model.busy != true, unifiedViewer?.window?.attachedSheet == nil else { return false }
+        guard PatchDocumentSession.permitOwnerClose(unifiedViewer.map { [$0] } ?? []) else { return false }
         if model.busy { closing = true; model.cancel(); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {

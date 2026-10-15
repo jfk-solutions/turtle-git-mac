@@ -293,9 +293,10 @@ final class ApplicationMailContext: @unchecked Sendable {
                     guard let self else { return }
                     if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences) { return }
                     let controller = self.patch ?? PatchWindowController(repository: repository, access: repositoryAccess, preferences: preferences)
+                    controller.model.allowsDocumentEditing = true
                     controller.model.setReadOnlyDiff(bytes); controller.model.refreshAvailable = false
                     controller.model.customRefresh = nil; controller.model.comparisonTitle = file.lastPathComponent
-                    controller.model.readOnlyInformation = "Read-only patch. Use Save As to export the original bytes."
+                    controller.model.readOnlyInformation = "Patch document. Save As exports the original bytes until edited."
                     controller.window?.title = "\(file.lastPathComponent) – Unified Diff – TurtleGit"
                     controller.onClosed = { [weak self, weak controller] in if self?.patch === controller { self?.patch = nil; self?.model.objectWillChange.send() } }
                     self.patch = controller
@@ -369,7 +370,7 @@ final class ApplicationMailContext: @unchecked Sendable {
             }
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.childActive() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.childActive() && PatchDocumentSession.permitOwnerClose(patch.map { [$0] } ?? []) }
     func windowWillClose(_ notification: Notification) {
         retired = true; targetGeneration += 1
         if let panel = targetPicker { window?.endSheet(panel, returnCode: .cancel); panel.close() }
