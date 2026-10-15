@@ -58,7 +58,7 @@ import TurtleGitCore
     }
     @objc private func openAction(_ sender: NSMenuItem) {
         guard let command = sender.representedObject as? FinderMenuCommand,
-              let url = command.url(control: NSEvent.modifierFlags.contains(.control)) else { return }
+              let url = command.url(control: NSEvent.modifierFlags.contains(.control),alternate:NSEvent.modifierFlags.contains(.shift)) else { return }
         NSWorkspace.shared.open(url)
     }
 }
@@ -68,11 +68,11 @@ final class FinderMenuCommand: NSObject {
     let request: FinderRequest
     init(action: RepositoryAction, paths: [URL]) { request = FinderRequest(action: action, paths: paths) }
     init(request: FinderRequest) { self.request = request }
-    func url(control: Bool = false) -> URL? {
+    func url(control: Bool = false, alternate: Bool? = nil) -> URL? {
         if control && request.action == .diffLater {
             return FinderRequest(action: .clearComparisonMark, paths: request.paths).url
         }
-        return request.url
+        return FinderRequest(action:request.action,paths:request.paths,sources:request.sources,alternateTool:alternate ?? request.alternateTool).url
     }
 }
 

@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-15",
+  "scope": "Finder captured default/alternate comparison-tool request and native handoff family",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Capture Shift at actual Finder command activation in the immutable URL request",
+    "Optional strict alternate=0/1 field; explicit default overrides another invocation, legacy missing field retains app-side capture",
+    "Reject duplicate/missing/malformed tool fields before dispatch",
+    "Task-scoped choice spans initial URL handling, repository discovery, authorization and comparison preparation",
+    "Control Mark still clears comparison mark without tool metadata",
+    "Preserve paths, source packets, eligibility/order/icons and existing permission validation",
+    "Marked/two-file viewers consume owning comparison preferences",
+    "Update historical unavailable-group counts: all 55 source catalog groups now have routes; this is routing coverage only"
+  ],
+  "validation": {
+    "core": {
+      "checks": 18,
+      "failures": 0,
+      "log": "build/qa/finder-tool-handoff-core-2026-10-15.log",
+      "scope": "FinderRequestTests and FinderTransferTests: explicit/legacy flag roundtrip, literal paths, transfer source fields and malformed flag refusal"
+    },
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/finder-tool-handoff-build-2026-10-15.log"
+    },
+    "menu_builder": {
+      "log": "build/qa/finder-tool-handoff-menu-2026-10-15.log",
+      "scope": "Actual extension menu builder with default/alternate packets, Control clear, source order/eligibility/icons and captured paths",
+      "exit_code": 0
+    },
+    "native": {
+      "log": "build/qa/finder-tool-handoff-native-2026-10-15.log",
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "scope": [
+        "Actual app URL handler and repository-adoption task held at Git root discovery",
+        "Explicit true/false override opposite app invocation and retain selected literal file despite highlight change",
+        "Working and previous-revision comparison presentation retain choice after async reads",
+        "Actual two-file viewer models retain explicit choice and private preferences",
+        "Repository HEAD, raw index and working bytes retained",
+        "Existing comparison launch/refusal/cache/tool-preparation and child lifetime checks"
+      ],
+      "result": "2 grouped engine cases passed",
+      "owned_receiver_pids_reaped": [
+        96206,
+        96601
+      ],
+      "owned_receivers_absent": true
+    },
+    "documentation": {
+      "reconciled": true,
+      "site_exit_code": 0,
+      "documents": 215,
+      "unresolved_fragments": []
+    }
+  },
+  "limits": [
+    "Actual menu builder is headless; no installed Finder extension or physical Shift/Control activation established",
+    "Repository discovery is gated with a private helper; authorization-panel gestures/security scopes are not certified",
+    "Native metadata/presentation interception and builtin viewers do not launch external user applications",
+    "Routing coverage is not complete end-to-end functionality or dialog parity",
+    "Signed Finder, App Group, sandbox/minimum-OS and App Store acceptance remain open"
+  ]
+}

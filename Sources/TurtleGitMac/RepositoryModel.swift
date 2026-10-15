@@ -2529,7 +2529,7 @@ import UniformTypeIdentifiers
                 guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope && permission.contains(file) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 _ = try comparison.read()
                 let key = "working-mark:" + UUID().uuidString
-                let controller = FileComparisonWindowController(comparison: comparison, permissions: [marked.permission, permission])
+                let controller = FileComparisonWindowController(comparison: comparison, permissions: [marked.permission, permission],preferences:fileComparisonPreferences)
                 controller.model.captureToolChoice(alternateTool)
                 controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
                 fileComparisonWindows[key] = controller
@@ -2545,7 +2545,7 @@ import UniformTypeIdentifiers
             guard let prepared = try WorkingFilePairAccess.prepare(paths: paths, requireSecurityScope: GitRuntime.isAppStoreBuild,
                 acquire: { try comparisonPermission(for: $0) }) else { return }
             let key = "working-pair:" + UUID().uuidString
-            let controller = FileComparisonWindowController(comparison: prepared.comparison, permissions: prepared.permissions)
+            let controller = FileComparisonWindowController(comparison: prepared.comparison, permissions: prepared.permissions,preferences:fileComparisonPreferences)
             controller.model.captureToolChoice(alternateTool)
             controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
@@ -2554,6 +2554,10 @@ import UniformTypeIdentifiers
     }
     func handle(_ url: URL) {
         guard !confirmingQuit, let request = FinderRequest(url: url) else { return }
+        let choice=request.alternateTool ?? ComparisonToolInvocation.capture
+        ComparisonToolInvocation.$alternate.withValue(choice) {handleFinderRequest(request)}
+    }
+    private func handleFinderRequest(_ request:FinderRequest) {
         let action = request.action
         if action == .settings {
             let knownRoot = request.paths.first.flatMap { selected in

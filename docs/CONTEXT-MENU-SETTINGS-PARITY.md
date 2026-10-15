@@ -85,3 +85,10 @@ LFS/mail continuation: the two additional LFS and Send Mail groups are available
 for 49 of 55 source catalog groups. LFS children share the group preference and
 Send Mail supports outside-repository file selections. Six groups remain gated;
 see FINDER-LFS-MAIL-PARITY.md. Earlier counts are historical checkpoints.
+
+
+Current routing availability covers all 55 catalog groups. The historical
+unavailable counts above are superseded by the SVN, Daemon and patch ports.
+See [current Finder handoffs](FINDER-COMMAND-HANDOFF-PARITY.md), including captured
+comparison-tool choice. Full shell appearance/conditions and signed acceptance
+remain open.

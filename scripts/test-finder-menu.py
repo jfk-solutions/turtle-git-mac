@@ -195,6 +195,11 @@ import TurtleGitCore
             precondition(command.request.paths.map(\.path) == FinderRequest(action: command.request.action, paths: [untracked, tracked]).paths.map(\.path))
             precondition(FinderRequest(url: command.url()!)?.paths.map(\.path) == command.request.paths.map(\.path))
             precondition(FinderRequest(url: command.url(control: true)!)?.action == command.request.action, "Control must not change unrelated actions")
+            for alternate in [false,true] {
+                let delivered=FinderRequest(url:command.url(alternate:alternate)!)!
+                precondition(delivered.alternateTool==alternate && delivered.action==command.request.action && delivered.paths.map(\.path)==command.request.paths.map(\.path))
+            }
+
         }
         let containerPaths = FinderMenuBuilder.paths(kind: .contextualMenuForContainer, selection: [tracked], target: folder)
         for item in items(make(containerPaths, settings: allCommands())) {
@@ -207,6 +212,10 @@ import TurtleGitCore
         let compare = marked.compactMap { $0.representedObject as? FinderMenuCommand }.first { $0.request.action == .diffLater }!
         precondition(FinderRequest(url: compare.url()!)?.action == .diffLater)
         precondition(FinderRequest(url: compare.url(control: true)!)?.action == .clearComparisonMark)
+        precondition(FinderRequest(url:compare.url(alternate:true)!)?.alternateTool==true)
+        precondition(FinderRequest(url:compare.url(control:true,alternate:true)!)?.action == .clearComparisonMark)
+        precondition(FinderRequest(url:compare.url(control:true,alternate:true)!)?.alternateTool == nil)
+
         precondition(FinderRequest(url: compare.url(control: true)!)?.paths.map(\.path) == compare.request.paths.map(\.path))
         let unusual = folder.appendingPathComponent("literal 雪\n&?.txt")
         let literal = FinderMenuCommand(action: .removeKeep, paths: [unusual, tracked, unusual])

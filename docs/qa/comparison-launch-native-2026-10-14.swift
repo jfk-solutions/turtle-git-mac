@@ -12,6 +12,61 @@ import TurtleGitCore
     @MainActor static func main() async {
         do { try await verify() } catch { fputs("Comparison launch failed: \(error)\n", stderr); exit(1) }
     }
+    @MainActor static func verifyFinderChoices(executable:URL,prefs:UserDefaults) async throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitFinderChoice-"+UUID().uuidString,isDirectory:true)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true);defer {try? FileManager.default.removeItem(at:root)}
+        let repo=GitRepository(root:root,executable:executable),path="literal 雪\n&?.txt",other="other.txt"
+        _ = try await repo.run(["init","-b","main"])
+        for (key,value) in [("user.name","Finder tool QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
+        for name in [path,other] {try Data("base\n".utf8).write(to:root.appendingPathComponent(name))};try await repo.stage([path,other]);_ = try await repo.commit(message:"base")
+        try Data("second\n".utf8).write(to:root.appendingPathComponent(path));try await repo.stage([path]);_ = try await repo.commit(message:"second")
+        try Data("working\n".utf8).write(to:root.appendingPathComponent(path))
+        let enabled=root.appendingPathComponent(".git/choice-enabled"),ready=root.appendingPathComponent(".git/choice-ready"),release=root.appendingPathComponent(".git/choice-release"),helper=root.appendingPathComponent(".git/choice-git")
+        let script="""
+        #!/bin/sh
+        if [ -f \(quote(enabled.path)) ] && [ ! -f \(quote(release.path)) ]; then
+          for argument in "$@"; do
+            if [ "$argument" = --show-toplevel ]; then
+              : > \(quote(ready.path))
+              while [ ! -f \(quote(release.path)) ]; do /bin/sleep 0.02; done
+            fi
+          done
+        fi
+        exec \(quote(executable.path)) "$@"
+        """
+        try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:helper)})
+        workspace.fileComparisonPreferences=prefs;workspace.fileComparisonQuestion={_ in true};workspace.open(root)
+        try await wait {!workspace.busy};try require(workspace.error==nil,"Private Finder context adoption failed")
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),head=try await repo.run(["rev-parse","HEAD"]).stdout
+        var observed:[Bool]=[],opened:[String]=[]
+        workspace.fileComparisonPresentation={_,file in observed.append(ComparisonToolInvocation.capture);opened.append(file.path)}
+        for action in [RepositoryAction.diff,.previousDiff] {
+            for choice in [false,true] {
+                try? FileManager.default.removeItem(at:ready);try? FileManager.default.removeItem(at:release);try Data().write(to:enabled)
+                let request=FinderRequest(action:action,paths:[root.appendingPathComponent(path)],alternateTool:choice)
+                observed=[];opened=[]
+                ComparisonToolInvocation.$alternate.withValue(!choice) {workspace.handle(request.url!)}
+                try await wait {FileManager.default.fileExists(atPath:ready.path)}
+                try require(ComparisonToolInvocation.alternate==nil,"Finder handoff leaked tool state into later UI actions")
+                workspace.selection=[other];try Data().write(to:release)
+                try await wait {!workspace.busy && (observed.count==1 || workspace.error != nil) && FileListComparisonSession.activeOperations==0}
+                try require(workspace.error==nil && observed==[choice] && opened==[path],"Finder URL lost explicit tool/path across repository discovery: "+(workspace.error ?? ""))
+            }
+        }
+        try? FileManager.default.removeItem(at:enabled)
+        for choice in [false,true] {
+            let before=Set(NSApp.windows.map {ObjectIdentifier($0)})
+            ComparisonToolInvocation.$alternate.withValue(!choice) {workspace.handle(FinderRequest(action:.diff,paths:[root.appendingPathComponent(path),root.appendingPathComponent(other)],alternateTool:choice).url!)}
+            let owned=NSApp.windows.filter {!before.contains(ObjectIdentifier($0))}.compactMap {$0.windowController as? FileComparisonWindowController}
+            try require(owned.count==1 && owned[0].model.alternateTool==choice,"Finder file-pair viewer lost explicit tool choice")
+            try await wait {owned.allSatisfy {!$0.model.busy && !$0.model.filtering}}
+            try require(owned[0].model.error==nil,"Private Finder pair did not load")
+            owned.forEach {$0.close()}
+        }
+        let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        try require(finalHead==head && Data(contentsOf:root.appendingPathComponent(".git/index"))==index && Data(contentsOf:root.appendingPathComponent(path))==Data("working\n".utf8),"Finder tool handoffs changed repository bytes")
+    }
     @MainActor static func verifyTools(repo: GitRepository, prefs: UserDefaults, snapshot: RevisionComparisonSnapshot) async throws {
         // Capture Shift before a delayed confirmation, then create and load the
         // child outside the initiating task to model SwiftUI's later .task.
@@ -192,6 +247,7 @@ import TurtleGitCore
         viewer.retireImageLoader()
         try await wait { !viewer.busy && FileListComparisonSession.activeOperations == 0 }
         try require(viewer.document == nil && viewer.error == nil, "Retired blob read published a document/error")
+        try await verifyFinderChoices(executable:executable,prefs:prefs)
         try await verifyTools(repo: repo, prefs: prefs, snapshot: snapshot)
         // Aggregated status-list GNU patches stay one captured patch, without a many-viewer warning.
         let commit = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: prefs, dialogDefaults: prefs)

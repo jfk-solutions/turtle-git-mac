@@ -80,3 +80,36 @@ Settings window focus/reuse/close/reopen, native Blame/Sync/editor handoffs,
 comparison option/revision reload gestures and signed App Store execution remain
 separate acceptance. Compilation and isolated Core/builder checks cannot certify
 these full workflows or the entire port.
+
+
+## Captured Finder comparison-tool choice — October 15, 2026
+
+The extension captures Shift when a menu command is activated and sends an
+explicit default/alternate comparison-tool field in its immutable URL request.
+The containing app applies that choice for the complete initial handoff,
+including repository discovery, modal permission selection and child comparison
+preparation. It ends after that invocation and does not become a setting for later
+independent UI commands. Diff, previous-version Diff, marked-file comparison,
+two-file comparison and conflict editing therefore receive the Finder choice
+rather than depending on the key state when the app later processes the request.
+
+The optional `alternate=0`/`alternate=1` field preserves an explicit default even
+when another invocation has Shift set. Existing links without the field retain
+the prior app-side capture behavior. Duplicate, missing and malformed values are
+rejected before dispatch. The field carries no sandbox permission. Literal paths,
+source-file packets, selection snapshots and command eligibility remain in their
+existing validation path. Control on Mark for comparison still creates Clear
+comparison mark; its unused tool field is omitted.
+
+Marked/two-file viewers also use the owning comparison preferences, matching
+repository file-comparison preparation. Native verification uses private tool
+preferences and intercepted presentation, without launching third-party apps.
+The [batch record](qa/finder-tool-handoff-2026-10-15.json) distinguishes packet,
+actual builder and delayed repository-adoption checks from physical Finder
+activation, live permission gestures and signed App Store acceptance.
+
+All 55 current source catalog groups now have Finder routes. Earlier unavailable-
+group counts in the historical command/LFS/settings checkpoints predate SVN,
+Daemon and patch routes. This describes routing availability, not full shell
+eligibility, native appearance or end-to-end command certification. Finder drag-
+destination menus and signed activation remain open.

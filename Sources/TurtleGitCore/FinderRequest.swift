@@ -6,8 +6,10 @@ public struct FinderRequest: Sendable {
     public let action: RepositoryAction
     public let paths: [URL]
     public let sources: [URL]
-    public init(action: RepositoryAction, paths: [URL], sources: [URL] = []) {
-        self.action = action
+    /// nil preserves legacy URL behavior; explicit false captures the default tool.
+    public let alternateTool: Bool?
+    public init(action: RepositoryAction, paths: [URL], sources: [URL] = [], alternateTool: Bool? = nil) {
+        self.action = action; self.alternateTool = alternateTool
         var seen = Set<String>()
         self.paths = paths.map(Self.normalizedSelectionURL).filter { seen.insert($0.path).inserted }
         seen = []; self.sources = sources.map(Self.normalizedSelectionURL).filter { seen.insert($0.path).inserted }
@@ -30,13 +32,16 @@ public struct FinderRequest: Sendable {
               fields.filter({ $0.name == "command" }).count == 1,
               let command = fields.first(where: { $0.name == "command" })?.value,
               let action = RepositoryAction(rawValue: command), !action.isMenuHeader else { return nil }
+        let toolFields=fields.filter {$0.name=="alternate"}
+        guard toolFields.count <= 1,toolFields.allSatisfy({$0.value=="0" || $0.value=="1"}) else {return nil}
+        let alternateTool=toolFields.first.map {$0.value=="1"}
         let paths = fields.filter { $0.name == "path" }.compactMap(\.value)
         guard (!paths.isEmpty || action.allowsEmptySelection), paths.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
               paths.count == fields.filter({ $0.name == "path" }).count else { return nil }
         let sourceFields = fields.filter { $0.name == "source" }, sources = sourceFields.compactMap(\.value)
         guard sources.count == sourceFields.count, sources.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
               action.isFileTransfer ? paths.count == 1 && !sources.isEmpty && sources.count <= 256 && url.absoluteString.utf8.count <= 131072 : sources.isEmpty else { return nil }
-        self.init(action: action, paths: paths.map { URL(fileURLWithPath: $0) }, sources: sources.map { URL(fileURLWithPath: $0) })
+        self.init(action: action, paths: paths.map { URL(fileURLWithPath: $0) }, sources: sources.map { URL(fileURLWithPath: $0) }, alternateTool:alternateTool)
     }
     public var url: URL? {
         guard !action.isMenuHeader, !paths.isEmpty || action.allowsEmptySelection else { return nil }
@@ -45,6 +50,7 @@ public struct FinderRequest: Sendable {
         var components = URLComponents()
         components.scheme = "turtlegit"; components.host = "action"
         components.queryItems = [URLQueryItem(name: "command", value: action.rawValue)] + paths.map { URLQueryItem(name: "path", value: $0.path) } + sources.map { URLQueryItem(name: "source", value: $0.path) }
+        if let alternateTool {components.queryItems?.append(URLQueryItem(name:"alternate",value:alternateTool ? "1":"0"))}
         guard let result = components.url, !action.isFileTransfer || result.absoluteString.utf8.count <= 131072 else { return nil }; return result
     }
     public func relativePaths(root: URL) -> [String] {

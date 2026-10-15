@@ -2,6 +2,28 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FinderRequestTests: XCTestCase {
+    func testExplicitFinderToolChoiceRoundTripsAndLegacyLinksRemainUnspecified() throws {
+        let file=URL(fileURLWithPath:"/repo 雪/space &?\n.txt")
+        for action in [RepositoryAction.diff,.previousDiff,.diffLater,.editConflict] {
+            let legacy=FinderRequest(action:action,paths:[file])
+            XCTAssertNil(try XCTUnwrap(FinderRequest(url:XCTUnwrap(legacy.url))).alternateTool)
+            for alternate in [false,true] {
+                let request=FinderRequest(action:action,paths:[file],alternateTool:alternate)
+                let decoded=try XCTUnwrap(FinderRequest(url:XCTUnwrap(request.url)))
+                XCTAssertEqual(decoded.alternateTool,alternate);XCTAssertEqual(decoded.action,action);XCTAssertEqual(decoded.paths.map(\.path),[file.path])
+            }
+        }
+        let transfer=FinderRequest(action:.pasteCopy,paths:[file.deletingLastPathComponent()],sources:[file],alternateTool:true)
+        let decoded=try XCTUnwrap(FinderRequest(url:XCTUnwrap(transfer.url)))
+        XCTAssertEqual(decoded.sources.map(\.path),[file.path]);XCTAssertEqual(decoded.alternateTool,true)
+    }
+    func testMalformedFinderToolFieldsAreRefusedBeforeDispatch() throws {
+        let original=try XCTUnwrap(FinderRequest(action:.diff,paths:[URL(fileURLWithPath:"/repo/file")]).url)
+        for extra in ["&alternate", "&alternate=", "&alternate=true", "&alternate=-1", "&alternate=2", "&alternate=0&alternate=1", "&alternate=1&alternate=1"] {
+            XCTAssertNil(FinderRequest(url:try XCTUnwrap(URL(string:original.absoluteString+extra))),extra)
+        }
+    }
+
     func testRevisionGraphRequestPreservesLiteralPathAndUpstreamAvailability() throws {
         let folder = URL(fileURLWithPath: "/repo 雪/space &?.git", isDirectory: true)
         let request = FinderRequest(action: .revisionGraph, paths: [folder])

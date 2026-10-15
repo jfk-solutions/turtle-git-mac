@@ -83,3 +83,8 @@ permission/target chooser gestures, actual external LFS locking, mail-client
 Apple Events and signed App Store execution remain separate acceptance. The
 catalog has 49 available groups and six unavailable groups: four SVN commands,
 Daemon and Review Patch. This is not full application or dialog certification.
+
+
+The six-unavailable-group count above is historical. The current catalog has
+routes for all 55 groups; see [current handoff coverage](FINDER-COMMAND-HANDOFF-PARITY.md).
+This does not establish complete command behavior or activated/signed Finder parity.
