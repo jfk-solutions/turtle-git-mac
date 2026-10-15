@@ -2351,6 +2351,7 @@
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/rebase-columns-2026-10-13.json",
+        "docs/qa/rebase-compositor-2026-10-15.json",
         "docs/qa/rebase-conditional-2026-10-13.json",
         "docs/qa/rebase-list-interaction-2026-10-06.json",
         "docs/qa/rebase-native-report-2026-10-15.json",

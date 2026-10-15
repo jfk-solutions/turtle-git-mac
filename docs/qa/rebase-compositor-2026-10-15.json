@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "d0378f6b",
+  "scope": "Hosted Rebase committer-cell pixel verification uses owned-window compositor and exact native cell rectangle instead of cached layer pixels on macOS 14.4+",
+  "hosted_failure": {
+    "run": 38736892584,
+    "head": "0c73f0ab",
+    "job": 116428891347,
+    "message": "Native committer pixels missing",
+    "core_tests": 1453,
+    "core_skipped": 1,
+    "core_failures": 0
+  },
+  "change": "Materialize the cell, present only its owned window and read ScreenCaptureKit.currentProcess pixels. Vision restricts recognition to NSTableView.frameOfCell intersected with the visible viewport. Preserve exact committer@example.invalid OCR assertion and every existing column/menu/font/preference/repository assertion. Earlier macOS retains cacheDisplay fallback.",
+  "validation": {
+    "native": {
+      "command": "TURTLEGIT_REBASE_COLUMN_CAPTURE_DIR=build/qa/rebase-compositor-cell-captures python3 scripts/test-native-reference-batch.py --only rebase-columns --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "engines": 2,
+      "exit": 0,
+      "log": "build/qa/rebase-columns-compositor-cell-native.log",
+      "observed_cell_region": [
+        0.43870967741935485,
+        0.7403225806451613,
+        0.5376344086021505,
+        0.04354838709677422
+      ],
+      "owned_pids_checked_absent": [
+        6485,
+        6489,
+        6586,
+        6702,
+        6722,
+        6807
+      ]
+    },
+    "initial_diagnostic": "The first compositor check passed but its view visibleRect spanned the row. ROI was tightened to the actual AppKit column/row cell frame before the final two passing cases.",
+    "debug_core": "Not rebuilt/rerun: fixture-only change linked already-current Debug objects from the status-text batch.",
+    "captures": [
+      {
+        "path": "build/qa/rebase-compositor-cell-captures/rebase-columns-20393.png",
+        "sha256": "7fe93bc05c80c00fedf019e2383f034b604ef68559a4872985e7951a240df504"
+      },
+      {
+        "path": "build/qa/rebase-compositor-cell-captures/rebase-columns-20396.png",
+        "sha256": "fb1e6492be68da58d09894cf5e5c05dbe47d489510fb59b486572653f130b0eb"
+      }
+    ]
+  },
+  "limits": [
+    "Local SDK/system and bundled Git evidence only; hosted Intel/macOS SDK result remains pending",
+    "Old macOS cache-display fallback was not exercised in this run",
+    "No complete Rebase/Cherry Pick/Finder/signed/App Store acceptance claim"
+  ]
+}

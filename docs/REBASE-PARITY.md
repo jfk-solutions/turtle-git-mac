@@ -560,3 +560,15 @@ and checks independent author/committer identities, native selection, menu icon
 preferences and consumed/closed menu refusal. The Debug build and all six selected native runs passed with system/bundled Git;
 see [batch evidence](qa/rebase-native-report-2026-10-15.json). Complete displayed, keyboard/VoiceOver and signed acceptance
 remain open; this does not certify full Rebase or application parity.
+
+### Hosted committer-cell pixels — October 15, 2026
+
+The later hosted run at 0c73f0ab passed 1,453 Core tests (one skipped), but the
+Rebase committer cache-display OCR still returned blank despite native cell
+values being available. On macOS 14.4+, this fixture now verifies actual owned-
+window ScreenCaptureKit pixels, with Vision restricted to the exact visible
+Commit Email cell rectangle. Earlier macOS keeps the cached-cell fallback.
+The exact email OCR and all existing metadata/menu/font/column/repository
+assertions remain required. Both local engine cases passed using the compositor;
+[repair evidence](qa/rebase-compositor-2026-10-15.json) records scope and cleanup.
+The hosted rerun remains pending; this is not a full CI or Rebase parity claim.

@@ -1794,3 +1794,10 @@ is absent, it fetches only pinned Theme.cpp/Colors.cpp and checks Git blob IDs
 against the inventory before compiling. `--only-oracle` checks that source and
 settings portion; `--only-text` repeats only the affected text/dialog receivers.
 These flags were used to avoid repeating passed unrelated checks after a failure.
+
+The `rebase-columns` case now uses owned-window compositor pixels on macOS 14.4+
+for the exact committer-email OCR check; its Vision region is the native column/
+row cell rectangle clipped to the table viewport. Set
+`TURTLEGIT_REBASE_COLUMN_CAPTURE_DIR` to retain raw diagnostic window PNGs. Older
+macOS retains the cached-cell fallback. This does not certify hosted success
+until that SDK executes the new fixture.

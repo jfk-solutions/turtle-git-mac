@@ -1,4 +1,5 @@
 import AppKit
+import ScreenCaptureKit
 import Vision
 import TurtleGitCore
 
@@ -6,8 +7,35 @@ import TurtleGitCore
     struct Failure: Error, CustomStringConvertible { let description: String }
     static func require(_ condition: Bool, _ message: String) throws { if !condition { throw Failure(description:message) } }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
-    @MainActor static func cellText(_ view: NSView) throws -> String {
+    @MainActor static func cellText(_ view: NSView, table: NSTableView, column: Int, row: Int) async throws -> String {
         view.layoutSubtreeIfNeeded()
+        if #available(macOS 14.4, *), let window = view.window {
+            // Layer caching can produce an empty image on the hosted SDK even
+            // for a materialized NSTextField. Read actual owned-window pixels.
+            NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
+            window.contentView?.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+            try await Task.sleep(nanoseconds: 250_000_000)
+            let content = try await SCShareableContent.currentProcess
+            guard let own = content.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else { throw Failure(description: "Owned Rebase window missing from compositor") }
+            let configuration = SCStreamConfiguration()
+            configuration.width = Int(window.frame.width * window.backingScaleFactor)
+            configuration.height = Int(window.frame.height * window.backingScaleFactor)
+            configuration.showsCursor = false; configuration.ignoreShadowsSingleWindow = true
+            let pixels = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: own), configuration: configuration)
+            if let path = ProcessInfo.processInfo.environment["TURTLEGIT_REBASE_COLUMN_CAPTURE_DIR"] {
+                let directory = URL(fileURLWithPath: path)
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                try NSBitmapImageRep(cgImage: pixels).representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent("rebase-columns-\(window.windowNumber).png"))
+            }
+            let cell = table.convert(table.frameOfCell(atColumn: column, row: row).intersection(table.visibleRect), to: nil)
+            let region = CGRect(x: cell.minX / window.frame.width, y: cell.minY / window.frame.height,
+                                width: cell.width / window.frame.width, height: cell.height / window.frame.height).intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
+            guard !region.isEmpty else { throw Failure(description: "Native committer cell has no visible compositor region") }
+            let request = VNRecognizeTextRequest(); request.recognitionLevel = .accurate; request.usesLanguageCorrection = false; request.regionOfInterest = region
+            try VNImageRequestHandler(cgImage: pixels, options: [:]).perform([request])
+            print("Rebase committer pixel source: macOS compositor; cell region \(region)")
+            return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
+        }
         guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw Failure(description:"No native cell bitmap") }
         view.cacheDisplay(in:view.bounds,to:bitmap)
         guard let pixels = bitmap.cgImage else { throw Failure(description:"No native cell pixels") }
@@ -71,7 +99,7 @@ import TurtleGitCore
             cell = table.view(atColumn: committerColumn, row: committerRow, makeIfNecessary: true) as? NSTableCellView
             return cell?.textField?.stringValue == "committer@example.invalid" && (cell?.bounds.height ?? 0) > 10
         }
-        let text = try cellText(cell!)
+        let text = try await cellText(cell!, table: table, column: committerColumn, row: committerRow)
         try require(text.contains("committer@example.invalid"),"Native committer pixels missing: " + text)
         // Native values remain attached to identifiers after order/visibility changes.
         for name in ["Author", "Email", "Commit Name", "Commit Email"] {
