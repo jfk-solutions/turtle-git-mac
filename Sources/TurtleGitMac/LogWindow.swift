@@ -446,6 +446,7 @@ final class LogHistoryWindow: NSWindow {
     }
     var hasBlockingReferenceChild: Bool { containingReferences.values.contains { $0.hasBlockingChild } }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.cancelFollowedComparison(closeAfter:true) { return false }
         if model.cancelWorkingCommandRead(closeAfter:true) { return false }
         if model.cancelStartReferenceRead() { return false }
         guard !model.referencePickerBlocked, (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
@@ -1246,6 +1247,38 @@ struct LogCommandRequest: Identifiable {
     @Published var bare = true
     @Published var error: String?
     private var unifiedSessions: [UUID: FileListComparisonSession] = [:]
+    private var followedSession: FileListComparisonSession?
+    private var closeAfterFollowedRead = false
+    @discardableResult func cancelFollowedComparison(closeAfter: Bool = false) -> Bool {
+        guard let followedSession else { return false }
+        closeAfterFollowedRead = closeAfterFollowedRead || closeAfter; followedSession.cancel(); return true
+    }
+    private var followedPath: String? { historyWalk.followRenames && !showWholeProject && historyPaths.count == 1 ? historyPaths.first : nil }
+    private func compareFollowed(from: ComparisonRevision, to: ComparisonRevision, parentOf: String? = nil) {
+        guard canStartHistoryTransport, let path = followedPath, let onFollowedFileComparison else { return }
+        let rows = entries, selected = self.selected, request = generation, detail = detailGeneration
+        let session = FileListComparisonSession(window: window, preferences: labelDefaults)
+        followedSession = session; busy = true; error = nil
+        Task {
+            defer {
+                if followedSession === session {
+                    followedSession = nil; busy = false
+                    let shouldClose = closeAfterFollowedRead; closeAfterFollowedRead = false
+                    if shouldClose && !isInvalidated { close() }
+                }
+                withExtendedLifetime(access) {}
+            }
+            do {
+                try await session.run(selectedCount: 1) { [self] token in
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let snapshot = try await repository.followedHistoryComparison(path: path, entries: rows, from: from, to: to, parentOf: parentOf, cancellation: token)
+                    guard !isInvalidated, generation == request, detailGeneration == detail, self.selected == selected,
+                          followedPath.map({ GitReferenceName.equal($0, path) }) == true, !token.isCancelled else { return }
+                    ComparisonToolInvocation.$alternate.withValue(session.alternateTool) { onFollowedFileComparison(snapshot, token) }
+                }
+            } catch { if !isInvalidated, generation == request, detailGeneration == detail, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
+        }
+    }
     var unifiedWindow: PatchWindowController?
     @Published private(set) var patchPreviewVisible = false
     @Published private(set) var patchPreviewData = Data()
@@ -1421,6 +1454,7 @@ struct LogCommandRequest: Identifiable {
         return FormatPatchPreset.logSelection(orderedHashes: entries.filter { !$0.hash.isEmpty }.map(\.hash), selected: selected)
     }
     var onReset: (String) -> Void = { _ in }
+    var onFollowedFileComparison: ((RevisionComparisonSnapshot, OperationCancellation) -> Void)?
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
     var presentHistoricalSave: (ComparisonFileContent, String) -> Void = { _, _ in }
@@ -1569,6 +1603,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        followedSession?.cancel();closeAfterFollowedRead=false
         workingCommandCancellation?.cancel();closeAfterWorkingCommandRead=false
         changedFileColumnRequest=UUID();resettingChangedFileColumns=false;focusedChangedFile=nil
         combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll()
@@ -1698,7 +1733,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func select(_ hashes: Set<String>) {
-        if hashes != selected { cancelWorkingCommandRead() }
+        if hashes != selected { cancelWorkingCommandRead(); cancelFollowedComparison() }
         cancelNoteRead()
         cancelJump(); highlightedRevision = nil
         for entry in entries where !entry.hash.isEmpty && hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
@@ -1905,7 +1940,8 @@ struct LogCommandRequest: Identifiable {
         let revisions = self.revisions
         guard (1...2).contains(revisions.count) else { return }
         let scope=path.map { [$0] } ?? (showWholeProject ? [] : historyPaths)
-        let request = generation, selection = selected
+        let followed = path == nil ? followedPath : nil, followedRows = entries
+        let request = generation, selection = selected, detail = detailGeneration
         let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults, alternateTool:alternate)
         unifiedSessions[id] = session; busy = true
         Task {
@@ -1914,22 +1950,41 @@ struct LogCommandRequest: Identifiable {
                 try await session.run(selectedCount: 0) { [self] token in
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                     let bytes: Data
-                    if revisions.count == 2, !workingTree {
+                    if let path = followed, !workingTree || revisions.count == 1 {
+                        let first = revisions[0]
+                        let from: ComparisonRevision = workingTree ? .revision(first.hash) : revisions.count == 2 ? .revision(revisions[1].hash) : {
+                            if case .parent(let number) = mode, number > 0, number <= first.parents.count { return .revision(first.parents[number - 1]) }
+                            return first.parents.first.map { .revision($0) } ?? .emptyTree
+                        }()
+                        let to: ComparisonRevision = workingTree ? .workingTree : .revision(first.hash)
+                        if [.allParents, .combined, .extraMergeChanges].contains(mode), !workingTree, revisions.count == 1 {
+                            let names = try await repository.followedHistoryPaths(path: path, entries: followedRows, through: [first.hash], cancellation: token)
+                            var paths = [try names.path(at: .revision(first.hash))]
+                            for parent in first.parents {
+                                let pair = try await repository.followedHistoryComparison(path: path, entries: followedRows, from: .revision(parent), to: .revision(first.hash), parentOf: first.hash, cancellation: token)
+                                paths += pair.files.compactMap(\.oldPath)
+                            }
+                            bytes = try await repository.revisionDiffData(first, paths: Array(Set(paths)), mode: mode, cancellation: token)
+                        } else {
+                            let snapshot = try await repository.followedHistoryComparison(path: path, entries: followedRows, from: from, to: to, parentOf: !workingTree && revisions.count == 1 ? first.hash : nil, cancellation: token)
+                            bytes = try await repository.revisionComparisonPatchData(snapshot, cancellation: token)
+                        }
+                    } else if revisions.count == 2, !workingTree {
                         var args = ["diff", "--no-ext-diff", "--no-color", revisions[1].hash, revisions[0].hash, "--"]
                         args += scope
                         bytes = try await repository.run(args, cancellation: token).stdout
                     } else { bytes = try await repository.revisionDiffData(revisions[0], paths:scope, workingTree:workingTree, mode:mode, cancellation:token) }
-                    guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                    guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if mode == .extraMergeChanges, String(decoding:bytes,as:UTF8.self).split(separator:"\n").count <= 1 {
                         navigationNotice="No extra changes after merge.";return
                     }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                     else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
-                        guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                        guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
                         unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
-            } catch { if request == generation, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
+            } catch { if request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func copyDetails(includePaths: Bool = true) {
@@ -2482,27 +2537,34 @@ struct LogCommandRequest: Identifiable {
             return
         }
         guard !chosen.hash.isEmpty || !bare else { return }
-        onCompare?(.revision(parent), chosen.hash.isEmpty ? .workingTree : .revision(chosen.hash))
+        if followedPath != nil, onFollowedFileComparison != nil {
+            compareFollowed(from: .revision(parent), to: chosen.hash.isEmpty ? .workingTree : .revision(chosen.hash), parentOf: chosen.hash.isEmpty ? nil : chosen.hash)
+        } else { onCompare?(.revision(parent), chosen.hash.isEmpty ? .workingTree : .revision(chosen.hash)) }
     }
     func compare(workingTree: Bool = false, parent:Int? = nil) {
-        guard canStartHistoryTransport, let onCompare, !workingTree || !bare else { return }
+        guard canStartHistoryTransport, !workingTree || !bare else { return }
+        let from: ComparisonRevision, to: ComparisonRevision, previousOf: String?
         if includesWorkingTree, !workingTree, selected.count <= 2 {
             let base = revisions.first?.hash ?? workingTreeSnapshot?.entry.parents.first
-            onCompare(base.map { .revision($0) } ?? .emptyTree, .workingTree); return
+            from = base.map { .revision($0) } ?? .emptyTree; to = .workingTree; previousOf = nil
+        } else {
+            let chosen = revisions
+            guard canCompareRevisionSelection, !workingTree || chosen.count == 1 else { return }
+            if let parent {
+                guard chosen.count == 1, !workingTree, parent > 0, parent <= chosen[0].parents.count else { return }
+                from = .revision(chosen[0].parents[parent - 1]); to = .revision(chosen[0].hash); previousOf = chosen[0].hash
+            } else if workingTree { from = .revision(chosen[0].hash); to = .workingTree; previousOf = nil }
+            else if chosen.count >= 2 { from = .revision(chosen.last!.hash); to = .revision(chosen[0].hash); previousOf = nil }
+            else { from = chosen[0].parents.first.map { .revision($0) } ?? .emptyTree; to = .revision(chosen[0].hash); previousOf = chosen[0].hash }
         }
-        let chosen = revisions
-        guard canCompareRevisionSelection,!workingTree || chosen.count==1 else { return }
-        if let parent {
-            guard chosen.count==1,!workingTree,parent>0,parent<=chosen[0].parents.count else { return }
-            onCompare(.revision(chosen[0].parents[parent-1]),.revision(chosen[0].hash));return
-        }
-        if workingTree { onCompare(.revision(chosen[0].hash), .workingTree) }
-        else if chosen.count >= 2 { onCompare(.revision(chosen.last!.hash), .revision(chosen[0].hash)) }
-        else { onCompare(chosen[0].parents.first.map { .revision($0) } ?? .emptyTree, .revision(chosen[0].hash)) }
+        if followedPath != nil, onFollowedFileComparison != nil { compareFollowed(from: from, to: to, parentOf: previousOf) }
+        else { onCompare?(from, to) }
     }
     private func workingTreeDiff(path: String?, alternate: Bool) {
         guard selected.count <= 2, let base = revisions.first?.hash ?? workingTreeSnapshot?.entry.parents.first else { return }
-        let request = generation, selection = selected
+        let request = generation, selection = selected, detail = detailGeneration
+        let followed = path == nil ? followedPath : nil, rows = entries
+        let scope = path.map { [$0] } ?? (showWholeProject ? [] : historyPaths)
         let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults)
         unifiedSessions[id] = session; busy = true
         Task {
@@ -2510,17 +2572,22 @@ struct LogCommandRequest: Identifiable {
             do {
                 try await session.run(selectedCount: 0) { [self] token in
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                    var args = ["diff", "--no-ext-diff", "--no-textconv", "--no-color", base, "--"]
-                    if let path { args.append(path) }
-                    let bytes = try await repository.run(args, cancellation: token).stdout
-                    guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                    let bytes: Data
+                    if let followed {
+                        let snapshot = try await repository.followedHistoryComparison(path: followed, entries: rows, from: .revision(base), to: .workingTree, cancellation: token)
+                        bytes = try await repository.revisionComparisonPatchData(snapshot, cancellation: token)
+                    } else {
+                        let args = ["diff", "--no-ext-diff", "--no-textconv", "--no-color", base, "--"] + scope
+                        bytes = try await repository.run(args, cancellation: token).stdout
+                    }
+                    guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                     else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
-                        guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                        guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
                         unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Working tree changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
-            } catch { if request == generation, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
+            } catch { if request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
 }

@@ -2,6 +2,75 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonTests: XCTestCase {
+    func testFollowedHistoryComparisonKeepsEachEndpointNameAndRawBytes() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let old = ":(literal) old 雪\n.txt", middle = "middle file", current = "new 雪\n.txt"
+        let original = Data((0..<40).map { "original line \($0)\n" }.joined().utf8)
+        try original.write(to: root.appendingPathComponent(old)); try await repo.stage([old]); _ = try await repo.commit(message: "file birth")
+        let birth = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["mv", "--", old, middle]); _ = try await repo.commit(message: "first rename")
+        _ = try await repo.run(["mv", "--", middle, current]); _ = try await repo.commit(message: "second rename")
+        let renamed = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let latest = original + Data([0xff, 0x00, 0x0a])
+        try latest.write(to: root.appendingPathComponent(current)); try await repo.stage([current]); _ = try await repo.commit(message: "raw edit")
+        var options = HistoryOptions(); options.paths = [current]; options.walk.followRenames = true; options.limit = -1
+        let rows = try await repo.history(options: options)
+        let tip = try XCTUnwrap(rows.first).hash
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let pair = try await repo.followedHistoryComparison(path: current, entries: rows, from: .revision(birth), to: .revision(tip))
+        let document = try await repo.comparisonFile(pair, path: current)
+        XCTAssertEqual(document.base.path, old); XCTAssertEqual(document.base.bytes, original)
+        XCTAssertEqual(document.destination.path, current); XCTAssertEqual(document.destination.bytes, latest)
+        let renameRow = try XCTUnwrap(rows.first { $0.hash == renamed })
+        let previous = try await repo.followedHistoryComparison(path: current, entries: rows, from: .revision(renameRow.parents[0]), to: .revision(renamed), parentOf: renamed)
+        XCTAssertEqual(previous.files.first?.oldPath, middle)
+        let beforeRename = try await repo.followedHistoryComparison(path: current, entries: rows, from: .revision(birth), to: .revision(renameRow.parents[0]))
+        XCTAssertEqual(beforeRename.files.first?.path, middle); XCTAssertEqual(beforeRename.files.first?.oldPath, old)
+        let working = latest + Data("working only\n".utf8); try working.write(to: root.appendingPathComponent(current))
+        let live = try await repo.followedHistoryComparison(path: current, entries: rows, from: .revision(birth), to: .workingTree)
+        let liveContent = try await repo.comparisonFile(live, path: current)
+        XCTAssertEqual(liveContent.base.path, old); XCTAssertEqual(liveContent.base.bytes, original); XCTAssertEqual(liveContent.destination.bytes, working)
+        let patch = try await repo.revisionComparisonPatchData(live)
+        XCTAssertFalse(patch.isEmpty); XCTAssertNil(patch.range(of: Data("diff --git a/file.txt".utf8)))
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.followedHistoryComparison(path: current, entries: rows, from: .revision(birth), to: .revision(tip), cancellation: token); XCTFail("Cancelled follow read ran") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.followedHistoryPaths(path: "../escape", entries: rows, through: [tip]); XCTFail("Escaping history path accepted") } catch {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(finalHead, tip)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(current)), working)
+    }
+
+    func testFollowedHistoryParentsRootAndMissingWorkingSide() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let old = "old.txt", new = "new.txt", contents = Data((0..<30).map { "unique file line \($0)\n" }.joined().utf8)
+        try contents.write(to: root.appendingPathComponent(old)); try await repo.stage([old]); _ = try await repo.commit(message: "birth")
+        let birth = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["branch", "side"])
+        _ = try await repo.run(["mv", "--", old, new]); _ = try await repo.commit(message: "rename")
+        let first = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["checkout", "side"])
+        try Data("unrelated branch\n".utf8).write(to: root.appendingPathComponent("unrelated")); try await repo.stage(["unrelated"]); _ = try await repo.commit(message: "side")
+        _ = try await repo.run(["checkout", "main"]); _ = try await repo.run(["merge", "--no-ff", "--no-edit", "side"])
+        let merge = try await repo.history().first!
+        let rows = [merge] + (try await repo.history()).filter { $0.hash != merge.hash }
+        let firstPair = try await repo.followedHistoryComparison(path: new, entries: rows, from: .revision(first), to: .revision(merge.hash), parentOf: merge.hash)
+        XCTAssertEqual(firstPair.files.first?.oldPath, new)
+        let secondPair = try await repo.followedHistoryComparison(path: new, entries: rows, from: .revision(merge.parents[1]), to: .revision(merge.hash), parentOf: merge.hash)
+        XCTAssertEqual(secondPair.files.first?.oldPath, old)
+        let secondContent = try await repo.comparisonFile(secondPair, path: new); XCTAssertEqual(secondContent.base.bytes, contents); XCTAssertEqual(secondContent.destination.bytes, contents)
+        let filteredRows = try await repo.history(options: { var value = HistoryOptions(); value.paths = [new]; value.walk.followRenames = true; return value }())
+        let birthPair = try await repo.followedHistoryComparison(path: new, entries: filteredRows, from: .emptyTree, to: .revision(birth), parentOf: birth)
+        XCTAssertEqual(birthPair.files.first?.action, "A"); XCTAssertEqual(birthPair.files.first?.path, old)
+        try FileManager.default.removeItem(at: root.appendingPathComponent(new))
+        let deletion = try await repo.followedHistoryComparison(path: new, entries: filteredRows, from: .revision(first), to: .workingTree)
+        XCTAssertEqual(deletion.files.first?.action, "D")
+        let deleted = try await repo.comparisonFile(deletion, path: new); XCTAssertEqual(deleted.base.bytes, contents); XCTAssertTrue(deleted.destination.bytes.isEmpty)
+        // The working-tree row compares actual HEAD, which need not occur in a
+        // path-restricted log because that commit did not touch the file.
+        let headPair = try await repo.followedHistoryComparison(path: new, entries: [], from: .revision(merge.hash), to: .workingTree)
+        XCTAssertEqual(headPair.files.first?.action, "D")
+    }
+
     func testChangeSetsCompareFirstParentPatchStreamsAndPreserveRepository() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

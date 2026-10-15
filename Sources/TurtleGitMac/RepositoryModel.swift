@@ -2112,6 +2112,9 @@ import UniformTypeIdentifiers
     }
 
     private func configureLogMenus(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        model.onFollowedFileComparison = { [weak self] snapshot, token in
+            self?.presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
+        }
         configuredLogModels=configuredLogModels.filter { $0.value.model?.isInvalidated == false }
         configuredLogModels[ObjectIdentifier(model)]=ConfiguredLog(model:model)
         model.onCommit={ [weak self,weak model] in

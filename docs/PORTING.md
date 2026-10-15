@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected file-history comparison family now reconstructs renamed endpoint
+paths for Follow renames, shares direct native comparison preparation across
+primary/picker Logs, preserves numbered-parent and live working content, and
+uses recovered names for selected/parent/working unified diffs. Cancellation,
+selection replacement and requested/forced Close share the owned reader lifetime.
+See [Log parity](LOG-PARITY.md). Filtered/ambiguous merge walks, physical and signed
+acceptance remain open.
+
 
 The connected Changed Files action family now adds both-version Revert, Blame,
 Export and child-submodule Log with source rename/deletion rules, pinned data,

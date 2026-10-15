@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-15",
+  "scope": "Connected Follow renames file-history comparison and unified-diff workflow",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/GitLogListAction.cpp: ID_COMPARE, ID_COMPARETWO, ID_COMPAREWITHPREVIOUS, ID_GNUDIFF1 and ID_GNUDIFF2",
+      "src/TortoiseProc/GitLogListBase.cpp: parent menu and double-click dispatch",
+      "src/Resources/TortoiseProcENG.rc: IDD_LOGMESSAGE"
+    ]
+  },
+  "implementation": [
+    "Recover each endpoint filename by applying preceding captured-row rename/copy transitions; shared bounded metadata batches retain literal path bytes and pinned commits",
+    "Explicit parent comparisons resolve the selected parent rename independently; empty historical and missing working sides produce addition/deletion views",
+    "Follow-mode previous/two-or-continuous-row/working comparisons open direct native file viewer; ordinary folder/multiple/non-follow routes retain Changed Files",
+    "Primary and configured picker Log consumers use shared viewer dispatch with original grant/private preferences, endpoint-aware reuse and initiating alternate-tool capture",
+    "Double-click/Return previous-version route uses followed names",
+    "Selected/parent/working unified patches retain old/new names; merge modes retain existing commands with parent name union; ordinary working-row patches now retain invocation scope",
+    "Owned cancellable preparation, selection replacement and selection-generation fencing, requested Close waits for settlement, forced retirement suppresses late actions/errors, grant/process/Quit lifetimes retained"
+  ],
+  "validation": {
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/followed-history-build-final-2026-10-15.log",
+      "note": "Xcode emitted its exit-zero/no-further-output SwiftCompile diagnostic before ordinary warning output; command itself exited 0. Native receivers subsequently linked and ran current app objects successfully."
+    },
+    "core": {
+      "group": "FileComparisonTests substring filter, including OnePaneFileComparisonTests",
+      "unique_cases": 20,
+      "initial_pass": 19,
+      "initial_failed": 1,
+      "initial_log": "build/qa/followed-history-core-2026-10-15.log",
+      "repair": "New fixture incorrectly used HistoryOptions.limit=0 (requests no rows); changed to -1 (unlimited). No production Core change.",
+      "recheck_filter": "FileComparisonTests.testFollowedHistoryComparisonKeepsEachEndpointNameAndRawBytes",
+      "recheck_pass": 1,
+      "recheck_log": "build/qa/followed-history-core-repair-2026-10-15.log",
+      "coverage": [
+        "Two rename transitions and independent endpoint names, binary/literal Unicode/newline content, live working bytes and index/HEAD preservation",
+        "Explicit first/second merge-parent paths, empty base, missing working file and HEAD absent from scoped rows",
+        "Cancelled/escaping-path rejection and existing comparison/merge alignment checks"
+      ]
+    },
+    "native": {
+      "exit_code": 0,
+      "case": "history-workflows",
+      "git": [
+        "/usr/bin/git",
+        "Debug TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+      ],
+      "log": "build/qa/followed-history-native-2026-10-15.log",
+      "owned_receivers_reaped": [
+        11881,
+        13557
+      ],
+      "coverage": [
+        "Follow-mode direct comparison callback and initiating alternate choice",
+        "Actual native file viewer loads old filename and committed destination content",
+        "Selected, numbered-parent, historical-to-live and working-row unified patches",
+        "Previous-version double-click route",
+        "Actual started Git metadata reader cancelled on selection/requested/forced Close; no late viewer/error, child PID absent and operation ownership drained",
+        "Existing native menu ownership, range/merge modes, working commands, Revert/Combine and repository preservation"
+      ]
+    },
+    "site": {
+      "log": "build/qa/followed-history-site-final-2026-10-15.log",
+      "status": "passed",
+      "exit_code": 0,
+      "documents": 216,
+      "unresolved_fragments": []
+    },
+    "visual": "Existing file-viewer layout reused; no new screenshot or complete physical visual parity claim."
+  },
+  "remaining": [
+    "Captured display-row reconstruction cannot recover a rename omitted by filtering or loading; ambiguous multi-branch merge walks need broader acceptance",
+    "Native follow-mode merge combined/extra-change consumers were compiled but new native assertions focus selected/numbered-parent/working patches",
+    "Git repository patches include the recovered name union; separately reintroduced files at those exact names can contribute",
+    "Full source menu masks/order, physical typing/menus/VoiceOver, real alternate external tools, Finder and signed/App Store acceptance remain open"
+  ],
+  "hosted_snapshot": {
+    "head": "f85d91be9",
+    "macos_run": 38686896834,
+    "macos_status": "pending",
+    "pages_run": 38686896694,
+    "pages_status": "success"
+  },
+  "preserved_unrelated_wip": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

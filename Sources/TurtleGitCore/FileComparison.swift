@@ -463,3 +463,88 @@ public struct OnePaneFileComparison: Sendable {
     }
     public static func defaultEnabled(from defaults: UserDefaults = .standard) -> Bool { defaults.bool(forKey: "TurtleGitMerge.OnePane") }
 }
+
+/// Captured file-history names, in the displayed newest-to-oldest Log order.
+/// GitLogListAction walks each preceding row's rename before resolving a target.
+public struct FollowedHistoryPaths: Sendable {
+    public let originalPath: String
+    public let paths: [String: String]
+    public func path(at revision: ComparisonRevision) throws -> String {
+        if revision == .workingTree || revision == .emptyTree { return originalPath }
+        guard case .revision(let hash) = revision, let path = paths[hash] else { throw RevisionComparisonFailure.selection }
+        return path
+    }
+}
+extension GitRepository {
+    public func followedHistoryPaths(path: String, entries: [LogEntry], through revisions: [String], cancellation: OperationCancellation? = nil) throws -> FollowedHistoryPaths {
+        try cancellation?.check(); _ = try restoreLocation(path)
+        let rows = entries.filter { !$0.hash.isEmpty }
+        guard !revisions.isEmpty, let last = revisions.compactMap({ hash in rows.firstIndex { $0.hash == hash } }).max(),
+              revisions.allSatisfy({ hash in rows.contains { $0.hash == hash } }), Set(rows.map(\.hash)).count == rows.count else { throw RevisionComparisonFailure.selection }
+        let captured = Array(rows.prefix(last + 1))
+        let changes = try revisionChanges(in: Array(captured.dropLast()), cancellation: cancellation)
+        var current = path, names: [String: String] = [:]
+        for entry in captured {
+            try cancellation?.check(); names[entry.hash] = current
+            if let rename = changes[entry.hash]?.first(where: { GitReferenceName.equal($0.path, current) && $0.oldPath != nil && ($0.action.hasPrefix("R") || $0.action.hasPrefix("C")) }), let old = rename.oldPath {
+                _ = try restoreLocation(old); current = old
+            }
+        }
+        return FollowedHistoryPaths(originalPath: path, paths: names)
+    }
+    /// A file history can compare different names even when a distant rename no
+    /// longer meets similarity detection. Keep both endpoint names explicitly.
+    public func followedHistoryComparison(path: String, entries: [LogEntry], from: ComparisonRevision, to: ComparisonRevision, parentOf: String? = nil, cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
+        let required = [from, to].compactMap { side -> String? in
+            guard case .revision(let hash) = side, parentOf == nil || side != from else { return nil }
+            if to == .workingTree, side == from, !entries.contains(where: { $0.hash == hash }) { return nil }
+            return hash
+        }
+        let names: FollowedHistoryPaths
+        if required.isEmpty, to == .workingTree { _ = try restoreLocation(path); names = FollowedHistoryPaths(originalPath: path, paths: [:]) }
+        else { names = try followedHistoryPaths(path: path, entries: entries, through: required, cancellation: cancellation) }
+        let toPath = try names.path(at: to)
+        var fromPath = parentOf != nil ? toPath : required.isEmpty && to == .workingTree ? path : try names.path(at: from)
+        func pin(_ side: ComparisonRevision) throws -> ComparisonRevision {
+            if case .revision(let hash) = side { return .revision(try comparisonObject(hash, cancellation: cancellation)) }; return side
+        }
+        let old = try pin(from), new = try pin(to)
+        if required.isEmpty, to == .workingTree, case .revision = old {
+            let head = try comparisonObject("HEAD", cancellation: cancellation)
+            guard old == .revision(head) else { throw RevisionComparisonFailure.selection }
+        }
+        if let parentOf {
+            guard to == .revision(parentOf) else { throw RevisionComparisonFailure.selection }
+            let comparison = try revisionComparison(from: old, to: new, cancellation: cancellation)
+            if let file = comparison.files.first(where: { GitReferenceName.equal($0.path, toPath) }), let oldPath = file.oldPath { fromPath = oldPath }
+        }
+        func mode(_ side: ComparisonRevision, _ name: String) throws -> String? {
+            try cancellation?.check(); let location = try restoreLocation(name)
+            if side == .emptyTree { return nil }
+            if side == .workingTree {
+                guard try !isBare(cancellation: cancellation) else { throw RevisionComparisonFailure.selection }
+                do {
+                    let attributes = try FileManager.default.attributesOfItem(atPath: location.path)
+                    switch attributes[.type] as? FileAttributeType {
+                    case .typeRegular: return "100644"
+                    case .typeSymbolicLink: return "120000"
+                    default: throw RevisionComparisonFailure.selection
+                    }
+                } catch let error as NSError where error.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(error.code) { return nil }
+            }
+            guard case .revision(let hash) = side else { throw RevisionComparisonFailure.range }
+            let data = try run(["ls-tree", "-z", hash, "--", name], cancellation: cancellation).stdout
+            for record in data.split(separator: 0) {
+                guard let tab = record.firstIndex(of: 9), Data(record[record.index(after: tab)...]) == Data(name.utf8) else { continue }
+                let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
+                guard header.count == 3, header[1] == "blob" else { throw RevisionComparisonFailure.selection }
+                return String(header[0])
+            }
+            return nil
+        }
+        let a = try mode(old, fromPath), b = try mode(new, toPath)
+        guard a != nil || b != nil else { throw RevisionComparisonFailure.selection }
+        let file = CommitFile(path: toPath, oldPath: fromPath, action: a == nil ? "A" : b == nil ? "D" : "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions(), scopePaths: [fromPath, toPath], diffDetection: diffDetection)
+    }
+}

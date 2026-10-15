@@ -2559,3 +2559,51 @@ The final Log refresh continuation passed both affected history cases against
 the rebuilt app. See [working-tree action evidence](qa/log-working-commands-2026-10-15.json)
 for exact scope, the dismissed error-sheet fixture repair and cleanup records.
 Core Git operations were unchanged and their suite was not rerun.
+
+## Rename-following file comparisons — October 15, 2026
+
+The active `GitLogListAction.cpp` Compare/Compare Two/Compare With Previous
+branches reconstruct a file's name by walking preceding displayed revisions.
+The native Follow renames mode now does the same over an immutable captured
+Log row list, using bounded shared name/status metadata batches rather than a
+separate complete diff/stat read for every row. Both endpoints keep independent
+literal paths. A distant rename therefore still compares the intended file even
+when Git's endpoint similarity detection no longer recognizes it as a rename.
+
+Single previous-revision and explicit numbered-parent commands resolve the chosen
+parent's rename independently. Root/added files have an empty base; a deleted
+working file has an empty destination. Historical sides are pinned before the
+native file viewer reads content. Working sides retain live disk bytes, and symlink
+blobs keep their target text. Multiple/folder and ordinary non-following Logs keep
+the Changed Files route. Primary and configured picker Logs share the new direct
+file-viewer callback, access grant, private viewer preferences and captured Shift
+choice. Existing window identity includes both endpoint names.
+
+Selected-revision, parent and working unified diffs use the recovered path union.
+Merge all-parent/combined/extra-change choices include each parent rename in that
+union and retain their existing Git diff modes. Working-row unified diffs now also
+retain folder/path scope when Follow renames is disabled. Unified patches remain
+Git's repository patch for the chosen name union, rather than a synthetic
+no-index diff; a separately reintroduced file at one of those exact names can
+therefore contribute to that patch.
+
+Followed comparison preparation owns its cancellable Git process, access grant
+and application Quit lifetime. Selection replacement cancels it. Requested Close
+cancels and waits for settlement before closing; forced retirement suppresses
+late viewers/errors. Reload, changed scope and selection-away-and-back reject late
+publication. Unified readers also fence the selection generation.
+
+Source display-order reconstruction still depends on the captured rows, as in
+upstream. Filtered-out or unloaded rename transitions and ambiguous multi-branch
+merge walks require broader acceptance; explicit selected-parent rename resolution
+is covered separately. Physical popup/typing, external comparison applications,
+Finder and signed App Store execution remain unverified. This family does not
+certify the complete Log or application port.
+
+Validation for this family: Debug build exited 0; 19 of 20 grouped Core cases
+passed initially and the one fixture with an incorrect zero history limit passed
+after changing it to the existing unlimited value. Production Core was unchanged
+by that repair. Both complete native history-workflow cases passed on system and
+bundled Git, including the actual file viewer, parent/selected/working patches,
+double-click and started-reader selection/requested/forced cancellation. Both
+owned receivers were reaped. See [followed-history evidence](qa/followed-history-2026-10-15.json).

@@ -17,6 +17,7 @@ import TurtleGitCore
         let suite="TurtleGit.HistoryWorkflows."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         prefs.set(16,forKey:"GitOutputLimitinKiB");prefs.set(true,forKey:"ShowAppContextMenuIcons");prefs.set(false,forKey:"EnableGravatar")
         defer { prefs.removePersistentDomain(forName:suite) }
+        try await followedFileComparisons(git: git, preferences: prefs)
         try await menuOwnership(repository:repo,entries:entries,preferences:prefs)
         try await historyMenuCommands(repository:repo,entries:entries,preferences:prefs,git:git)
         try await workingTreeCommandFamily(repository:repo,entries:entries,preferences:prefs,git:git)
@@ -413,6 +414,106 @@ import TurtleGitCore
             try require(handedOff==0 && child.model.error==nil && child.window?.isVisible==false && kill(pid,0) == -1 && errno==ESRCH,"Closed owner retained its Git child or published a late action/error")
         }
         print("Log working-tree commands: Commit/Stash/Pull/Fetch/Clean icons and fresh dispatch; appeared/disappeared merge, stash and submodule gates; stash/bare Reset/Branch/Tag/Export; real Git metadata requested/forced-close cancellation, process reaping and Quit ownership passed. No cleanup or abort submitted; owned windows closed.")
+    }
+
+    @MainActor static func followedFileComparisons(git: URL, preferences: UserDefaults) async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitFollowHistory-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: git), old = "old 雪\n.txt", middle = "middle file", path = "new 雪\n.txt"
+        _ = try await repo.run(["init", "-b", "main"])
+        for (key, value) in [("user.name", "Follow QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
+        let contents = Data((0..<30).map { "original line \($0)\n" }.joined().utf8)
+        try contents.write(to: root.appendingPathComponent(old)); try await repo.stage([old]); _ = try await repo.commit(message: "birth")
+        let birth = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["mv", "--", old, middle]); _ = try await repo.commit(message: "first rename")
+        _ = try await repo.run(["mv", "--", middle, path]); _ = try await repo.commit(message: "second rename")
+        let rename = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let committed = contents + Data("committed end\n".utf8)
+        try committed.write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "edit")
+        let tip = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let working = committed + Data("working only\n".utf8); try working.write(to: root.appendingPathComponent(path))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let regex = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
+        func owner(_ executable: URL) async throws -> LogWindowController {
+            let controller = LogWindowController(repository: GitRepository(root: root, executable: executable), access: nil, labelDefaults: preferences, savesGeometry: false, historyRegexExecutable: regex)
+            controller.window!.alphaValue = 0; controller.model.historyPaths = [path]; controller.model.showWholeProject = false; controller.model.showWorkingTree = false
+            controller.showWindow(nil); controller.model.reload(); try await wait { !controller.model.busy && controller.model.canFollowRenames }
+            controller.model.toggleHistoryWalk(.followRenames); try await wait { !controller.model.busy && controller.model.entries.count == 4 }
+            return controller
+        }
+        let controller = try await owner(git); defer { controller.close() }
+        let model = controller.model
+        var comparisons: [RevisionComparisonSnapshot] = [], choices: [Bool] = [], unscoped = 0, patches: [Data] = []
+        model.onFollowedFileComparison = { snapshot, _ in comparisons.append(snapshot); choices.append(ComparisonToolInvocation.capture) }
+        model.onCompare = { _, _ in unscoped += 1 }
+        model.onUnifiedDiff = { bytes, _ in patches.append(bytes) }
+        model.select([tip, birth]); ComparisonToolInvocation.$alternate.withValue(true) { model.compare() }
+        try await wait { !model.busy }
+        try require(model.error == nil && comparisons.count == 1 && choices == [true] && unscoped == 0, "Followed file comparison lost route or alternate capture: " + (model.error ?? ""))
+        let first = try await repo.comparisonFile(comparisons[0], path: path)
+        try require(first.base.path == old && first.base.bytes == contents && first.destination.bytes == committed, "Native follow comparison used current filename for old endpoint")
+        let viewer = FileComparisonWindowController(repository: repo, access: nil, snapshot: comparisons[0], path: path)
+        defer { viewer.close() }; viewer.model.comparisonDefaults = preferences; viewer.model.openExternalComparison = { _, _, _, _ in false }; viewer.window!.alphaValue = 0; viewer.showWindow(nil)
+        viewer.model.load(); try await wait { !viewer.model.busy && !viewer.model.filtering }
+        try require(viewer.model.error == nil && viewer.model.document?.base.path == old && viewer.model.document?.destination.bytes == committed, "Followed snapshot did not load in actual native file viewer")
+        viewer.close()
+        model.diff(); try await wait { !model.busy }
+        try require(patches.count == 1 && patches[0].range(of: Data("+committed end".utf8)) != nil, "Followed selected-revision unified patch omitted old/new content")
+        model.select([rename]); model.compare(parent: 1); try await wait { !model.busy }
+        try require(comparisons.last?.files.first?.oldPath == middle && comparisons.last?.files.first?.path == path, "Followed previous-parent comparison lost rename pair")
+        model.diff(mode: .parent(1)); try await wait { !model.busy }
+        try require(patches.count == 2 && !patches[1].isEmpty, "Followed parent unified diff was empty")
+        let count = comparisons.count
+        preferences.set(true, forKey: "DiffByDoubleClickInLog"); model.doubleClickRevision(); try await wait { !model.busy }
+        preferences.removeObject(forKey: "DiffByDoubleClickInLog")
+        try require(comparisons.count == count + 1 && comparisons.last?.files.first?.oldPath == middle, "Followed double-click/Return lost previous filename")
+        model.select([birth]); model.compare(workingTree: true); try await wait { !model.busy }
+        let live = try await repo.comparisonFile(comparisons.last!, path: path)
+        try require(live.base.path == old && live.destination.bytes == working, "Followed working-tree comparison did not read live bytes")
+        model.diff(workingTree: true); try await wait { !model.busy }
+        try require(patches.last?.range(of: Data("+working only".utf8)) != nil, "Followed working unified diff lost live edit")
+        model.showWorkingTree = true; model.reload(); try await wait { !model.busy && model.entries.first?.hash.isEmpty == true }
+        model.select(["", birth]); model.compare(); try await wait { !model.busy }
+        try require(comparisons.last?.from == .revision(birth) && comparisons.last?.to == .workingTree && comparisons.last?.files.first?.oldPath == old, "Followed working-row pair lost historical endpoint")
+        model.diff(); try await wait { !model.busy }
+        try require(patches.last?.range(of: Data("+working only".utf8)) != nil, "Followed working-row patch lost filename/content")
+        controller.close()
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+        let helper = root.appendingPathComponent(".git/slow-follow"), gate = root.appendingPathComponent(".git/follow-gate"), ready = root.appendingPathComponent(".git/follow-ready")
+        let script = """
+        #!/bin/sh
+        if [ -f \(quote(gate.path)) ]; then
+          for argument in "$@"; do
+            if [ "$argument" = --stdin ]; then
+              echo $$ > \(quote(ready.path))
+              while :; do /bin/sleep 0.02; done
+            fi
+          done
+        fi
+        exec \(quote(git.path)) "$@"
+        """
+        try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        for mode in ["selection", "requested", "forced"] {
+            try? FileManager.default.removeItem(at: gate); try? FileManager.default.removeItem(at: ready)
+            let child = try await owner(helper); defer { child.close() }
+            var opened = 0; child.model.onFollowedFileComparison = { _, _ in opened += 1 }
+            child.model.select([tip, birth]); try await wait { !child.model.loadingActions && LogWindowModel.activeActionReads == 0 }
+            try Data().write(to: gate); child.model.compare()
+            try await wait { FileManager.default.fileExists(atPath: ready.path) }
+            let pid = pid_t(try String(contentsOf: ready).trimmingCharacters(in: .whitespacesAndNewlines))!
+            try require(FileListComparisonSession.activeOperations > 0 && kill(pid, 0) == 0, "Followed read had no owned Git process")
+            if mode == "selection" { child.model.select([rename]) }
+            else if mode == "requested" { child.window?.performClose(nil) }
+            else { child.close() }
+            try await wait { !child.model.busy && FileListComparisonSession.activeOperations == 0 }
+            try require(opened == 0 && child.model.error == nil && kill(pid, 0) == -1 && errno == ESRCH, "Cancelled follow read published a late viewer/error or leaked Git")
+            if mode != "selection" { try require(child.model.isInvalidated, "Requested/forced follow Close did not settle") }
+            child.close()
+        }
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        try require(finalHead == tip && Data(contentsOf: root.appendingPathComponent(".git/index")) == index && Data(contentsOf: root.appendingPathComponent(path)) == working, "Followed history inspection changed repository bytes")
+        print("Followed file history: two renames, explicit parent/current pairs, live working bytes, selected/parent/working unified patches, captured alternate tool, actual native viewer and started-read selection/requested/forced cancellation passed. Owned windows closed and Git children reaped.")
     }
 
 }
