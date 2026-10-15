@@ -229,3 +229,6 @@ are not recursively audited.
 
 - [Git authentication prompts](GIT-AUTHENTICATION.md)
 - [Git CLI authentication source audit](GIT-AUTHENTICATION-PARITY.md)
+
+Finder context now shares normalized selections, nearest repository ownership and
+explicit ignore inheritance; see [selection context](FINDER-SELECTION-CONTEXT.md).

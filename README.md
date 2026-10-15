@@ -240,3 +240,6 @@ including merge/rebase branch names and the Advanced branch-guessing preference.
 
 Existing Advanced settings now control [Fetch verbosity and native progress animation](docs/TRANSPORT-PRESENTATION.md),
 with captured request policy and shared bounded visible-output settings.
+
+Finder context now shares normalized selections, nearest repository ownership and
+explicit ignore inheritance; see [selection context](docs/FINDER-SELECTION-CONTEXT.md).

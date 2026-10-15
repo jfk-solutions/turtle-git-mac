@@ -307,7 +307,7 @@ import TurtleGitCore
         precondition(rootActions(addedMenu) == [.commit, .diff, .diffLater, .status, .stash, .rename, .revert, .ignoreDelete], "Added paths exclude history and removal")
         verifyOrder(addedMenu)
         let multiple = rootActions(make([tracked, conflict], settings: allCommands()))
-        precondition(multiple == [.commit, .diff, .status, .editConflict, .resolve, .remove, .removeKeep, .ignoreDelete], "Two files exclude single-selection and folder commands")
+        precondition(multiple == [.commit, .diff, .status, .remove, .removeKeep, .ignoreDelete], "Two files use the representative normal status, excluding later conflict and single-selection commands")
         let untrackedFolder = folder.appendingPathComponent("new-directory", isDirectory: true)
         try FileManager.default.createDirectory(at: untrackedFolder, withIntermediateDirectories: true)
         let creationRules = FinderCreationMenuContext.read(directory: untrackedFolder, snapshot: snapshot, extended: false)

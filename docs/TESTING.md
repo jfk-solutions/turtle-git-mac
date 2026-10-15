@@ -1694,3 +1694,16 @@ The receiver owns private Git repositories/preferences and checks real Fetch/Syn
 arguments, submission-time capture, native static/spinning activity and bounded
 Unicode output. The retained Fetch/Pull live-stream receiver covers cancellation,
 raw diagnostics and retry with the same app objects.
+
+## Finder selection context batch
+
+`python3 scripts/test-finder-selection-context.py` compiles the real extension
+menu source against the current Debug Core framework. It checks representative
+status, normalized request cardinality, mixed repository disabling, AppKit menu
+updates, registered submodule operations and ignored-directory boundaries.
+Run with the retained Finder menu receiver after one Debug build. This receiver
+does not activate Finder or establish signed extension acceptance.
+
+The 2026-10-15 checkpoint passed 44 selected Core cases, one repaired Debug build,
+and both actual Finder-menu receivers. Initial failures and focused repairs are
+recorded in [Finder context QA](qa/finder-selection-context-2026-10-15.json).

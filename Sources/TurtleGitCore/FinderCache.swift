@@ -117,11 +117,11 @@ public struct FinderCreationMenuContext: Sendable {
         let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
         let folder = values?.isDirectory ?? url.hasDirectoryPath
         let path = url.standardizedFileURL.path
-        let known = snapshot?.roots.contains { path == $0 || path.hasPrefix($0 + "/") } == true
-        let knownRoot = snapshot?.roots.contains(path) == true
-        let state = snapshot?.states[path]
+        let owner = snapshot?.repositoryRoot(for: url)
+        let known = owner != nil, knownRoot = owner == path
+        let state = snapshot?.cachedState(for: url)
         let versioned = knownRoot || known && state.map { [.normal, .modified, .added, .deleted, .conflicted].contains($0) } == true
-        let ignored = !knownRoot && snapshot?.states.contains { entry in entry.value == .ignored && (path == entry.key || path.hasPrefix(entry.key + "/")) } == true
+        let ignored = !knownRoot && state == .ignored
         let fm = FileManager.default
         // Same loose-ref metadata checks as pinned GitAdminDir::IsBareRepo.
         func hasDirectory(_ name: String) -> Bool {
@@ -227,10 +227,7 @@ public struct FinderSnapshot: Codable, Sendable {
         indexFlags = try values.decodeIfPresent([String: FinderIndexFlags].self, forKey: .indexFlags)
     }
     public func repositoryMetadata(for paths: [URL]) -> FinderRepositoryMetadata? {
-        guard !paths.isEmpty else { return nil }
-        return roots.sorted { $0.count > $1.count }.first { root in
-            paths.allSatisfy { $0.path == root || $0.path.hasPrefix(root.hasSuffix("/") ? root : root + "/") }
-        }.flatMap { repositories[$0] }
+        commonRepositoryRoot(for: paths).flatMap { repositories[$0] }
     }
     @discardableResult public func write() throws -> Bool {
         guard let url = FinderIntegration.snapshotURL else { return false }
@@ -262,43 +259,29 @@ public struct FinderSnapshot: Codable, Sendable {
     /// Cached eligibility only. The containing app revalidates tracked paths and
     /// the working tree before Git mutates anything.
     public func canRename(_ selection: [URL]) -> Bool {
-        guard selection.count == 1, let path = selection.first?.standardizedFileURL.path,
-              roots.contains(where: { path.hasPrefix($0 + "/") || path == $0 && repositories[$0]?.submoduleParentRoot != nil }) else { return false }
-        let versioned: Set<FileState> = [.normal, .modified, .added, .conflicted]
-        if let state = states[path], versioned.contains(state) { return true }
-        return states.contains { $0.key.hasPrefix(path + "/") && versioned.contains($0.value) }
+        guard selection.count == 1, let url = selection.first, let root = repositoryRoot(for: url),
+              url.standardizedFileURL.path != root || repositories[root]?.submoduleParentRoot != nil else { return false }
+        return hasFileState([.normal, .modified, .added, .conflicted], at: url, includingDescendants: true)
     }
     public func canRemove(_ selection: [URL]) -> Bool {
-        guard !selection.isEmpty else { return false }
-        let paths = selection.map { $0.standardizedFileURL.path }
-        guard roots.contains(where: { root in paths.allSatisfy { $0.hasPrefix(root + "/") || $0 == root && repositories[root]?.submoduleParentRoot != nil } }) else { return false }
-        let versioned: Set<FileState> = [.normal, .modified, .conflicted]
-        return paths.allSatisfy { path in
-            if let state = states[path], versioned.contains(state) { return true }
-            return states.contains { $0.key.hasPrefix(path + "/") && versioned.contains($0.value) }
+        guard commonFileOperationOwner(for: selection) != nil else { return false }
+        return selection.allSatisfy { url in
+            guard let root = repositoryRoot(for: url), url.standardizedFileURL.path != root || repositories[root]?.submoduleParentRoot != nil else { return false }
+            return hasFileState([.normal, .modified, .conflicted], at: url, includingDescendants: true)
         }
     }
     public func canRevert(_ selection: [URL]) -> Bool {
-        guard !selection.isEmpty else { return false }
-        let paths = selection.map { $0.standardizedFileURL.path }
-        guard roots.contains(where: { root in paths.allSatisfy { $0 == root || $0.hasPrefix(root + "/") } }) else { return false }
-        let changes: Set<FileState> = [.modified, .added, .deleted, .conflicted]
-        return paths.allSatisfy { path in
-            changes.contains(states[path] ?? .normal) || states.contains { $0.key.hasPrefix(path + "/") && changes.contains($0.value) }
-        }
+        guard commonRepositoryRoot(for: selection) != nil else { return false }
+        return selection.contains { hasFileState([.modified, .added, .deleted, .conflicted], at: $0, includingDescendants: true) }
     }
     public func canResolve(_ selection: [URL]) -> Bool {
-        guard !selection.isEmpty else { return false }
-        let paths = selection.map { $0.standardizedFileURL.path }
-        guard roots.contains(where: { root in paths.allSatisfy { $0 == root || $0.hasPrefix(root + "/") } }) else { return false }
-        return paths.contains { path in states.contains { $0.value == .conflicted && ($0.key == path || $0.key.hasPrefix(path + "/")) } }
+        guard commonRepositoryRoot(for: selection) != nil else { return false }
+        return selection.contains { hasFileState([.conflicted], at: $0, includingDescendants: true) }
     }
     public func canIgnore(_ selection: [URL], deleting: Bool) -> Bool {
-        guard !selection.isEmpty else { return false }
-        let paths = selection.map { $0.standardizedFileURL.path }
-        guard roots.contains(where: { root in paths.allSatisfy { $0.hasPrefix(root + "/") } }) else { return false }
-        return paths.allSatisfy { path in
-            guard let state = states[path] else { return false }
+        guard let root = commonRepositoryRoot(for: selection), selection.allSatisfy({ $0.standardizedFileURL.path != root }) else { return false }
+        return selection.allSatisfy { path in
+            guard let state = cachedState(for: path) else { return false }
             return deleting ? [.normal, .modified, .added, .conflicted].contains(state) : [.untracked, .deleted].contains(state)
         }
     }
@@ -569,16 +552,18 @@ public enum FinderShellRules {
     }
     /// Cached status plus directory metadata; never executes Git in Finder.
     public static func flags(paths: [URL], snapshot: FinderSnapshot?, extended: Bool = false) -> FinderShellFlags {
+        let paths = FinderRequest.normalizedSelection(paths)
         var flags: FinderShellFlags = extended ? [.extended] : []
         if paths.count == 1 { flags.insert(.onlyOne) }
         if paths.count == 2 { flags.insert(.two) }
-        for path in paths {
+        if paths.contains(where: { ["patch", "diff"].contains($0.pathExtension.lowercased()) && (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) != true }) { flags.insert(.patchFile) }
+        // ContextMenu::Initialize stops fetching status after its representative
+        // item. Later items still contribute cardinality/patch-file metadata.
+        if let first = paths.first {
+            let path = first.standardizedFileURL
             let directory = (try? path.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? path.hasDirectoryPath
             if directory { flags.insert(.folder) }
-            else if ["patch", "diff"].contains(path.pathExtension.lowercased()) { flags.insert(.patchFile) }
-            let root = snapshot?.roots.sorted { $0.count > $1.count }.first { root in
-                path.path == root || path.path.hasPrefix(root.hasSuffix("/") ? root : root + "/")
-            }
+            let root = snapshot?.repositoryRoot(for: path)
             if root == nil, directory, FinderCreationMenuContext.read(directory: path, snapshot: snapshot, extended: extended).inaccessible { flags.insert(.inaccessible) }
             let metadata = root.flatMap { snapshot?.repositories[$0] }
             let bare = metadata?.bare ?? root.map { FinderCreationMenuContext.read(directory: URL(fileURLWithPath: $0, isDirectory: true), snapshot: snapshot, extended: false).bare } ?? false
@@ -595,7 +580,7 @@ public enum FinderShellRules {
                 if metadata?.mergeActive == true { flags.insert(.merge) }
                 if metadata?.bisectActive == true { flags.insert(.bisect) }
             } else if let root, bare && path.path == root { flags.insert(.bare) }
-            switch snapshot?.states[path.path] {
+            switch snapshot?.cachedState(for: path) {
             case .normal: flags.insert(.normal)
             case .modified: break
             case .added: flags.insert(.added)

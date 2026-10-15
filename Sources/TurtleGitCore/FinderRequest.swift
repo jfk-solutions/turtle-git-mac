@@ -14,9 +14,14 @@ public struct FinderRequest: Sendable {
     public init(action: RepositoryAction, paths: [URL], sources: [URL] = [], alternateTool: Bool? = nil, requestPullEnd: String? = nil, requestPullURL: String? = nil) {
         self.action = action; self.alternateTool = alternateTool
         self.requestPullEnd = requestPullEnd; self.requestPullURL = requestPullURL
+        self.paths = Self.normalizedSelection(paths)
+        self.sources = Self.normalizedSelection(sources)
+    }
+    /// Menu eligibility and the captured request must use the same cardinality,
+    /// order and literal-leaf normalization.
+    public static func normalizedSelection(_ urls: [URL]) -> [URL] {
         var seen = Set<String>()
-        self.paths = paths.map(Self.normalizedSelectionURL).filter { seen.insert($0.path).inserted }
-        seen = []; self.sources = sources.map(Self.normalizedSelectionURL).filter { seen.insert($0.path).inserted }
+        return urls.map(normalizedSelectionURL).filter { seen.insert($0.path).inserted }
     }
     private static func normalizedSelectionURL(_ url: URL) -> URL {
         guard url.isFileURL, url.path != "/" else { return url.standardizedFileURL }

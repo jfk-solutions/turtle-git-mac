@@ -43,3 +43,6 @@ renewal, stale-file recovery and live Finder selection acceptance remain pending
 Core code is unchanged in this follow-up; the prior 12-test request/creation/settings
 run passed before this change. Debug and unsigned AppStore builds, bundle audits
 and site generation are in [the verification record](qa/finder-selection-2026-10-06.json).
+
+Finder context now shares normalized selections, nearest repository ownership and
+explicit ignore inheritance; see [selection context](FINDER-SELECTION-CONTEXT.md).

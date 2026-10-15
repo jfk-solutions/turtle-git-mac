@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "dcb643f5",
+  "scope": "Finder representative selection context, cached ignored ancestry and nested repository ownership",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseShell/ContextMenu.cpp::Initialize",
+      "src/TortoiseShell/ContextMenu.cpp MenuInfo"
+    ]
+  },
+  "implementation": [
+    "Shared nearest owner/common owner lookup for metadata, menu status, creation and transfers",
+    "Normalized ordered deduplicated selection shared between menu eligibility and captured dispatch",
+    "Representative first effective item supplies status; full selection contributes cardinality and patch presence",
+    "Explicit ignored entries inherit only within nearest checkout; tracked exceptions override; aggregate ignored badges do not propagate",
+    "Registered submodule roots retain parent Rename/Delete ownership while nested contents remain independent",
+    "Mixed-root repository commands disabled with explanation and autoenabling suppressed; independent two-file Diff retained for files",
+    "Revert reviews mixed changed/unchanged selections and checks eligible changes"
+  ],
+  "native_adaptations": [
+    "Unknown leading effective item remains representative, while upstream statfetched handling can skip it before obtaining later status",
+    "Cross-root mutation commands are disabled; containing app still revalidates access and ownership"
+  ],
+  "validation": {
+    "core": {
+      "cases": 44,
+      "failures": 0,
+      "log": "build/qa/finder-selection-context-core.log"
+    },
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/finder-selection-context-build.log",
+      "initial_failure": "Duplicate local paths declaration in menu builder; renamed normalized intermediate and rebuilt. Cascaded contextual-type errors cleared."
+    },
+    "native_context": {
+      "exit_code": 0,
+      "log": "build/qa/finder-selection-context-native-recheck.log",
+      "initial_log": "build/qa/finder-selection-context-native.log",
+      "initial_failure": "New fixture accessed nil NSApp before initialization; now initializes NSApplication.shared. Production code unchanged by fixture repair.",
+      "owned_reaped_pids": [
+        92323,
+        92335,
+        92361,
+        92370
+      ]
+    },
+    "retained_menu": {
+      "exit_code": 0,
+      "log": "build/qa/finder-selection-context-menu-recheck.log",
+      "initial_log": "build/qa/finder-selection-context-menu.log",
+      "initial_failure": "Old exact two-file expectation combined normal first and conflicted second; updated expected source representative-normal command set, retaining exact assertion.",
+      "scope": "Actual extension source, 61 root entry order/groups, icons, URL packets, real cached submodule and merge metadata, clipboard transfers; no installed Finder activation",
+      "ownership": "Compiler and receiver synchronously waited by subprocess.run; no app windows or extension controller created"
+    },
+    "git_commands_in_new_menu_receiver": false,
+    "hosted_observation": {
+      "latest_pushed_sha": "dcb643f5",
+      "pages_run": 38725909717,
+      "pages": "success",
+      "macos_run": 38725909585,
+      "macos": "pending",
+      "earlier_run": 38721704928,
+      "earlier_job": 116378009960,
+      "earlier_job_status": "in_progress at app/extension/resource verification; not a full hosted pass"
+    }
+  },
+  "limits": [
+    "Physical Finder selection and gestures",
+    "Installed extension activation and signed sandbox/security scope handoff",
+    "Case aliases and full upstream branch equivalence",
+    "All-dialog visual and behavioral parity",
+    "App Store distribution certification"
+  ]
+}

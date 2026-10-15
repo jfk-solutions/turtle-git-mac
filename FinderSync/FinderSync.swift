@@ -140,11 +140,12 @@ enum FinderMenuBuilder {
                      comparisonMark: WorkingComparisonMarkSnapshot?, target: AnyObject?, actionSelector: Selector,
                      creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false, clipboardSources: [URL] = []) -> NSMenu {
         func image(_ icon: MenuIcon) -> NSImage? { settings.showIcons ? icon.image() : nil }
-        let menu = NSMenu(title: "TurtleGit")
-        if paths.contains(where: { $0.pathComponents.contains(".git") }) { return menu }
-        let originalPaths = paths
-        let paths = paths.filter { path in
-            let knownRoot = snapshot?.roots.sorted { $0.count > $1.count }.first { root in path.path == root || path.path.hasPrefix(root + "/") }
+        let menu = NSMenu(title: "TurtleGit"); menu.autoenablesItems = false
+        let normalizedPaths = FinderRequest.normalizedSelection(paths)
+        if normalizedPaths.contains(where: { $0.pathComponents.contains(".git") }) { return menu }
+        let originalPaths = normalizedPaths
+        let paths = normalizedPaths.filter { path in
+            let knownRoot = snapshot?.repositoryRoot(for: path)
             let fallback = knownRoot.map { URL(fileURLWithPath: $0) } ?? path.deletingLastPathComponent()
             let sensitive = (try? path.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey]).volumeSupportsCaseSensitiveNames)
                 ?? (try? fallback.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey]).volumeSupportsCaseSensitiveNames) ?? true
@@ -153,7 +154,7 @@ enum FinderMenuBuilder {
         if !originalPaths.isEmpty && paths.isEmpty { return menu }
         let shellFlags = FinderShellRules.flags(paths: paths, snapshot: snapshot, extended: extended)
         guard settings.allowsMenu(flags: shellFlags, extended: extended) else { return menu }
-        let creationDirectory = creationDirectory.flatMap { paths.contains($0) ? $0 : nil }
+        let creationDirectory = creationDirectory.flatMap { FinderRequest.normalizedSelection([$0]).first }.flatMap { paths.contains($0) ? $0 : nil }
         let submenu = NSMenu(title: "TurtleGit")
         submenu.autoenablesItems = false
         let creationActions = creationDirectory.map {
@@ -164,18 +165,24 @@ enum FinderMenuBuilder {
             item.image = image(action.icon); item.target = target
             item.representedObject = FinderMenuCommand(action: action, paths: creationDirectory.map { [$0] } ?? []); submenu.addItem(item)
         }
-        let knownRepository = paths.contains { path in snapshot?.roots.contains { path.path == $0 || path.path.hasPrefix($0 + "/") } == true }
+        let knownRepository = paths.first.flatMap { snapshot?.repositoryRoot(for: $0) } != nil
+        let sharedRepository = snapshot?.commonRepositoryRoot(for: paths) != nil
         if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
         for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && !$0.isLFS && $0.resolveChoice == nil }) {
             guard (knownRepository || action.isApplicationUtility || [.sendMail, .reviewPatch].contains(action) || action == .diff && paths.count == 2), FinderShellRules.allows(action, flags: shellFlags) else { continue }
+            if action == .diff && paths.count == 2 && paths.contains(where: { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }) { continue }
             let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
             item.image = image(action.icon)
-            if action == .formatPatch || action == .worktreeList { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }
-            if action == .revert { item.isEnabled = snapshot?.canRevert(paths) == true }
-            if action == .resolve { item.isEnabled = snapshot?.canResolve(paths) == true }
-            if action == .editConflict { item.isEnabled = snapshot?.canResolve(paths) == true }
-            if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }
-            if action == .remove || action == .removeKeep { item.isEnabled = snapshot?.canRemove(paths) == true }
+            let sameOwner = sharedRepository || ([.rename, .remove, .removeKeep].contains(action) && snapshot?.commonFileOperationOwner(for: paths) != nil)
+            if !sameOwner && !action.isApplicationUtility && ![.sendMail, .reviewPatch].contains(action) && !(action == .diff && paths.count == 2) {
+                item.isEnabled = false; item.toolTip = "Select items in one repository to use this command."
+            }
+            if action == .formatPatch || action == .worktreeList { item.isEnabled = item.isEnabled && (paths.count == 1 && (try? paths[0].resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true) }
+            if action == .revert { item.isEnabled = item.isEnabled && (snapshot?.canRevert(paths) == true) }
+            if action == .resolve { item.isEnabled = item.isEnabled && (snapshot?.canResolve(paths) == true) }
+            if action == .editConflict { item.isEnabled = item.isEnabled && (snapshot?.canResolve(paths) == true) }
+            if action == .rename { item.isEnabled = item.isEnabled && (snapshot?.canRename(paths) == true) }
+            if action == .remove || action == .removeKeep { item.isEnabled = item.isEnabled && (snapshot?.canRemove(paths) == true) }
             item.target = target; item.representedObject = FinderMenuCommand(action: action, paths: paths); submenu.addItem(item)
         }
         if snapshot?.repositoryMetadata(for: paths)?.hasLFS == true, FinderShellRules.allows(.lfs, flags: shellFlags) {

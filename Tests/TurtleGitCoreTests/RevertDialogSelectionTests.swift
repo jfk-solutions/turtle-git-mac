@@ -31,7 +31,7 @@ final class RevertDialogSelectionTests: XCTestCase {
         let snapshot = FinderSnapshot(roots: [root.path], states: [root.path: .modified, changed.path: .modified, "/repo/dir/new": .untracked, "/repo/clean": .normal])
         XCTAssertTrue(snapshot.canRevert([root])); XCTAssertTrue(snapshot.canRevert([root.appendingPathComponent("dir")]))
         XCTAssertTrue(snapshot.canRevert([changed]))
-        XCTAssertFalse(snapshot.canRevert([changed, root.appendingPathComponent("dir/new")]))
+        XCTAssertTrue(snapshot.canRevert([changed, root.appendingPathComponent("dir/new")]), "Revert reviews mixed selection and checks only eligible changes")
         XCTAssertFalse(snapshot.canRevert([root.appendingPathComponent("clean")]))
         XCTAssertFalse(snapshot.canRevert([changed, URL(fileURLWithPath: "/repository/else")]))
         let request = FinderRequest(action: .revert, paths: [changed]), parsed = try XCTUnwrap(FinderRequest(url: XCTUnwrap(request.url)))
