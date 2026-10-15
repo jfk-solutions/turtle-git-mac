@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+Workspace opening now prepares external Git metadata permissions for linked
+worktrees, submodules and shared object stores, with owned folder sheets,
+per-repository saved grants, cancellation/rollback and child-window scope lifetime.
+The final Debug build, 35 affected Core tests and both grouped native engine cases
+passed. See [folder access](REPOSITORY-FOLDER-ACCESS.md) and
+[batch evidence](qa/workspace-metadata-access-2026-10-15.json). Signed sandbox and
+Finder acceptance remain open.
+
 The connected Clone/Create Repository family implements owned browse/permission
 sheets, captured submission choices, cancellable metadata discovery and guarded
 warning/result lifetimes. Debug, six initialization tests and four unique native

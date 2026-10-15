@@ -48,7 +48,7 @@ import TurtleGitCore
     var requiresSecurityScope = GitRuntime.isAppStoreBuild
     init(preferences: UserDefaults) { self.preferences = preferences }
     func needsPermission(_ file: URL, repositoryAccess: RepositoryAccessLease?) -> Bool {
-        requiresSecurityScope && !(repositoryAccess?.hasSecurityScope == true && repositoryAccess?.contains(file) == true)
+        requiresSecurityScope && !(repositoryAccess?.permits(file) == true)
     }
     private func sameFile(_ a: URL, _ b: URL) -> Bool {
         a.isFileURL && b.isFileURL && a.standardizedFileURL.resolvingSymlinksInPath().path == b.standardizedFileURL.resolvingSymlinksInPath().path

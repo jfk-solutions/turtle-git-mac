@@ -100,9 +100,13 @@ bookmarks remain legacy compatibility paths. Signed Clone
 grant inheritance and key renewal remain unverified. Init retains its destination
 lease; normal and bare repositories save the resolved root to recents. Bare opening
 is verified in a development preview, but signed Init grants, adoption and recent
-bookmark renewal remain unverified. General multiple-directory
-workflows for worktrees, out-of-scope submodules and object stores are still pending;
-basic bookmark tests do not prove those cases work inside the sandbox.
+bookmark renewal remain unverified. Workspace opening now discovers external
+worktree/submodule metadata and recursive object-store dependencies before Git
+launch, obtains owned folder grants and retains them through the session and child
+windows. Saved grants renew/reuse on reopening, with primary repository boundaries
+kept separate. See [repository folder access](REPOSITORY-FOLDER-ACCESS.md).
+Injected Core/native checks do not prove signed helper inheritance or the full
+Finder-service authorization lifecycle; those remain distribution acceptance gates.
 
 ## Pinned Git runtime — distribution acceptance pending
 

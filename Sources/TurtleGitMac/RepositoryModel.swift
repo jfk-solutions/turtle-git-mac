@@ -104,6 +104,11 @@ import UniformTypeIdentifiers
     @Published var recentRepositories: [SavedRepository] = []
     private var accessStore: RepositoryAccessStore?
     private var activeAccess: RepositoryAccessLease?
+    var requiresRepositoryScope = GitRuntime.isAppStoreBuild
+    var repositoryBookmarkProvider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()
+    var chooseRepositoryMetadataFolder:((RepositoryMetadataAccessRequirement,OperationCancellation) async throws -> URL?)?
+    private var adoptionCancellation:OperationCancellation?
+    private var repositoryPermissionPrompt:RepositoryMetadataPermissionPrompt?
     private var repository: GitRepository?
     var settingsContextOverride: (repository:GitRepository,access:RepositoryAccessLease?,localAvailable:Bool)?
     private var gitPropertyWindows: [String:GitPropertiesWindowController] = [:]
@@ -190,14 +195,14 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
     private func monitorFiles(_ directories:[URL]) {
         guard monitoringEnabled,watchPaths != directories else { return }
         stopFileMonitoring()
-        let permitted=directories.filter { !GitRuntime.isAppStoreBuild || activeAccess?.contains($0)==true }
+        let permitted=directories.filter { !GitRuntime.isAppStoreBuild || activeAccess?.permits($0)==true }
         guard !permitted.isEmpty else { return }
         let identity=watchIdentity
         let refresh=RepositoryEventRefresh(available:{ [weak self] in
@@ -242,7 +247,8 @@ import UniformTypeIdentifiers
         return eligible && (!action.ignoresByExtension || selected.contains { !($0.path as NSString).pathExtension.isEmpty })
     }
 
-    init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)? = nil,snapshotStore:FinderSnapshotStore? = nil,finderWatches:FinderWatchManager? = nil) {
+    init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)? = nil,snapshotStore:FinderSnapshotStore? = nil,finderWatches:FinderWatchManager? = nil,savedAccessStore:RepositoryAccessStore? = nil) {
+        self.accessStore=savedAccessStore;recentRepositories=savedAccessStore?.repositories ?? []
         self.finderWatches=finderWatches
         self.repositoryFactory=repositoryFactory;self.snapshotWriter=snapshotWriter
         self.snapshotStore=snapshotStore ?? FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) }
@@ -256,7 +262,7 @@ import UniformTypeIdentifiers
         catch { finderStatus = "Finder overlay preferences unavailable: " + error.localizedDescription }
         do { workingComparisonMark = try comparisonMarkStore.snapshot() } catch { self.error = error.localizedDescription }
         do {
-            let store = try RepositoryAccessStore(storageURL: RepositoryAccessStore.defaultStorageURL)
+            let store = try savedAccessStore ?? RepositoryAccessStore(storageURL: RepositoryAccessStore.defaultStorageURL)
             accessStore = store; recentRepositories = store.repositories
         } catch { self.error = "Saved repository permissions could not be loaded: " + error.localizedDescription }
         Task {
@@ -293,12 +299,12 @@ import UniformTypeIdentifiers
         panel.directoryURL = preferred
         if panel.runModal() == .OK, let url = panel.url { open(url) }
     }
-    func open(_ url: URL, onOpened: (() -> Void)? = nil) { openSession(RepositoryAccessLease(url: url), onOpened: onOpened) }
+    func open(_ url: URL, onOpened: (() -> Void)? = nil) { openSession(RepositoryAccessLease(url: url,provider:repositoryBookmarkProvider), onOpened: onOpened) }
     func openRecent(_ saved: SavedRepository) {
         guard !busy, !confirmingQuit else { return }
         do {
             guard let store = accessStore else { throw RepositoryAccessFailure.unknownRepository }
-            let lease = try store.acquire(saved.id, requireSecurityScope: GitRuntime.isAppStoreBuild)
+            let lease = try store.acquire(saved.id, requireSecurityScope: requiresRepositoryScope)
             recentRepositories = store.repositories
             openSession(lease)
         } catch {
@@ -320,13 +326,49 @@ import UniformTypeIdentifiers
         do { try accessStore?.remember(repositoryRoot ?? lease.url); recentRepositories = accessStore?.repositories ?? [] }
         catch { self.error = "The repository is open, but its permission could not be saved: " + error.localizedDescription }
     }
+    private func prepareRepositoryMetadataAccess(at location:URL,primary:RepositoryAccessLease,cancellation:OperationCancellation) async throws -> (scopes:[RepositoryAccessLease],newFolders:[URL]) {
+        guard requiresRepositoryScope else { return ([],[]) }
+        guard primary.hasSecurityScope,primary.contains(location) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        var scopes:[RepositoryAccessLease]=[],newFolders:[URL]=[]
+        if let store=accessStore,let saved=store.repositories.filter({RepositoryAccessLease.pathIsContained(location,by:URL(fileURLWithPath:$0.lastKnownPath))}).max(by:{$0.lastKnownPath.count<$1.lastKnownPath.count}) {
+            scopes=try store.acquireAdditionalPermissions(saved.id,requireSecurityScope:true,skipUnavailable:true)
+        }
+        for _ in 0..<64 {
+            try cancellation.check()
+            let folders=([primary]+scopes).filter(\.hasSecurityScope).map(\.url)
+            let requirement=try await Task.detached(priority:.userInitiated) { try RepositoryMetadataAccess.next(at:location,authorizedFolders:folders,cancellation:cancellation) }.value
+            try cancellation.check()
+            guard let requirement else { return (scopes,newFolders) }
+            let selected:URL?
+            if let chooseRepositoryMetadataFolder { selected=try await chooseRepositoryMetadataFolder(requirement,cancellation) }
+            else {
+                let prompt=RepositoryMetadataPermissionPrompt();repositoryPermissionPrompt=prompt
+                defer { if repositoryPermissionPrompt === prompt { repositoryPermissionPrompt=nil } }
+                selected=await prompt.choose(requirement,owner:workspaceWindow,cancellation:cancellation)
+            }
+            try cancellation.check()
+            guard let selected else { cancellation.cancel();throw OperationCancellationFailure.cancelled }
+            let scope=RepositoryAccessLease(url:selected,provider:repositoryBookmarkProvider)
+            guard scope.hasSecurityScope,scope.contains(requirement.folder) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(requirement.folder.path) }
+            scopes.append(scope);newFolders.append(selected)
+        }
+        throw RepositoryMetadataAccessFailure.tooManyDependencies
+    }
     private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, onOpened: (() -> Void)? = nil) {
         guard !busy, !confirmingQuit else { return }
+        let restoreState:()->Void = { [repository,activeAccess,root,entries,selection,branch,bare,hasGitSVN,mergeActive,conflictRebase,submodules,section,output] in
+            self.repository=repository;self.activeAccess=activeAccess;self.root=root;self.entries=entries;self.selection=selection
+            self.branch=branch;self.bare=bare;self.hasGitSVN=hasGitSVN;self.mergeActive=mergeActive;self.conflictRebase=conflictRebase;self.submodules=submodules;self.section=section;self.output=output
+        }
         stopFileMonitoring()
         adoptionGeneration += 1
         let adoption = adoptionGeneration
         busy = true
+        let cancellation=OperationCancellation();adoptionCancellation=cancellation
+        let owner=workspaceWindow
+        let ownerObserver=owner.map { NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:$0,queue:.main) { _ in cancellation.cancel() } }
         Task {
+            defer { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) };if adoptionCancellation === cancellation { adoptionCancellation=nil };withExtendedLifetime(lease) {} }
             do {
                 let first = selected?.paths.first ?? lease.url
                 var location = first
@@ -334,9 +376,12 @@ import UniformTypeIdentifiers
                 if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue {
                     location.deleteLastPathComponent()
                 }
+                let prepared=try await prepareRepositoryMetadataAccess(at:location,primary:lease,cancellation:cancellation)
+                try cancellation.check();guard adoption==adoptionGeneration else { return }
+                let sessionAccess=lease.retainingRelatedScopes(prepared.scopes)
                 let candidate = try makeRepository(location)
-                let resolved = try await candidate.discoverSelectionRoot(for: action ?? .status, selected: first)
-                if GitRuntime.isAppStoreBuild && !lease.contains(resolved) {
+                let resolved = try await candidate.discoverSelectionRoot(for: action ?? .status, selected: first,cancellation:cancellation)
+                if requiresRepositoryScope && (!lease.hasSecurityScope || !lease.contains(resolved)) {
                     throw RepositoryAccessFailure.repositoryRootOutsidePermission(resolved.path)
                 }
                 if let selected {
@@ -347,34 +392,39 @@ import UniformTypeIdentifiers
                         var location = item
                         var directory: ObjCBool = false
                         if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue { location.deleteLastPathComponent() }
-                        let itemRoot = try await makeRepository(location).discoverSelectionRoot(for: action ?? .status, selected: item)
+                        let itemRoot = try await makeRepository(location).discoverSelectionRoot(for: action ?? .status, selected: item,cancellation:cancellation)
                         guard itemRoot.standardizedFileURL == resolved.standardizedFileURL else { throw FinderSelectionFailure.multipleRepositories }
                     }
                 }
-                guard adoption == adoptionGeneration else { return }
-                repository = try makeRepository(resolved); activeAccess = lease; root = resolved
+                try cancellation.check();guard adoption == adoptionGeneration else { return }
+                repository = try makeRepository(resolved); activeAccess = sessionAccess; root = resolved
                 restoreCloneKeyAccess(root: resolved)
                 selection = []; entries = []; branch = ""; mergeActive = false
                 section = .status
                 output = "Repository: \(resolved.path)"
-                try await reload()
-                guard adoption == adoptionGeneration else { return }
+                try await reload(cancellation:cancellation)
+                try cancellation.check();guard adoption == adoptionGeneration else { return }
                 if bare { section = .log }
                 if let selected { selection = selected.selectedStatusPaths(root: resolved, entries: entries) }
-                rememberAccess(lease, repositoryRoot: resolved)
+                rememberAccess(sessionAccess, repositoryRoot: resolved)
+                if let store=accessStore,let saved=store.repositories.first(where:{$0.lastKnownPath==resolved.standardizedFileURL.resolvingSymlinksInPath().path}) {
+                    do { for folder in prepared.newFolders { try store.addPermission(saved.id,url:folder) };recentRepositories=store.repositories }
+                    catch { self.error="The repository is open, but additional folder access could not be saved: "+error.localizedDescription }
+                }
                 busy = false
                 if let action {
                     let paths = actionPaths ?? selected?.relativePaths(root: resolved) ?? []
                     if action.isFileTransfer, let request = selected, let repository, let destination = request.paths.first {
-                        if let finderTransferPresentation { finderTransferPresentation(request, repository, lease) }
-                        else if action == .pasteCopy { showCopy(repository: repository, access: lease, sources: request.sources, paste: true, folder: destination) }
-                        else { showMove(repository: repository, access: lease, paths: [], clipboard: request.sources, destination: destination) }
+                        if let finderTransferPresentation { finderTransferPresentation(request, repository, sessionAccess) }
+                        else if action == .pasteCopy { showCopy(repository: repository, access: sessionAccess, sources: request.sources, paste: true, folder: destination) }
+                        else { showMove(repository: repository, access: sessionAccess, paths: [], clipboard: request.sources, destination: destination) }
                     } else { activate(action, paths: paths) }
                 }
                 onOpened?()
             } catch {
                 guard adoption == adoptionGeneration else { return }
-                self.error=error.localizedDescription
+                restoreState()
+                if !cancellation.isCancelled { self.error=error.localizedDescription }
                 if monitoringEnabled,let repository,let directories=try? await repository.finderWatchDirectories() { monitorFiles(directories) }
                 busy=false
             }
@@ -386,16 +436,17 @@ import UniformTypeIdentifiers
         do { try await reload() } catch { self.error = error.localizedDescription }
         if refreshStatus, let root { statusWindows[root.path]?.model.requestReload() }
     }
-    private func reload() async throws {
+    private func reload(cancellation:OperationCancellation? = nil) async throws {
         guard let repository, let root else { return }
-        let token=OperationCancellation()
+        let token=cancellation ?? OperationCancellation()
         let store=snapshotStore
         var ticket:FinderPublicationTicket?,publicationError:String?
         if snapshotWriter==nil,let store {
             do { ticket=try await Task.detached { try store.begin(root:root,cancellation:token) }.value }
             catch { publicationError=error.localizedDescription }
         }
-        let collected=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in await self?.monitorFiles(directories) })
+        let collected=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in if !token.isCancelled { await self?.monitorFiles(directories) } })
+        try token.check()
         bare=collected.bare;entries=collected.entries;conflictRebase=collected.conflictIsRebase;submodules=collected.submodules
         selection.formIntersection(Set(entries.map(\.id)))
         branch=collected.branch;hasGitSVN=collected.metadata.hasGitSVN;mergeActive=collected.metadata.mergeActive
@@ -2651,4 +2702,47 @@ private enum FinderSelectionFailure: LocalizedError {
         guard let panel else { return }; self.panel = nil; cancelButton = nil; panel.delegate = nil
         if let parent = panel.sheetParent { parent.endSheet(panel, returnCode: .cancel) }; panel.orderOut(nil); panel.close()
     }
+}
+
+/// The metadata picker belongs to the initiating workspace and cancellation token.
+@MainActor private final class RepositoryMetadataPermissionPrompt {
+    private var panel:NSOpenPanel?
+    private var response:((URL?)->Void)?
+    private var observer:NSObjectProtocol?
+    private var monitor:Task<Void,Never>?
+    private var token:OperationCancellation?
+    func choose(_ requirement:RepositoryMetadataAccessRequirement,owner:NSWindow?,cancellation:OperationCancellation) async -> URL? {
+        guard !cancellation.isCancelled,owner?.attachedSheet==nil else { return nil }
+        token=cancellation
+        let picker=NSOpenPanel();panel=picker
+        picker.title="Allow repository folder access";picker.prompt="Allow Access"
+        picker.message=requirement.explanation+"\n\nSelect this folder, or a parent folder: "+requirement.folder.path
+        picker.canChooseDirectories=true;picker.canChooseFiles=false;picker.allowsMultipleSelection=false
+        picker.directoryURL=requirement.folder;picker.appearance=owner?.appearance
+        if let owner { observer=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:owner,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.cancel() } } }
+        monitor=Task { [weak self] in
+            while !cancellation.isCancelled,!Task.isCancelled { do { try await Task.sleep(nanoseconds:20_000_000) } catch { return } }
+            if cancellation.isCancelled { self?.cancel() }
+        }
+        return await withCheckedContinuation { continuation in
+            response={ continuation.resume(returning:$0) }
+            let completed:(NSApplication.ModalResponse)->Void={ [weak self,weak picker] value in
+                guard let self else { return };self.finish(value == .OK && !cancellation.isCancelled ? picker?.url : nil)
+            }
+            if let owner { picker.beginSheetModal(for:owner,completionHandler:completed) }
+            else { picker.begin(completionHandler:completed) }
+        }
+    }
+    private func finish(_ url:URL?) {
+        guard let response else { return };self.response=nil
+        monitor?.cancel();monitor=nil
+        if let observer { NotificationCenter.default.removeObserver(observer);self.observer=nil }
+        panel=nil;response(url)
+    }
+    func cancel() {
+        token?.cancel()
+        if let panel { panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil);panel.close() }
+        finish(nil)
+    }
+    deinit { monitor?.cancel();if let observer { NotificationCenter.default.removeObserver(observer) } }
 }

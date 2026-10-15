@@ -2404,3 +2404,14 @@ Both grouped native streaming/progressive-row cases passed on system and bundled
 Git. All four final receivers were reaped. Failure cleanup now waits for active
 load cancellation before exiting the fixture. See qa/log-live-walk-2026-10-15.json
 for original failures, repairs, verification scope and remaining limits.
+
+
+## Retired repository permissions — October 15, 2026
+
+A Log opened from a workspace retains its primary and external metadata grants
+when that workspace closes. Closing the Log resigns editing and retires its
+hosting tree. Search/path text bindings and submit callbacks capture the model
+weakly, so AppKit/autofill retention cannot keep the repository grants active.
+Both grouped native engine cases verified the child lifetime and final scope
+release; see [workspace metadata evidence](qa/workspace-metadata-access-2026-10-15.json).
+This does not establish signed sandbox acceptance.

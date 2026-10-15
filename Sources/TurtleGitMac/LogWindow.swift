@@ -450,6 +450,7 @@ final class LogHistoryWindow: NSWindow {
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
+        window?.makeFirstResponder(nil)
         retireStartReferencePicker()
         notePresenter?.close()
         let ordered = ordering; ordering = nil; ordered?.completion = { _ in }; ordered?.close(); model.orderingBlocked = false
@@ -459,6 +460,9 @@ final class LogHistoryWindow: NSWindow {
         let multiple = multipleSelectionCompletion; multipleSelectionCompletion = nil
         model.unifiedWindow?.close(); model.invalidate()
         if let window, let child = window.attachedSheet { window.endSheet(child, returnCode: .abort); child.close() }
+        // AppKit can retain a closed window (for example through its last event).
+        // Retire its hosting tree now so it cannot retain repository permissions.
+        window?.contentViewController = nil
         completion?(nil); multiple?(nil); onClosed()
     }
     private func setPatchPreviewVisible(_ visible: Bool) {
@@ -2539,7 +2543,7 @@ struct LogDialog: View {
                         model.setSearchCaseSensitive(enabled)
                     }))
                 } label: { CommandLabel(title: "Search in", icon: .log) }.disabled(model.busy)
-                TextField("Search log", text: $model.search).textFieldStyle(.roundedBorder).help(model.searchRegex ? "Use an ECMAScript regular expression; begin with ! to invert. Invalid expressions leave the filter inactive." : "Require words, exclude with -word, offer alternatives with +word, quote phrases, or begin with ! to invert the filter.").onSubmit { model.reload() }
+                TextField("Search log", text: Binding(get: { [weak model] in model?.search ?? "" }, set: { [weak model] in guard model?.isInvalidated == false else { return }; model?.search = $0 })).textFieldStyle(.roundedBorder).help(model.searchRegex ? "Use an ECMAScript regular expression; begin with ! to invert. Invalid expressions leave the filter inactive." : "Require words, exclude with -word, offer alternatives with +word, quote phrases, or begin with ! to invert the filter.").onSubmit { [weak model] in model?.reload() }
                 Button("Search") { model.reload() }.disabled(model.busy)
                 Picker("Jump", selection: $model.jumpKind) {
                     ForEach(HistoryJumpKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
@@ -2628,7 +2632,7 @@ struct LogDialog: View {
                         .help(model.historyPaths.joined(separator: "\n"))
                 }
                 Spacer()
-                TextField("Filter paths", text: $model.filterPaths).textFieldStyle(.roundedBorder).frame(maxWidth: 430)
+                TextField("Filter paths", text: Binding(get: { [weak model] in model?.filterPaths ?? "" }, set: { [weak model] in guard model?.isInvalidated == false else { return }; model?.filterPaths = $0 })).textFieldStyle(.roundedBorder).frame(maxWidth: 430)
             }
             HStack {
                 Button("Refresh") { model.reload() }.disabled(model.busy)

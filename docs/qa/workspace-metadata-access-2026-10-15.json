@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-15",
+  "scope": "Workspace external Git metadata permissions for linked worktrees, submodules and shared object stores",
+  "implementation": [
+    "Discover gitfiles, commondir and recursive object alternates before Git discovery under App Store folder permissions",
+    "Owned folder picker, exact dependency explanation, containing-parent selection, cancellation and prior-workspace restoration",
+    "Per-repository saved additional grants, stale renewal and unavailable unrelated bookmark tolerance",
+    "Compound access lifetime through child windows while primary repository containment stays separate",
+    "Cancellation propagated into selection-root discovery and status collection; authorized metadata monitoring and template/approved-hook consumers"
+  ],
+  "validation": {
+    "core": {
+      "result": "passed",
+      "tests": 35,
+      "filter": "RepositoryAccessTests|ConflictResolutionTests|SubmoduleConflictTests",
+      "log": "build/qa/workspace-metadata-access-core-2026-10-15.log"
+    },
+    "build": {
+      "result": "passed",
+      "exit_code": 0,
+      "log": "build/qa/workspace-metadata-access-final-build-2026-10-15.log"
+    },
+    "native": {
+      "result": "passed",
+      "log": "build/qa/workspace-metadata-access-native-final-2026-10-15.log",
+      "cases": [
+        "repository-creation-owned/system Git",
+        "repository-creation-owned/bundled Git"
+      ],
+      "coverage": [
+        "Existing Clone/Init chooser, metadata cancellation, result ownership and retirement checks",
+        "Ordinary repository without extra permission prompts",
+        "Linked worktree and initialized submodule metadata access",
+        "Shared-clone external object store",
+        "Saved valid grant reuse, stale renewal and unrelated unavailable grant",
+        "Child Log retains compound grants after workspace Close and releases after its Close",
+        "Wrong-folder rollback, denied access, real owned picker owner-close and late reply rejection",
+        "All injected security scopes released and source index unchanged"
+      ],
+      "receivers_reaped": [
+        75083,
+        75368
+      ]
+    },
+    "initial_failure": "Child Log kept compound permissions alive after Close. Memory trace identified retained SwiftUI text-field bindings through AppKit/autofill. Close now resigns editing and retires its hosting tree; Log search/path bindings and submit callbacks capture the model weakly. Intermediate diagnostic runs reused old Debug objects; final grouped run follows a successful rebuild.",
+    "diagnostics": [
+      "build/qa/workspace-metadata-access-native-2026-10-15.log",
+      "build/qa/workspace-metadata-access-native-diagnostic-2026-10-15.log",
+      "build/qa/workspace-metadata-access-native-diagnostic2-2026-10-15.log",
+      "build/qa/workspace-metadata-access-native-retention-2026-10-15.log",
+      "build/qa/workspace-metadata-access-retention-trace-2026-10-15.log",
+      "build/qa/workspace-metadata-access-native-retirement-2026-10-15.log"
+    ],
+    "cleanup": {
+      "earlier_receivers_reaped": [
+        73685,
+        73959,
+        74353,
+        74597,
+        74811
+      ],
+      "final_receivers_reaped": [
+        75083,
+        75368
+      ],
+      "all_recorded_receivers_absent": true
+    },
+    "documentation": {
+      "site_documents": 216,
+      "unresolved_fragments": [],
+      "coverage_ledger": "regenerated",
+      "log": "build/qa/workspace-metadata-access-site-2026-10-15.log"
+    }
+  },
+  "limits": [
+    "Injected bookmark policy checks do not prove signed sandbox inheritance or physical powerbox behavior",
+    "Signed Finder/App Store acceptance and network filesystems remain open",
+    "Dedicated workspace grant editor remains open; workspace grants can be discarded by forgetting the saved repository",
+    "Non-UTF-8 filesystem paths remain a native policy limitation"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

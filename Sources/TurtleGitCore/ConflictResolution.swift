@@ -50,31 +50,35 @@ extension GitRepository {
     /// A conflicted gitlink belongs to the containing repository even when its
     /// initialized checkout is itself a repository. Files inside that checkout
     /// continue to use the child repository.
-    public func discoverSelectionRoot(for action: RepositoryAction, selected: URL) async throws -> URL {
-        let resolved = try discoverRoot()
+    public func discoverSelectionRoot(for action: RepositoryAction, selected: URL, cancellation: OperationCancellation? = nil) async throws -> URL {
+        let resolved = try discoverRoot(cancellation: cancellation)
         if action == .logSubmodule {
             guard selected.standardizedFileURL == resolved,
-                  let parent = try await GitRepository(root: resolved, executable: executable).registeredSubmoduleParent() else { throw FinderCommandFailure.submodule }
+                  let parent = try await GitRepository(root: resolved, executable: executable).registeredSubmoduleParent(cancellation: cancellation) else { throw FinderCommandFailure.submodule }
             return parent
         }
         guard action.isResolve || action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .move || action == .remove, selected.standardizedFileURL == resolved else { return resolved }
         let parent = GitRepository(root: resolved.deletingLastPathComponent(), executable: executable)
-        guard let containing = try? await parent.discoverRoot(), containing != resolved,
+        let parentRoot = try? await parent.discoverRoot(cancellation: cancellation)
+        try cancellation?.check()
+        guard let containing = parentRoot, containing != resolved,
               RepositoryAccessLease.pathIsContained(resolved, by: containing) else { return resolved }
         let path = String(resolved.path.dropFirst(containing.path.count + 1))
         let owner = GitRepository(root: containing, executable: executable)
         if action == .rename || action == .move || action == .remove {
-            guard try await GitRepository(root: resolved, executable: executable).registeredSubmoduleParent() == containing else { return resolved }
+            guard try await GitRepository(root: resolved, executable: executable).registeredSubmoduleParent(cancellation: cancellation) == containing else { return resolved }
         }
         if action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .move || action == .remove {
-            let indexed = try? await owner.run(["ls-files", "--stage", "-z", "--", path]).stdout
+            let indexed = try? await owner.run(["ls-files", "--stage", "-z", "--", path], cancellation: cancellation).stdout
+            try cancellation?.check()
             if indexed?.split(separator: 0).contains(where: { record in
                 let fields = record.split(separator: 9, maxSplits: 1)
                 return fields.count == 2 && fields[0].starts(with: "160000 ".utf8) && String(decoding: fields[1], as: UTF8.self) == path
             }) == true { return containing }
             return resolved
         }
-        if let entries = try? await owner.conflicts(paths: [path]), entries.contains(where: { $0.path == path && $0.isSubmodule }) { return containing }
+        if let entries = try? await owner.conflicts(paths: [path], cancellation: cancellation), entries.contains(where: { $0.path == path && $0.isSubmodule }) { return containing }
+        try cancellation?.check()
         return resolved
     }
     public func conflicts(paths: [String] = [], cancellation: OperationCancellation? = nil) throws -> [ConflictEntry] {

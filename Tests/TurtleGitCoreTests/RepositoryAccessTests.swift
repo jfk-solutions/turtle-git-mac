@@ -9,9 +9,10 @@ private final class TestBookmarks: RepositoryBookmarkProvider {
     var scopeAvailable = true
     var movedURL: URL?
     var failResolution = false
+    var invalidBookmarks=Set<Data>()
     func create(for url: URL) throws -> Data { creates += 1; return Data(url.path.utf8) }
     func resolve(_ data: Data) throws -> ResolvedBookmark {
-        if failResolution { throw RepositoryAccessFailure.securityScopeUnavailable }
+        if failResolution || invalidBookmarks.contains(data) { throw RepositoryAccessFailure.securityScopeUnavailable }
         return ResolvedBookmark(url: movedURL ?? URL(fileURLWithPath: String(decoding: data, as: UTF8.self)), stale: stale)
     }
     func startAccessing(_ url: URL) -> Bool { starts += 1; return scopeAvailable }
@@ -23,6 +24,88 @@ final class RepositoryAccessTests: XCTestCase {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         return (folder, folder.appendingPathComponent("private/repositories.json"))
+    }
+    func testCompoundLeaseRetainsAllScopesWithoutWideningPrimaryContainment() throws {
+        let provider=TestBookmarks(),base=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        var primary:RepositoryAccessLease?=RepositoryAccessLease(url:base.appendingPathComponent("worktree"),provider:provider)
+        var metadata:RepositoryAccessLease?=RepositoryAccessLease(url:base.appendingPathComponent("metadata"),provider:provider)
+        weak var original=primary,related=metadata
+        var session:RepositoryAccessLease?=primary!.retainingRelatedScopes([metadata!])
+        XCTAssertFalse(session!.contains(metadata!.url));XCTAssertTrue(session!.permits(metadata!.url));XCTAssertTrue(session!.contains(primary!.url))
+        primary=nil;metadata=nil
+        XCTAssertNotNil(original);XCTAssertNotNil(related);XCTAssertEqual(provider.stops,0)
+        session=nil
+        XCTAssertNil(original);XCTAssertNil(related);XCTAssertEqual(provider.starts,2);XCTAssertEqual(provider.stops,2)
+    }
+    func testAvailableAdditionalGrantsSkipOnlyFailuresAndRenewValidBookmarks() throws {
+        let base=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:base) }
+        let provider=TestBookmarks(),store=try RepositoryAccessStore(storageURL:base.appendingPathComponent("saved.json"),provider:provider)
+        let saved=try store.remember(base.appendingPathComponent("repo")),good=base.appendingPathComponent("good"),bad=base.appendingPathComponent("bad")
+        try store.addPermission(saved.id,url:good);try store.addPermission(saved.id,url:bad)
+        provider.invalidBookmarks=[Data(bad.path.utf8)]
+        XCTAssertThrowsError(try store.acquireAdditionalPermissions(saved.id,requireSecurityScope:true))
+        provider.stale=true;let before=provider.creates
+        let available=try store.acquireAdditionalPermissions(saved.id,requireSecurityScope:true,skipUnavailable:true)
+        XCTAssertEqual(available.map{ $0.url.path },[good.path]);XCTAssertEqual(provider.creates,before+1)
+        XCTAssertEqual(store.repositories[0].additionalPermissions?.count,2,"Unavailable records remain available for explicit renewal/removal")
+    }
+    func testLinkedWorktreeMetadataPermissionsAreDiscoveredInLayersWithoutGitWrites() async throws {
+        let (root,repo,_)=try await GitPatchTests().fixture()
+        let linked=root.deletingLastPathComponent().appendingPathComponent("linked 雪-"+UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:linked);try? FileManager.default.removeItem(at:root) }
+        _=try await repo.run(["worktree","add","-b","linked-access",linked.path])
+        let git=try await GitRepository(root:linked).run(["rev-parse","--absolute-git-dir"]).text.trimmingCharacters(in:.newlines)
+        let provider=TestBookmarks(),primary=RepositoryAccessLease(url:linked,provider:provider)
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let first=try XCTUnwrap(RepositoryMetadataAccess.next(at:linked,permissions:[primary]))
+        XCTAssertEqual(first.kind,.gitDirectory);XCTAssertEqual(first.folder.path,URL(fileURLWithPath:git).resolvingSymlinksInPath().path)
+        let narrow=RepositoryAccessLease(url:first.folder,provider:provider)
+        let common=try XCTUnwrap(RepositoryMetadataAccess.next(at:linked,permissions:[primary,narrow]))
+        XCTAssertEqual(common.kind,.commonDirectory);XCTAssertEqual(common.folder.path,root.appendingPathComponent(".git").resolvingSymlinksInPath().path)
+        let broad=RepositoryAccessLease(url:common.folder,provider:provider)
+        XCTAssertNil(try RepositoryMetadataAccess.next(at:linked,permissions:[primary,broad]))
+        let cancelled=OperationCancellation();cancelled.cancel()
+        XCTAssertThrowsError(try RepositoryMetadataAccess.next(at:linked,permissions:[primary],cancellation:cancelled))
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        let after=try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(after,head)
+    }
+    func testRecursiveAlternatesAndQuotedUnicodePathsUseOnlyAuthorizedFolders() async throws {
+        let (source,repo,path)=try await GitPatchTests().fixture()
+        let base=source.deletingLastPathComponent().appendingPathComponent("alternates-"+UUID().uuidString),middle=base.appendingPathComponent("middle"),leaf=base.appendingPathComponent("leaf")
+        defer { try? FileManager.default.removeItem(at:base);try? FileManager.default.removeItem(at:source) }
+        try FileManager.default.createDirectory(at:base,withIntermediateDirectories:true)
+        _=try await repo.run(["clone","--shared","--",source.path,middle.path]);_=try await repo.run(["clone","--shared","--",middle.path,leaf.path])
+        let provider=TestBookmarks(),primary=RepositoryAccessLease(url:leaf,provider:provider)
+        let first=try XCTUnwrap(RepositoryMetadataAccess.next(at:leaf,permissions:[primary]))
+        XCTAssertEqual(first.kind,.objectDirectory);XCTAssertEqual(first.folder.path,middle.appendingPathComponent(".git/objects").resolvingSymlinksInPath().path)
+        let middleGrant=RepositoryAccessLease(url:first.folder,provider:provider)
+        let second=try XCTUnwrap(RepositoryMetadataAccess.next(at:leaf,permissions:[primary,middleGrant]))
+        XCTAssertEqual(second.folder.path,source.appendingPathComponent(".git/objects").resolvingSymlinksInPath().path)
+        let sourceGrant=RepositoryAccessLease(url:second.folder,provider:provider)
+        XCTAssertNil(try RepositoryMetadataAccess.next(at:leaf,permissions:[primary,middleGrant,sourceGrant]))
+        let alias=base.appendingPathComponent("objects\n雪")
+        try FileManager.default.createSymbolicLink(at:alias,withDestinationURL:source.appendingPathComponent(".git/objects"))
+        let quoted="\""+alias.path.replacingOccurrences(of:"\n",with:"\\n")+"\"\n"
+        try Data(quoted.utf8).write(to:leaf.appendingPathComponent(".git/objects/info/alternates"))
+        XCTAssertNil(try RepositoryMetadataAccess.next(at:leaf,permissions:[primary,sourceGrant]))
+        let bytes=try await GitRepository(root:leaf).run(["cat-file","blob","HEAD:"+path]).stdout
+        XCTAssertEqual(bytes,try Data(contentsOf:source.appendingPathComponent(path)))
+    }
+    func testGitfileCRLFRelativePathsMalformedMarkersAndUncoveredMetadata() throws {
+        let base=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString),work=base.appendingPathComponent("work"),git=base.appendingPathComponent("external/meta")
+        try FileManager.default.createDirectory(at:work,withIntermediateDirectories:true);try FileManager.default.createDirectory(at:git,withIntermediateDirectories:true)
+        defer { try? FileManager.default.removeItem(at:base) }
+        let provider=TestBookmarks(),primary=RepositoryAccessLease(url:work,provider:provider),marker=work.appendingPathComponent(".git")
+        try Data("gitdir: ../external/meta\r\n".utf8).write(to:marker)
+        try Data([0,1,2]).write(to:git.appendingPathComponent("commondir"))
+        let requirement=try XCTUnwrap(RepositoryMetadataAccess.next(at:work,permissions:[primary]))
+        XCTAssertEqual(requirement.folder.path,git.resolvingSymlinksInPath().path,"CRLF must not enter the folder path")
+        let grant=RepositoryAccessLease(url:git,provider:provider)
+        XCTAssertThrowsError(try RepositoryMetadataAccess.next(at:work,permissions:[primary,grant]),"Uncovered invalid commondir must not be read until granted")
+        for invalid in [Data("not a gitfile\n".utf8),Data("gitdir: ".utf8),Data([0,1,2])] {
+            try invalid.write(to:marker);XCTAssertThrowsError(try RepositoryMetadataAccess.next(at:work,permissions:[primary]))
+        }
     }
     func testAdditionalPermissionsSurviveRenewalRelaunchAndExplicitRemoval() throws {
         let (folder,url)=try fixture();defer { try? FileManager.default.removeItem(at:folder) }

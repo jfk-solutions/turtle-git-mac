@@ -24,7 +24,7 @@ struct ClientHookOperationFailure: LocalizedError {
         do {
             for word in words where !word.hasPrefix("-") && !word.isEmpty {
                 let url = word.hasPrefix("/") ? URL(fileURLWithPath:word) : root.appendingPathComponent(word)
-                guard FileManager.default.fileExists(atPath:url.path), access?.contains(url) != true else { continue }
+                guard FileManager.default.fileExists(atPath:url.path), access?.permits(url) != true else { continue }
                 if ["/bin/","/usr/bin/","/usr/sbin/","/sbin/"].contains(where:{url.path.hasPrefix($0)}) { continue }
                 guard let data = values[url.path] else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 var stale = false

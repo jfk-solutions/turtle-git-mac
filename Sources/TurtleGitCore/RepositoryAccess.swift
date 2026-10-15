@@ -49,13 +49,29 @@ public final class RepositoryAccessLease {
     public let url: URL
     public let hasSecurityScope: Bool
     private let provider: any RepositoryBookmarkProvider
+    private let ownsScope: Bool
+    private let relatedScopes: [RepositoryAccessLease]
     public init(url: URL, provider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()) {
-        self.url = url; self.provider = provider
+        self.url = url; self.provider = provider; ownsScope = true; relatedScopes = []
         hasSecurityScope = provider.startAccessing(url)
     }
-    deinit { if hasSecurityScope { provider.stopAccessing(url) } }
+    private init(primary: RepositoryAccessLease, related: [RepositoryAccessLease]) {
+        url = primary.url; provider = primary.provider; hasSecurityScope = primary.hasSecurityScope
+        ownsScope = false; relatedScopes = [primary] + related
+    }
+    /// Keep metadata/object-store grants alive with a session and its child windows.
+    /// Containment remains the primary folder's boundary; this is lifetime ownership.
+    public func retainingRelatedScopes(_ scopes: [RepositoryAccessLease]) -> RepositoryAccessLease {
+        scopes.isEmpty ? self : RepositoryAccessLease(primary: self, related: scopes)
+    }
+    deinit { if ownsScope && hasSecurityScope { provider.stopAccessing(url) } }
     public func contains(_ candidate: URL) -> Bool {
         Self.pathIsContained(candidate, by: url)
+    }
+    /// A live file permission, including retained metadata grants. Keep separate
+    /// from primary containment used to validate repository/action ownership.
+    public func permits(_ candidate: URL) -> Bool {
+        hasSecurityScope && contains(candidate) || relatedScopes.contains { $0.permits(candidate) }
     }
     public static func pathIsContained(_ candidate: URL, by folder: URL) -> Bool {
         guard candidate.isFileURL, folder.isFileURL else { return false }
@@ -169,14 +185,16 @@ public final class RepositoryAccessStore {
         guard let index=repositories.firstIndex(where:{ $0.id==id }) else { throw RepositoryAccessFailure.unknownRepository }
         var values=repositories;values[index].additionalPermissions?.removeAll { $0.id==permission };try persist(values)
     }
-    public func acquireAdditionalPermissions(_ id:UUID, requireSecurityScope:Bool = false) throws -> [RepositoryAccessLease] {
+    public func acquireAdditionalPermissions(_ id:UUID, requireSecurityScope:Bool = false, skipUnavailable:Bool = false) throws -> [RepositoryAccessLease] {
         guard let index=repositories.firstIndex(where:{ $0.id==id }) else { throw RepositoryAccessFailure.unknownRepository }
         var values=repositories, grants=values[index].additionalPermissions ?? [], leases:[RepositoryAccessLease]=[]
         for offset in grants.indices {
-            let resolved=try provider.resolve(grants[offset].bookmark),lease=RepositoryAccessLease(url:resolved.url,provider:provider)
-            guard !requireSecurityScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
-            if resolved.stale { grants[offset].bookmark=try provider.create(for:resolved.url) }
-            grants[offset].path=resolved.url.standardizedFileURL.resolvingSymlinksInPath().path;leases.append(lease)
+            do {
+                let resolved=try provider.resolve(grants[offset].bookmark),lease=RepositoryAccessLease(url:resolved.url,provider:provider)
+                guard !requireSecurityScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                if resolved.stale { grants[offset].bookmark=try provider.create(for:resolved.url) }
+                grants[offset].path=resolved.url.standardizedFileURL.resolvingSymlinksInPath().path;leases.append(lease)
+            } catch { if !skipUnavailable { throw error } }
         }
         if grants != (values[index].additionalPermissions ?? []) { values[index].additionalPermissions=grants;try persist(values) }
         return leases
@@ -276,5 +294,127 @@ public struct WorkingFilePairAccess {
         // Read only after both grants have been acquired and checked.
         _ = try comparison.read()
         return Self(comparison: comparison, permissions: permissions)
+    }
+}
+
+public struct RepositoryMetadataAccessRequirement: Equatable, Sendable {
+    public enum Kind: String, Sendable { case gitDirectory, commonDirectory, objectDirectory }
+    public let folder: URL
+    public let kind: Kind
+    public var explanation: String {
+        switch kind {
+        case .gitDirectory: return "This working folder stores Git metadata in another folder."
+        case .commonDirectory: return "This linked worktree shares Git metadata outside its working folder."
+        case .objectDirectory: return "This repository reads Git objects from another folder."
+        }
+    }
+}
+public enum RepositoryMetadataAccessFailure: LocalizedError {
+    case invalid(URL), tooManyDependencies
+    public var errorDescription: String? {
+        switch self {
+        case .invalid(let file): return "Could not read a valid Git metadata path from " + file.path
+        case .tooManyDependencies: return "This repository has too many linked metadata or object-store folders."
+        }
+    }
+}
+/// Discover permission needs before launching Git. Read only folders already
+/// covered by live grants; each newly authorized folder reveals the next layer.
+public enum RepositoryMetadataAccess {
+    public static func next(at location: URL, permissions: [RepositoryAccessLease], requireSecurityScope: Bool = true, cancellation: OperationCancellation? = nil) throws -> RepositoryMetadataAccessRequirement? {
+        try next(at: location, authorizedFolders: permissions.filter { !requireSecurityScope || $0.hasSecurityScope }.map(\.url), cancellation: cancellation)
+    }
+    public static func next(at location: URL, authorizedFolders: [URL], cancellation: OperationCancellation? = nil) throws -> RepositoryMetadataAccessRequirement? {
+        let manager = FileManager.default
+        func allowed(_ url: URL) -> Bool { authorizedFolders.contains { RepositoryAccessLease.pathIsContained(url, by: $0) } }
+        func read(_ file: URL) throws -> String? {
+            try cancellation?.check()
+            guard manager.fileExists(atPath: file.path) else { return nil }
+            let attributes = try manager.attributesOfItem(atPath: file.resolvingSymlinksInPath().path)
+            guard attributes[.type] as? FileAttributeType == .typeRegular,
+                  (attributes[.size] as? NSNumber)?.intValue ?? 0 <= 1_048_576 else { throw RepositoryMetadataAccessFailure.invalid(file) }
+            let data = try Data(contentsOf: file)
+            guard let text = String(data: data, encoding: .utf8), !text.utf8.contains(0) else { throw RepositoryMetadataAccessFailure.invalid(file) }
+            return text
+        }
+        func trimEOL(_ text: String) -> String { var bytes = Array(text.utf8); while bytes.last == 10 || bytes.last == 13 { bytes.removeLast() }; return String(decoding: bytes, as: UTF8.self) }
+        func path(_ text: String, relativeTo base: URL, source: URL, trimLineEnding: Bool = true) throws -> URL {
+            let value = trimLineEnding ? trimEOL(text) : text
+            guard !value.isEmpty, !value.utf8.contains(0) else { throw RepositoryMetadataAccessFailure.invalid(source) }
+            return (value.hasPrefix("/") ? URL(fileURLWithPath: value) : base.appendingPathComponent(value)).standardizedFileURL.resolvingSymlinksInPath()
+        }
+        func missingFileGrant(_ file: URL, kind: RepositoryMetadataAccessRequirement.Kind) -> RepositoryMetadataAccessRequirement? {
+            allowed(file) ? nil : RepositoryMetadataAccessRequirement(folder: file.resolvingSymlinksInPath().deletingLastPathComponent(), kind: kind)
+        }
+        var cursor = location.standardizedFileURL, gitDirectory: URL?
+        for _ in 0..<256 {
+            try cancellation?.check()
+            guard allowed(cursor) else { break }
+            let marker = cursor.appendingPathComponent(".git")
+            if let attributes = try? manager.attributesOfItem(atPath: marker.path) {
+                let kind = attributes[.type] as? FileAttributeType
+                if kind == .typeDirectory { gitDirectory = marker; break }
+                if kind == .typeSymbolicLink {
+                    let target = marker.resolvingSymlinksInPath()
+                    if !allowed(target) { return RepositoryMetadataAccessRequirement(folder: target.deletingLastPathComponent(), kind: .gitDirectory) }
+                    var directory: ObjCBool = false
+                    if manager.fileExists(atPath: target.path, isDirectory: &directory), directory.boolValue { gitDirectory = target; break }
+                }
+                if let requirement = missingFileGrant(marker, kind: .gitDirectory) { return requirement }
+                guard let text = try read(marker), text.hasPrefix("gitdir: ") else { throw RepositoryMetadataAccessFailure.invalid(marker) }
+                gitDirectory = try path(String(text.dropFirst(8)), relativeTo: cursor, source: marker); break
+            }
+            if manager.fileExists(atPath: cursor.appendingPathComponent("HEAD").path), manager.fileExists(atPath: cursor.appendingPathComponent("objects").path) { gitDirectory = cursor; break }
+            let parent = cursor.deletingLastPathComponent(); if parent.path == cursor.path { break }; cursor = parent
+        }
+        guard let gitDirectory else { return nil }
+        if !allowed(gitDirectory) { return RepositoryMetadataAccessRequirement(folder: gitDirectory, kind: .gitDirectory) }
+        let commonFile = gitDirectory.appendingPathComponent("commondir")
+        if let requirement = missingFileGrant(commonFile, kind: .commonDirectory) { return requirement }
+        let common: URL
+        if let text = try read(commonFile) { common = try path(text, relativeTo: gitDirectory, source: commonFile) }
+        else { common = gitDirectory }
+        if !allowed(common) { return RepositoryMetadataAccessRequirement(folder: common, kind: .commonDirectory) }
+        var pending = [common.appendingPathComponent("objects")], visited = Set<String>()
+        while !pending.isEmpty {
+            try cancellation?.check()
+            let objects = pending.removeFirst().standardizedFileURL.resolvingSymlinksInPath()
+            guard visited.insert(objects.path).inserted else { continue }
+            guard visited.count <= 64 else { throw RepositoryMetadataAccessFailure.tooManyDependencies }
+            if !allowed(objects) { return RepositoryMetadataAccessRequirement(folder: objects, kind: .objectDirectory) }
+            let file = objects.appendingPathComponent("info/alternates")
+            if let requirement = missingFileGrant(file, kind: .objectDirectory) { return requirement }
+            guard let text = try read(file) else { continue }
+            for raw in text.utf8.split(separator: 10, omittingEmptySubsequences: true) {
+                let line = String(decoding: raw.last == 13 ? raw.dropLast() : raw, as: UTF8.self)
+                if line.isEmpty { continue }
+                let decoded = try decodeAlternate(line, source: file)
+                pending.append(try path(decoded, relativeTo: objects, source: file, trimLineEnding: false))
+            }
+        }
+        return nil
+    }
+    private static func decodeAlternate(_ line: String, source: URL) throws -> String {
+        guard line.hasPrefix("\"") else { return line }
+        let input = Array(line.utf8); var output: [UInt8] = [], index = 1
+        while index < input.count {
+            let byte = input[index]; index += 1
+            if byte == 34 {
+                guard index == input.count, let result = String(bytes: output, encoding: .utf8) else { throw RepositoryMetadataAccessFailure.invalid(source) }
+                return result
+            }
+            if byte != 92 { output.append(byte); continue }
+            guard index < input.count else { throw RepositoryMetadataAccessFailure.invalid(source) }
+            let escape = input[index]; index += 1
+            if (48...55).contains(escape) {
+                var value = Int(escape - 48), count = 1
+                while count < 3, index < input.count, (48...55).contains(input[index]) { value = value * 8 + Int(input[index] - 48); index += 1; count += 1 }
+                guard value < 256 else { throw RepositoryMetadataAccessFailure.invalid(source) }; output.append(UInt8(value))
+            } else {
+                let escaped: [UInt8: UInt8] = [34:34,92:92,97:7,98:8,116:9,110:10,118:11,102:12,114:13]
+                guard let value = escaped[escape] else { throw RepositoryMetadataAccessFailure.invalid(source) }; output.append(value)
+            }
+        }
+        throw RepositoryMetadataAccessFailure.invalid(source)
     }
 }

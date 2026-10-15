@@ -371,3 +371,16 @@ and creation pickers with system and bundled Git. Final review repaired the
 pre-command cancellation path so a stopped Prune cannot take successful
 auto-close; only this family's two native engine cases were repeated. All eight
 receivers were reaped. See [batch evidence](qa/worktree-progress-2026-10-14.json).
+
+## Workspace metadata permission continuation — October 15, 2026
+
+Opening a linked checkout in an App Store build now prepares its Git-directory,
+common-directory and object-store permissions before launching discovery commands.
+The owned folder picker accepts the required folder or a containing parent, saves
+new grants only after successful opening and reuses available saved grants later.
+The compound session lease keeps related scopes alive for child windows while
+primary-folder containment remains unchanged. Discovery and collection share the
+adoption cancellation token; a failed or cancelled adoption restores the prior
+workspace. See [folder-access workflow](REPOSITORY-FOLDER-ACCESS.md) and
+[grouped evidence](qa/workspace-metadata-access-2026-10-15.json). This is workspace
+opening support, not certification of all signed worktree mutations or Finder drops.
