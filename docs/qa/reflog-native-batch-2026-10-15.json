@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-15",
+  "scope": "Eight RefLog native workflow families share existing app objects and cache; inactive unborn Bisect metadata fix",
+  "implementation": [
+    "One fixture-module compilation links built Debug app objects instead of eight full app-source recompilations",
+    "Original eight Swift assertion families retained, with separate private repository per phase",
+    "Individual CLI scripts delegate with --only and preserve relative Git argument semantics",
+    "Cache hashes app sources/objects, imported Core/app modules/framework files, fixtures/bootstrap, compiler/architecture/flags, workspace/product paths and runner/cleanup code",
+    "Bounded compiler and runtime process groups always stopped/reaped; phase marker diagnoses runtime failures",
+    "CI one group runs system and bundled Git; unrelated verification steps retained",
+    "Preserve bundled Git launcher symlink spelling so helper/runtime environment is configured normally",
+    "Inactive unborn Bisect state returns empty HEAD; active session without HEAD still refuses"
+  ],
+  "validation": {
+    "python": "All nine runner/entry files syntax compiled",
+    "workflow": {
+      "result": "passed with Ruby YAML parser",
+      "log": "build/qa/reflog-native-batch-workflow-2026-10-15.log",
+      "note": "Initial optional Python YAML parser was unavailable; initial Ruby assertion also matched unrelated RefLog scripts and was narrowed to the eight replaced steps."
+    },
+    "core": {
+      "checks": 9,
+      "failures": 0,
+      "log": "build/qa/reflog-native-batch-bisect-core-2026-10-15.log",
+      "scope": "BisectTests, including unborn staged index/ref/working preservation and active-session missing-HEAD refusal"
+    },
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/reflog-native-batch-build-2026-10-15.log"
+    },
+    "system_git": {
+      "initial_first_five_passed_log": "build/qa/reflog-native-batch-2026-10-15.log",
+      "after_fix_remaining_three_passed_log": "build/qa/reflog-native-batch-system-final-2026-10-15.log",
+      "note": "Initial history-actions failure exposed real inactive-unborn state bug; diagnostic-only recheck confirmed rev-parse failure. First five headed-repository families were not repeated; relevant Core tests and full bundled group cover final metadata repair."
+    },
+    "bundled_git": {
+      "all_eight_result": "passed",
+      "log": "build/qa/reflog-native-batch-bundled-launcher-2026-10-15.log",
+      "earlier_failure": "First bundled attempt resolved the launcher symlink, lost GitRuntime helper directory context and failed express Switch with merge. Preserve launcher spelling and rerun all eight in deployed runtime layout."
+    },
+    "cache_wrapper": {
+      "result": "passed",
+      "log": "build/qa/reflog-native-batch-cached-wrapper-2026-10-15.log",
+      "scope": "Individual ranges entry invoked from build directory with relative bundled Git path; receiver cache reused without compilation"
+    },
+    "observed_final_local_compile_seconds": 5.01,
+    "all_owned_compiler_and_receiver_pids_reaped": [
+      99275,
+      99283,
+      255,
+      262,
+      1752,
+      1761,
+      2277,
+      3384,
+      3406,
+      4533
+    ],
+    "all_owned_processes_absent": true,
+    "documentation": {
+      "reconciled": true,
+      "site_exit_code": 0,
+      "documents": 215,
+      "unresolved_fragments": []
+    }
+  },
+  "limits": [
+    "Local compilation time is measured here, not a hosted speedup estimate",
+    "Hosted execution of the updated pipeline remains unverified; no complete hosted green claimed",
+    "No app UI feature coverage removed; no full Core suite rerun for runner-only changes",
+    "Physical RefLog/Finder, full dialog parity, signed/minimum-OS and App Store acceptance remain open"
+  ],
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d"
+}

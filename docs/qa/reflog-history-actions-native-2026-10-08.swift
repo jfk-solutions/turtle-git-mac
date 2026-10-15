@@ -55,7 +55,7 @@ import TurtleGitCore
         precondition(ReferenceLogHistoryCommand.allCases.map(\.icon) == [.reset, .checkout])
         _ = try await repo.run(["symbolic-ref", "HEAD", "refs/heads/unborn"])
         let unborn = ReferenceLogWindowModel(repository: repo, access: nil, reference: "refs/heads/main")
-        unborn.reload(); try await wait { unborn.busy }; precondition(unborn.error == nil && unborn.currentHeadHash == nil)
+        unborn.reload(); try await wait { unborn.busy }; precondition(unborn.error == nil && unborn.currentHeadHash == nil,"Unborn RefLog reload error: "+(unborn.error ?? "none")+"; HEAD: "+(unborn.currentHeadHash ?? "nil"))
         unborn.onReset = { _ in preconditionFailure("Unborn Reset dispatched") }; unborn.onCheckout = { _ in preconditionFailure("Unborn checkout dispatched") }
         for command in ReferenceLogHistoryCommand.allCases { precondition(!unborn.canPerformHistory(command, ids: [unborn.entries[0].id])); unborn.performHistory(command, ids: [unborn.entries[0].id]) }
         print("RefLog history actions: exact older hash presets actual Switch and Reset models without mutation; model reload retains checkout target; HEAD checkout/reset distinction, current/older stash, empty/stale/multi/busy/chooser/bare/unborn/invalidation gates and original icons passed; HEAD/refs/index/config/worktree unchanged by ordinary reads, no visible dialogs or execution")

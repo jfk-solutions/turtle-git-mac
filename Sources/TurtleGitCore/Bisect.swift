@@ -62,7 +62,9 @@ extension GitRepository {
             try cancellation?.check(); return text
         }
         let active = FileManager.default.fileExists(atPath: try bisectPath("BISECT_START", cancellation: cancellation).path)
-        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let revision = try run(["rev-parse", "--verify", "--quiet", "HEAD"], successfulExitCodes: 0...1, cancellation: cancellation)
+        guard !active || revision.exitCode == 0 else { throw BisectFailure.revision }
+        let head = revision.text.trimmingCharacters(in: .newlines)
         let terms = try read("BISECT_TERMS").split(separator: "\n").map(String.init)
         // Git writes the bad term first, then the good term.
         return BisectState(active: active, originalRevision: try read("BISECT_START").trimmingCharacters(in: .newlines), head: head,

@@ -54,7 +54,7 @@ import TurtleGitCore
         let failedHead = try await repo.run(["rev-parse", "HEAD"]).stdout, failedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), failedFile = try Data(contentsOf: root.appendingPathComponent("file"))
         precondition(head == failedHead && index == failedIndex && file == failedFile, "Ordinary failed switch must preserve local changes")
         failure.perform(.switchWithMerge); try await wait { failure.busy }
-        precondition(!failure.success && failure.postActions == [.resolve, .retry] && failure.output.contains("Has merge conflict"))
+        precondition(!failure.success && failure.postActions == [.resolve, .retry] && failure.output.contains("Has merge conflict"),"Switch with merge: "+failure.output+"; actions: "+String(describing:failure.postActions))
         let conflicts = try await repo.status(refreshIndex: false); precondition(conflicts.contains { $0.state == .conflicted })
         _ = try await repo.run(["reset", "--hard"])
         failure.perform(.retry); try await wait { failure.busy }; precondition(failure.success && results == [false, false, true])

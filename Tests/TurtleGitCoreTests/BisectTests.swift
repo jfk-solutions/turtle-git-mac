@@ -2,6 +2,21 @@ import XCTest
 @testable import TurtleGitCore
 
 final class BisectTests: XCTestCase {
+    func testInactiveUnbornStateRetainsIndexAndRefusesMissingHeadInActiveSession() async throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit.UnbornBisect."+UUID().uuidString)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true);defer {try? FileManager.default.removeItem(at:root)}
+        let repo=GitRepository(root:root);_ = try await repo.run(["init","-b","main"])
+        let file=root.appendingPathComponent("new.txt"),bytes=Data("unborn staged bytes\n".utf8)
+        try bytes.write(to:file);try await repo.stage(["new.txt"])
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),branch=try await repo.run(["symbolic-ref","HEAD"]).stdout
+        let state=try await repo.bisectState();XCTAssertFalse(state.active);XCTAssertEqual(state.head,"");XCTAssertEqual(state.originalRevision,"")
+        XCTAssertEqual(index,try Data(contentsOf:root.appendingPathComponent(".git/index")));XCTAssertEqual(bytes,try Data(contentsOf:file))
+        let marker=root.appendingPathComponent(".git/BISECT_START");try Data("main\n".utf8).write(to:marker)
+        do {_ = try await repo.bisectState();XCTFail("Active session without HEAD accepted")} catch BisectFailure.revision {}
+        let finalBranch=try await repo.run(["symbolic-ref","HEAD"]).stdout;XCTAssertEqual(branch,finalBranch)
+        XCTAssertEqual(index,try Data(contentsOf:root.appendingPathComponent(".git/index")));XCTAssertEqual(try Data(contentsOf:marker),Data("main\n".utf8))
+    }
+
     private final class OutputCapture: @unchecked Sendable {
         let lock=NSLock();var bytes=Data()
         func append(_ chunk:GitOutputChunk) { lock.lock();defer { lock.unlock() };bytes.append(chunk.data) }

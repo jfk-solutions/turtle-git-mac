@@ -509,3 +509,34 @@ for accepted note writes, read retirement and remaining caller acceptance.
 RefLog now routes source-gated Bisect and Combine candidates to the existing
 workflows. See [advanced RefLog actions](REFLOG-ADVANCED-PARITY.md) for event/ancestry
 checks, read ownership and remaining mutation/physical/signed acceptance.
+
+
+## Shared native workflow validation and unborn HEAD — October 15, 2026
+
+The eight existing RefLog revision-handoff, working/selected-comparison, range,
+unified-diff, parent-comparison, history-action, remote-default and express-switch
+fixtures now share one cached receiver linked to the Debug app objects. Their
+assertions remain in the original Swift fixtures. Each phase uses its own private
+repository, and the same executable runs both system and bundled Git in CI.
+The eight individual Python entry points remain available and delegate to the
+same receiver with a selected phase; relative Git paths retain caller semantics.
+
+The cache includes app source and object bytes, imported app/Core modules and
+framework files, fixture/bootstrap text, architecture, compiler version, flags,
+workspace/product location and runner/cleanup implementation. Compilation and
+runtime have separate bounds; owned process groups are stopped and reaped on
+success, failure and timeout. A phase marker identifies runtime failures. This
+removes eight copies of full app-source compilation from the macOS workflow
+without omitting the existing assertions. No full Core rerun is added to these
+native-only runner changes.
+
+Grouped execution exposed an actual unborn RefLog failure: reload queried Bisect
+state, whose HEAD read required a commit even for an inactive session. Inactive
+unborn repositories now report an empty Bisect HEAD without changing refs, index
+or working files. An active Bisect marker without a valid HEAD is still rejected.
+The original RefLog unborn-history assertion is retained with a useful diagnostic.
+
+[Batch evidence](qa/reflog-native-batch-2026-10-15.json) records the initial failure,
+Core repair, exact system/bundled phase coverage, cache reuse and process cleanup.
+Local grouped passes do not prove hosted CI completion, physical RefLog behavior,
+full dialog parity or signed App Store acceptance.

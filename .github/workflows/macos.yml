@@ -308,22 +308,11 @@ jobs:
         run: python3 scripts/test-bundled-ssh-agent.py --app build/Build/Products/Debug/TurtleGitMac.app
       - name: Native Submodule Update selection gestures without visible windows
         run: python3 scripts/test-submodule-update-selection.py
-      - name: Native RefLog browser, branch, tag and export handoffs
-        run: python3 scripts/test-reflog-revision-handoffs.py
-      - name: Native RefLog working-tree and selected revision comparisons
-        run: python3 scripts/test-reflog-comparisons.py
-      - name: Native RefLog forward, reverse and symmetric Log ranges
-        run: python3 scripts/test-reflog-ranges.py
-      - name: Native RefLog merge and two-revision unified diffs
-        run: python3 scripts/test-reflog-unified-diff.py
-      - name: Native RefLog previous revision and merge parent comparisons
-        run: python3 scripts/test-reflog-parent-comparisons.py
-      - name: Native RefLog Switch and Reset revision handoffs
-        run: python3 scripts/test-reflog-history-actions.py
-      - name: Native RefLog remote Switch defaults
-        run: python3 scripts/test-reflog-remote-defaults.py
-      - name: Native RefLog express branch switching
-        run: python3 scripts/test-reflog-express-switch.py
+      - name: Grouped native RefLog comparisons, ranges and revision handoffs with one compilation
+        run: >-
+          python3 scripts/test-native-reflog-batch.py
+          --git /usr/bin/git
+          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native Clone live command output
         run: python3 scripts/test-clone-stream.py
       - name: Native Clone progress and captured recovery

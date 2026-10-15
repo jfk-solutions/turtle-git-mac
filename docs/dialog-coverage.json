@@ -2336,6 +2336,7 @@
         "docs/qa/reflog-deletion-2026-10-08.json",
         "docs/qa/reflog-express-switch-2026-10-08.json",
         "docs/qa/reflog-history-actions-2026-10-08.json",
+        "docs/qa/reflog-native-batch-2026-10-15.json",
         "docs/qa/reflog-parent-comparisons-2026-10-08.json",
         "docs/qa/reflog-partial-failure-2026-10-08.json",
         "docs/qa/reflog-ranges-2026-10-08.json",
@@ -2718,7 +2719,8 @@
       ],
       "qa_records": [
         "docs/qa/bisect-lifecycle-2026-10-13.json",
-        "docs/qa/bisect-progress-2026-10-14.json"
+        "docs/qa/bisect-progress-2026-10-14.json",
+        "docs/qa/reflog-native-batch-2026-10-15.json"
       ]
     },
     {

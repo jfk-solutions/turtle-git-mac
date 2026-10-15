@@ -419,3 +419,10 @@ and bundled Git. Initial fixture-only helper/label failures are retained in the
 was required after the native label correction. All five attempted receivers,
 including the failed initial case, were reaped. Action log assertions require
 actual saved Unicode output and User cancelled, not only a logging callback.
+
+
+Inactive unborn repositories now return an empty HEAD in the read-only Bisect
+state query, allowing RefLog and other metadata consumers to load them normally.
+An active Bisect session still requires a resolvable HEAD. Private regression
+checks preserve the staged index, symbolic branch, working bytes and active marker;
+see [RefLog batch evidence](qa/reflog-native-batch-2026-10-15.json).
