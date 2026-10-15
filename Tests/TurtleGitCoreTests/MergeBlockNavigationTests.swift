@@ -52,6 +52,24 @@ final class MergeBlockNavigationTests: XCTestCase {
         XCTAssertNil(target(states, 0, 1, visible:[0,4]))
         XCTAssertNil(target(states, 0, 1, visible:[1,0]))
     }
+    func testContextBlockUsesClickedStateInBothDirections() {
+        let states: [MergeSourceState] = [.normal,.removed,.empty,.added,.normal,.normal]
+        XCTAssertEqual(MergeBlockNavigation.block(states:states,containing:1)?.rows,1..<3)
+        XCTAssertEqual(MergeBlockNavigation.block(states:states,containing:2)?.rows,1..<3)
+        XCTAssertEqual(MergeBlockNavigation.block(states:states,containing:3)?.rows,3..<4)
+        XCTAssertEqual(MergeBlockNavigation.block(states:states,containing:4)?.rows,4..<6)
+        XCTAssertEqual(MergeBlockNavigation.block(states:states,containing:2)?.caret,2)
+        XCTAssertNil(MergeBlockNavigation.block(states:states,containing:-1))
+        XCTAssertNil(MergeBlockNavigation.block(states:[],containing:0))
+    }
+    func testContextBlockKeepsWhitespaceAndConflictAliasesDistinct() {
+        let states: [MergeSourceState] = [.removedWhitespace,.addedWhitespace,.conflictAdded,.conflictEmpty,.filtered,.filtered]
+        XCTAssertEqual(MergeBlockNavigation.block(states:states,containing:0)?.rows,0..<1)
+        XCTAssertEqual(MergeBlockNavigation.block(states:states,containing:1)?.rows,1..<2)
+        XCTAssertEqual(MergeBlockNavigation.block(states:states,containing:2)?.rows,2..<4)
+        XCTAssertEqual(MergeBlockNavigation.block(states:states,containing:3)?.rows,2..<4)
+        XCTAssertEqual(MergeBlockNavigation.block(states:states,containing:4)?.rows,4..<6)
+    }
     func testEveryStateEligibilityAndEquality() {
         for state in MergeSourceState.allCases {
             let states: [MergeSourceState] = [.normal,state,state,.normal]

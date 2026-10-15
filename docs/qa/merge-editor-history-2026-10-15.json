@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "12585b0c",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "Undo.cpp UndoOne/RedoOne/Do/updateActiveView: target caret restoration and ClearSelection across left/right/bottom",
+    "BaseView.cpp OnContextMenu: clicked fixed state, bidirectional LinesInOneChange, existing selection preservation and column-zero caret",
+    "BaseView.cpp SelectNextBlock/GetInlineDiffPositions/GetNextInlineDiff: automatic inline start/end traversal; disabled with visible Bottom view",
+    "TortoiseMergeENG.rc F7/F11 and Control/Alt Up/Down shortcuts"
+  ],
+  "scope": [
+    "Correct preceding invented result-block Undo restoration to source all-pane selection clearing",
+    "Compare pre-edit target display/source caret snapshots, authoritative engine reconciliation and generation-gated restoration",
+    "Result text/presentation Undo/Redo with cleared text/block selections and cancellation of queued next-conflict requests",
+    "Automatic two-pane inline advance and preserved block during explicit inline navigation",
+    "Explicit Normal/Filtered/changed context state grouping, exact combined Removed versus Added boundaries, clicked-pane focus",
+    "Copy reads existing text/block selection; no hidden caret-derived clipboard block after Undo"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/merge-editor-history-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/merge-editor-history-focus-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/merge-editor-history-final-build.log",
+      "exit": 0
+    }
+  ],
+  "core": {
+    "log": "build/qa/merge-editor-history-core.log",
+    "discovered": 17,
+    "passed": 16,
+    "skipped": 1,
+    "failures": 0,
+    "suites": [
+      "MergeBlockNavigationTests",
+      "MergeClipboardTests",
+      "MergeInlineComparisonTests"
+    ],
+    "skip": "Pinned-source parser/repeated-token corpus case explicitly delegates to scripts/test-inline-source.py; parser/LCS unchanged in this batch",
+    "repeated_after_native_repairs": false
+  },
+  "native": [
+    {
+      "log": "build/qa/merge-editor-history-native.log",
+      "pid": 60899,
+      "exit": 0,
+      "scope": "Initial full connected group: new editor history/inline/context workflow, retained clipboard, independent block semantics, Compare state navigation, whitespace states and combined editing/pane workflows"
+    },
+    {
+      "log": "build/qa/merge-editor-history-focus-native.log",
+      "pid": 61156,
+      "exit": 0,
+      "scope": "Focused history+clipboard recheck after inspection found existing peer context block could retain previous focus; moved focus before early return and added explicit focus assertions",
+      "unaffected_initial_cases_repeated": false
+    },
+    {
+      "log": "build/qa/merge-editor-history-three-pane.log",
+      "pid": 61232,
+      "exit": 0,
+      "scope": "Three-pane mapped navigation/choices and queued-selection Undo clearing, retained engine reload/save/close and result state/history workflows"
+    },
+    {
+      "log": "build/qa/merge-editor-history-toolbar.log",
+      "pids": [
+        61573,
+        61581
+      ],
+      "exit": 0,
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "scope": "Actual toolbar artwork/order, busy refusal, navigation, Save/choice/Undo, replacement rebinding, image suppression and retired commands"
+    }
+  ],
+  "ownership": {
+    "all_five_receivers_reaped": true,
+    "owned_windows_closed": true,
+    "new_public_screenshots": false,
+    "unrelated_worktree_changes_preserved": true
+  },
+  "hosted_ci": {
+    "run": 38808679175,
+    "commit": "ddfb57ab",
+    "status_at_inspection": "in_progress, Git integration tests step 58",
+    "latest_pending_run": 38811328333,
+    "latest_pending_commit": "12585b0c",
+    "pages_run": 38811328285,
+    "pages_conclusion": "success",
+    "full_macos_pass_confirmed": false
+  },
+  "open": [
+    "Manual caret movement while Undo engine realignment is pending does not yet have an explicit restoration-revocation hook",
+    "Selected-text direction/affinity, physical input and wrapped-screen-row acceptance remain unverified",
+    "Combined-view inline navigation remains incomplete; three-pane inline caret navigation intentionally unavailable as in source",
+    "Fully aligned result and arbitrary source-pane block replacement remain incomplete",
+    "Initial Compare first-difference caret positioning still needs the complete source block-initialization path",
+    "Large-file performance, signed Finder installation and App Store acceptance"
+  ],
+  "certifies_complete_dialog": false
+}

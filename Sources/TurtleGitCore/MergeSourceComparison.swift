@@ -277,6 +277,15 @@ public enum MergeBlockNavigation {
         return (initial == .empty && (current == .added || current == .removed))
             || (initial == .conflictEmpty && current == .conflictAdded)
     }
+    /// OnContextMenu expands both directions against the clicked row's fixed
+    /// state, including Normal/Filtered rows and hidden source rows.
+    public static func block(states: [MergeSourceState], containing row: Int) -> Target? {
+        guard states.indices.contains(row) else { return nil }
+        var first = row, last = row
+        while first > 0, sameChange(states[row],states[first - 1],direction:-1) { first -= 1 }
+        while last + 1 < states.count, sameChange(states[row],states[last + 1],direction:1) { last += 1 }
+        return Target(rows:first..<(last + 1),caret:row)
+    }
     public static func target(states: [MergeSourceState], visibleRows: [Int], caret: Int,
                               direction: Int, conflictsOnly: Bool = false, skipCurrent: Bool = true) -> Target? {
         guard direction != 0, !visibleRows.isEmpty,

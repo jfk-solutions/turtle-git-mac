@@ -792,7 +792,35 @@ import TurtleGitCore
         guard !busy, !hasPendingEditorChoice, !confirmingQuit, (!onePaneActive || !base), activeBase != base else { return }
         activeBase = base; selectedRows = nil; selectionRequest = nil; selectEditorActions()
     }
-    func resetHistory() { for actions in editorActions.values { actions.reset() }; selectEditorActions() }
+    func resetHistory() { historyCaretRequests = [:]; for actions in editorActions.values { actions.reset() }; selectEditorActions() }
+    struct HistoryCaret {
+        let displayText: String
+        let displayOffset: Int
+        let sourceOffset: Int
+    }
+    private var historyCaretRequests: [Bool: (generation: Int, caret: HistoryCaret)] = [:]
+    func captureHistoryCaret(base: Bool) -> HistoryCaret? {
+        guard let view = scrolls[base]?.documentView as? FileComparisonTextView,
+              let source = try? FileComparisonEditing.sourceRange(NSRange(location:view.selectedRange().location,length:0),cells:view.sourceCells) else { return nil }
+        return HistoryCaret(displayText:view.string,displayOffset:view.selectedRange().location,sourceOffset:source.location)
+    }
+    func requestHistoryCaret(_ caret: HistoryCaret, base: Bool) {
+        guard !retired else { return }
+        selectionRequest = nil
+        historyCaretRequests[base] = (alignmentGeneration,caret)
+    }
+    func restoreHistoryCaret(base: Bool, view: NSTextView, cells: [MergeSourceCell]) {
+        guard !retired, !filtering, let request = historyCaretRequests[base] else { return }
+        guard request.generation == alignmentGeneration else { historyCaretRequests.removeValue(forKey:base); return }
+        let expected = cells.map(\.displayText).joined(separator:"\n") + (cells.isEmpty ? "" : "\n")
+        guard view.string.utf8.elementsEqual(expected.utf8) else { return }
+        historyCaretRequests.removeValue(forKey:base); alignmentSelections.removeValue(forKey:base)
+        let offset = view.string.utf8.elementsEqual(request.caret.displayText.utf8)
+            ? request.caret.displayOffset : FileComparisonEditing.displayOffset(sourceOffset:request.caret.sourceOffset,cells:cells)
+        clearNavigationBlockSelection(clearTextSelections:true)
+        view.setSelectedRange(NSRange(location:min(offset,view.string.utf16.count),length:0))
+        view.scrollRangeToVisible(view.selectedRange())
+    }
     var selectionRequest: Int?
     private var scrolls: [Bool: NSScrollView] = [:]
     private var viewportNavigation: [Bool: () -> Void] = [:]
@@ -982,6 +1010,7 @@ import TurtleGitCore
     func rebuildAlignment() {
         guard let document else { return }
         regexCancellation?.cancel(); regexCancellation = nil; filtering = false
+        historyCaretRequests = [:]
         alignmentSelections = [:]
         alignmentGeneration += 1; selectedRows = nil; previewRow = nil
         let a = drafts?.text(base: true) ?? document.base.text
@@ -1189,8 +1218,13 @@ import TurtleGitCore
             target.reflectScrolledClipView(target.contentView)
         }
     }
-    func clearNavigationBlockSelection() {
-        for scroll in scrolls.values { if let view = scroll.documentView as? FileComparisonTextView { view.blockSelection.clear(in:view) } }
+    func clearNavigationBlockSelection(clearTextSelections: Bool = false) {
+        for scroll in scrolls.values {
+            if let view = scroll.documentView as? FileComparisonTextView {
+                view.blockSelection.clear(in:view)
+                if clearTextSelections { view.setSelectedRange(NSRange(location:view.selectedRange().location,length:0)) }
+            }
+        }
         selectedRows = nil
     }
     private(set) var selectingDifferenceBlock = false
@@ -1211,7 +1245,19 @@ import TurtleGitCore
     }
     func canNavigateDifference(_ step: Int) -> Bool { differenceTarget(step) != nil }
     func navigate(_ step: Int) {
-        guard let (target, base) = differenceTarget(step) else { return }
+        guard let (target,base) = differenceTarget(step) else { return }
+        selectDifferenceBlock(target,base:base,advanceInline:true)
+    }
+    func selectContextBlock(at offset: Int, base: Bool) {
+        guard contextCommandsAllowed, !filtering else { return }
+        let cells = displayCells(base:base), lines = MergeFindLine.displayCells(cells)
+        guard let row = lines.lastIndex(where: { $0.offset <= offset }),
+              let block = MergeBlockNavigation.block(states:cells.map(\.state),containing:row) else { return }
+        activatePane(base:base)
+        clearNavigationBlockSelection(clearTextSelections:true)
+        selectDifferenceBlock(block,base:base,advanceInline:false)
+    }
+    private func selectDifferenceBlock(_ target: MergeBlockNavigation.Target, base: Bool, advanceInline: Bool) {
         selectingDifferenceBlock = true
         defer { selectingDifferenceBlock = false }
         activeBase = base
@@ -1230,6 +1276,9 @@ import TurtleGitCore
                 view.blockSelection.centerCaret(in:view)
             }
         }
+        // Source SelectNextBlock advances within the entry line after setting
+        // the block, and only when inline navigation is available.
+        if advanceInline { (scrolls[base]?.documentView as? FileComparisonTextView)?.navigateInline(forward:true) }
         if let text = scrolls[base]?.documentView as? NSTextView {
             updateSelection(text.selectedRange(), cells: displayCells(base: base))
         }
@@ -1543,6 +1592,7 @@ struct FileComparisonEditor: NSViewRepresentable {
                 view.scrollRangeToVisible(view.selectedRange())
                 DispatchQueue.main.async { if model.selectionRequest == caret { model.selectionRequest = nil } }
             }
+            model.restoreHistoryCaret(base:base,view:view,cells:cells)
         }
         @objc func scrolled(_ notification: Notification) { if let scroll { model.scrolled(scroll) } }
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
@@ -1570,7 +1620,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             DispatchQueue.main.async { if self.model.activeBase == self.base, self.model.alignmentGeneration == generation, view.selectedRange() == range { self.model.updateSelection(range, cells: cells) } }
         }
         func updateUndoState() { guard model.activeBase == base else { return }; model.canUndo = history.canUndo; model.canRedo = history.canRedo }
-        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false, resolvingSave: Bool = false) {
+        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false, resolvingSave: Bool = false, historyCaret: FileComparisonWindowModel.HistoryCaret? = nil) {
             guard model.canEdit(base: base), resolvingSave || (!model.busy && !model.confirmingQuit) else { return }
             let old = model.draftText(base: base), previous = model.annotations(base: base), oldAlignment = model.alignment
             var next = previous
@@ -1579,7 +1629,10 @@ struct FileComparisonEditor: NSViewRepresentable {
             let textChanged = !old.utf8.elementsEqual(text.utf8)
             guard textChanged || restored != nil || next != previous else { return }
             if !textChanged, (restored ?? next) == previous { return }
-            history.registerUndo(withTarget: self) { target in target.replace(old, caret: min(caret, (old as NSString).length), restored: previous) }
+            let previousCaret = model.captureHistoryCaret(base:base)
+            history.registerUndo(withTarget:self) { target in
+                target.replace(old,caret:previousCaret?.sourceOffset ?? min(caret,old.utf16.count),restored:previous,historyCaret:previousCaret)
+            }
             history.setActionName("Edit comparison")
             model.updateDraft(text, base: base)
             if model.activeBase == base { model.selectionRequest = caret }
@@ -1599,6 +1652,10 @@ struct FileComparisonEditor: NSViewRepresentable {
                     // has selected another range.
                     if model.selectionRequest == caret { model.selectionRequest = nil }
                 }
+            }
+            if let historyCaret {
+                model.clearNavigationBlockSelection(clearTextSelections:true)
+                model.requestHistoryCaret(historyCaret,base:base)
             }
             DispatchQueue.main.async { self.updateUndoState() }
         }
@@ -1646,6 +1703,12 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
             model?.navigate(event.keyCode == 125 ? 1 : -1); return true
         }
         let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        if (event.keyCode == 98 || event.keyCode == 103), modifiers.isEmpty || modifiers == .shift || event.keyCode == 103 && modifiers == .control {
+            model?.navigate(modifiers.isEmpty ? 1 : -1); return true
+        }
+        if modifiers == .option, event.keyCode == 125 || event.keyCode == 126 {
+            model?.navigate(event.keyCode == 125 ? 1 : -1); return true
+        }
         if modifiers == .control, event.charactersIgnoringModifiers?.lowercased() == "g" {
             goToSourceLine(nil); return true
         }
@@ -1761,22 +1824,24 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     }
     fileprivate var clipboardText: String? {
         guard let model, model.copyCommandsAllowed, window != nil else { return nil }
-        let explicit = mergeSelectedBlockRange.flatMap { MergeBlockSelection.rows($0,cells:sourceCells) }
-        if explicit == nil { model.updateSelection(selectedRange(), cells:sourceCells) }
-        var rows = explicit ?? model.transferRows
-        if explicit == nil, model.onePaneActive, let selected = rows, let combined = model.combined {
-            let indices = combined.rows.indices.filter { selected.contains(combined.rows[$0].alignmentRow) }
-            rows = indices.first.flatMap { first in indices.last.map { first..<($0 + 1) } }
-        }
-        return try? MergeClipboard.sourceText(selection: selectedRange(), cells: sourceCells, blockRows: rows)
+        let rows = mergeSelectedBlockRange.flatMap { MergeBlockSelection.rows($0,cells:sourceCells) }
+        return try? MergeClipboard.sourceText(selection:selectedRange(),cells:sourceCells,blockRows:rows)
     }
     @discardableResult fileprivate func copySelection(to pasteboard: NSPasteboard) -> Bool {
         guard model?.copyCommandsAllowed == true, let text = clipboardText, !text.isEmpty else { return false }
         pasteboard.clearContents(); return pasteboard.setString(text, forType: .string)
     }
+    func selectContextBlock(at displayOffset: Int) {
+        window?.makeFirstResponder(self)
+        let selected = selectedRange()
+        if selected.length > 0, NSLocationInRange(displayOffset,selected) { return }
+        if let block = mergeSelectedBlockRange, displayOffset >= block.location, displayOffset <= NSMaxRange(block) { return }
+        model?.selectContextBlock(at:displayOffset,base:baseSide)
+    }
     override func menu(for event: NSEvent) -> NSMenu? {
-        guard model != nil else { return super.menu(for: event) }
-        return comparisonContextMenu(defaults: .standard, pasteboard: .general)
+        guard model != nil else { return super.menu(for:event) }
+        selectContextBlock(at:characterIndexForInsertion(at:convert(event.locationInWindow,from:nil)))
+        return comparisonContextMenu(defaults:.standard,pasteboard:.general)
     }
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu {
         guard let model else { return NSMenu() }

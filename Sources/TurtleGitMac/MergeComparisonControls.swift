@@ -481,6 +481,7 @@ struct MergeLineStatisticsView: View {
 @MainActor protocol MergeBlockSelecting: AnyObject {
     var mergeSelectedBlockRange: NSRange? { get }
     var mergeBlockBoundaryRects: [NSRect] { get }
+    func selectContextBlock(at displayOffset: Int)
 }
 
 @MainActor final class MergeBlockSelection {

@@ -7,17 +7,20 @@ alignment rows, and removes the selected block's synthetic final line break.
 Source clipboard CRLF is adapted to native LF.
 
 `MergeClipboard` supplies that payload policy across the three-pane merge editor,
-two-pane comparison and combined comparison. A caret on a changed aligned row can
-copy its contiguous changed block without highlighting text. A caret in a normal
-row does not select an unrelated change. Combined rows map their alignment indices
-before choosing the block, so both removed and added visible rows are copied.
-Ordinary text selection retains partial Unicode text and takes precedence over
-the block. Empty/gap-only payloads leave the clipboard intact.
+two-pane comparison and combined comparison. An explicit block selection is
+independent of the insertion caret. Right-click preparation selects the clicked
+state group, including a group of Normal rows; navigation selects its destination
+block. Keyboard Copy at an unselected caret leaves the clipboard unchanged.
+Combined display blocks retain exact row ranges: adjacent Removed and Added or
+neutral Base/Mine aliases do not become one implicit block. Ordinary text selection
+retains partial Unicode text and takes precedence. Empty/gap-only payloads leave
+the clipboard intact.
 
-Merged text uses the document's actual UTF-16 selection ranges and normalizes the
-selected line endings. A caret inside a displayed conflict block can copy that
-block. Source panes use their aligned cells; raw/temporarily unaligned source panes
-do not accidentally use a Merged-pane conflict range.
+Merged text uses actual UTF-16 ranges and normalizes selected endings. Its explicit
+block can select marker or ignored-conflict text. Source panes use aligned cells;
+raw/temporarily unaligned source panes do not borrow a result conflict range.
+[Navigation and history](MERGE-NAVIGATION-PARITY.md) records source context grouping,
+automatic two-pane inline advancement and Undo/Redo selection clearing.
 
 The source Cut behavior is deliberately preserved: it copies a block when no text
 is highlighted, but `RemoveSelectedText` then returns without deleting anything.

@@ -111,8 +111,9 @@ This selection is
 also the existing transfer/Copy block selection. [Three-pane navigation](MERGE-NAVIGATION-PARITY.md) now shares the search with
 explicit engine peer mappings. Independent boundary highlights and insertion carets now preserve block-only
 Copy/Cut/Paste semantics; neutral-row Copy uses exact combined display coordinates.
-Wrapped screen-row grouping, automatic inline advance and Compare block history
-still require a further port. In-place Edited row retention,
+Wrapped screen-row grouping and combined-view inline navigation still require a
+further port. Undo/Redo now follows source all-pane selection clearing and target
+caret restoration; the earlier block-restoring result history was corrected. In-place Edited row retention,
 all whitespace aliases/legacy overrides,
 physical/VoiceOver/large-file and signed App Store acceptance also remain open.
 This does not certify the complete Merge/editor family.

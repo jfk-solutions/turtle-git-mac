@@ -44,6 +44,8 @@ struct MergeThreePaneNavigationVerification {
         try require(model.blocks.count == 1 && model.result.contains("theirs2") && model.result.contains("<<<<<<< Mine"),"Choice resolved wrong conflict")
         model.undo();try await ThreePaneEngineVerification.wait{model.result == before && model.blocks.count == 2}
         try require(model.resultPresentation.navigationMap == beforeMap,"Undo lost engine navigation relationships")
+        await Task.yield()
+        try require(model.selectionRequest == nil && views.compactMap{$0 as? MergeBlockSelecting}.allSatisfy{$0.mergeSelectedBlockRange == nil},"Undo replayed a queued conflict selection")
         model.redo();try await ThreePaneEngineVerification.wait{model.result == expected && model.blocks.count == 1}
         model.undo();try await ThreePaneEngineVerification.wait{model.result == before && model.blocks.count == 2}
         owner.window!.makeFirstResponder(result);result.setSelectedRange(NSRange(location:0,length:0));await Task.yield()

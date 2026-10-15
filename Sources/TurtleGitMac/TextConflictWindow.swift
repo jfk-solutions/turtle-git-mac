@@ -701,8 +701,11 @@ private enum MergeSourceSide {
         if let result = locatorResultScroll?.documentView as? MergeTextView { views.append(result) }
         return views
     }
-    func clearNavigationBlockSelection() {
-        for view in navigationViews { view.blockSelection.clear(in:view) }
+    func clearNavigationBlockSelection(clearTextSelections: Bool = false) {
+        for view in navigationViews {
+            view.blockSelection.clear(in:view)
+            if clearTextSelections { view.setSelectedRange(NSRange(location:view.selectedRange().location,length:0)) }
+        }
         navigationOwnsChoice = true; navigationChoiceRange = nil
     }
     private var activeNavigationView: MergeTextView? {
@@ -773,8 +776,19 @@ private enum MergeSourceSide {
     }
     var canChooseConflict: Bool { !blocks.isEmpty && (!navigationOwnsChoice || conflictIndex(in:navigationChoiceRange) != nil) }
     func navigateBlock(_ direction: Int, conflictsOnly: Bool) {
-        guard let (active,target) = navigationTarget(direction,conflictsOnly:conflictsOnly),
-              let activeRange = navigationRange(rows:target.rows,in:active) else { return }
+        guard let (active,target) = navigationTarget(direction,conflictsOnly:conflictsOnly) else { return }
+        selectNavigationBlock(in:active,target:target)
+    }
+    fileprivate func selectContextBlock(at offset: Int, in view: MergeTextView) {
+        guard sourceToolsAllowed else { return }
+        let ranges = navigationRanges(view)
+        guard let row = ranges.lastIndex(where: { $0.location <= offset }),
+              let block = MergeBlockNavigation.block(states:navigationStates(view),containing:row) else { return }
+        clearNavigationBlockSelection(clearTextSelections:true)
+        selectNavigationBlock(in:view,target:block)
+    }
+    private func selectNavigationBlock(in active: MergeTextView, target: MergeBlockNavigation.Target) {
+        guard let activeRange = navigationRange(rows:target.rows,in:active) else { return }
         selectionRequest = nil
         selectingNavigationBlock = true; defer { selectingNavigationBlock = false }
         let sourceRows = active.mergeEditable ? resultPresentation.navigationMap.sourceRows(resultRange:activeRange) : target.rows
@@ -1226,6 +1240,9 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         if (event.keyCode == 98 || event.keyCode == 103), modifiers.isEmpty || modifiers == .shift || event.keyCode == 103 && modifiers == .control {
             model?.navigateBlock(modifiers.isEmpty ? 1 : -1,conflictsOnly:false); return true
         }
+        if modifiers == .option, event.keyCode == 125 || event.keyCode == 126 {
+            model?.navigateBlock(event.keyCode == 125 ? 1 : -1,conflictsOnly:false); return true
+        }
         if event.keyCode == 100, modifiers.isEmpty || modifiers == .shift {
             model?.navigateBlock(modifiers == .shift ? -1 : 1,conflictsOnly:true); return true
         }
@@ -1292,16 +1309,14 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         guard window != nil, let model, !model.retired else { return nil }
         if let cells = sourceCells {
             return try? MergeClipboard.sourceText(selection: selectedRange(), cells: cells,
-                blockRows: mergeSelectedBlockRange.flatMap { MergeBlockSelection.rows($0,cells:cells) }
-                    ?? MergeClipboard.changedBlock(selection:selectedRange(),cells:cells))
+                blockRows:mergeSelectedBlockRange.flatMap { MergeBlockSelection.rows($0,cells:cells) })
         }
         if let block = mergeSelectedBlockRange {
             // Native blocks already exclude the final row's ending; a trailing
             // LF can instead represent a selected empty final row.
             return try? MergeClipboard.documentText(selection:block,document:string)
         }
-        let block = sourceSide == nil && selectedRange().length == 0 ? model.blocks.first { NSLocationInRange(selectedRange().location, $0.range) }?.range : nil
-        return try? MergeClipboard.documentText(selection:selectedRange(),document:string,block:block)
+        return try? MergeClipboard.documentText(selection:selectedRange(),document:string)
     }
     fileprivate var clipboardWritable: Bool {
         window != nil && model?.retired == false && mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && window?.attachedSheet == nil
@@ -1360,32 +1375,40 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     func resetMergeHistory() { mergeUndoManager.removeAllActions(); updateUndoState() }
     func replaceMergeBlock(_ range: NSRange, with replacement: String, actionName: String = "Use text block", state: MergeSourceState = .edited) {
         guard isEditable, model?.busy == false, model?.confirmingQuit == false, NSMaxRange(range) <= (string as NSString).length else { return }
-        let previous = string, selection = selectedRange(), presentation = model?.resultPresentation, block = mergeSelectedBlockRange
+        let previous = string, selection = NSRange(location:selectedRange().location,length:0), presentation = model?.resultPresentation
         mergeUndoManager.beginUndoGrouping(); defer { mergeUndoManager.endUndoGrouping() }
-        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection: selection, presentation: presentation, block:block) }
+        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection:selection, presentation:presentation) }
         if let next = model?.resultPresentation.replacing(range, with: replacement, state: state) { model?.updateResultPresentation(next) }
         mergeUndoManager.setActionName(actionName)
         textStorage?.replaceCharacters(in: range, with: replacement)
         setSelectedRange(NSRange(location: range.location, length: (replacement as NSString).length))
         didChangeText()
     }
-    private func restoreMergeText(_ text: String, selection: NSRange, presentation: MergeResultPresentation? = nil, block: NSRange? = nil) {
-        let previous = string, previousSelection = selectedRange(), previousPresentation = model?.resultPresentation, previousBlock = mergeSelectedBlockRange
-        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection: previousSelection, presentation: previousPresentation, block:previousBlock) }
+    private func restoreMergeText(_ text: String, selection: NSRange, presentation: MergeResultPresentation? = nil) {
+        let previous = string, previousSelection = NSRange(location:selectedRange().location,length:0), previousPresentation = model?.resultPresentation
+        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection:previousSelection, presentation:previousPresentation) }
+        model?.selectionRequest = nil
         if let presentation { model?.updateResultPresentation(presentation) }
         textStorage?.replaceCharacters(in: NSRange(location: 0, length: (string as NSString).length), with: text)
-        if let block { installBlock(block,caret:selection.location) }
-        else { blockSelection.clear(in:self); setSelectedRange(selection) }
+        model?.clearNavigationBlockSelection(clearTextSelections:true)
+        setSelectedRange(NSRange(location:min(selection.location,string.utf16.count),length:0))
+        scrollRangeToVisible(selectedRange())
         didChangeText()
     }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if mergeEditable { (window as? TextConflictNSWindow)?.mergedText = self }
     }
-    override func menu(for event: NSEvent) -> NSMenu? {
-        if mergeEditable || sourceSide != nil, selectedRange().length == 0 { setSelectedRange(NSRange(location: characterIndexForInsertion(at: convert(event.locationInWindow, from: nil)), length: 0)) }
+    func selectContextBlock(at displayOffset: Int) {
         window?.makeFirstResponder(self); model?.navigationSelectionChanged(self)
-        return mergeContextMenu(defaults: .standard, pasteboard: .general)
+        let selected = selectedRange()
+        if selected.length > 0, NSLocationInRange(displayOffset,selected) { return }
+        if let block = mergeSelectedBlockRange, displayOffset >= block.location, displayOffset <= NSMaxRange(block) { return }
+        model?.selectContextBlock(at:displayOffset,in:self)
+    }
+    override func menu(for event: NSEvent) -> NSMenu? {
+        selectContextBlock(at:characterIndexForInsertion(at:convert(event.locationInWindow,from:nil)))
+        return mergeContextMenu(defaults:.standard,pasteboard:.general)
     }
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu {
         let menu = MergeClipboardMenu()

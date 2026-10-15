@@ -50,6 +50,8 @@ import TurtleGitCore
             let location = (view.string as NSString).range(of: needle).location
             try require(location != NSNotFound, "Source needle missing")
             view.setSelectedRange(NSRange(location: location, length: 0))
+            (view as! MergeBlockSelecting).selectContextBlock(at:location)
+            try require(owner.window!.firstResponder === view,"Source context retained another pane's focus")
             let menu = protocolView.mergeContextMenu(defaults: prefs, pasteboard: board)
             let copy = menu.items.first { $0.title == "Copy" }!
             try invoke(copy)
@@ -89,7 +91,7 @@ import TurtleGitCore
         comparison.window!.contentView!.layoutSubtreeIfNeeded()
         try await wait {
             comparison.window!.contentView!.layoutSubtreeIfNeeded()
-            return comparison.model.alignment != nil && !comparison.model.busy && descendants(comparison.window!.contentView!).compactMap { $0 as? NSTextView }.filter { $0 is ComparisonContextMenuProviding }.count == 2
+            return comparison.model.alignment != nil && !comparison.model.busy && !comparison.model.filtering && descendants(comparison.window!.contentView!).compactMap { $0 as? NSTextView }.filter { $0 is ComparisonContextMenuProviding }.count == 2
         }
         print("Two-pane loaded:", comparison.model.busy, comparison.model.error ?? "no error")
         let panes = descendants(comparison.window!.contentView!).compactMap { $0 as? NSTextView }.filter { $0 is ComparisonContextMenuProviding }
@@ -97,6 +99,8 @@ import TurtleGitCore
         for pane in panes {
             let text = pane.string, needle = text.contains("old 🦎") ? "old 🦎" : "new 雪", offset = (text as NSString).range(of: needle).location
             pane.setSelectedRange(NSRange(location: offset, length: 0))
+            (pane as! MergeBlockSelecting).selectContextBlock(at:offset)
+            try require(comparison.window!.firstResponder === pane,"Comparison context retained another pane's focus")
             let menu = (pane as! ComparisonContextMenuProviding).comparisonContextMenu(defaults: prefs, pasteboard: board)
             try invoke(menu.items.first { $0.title == "Copy" }!)
             try require(board.string(forType: .string)?.contains(needle) == true && board.string(forType: .string)?.contains("\r") == false, "Two-pane block Copy lost text/endings")
@@ -110,7 +114,7 @@ import TurtleGitCore
         print("Mode submitted:", comparison.model.onePaneMode, comparison.model.busy)
         do { try await wait {
             comparison.window!.contentView!.layoutSubtreeIfNeeded()
-            return !comparison.model.busy && comparison.model.onePaneActive && descendants(comparison.window!.contentView!).compactMap { $0 as? NSTextView }.filter { $0 is ComparisonContextMenuProviding }.count == 1
+            return !comparison.model.busy && !comparison.model.filtering && comparison.model.onePaneActive && descendants(comparison.window!.contentView!).compactMap { $0 as? NSTextView }.filter { $0 is ComparisonContextMenuProviding }.count == 1
         } } catch {
             throw Failure(description: "One-pane switch: active=\(comparison.model.onePaneActive), busy=\(comparison.model.busy), error=\(comparison.model.error ?? "none"), views=\(descendants(comparison.window!.contentView!).compactMap { $0 as? NSTextView }.filter { $0 is ComparisonContextMenuProviding }.count), dirty=\(comparison.model.dirty)")
         }
@@ -118,10 +122,11 @@ import TurtleGitCore
         let removed = (combined.string as NSString).range(of: "old 🦎")
         try require(removed.location != NSNotFound, "One-pane removed row missing")
         combined.setSelectedRange(NSRange(location: removed.location, length: 0))
+        (combined as! MergeBlockSelecting).selectContextBlock(at:removed.location)
         let combinedMenu = (combined as! ComparisonContextMenuProviding).comparisonContextMenu(defaults: prefs, pasteboard: board)
         try invoke(combinedMenu.items.first { $0.title == "Copy" }!)
         let copied = board.string(forType: .string) ?? ""
-        try require(copied.contains("old 🦎") && copied.contains("new 雪") && !copied.hasSuffix("\n"), "One-pane block omitted removed/added text or included a synthetic final break")
+        try require(copied.contains("old 🦎") && !copied.contains("new 雪") && !copied.hasSuffix("\n"), "One-pane context block crossed Removed/Added states or included a synthetic final break")
         let after = try await repo.run(["rev-parse", "HEAD"]).stdout
         try require(after == head && (try Data(contentsOf: root.appendingPathComponent(".git/index"))) == index && (try Data(contentsOf: file)) == bytes, "Clipboard operations changed repository state")
         print("Merge clipboard: source/block/text Copy, normalized endings, private-board Cut/Paste, Undo, busy and retired refusal, two-pane block-only Cut and exact repository preservation passed. Owned windows closed.")

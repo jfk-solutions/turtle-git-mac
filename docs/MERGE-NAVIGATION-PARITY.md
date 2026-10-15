@@ -32,7 +32,7 @@ peer mappings; navigation within a pane still works, while unavailable source
 choices remain disabled. There is no text-based guess to restore missing maps.
 
 The native toolbar exposes Previous/Next difference and conflict. Context menus
-use the original source icons. Control-Up/Down and F7/F11 navigate differences;
+use the original source icons. Control/Option-Up/Down and F7/F11 navigate differences;
 Shift-F7/F11 reverses direction, and F8/Shift-F8 navigates conflicts. Source-pane
 block choices locate the corresponding unresolved result conflict. Selecting an
 unrelated common line disables those choices; it cannot resolve a stale footer
@@ -45,18 +45,36 @@ retain source-state colors and remain separate from the insertion caret. Forward
 navigation places the caret at the entry row; reverse navigation places it at the
 bottom entry row. Native text selection stays empty. Peer highlights use the
 engine mapping, and the entry row is centered where the scroll limits permit.
-Explicit inline navigation in Compare preserves the block while moving its caret.
+In two-pane Compare, Next/Previous block also advances within the entry line,
+following GetNextInlineDiff's start/end order and similarity/length/display gates.
+Explicit inline navigation preserves the block. Three-pane inline caret navigation
+remains unavailable while the Bottom/result view is visible, matching upstream.
 
 Copy reads the exact highlighted display block, including a neutral combined row
 without accidentally copying its adjacent alias. Block-only Cut copies without
 deleting; Paste and typing insert at the caret. Ordinary text selection retains
 normal Copy/Cut/replace behavior. Caret moves, mouse selection, source generation
-changes and edits invalidate stale block highlights in all panes. Merge result
-Undo/Redo restores the independent block and caret alongside its presentation.
-Compare text Undo remains supported but does not restore its retired block.
+changes and edits invalidate stale block highlights in all panes.
 
-Remaining source parity includes wrapped screen-row traversal, automatic inline
-advancement, Compare block-selection history, the complete aligned result view
+A further source check of Undo.cpp::updateActiveView corrects the preceding
+block-selection continuation: upstream Undo/Redo clears selections in all panes.
+Both native editors now clear block and ordinary text selections and restore the
+target caret. Compare records the pre-edit display position and source offset,
+then restores after the authoritative engine publishes its new alignment. An
+exact restored display uses its saved offset; otherwise it uses source coordinates.
+Generation gates discard requests superseded by another edit, reload or option
+change. Result history retains text/presentation provenance and target caret,
+without resurrecting a block highlight.
+
+Right-click preparation now follows OnContextMenu: it expands both directions
+using the clicked row's fixed state, including Normal/Filtered groups. It preserves
+an existing selection containing the clicked point. Context selection starts at
+column zero and does not automatically advance inline. Copy reads that existing
+block or ordinary text selection; it no longer invents a block from a bare caret.
+Combined Removed and Added context blocks remain separate even when adjacent.
+
+Remaining source parity includes wrapped screen-row traversal, combined-view
+inline navigation/advancement, the complete aligned result view
 including removed/empty rows, and
 editable source-pane block application beyond unresolved marker/ignored conflicts.
 A changed group can map several distinct source-state blocks to one result
@@ -71,3 +89,11 @@ workflow coverage, fixture semantics and the unresolved hosted CI state.
 [Independent block-selection evidence](qa/merge-block-selection-2026-10-15.json)
 records the native-only continuation, initial helper-visibility compile failure,
 repaired build, four grouped native receivers and remaining history/visual limits.
+
+[Source history/context continuation](qa/merge-editor-history-2026-10-15.json)
+records the correction to upstream Undo semantics, automatic two-pane inline
+advance, context preparation/focus and exact target-caret checks. Manual caret
+movement during pending Undo realignment still needs a restoration-revocation
+hook. Initial Compare first-difference positioning also needs full source block
+initialization; the current transfer fallback is broader than explicit selection.
+These are remaining implementation gaps, not certified behavior.

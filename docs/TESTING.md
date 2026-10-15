@@ -2161,3 +2161,12 @@ peer/transfer ranges, private-pasteboard Copy, block-only Cut no-op, Paste at th
 caret, edit invalidation and result block/caret Undo/Redo. Retained Compare and
 three-pane navigation fixtures inspect `MergeBlockSelecting` ranges separately
 from insertion carets. This native-only batch does not change Core behavior.
+
+The grouped whitespace/native editor runner now includes
+`merge-editor-history-native-2026-10-15.swift` and the retained clipboard workflow.
+It checks F7/automatic two-pane inline advancement, explicit inline boundaries,
+Paste at that caret, engine-reconciled Compare Undo/Redo caret restoration,
+all-pane selection clearing, disabled Copy without a selection, and Normal/changed
+context blocks. The previous block-selection fixture now asserts source
+Undo.cpp selection clearing rather than the earlier invented block restoration.
+Focused Core context-grouping cases pin fixed-state bidirectional expansion.

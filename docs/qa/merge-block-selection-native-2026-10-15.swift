@@ -55,10 +55,10 @@ struct MergeBlockSelectionVerification {
         try invoke("Paste",menu:(result as! MergeContextMenuProviding).mergeContextMenu(defaults:prefs,pasteboard:board))
         try await ThreePaneEngineVerification.wait{three.result == "head\nINSERT new one\nnew two\ntail\n" && three.canUndo}
         three.undo();try await ThreePaneEngineVerification.wait{three.result == after}
-        try require(resultBlock.mergeSelectedBlockRange == block && result.selectedRange() == NSRange(location:5,length:0),"Result Undo lost block and insertion caret")
+        try require(resultBlock.mergeSelectedBlockRange == nil && result.selectedRange() == NSRange(location:5,length:0),"Result Undo retained a block or lost target caret")
         three.redo();try await ThreePaneEngineVerification.wait{three.result.contains("INSERT new one")};try require(resultBlock.mergeSelectedBlockRange == nil,"Result Redo retained stale block")
         try require(try String(contentsOf:base,encoding:.utf8) == before && String(contentsOf:mine,encoding:.utf8) == after && String(contentsOf:theirs,encoding:.utf8) == before,"Private block operations rewrote inputs")
-        print("PASS: independent block boundaries/carets in both appearances, exact peer/transfer blocks, native Copy, block-only Cut no-op and Paste insertion, result block/caret Undo/Redo and stale highlight invalidation; owned windows closed")
+        print("PASS: independent block boundaries/carets in both appearances, exact peer/transfer blocks, native Copy, block-only Cut no-op and Paste insertion, source Undo/Redo caret restoration and all-pane highlight clearing; owned windows closed")
     }
 }
 private extension Optional {
