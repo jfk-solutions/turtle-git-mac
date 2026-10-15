@@ -12,7 +12,7 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
 @main struct SSHCoordinatorReceiver {
     struct Failure: Error { let message: String }
     @MainActor static func require(_ value: @autoclosure () throws -> Bool, _ message: String) throws { if try !value() { throw Failure(message: message) } }
-    @MainActor static func wait(_ stage: String = "Timed out", _ value: () -> Bool) async throws { for _ in 0..<1000 { if value() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(message: stage) }
+    @MainActor static func wait(_ stage: String = "Timed out", line:UInt = #line, _ value: () -> Bool) async throws { for _ in 0..<1000 { if value() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(message: stage+" (line \(line))") }
     @MainActor static var ownedAddModels: [SubmoduleAddProgressWindowModel] = []
     @MainActor static func cleanupAddModels() async throws {
         for model in ownedAddModels { model.invalidate() }
@@ -134,8 +134,13 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
             }
             return value
         }
-        browse.load(remote:"origin"); try await wait { !browse.busy }; browse.sshSettings.enabled = true; browse.browse()
-        try await wait("Owned remote picker") { browseOwner.remoteReferenceController != nil }
+        browse.load(remote:"origin")
+        try await wait("Browse metadata readiness") { !browse.operationActive }
+        browse.sshSettings.enabled = true
+        let browseReadiness="closed=\(browse.closed), busy=\(browse.busy), preparing=\(browse.preparing), retry=\(browse.preparationNeedsRetry), remote=\(browse.currentRemoteDestination), error=\(browse.error ?? "none")"
+        browse.browse()
+        do { try await wait("Owned remote picker") { browseOwner.remoteReferenceController != nil } }
+        catch { throw Failure(message:"Owned remote picker: before={\(browseReadiness)}, after: closed=\(browse.closed), busy=\(browse.busy), preparing=\(browse.preparing), retry=\(browse.preparationNeedsRetry), browsing=\(browse.browsing), remote=\(browse.currentRemoteDestination), error=\(browse.error ?? "none"), sheet=\(browseOwner.window?.attachedSheet != nil)") }
         let picker = browseOwner.remoteReferenceController!
         try await wait("Remote picker key preparation and refs") { !picker.model.busy }
         try require(picker.model.error == nil && picker.model.refs == ["main"] && modelPrompts == 4,"Shipping remote picker did not load key")
@@ -215,8 +220,10 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
             value.present = { pendingControllerPrompt = $0; return true }
             pendingCoordinator = value; coordinators.append(value); return value
         }
-        controller.model.load(); try await wait { !controller.model.busy }
+        controller.model.load(); try await wait("Push metadata readiness") { !controller.model.busy && !controller.model.preparing && !controller.model.preparationNeedsRetry }
         controller.model.options.source = "refs/heads/main"; controller.model.options.remote = "origin"
+        controller.model.sourceChanged()
+        try await wait("Push source readiness") { !controller.model.busy && !controller.model.preparing && !controller.model.preparationNeedsRetry }
         // Keep the receiver hidden; the transport still uses the shipping controller model.
         controller.model.onProgress = nil
         controller.model.push(confirmed: true)
@@ -245,7 +252,7 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
                 try await wait("Streamed SSH clone") { progress?.busy == false }
                 try require(progress?.success == true, "Streamed SSH clone failed")
                 if let progress { clone.finish(progress) }
-            } else { try await wait("Direct SSH clone") { !clone.busy } }
+            } else { try await wait("Direct SSH clone") { !clone.activeOperation } }
             try require(results == 1 && clone.error == nil && clone.completed?.standardizedFileURL.path == destination.standardizedFileURL.path, "Native clone result or legacy bookmark callback: streamed=\(streamed), results=\(results), error=\(clone.error ?? "none"), completed=\(clone.completed?.path ?? "none"), destination=\(destination.path)")
             let cloned = GitRepository(root: destination, executable: git)
             let settings = try await cloned.remoteSettings(name: "custom")

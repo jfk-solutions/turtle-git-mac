@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-15",
+  "scope": "Repair SSH native receiver readiness after Fetch/Push/Clone operation ownership changes",
+  "hosted_failure": {
+    "run": 38664961820,
+    "job": 116195757360,
+    "head": "d2a1c81049a8ac52241b0d16d21b0ee9af213318",
+    "step": "Native SSH transport coordinator",
+    "message": "Owned remote picker",
+    "logs": "Read through GitHub fetch_workflow_job_logs"
+  },
+  "cause": "Receiver submitted actions after busy cleared while separate remote/source metadata or Clone authorization was still active. Shipping actions correctly refused those premature requests.",
+  "changes": [
+    "Wait for complete Fetch operationActive readiness before Browse",
+    "Wait for Push metadata readiness, classify the edited source, then await its preparation before submission",
+    "Wait for Clone activeOperation to finish, including authorization, before asserting direct completion",
+    "Retain all key prompt/ref/transport order/result/close/late-response assertions; include source-line and pre/post picker diagnostics"
+  ],
+  "validation": {
+    "production": "Unchanged; no new app/Core build required for fixture corrections",
+    "final_native": {
+      "result": "both engine cases passed",
+      "cases": [
+        "ssh-coordinator/system Git",
+        "ssh-coordinator/bundled Git"
+      ],
+      "log": "build/qa/ssh-transport-readiness-complete-2026-10-15.log",
+      "receivers_reaped": [
+        84596,
+        85569
+      ],
+      "scope": "Encrypted keys, retry/dedup and passphrase cancellation; shipping Push/Fetch/Pull/branch browse; remote tag/browser/Log deletion; controller retirement and late replies; direct/streamed Clone remote-key configuration; Submodule Add snapshots/gitlink/key/bounded failure/Quit/close"
+    },
+    "initial_local_results": [
+      {
+        "log": "build/qa/ssh-transport-owned-picker-2026-10-15.log",
+        "result": "Reproduced Owned remote picker with no terminal model error"
+      },
+      {
+        "log": "build/qa/ssh-transport-owned-picker-final-2026-10-15.log",
+        "result": "Browse passed; later generic wait failed"
+      },
+      {
+        "log": "build/qa/ssh-transport-owned-picker-diagnostic-2026-10-15.log",
+        "result": "Line diagnostic identified Push pending-prompt submission before complete source readiness"
+      },
+      {
+        "log": "build/qa/ssh-transport-readiness-native-2026-10-15.log",
+        "result": "Push passed; Clone assertion ran before authorization transitioned to busy"
+      }
+    ],
+    "cleanup": {
+      "initial_receivers_reaped": [
+        82208,
+        82560,
+        83215,
+        83889
+      ],
+      "final_receivers_reaped": [
+        84596,
+        85569
+      ],
+      "all_recorded_receivers_absent": true
+    },
+    "hosted_after_fix": "Pending a new hosted run; local checks do not establish hosted success",
+    "documentation": {
+      "site_documents": 216,
+      "unresolved_fragments": [],
+      "coverage_ledger": "regenerated",
+      "log": "build/qa/ssh-transport-readiness-site-2026-10-15.log"
+    }
+  },
+  "limits": [
+    "This repairs test submission timing; it does not remove production ownership guards",
+    "Signed sandbox and public SSH server acceptance remain separate work"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

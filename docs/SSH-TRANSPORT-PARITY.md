@@ -217,3 +217,21 @@ This fixes the identified fixture path and reduces repeated native compilation.
 A local focused pass does not establish a full hosted workflow pass or signed SSH
 acceptance. [Batch evidence](qa/ssh-picker-ci-2026-10-13.json) records final checks,
 failures and owned receiver cleanup.
+
+
+## Hosted receiver readiness correction — October 15, 2026
+
+Hosted run 38664961820 failed at the remote-reference picker in the SSH family.
+The local receiver reproduced that failure: waiting for Fetch.busy alone did not
+include its separately owned remote metadata request. The fixture now waits for
+the same complete readiness gate used by Browse. It also awaits Push source
+classification after editing the source and Clone's authorization phase before
+asserting direct completion. Those later mismatches became visible only after
+the first failure was fixed. Shipping ownership guards remain unchanged.
+
+Both engine cases passed the entire SSH family after these corrections, including
+original prompt, exact transport ordering, refs, results, private agent cleanup,
+late-response, Clone and submodule checks. Failure diagnostics now include the
+source line and picker readiness snapshot. See
+[recorded results](qa/ssh-transport-readiness-2026-10-15.json). A new hosted pass
+is still required; local success does not establish signed/public SSH acceptance.
