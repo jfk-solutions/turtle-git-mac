@@ -5,12 +5,35 @@ import TurtleGitCore
 @MainActor final class FormatPatchWindowController: NSWindowController, NSWindowDelegate {
     let model: FormatPatchWindowModel
     var onClosed: () -> Void = {}
-    private var picker: LogWindowController?
-    private var patch: PatchWindowController?
+    private(set) var picker: LogWindowController?
+    private(set) var referencePicker: ReferenceBrowserWindowController?
+    private(set) var directoryPanel: NSOpenPanel?
+    private var retired = false
+    private struct Options: Equatable {
+        let values: [GitReferenceName]
+        let count: Int
+        let mode: FormatPatchWindowModel.Mode
+        let sendMail: Bool, noPrefix: Bool
+    }
+    private var options: Options { Options(values: [model.directory, model.since, model.from, model.to].map { GitReferenceName($0) }, count: model.count, mode: model.mode, sendMail: model.sendMail, noPrefix: model.noPrefix) }
+    private var choiceRequest: UUID?
+    private var pendingDirectory: (UUID, Options, URL?)?
+    var selectedDirectory: (NSOpenPanel) -> URL? = { $0.url }
+    private var pendingChoice: (UUID, Options, FormatPatchWindowModel.Mode, String?)?
+    var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
+    var configureLogPicker: (LogWindowModel) -> Void = { _ in }
+    var presentPicker: (NSWindow, NSWindow) -> Bool = { parent, child in
+        guard parent.attachedSheet == nil else { return false }; parent.beginSheet(child); return true
+    }
+    var presentDirectory: (NSOpenPanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, parent, completion in panel.beginSheetModal(for: parent, completionHandler: completion) }
+    var makeLogPicker: (GitRepository, RepositoryAccessLease?, String?, UserDefaults, @escaping (LogEntry?) -> Void) -> LogWindowController = { repository, access, revision, preferences, choose in
+        LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences, initialRevision: revision)
+    }
+    private(set) var patch: PatchWindowController?
     private var sendPatch: SendMailWorkflow?
     private let mailPreferences: UserDefaults
     private let mailPresentation: ((NSWindowController) -> Void)?
-    var activeOperation: Bool { model.busy || model.progress || model.confirmingCancellation || model.finishScheduled || model.composingMail || model.openingViewer }
+    var activeOperation: Bool { model.hasOptionSheet || model.busy || model.progress || model.confirmingCancellation || model.finishScheduled || model.composingMail || model.openingViewer }
     init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
         mailPreferences = preferences; self.mailPresentation = mailPresentation
         model = FormatPatchWindowModel(repository: repository, access: access, preferences: preferences)
@@ -19,12 +42,16 @@ import TurtleGitCore
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 365), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Format Patch – TurtleGit"
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: FormatPatchDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: FormatPatchDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 680, height: 365))
         window.contentMinSize = NSSize(width: 650, height: 365); window.contentMaxSize = NSSize(width: 4000, height: 365)
         window.center()
-        model.close = { [weak self] in guard let self, !self.activeOperation else { return }; self.window?.performClose(nil) }
+        model.close = { [weak self] in
+            guard let self else { return }
+            if self.model.cancelRead(closeAfter: true) { return }
+            guard !self.activeOperation else { return }; self.window?.performClose(nil)
+        }
         model.chooseDirectory = { [weak self] in self?.chooseDirectory() }
         model.chooseRevision = { [weak self] target in self?.chooseRevision(target) }
         model.showPatch = { [weak self] bytes, alternate in self?.showPatch(bytes, alternate: alternate) }
@@ -38,37 +65,112 @@ import TurtleGitCore
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for: parent) { choose($0 == .alertFirstButtonReturn) }
         }
+        NotificationCenter.default.addObserver(self, selector: #selector(optionSheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         model.load()
 
         DialogGeometry.attach(window, identifier: "FormatPatchDialog", legacyName: "FormatPatchDialog")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation && sender.attachedSheet == nil && patch?.model.busy != true && patch?.window?.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); picker?.close(); picker = nil; patch?.close(); onClosed() }
-    private func chooseDirectory() {
-        guard let window, window.attachedSheet == nil else { return }
-        let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
-        panel.title = "Output Directory"; panel.directoryURL = URL(fileURLWithPath: model.directory)
-        panel.beginSheetModal(for: window) { [weak self] response in
-            guard response == .OK, let folder = panel.url, let self else { return }
-            let lease = RepositoryAccessLease(url: folder)
-            guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { self.model.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
-            self.model.outputAccess = lease; self.model.directory = folder.path
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.cancelRead(closeAfter: true) { return false }
+        return !activeOperation && sender.attachedSheet == nil && patch?.model.busy != true && patch?.window?.attachedSheet == nil
+    }
+    func windowWillClose(_ notification: Notification) {
+        guard !retired else { return }; retired = true
+        NotificationCenter.default.removeObserver(self)
+        choiceRequest = nil; pendingChoice = nil; pendingDirectory = nil; model.hasOptionSheet = false
+        model.saveActionLog(); model.invalidate()
+        if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }
+        directoryPanel?.cancel(nil); directoryPanel = nil
+        referencePicker?.abandonPresentation(); referencePicker = nil
+        picker?.close(); picker = nil; patch?.close(); patch = nil; onClosed()
+    }
+    func chooseDirectory() {
+        guard !retired, model.optionsAvailable, let window, window.attachedSheet == nil else { return }
+        window.makeFirstResponder(nil)
+        let captured = options, request = UUID()
+        choiceRequest = request; model.hasOptionSheet = true
+        let panel = NSOpenPanel(); directoryPanel = panel
+        panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false; panel.title = "Output Directory"; panel.directoryURL = URL(fileURLWithPath: model.directory)
+        presentDirectory(panel, window) { [weak self, weak panel] response in
+            guard let self, !self.retired, self.choiceRequest == request, self.directoryPanel === panel else { return }
+            let selected = response == .OK ? panel.flatMap(self.selectedDirectory) : nil
+            self.directoryPanel = nil; self.pendingDirectory = (request, captured, selected)
+            self.drainDirectory()
         }
     }
-    private func chooseRevision(_ target: FormatPatchWindowModel.Mode) {
-        guard let window, window.attachedSheet == nil else { return }
-        let controller = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak self] entry in
-            self?.picker = nil
-            guard let self, let entry else { return }
-            if target == .since { self.model.since = entry.hash; self.model.mode = .since }
-            else if target == .from { self.model.from = entry.hash; self.model.mode = .from }
-            else { self.model.to = entry.hash; self.model.mode = .from }
-        })
-        picker = controller; controller.model.reload()
-        if let child = controller.window { window.beginSheet(child) }
+    private func acceptDirectory(_ folder: URL) {
+        let lease = RepositoryAccessLease(url: folder)
+        guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { model.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
+        model.outputAccess = lease; model.directory = folder.path
+    }
+    func chooseRevision(_ target: FormatPatchWindowModel.Mode) {
+        guard target != .number, !retired, model.optionsAvailable,
+              picker == nil, referencePicker == nil, let window, window.attachedSheet == nil else { return }
+        // Commit the field editor before capturing the entered range.
+        window.makeFirstResponder(nil)
+        let captured = options, request = UUID()
+        choiceRequest = request; model.hasOptionSheet = true
+        let receive: (String?) -> Void = { [weak self] value in
+            guard let self, !self.retired, self.choiceRequest == request else { return }
+            self.pendingChoice = (request, captured, target, value); self.drainChoice()
+        }
+        let child: NSWindowController
+        if target == .since {
+            let browser = ReferenceBrowserWindowController(repository: model.repository, access: model.access, initial: model.since, preferences: mailPreferences, scope: .excludingTags, onChoose: receive)
+            referencePicker = browser; configureReferencePicker(browser.model)
+            browser.onClosed = { [weak self, weak browser] in
+                guard let self, self.referencePicker === browser else { return }
+                self.referencePicker = nil; self.drainChoice()
+            }
+            child = browser
+        } else {
+            let revision = target == .from ? model.from : model.to
+            let log = makeLogPicker(model.repository, model.access, revision.isEmpty ? nil : revision, mailPreferences) { receive($0?.hash) }
+            picker = log; configureLogPicker(log.model); log.model.showWorkingTree = false
+            log.onClosed = { [weak self, weak log] in
+                guard let self, self.picker === log else { return }
+                self.picker = nil; self.drainChoice()
+            }
+            child = log
+        }
+        guard let childWindow = child.window else { abandonChoice(); return }
+        childWindow.appearance = window.appearance; childWindow.alphaValue = window.alphaValue
+        guard presentPicker(window, childWindow) else { abandonChoice(); return }
+        referencePicker?.model.load()
+    }
+    private func abandonChoice() {
+        choiceRequest = nil; pendingChoice = nil; pendingDirectory = nil; model.hasOptionSheet = false
+        referencePicker?.abandonPresentation(); referencePicker = nil
+        picker?.close(); picker = nil
+    }
+    @objc private func optionSheetEnded() { drainChoice(); drainDirectory() }
+    private func drainDirectory() {
+        guard !retired, let pending = pendingDirectory, choiceRequest == pending.0,
+              window?.attachedSheet == nil, directoryPanel == nil else { return }
+        pendingDirectory = nil; choiceRequest = nil; model.hasOptionSheet = false
+        guard options == pending.1, model.optionsAvailable else { return }
+        if let folder = pending.2 { acceptDirectory(folder) }
+        window?.makeKeyAndOrderFront(nil)
+    }
+    private func drainChoice() {
+        guard !retired, let pending = pendingChoice, choiceRequest == pending.0,
+              window?.attachedSheet == nil, referencePicker == nil, picker == nil else { return }
+        pendingChoice = nil; choiceRequest = nil; model.hasOptionSheet = false
+        guard options == pending.1, model.optionsAvailable else { return }
+        if let value = pending.3 {
+            switch pending.2 {
+            case .since: model.since = value; model.mode = .since
+            case .from: model.from = value; model.mode = .from
+            case .to: model.to = value; model.mode = .from
+            case .number: break
+            }
+        }
+        window?.makeKeyAndOrderFront(nil)
     }
     private func showPatch(_ bytes: Data, alternate: Bool) {
-        let preferences = UnifiedDiffViewerPreferences.load()
+        guard !retired, patch?.model.busy != true, patch?.window?.attachedSheet == nil else { return }
+        let preferences = UnifiedDiffViewerPreferences.load(from: mailPreferences)
         do {
             if case .external(let application) = try preferences.choice(alternate: alternate) {
                 let preview = try UnifiedDiffPreview.create(bytes)
@@ -76,7 +178,7 @@ import TurtleGitCore
                 model.openingViewer = true
                 UnifiedDiffApplication.open(preview.file, application: application, bookmark: preferences.bookmark) { [weak model] error in
                     model?.openingViewer = false
-                    if let error { UnifiedDiffPreviewFiles.discard(preview.file); model?.error = error }
+                    if let error { UnifiedDiffPreviewFiles.discard(preview.file); if model?.isRetired == false { model?.error = error } }
                 }
                 return
             }
@@ -90,6 +192,7 @@ import TurtleGitCore
         }
         controller.window?.title = "Unified Diff – TurtleGit"
         controller.onClosed = { [weak self] in self?.patch = nil }
+        controller.window?.appearance = window?.appearance; controller.window?.alphaValue = window?.alphaValue ?? 1
         patch = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func composeMail(_ files: [URL]) {
@@ -112,7 +215,26 @@ import TurtleGitCore
 }
 
 @MainActor final class FormatPatchWindowModel: ObservableObject {
-    enum Mode { case since, number, from, to }
+    private(set) static var activeOperations = 0
+    enum Mode: Equatable { case since, number, from, to }
+    @Published var hasOptionSheet = false
+    var optionsAvailable: Bool { !invalidated && !hasOptionSheet && !busy && !progress && !finishScheduled && !confirmingCancellation && !composingMail && !openingViewer }
+    var isRetired: Bool { invalidated }
+    private var readCancellation: OperationCancellation?
+    private var closeAfterRead = false
+    func cancelRead(closeAfter: Bool = false) -> Bool {
+        guard let token = readCancellation else { return false }
+        closeAfterRead = closeAfterRead || closeAfter; token.cancel(); return true
+    }
+    private func beginRead() -> OperationCancellation {
+        let token = OperationCancellation(); readCancellation = token; busy = true; Self.activeOperations += 1; return token
+    }
+    private func finishRead(_ token: OperationCancellation) {
+        Self.activeOperations -= 1; withExtendedLifetime(access) {}
+        guard readCancellation === token else { return }
+        readCancellation = nil; busy = false
+        if closeAfterRead, !invalidated { closeAfterRead = false; close() }
+    }
     let repository: GitRepository
     let access: RepositoryAccessLease?
     var outputAccess: RepositoryAccessLease?
@@ -144,7 +266,7 @@ import TurtleGitCore
     @Published var cancelled = false
     @Published private(set) var confirmingCancellation = false
     @Published private(set) var finishScheduled = false
-    private let preferences: UserDefaults
+    let preferences: UserDefaults
     private var invalidated = false
     private var progressClosePolicy = GitProgressAutoClose.manual
     private var cancellation: OperationCancellation?
@@ -157,9 +279,9 @@ import TurtleGitCore
     var composeMail: ([URL]) -> Void = { _ in }
     var onOutputChanged: (String) -> Void = { _ in }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    func invalidate() { invalidated = true; confirmingCancellation = false; progress = false; cancellation?.cancel() }
+    func invalidate() { invalidated = true; readCancellation?.cancel(); confirmingCancellation = false; progress = false; cancellation?.cancel() }
     func apply(_ preset: FormatPatchPreset?) {
-        guard let preset, !busy, !progress, !finishScheduled, !invalidated, !composingMail, !openingViewer else { return }
+        guard let preset, optionsAvailable else { return }
         from = preset.from; to = preset.to
         switch preset.selection {
         case .since(let value): since = value; mode = .since
@@ -183,34 +305,37 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func load() {
-        guard !busy, !progress, !finishScheduled, !composingMail, !openingViewer, !invalidated else { return }; busy = true
+        guard optionsAvailable else { return }
+        let token = beginRead()
         Task {
-            defer { busy = false }
+            defer { finishRead(token) }
             do {
                 try checkAccess()
-                hasHead = try await repository.run(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1).exitCode == 0
-                bare = try await repository.isBare()
-                references = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst).filter { !$0.name.hasPrefix("refs/tags/") && $0.symbolicTarget == nil }.map(\.name)
-            } catch { self.error = error.localizedDescription }
+                let head = try await repository.run(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1, cancellation: token).exitCode == 0
+                let isBare = try await repository.isBare(cancellation: token)
+                let names = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token).filter { !$0.name.hasPrefix("refs/tags/") && $0.symbolicTarget == nil }.map(\.name)
+                guard !invalidated, !token.isCancelled else { return }
+                hasHead = head; bare = isBare; references = names
+            } catch { if !invalidated && !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     private func remember(_ value: String, key: String) {
         guard !value.isEmpty else { return }
         let old = preferences.stringArray(forKey: key) ?? []
-        preferences.set(Array(([value] + old.filter { $0 != value }).prefix(25)), forKey: key)
+        preferences.set(Array(([value] + old.filter { !GitReferenceName.equal($0, value) }).prefix(25)), forKey: key)
     }
-    var valid: Bool { hasHead && !directory.isEmpty && (mode == .number || (mode == .since ? !since.isEmpty : !from.isEmpty && !to.isEmpty)) }
+    var valid: Bool { hasHead && !directory.isEmpty && (mode == .number ? (1...Int(Int32.max)).contains(count) : (mode == .since ? !since.isEmpty : !from.isEmpty && !to.isEmpty)) }
     var progressStatus: String {
         if busy { return cancelRequested ? "Stopping Git…" : "Creating patches…" }
         if cancelled { return "Cancelled" }
         return success ? "Finished" : "Failed"
     }
     func export() {
-        guard !busy, !progress, !finishScheduled, !confirmingCancellation, !invalidated, !composingMail, !openingViewer, valid else { return }
+        guard optionsAvailable, valid else { return }
         let folder = URL(fileURLWithPath: directory).standardizedFileURL
         if GitRuntime.isAppStoreBuild && !((access?.hasSecurityScope == true && access?.contains(folder) == true) || (outputAccess?.hasSecurityScope == true && outputAccess?.contains(folder) == true)) { chooseDirectory(); return }
         let selection: FormatPatchSelection = mode == .since ? .since(since) : mode == .number ? .number(count) : .range(from: from, to: to)
-        let prefix = noPrefix; exportSendMail = sendMail
+        let prefix = noPrefix, capturedOutputAccess = outputAccess; exportSendMail = sendMail
         remember(directory, key: "FormatPatchDirectories"); remember(from, key: "FormatPatchFrom"); remember(to, key: "FormatPatchTo")
         if mode == .since { preferences.set(since, forKey: sinceKey) }
         preferences.set(sendMail, forKey: "FormatPatchSendMail"); preferences.set(prefix, forKey: "FormatPatchNoPrefix")
@@ -221,10 +346,12 @@ import TurtleGitCore
         currentWork = ""; percentage = nil; completionRange = nil
         cancelRequested = false; cancelled = false
         let token = OperationCancellation(); cancellation = token
+        Self.activeOperations += 1
         let startedAt = ProcessInfo.processInfo.systemUptime
         Task {
             var exitCode: Int32?
             defer {
+                Self.activeOperations -= 1; withExtendedLifetime(access) {}; withExtendedLifetime(capturedOutputAccess) {}
                 busy = false; cancellation = nil
                 if !invalidated {
                     let completion = SubmoduleProgressCompletion(success: success, cancelled: cancelled, exitCode: exitCode,
@@ -308,26 +435,23 @@ import TurtleGitCore
         }
     }
     func unifiedDiff(alternate: Bool = false, onResult: ((Data) -> Void)? = nil) {
-        guard !busy, !progress, !finishScheduled, !invalidated, !composingMail, !openingViewer, hasHead, !bare else { return }
+        guard optionsAvailable, hasHead, !bare else { return }
         let prefix = noPrefix
-        preferences.set(prefix, forKey: "FormatPatchNoPrefix"); busy = true
+        preferences.set(prefix, forKey: "FormatPatchNoPrefix"); let token = beginRead()
         Task {
-            defer { busy = false }
+            defer { finishRead(token) }
             do {
                 try checkAccess()
-                let result = try await repository.run(["diff", "--no-ext-diff", "--no-color", "--stat", "--patch"] + (prefix ? ["--no-prefix"] : []) + ["--end-of-options", "HEAD", "--"])
-                guard !invalidated else { return }
+                let result = try await repository.run(["diff", "--no-ext-diff", "--no-color", "--stat", "--patch"] + (prefix ? ["--no-prefix"] : []) + ["--end-of-options", "HEAD", "--"], cancellation: token)
+                guard !invalidated, !token.isCancelled else { return }
                 if let onResult { onResult(result.stdout) } else { showPatch(result.stdout, alternate) }
-            } catch { self.error = error.localizedDescription }
+            } catch { if !invalidated && !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
 }
 
 struct FormatPatchDialog: View {
     @ObservedObject var model: FormatPatchWindowModel
-    @State private var browseSince = false
-    @State private var reference: String?
-    @State private var referenceSearch = ""
     func radio(_ title: String, mode: FormatPatchWindowModel.Mode) -> some View {
         FormatPatchRadio(title: title, selected: model.mode == mode) { model.mode = mode }.frame(width: 145, alignment: .leading)
     }
@@ -341,7 +465,7 @@ struct FormatPatchDialog: View {
             GroupBox("Version") { VStack(spacing: 8) {
                 HStack { radio("Since", mode: .since)
                     FormatPatchCombo(value: $model.since, choices: model.references, label: "Since revision").disabled(model.mode != .since)
-                    Button("…") { browseSince = true }.accessibilityLabel("Browse branches").disabled(model.mode != .since)
+                    Button("…") { model.chooseRevision(.since) }.accessibilityLabel("Browse branches").disabled(model.mode != .since)
                 }
                 HStack { radio("Number Commits", mode: .number)
                     TextField("Commit count", value: $model.count, format: .number.grouping(.never)).disabled(model.mode != .number)
@@ -363,19 +487,11 @@ struct FormatPatchDialog: View {
                 Spacer(); if model.busy { ProgressView().controlSize(.small) }
                 Button("OK") { model.export() }.keyboardShortcut(.defaultAction).disabled(!model.valid)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
+                    .environment(\.isEnabled, !model.isRetired && !model.hasOptionSheet && !model.progress && !model.finishScheduled && !model.composingMail && !model.openingViewer)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html")!) }
             }
-        }.padding(16).disabled(model.busy || model.progress || model.finishScheduled || model.composingMail || model.openingViewer)
+        }.padding(16).disabled(!model.optionsAvailable)
         .alert("Format Patch", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
-        .sheet(isPresented: $browseSince) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Browse references").font(.headline)
-                TextField("Filter branches", text: $referenceSearch).onChange(of: referenceSearch) { _ in reference = nil }
-                List(model.references.filter { referenceSearch.isEmpty || $0.localizedCaseInsensitiveContains(referenceSearch) }, id: \.self, selection: $reference) { Text($0) }.frame(minHeight: 250)
-                HStack { Spacer(); Button("Cancel") { browseSince = false }.keyboardShortcut(.cancelAction)
-                    Button("OK") { if let reference { model.since = reference; model.mode = .since }; browseSince = false }.keyboardShortcut(.defaultAction).disabled(reference == nil) }
-            }.padding(16).frame(width: 500)
-        }
         .sheet(isPresented: $model.progress) {
             FormatPatchProgressDialog(model: model).environment(\.isEnabled, true)
                 .interactiveDismissDisabled()

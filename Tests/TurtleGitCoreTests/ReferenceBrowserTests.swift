@@ -25,6 +25,25 @@ final class ReferenceBrowserTests: XCTestCase {
         XCTAssertTrue(snapshot.references.allSatisfy { $0.name.rawValue.hasPrefix("refs/heads/") || $0.name.rawValue.hasPrefix("refs/tags/") })
         XCTAssertFalse(snapshot.references.contains { $0.name.rawValue.hasPrefix("refs/remotes/") })
     }
+    func testNoTagPickerPreservesCustomAndStashNamespaces() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["tag", "not-a-branch"])
+        _ = try await repo.run(["update-ref", "refs/remotes/origin/topic", "HEAD"])
+        _ = try await repo.run(["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/topic"])
+        _ = try await repo.run(["update-ref", "refs/custom/hidden", "HEAD"])
+        _ = try await repo.run(["update-ref", "refs/stash", "HEAD"])
+        let snapshot = try await repo.referenceBrowser(scope: .excludingTags)
+        XCTAssertTrue(snapshot.references.contains { $0.name.rawValue.hasPrefix("refs/heads/") })
+        XCTAssertTrue(snapshot.references.contains { $0.name.rawValue == "refs/remotes/origin/topic" })
+        XCTAssertTrue(snapshot.references.contains { $0.name.rawValue == "refs/custom/hidden" })
+        XCTAssertTrue(snapshot.references.contains { $0.name.rawValue == "refs/stash" })
+        XCTAssertFalse(snapshot.references.contains { $0.name.rawValue.hasPrefix("refs/tags/") })
+        XCTAssertEqual(snapshot.initialSelection("origin/topic").reference?.rawValue, "refs/remotes/origin/topic")
+        XCTAssertFalse(snapshot.folders.contains("refs/tags"))
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.referenceBrowser(scope: .excludingTags, cancellation: token); XCTFail("Cancelled picker returned a catalog") }
+        catch { XCTAssertTrue(token.isCancelled) }
+    }
     func testRemoteResolutionUsesConfiguredOrderAndExactNamespaces() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         // Recent Git refuses creating a remote below another remote's namespace.

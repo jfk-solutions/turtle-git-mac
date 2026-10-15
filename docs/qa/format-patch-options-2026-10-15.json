@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-15",
+  "scope": "Connected Create Patch Serial options, revision/folder ownership, cancellable reads and existing progress/streaming family",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "FormatPatchDlg.cpp: OnBnClickedButtonRef/From/To/Dir, OnBnClickedRadio, OnBnClickedButtonUnifieddiff",
+      "BrowseRefsDlg.cpp: gPickRef_NoTag namespace filtering",
+      "TortoiseProcENG.rc: IDD_FORMAT_PATCH"
+    ]
+  },
+  "implementation": [
+    "Shared no-tag Browse References retains stash/custom refs; single Log starts at entered From/To",
+    "One captured options ticket, post-sheet application, stale/refused/duplicate/Cancel/retirement guards",
+    "Owned folder panel and output lease; private preferences and appearance propagation",
+    "Cancellable metadata and unified reads; global Quit accounting after forced close; captured export grant",
+    "Source INT_MAX bounds and owned read-only preview",
+    "Recorded 24 partial native control mappings; no new complete dialog claim"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/format-patch-options-build-complete-2026-10-15.log",
+      "initial_failure": "Ambiguous GitReferenceName initializer; explicit closure repaired.",
+      "diagnostics": "Existing exit-code-zero/no-output SwiftCompile diagnostics remain."
+    },
+    "core": {
+      "unique_tests": 30,
+      "failures": 0,
+      "group_log": "build/qa/format-patch-options-core-final-2026-10-15.log",
+      "last_affected_tests": 1,
+      "last_affected_failures": 0,
+      "last_affected_log": "build/qa/format-patch-options-core-complete-2026-10-15.log",
+      "scope": "ReferenceBrowserTests and FormatPatchTests; final new-scope recheck after source correction; full suite not rerun."
+    },
+    "native": {
+      "runs": 6,
+      "failures": 0,
+      "engines": [
+        "/usr/bin/git",
+        "Debug TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+      ],
+      "fixtures": [
+        "docs/qa/format-patch-options-native-2026-10-15.swift",
+        "docs/qa/format-patch-progress-native-2026-10-08.swift",
+        "docs/qa/format-patch-stream-native-2026-10-10.swift"
+      ],
+      "log": "build/qa/format-patch-options-native-final-2026-10-15.log",
+      "initial_fixture_compile_failure": "Private selection setter and async beginSheet overload corrected; no receiver launched by failed compilation.",
+      "receivers_reaped_and_checked_absent": [
+        21908,
+        22113,
+        22254,
+        22323,
+        22522,
+        22661
+      ],
+      "coverage": [
+        "Actual no-tag and From/To callbacks in light/dark hidden hosts",
+        "Refused, cancelled and stale options; deferred folder acceptance, grants and late closed replies",
+        "Invalid count bounds, real HEAD-to-working read-only viewer and owner cleanup",
+        "Initial read requested/forced close and unified read forced close with actual helper leader/child reaping",
+        "Existing all-mode/policy exports, captured mail URLs, actual git am equality, failures, output limits and partial cancellation",
+        "HEAD/index/config unchanged by options/preview"
+      ],
+      "diagnostics": "Hidden-view NSSplitView zero-frame warnings; no screenshot or physical input claim."
+    },
+    "site": {
+      "status": "passed",
+      "log": "build/qa/format-patch-options-site-2026-10-15.log",
+      "exit_code": 0,
+      "documents": 216,
+      "unresolved_fragments": []
+    }
+  },
+  "ci_observation": {
+    "commit": "f7c84fb2",
+    "pages": "success",
+    "macos": "pending",
+    "older_live_run": 38688088886,
+    "older_live_step": "Git integration tests",
+    "note": "Snapshot before this batch commit, not current-batch hosted acceptance."
+  },
+  "remaining": [
+    "Physical keyboard/menu/folder gestures, complete source layout and VoiceOver acceptance",
+    "Live external viewer and mail handoff, all metadata failures/large repositories",
+    "Signed output/repository grants, Finder and App Store acceptance; full port remains incomplete"
+  ],
+  "preserved_unrelated_wip": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

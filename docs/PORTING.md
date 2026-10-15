@@ -1113,3 +1113,11 @@ separate native comparison of private read-only stage snapshots. Debug, 16 Core
 checks and grouped native source/editor checks passed; source path rebinding,
 physical/visual/signed acceptance remain open. See
 [source tools](MERGE-SOURCE-TOOLS-PARITY.md).
+
+
+Create Patch Serial now uses source no-tag Browse References and entered-revision
+single-selection Log pickers, captured folder/range ownership, cancellable initial
+and unified reads, source count limits and private viewer preferences. The connected
+options/progress/streaming family passed grouped system/bundled native checks and
+30 affected Core cases (plus the changed no-tag case recheck). Physical and signed
+acceptance remain open; see [Format Patch](FORMAT-PATCH-PARITY.md).

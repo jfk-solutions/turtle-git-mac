@@ -223,3 +223,53 @@ app instance was launched.
 message foundation. The Format Patch composition consumer is not yet routed
 through it; a native Send Patch options foundation now exists, but caller
 routing and delivery remain pending.
+
+
+## Connected Create Patch Serial options family — October 15, 2026
+
+The Since button now opens the shared native Browse References tree/list with
+its original context artwork, filter and metadata columns. It starts at the
+entered reference and follows `gPickRef_NoTag`: tags are omitted while local,
+remote, stash and custom namespaces survive. This replaces the reduced flat
+branch chooser. From/To open single-selection Log at the respective entered
+revision, with working-tree rows suppressed. Production callers configure the
+same downstream Log/reference commands used by other revision pickers.
+
+The options window owns one revision/folder request at a time. Fields, presets,
+export, loading and unified preview are gated until the sheet ends. Results
+capture exact input spellings and options; changed drafts, duplicate answers,
+refused presentation and retired owners cannot replace them. The folder chooser
+retains its output access lease and fences delayed callbacks. Both picker types
+inherit the owner appearance/visibility and private preferences. Accepted or
+cancelled picks restore the owning window after sheet retirement.
+
+Initial metadata and HEAD-to-working unified reads now share cancellable owned
+Git processing. Closing during a read cancels and waits before ordinary closure;
+forced closure retires callbacks while global operation accounting and repository
+permissions survive until processing settles. Exports also retain independent
+operation accounting and the captured output grant, including after owner removal.
+Cancel remains available during metadata/preview reads. Number mode disables OK
+outside the source's 1…INT_MAX range. Unified preview honors the owner's viewer
+preferences, remains read-only, inherits appearance/visibility and closes with
+its owner. The existing Send Mail handoff now uses the shared Send Patch workflow;
+older native-mail-service-only statements above are historical checkpoints.
+
+The Debug build passed. Thirty affected Core tests passed; after tightening the
+new no-tags scope to preserve source custom/stash refs, its affected case passed
+again. Six grouped native runs (options, policies, streaming for system/bundled
+Git) passed, covering actual picker callbacks, folder acceptance/capture, real
+read-only preview, real Since/Number/Range exports, git-am tree equality, failure,
+partial-output cancellation and closed-owner process reaping. Receiver compilation
+now links once against current Debug objects and caches by objects, modules,
+fixtures and toolchain; CI groups these checks into one invocation. No full Core
+suite or additional Store build was repeated for this batch.
+
+The initial compile found an ambiguous initializer and was repaired. The native
+fixture initially used a private selection setter and the async sheet overload;
+those fixture calls were corrected before all six passing runs. Existing Xcode
+exit-zero/no-output diagnostics and hidden-view split-layout warnings are recorded,
+not described as clean diagnostics. No screenshots, physical gestures, live mail
+or external application, signed grants, Finder or App Store acceptance are proved
+by these hidden checks. All receivers were reaped and independently checked absent.
+See [options-family evidence](qa/format-patch-options-2026-10-15.json). This remains
+partial source parity.

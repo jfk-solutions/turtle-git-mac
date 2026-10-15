@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
-public enum ReferenceBrowserScope: Sendable { case all, heads, headsAndTags, remotes }
+public enum ReferenceBrowserScope: Sendable { case all, heads, headsAndTags, excludingTags, remotes }
 /// Remote names may themselves contain slashes. Resolve the longest configured
 /// prefix, preserving the branch and remote as literal Git names.
 public struct RemoteTrackingSelection: Equatable, Sendable {
@@ -126,6 +126,8 @@ extension GitRepository {
             records.append(record); index += atoms.count
         }
         guard values.dropFirst(index).allSatisfy({ $0.isEmpty || $0 == "\n" }) else { throw ReferenceBrowserFailure.output }
+        // gPickRef_NoTag suppresses tags while retaining stash/custom namespaces.
+        if scope == .excludingTags { records.removeAll { $0[0].utf8.starts(with: "refs/tags/".utf8) } }
         // Include all remote names in the gone check, independently of merge filtering.
         let remoteNames = Set(try checkoutReferences(includeAll: true, cancellation: cancellation).filter(\.remote).map { GitReferenceName($0.name) })
         var descriptions: [GitReferenceName: String] = [:]

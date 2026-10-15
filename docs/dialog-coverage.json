@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 818,
-    "mapped_controls": 841,
+    "pending_control_reviews": 794,
+    "mapped_controls": 865,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -2116,15 +2116,25 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 24,
-      "mapped_controls": 0,
-      "pending_control_reviews": 24,
+      "mapped_controls": 24,
+      "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FormatPatchWindow.swift",
+          "anchor": "struct FormatPatchDialog"
+        },
+        {
+          "path": "Sources/TurtleGitMac/FormatPatchWindow.swift",
+          "anchor": "final class FormatPatchWindowController"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/FORMAT-PATCH-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/format-patch-options-2026-10-15.json",
         "docs/qa/format-patch-progress-2026-10-08.json",
         "docs/qa/format-patch-stream-2026-10-10.json"
       ]

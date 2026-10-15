@@ -1884,7 +1884,9 @@ import UniformTypeIdentifiers
         let existing = formatPatchWindows[key]
         let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset, sendMail: sendMail)
         if existing != nil { controller.model.apply(preset) }
-        if sendMail && !controller.model.busy && !controller.model.progress && !controller.model.composingMail { controller.model.sendMail = true }
+        if sendMail && controller.model.optionsAvailable { controller.model.sendMail = true }
+        controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
+        controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.onClosed = { [weak self] in self?.formatPatchWindows.removeValue(forKey: key) }
         controller.model.onOutputChanged = { [weak self] output in
             self?.statusWindows[rootKey]?.model.requestReload()
