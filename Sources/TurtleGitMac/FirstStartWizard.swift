@@ -8,6 +8,7 @@ import TurtleGitCore
     enum Page: Int, CaseIterable { case language, welcome, git, user, authentication }
     @Published var page = Page.language
     @Published private(set) var busy = false
+    @Published private(set) var writing = false
     @Published var name = ""
     @Published var email = ""
     @Published var helper = ""
@@ -16,10 +17,22 @@ import TurtleGitCore
     @Published var helpers = [String]()
     @Published var advanced = false
     @Published private(set) var hasCredentialSheet = false
-    private var credentialController: CredentialSettingsController?
-    private var keyGenerationController: SSHKeyGenerationWindowController?
+    private(set) var credentialController: CredentialSettingsController?
+    private(set) var keyGenerationController: SSHKeyGenerationWindowController?
     @Published var error: String?
-    let git = GeneralGitSettingsModel()
+    let git: GeneralGitSettingsModel
+    private let preferences: UserDefaults
+    private let makeRepository: (URL, OperationCancellation) async throws -> GitRepository
+    private var task: Task<Void, Never>?
+    private var token: OperationCancellation?
+    init(preferences: UserDefaults = .standard, makeRepository: @escaping (URL, OperationCancellation) async throws -> GitRepository = { engine, token in
+        try token.check(); return try GitRepository(root: TurtleGitTemporaryStorage.root, executable: engine)
+    }) {
+        self.preferences = preferences; self.makeRepository = makeRepository; git = GeneralGitSettingsModel(preferences: preferences)
+    }
+    var canNavigate: Bool { !busy && !git.busy && !hasCredentialSheet && !retired }
+    var canCancel: Bool { !writing && !hasCredentialSheet && !retired }
+
     private var repository: GitRepository?
     private var panel: NSOpenPanel?
     private var permissionReply: ((Bool) -> Void)?
@@ -35,43 +48,49 @@ import TurtleGitCore
         case .authentication: return "Authentication and credential store"
         }
     }
-    func activate() { git.activate() }
+    func activate() { guard !retired else { return }; git.activate() }
     func retire() {
-        retired = true; git.suspend()
+        guard !retired else { return }; retired = true; token?.cancel(); task?.cancel(); git.suspend()
         credentialController?.model.deactivate(); credentialController?.window?.close(); credentialController = nil; hasCredentialSheet = false
         keyGenerationController?.model.retire(); keyGenerationController?.window?.close(); keyGenerationController = nil
         if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
         let reply = permissionReply; permissionReply = nil; reply?(false); finish = {}
     }
     func generateSSHKey() {
-        guard !busy, !hasCredentialSheet, !retired, let window, window.attachedSheet == nil else { return }
+        guard canNavigate, page == .authentication, let window, window.attachedSheet == nil else { return }
         let controller = SSHKeyGenerationWindowController(); keyGenerationController = controller; hasCredentialSheet = true
         controller.onClosed = { [weak self, weak controller] in
             guard let self, self.keyGenerationController === controller else { return }
             self.keyGenerationController = nil; self.hasCredentialSheet = false
         }
-        if let sheet = controller.window { window.beginSheet(sheet) }
+        if let sheet = controller.window { sheet.alphaValue = window.alphaValue; sheet.appearance = window.appearance; window.beginSheet(sheet) }
     }
     func configureCredentials() {
-        guard !busy, !hasCredentialSheet, !retired, let repository, let window, window.attachedSheet == nil else { return }
+        guard canNavigate, page == .authentication, let repository, let window, window.attachedSheet == nil else { return }
+        skipHelper = true // Upstream Advanced explicitly selects Don’t store.
         let controller = CredentialSettingsController(repository: repository, access: nil, localAvailable: false)
         credentialController = controller; hasCredentialSheet = true
         controller.onClosed = { [weak self, weak controller] in
             guard let self, self.credentialController === controller else { return }
             self.credentialController = nil; self.hasCredentialSheet = false
             guard !self.retired else { return }
-            self.busy = true
-            Task {
-                defer { self.busy = false }
-                do {
-                    let configuration = try await repository.firstStartConfiguration()
-                    guard !self.retired else { return }
-                    self.helpers = configuration.helpers; self.helper = configuration.selectedHelper
-                    self.advanced = configuration.advancedCredentials; self.skipHelper = configuration.advancedCredentials
-                } catch { if !self.retired { self.error = error.localizedDescription } }
-            }
+            self.reloadAuthentication(repository)
         }
-        if let sheet = controller.window { window.beginSheet(sheet) }
+        if let sheet = controller.window { sheet.alphaValue = window.alphaValue; sheet.appearance = window.appearance; window.beginSheet(sheet) }
+    }
+    private func reloadAuthentication(_ repository: GitRepository) {
+        guard !retired, !busy else { return }
+        let token = OperationCancellation(); self.token = token; busy = true; Self.activeWrites += 1
+        task = Task {
+            defer { Self.activeWrites -= 1; busy = false; self.token = nil; task = nil }
+            do {
+                let configuration = try await repository.firstStartConfiguration(cancellation: token)
+                guard !retired, !token.isCancelled else { return }
+                helpers = configuration.helpers; helper = configuration.selectedHelper
+                advanced = configuration.advancedCredentials
+                if advanced { skipHelper = true }
+            } catch { if !retired && !token.isCancelled { self.error = error.localizedDescription } }
+        }
     }
     private func authorize(_ file: URL) async -> Bool {
         if GitConfigurationPermissions.authorized(file) { return true }
@@ -92,65 +111,84 @@ import TurtleGitCore
             }
         }
     }
-    private func prepareConfiguration() async throws -> GitRepository? {
-        let repository = try GitRepository(root: TurtleGitTemporaryStorage.root, executable: GitRuntime.executable())
-        let files = try await repository.gitConfigurationFiles(hasRepository: false)
+    private func prepareConfiguration(_ token: OperationCancellation) async throws -> GitRepository? {
+        let repository = try await makeRepository(GitRuntime.executable(preferences: preferences), token)
+        try token.check()
+        let files = try await repository.gitConfigurationFiles(hasRepository: false, cancellation: token)
         for file in [files.global, files.xdg].compactMap({ $0 }) { guard await authorize(file), !retired else { return nil } }
         return repository
     }
     func next() {
-        guard !busy, !git.busy, !hasCredentialSheet, !retired else { return }
+        guard canNavigate else { return }
         error = nil
         if page == .language || page == .welcome { page = Page(rawValue: page.rawValue + 1)!; return }
-        let current = page; busy = true; Self.activeWrites += 1
-        Task {
-            defer { busy = false; Self.activeWrites -= 1 }
+        let current = page, submittedName = name, submittedEmail = email, submittedHelper = helper
+        let skipIdentity = skipUser, skipCredentials = skipHelper || advanced, token = OperationCancellation()
+        self.token = token; busy = true; Self.activeWrites += 1
+        task = Task {
+            defer { busy = false; writing = false; self.token = nil; task = nil; Self.activeWrites -= 1 }
             do {
+                try token.check()
                 if current == .git {
-                    guard await git.apply(validateUnchanged: true), !retired else { error = git.error; return }
-                    guard let repository = try await prepareConfiguration(), !retired else { return }
-                    let configuration = try await repository.firstStartConfiguration()
+                    guard await git.apply(validateUnchanged: true, cancellation: token), !retired else { if !retired && !token.isCancelled { error = git.error }; return }
+                    guard let repository = try await prepareConfiguration(token), !retired else { return }
+                    let configuration = try await repository.firstStartConfiguration(cancellation: token)
                     guard !retired else { return }
                     let reloadFields = self.repository == nil || self.repository?.executable != repository.executable
                     self.repository = repository
-                    if reloadFields { name = configuration.name; email = configuration.email; helper = configuration.selectedHelper; skipHelper = configuration.advancedCredentials }
+                    if reloadFields { name = configuration.name; email = configuration.email; helper = configuration.selectedHelper }
                     helpers = configuration.helpers; advanced = configuration.advancedCredentials
                     if advanced { skipHelper = true }; page = .user
                 } else if current == .user {
                     guard let repository else { return }
-                    if !skipUser { try await repository.saveFirstStartIdentity(name: name, email: email) }
+                    if !skipIdentity {
+                        writing = true
+                        try await repository.saveFirstStartIdentity(name: submittedName, email: submittedEmail)
+                        writing = false
+                    }
                     guard !retired else { return }; page = .authentication
                 } else {
                     guard let repository else { return }
-                    if !skipHelper && !advanced { try await repository.saveFirstStartCredentialHelper(helper) }
+                    if !skipCredentials {
+                        writing = true
+                        try await repository.saveFirstStartCredentialHelper(submittedHelper)
+                        writing = false
+                    }
                     guard !retired else { return }
-                    UserDefaults.standard.set(true, forKey: "TurtleGit.FirstStartComplete"); finish()
+                    preferences.set(true, forKey: "TurtleGit.FirstStartComplete"); finish()
                 }
-            } catch { if !retired { self.error = error.localizedDescription } }
+            } catch { if !retired && !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func back() { guard !busy, !git.busy, !hasCredentialSheet, page != .language else { return }; page = Page(rawValue: page.rawValue - 1)!; error = nil }
+    func back() { guard canNavigate, page != .language else { return }; page = Page(rawValue: page.rawValue - 1)!; error = nil }
 }
 @MainActor final class FirstStartWizardController: NSWindowController, NSWindowDelegate {
-    let model = FirstStartWizardModel()
+    let model: FirstStartWizardModel
     var onClosed: () -> Void = {}
-    init() {
-        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 700, height: 530), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    init(preferences: UserDefaults = .standard, makeRepository: @escaping (URL, OperationCancellation) async throws -> GitRepository = { engine, token in
+        try token.check(); return try GitRepository(root: TurtleGitTemporaryStorage.root, executable: engine)
+    }) {
+        model = FirstStartWizardModel(preferences: preferences, makeRepository: makeRepository)
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 700, height: 560), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "First Start Wizard – TurtleGit for Mac"; window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: FirstStartWizardDialog(model: model, git: model.git))
+        let host = NSHostingController(rootView: FirstStartWizardDialog(model: model, git: model.git)); host.sizingOptions = []
+        window.contentViewController = host
+        window.setContentSize(NSSize(width: 700, height: 560))
         super.init(window: window); window.delegate = self; window.center()
         model.window = window; model.git.window = window; model.activate()
         model.finish = { [weak window] in window?.close() }
         DialogGeometry.attach(window, identifier: "FirstStartWizard")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.git.busy && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { model.canCancel && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { model.retire(); onClosed() }
 }
 private struct FirstStartWizardDialog: View {
     @ObservedObject var model: FirstStartWizardModel
     @ObservedObject var git: GeneralGitSettingsModel
-    private var blocked: Bool { model.busy || git.busy || model.hasCredentialSheet }
+    @FocusState private var focused: Field?
+    private enum Field { case gitPath, name, email }
+    private var blocked: Bool { !model.canNavigate }
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
@@ -169,34 +207,51 @@ private struct FirstStartWizardDialog: View {
                     Link("Read the TurtleGit documentation", destination: URL(string: "https://jfk-solutions.github.io/turtle-git-mac/")!)
                     Text("Changes saved with Next remain saved if you cancel a later step. Git user and credential settings are stored globally and provide defaults for your repositories.")
                 case .git:
-                    Picker("Git engine:", selection: $git.draft.choice) {
+                    Text("TurtleGit requires Git for its operations. Use the bundled engine, or choose an installed Git executable.").fixedSize(horizontal: false, vertical: true)
+                    Picker("Git engine:", selection: Binding(get: { GitRuntime.isAppStoreBuild ? .automatic : git.draft.choice }, set: { git.draft.choice = $0 })) {
                         Text("Automatic (bundled when available)").tag(GitEngineChoice.automatic)
                         Text("System Git").tag(GitEngineChoice.system); Text("Custom Git").tag(GitEngineChoice.custom)
                     }.disabled(GitRuntime.isAppStoreBuild)
-                    HStack { TextField("Git executable", text: Binding(get: { git.draft.path }, set: { git.draft.path = $0; git.draft.bookmark = nil })); Button("Browse…", action: git.browse) }.disabled(GitRuntime.isAppStoreBuild || git.draft.choice != .custom)
-                    TextField("Extra PATH:", text: $git.draft.extraPath).disabled(GitRuntime.isAppStoreBuild)
-                    HStack { Text(git.version); Spacer(); Button("Check now", action: git.check) }
-                    Text(GitRuntime.isAppStoreBuild ? "Git and OpenSSH are included in this App Store build." : "Next checks and saves the selected engine. Existing repository windows keep their captured engine until reopened.").foregroundStyle(.secondary)
+                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
+                        GridRow {
+                            Text("Git executable:")
+                            HStack {
+                                TextField("Git executable", text: Binding(get: { git.draft.path }, set: { git.draft.path = $0; git.draft.bookmark = nil })).focused($focused, equals: .gitPath).accessibilityIdentifier("FirstStart.GitPath")
+                                Button("Browse…", action: git.browse)
+                            }.disabled(GitRuntime.isAppStoreBuild || git.draft.choice != .custom)
+                        }
+                        GridRow { Text("Extra PATH:"); TextField("Extra PATH", text: $git.draft.extraPath).disabled(GitRuntime.isAppStoreBuild).accessibilityIdentifier("FirstStart.ExtraPath") }
+                    }
+                    HStack { Text(git.version).textSelection(.enabled); Spacer(); Button("Check now", action: git.check) }
+                    Text(GitRuntime.isAppStoreBuild ? "Git and OpenSSH are included in this App Store build." : "Next checks and saves the selected engine. Existing repository windows keep their captured engine until reopened.").font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     if let error = git.error { Text(error).foregroundStyle(.red) }
                 case .user:
-                    TextField("Name:", text: $model.name).disabled(model.skipUser)
-                    TextField("Email:", text: $model.email).disabled(model.skipUser)
+                    Text("Git requires a user name and email address. Both identify your commits; they are not your server authentication account.").fixedSize(horizontal: false, vertical: true)
+                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
+                        GridRow { Text("Name:"); TextField("Name", text: $model.name).focused($focused, equals: .name).accessibilityIdentifier("FirstStart.Name") }
+                        GridRow { Text("Email:"); TextField("Email", text: $model.email).focused($focused, equals: .email).accessibilityIdentifier("FirstStart.Email") }
+                    }.disabled(model.skipUser)
+                    Text("These settings are stored in your global Git configuration and provide defaults for all your repositories.").foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     Toggle("Don’t store these settings now.", isOn: $model.skipUser)
-                    Text("This information identifies your commits. It does not change the authentication account used by your Git server.").foregroundStyle(.secondary)
                 case .authentication:
                     GroupBox("SSH (URLs look like git@example.com)") {
                         VStack(alignment: .leading, spacing: 8) {
-                            Picker("SSH client:", selection: .constant("openssh")) { Text("OpenSSH").tag("openssh") }
-                            Text("TurtleGit uses OpenSSH and honors your SSH config, agent and repository command overrides. Configure each remote’s key file in Remote settings.")
-                            Button("Generate SSH key…", action: model.generateSSHKey)
+                            Text("TurtleGit uses OpenSSH and honors your SSH config, agent and repository command overrides. Configure each remote’s key file in Remote settings.").fixedSize(horizontal: false, vertical: true)
+                            HStack {
+                                Picker("SSH client:", selection: .constant("openssh")) { Text("OpenSSH").tag("openssh") }
+                                Button("Generate SSH key…", action: model.generateSSHKey)
+                            }
                         }.padding(8)
                     }
                     GroupBox("HTTP (URLs start with http:// or https://)") {
                         VStack(alignment: .leading, spacing: 8) {
+                            Text("By default Git does not save or cache credentials. Choose an installed credential helper, or use Advanced configuration.").fixedSize(horizontal: false, vertical: true)
                             if model.advanced { Text("Existing URL-specific, multiple or custom credential helpers are preserved.") }
                             else { Picker("Credential helper:", selection: $model.helper) { ForEach(model.helpers, id: \.self) { Text($0.isEmpty ? "None" : $0).tag($0) } }.disabled(model.skipHelper) }
-                            Toggle("Don’t store these settings now.", isOn: $model.skipHelper).disabled(model.advanced)
-                            Button("Advanced configuration…", action: model.configureCredentials)
+                            HStack {
+                                Toggle("Don’t store these settings now.", isOn: $model.skipHelper).disabled(model.advanced)
+                                Spacer(); Button("Advanced…", action: model.configureCredentials)
+                            }
                             Text("The selected helper is stored globally. Keychain helpers store credentials in the macOS Keychain; store saves them in a plaintext file.").font(.caption)
                         }.padding(8)
                     }
@@ -209,9 +264,12 @@ private struct FirstStartWizardDialog: View {
                 if blocked { ProgressView().controlSize(.small) }
                 Spacer(); Button("Back", action: model.back).disabled(blocked || model.page == .language)
                 Button(model.page == .authentication ? "Finish" : "Next", action: model.next).keyboardShortcut(.defaultAction).disabled(blocked)
-                Button("Cancel") { model.window?.performClose(nil) }.keyboardShortcut(.cancelAction).disabled(blocked)
+                Button("Cancel") { model.window?.performClose(nil) }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
             }
         }.padding(24)
+        .onChange(of: model.page) { page in
+            DispatchQueue.main.async { focused = page == .user && !model.skipUser ? .name : page == .git && git.draft.choice == .custom ? .gitPath : nil }
+        }
     }
 }
 @MainActor final class FirstStartWizardService {

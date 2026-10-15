@@ -4,6 +4,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class GeneralGitSettingsModel: ObservableObject {
+    static private(set) var activeOperations = 0
     @Published var draft: GitEnginePreferences { didSet { if draft != oldValue { version = "" } } }
     @Published private(set) var busy = false
     @Published var version = ""
@@ -56,22 +57,29 @@ import TurtleGitCore
     func check() {
         guard active, !busy else { return }
         let cancellation = OperationCancellation(), generation = UUID(), settings = draft
-        token = cancellation; request = generation; busy = true; error = nil
+        token = cancellation; request = generation; busy = true; error = nil; Self.activeOperations += 1
         Task {
-            defer { if request == generation { busy = false; token = nil } }
+            defer { Self.activeOperations -= 1; if request == generation { busy = false; token = nil } }
             do { let result = try await inspect(settings, cancellation: cancellation); if active, request == generation, !cancellation.isCancelled { version = result } }
             catch { if active, request == generation, !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func apply(validateUnchanged: Bool = false) async -> Bool {
-        guard modified || validateUnchanged else { return true }
+    func apply(validateUnchanged: Bool = false, cancellation: OperationCancellation? = nil) async -> Bool {
         guard !busy else { return false }
-        let settings = draft
+        guard modified || validateUnchanged else { return true }
+        let settings = draft, token = cancellation ?? OperationCancellation(), generation = UUID()
+        request = generation; self.token = token; busy = true; error = nil; Self.activeOperations += 1
+        defer { Self.activeOperations -= 1; if request == generation { busy = false; self.token = nil } }
         do {
-            version = try await inspect(settings, cancellation: nil)
-            if !GitRuntime.isAppStoreBuild { try settings.save(to:preferences) }
-            saved = settings; return true
-        } catch { self.error = error.localizedDescription; return false }
+            let version = try await inspect(settings, cancellation: token)
+            try token.check()
+            guard request == generation else { return false }
+            if !GitRuntime.isAppStoreBuild { try settings.save(to: preferences) }
+            self.version = version; saved = settings; return true
+        } catch {
+            if request == generation, !token.isCancelled { self.error = error.localizedDescription }
+            return false
+        }
     }
     func cancel() { draft = saved; error = nil }
     func confirmDisableUpdates(_ completion: @escaping () -> Void) {

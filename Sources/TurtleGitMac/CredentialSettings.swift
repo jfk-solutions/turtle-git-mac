@@ -6,6 +6,7 @@ import TurtleGitCore
 @MainActor final class CredentialSettingsModel: ObservableObject {
     let settingsRegistration = UUID()
     static var activeSaves = 0
+    static private(set) var activeReads = 0
     @Published private(set) var snapshot: GitCredentialSnapshot?
     @Published private(set) var files: GitConfigurationFiles?
     @Published private(set) var helpers: [String] = []
@@ -106,9 +107,9 @@ import TurtleGitCore
     }
     func refresh() {
         guard active, !busy else { return }
-        busy = true; error = nil; let request = UUID(), token = OperationCancellation(); generation = request; self.token = token
+        busy = true; error = nil; let request = UUID(), token = OperationCancellation(); generation = request; self.token = token; Self.activeReads += 1
         Task {
-            defer { if generation == request { busy = false; self.token = nil } }
+            defer { Self.activeReads -= 1; if generation == request { busy = false; self.token = nil } }
             do {
                 try checkAccess()
                 let files = try await repository.gitConfigurationFiles(hasRepository: localAvailable, cancellation: token)

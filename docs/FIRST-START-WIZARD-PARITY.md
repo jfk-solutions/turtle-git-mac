@@ -32,15 +32,19 @@ Finish saves the selected helper and records FirstStartComplete.
 
 Global/XDG folders use the existing configuration permission store and owned
 native authorization sheets. Closing fences pending chooser/read callbacks.
-Active Next/Finish work guards close and application termination; forced closure
-lets already-authorized writes finish while suppressing late navigation/finish.
+Next/Finish captures the submitted identity/helper, skip decisions and owning
+preferences before starting work. Read-only Git checks and configuration reads
+can be cancelled by closing the wizard; accepted identity/helper writes block
+normal Close until settled. Forced closure lets accepted writes finish while
+suppressing late navigation/finish. First Start, General engine checks and
+credential reads retain application Quit accounting until backend work settles.
 
 The wizard opens once per process on startup until Finish records completion.
 Cancel leaves setup available next launch. Documentation preview bundles and
 XCTest hosts skip automatic presentation. Manual re-run remains available. Source refresh/localization
-installation, key-generation workflow, Advanced credential dialog and Create
-Library's macOS equivalent remain open. The latter controls are not shown as
-inactive implementations. Full source page sizes/layout/focus and keyboard,
+installation and Create Library's macOS equivalent remain open. Native SSH
+key generation and Advanced credentials are available as owned sheets; their
+source adaptations and validation are recorded below. Full source page sizes/layout/focus and keyboard,
 light/dark, helper discovery, global include/XDG precedence, Next/Back/Cancel,
 partial failure, permission/read/close/quit ownership and signed sandbox checks
 remain in the grouped General/Wizard validation. The earlier Settings/Tools
@@ -94,3 +98,38 @@ partial-write failures and signed sandbox acceptance remain open. Logs and
 limitations are in `qa/authentication-settings-batch-2026-10-11.json`.
 This supersedes the uncompiled/untested statements above. Full-port and inventory
 certification remain unchanged.
+
+## Source forms and owned setup operations — October 15, 2026
+
+The User page now keeps explicit Name and Email labels visible beside native
+fields, with the commit-identity hint above and global-defaults hint below,
+matching the pinned resource's ordering. Authentication pairs SSH selection with
+Generate and Don't store with Advanced. OpenSSH replaces Windows PuTTY selection.
+Git keeps explicit executable/Extra PATH rows with Browse and version checking.
+The source artwork remains in the wizard header; light/dark colors follow macOS.
+
+Opening Advanced selects Don't store immediately, as
+`FirstStartWizardAuthentication::OnBnClickedAdvancedconfiguration` does. Closing
+the owned credentials sheet reloads helpers without clearing that choice or
+replacing unsaved identity fields. Navigation and parent Close remain blocked
+while either authentication child sheet is open.
+
+The configuration reader and completion flag use the wizard's own preference
+store and captured engine. Back preserves fields for the same engine; a changed
+engine reloads them. General Apply continues to work for a cached page that has
+disappeared from Settings, while cancellation invalidates pending version results
+and prevents a cancelled check from saving engine preferences.
+
+Source translation installation, SSH FAQ links, arbitrary SSH client selection,
+all physical keyboard/focus gestures, every helper and include/XDG configuration,
+permission renewal and signed App Store sandbox acceptance remain open. No dialog
+is certified complete.
+
+Debug builds exited 0. The grouped native receiver passed with system and bundled
+Git, using private configuration and preferences, actual child sheets and held
+script/sleep descendants. Four raw User/Authentication light/dark captures were
+visually inspected. The first fixture incorrectly looked for a SwiftUI static
+label as an NSTextField; capture then exposed a real zero-width hosting window,
+fixed by setting content size after host attachment. The final group passed and
+all owned receivers/helpers were reaped. Core operations were unchanged and their
+suites were not repeated. See [exact evidence](qa/first-start-family-2026-10-15.json).

@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 747,
-    "mapped_controls": 912,
+    "pending_control_reviews": 729,
+    "mapped_controls": 930,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -2248,6 +2248,7 @@
       ],
       "qa_records": [
         "docs/qa/authentication-settings-batch-2026-10-11.json",
+        "docs/qa/first-start-family-2026-10-15.json",
         "docs/qa/general-setup-batch-2026-10-11.json"
       ]
     },
@@ -3426,8 +3427,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 7,
-      "mapped_controls": 0,
-      "pending_control_reviews": 7,
+      "mapped_controls": 7,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -3441,6 +3442,7 @@
       ],
       "qa_records": [
         "docs/qa/authentication-settings-batch-2026-10-11.json",
+        "docs/qa/first-start-family-2026-10-15.json",
         "docs/qa/general-setup-batch-2026-10-11.json"
       ]
     },
@@ -3466,6 +3468,7 @@
       ],
       "qa_records": [
         "docs/qa/authentication-settings-batch-2026-10-11.json",
+        "docs/qa/first-start-family-2026-10-15.json",
         "docs/qa/general-setup-batch-2026-10-11.json"
       ]
     },
@@ -3476,8 +3479,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 11,
-      "mapped_controls": 0,
-      "pending_control_reviews": 11,
+      "mapped_controls": 11,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -3491,6 +3494,7 @@
       ],
       "qa_records": [
         "docs/qa/authentication-settings-batch-2026-10-11.json",
+        "docs/qa/first-start-family-2026-10-15.json",
         "docs/qa/general-setup-batch-2026-10-11.json"
       ]
     },
@@ -3516,6 +3520,7 @@
       ],
       "qa_records": [
         "docs/qa/authentication-settings-batch-2026-10-11.json",
+        "docs/qa/first-start-family-2026-10-15.json",
         "docs/qa/general-setup-batch-2026-10-11.json"
       ]
     },

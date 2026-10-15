@@ -1949,3 +1949,21 @@ Alternative Editor Quit ownership and the actual owning Arguments field.
 Core checks include template validation/persistence and old-preference defaults.
 The receiver and owned helper groups are reaped. Native scope simulation does
 not prove signed execution. See [evidence](qa/external-documents-2026-10-15.json).
+
+## First Start / General / credential ownership
+
+`python3 scripts/test-first-start-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git`
+links the current Debug app once, then drives the real wizard against private
+config files and preference suites. It covers engine capture, identity submission,
+Don't store/Back, owned SSH and Advanced sheets, helper reload, private Finish,
+cached General Apply, cancelled version/config/credential reads, forced-close
+accepted identity writes and a deliberately failing second identity write.
+Owned helper processes and descendants must settle before Quit accounting clears.
+No real user Git configuration or completion preference is changed.
+
+Add `--captures build/qa/first-start-captures` for actual User/Authentication
+light/dark current-process captures. Capture requires the existing macOS screen
+recording authorization; hosted semantic checks do not capture. This does not
+prove physical keyboard interactions, arbitrary SSH clients, every configuration
+precedence case or signed App Store sandbox access. See
+[FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md).

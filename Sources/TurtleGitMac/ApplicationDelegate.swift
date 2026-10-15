@@ -63,8 +63,8 @@ import AppKit
         if StatusWindowModel.activeOperations > 0 { return .terminateCancel }
         if WorkingTreePatchWindowModel.activeOperations > 0 || FileComparisonWindowModel.activePaneExports > 0 { return .terminateCancel }
         if GitDaemonWindowModel.activeOperations > 0 { return .terminateCancel }
-        if FirstStartWizardModel.activeWrites > 0 { return .terminateCancel }
-        if CredentialSettingsModel.activeSaves > 0 { return .terminateCancel }
+        if FirstStartWizardModel.activeWrites > 0 || GeneralGitSettingsModel.activeOperations > 0 { return .terminateCancel }
+        if CredentialSettingsModel.activeSaves > 0 || CredentialSettingsModel.activeReads > 0 { return .terminateCancel }
         if SSHKeyImportModel.activeOperations > 0 { return .terminateCancel }
         if SSHKeyGenerationModel.activeOperations > 0 { return .terminateCancel }
         if SSHIdentityPermissionsModel.activeOperations > 0 { return .terminateCancel }

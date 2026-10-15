@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "1b215ffd",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/FirstStartWizardAuthentication.cpp:OnBnClickedAdvancedconfiguration",
+    "src/Resources/TortoiseProcENG.rc:IDD_FIRSTSTARTWIZARD_USER, IDD_FIRSTSTARTWIZARD_AUTHENTICATION"
+  ],
+  "scope": [
+    "Persistent User labels and source hint order; paired SSH/Generate and Don\u2019t store/Advanced controls",
+    "Captured submission values, owning engine/preferences and private completion flag",
+    "Advanced selects and preserves Don\u2019t store; helper reload preserves identity draft",
+    "Cancellable setup/General/credential reads retain Quit ownership until settled",
+    "Accepted writes block ordinary Close and finish after forced close without late navigation; partial identity failures remain visible",
+    "Explicit hosted window content size prevents zero-width first presentation"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/first-start-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/first-start-final-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/first-start-geometry-build.log",
+      "exit": 0
+    }
+  ],
+  "core": {
+    "run": false,
+    "reason": "No Core operation changed; existing config/SSH semantics reused."
+  },
+  "native": {
+    "runner": "scripts/test-first-start-family.py",
+    "fixture": "docs/qa/first-start-native-2026-10-15.swift",
+    "log": "build/qa/first-start-native.log",
+    "exit": 0,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "receiver_pids": [
+      32756,
+      32904
+    ],
+    "exact_checks": [
+      "Real private global config and helper discovery; captured identity and helper values despite late mutations",
+      "Back/Don\u2019t store skips identity writes; Advanced selects Don\u2019t store and reload preserves identity draft",
+      "Actual SSH and credential child-sheet ownership; navigation/Close blocked while child open",
+      "Private Finish clears only unscoped helper, preserves unrelated config and shared completion preference",
+      "Cached inactive General Apply persists owning engine settings",
+      "Version/config reads cancel through normal Close, preserve accepted engine savepoint and reap held script/sleep descendants",
+      "Accepted held identity write rejects normal Close, survives forced close, holds Quit, saves both captured keys and suppresses late navigation",
+      "Injected email failure retains first name save, reports failing key and leaves User page cancellable",
+      "Closed credential read holds Quit until managed process cancellation settles"
+    ],
+    "captures": [
+      "first-start-user-light.png",
+      "first-start-user-dark.png",
+      "first-start-authentication-light.png",
+      "first-start-authentication-dark.png"
+    ],
+    "capture_dimensions": [
+      1400,
+      1184
+    ],
+    "capture_method": "Unaltered current-process ScreenCaptureKit, inactive accessory window; all four raw images visually inspected."
+  },
+  "failed_attempts": [
+    {
+      "reason": "Fixture expected a SwiftUI static label to be an NSTextField; replaced with native editable field value assertion. Added wait-site diagnostics.",
+      "log": "build/qa/first-start-native-label-failure.log"
+    },
+    {
+      "reason": "Capture found real zero content width after NSHostingController attachment; fixed explicit content size and rebuilt.",
+      "log": "build/qa/first-start-native-zero-size-failure.log"
+    }
+  ],
+  "ci": {
+    "pages_previous_commit": "38774198967 success",
+    "macos_previous_commit": "38774199022 pending at inspection; no hosted pass claimed",
+    "added_step": "First Start forms and setup operation ownership"
+  },
+  "limitations": [
+    "English-only localization; source translation refresh/installation missing",
+    "OpenSSH adapts PuTTY; arbitrary SSH client selection and FAQ links pending",
+    "Actual key generation algorithms/agent behavior unchanged and not rerun in this native batch",
+    "Physical keyboard/focus/Browse/permission renewal, every include/XDG/helper case and signed App Store sandbox acceptance remain open",
+    "18 controls receive partial mappings; no dialog certified complete"
+  ]
+}
