@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "2fff5b00",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/AddDlg.cpp:Init allowed menu and column masks",
+    "src/Git/GitStatusListCtrl.cpp:OnContextMenuList, AppendLocksMenuItems, OnLvnItemchanged and PreTranslateMessage",
+    "src/TortoiseProc/ProgressCommands/LFSSetLockedProgressCommand.cpp"
+  ],
+  "scope": [
+    "Add LFS Lock/Unlock menus and original icons using common-directory marker, versioned marked row and non-directory selection",
+    "Owned LFS progress/results, captured paths, Pull callback only on all-success Lock, Force retry and exactly-once review refresh",
+    "Forced parent closure retires/cancels child and suppresses late progress/Pull/refresh while backend settlement holds Quit",
+    "Legacy column visibility migration, optional Extension/date/size, persisted native order/width, leading fixed checkbox and confirmed reset",
+    "Marked-row Space, selected checkbox propagation, unselected checkbox isolation, shared Command-Shift-C status format",
+    "Explicit initial content size and minimum column widths"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/add-list-family-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/add-list-family-geometry-build.log",
+      "exit": 0,
+      "reason": "First raw captures showed inherited SwiftUI host/minimum-size collapse and cramped optional columns; set initial content size and column minimum widths."
+    },
+    {
+      "log": "build/qa/add-list-family-marked-build.log",
+      "exit": 0,
+      "reason": "Final source review found shared native conflict eligibility stricter than the pinned marked-row rule. Add now applies the exact marked-row conflict gate while excluding all selected directories."
+    }
+  ],
+  "core": {
+    "run": false,
+    "reason": "Existing Core LFS operations and shared column schema unchanged; native-only batch."
+  },
+  "native": {
+    "runner": "scripts/test-add-list-family.py",
+    "fixture": "docs/qa/add-list-family-native-2026-10-15.swift",
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/add-list-family-before-geometry-native.log",
+        "exit": 0,
+        "receivers": [
+          33856,
+          33899
+        ]
+      },
+      {
+        "log": "build/qa/add-list-family-geometry-native.log",
+        "exit": 0,
+        "receivers": [
+          34077,
+          34117
+        ],
+        "reason": "Affected group repeated after window/column geometry repair; includes stale row/directory replacement refusal."
+      },
+      {
+        "log": "build/qa/add-list-family-native.log",
+        "exit": 0,
+        "receivers": [
+          34542,
+          34583
+        ],
+        "reason": "Final native family with real unmerged index verifies marked-versus-nonmarked conflict eligibility; no further capture/UI changes."
+      }
+    ],
+    "exact_checks": [
+      "Actual native table/header menu and original LFS icons; unversioned row hides LFS",
+      "Private legacy visibility migration, native width/order persistence, Extension hiding, leading checkbox and displayed-order copy",
+      "Mixed marked-row Space and selected/unselected native checkbox actions; shared path/status clipboard string without writing shared pasteboard",
+      "Busy layout locks, declined/accepted reset and actual reset-sheet forced-close teardown",
+      "Stale selected row and file replaced with a directory refuse LFS before presentation",
+      "Actual owned LFS progress sheets use captured paths despite later selection changes; successful Lock calls Pull once; result review blocks parent Close/Quit",
+      "Failed Unlock retains results, Force retry reuses paths, review refreshes exactly once and retains unchecked surviving rows",
+      "Forced close cancels held LFS operation, retains global Quit count until settlement and fences a late progress report",
+      "Real private Git index and HEAD unchanged",
+      "Real private unmerged index permits a mixed selection when its marked row is ordinary and hides LFS when the conflicted row is marked; original index bytes restored."
+    ],
+    "simulation": "LFS response closures injected into real native shared progress controller; no public server or real remote lock changes. Core transport not reverified.",
+    "captures": [
+      "add-list-light.png",
+      "add-list-dark.png"
+    ],
+    "capture_dimensions": [
+      2000,
+      1024
+    ],
+    "capture_method": "Unaltered current-process ScreenCaptureKit; inactive accessory window; optional columns visible in a wider native window; both final originals visually inspected.",
+    "capture_log": "build/qa/add-list-family-geometry-native.log",
+    "all_six_receiver_pids_absent": true
+  },
+  "ci": {
+    "added_step": "Add LFS and persistent native list family",
+    "previous_commit_macos": "38778092594 in progress; application and Finder extension build observed; no full hosted pass claimed.",
+    "previous_commit_pages": "38778092538 success"
+  },
+  "limitations": [
+    "No authenticated LFS service, actual lock/unlock side effects or real Pull dialog handoff exercised in this fixture; callback is counted",
+    "Physical Space/checkbox/menu/header gestures, VoiceOver and shared Shift comparison acceptance remain pending",
+    "Signed App Store/Finder security scopes and installed extension behavior unverified",
+    "No new static source control mappings; dynamic menu behavior is partial source parity, no dialog certified complete"
+  ]
+}

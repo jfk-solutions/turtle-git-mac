@@ -16,13 +16,19 @@ private final class AddNativeWindow: NSWindow {
     let model: AddWindowModel
     private let access: RepositoryAccessLease?
     private var ignoreController: IgnoreWindowController?
+    private(set) var lfsOperation: LFSFileOperationController?
+    private var columnAlert: NSAlert?
+    private var closing = false
+    var onPullAfterLFSLock: () -> Void = {}
+    var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = AddWindowModel(repository: repository, access: access); self.access = access
+    init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
+        model = AddWindowModel(repository: repository, access: access, defaults: defaults); self.access = access
         let window = AddNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 480), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Add – TurtleGit"
         window.contentMinSize = NSSize(width: 580, height: 320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: AddDialogView(model: model))
+        window.setContentSize(NSSize(width: 760, height: 480))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.close() }
         model.onOpen = { [weak self] path, action in self?.openFile(path, action: action) }
@@ -33,9 +39,31 @@ private final class AddNativeWindow: NSWindow {
         model.onDelete = { [weak self] selected, permanently in self?.confirmDelete(selected, permanently: permanently) }
         model.onSave = { [weak self] path in self?.saveFile(path) }
         model.onExport = { [weak self] paths in self?.exportFiles(paths) }
+        model.onResetColumns = { [weak self] in self?.confirmColumnReset() }
+        model.onLFSOperation = { [weak self, weak window] paths, locked in
+            guard let self, !self.closing, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
+            let progress = self.makeLFSOperation(repository, access)
+            progress.model.onPullAfterLock = { [weak self] in guard let self, !self.closing else { return }; self.onPullAfterLFSLock() }
+            progress.onClosed = { [weak self, weak progress] in
+                guard let self, !self.closing, self.lfsOperation === progress else { return }
+                self.lfsOperation = nil; self.model.finishLFSOperation()
+            }
+            self.lfsOperation = progress
+            guard progress.present(owner: window, paths: paths, locked: locked) else { self.lfsOperation = nil; return false }
+            return true
+        }
         window.refresh = { [weak model] in model?.reload() }; window.accept = { [weak model] in model?.apply() }
 
         DialogGeometry.attach(window, identifier: "AddDialog", legacyName: "AddDialog")
+    }
+    private func confirmColumnReset() {
+        guard !closing, let window, window.attachedSheet == nil, model.beginColumnReset() else { return }
+        let alert = NSAlert(); alert.messageText = "Are you sure to reset columns?"
+        alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); columnAlert = alert
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self, !self.closing, self.columnAlert === alert else { return }
+            self.columnAlert = nil; self.model.finishColumnReset(accepted: response == .alertFirstButtonReturn)
+        }
     }
     private func saveFile(_ path: String) {
         guard let window, window.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return }
@@ -123,7 +151,12 @@ private final class AddNativeWindow: NSWindow {
         } else if !NSWorkspace.shared.open(file) { model.error = "Could not open the file. Choose an application using Open With." }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if sender.attachedSheet != nil { return false }; if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; ignoreController?.close(); ignoreController = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        closing = true; model.invalidate(); columnAlert = nil
+        lfsOperation?.model.retire(); lfsOperation?.close(); lfsOperation = nil
+        if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
+        ignoreController?.close(); ignoreController = nil; onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class AddWindowModel: ObservableObject {
@@ -134,6 +167,59 @@ private final class AddNativeWindow: NSWindow {
     var querySelection: (([String], Bool, OperationCancellation) async throws -> AddDialogSelection)?
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    private let defaults: UserDefaults
+    private static let columnKey = "Add.FileColumns"
+    static let columns: [StatusListColumn] = [.path, .fileExtension, .lastModified, .fileSize]
+    static var defaultColumns: StatusListColumnSettings { StatusListColumnSettings(visible: [.path,.fileExtension], order: columns) }
+    @Published private(set) var fileColumns: StatusListColumnSettings
+    @Published private(set) var columnResetGeneration = 0
+    private(set) var resettingColumns = false
+    var onResetColumns: () -> Void = {}
+    @Published private(set) var hasLFS = false
+    private(set) var lockingFiles = false
+    var onLFSOperation: ([String], Bool) -> Bool = { _, _ in false }
+    var onLFSChanged: () -> Void = {}
+    func lfsActions(_ selected: [AddDialogEntry], marked: String?) -> [LFSLockMenuAction] {
+        guard !retired, hasLFS, !selected.isEmpty,
+              selected.allSatisfy({ candidate in entries.contains { $0.path == candidate.path && $0.status == candidate.status } }),
+              let mark = selected.first(where: { $0.path == marked }) ?? selected.first,
+              mark.status.canCompareWithBaseFromStatusList, mark.state != .conflicted,
+              selected.allSatisfy({ row in
+                  guard !row.isDirectory else { return false }
+                  var directory: ObjCBool = false
+                  _ = FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(row.path).path, isDirectory: &directory)
+                  return !directory.boolValue
+              }) else { return [] }
+        // AddDlg does not permit the owner column, so upstream offers both commands.
+        return [.lock, .unlock]
+    }
+    func setLFSLocked(_ selected: [AddDialogEntry], marked: String?, locked: Bool) {
+        guard !busy, !confirmingQuit, lfsActions(selected, marked: marked).contains(locked ? .lock : .unlock) else { return }
+        busy = true; lockingFiles = true
+        if !onLFSOperation(selected.map(\.path), locked) { lockingFiles = false; busy = false }
+    }
+    func finishLFSOperation() {
+        guard !retired, lockingFiles else { return }; lockingFiles = false; busy = false
+        reload(); onLFSChanged()
+    }
+    var columnCommandsAvailable: Bool { !retired && !busy && !confirmingQuit }
+    func setColumn(_ column: StatusListColumn, visible: Bool) {
+        guard columnCommandsAvailable, column != .path, Self.columns.contains(column) else { return }
+        if visible { fileColumns.visible.insert(column) } else { fileColumns.visible.remove(column) }
+        fileColumns.save(to: defaults, key: Self.columnKey)
+    }
+    func saveColumnLayout(order: [StatusListColumn], widths: [StatusListColumn: Double]) {
+        guard columnCommandsAvailable else { return }
+        let next = StatusListColumnSettings(visible: fileColumns.visible, order: order, widths: widths)
+        if next != fileColumns { fileColumns = next; fileColumns.save(to: defaults, key: Self.columnKey) }
+    }
+    func beginColumnReset() -> Bool {
+        guard columnCommandsAvailable else { return false }; resettingColumns = true; busy = true; return true
+    }
+    func finishColumnReset(accepted: Bool) {
+        guard !retired, resettingColumns else { return }; resettingColumns = false; busy = false
+        if accepted { fileColumns = Self.defaultColumns; fileColumns.save(to: defaults, key: Self.columnKey); columnResetGeneration += 1 }
+    }
     @Published var entries: [AddDialogEntry] = []
     @Published var checked = Set<String>()
     @Published var highlighted = Set<String>()
@@ -376,7 +462,16 @@ private final class AddNativeWindow: NSWindow {
         }
     }
     var canApply: Bool { !retired && !busy && !confirmingQuit && !checked.isEmpty }
-    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.defaults = defaults
+        if defaults.integer(forKey: Self.columnKey + ".Version") == 1 { fileColumns = .load(from: defaults, key: Self.columnKey) }
+        else {
+            var value = Self.defaultColumns
+            if defaults.bool(forKey: "Add.ShowSize") { value.visible.insert(.fileSize) }
+            if defaults.bool(forKey: "Add.ShowModifiedDate") { value.visible.insert(.lastModified) }
+            fileColumns = value
+        }
+    }
     func setScope(_ paths: [String]) { guard !retired, !busy else { return }; self.paths = paths.isEmpty ? ["."] : paths; loaded = false; checked = []; highlighted = []; selectionMark = nil; hasHead = false }
     private func validateAccess() throws {
         guard !retired, !cancellation.isCancelled else { throw OperationCancellationFailure.cancelled }
@@ -386,7 +481,7 @@ private final class AddNativeWindow: NSWindow {
         guard !retired else { return }; retired = true; cancellation.cancel(); readTask?.cancel(); readTask = nil
         cancelRevert?(); cancelRevert = nil; reverting = false
         pendingFlags = nil; pendingDelete = nil; pendingRestore = nil; pendingRevert = nil; ignoring = false
-        restoreCopies.removeAll(); busy = false
+        restoreCopies.removeAll(); lockingFiles = false; resettingColumns = false; busy = false
     }
     func read() async throws {
         try validateAccess()
@@ -400,7 +495,9 @@ private final class AddNativeWindow: NSWindow {
         let flags = try await repository.workingTreeStatus(refreshIndex: false, cancellation: token)
         if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
         guard !retired, cancellation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
-        hasHead = head != nil; indexFlagFiles = flags
+        let lfs = try await repository.hasLFS(cancellation: token)
+        guard !retired, cancellation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
+        hasHead = head != nil; indexFlagFiles = flags; hasLFS = lfs
         let previous = Set(entries.map(\.path))
         entries = selection.entries
         if loaded { checked.formIntersection(Set(entries.map(\.path))); checked.formUnion(selection.initiallyChecked.subtracting(previous)) }
@@ -417,7 +514,7 @@ private final class AddNativeWindow: NSWindow {
         }
     }
     func cancel() {
-        guard !retired, !confirmingQuit, !ignoring, pendingDelete == nil, pendingRestore == nil, pendingRevert == nil, pendingFlags == nil else { return }
+        guard !retired, !confirmingQuit, !ignoring, !lockingFiles, !resettingColumns, pendingDelete == nil, pendingRestore == nil, pendingRevert == nil, pendingFlags == nil else { return }
         if reverting { closeAfterRevert = true; cancelRevert?() }
         else if busy { cancellation.cancel() }
         else { close() }

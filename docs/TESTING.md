@@ -1967,3 +1967,20 @@ recording authorization; hosted semantic checks do not capture. This does not
 prove physical keyboard interactions, arbitrary SSH clients, every configuration
 precedence case or signed App Store sandbox access. See
 [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md).
+
+## Add native list family
+
+`python3 scripts/test-add-list-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git`
+checks native Add table/header menus, legacy column migration, resize/reorder
+persistence, leading checkbox, reset acceptance/decline/forced-close, marked-row
+Space and selected/unselected checkbox propagation. It uses private preferences
+and real private Git files; copy assertions inspect strings without touching the
+shared pasteboard. Injected LFS responses drive the actual owned progress sheets,
+captured selections, successful Lock/Pull callback, failed Unlock/Force retry,
+review-before-refresh and cancellation/late-result retirement guards. Git index
+and HEAD must remain unchanged. No LFS server is contacted.
+
+`--captures build/qa/add-list-family-captures` records actual inactive accessory
+Add windows in light/dark with optional columns shown in a wider native window.
+Physical gestures, authenticated transport and signed sandbox/Finder acceptance
+remain outside this receiver. See [Add parity](ADD-PARITY.md).

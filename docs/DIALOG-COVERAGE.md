@@ -30,7 +30,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_REGEXFILTERS` | partial-native-replacement | 0/6 mapped; 6 pending | [MERGE-REGEX-FILTERS-PARITY](MERGE-REGEX-FILTERS-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_REGEXFILTER` | partial-native-replacement | 0/8 mapped; 8 pending | [MERGE-REGEX-FILTERS-PARITY](MERGE-REGEX-FILTERS-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_ABOUT` | partial-native-replacement | 0/9 mapped; 9 pending | No recorded family document; 0 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_ADD` | native-partial | 6/6 mapped; 0 pending | [ADD-PARITY](ADD-PARITY.md); 15 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_ADD` | native-partial | 6/6 mapped; 0 pending | [ADD-PARITY](ADD-PARITY.md); 16 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_CHANGEDFILES` | partial-native-replacement | 0/15 mapped; 15 pending | [PRIMARY-DIALOG-VISUAL-REVIEW](PRIMARY-DIALOG-VISUAL-REVIEW.md), [STATUS-PARITY](STATUS-PARITY.md), [UI-PARITY](UI-PARITY.md); 17 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_LOGMESSAGE` | partial-workflow-replacement | 27/27 mapped; 0 pending | [LOG-FILTER-PARITY](LOG-FILTER-PARITY.md), [LOG-FOOTER-PARITY](LOG-FOOTER-PARITY.md), [LOG-PARITY](LOG-PARITY.md); 71 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_COMMITDLG` | partial-workflow-replacement | 45/45 mapped; 0 pending | [COMMIT-PARITY](COMMIT-PARITY.md), [PRIMARY-DIALOG-VISUAL-REVIEW](PRIMARY-DIALOG-VISUAL-REVIEW.md), [UI-PARITY](UI-PARITY.md); 51 QA records |

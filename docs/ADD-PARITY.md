@@ -242,9 +242,9 @@ actual progress model checks, both unsigned builds and bundle audits pass.
 Native confirmation/progress gestures and signed acceptance remain pending.
 
 Index-only executable/symlink post-actions are implemented; real native action-menu
-acceptance is pending. Full status-list commands (remaining LFS commands and
-other shared consumers), Shift alternative comparison, Space/column/drop/keyboard
-gestures,
+acceptance is pending. Add LFS commands, saved columns, Space and drop models now
+have the connected implementations recorded below. Other shared consumers,
+Shift alternative comparison and physical column/drop/keyboard gestures,
 progress notification granularity, saved histories/preferences, broader direct/
 removed/ignored/submodule cases and real native visual/light/dark comparison remain
 unfinished. Signed Finder/picker/grant/quit acceptance and GitHub execution of
@@ -256,3 +256,48 @@ counts model-owned tasks for Quit. See the [connected source audit](ADD-DROP-PAR
 The batch passed fourteen Core tests, the Debug build and six unique native
 cases across Add/drop/Commit with both Git engines. See the
 [scoped evidence and fixture repairs](qa/add-drop-2026-10-13.json).
+
+## Add list LFS, columns and checkbox family — October 15, 2026
+
+The Add status list now offers LFS Lock and LFS Unlock with the original icons
+when the repository has its common-directory LFS marker, the marked row is
+versioned/non-conflicted and every selected target is a file. AddDlg excludes the
+LFS owner column, so the source hidden-owner rule offers both commands without
+contacting the lock server to populate the menu. Unversioned/ignored marked rows
+keep both commands hidden. A live menu action revalidates its captured rows.
+
+The shared LFS progress sheet captures the selected paths and holds Add busy
+through result review. Successful Lock opens Pull using the repository router;
+failed/cancelled batches do not. Unlock supports the existing Force retry.
+Dismissing results refreshes Add once and notifies repository/Commit/Working Tree
+consumers, preserving unchecked surviving rows. Forced parent closure retires and
+cancels the child and suppresses late progress, Pull and refresh callbacks; backend
+work remains counted for Quit until it settles. Server-side changes are not rolled
+back by cancellation.
+
+The header exposes Extension, Modification date, Size and confirmed Reset columns.
+Path is mandatory. Native column order and widths are persisted using the shared
+column schema under Add.FileColumns, independently of other lists. Existing
+Add.ShowSize/Add.ShowModifiedDate visibility migrates if no schema is present.
+The native checkbox stays first; copy-all follows the visible native order.
+Reset restores source order/default visibility and original native widths, while
+No or forced closure preserves the current layout. Busy/quit states lock layout
+editing.
+
+A checkbox on a selected row now checks/unchecks every selected row, while an
+unselected checkbox affects only itself, matching OnLvnItemchanged. Space chooses
+the new state from the marked row rather than whether every selection is checked.
+Command-Shift-C uses the shared relative-path/status format; Command-C retains
+relative paths. Conflict eligibility follows the marked row, including mixed selections, as in
+the pinned menu; directory exclusion still applies to every selected target.
+Physical gestures, authenticated LFS transport, shared comparison
+Shift behavior and signed Finder/App Store grants remain acceptance work.
+
+The Debug build and two-engine native family passed. Raw captures exposed cramped
+optional columns in an inherited minimum-size window; explicit initial content
+size and column minimum widths were added, then only the affected Debug/native
+group was repeated successfully. Final light/dark captures were visually reviewed.
+Final source review corrected the conflict gate to follow the marked row; a
+real unmerged-index case and the affected native group pass with both engines.
+All six receiver processes were reaped; no real LFS server was contacted and
+Core operations were unchanged. See [exact evidence](qa/add-list-family-2026-10-15.json).

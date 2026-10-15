@@ -1075,6 +1075,11 @@ import UniformTypeIdentifiers
                 guard !controller.model.busy else { controller.window?.makeKeyAndOrderFront(nil); return }
                 controller.onClosed = { [weak self] in self?.addWindows.removeValue(forKey: key) }
                 controller.model.onAccepted = { [weak self] paths in self?.showAddProgress(repository: repository, access: access, paths: paths) }
+                controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
+                controller.model.onLFSChanged = { [weak self] in
+                    self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
+                    if let self, self.root == repository.root { Task { await self.refresh() } }
+                }
                 controller.model.onPreview = { [weak self, weak controller] path in guard let controller else { return }; self?.showWorkingFiles(repository: repository, access: access, paths: [path], owner: controller.window) }
                 controller.model.onCompare = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFiles(repository: repository, access: access, paths: paths, owner: controller.window) }
                 controller.model.onCompareTwo = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
