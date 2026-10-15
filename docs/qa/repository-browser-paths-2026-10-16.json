@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "cb7724af",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RepositoryBrowser.cpp entry selection, lazy ReadTree/FillListCtrlForTreeNode, ShowContextMenu, historical file/revert handlers",
+    "GitDataObject.cpp historical file/directory export ownership",
+    "Native adaptation: exact Git UTF-8 identity versus canonical Swift String equality"
+  ],
+  "scope": [
+    "Byte-keyed listing/loading/expansion/outline caches; opaque byte-derived file IDs and exact entry/directory equality",
+    "Separate canonically equivalent file and folder selection, simultaneous directory loads, refresh and captured actions",
+    "Exact pinned blob reads and single-item export; per-command raw path resolution/checkout without macOS Git argument precomposition",
+    "Exclusive creation of each exported directory, refusing volume alias merges with existing private-container failure cleanup",
+    "Tracked Unicode-alias prefix preflight for working comparison, submodule resolution and Revert",
+    "Cancellable scoped asynchronous working comparison and callback generation/navigation/retirement guards"
+  ],
+  "build": {
+    "log": "build/qa/browser-paths-build.log",
+    "exit": 0
+  },
+  "core": {
+    "log": "build/qa/browser-paths-core.log",
+    "tests": 15,
+    "failures": 0,
+    "suite": "RepositoryBrowserTests",
+    "cases": "Real NFC/NFD file/folder Git trees, distinct IDs/equality/cache keys, exact binary blobs, working/index/HEAD-preserving refusal, volume-adaptive directory export collision assertion, ordinary pinned Revert and retained browser integration",
+    "repeated_after_fixture_repairs": false
+  },
+  "native": [
+    {
+      "log": "build/qa/browser-paths-native.log",
+      "exit": 1,
+      "receiver_launched": false,
+      "failure": "New fixture referenced nonexistent load/onFile names; corrected to existing refresh/presentFile without product changes"
+    },
+    {
+      "log": "build/qa/browser-paths-native-repair.log",
+      "receivers": [
+        {
+          "pid": 64496,
+          "case": "paths, system Git",
+          "result": "pass"
+        },
+        {
+          "pid": 64546,
+          "case": "table, system Git",
+          "result": "SIGTRAP"
+        }
+      ],
+      "failure": "Retained table fixture reads CommandLine.arguments[3]; new runner omitted the existing case argument. Owned crash report localized it to RepositoryBrowserTableVerification.verify; runner now supplies the legacy case name."
+    },
+    {
+      "log": "build/qa/browser-paths-system-repair.log",
+      "exit": 0,
+      "receivers": [
+        {
+          "pid": 64643,
+          "case": "table, system Git"
+        },
+        {
+          "pid": 64724,
+          "case": "lifecycle, system Git"
+        }
+      ],
+      "passed_paths_case_repeated": false
+    },
+    {
+      "log": "build/qa/browser-paths-bundled.log",
+      "exit": 0,
+      "receivers": [
+        {
+          "pid": 64939,
+          "case": "paths, bundled Git"
+        },
+        {
+          "pid": 64992,
+          "case": "table, bundled Git"
+        },
+        {
+          "pid": 65056,
+          "case": "lifecycle, bundled Git"
+        }
+      ]
+    }
+  ],
+  "ownership": {
+    "all_seven_executed_receivers_reaped": true,
+    "owned_windows_closed_or_removed_on_process_exit": true,
+    "ps_confirmed_pids_absent": true,
+    "unrelated_worktree_changes_preserved": true,
+    "new_public_screenshots": false
+  },
+  "hosted_ci": {
+    "run": 38808679175,
+    "commit": "ddfb57ab",
+    "job": 116677284880,
+    "git_integration_step_58": "success, completed 2026-10-15T22:12:50Z",
+    "unified_diff_document_step_69": "success, completed 2026-10-15T22:18:37Z",
+    "status_at_inspection": "in_progress, grouped native LFS/Send Mail receivers step 82",
+    "readiness_repair_hosted_gate_confirmed": true,
+    "full_macos_pass_confirmed": false,
+    "latest_pending_run": 38814893133,
+    "latest_pending_commit": "cb7724af",
+    "pages_run": 38814893025,
+    "pages_conclusion": "success"
+  },
+  "open": [
+    "Complete untracked/ignored, case-only and other-filesystem collision policy",
+    "Invalid UTF-8/nonstandard tree entries and byte identities outside Repository Browser paths, including refs",
+    "Full downstream historical/working comparison behavior on unusual volume configurations",
+    "Physical Finder drops/file-object clipboard, keyboard/VoiceOver, very large repositories and signed scope delivery",
+    "Full hosted macOS result and signed Finder/App Store acceptance"
+  ],
+  "certifies_complete_dialog": false
+}

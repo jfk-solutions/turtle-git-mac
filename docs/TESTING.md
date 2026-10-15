@@ -2178,3 +2178,12 @@ an actual Undo engine request, stale/fresh Go to Line answers with unchanged tex
 and neutral combined-state selection before an engine changed region. The shared
 settled helper now includes initial navigation and lays out the owned content.
 This batch changes native consumers only; Core algorithms are unchanged.
+
+`python3 scripts/test-browser-paths.py --git /usr/bin/git --git
+build/git-runtime/Git/bin/git` groups byte-exact Unicode browser selection,
+folder-cache/tree identity, captured action bytes, refresh, working preflight and
+retired owner checks with the retained table and lifecycle workflows. Core
+`RepositoryBrowserTests` builds real trees containing NFC/NFD file and folder
+names, verifies blob reads and index-preserving Revert refusal, and checks
+recursive export against the actual volume's alias behavior. This is not physical
+Finder acceptance or a full invalid-path policy for the complete app.

@@ -54,6 +54,10 @@ not the current working file. Review a Revert action carefully before accepting 
 <p>Browse References lists branches, tags and remote-tracking references. Use the
 filter and selected reference for the offered actions. Picking a reference in a
 child dialog returns it to the caller; it does not itself check out that reference.</p>
+<p>The browser keeps distinct Unicode spellings from Git as separate entries, even
+when they look alike. Export refuses names that collide on the destination volume.
+Working-tree actions report a conflict if another tracked path has the same
+Unicode spelling, rather than choosing one silently.</p>
 <a name="topic-branchTag"></a><a name="topic-checkout"></a><h2 id="branch-tag-and-checkout">Branch, tag and checkout</h2>
 <p>Create Branch or Tag asks for a name and a base revision: HEAD, a branch, a tag,
 or an explicit commit. Choose the base before accepting. Branch tracking, force,

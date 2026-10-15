@@ -2,6 +2,51 @@
 // Copyright (C) 2009-2026 - TortoiseGit; 2003-2013 - TortoiseSVN. GPL-2.0-or-later.
 import Foundation
 
+/// Git path identity is UTF-8 byte identity, not Swift's canonical String equality.
+public enum RepositoryBrowserPathIdentity {
+    public static func equal(_ a:String,_ b:String) -> Bool { a.utf8.elementsEqual(b.utf8) }
+    public static func id(_ path:String) -> String { Data(path.utf8).base64EncodedString() }
+}
+public struct RepositoryBrowserPathMap<Value:Sendable>: Sendable, ExpressibleByDictionaryLiteral {
+    public typealias Key = String
+    private var storage: [Data:(path:String,value:Value)] = [:]
+    public init() {}
+    public init(dictionaryLiteral elements:(String,Value)...) { for (path,value) in elements { self[path]=value } }
+    public subscript(_ path:String) -> Value? {
+        get { storage[Data(path.utf8)]?.value }
+        set { if let newValue {storage[Data(path.utf8)]=(path,newValue)} else {storage.removeValue(forKey:Data(path.utf8))} }
+    }
+    public var keys:[String] { storage.values.map(\.path) }
+    public var values:[Value] { storage.values.map(\.value) }
+    public var count:Int { storage.count }
+    public func mapValues<Other:Sendable>(_ transform:(Value)throws->Other) rethrows -> RepositoryBrowserPathMap<Other> {
+        var result=RepositoryBrowserPathMap<Other>();for item in storage.values {result[item.path]=try transform(item.value)};return result
+    }
+    public func filter(_ predicate:((key:String,value:Value))throws->Bool) rethrows -> Self {
+        var result=Self();for item in storage.values {if try predicate((item.path,item.value)) {result[item.path]=item.value}};return result
+    }
+}
+extension RepositoryBrowserPathMap: Equatable where Value:Equatable {
+    public static func ==(a:Self,b:Self)->Bool {
+        a.storage.count == b.storage.count && a.storage.allSatisfy { key,item in b.storage[key]?.value == item.value }
+    }
+}
+public struct RepositoryBrowserPathSet: Sendable, ExpressibleByArrayLiteral {
+    private var storage:[Data:String]=[:]
+    public init() {}
+    public init<S:Sequence>(_ paths:S) where S.Element==String {for path in paths {insert(path)}}
+    public init(arrayLiteral elements:String...) {self.init(elements)}
+    public mutating func insert(_ path:String) {storage[Data(path.utf8)]=path}
+    public mutating func remove(_ path:String) {storage.removeValue(forKey:Data(path.utf8))}
+    public mutating func formUnion<S:Sequence>(_ paths:S) where S.Element==String {for path in paths {insert(path)}}
+    public func contains(_ path:String)->Bool {storage[Data(path.utf8)] != nil}
+    public func isSuperset<S:Sequence>(of paths:S)->Bool where S.Element==String {paths.allSatisfy(contains)}
+    public func sorted(by predicate:(String,String)throws->Bool) rethrows -> [String] {try storage.values.sorted(by:predicate)}
+    public func intersection<S:Sequence>(_ paths:S)->Self where S.Element==String {
+        let other=Self(paths);return Self(storage.values.filter {other.contains($0)})
+    }
+}
+
 /// An app-owned drag copy; callers retain it until the receiver finishes reading.
 public struct RepositoryBrowserExport: Sendable {
     public let directory: URL
@@ -18,7 +63,11 @@ public struct RepositoryBrowserEntry: Identifiable, Equatable, Sendable {
     public let mode: String
     public let objectID: String
     public let size: Int64?
-    public var id: String { path }
+    public var id: String { RepositoryBrowserPathIdentity.id(path) }
+    public static func ==(a:Self,b:Self)->Bool {
+        RepositoryBrowserPathIdentity.equal(a.path,b.path) && RepositoryBrowserPathIdentity.equal(a.name,b.name)
+            && a.mode == b.mode && a.objectID == b.objectID && a.size == b.size
+    }
     public var kind: Kind {
         switch mode { case "040000": return .directory; case "100755": return .executable; case "120000": return .symlink; case "160000": return .submodule; default: return .file }
     }
@@ -36,12 +85,14 @@ public struct RepositoryBrowserSnapshot: Sendable {
 }
 public enum RepositoryBrowserFailure: LocalizedError {
     case revision, directory, output, selection
+    case normalizationCollision(String)
     public var errorDescription: String? {
         switch self {
         case .revision: return "Choose a revision containing a commit or tree."
         case .directory: return "The selected directory does not exist at this revision."
         case .output: return "Git returned an invalid repository tree."
         case .selection: return "Choose a file from the displayed repository revision."
+        case .normalizationCollision(let path): return "The Git path “\(path)” conflicts with another tracked path after Unicode normalization. This working-folder action cannot safely keep those paths separate."
         }
     }
 }
@@ -109,7 +160,7 @@ extension GitRepository {
         try cancellation?.check()
         let subtree: String
         do {
-            subtree = directory.isEmpty ? treeID : try run(["rev-parse", "--verify", "--end-of-options", treeID + ":" + directory], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            subtree = directory.isEmpty ? treeID : try run(["-c", "core.precomposeUnicode=false", "rev-parse", "--verify", "--end-of-options", treeID + ":" + directory], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             guard try run(["cat-file", "-t", subtree], cancellation: cancellation).text == "tree\n" else { throw RepositoryBrowserFailure.directory }
         } catch { try cancellation?.check(); throw RepositoryBrowserFailure.directory }
         let entries = try RepositoryBrowserListing.parse(run(["ls-tree", "-z", "-l", subtree, "--"], cancellation: cancellation).stdout, directory: directory)
@@ -138,6 +189,9 @@ extension GitRepository {
         }
         func writeDirectory(_ listing: RepositoryBrowserSnapshot, to url: URL) throws {
             try cancellation?.check()
+            // Each Git directory must create its own native directory. Reusing
+            // an existing directory silently merges Unicode/case aliases.
+            try manager.createDirectory(at:url,withIntermediateDirectories:false)
             for value in listing.entries {
                 try cancellation?.check()
                 if value.kind == .submodule { continue }
@@ -161,12 +215,31 @@ extension GitRepository {
             return RepositoryBrowserExport(directory: container, item: destination, fileCount: count)
         } catch { try? manager.removeItem(at: container); throw error }
     }
+    public func validateRepositoryBrowserWorkingPath(_ snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry,cancellation:OperationCancellation? = nil) throws {
+        guard snapshot.root == root, !snapshot.bare, snapshot.objectID != nil, snapshot.entries.contains(entry) else {throw RepositoryBrowserFailure.selection}
+        let components=entry.path.split(separator:"/").map(String.init)
+        var target:[String]=[],prefix=""
+        for component in components {prefix += (prefix.isEmpty ? "" : "/") + component;target.append(prefix)}
+        let records=try run(["ls-files","--cached","-z","--"],cancellation:cancellation).stdout.split(separator:0)
+        for record in records {
+            try cancellation?.check()
+            guard let path=String(data:Data(record),encoding:.utf8) else {continue}
+            var prefix=""
+            for (index,component) in path.split(separator:"/").enumerated() where index < target.count {
+                prefix += (prefix.isEmpty ? "" : "/") + component
+                if prefix == target[index], !RepositoryBrowserPathIdentity.equal(prefix,target[index]) {
+                    throw RepositoryBrowserFailure.normalizationCollision(entry.path)
+                }
+            }
+        }
+    }
     /// Resolve the child checkout at the gitlink displayed by this pinned tree.
     /// Availability may be false; this never initializes or fetches a submodule.
     public func repositoryBrowserSubmodule(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, cancellation: OperationCancellation? = nil) throws -> SubmoduleComparison {
         try cancellation?.check()
         guard snapshot.root == root, !snapshot.bare, snapshot.entries.contains(entry),
               entry.kind == .submodule, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
+        try validateRepositoryBrowserWorkingPath(snapshot,entry:entry,cancellation:cancellation)
         let result = try submoduleComparison(path: entry.path, from: object, to: object, cancellation: cancellation)
         guard result.from.revision == entry.objectID else { throw RepositoryBrowserFailure.selection }
         return result
@@ -180,10 +253,11 @@ extension GitRepository {
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind),
               RepositoryBrowserListing.validPath(entry.path, allowRoot: false),
               let object = snapshot.objectID, [40, 64].contains(object.count), object.allSatisfy(\.isHexDigit) else { throw RepositoryBrowserFailure.selection }
+        try validateRepositoryBrowserWorkingPath(snapshot,entry:entry,cancellation:cancellation)
         _ = try restoreLocation(entry.path)
         // This is a pinned hexadecimal object ID, never a command-line option.
         // Older supported Git versions do not accept checkout --end-of-options.
-        _ = try run(["checkout", object, "--", entry.path], cancellation: cancellation)
+        _ = try run(["-c", "core.precomposeUnicode=false", "checkout", object, "--", entry.path], cancellation: cancellation)
     }
     public func repositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, cancellation: OperationCancellation? = nil) throws -> ComparisonFileContent {
         try cancellation?.check()

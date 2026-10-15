@@ -2,6 +2,60 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RepositoryBrowserTests: XCTestCase {
+    func testBytePathCollectionsAndEntryIdentity() throws {
+        let a="caf\u{e9}",b="cafe\u{301}"
+        XCTAssertEqual(a,b) // Swift canonical equality is the regression trigger.
+        XCTAssertFalse(RepositoryBrowserPathIdentity.equal(a,b))
+        XCTAssertNotEqual(RepositoryBrowserPathIdentity.id(a),RepositoryBrowserPathIdentity.id(b))
+        var map:RepositoryBrowserPathMap<Int>=[:];map[a]=1;map[b]=2
+        XCTAssertEqual(map.count,2);XCTAssertEqual(map[a],1);XCTAssertEqual(map[b],2)
+        XCTAssertEqual(map.mapValues{$0 * 2}[b],4)
+        let paths=RepositoryBrowserPathSet([a,b]);XCTAssertTrue(paths.isSuperset(of:[a,b]))
+        XCTAssertTrue(paths.intersection([a]).contains(a));XCTAssertFalse(paths.intersection([a]).contains(b))
+        let left=RepositoryBrowserEntry(path:a,name:a,mode:"100644",objectID:String(repeating:"a",count:40),size:1)
+        let right=RepositoryBrowserEntry(path:b,name:b,mode:"100644",objectID:left.objectID,size:1)
+        XCTAssertNotEqual(left,right)
+    }
+    func testUnicodeAliasTreesKeepHistoricalBytesAndRefuseWorkingAliasMutation() async throws {
+        let (root,repo,_) = try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let a="caf\u{e9}.txt",b="cafe\u{301}.txt",da="d\u{e9}",db="de\u{301}"
+        let working=Data("working identity\n".utf8);try working.write(to:root.appendingPathComponent(a));try await repo.stage([a]);_ = try await repo.commit(message:"working NFC")
+        let first=Data([0,1,0xff,10]),second=Data([9,2,0xfe,13,10])
+        let ah=try await repo.run(["hash-object","-w","--stdin"],input:first).text.trimmingCharacters(in:.newlines)
+        let bh=try await repo.run(["hash-object","-w","--stdin"],input:second).text.trimmingCharacters(in:.newlines)
+        func record(_ mode:String,_ type:String,_ hash:String,_ name:String)->String {"\(mode) \(type) \(hash)\t\(name)\0"}
+        let at=try await repo.run(["mktree","-z"],input:Data(record("100644","blob",ah,"first.txt").utf8)).text.trimmingCharacters(in:.newlines)
+        let bt=try await repo.run(["mktree","-z"],input:Data(record("100644","blob",bh,"second.txt").utf8)).text.trimmingCharacters(in:.newlines)
+        let directories=record("040000","tree",at,da)+record("040000","tree",bt,db)
+        let tree=try await repo.run(["mktree","-z"],input:Data((record("100644","blob",ah,a)+record("100644","blob",bh,b)+directories).utf8)).text.trimmingCharacters(in:.newlines)
+        let snapshot=try await repo.browseRepository(revision:tree)
+        XCTAssertEqual(snapshot.entries.count,4);XCTAssertEqual(Set(snapshot.entries.map(\.id)).count,4)
+        let ae=try XCTUnwrap(snapshot.entries.first{RepositoryBrowserPathIdentity.equal($0.path,a)}),be=try XCTUnwrap(snapshot.entries.first{RepositoryBrowserPathIdentity.equal($0.path,b)})
+        let av=try await repo.repositoryBrowserFile(snapshot,entry:ae),bv=try await repo.repositoryBrowserFile(snapshot,entry:be)
+        XCTAssertEqual(av.bytes,first);XCTAssertEqual(bv.bytes,second)
+        let ad=try await repo.browseRepositoryDirectory(snapshot,directory:da),bd=try await repo.browseRepositoryDirectory(snapshot,directory:db)
+        XCTAssertEqual(ad.entries.first?.name,"first.txt");XCTAssertEqual(bd.entries.first?.name,"second.txt")
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        do {try await repo.revertRepositoryBrowserFile(snapshot,entry:be);XCTFail("Canonical alias checkout was allowed")}
+        catch RepositoryBrowserFailure.normalizationCollision(let path) {XCTAssertTrue(RepositoryBrowserPathIdentity.equal(path,b))}
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(a)),working)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        let unchanged=try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(unchanged,head)
+        let single=try await repo.exportRepositoryBrowser(snapshot,entry:be);defer{single.discard()};XCTAssertEqual(try Data(contentsOf:single.item),second)
+        let dirs=try await repo.run(["mktree","-z"],input:Data(directories.utf8)).text.trimmingCharacters(in:.newlines)
+        let listing=try await repo.browseRepository(revision:dirs)
+        // Ask this actual volume whether aliases share a directory. On such a
+        // volume a recursive export must fail rather than merge disjoint children.
+        let probe=root.appendingPathComponent("volume-probe");try FileManager.default.createDirectory(at:probe,withIntermediateDirectories:true)
+        try FileManager.default.createDirectory(at:probe.appendingPathComponent(da),withIntermediateDirectories:false)
+        let aliases=FileManager.default.fileExists(atPath:probe.appendingPathComponent(db).path)
+        if aliases {
+            do {let export=try await repo.exportRepositoryBrowser(listing);export.discard();XCTFail("Alias directories were merged")}
+            catch {XCTAssertTrue((error as NSError).domain == NSCocoaErrorDomain)}
+        } else {let export=try await repo.exportRepositoryBrowser(listing);XCTAssertEqual(export.fileCount,2);export.discard()}
+        try await repo.revertRepositoryBrowserFile(snapshot,entry:ae)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(a)),first)
+    }
     func testStandaloneTreesSupportComparisonMarksPatchesAndHistoricalReadsWithoutInventingHistory() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

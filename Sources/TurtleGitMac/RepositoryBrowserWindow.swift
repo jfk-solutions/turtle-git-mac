@@ -163,8 +163,8 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     let access: RepositoryAccessLease?
     @Published var revision: String
     @Published private(set) var snapshot: RepositoryBrowserSnapshot?
-    @Published private(set) var directories: [String: [RepositoryBrowserEntry]] = [:]
-    @Published var expanded: Set<String> = [""]
+    @Published private(set) var directories: RepositoryBrowserPathMap<[RepositoryBrowserEntry]> = [:]
+    @Published var expanded: RepositoryBrowserPathSet = [""]
     @Published var selection = Set<String>()
     @Published var sortOrder = [KeyPathComparator(\RepositoryBrowserEntry.name)]
     @Published var busy = false
@@ -175,8 +175,8 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     private var lastImportedWorkingMark: UUID?
     private(set) var generation = UUID()
     private var menuGeneration = UUID()
-    private var loads = Set<String>()
-    private var listings: [String: RepositoryBrowserSnapshot] = [:]
+    private var loads = RepositoryBrowserPathSet()
+    private var listings: RepositoryBrowserPathMap<RepositoryBrowserSnapshot> = [:]
     private var requestedDirectory = ""
     private(set) var active = true
     private(set) static var activeOperations = 0
@@ -261,7 +261,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         wanted.insert("")
         let ordered = wanted.sorted { lhs, rhs in
             let a=lhs.split(separator:"/").count, b=rhs.split(separator:"/").count
-            return a == b ? lhs < rhs : a < b
+            return a == b ? lhs.utf8.lexicographicallyPrecedes(rhs.utf8) : a < b
         }
         let (request, cancellation) = startRequest()
         Task { [self, repository, access] in
@@ -269,12 +269,12 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             do {
                 try validateAccess()
                 let root = try await repository.browseRepository(revision:value, cancellation:cancellation)
-                var restored = ["":root]
+                var restored:RepositoryBrowserPathMap<RepositoryBrowserSnapshot> = ["":root]
                 if root.treeID != nil {
                     for path in ordered where !path.isEmpty {
                         if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                         let ancestor = (path as NSString).deletingLastPathComponent
-                        guard let listing = restored[ancestor], listing.entries.contains(where: { $0.path == path && $0.kind == .directory }) else { continue }
+                        guard let listing = restored[ancestor], listing.entries.contains(where: { RepositoryBrowserPathIdentity.equal($0.path,path) && $0.kind == .directory }) else { continue }
                         do { restored[path] = try await repository.browseRepositoryDirectory(root,directory:path,cancellation:cancellation) }
                         catch { if cancellation.isCancelled { throw OperationCancellationFailure.cancelled } /* A removed directory falls back to its surviving ancestor. */ }
                     }
@@ -285,7 +285,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
                 while restored[currentPath] == nil && !currentPath.isEmpty { currentPath = (currentPath as NSString).deletingLastPathComponent }
                 let current = restored[currentPath] ?? root
                 directories = restored.mapValues(\.entries); listings = restored; requestedDirectory = current.directory
-                snapshot = current; expanded = wanted.intersection(Set(restored.keys)); expanded.insert("")
+                snapshot = current; expanded = wanted.intersection(restored.keys); expanded.insert("")
                 selection = retainedSelection.intersection(Set(current.entries.map(\.id)))
             } catch { if active && generation == identity && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
@@ -308,7 +308,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
                 if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                 guard active, generation == identity else { return }
                 directories[path] = result.entries; listings[path] = result
-                if requestedDirectory == path { self.snapshot = result; selection = [] }
+                if RepositoryBrowserPathIdentity.equal(requestedDirectory,path) { self.snapshot = result; selection = [] }
             } catch { if active && generation == identity && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
@@ -419,7 +419,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     }
     func acceptsMenu(_ target: MenuTarget) -> Bool {
         canUseMenu && target.owner == ObjectIdentifier(self) && target.generation == generation && target.navigation == menuGeneration &&
-        target.revision == snapshot?.objectID && target.directory == snapshot?.directory &&
+        target.revision == snapshot?.objectID && snapshot.map { RepositoryBrowserPathIdentity.equal(target.directory,$0.directory) } == true &&
         target.entries.allSatisfy { snapshot?.entries.contains($0) == true }
     }
     var canUseMenu: Bool { active && !busy && !mutating && !confirmingQuit && !confirmingColumns }
@@ -427,7 +427,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         guard canUseMenu, let snapshot, snapshot.objectID != nil else { return nil }
         if path.isEmpty { return snapshot.treeID }
         let parent = (path as NSString).deletingLastPathComponent
-        return directories[parent == "." ? "" : parent]?.first { $0.path == path && $0.kind == .directory }?.objectID
+        return directories[parent == "." ? "" : parent]?.first { RepositoryBrowserPathIdentity.equal($0.path,path) && $0.kind == .directory }?.objectID
     }
     func openFolder(_ path: String) {
         guard folderObjectID(path) != nil else { return }
@@ -462,7 +462,17 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func compareEntryToWorkingTree(_ entry: RepositoryBrowserEntry) {
         guard canUseMenu, let snapshot, !snapshot.bare, snapshot.entries.contains(entry),
               entry.kind != .directory, let revision = snapshot.objectID else { return }
-        onCompare(entry.path,revision)
+        let identity=generation,navigation=menuGeneration,callback=onCompare
+        let (request,cancellation)=startRequest();busy=true
+        Task { [self,repository,access] in
+            defer {finishRequest(request);if active,generation==identity {busy=false};withExtendedLifetime(access){}}
+            do {
+                try validateAccess()
+                try await repository.validateRepositoryBrowserWorkingPath(snapshot,entry:entry,cancellation:cancellation)
+                guard active,generation==identity,menuGeneration==navigation,!cancellation.isCancelled else {return}
+                callback(entry.path,revision)
+            } catch {if active,generation==identity,!cancellation.isCancelled {self.error=error.localizedDescription}}
+        }
     }
     func copy(hashes: Bool = false, pasteboard: NSPasteboard = .general, entries: [RepositoryBrowserEntry]? = nil) {
         guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns else { return }
@@ -545,8 +555,8 @@ private struct RepositoryBrowserSplit<Left: View, Right: View>: NSViewController
     @MainActor final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate {
         let model:RepositoryBrowserWindowModel
         weak var outline:RepositoryBrowserFolderOutline?
-        private var nodes:[String:Node]=["":Node("")]
-        private var children:[String:[RepositoryBrowserEntry]]=[:]
+        private var nodes:RepositoryBrowserPathMap<Node>=["":Node("")]
+        private var children:RepositoryBrowserPathMap<[RepositoryBrowserEntry]>=[:]
         private var generation:UUID?
         private var updating=false
         var retired=false
@@ -575,7 +585,7 @@ private struct RepositoryBrowserSplit<Left: View, Right: View>: NSViewController
             if children != model.directories || generation != model.generation {
                 children=model.directories;generation=model.generation
                 // Retain identity only for paths belonging to the current tree.
-                let paths=Set([""]+children.values.flatMap { $0.filter { $0.kind == .directory }.map(\.path) })
+                let paths=RepositoryBrowserPathSet([""]+children.values.flatMap { $0.filter { $0.kind == .directory }.map(\.path) })
                 nodes=nodes.filter { paths.contains($0.key) };outline.reloadData()
             }
             for path in model.expanded.sorted(by:{ $0.split(separator:"/").count < $1.split(separator:"/").count }) {

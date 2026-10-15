@@ -73,6 +73,11 @@ Browse References lists branches, tags and remote-tracking references. Use the
 filter and selected reference for the offered actions. Picking a reference in a
 child dialog returns it to the caller; it does not itself check out that reference.
 
+The browser keeps distinct Unicode spellings from Git as separate entries, even
+when they look alike. Export refuses names that collide on the destination volume.
+Working-tree actions report a conflict if another tracked path has the same
+Unicode spelling, rather than choosing one silently.
+
 ## Branch, tag and checkout
 
 Create Branch or Tag asks for a name and a base revision: HEAD, a branch, a tag,

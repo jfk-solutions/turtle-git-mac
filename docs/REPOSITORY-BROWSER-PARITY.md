@@ -466,3 +466,39 @@ Changed Files metadata/history guards and owned window cleanup. Assigning light
 and dark appearances is a host check, not visual screenshot certification.
 Signed Finder invocation, physical drag/drop, complete accessibility and full
 source-dialog visual parity remain separate acceptance work.
+
+## Exact historical Unicode path identities — October 16, 2026
+
+Git can store precomposed and decomposed names as distinct UTF-8 paths. Swift
+String equality treats canonical equivalents as equal, so it cannot key browser
+selection, directory caches, expansion state or outline nodes. The browser now
+uses byte-keyed path maps/sets and opaque byte-derived entry IDs. Entry equality,
+folder matching and captured directory checks use the same exact identity. Names
+and copied path text keep the original Unicode spelling. Root/folder refresh
+retains both aliases and their separate pinned listings.
+
+Historical blob reads and single-item exports keep the selected object ID and
+bytes. Raw tree path resolution and checkout disable Git's macOS argument
+precomposition for that command only. Recursive export creates each directory
+exclusively: if the destination volume aliases two directory names, export fails
+and removes its private partial container instead of merging their children.
+Existing exclusive file writes continue to refuse file collisions.
+
+Working-folder comparisons, submodule resolution and Revert check the Git index's
+raw path prefixes. A different tracked path with the same canonical Unicode
+spelling refuses the action before reading a potentially different working item
+or changing the index/work tree. Exact ordinary paths still work. This policy
+covers tracked aliases; complete untracked/ignored filesystem collision handling,
+case-only aliases and raw invalid-UTF8 paths remain separate work. Working
+comparison preflight is cancellable, owns its scope/request and refuses callbacks
+after navigation or retirement.
+
+This is a macOS path-identity correction rather than a new source menu. The pinned
+RepositoryBrowser.cpp/GitDataObject workflows pass exact tree entries to historical
+actions; native Unicode equivalence must not redirect those entries. Complete
+Finder/file-object clipboard, physical accessibility, very large trees, signed
+scope and App Store acceptance remain unverified.
+
+[Path identity evidence](qa/repository-browser-paths-2026-10-16.json) records the
+15 passing Core tests, native cases on both Git engines, initial fixture API/argv
+failures and focused repairs, actual receiver cleanup and hosted CI gate progress.

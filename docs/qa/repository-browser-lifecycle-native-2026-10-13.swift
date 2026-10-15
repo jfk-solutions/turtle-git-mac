@@ -28,9 +28,9 @@ import TurtleGitCore
         try await wait { !model.busy && model.snapshot != nil }
         model.expanded.formUnion(["a","a/b"]);model.loadDirectory("a/b",select:true)
         try await wait { model.snapshot?.directory=="a/b" }
-        model.selection=["a/b/one"]
+        model.selection=[RepositoryBrowserPathIdentity.id("a/b/one")]
         model.refresh();try await wait { !model.busy && model.snapshot?.directory=="a/b" }
-        try require(model.expanded.isSuperset(of:["","a","a/b"]) && model.directories["a"] != nil && model.selection==["a/b/one"],"Refresh lost loaded ancestors/selection")
+        try require(model.expanded.isSuperset(of:["","a","a/b"]) && model.directories["a"] != nil && model.selection==[RepositoryBrowserPathIdentity.id("a/b/one")],"Refresh lost loaded ancestors/selection")
         let board=NSPasteboard(name:NSPasteboard.Name("TurtleGit.Browser.QA."+UUID().uuidString));defer { board.clearContents() }
         model.copy(pasteboard:board);try require(board.string(forType:.string)=="one\r\n","Private names copy")
         model.copy(hashes:true,pasteboard:board);try require(board.string(forType:.string)==model.selected.first?.objectID,"Private hash copy")
@@ -131,6 +131,7 @@ import TurtleGitCore
         treeModel.onPreparedFileCompare = { markedHandoff = ($0,$1) }
         treeModel.onLog = { _,_ in historyCalls += 1 }; treeModel.onBlame = { _,_ in historyCalls += 1 }
         treeModel.compareEntryToWorkingTree(treeEntry)
+        try await wait { !treeModel.busy && workingHandoff != nil }
         try require(workingHandoff?.0 == treeEntry.path && workingHandoff?.1 == tree,"Tree working handoff lost identity")
         let comparison = try await repo.revisionFileComparison(from:.revision(workingHandoff!.1),to:.workingTree,paths:[workingHandoff!.0])
         let treeDocument = try await repo.comparisonFile(comparison,path:treeEntry.path)

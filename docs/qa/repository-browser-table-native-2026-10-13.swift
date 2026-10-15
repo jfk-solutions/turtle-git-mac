@@ -181,7 +181,7 @@ import TurtleGitCore
         if CommandLine.arguments[3]=="repository-browser-table-captures" {
             reopened.model.saveColumns(RepositoryBrowserColumns())
             try await wait { find(reopened.window!.contentView!)?.tableColumns.allSatisfy { !$0.isHidden } == true }
-            reopened.model.selection=["file2.txt"]
+            reopened.model.selection=[RepositoryBrowserPathIdentity.id("file2.txt")]
             try await capture(reopened.window!)
         }
         reopened.close();try await wait { RepositoryBrowserWindowModel.activeOperations==0 }
