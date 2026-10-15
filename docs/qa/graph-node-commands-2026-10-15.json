@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-15",
+  "scope": "Connected Revision Graph node commands, viewer handoff and accessibility family",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/RevisionGraph/RevisionGraphWnd.cpp: command groups, UpdateSelectedEntry, OnContextMenu",
+      "src/TortoiseProc/RevisionGraph/RevisionGraphDlgFunc.cpp: CompareRevs and UnifiedDiffRevs Shift choice",
+      "src/TortoiseProc/GitDiff.cpp: subsequent directory comparison uses its own Changed Files interaction"
+    ]
+  },
+  "implementation": [
+    "Source node-menu group separators and original artwork/payloads; one shared consumed/superseded popup session plus existing graph/selection generation guards",
+    "Unified comparisons capture alternate choice before Git reads and use configured external viewer; built-in fallback preserves raw bytes, originating repository/lease and parent preferences",
+    "Owned unified-viewer error acknowledgment remains in graph/Quit operation lifetime; late selection, requested close and forced retirement suppress fallback windows",
+    "Captured comparison invocation context reaches graph comparison callbacks; Changed Files subsequent file commands retain their independent tool invocation",
+    "Selected-base node Shift-F10, canvas/node accessibility Show Menu and source blank-hit selection behavior",
+    "Native per-node accessibility buttons provide labels, screen frames, base/comparison selection, Press and add/remove comparison custom action; weak parents and graph-generation expiry; blocked/retired routes refuse actions"
+  ],
+  "validation": {
+    "core": "Unchanged graph data/layout code; Core suites not rerun",
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/graph-node-commands-build-isolated-2026-10-15.log"
+    },
+    "initial_build_repair": {
+      "log": "build/qa/graph-node-commands-build-2026-10-15.log",
+      "description": "Rename the accessibility node revision hash to avoid NSObject.hash and use AppKit scrollToVisible spelling."
+    },
+    "native": {
+      "result": "both grouped engine cases passed",
+      "log": "build/qa/graph-node-commands-native-final-2026-10-15.log",
+      "cases": [
+        "revision-graph/system Git",
+        "revision-graph/bundled Git"
+      ],
+      "receivers_reaped_and_absent": [
+        906,
+        1359
+      ],
+      "scope": "New popup grouping, shared one-use/superseded actions, comparison Shift context, node/keyboard menu anchors, accessibility labels/frame/selection/custom action/generation and disabled guards; raw unified fallback/external success/captured choice; owned error acknowledgment, stale selection and requested/forced close; existing Find/Filter/export/deletion/submodule/zoom/persistence/repository invariants retained"
+    },
+    "interrupted_initial_native": {
+      "log": "build/qa/graph-node-commands-native-2026-10-15.log",
+      "receiver_reaped": 449,
+      "description": "Stopped owned run after identifying a fallback viewer constructed with default preferences. Rebuilt it with the parent Graph preferences before final verification. No assertion failure or pass claimed for this interrupted run.",
+      "receiver_absent": true
+    },
+    "visual": "Native control/menu/accessibility properties and actual owned error/fallback windows are checked; no new screenshot or physical VoiceOver acceptance claim.",
+    "hosted_snapshot_before_push": {
+      "head": "16d47071",
+      "pages_run": 38682612582,
+      "pages_conclusion": "success",
+      "macos_run": 38682612681,
+      "macos_status": "pending"
+    },
+    "documentation": {
+      "site_documents": 216,
+      "unresolved_fragments": [],
+      "coverage_ledger": "regenerated",
+      "log": "build/qa/graph-node-commands-site-2026-10-15.log"
+    }
+  },
+  "limits": [
+    "Physical popup tracking, external accessibility-client discovery/VoiceOver and large accessibility hierarchies remain unverified",
+    "Configured external launching is injected in native checks; no third-party app launched",
+    "Source operation scopes and reference payloads retain their existing partial audits; no full Graph/application parity claim",
+    "Signed Finder/App Store distribution remains open"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

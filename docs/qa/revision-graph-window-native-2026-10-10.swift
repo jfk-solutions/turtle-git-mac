@@ -215,7 +215,8 @@ import Darwin
         controller.perform("compare"); try require(compared)
         var range: HistoryRevisionRange?; model.onLogRange = { range = $0 }
         controller.perform("log"); try require(range == HistoryRevisionRange(from: geometry[0].hash, to: geometry[1].hash))
-        try require(controller.nodeMenu().items.map(\.title) == ["Show Log", "Compare revisions", "Unified diff"])
+        try require(controller.nodeMenu().items.filter{!$0.isSeparatorItem}.map(\.title) == ["Show Log", "Compare revisions", "Unified diff"])
+        try await graphCommandFamily(controller:controller,repository:repo,preferences:prefs,helper:helper)
         controller.perform("zoomOut"); try require(abs(model.zoom - 0.9) < 0.0001)
         controller.perform("zoom100"); controller.perform("overview"); try require(model.zoom == 1 && model.showOverview)
         let toolbar = try XCToolbar(window)
@@ -717,4 +718,82 @@ import Darwin
         try require(retiredFilter.completionNames == ["HEAD"] && retiredFilter.completions(for:"HEAD").isEmpty)
         print("PASS: Native Revision Graph captured menus, revision token completion, retired completion/Quit ownership, selection, routing, zoom, tooltip, filter scopes, Reset, cancellation and repository invariants")
     }
+    @MainActor static func graphCommandFamily(controller:RevisionGraphWindowController,repository:GitRepository,preferences:UserDefaults,helper:URL) async throws {
+        let model=controller.model,canvas=controller.canvas,window=controller.window!,originalSelection=model.selection
+        let oldCompare=model.onCompare,oldLog=model.onLog,oldRange=model.onLogRange,oldExternal=controller.openUnifiedExternal,allowed=canvas.interactionAllowed
+        defer{model.onCompare=oldCompare;model.onLog=oldLog;model.onLogRange=oldRange;controller.openUnifiedExternal=oldExternal;canvas.interactionAllowed=allowed;canvas.presentContextMenu=nil;model.selection=originalSelection;controller.update()}
+        var compared:[Bool]=[],logs=0
+        model.onCompare={_,_ in compared.append(ComparisonToolInvocation.capture)};model.onLog={_ in logs += 1};model.onLogRange={_ in logs += 1}
+        let pair=Array(model.nodes.prefix(2).map(\.hash));try require(pair.count==2)
+        model.selection=pair;controller.update()
+        let menu=controller.nodeMenu(),compare=menu.items.first{$0.title=="Compare revisions"}!,log=menu.items.first!
+        try require(menu.items.filter(\.isSeparatorItem).count==1 && menu.items[1].isSeparatorItem)
+        ComparisonToolInvocation.$alternate.withValue(true){_=NSApp.sendAction(compare.action!,to:compare.target,from:compare)}
+        _=NSApp.sendAction(compare.action!,to:compare.target,from:compare);_=NSApp.sendAction(log.action!,to:log.target,from:log)
+        try require(compared==[true] && logs==0 && !controller.validateMenuItem(compare))
+        let superseded=controller.nodeMenu().items.first!;_=controller.nodeMenu();_=NSApp.sendAction(superseded.action!,to:superseded.target,from:superseded)
+        try require(logs==0 && !controller.validateMenuItem(superseded))
+        controller.perform("compare");try require(compared.count==2)
+        let feature=model.nodes.first{$0.references.contains{$0.name=="refs/heads/feature/native-graph"}}!
+        model.select(feature.hash,extending:false);let one=controller.nodeMenu()
+        try require(one.items.filter(\.isSeparatorItem).count==4 && one.items.filter{!$0.isSeparatorItem}.allSatisfy{$0.image != nil})
+        let blank=NSEvent.mouseEvent(with:.rightMouseDown,location:canvas.convert(NSPoint(x:1,y:1),to:nil),modifierFlags:[],timestamp:0,windowNumber:window.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:0)!
+        try require(canvas.menu(for:blank)==nil && model.selection.isEmpty)
+        var popupPoint=NSPoint.zero,popups=0
+        canvas.presentContextMenu={_,point,_ in popupPoint=point;popups += 1}
+        try require(!canvas.accessibilityPerformShowMenu())
+        let elements=(canvas.accessibilityChildren() ?? []).compactMap{$0 as? RevisionGraphAccessibleNode}
+        try require(elements.count==model.nodes.count && elements.allSatisfy{($0.accessibilityParent() as? RevisionGraphCanvas) === canvas && $0.accessibilityFrame().width>0 && $0.accessibilityLabel()?.isEmpty==false})
+        try require(elements[0].accessibilityPerformPress() && model.selection==[elements[0].revisionHash] && elements[0].isAccessibilitySelected())
+        try require(elements[1].accessibilityCustomActions()?.first?.handler?()==true && model.selection==[elements[0].revisionHash,elements[1].revisionHash])
+        try require(canvas.accessibilitySelectedChildren()?.count==2 && elements[0].accessibilityValue() as? String=="Base revision")
+        let f10=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[.shift,.function],timestamp:0,windowNumber:window.windowNumber,context:nil,characters:"\u{f70d}",charactersIgnoringModifiers:"\u{f70d}",isARepeat:false,keyCode:109)!
+        window.makeFirstResponder(canvas);try require(window.performKeyEquivalent(with:f10) && popups==1 && canvas.hit(popupPoint)==model.selection[0])
+        try require(canvas.accessibilityPerformShowMenu() && popups==2 && elements[0].accessibilityPerformShowMenu() && popups==3)
+        try require(!elements[2].accessibilityPerformShowMenu())
+        canvas.interactionAllowed={false}
+        try require(!canvas.showSelectedContextMenu() && !elements[0].accessibilityPerformPress() && !elements[1].accessibilityCustomActions()!.first!.handler!())
+        canvas.interactionAllowed=allowed
+        model.load();try await wait{!model.busy}
+        try require(!elements[0].isAccessibilityEnabled() && !elements[0].accessibilityPerformPress() && !elements[0].accessibilityPerformShowMenu())
+        let fresh=(canvas.accessibilityChildren() ?? []).compactMap{$0 as? RevisionGraphAccessibleNode}
+        try require(fresh.count==elements.count && fresh[0] !== elements[0])
+        model.selection=pair;controller.update()
+        let expected=try await repository.run(["diff","--no-ext-diff","--no-color",pair[0],pair[1],"--"]).stdout
+        var unified:[(Data,Bool)]=[]
+        controller.openUnifiedExternal={bytes,alternate in unified.append((bytes,alternate));return false}
+        model.unified(head:false,alternate:true);try await wait{!model.busy}
+        try require(unified.count==1 && unified[0].0==expected && unified[0].1 && controller.unifiedViewer?.model.readOnly==true && controller.unifiedViewer?.model.exportDocument.bytes==expected && controller.unifiedViewer?.window?.alphaValue==0)
+        controller.unifiedViewer?.close();try require(controller.unifiedViewer==nil)
+        controller.openUnifiedExternal={bytes,alternate in unified.append((bytes,alternate));return true}
+        model.unified(head:false,alternate:false);try await wait{!model.busy}
+        try require(unified.count==2 && !unified[1].1 && controller.unifiedViewer==nil)
+        controller.openUnifiedExternal={_,_ in throw NSError(domain:"GraphFixture",code:1,userInfo:[NSLocalizedDescriptionKey:"Private viewer launch failure"])}
+        model.unified(head:false);try await wait{window.attachedSheet != nil}
+        try require(model.busy && !controller.windowShouldClose(window) && !canvas.showSelectedContextMenu() && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
+        let error=window.attachedSheet!,ok=views(error.contentView!).compactMap{$0 as? NSButton}.first{$0.title=="OK"}!
+        ok.performClick(nil);try await wait{window.attachedSheet==nil && !model.busy}
+        try require(model.error?.contains("Private viewer launch failure")==true && controller.unifiedViewer==nil)
+        var reply:CheckedContinuation<Bool,Error>?
+        controller.openUnifiedExternal={_,_ in try await withCheckedThrowingContinuation{reply=$0}}
+        model.unified(head:false);try await wait{reply != nil};model.selection=Array(pair.reversed());reply?.resume(returning:false);reply=nil;try await wait{!model.busy}
+        try require(controller.unifiedViewer==nil)
+        model.selection=pair;controller.update()
+        for forced in [false,true] {
+            let child=RevisionGraphWindowController(repository:repository,access:RepositoryAccessLease(url:repository.root),preferences:preferences,layoutExecutable:helper,automaticallyLoad:false)
+            defer{child.close()};child.window!.alphaValue=0;child.showWindow(nil);child.model.load();try await wait{!child.model.busy};child.model.selection=pair
+            if forced {child.openUnifiedExternal={_,_ in throw NSError(domain:"GraphFixture",code:2)};child.model.unified(head:false);try await wait{child.window?.attachedSheet != nil};child.close()}
+            else {
+                var held:CheckedContinuation<Bool,Error>?
+                child.openUnifiedExternal={_,_ in try await withCheckedThrowingContinuation{held=$0}}
+                child.model.unified(head:false);try await wait{held != nil};child.window!.performClose(nil)
+                try require(!child.model.closed && RevisionGraphWindowModel.activeOperations>0)
+                held?.resume(returning:false);held=nil
+            }
+            try await wait{child.model.closed && RevisionGraphWindowModel.activeOperations==0}
+            try require(child.unifiedViewer==nil && child.window?.isVisible==false && child.window?.attachedSheet==nil && child.canvas.accessibilityChildren()?.isEmpty==true)
+        }
+        print("PASS: Graph source menu groups, one-use/superseded popup actions, Shift capture; keyboard/AX node menu anchors, accessible selection/frames/stale generations; external unified choice, raw-byte built-in fallback, owned error/late selection and requested/forced close settlement. Private fixtures; no external app launched.")
+    }
+
 }

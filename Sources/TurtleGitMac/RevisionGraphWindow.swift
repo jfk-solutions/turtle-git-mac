@@ -73,7 +73,8 @@ final class RevisionGraphSurface: NSView {
     var onBrowse: (String) -> Void = { _ in }
     var onCompare: (ComparisonRevision, ComparisonRevision) -> Void = { _, _ in }
     var onCheckout: (String) -> Void = { _ in }
-    var onUnified: (Data) -> Void = { _ in }
+    var onUnified: (Data,Bool) async throws -> Void = { _,_ in }
+    var acknowledgeUnifiedFailure: (String) async -> Void = { _ in }
     private(set) var font: NSFont
     private static func configuredFont(_ preferences: UserDefaults) -> NSFont {
         MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: 12)
@@ -163,9 +164,11 @@ final class RevisionGraphSurface: NSView {
     }
     static func fullReferenceName(_ ref: RevisionReference) -> String { ref.kind == .annotatedTag ? ref.name + "^{}" : ref.name }
     func friendName(_ hash: String) -> String { nodes.first { $0.hash == hash }?.references.first.map(Self.fullReferenceName) ?? hash }
-    func compare(head: Bool = false, working: Bool = false) {
+    func compare(head: Bool = false, working: Bool = false, alternate:Bool? = nil) {
         guard !busy, !closed, let first = selection.first, (head || working) ? selection.count == 1 : selection.count == 2, !working || !bare else { return }
-        onCompare(.revision(friendName(first)), working ? .workingTree : .revision(head ? "HEAD" : friendName(selection[1])))
+        ComparisonToolInvocation.$alternate.withValue(alternate ?? ComparisonToolInvocation.capture) {
+            onCompare(.revision(friendName(first)), working ? .workingTree : .revision(head ? "HEAD" : friendName(selection[1])))
+        }
     }
     var selectedNode: RevisionGraphNode? { selection.count == 1 ? nodes.first { $0.hash == selection[0] } : nil }
     var deletableReferences: [RevisionReference] {
@@ -229,9 +232,10 @@ final class RevisionGraphSurface: NSView {
             }
         }
     }
-    func unified(head: Bool) {
+    func unified(head: Bool, alternate:Bool? = nil) {
         guard !busy, !closed, let first = selection.first, head ? selection.count == 1 : selection.count == 2 else { return }
         let from = friendName(first), to = head ? "HEAD" : friendName(selection[1])
+        let alternate=alternate ?? ComparisonToolInvocation.capture,selectionRequest=selectionGeneration
         let token = OperationCancellation(), request = UUID()
         busy = true; cancellation = token; generation = request; changed()
         Self.activeOperations += 1
@@ -242,8 +246,13 @@ final class RevisionGraphSurface: NSView {
                 let a = try await repository.run(["rev-parse", "--verify", "--end-of-options", from + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
                 let b = try await repository.run(["rev-parse", "--verify", "--end-of-options", to + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
                 let bytes = try await repository.run(["diff", "--no-ext-diff", "--no-color", a, b, "--"], cancellation: token).stdout
-                guard !closed, request == generation, !token.isCancelled else { return }; onUnified(bytes)
-            } catch { if !closed, request == generation, !token.isCancelled { self.error = error.localizedDescription } }
+                guard !closed, request == generation,selectionRequest==selectionGeneration, !token.isCancelled else { return }
+                try await onUnified(bytes,alternate)
+            } catch {
+                if !closed, request == generation,selectionRequest==selectionGeneration, !token.isCancelled {
+                    self.error = error.localizedDescription;changed();await acknowledgeUnifiedFailure(error.localizedDescription)
+                }
+            }
         }
     }
 }
@@ -251,6 +260,7 @@ final class RevisionGraphSurface: NSView {
 final class RevisionGraphNativeWindow: NSWindow {
     var command: (String) -> Void = { _ in }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if let canvas=firstResponder as? RevisionGraphCanvas,canvas.performContextKey(event) { return true }
         if event.keyCode == 96 { command("refresh"); return true }
         if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers {
             if key == "+" || key == "=" { command("zoomIn"); return true }
@@ -278,17 +288,20 @@ enum RevisionGraphReferenceCommand {
     private let overview: RevisionGraphOverview
     private(set) var filter: RevisionGraphFilterController?
     private(set) var find: RevisionGraphFindController?
-    private var hasFindError: Bool { exportError != nil || find?.acknowledgingFailure == true || find?.window?.attachedSheet != nil }
+    private var hasFindError: Bool { exportError != nil || unifiedError != nil || find?.acknowledgingFailure == true || find?.window?.attachedSheet != nil }
     private var closing = false
     private var exporting = false
     private(set) var graphSavePanel: RevisionGraphSavePanel?
     private var exportError: NSAlert?
     var presentSavePanel: (NSSavePanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, window, completion in panel.beginSheetModal(for: window, completionHandler: completion) }
     private var pendingRepositoryRefresh = false
-    private var unifiedViewer: PatchWindowController?
+    private(set) var unifiedViewer: PatchWindowController?
+    private var unifiedError:NSAlert?
+    var openUnifiedExternal:((Data,Bool) async throws -> Bool)
     var hasExportSheet: Bool { exporting || exportError != nil }
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, layoutExecutable: URL? = nil, automaticallyLoad: Bool = true) {
+        openUnifiedExternal={ bytes,alternate in try await UnifiedDiffApplication.openExternal(bytes,alternate:alternate,preferences:preferences) }
         let model = RevisionGraphWindowModel(repository: repository, access: access, preferences: preferences, layoutExecutable: layoutExecutable)
         self.model = model; canvas = RevisionGraphCanvas(model: model); overview = RevisionGraphOverview(model: model)
         let window = RevisionGraphNativeWindow(contentRect: CGRect(x: 0, y: 0, width: 980, height: 670), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -347,15 +360,24 @@ enum RevisionGraphReferenceCommand {
         let content = RevisionGraphSurface(); content.addSubview(stack); window.contentView = content
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: content.leadingAnchor), stack.trailingAnchor.constraint(equalTo: content.trailingAnchor), stack.topAnchor.constraint(equalTo: content.topAnchor), stack.bottomAnchor.constraint(equalTo: content.bottomAnchor), host.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16), host.heightAnchor.constraint(greaterThanOrEqualToConstant: 300)])
         host.setContentHuggingPriority(.defaultLow, for: .vertical); host.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
-        canvas.interactionAllowed = { [weak self] in self?.hasFindError == false }
-        overview.interactionAllowed = { [weak self] in self?.hasFindError == false }
+        canvas.interactionAllowed = { [weak self] in self?.graphInteractionAllowed == true }
+        overview.interactionAllowed = { [weak self] in self?.graphInteractionAllowed == true }
         canvas.contextMenu = { [weak self] in self?.nodeMenu() ?? NSMenu() }
         model.changed = { [weak self] in self?.update() }
         colorUpdates = NotificationCenter.default.publisher(for: .statusColorsChanged).receive(on: RunLoop.main).sink { [weak self] _ in
             MainActor.assumeIsolated { self?.canvas.needsDisplay = true; self?.overview.needsDisplay = true }
         }
         model.becameIdle = { [weak self] in if self?.closing == true { self?.window?.close() } }
-        model.onUnified = { [weak self] bytes in guard let self else { return }; self.unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.unifiedViewer, title: "Revision Graph changes", onClosed: { [weak self] in self?.unifiedViewer = nil }) }
+        model.onUnified = { [weak self] bytes,alternate in
+            guard let self,!self.model.closed else { return }
+            let request=self.model.generation,selection=self.model.selectionGeneration
+            let opened=try await self.openUnifiedExternal(bytes,alternate)
+            guard !opened,!Task.isCancelled,!self.model.closed,!self.closing,self.model.generation==request,self.model.selectionGeneration==selection else { return }
+            let viewer=self.unifiedViewer ?? PatchWindowController(repository:repository,access:access,preferences:preferences)
+            viewer.window?.alphaValue=self.window?.alphaValue ?? 1
+            self.unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: viewer, title: "Revision Graph changes", onClosed: { [weak self] in self?.unifiedViewer = nil })
+        }
+        model.acknowledgeUnifiedFailure={ [weak self] message in await self?.presentUnifiedFailure(message) }
         model.confirmReferenceDeletion = { [weak self, weak window] request in
             guard let self, let window, window.attachedSheet == nil, !self.hasFindError else { return .abort }
             return await withCheckedContinuation { continuation in
@@ -391,6 +413,20 @@ enum RevisionGraphReferenceCommand {
         if automaticallyLoad { model.load() }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    private var graphInteractionAllowed:Bool {
+        !model.closed && !model.busy && filter==nil && !exporting && window?.attachedSheet==nil && !hasFindError
+    }
+    private func presentUnifiedFailure(_ message:String) async {
+        guard let window,!model.closed,window.attachedSheet==nil,unifiedError==nil else { return }
+        await withCheckedContinuation { reply in
+            let alert=NSAlert();alert.alertStyle = .critical;alert.messageText="Could not show unified diff."
+            alert.informativeText=message;alert.addButton(withTitle:"OK");alert.window.alphaValue=window.alphaValue
+            unifiedError=alert;update()
+            alert.beginSheetModal(for:window) { [weak self] _ in
+                self?.unifiedError=nil;self?.update();reply.resume()
+            }
+        }
+    }
     private func menuItem(_ title: String, command: String, icon: MenuIcon? = nil) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: #selector(menuCommand(_:)), keyEquivalent: ""); item.target = self; item.representedObject = command
         item.image = icon?.contextImage(defaults: model.preferences); return item
@@ -400,40 +436,51 @@ enum RevisionGraphReferenceCommand {
         item.target = self; item.representedObject = command; item.image = icon.contextImage(defaults: model.preferences); return item
     }
     func nodeMenu() -> NSMenu {
-        let menu = NSMenu(); guard !model.busy, window?.attachedSheet == nil && !hasFindError, !model.selection.isEmpty else { return menu }
-        menu.addItem(menuItem("Show Log", command: "log", icon: .log))
+        currentNodeMenuSession=nil
+        let menu = NSMenu(); guard graphInteractionAllowed, !model.selection.isEmpty else { return menu }
+        let session=NodeMenuSession();currentNodeMenuSession=session
+        var lastGroup:Int?
+        func append(_ item:NSMenuItem) {
+            let group:Int
+            if let command=item.representedObject as? String {
+                group=["log","browse"].contains(command) ? 0 : command == "copyRefs" ? 0x400 : command == "referenceSubmenu" ? 0x300 : 0x100
+            } else { group=0x300 }
+            if let lastGroup,lastGroup != group { menu.addItem(.separator()) }
+            lastGroup=group;menu.addItem(item)
+        }
+        append(menuItem("Show Log", command: "log", icon: .log))
         if let node = model.selectedNode {
-            menu.addItem(menuItem("Browse repository", command: "browse", icon: .repositoryBrowser))
+            append(menuItem("Browse repository", command: "browse", icon: .repositoryBrowser))
             let branches = model.switchBranches
             if branches.count == 1 {
-                menu.addItem(referenceItem("Switch to branch \"" + branches[0].label + "\"", command: .switchBranch(branches[0].name, hash: node.hash), icon: .checkout))
+                append(referenceItem("Switch to branch \"" + branches[0].label + "\"", command: .switchBranch(branches[0].name, hash: node.hash), icon: .checkout))
             } else if branches.count > 1 {
                 let parent = menuItem("Switch to branch", command: "referenceSubmenu", icon: .checkout), child = NSMenu()
                 for ref in branches { child.addItem(referenceItem(ref.label, command: .switchBranch(ref.name, hash: node.hash), icon: .checkout)) }
-                parent.submenu = child; menu.addItem(parent)
+                parent.submenu = child; append(parent)
             } else if let ref = model.checkoutReference {
-                menu.addItem(referenceItem("Switch/Checkout to this…", command: .checkout(ref.name, hash: node.hash), icon: .checkout))
+                append(referenceItem("Switch/Checkout to this…", command: .checkout(ref.name, hash: node.hash), icon: .checkout))
             }
-            menu.addItem(menuItem("Copy ref names", command: "copyRefs", icon: .copy))
+            append(menuItem("Copy ref names", command: "copyRefs", icon: .copy))
             let refs = model.deletableReferences
-            if refs.count == 1 { menu.addItem(referenceItem("Delete " + RevisionGraphWindowModel.fullReferenceName(refs[0]), command: .delete([refs[0].name], hash: node.hash), icon: .remove)) }
+            if refs.count == 1 { append(referenceItem("Delete " + RevisionGraphWindowModel.fullReferenceName(refs[0]), command: .delete([refs[0].name], hash: node.hash), icon: .remove)) }
             else if refs.count > 1 {
                 let parent = menuItem("Delete branch/tag", command: "referenceSubmenu", icon: .remove), child = NSMenu()
                 for ref in refs { child.addItem(referenceItem(RevisionGraphWindowModel.fullReferenceName(ref), command: .delete([ref.name], hash: node.hash), icon: .remove)) }
                 child.addItem(referenceItem("All", command: .delete(refs.map(\.name), hash: node.hash), icon: .remove))
-                parent.submenu = child; menu.addItem(parent)
+                parent.submenu = child; append(parent)
             }
-            menu.addItem(menuItem("Compare with HEAD", command: "compareHead", icon: .compare))
-            menu.addItem(menuItem("Unified diff with HEAD", command: "unifiedHead", icon: .unifiedDiff))
-            menu.addItem(menuItem("Compare with working tree", command: "compareWorking", icon: .compare))
+            append(menuItem("Compare with HEAD", command: "compareHead", icon: .compare))
+            append(menuItem("Unified diff with HEAD", command: "unifiedHead", icon: .unifiedDiff))
+            append(menuItem("Compare with working tree", command: "compareWorking", icon: .compare))
         } else {
-            menu.addItem(menuItem("Compare revisions", command: "compare", icon: .compare))
-            menu.addItem(menuItem("Unified diff", command: "unified", icon: .unifiedDiff))
+            append(menuItem("Compare revisions", command: "compare", icon: .compare))
+            append(menuItem("Unified diff", command: "unified", icon: .unifiedDiff))
         }
         func capture(_ menu: NSMenu) {
             for item in menu.items {
                 if let command=item.representedObject {
-                    item.representedObject=NodeMenuTarget(model:model,command:command); item.action=#selector(nodeMenuCommand(_:))
+                    item.representedObject=NodeMenuTarget(model:model,command:command,session:session); item.action=#selector(nodeMenuCommand(_:))
                 }
                 if let submenu=item.submenu { capture(submenu) }
             }
@@ -441,19 +488,23 @@ enum RevisionGraphReferenceCommand {
         capture(menu)
         return menu
     }
+    private final class NodeMenuSession { var consumed=false }
+    private var currentNodeMenuSession:NodeMenuSession?
     @MainActor private final class NodeMenuTarget: NSObject {
         let generation: UUID
         let selectionGeneration: UUID
         let command: Any
-        init(model: RevisionGraphWindowModel, command: Any) {
-            generation=model.generation; selectionGeneration=model.selectionGeneration; self.command=command
+        let session:NodeMenuSession
+        init(model: RevisionGraphWindowModel, command: Any, session:NodeMenuSession) {
+            generation=model.generation; selectionGeneration=model.selectionGeneration; self.command=command;self.session=session
         }
     }
     private func acceptsNodeTarget(_ target: NodeMenuTarget) -> Bool {
-        !model.closed && !model.busy && target.generation == model.generation && target.selectionGeneration == model.selectionGeneration
+        !target.session.consumed && currentNodeMenuSession === target.session && !model.closed && !model.busy && target.generation == model.generation && target.selectionGeneration == model.selectionGeneration
     }
     @objc private func nodeMenuCommand(_ sender: NSMenuItem) {
-        guard let target=sender.representedObject as? NodeMenuTarget, acceptsNodeTarget(target) else { return }
+        guard let target=sender.representedObject as? NodeMenuTarget, acceptsNodeTarget(target),validateMenuItem(sender) else { return }
+        target.session.consumed=true
         let item=NSMenuItem(title:sender.title,action:nil,keyEquivalent:""); item.representedObject=target.command
         menuCommand(item)
     }
@@ -634,7 +685,8 @@ enum RevisionGraphReferenceCommand {
         if model.busy { closing = true; model.cancel(); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
-        colorUpdates = nil
+        colorUpdates = nil;currentNodeMenuSession=nil
+        if let alert=unifiedError { window?.endSheet(alert.window,returnCode:.cancel);alert.window.orderOut(nil);unifiedError=nil }
         NotificationCenter.default.removeObserver(self); model.invalidate(); unifiedViewer?.close(); unifiedViewer = nil
         if let sheet = graphSavePanel?.panel { window?.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
         if let alert = exportError { window?.endSheet(alert.window, returnCode: .cancel); alert.window.orderOut(nil) }
@@ -647,11 +699,47 @@ enum RevisionGraphReferenceCommand {
     var interactionAllowed: () -> Bool = { true }
     let model: RevisionGraphWindowModel
     var contextMenu: () -> NSMenu = { NSMenu() }
+    var presentContextMenu:((NSMenu,NSPoint,NSView)->Void)?
+    private var accessibleGeneration:UUID?
+    private var accessibleNodes:[RevisionGraphAccessibleNode]=[]
     private var panPoint: NSPoint?
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
-    init(model: RevisionGraphWindowModel) { self.model = model; super.init(frame: CGRect(x: 0, y: 0, width: 900, height: 550)); setAccessibilityRole(.group); setAccessibilityLabel("Revision Graph") }
+    init(model: RevisionGraphWindowModel) { self.model = model; super.init(frame: CGRect(x: 0, y: 0, width: 900, height: 550)); setAccessibilityRole(.group); setAccessibilityLabel("Revision Graph");setAccessibilityElement(true) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    func nodeRect(_ hash:String)->NSRect? {
+        guard let rect=model.geometry?.nodes.first(where:{$0.hash==hash})?.rect else { return nil }
+        return NSRect(x:rect.minX*model.zoom+10,y:rect.minY*model.zoom+10,width:rect.width*model.zoom,height:rect.height*model.zoom)
+    }
+    private func updateAccessibleNodes() {
+        guard !model.closed else { accessibleNodes=[];return }
+        if accessibleGeneration != model.generation {
+            accessibleGeneration=model.generation
+            accessibleNodes=(model.geometry?.nodes ?? []).map { RevisionGraphAccessibleNode(canvas:self,revisionHash:$0.hash,generation:model.generation) }
+            NSAccessibility.post(element:self,notification:.layoutChanged)
+        }
+    }
+    override func accessibilityChildren()->[Any]? { updateAccessibleNodes();return accessibleNodes }
+    override func accessibilitySelectedChildren()->[Any]? { updateAccessibleNodes();return accessibleNodes.filter{model.selection.contains($0.revisionHash)} }
+    @discardableResult func showSelectedContextMenu()->Bool {
+        guard interactionAllowed(),!model.busy,!model.closed,let hash=model.selection.first,let rect=nodeRect(hash) else { return false }
+        scrollToVisible(rect);layoutSubtreeIfNeeded()
+        let menu=contextMenu();guard !menu.items.isEmpty else { return false }
+        let point=NSPoint(x:rect.midX,y:rect.midY)
+        if let presentContextMenu { presentContextMenu(menu,point,self) }
+        else { menu.popUp(positioning:nil,at:point,in:self) }
+        return true
+    }
+    func performContextKey(_ event:NSEvent)->Bool {
+        event.type == .keyDown && event.keyCode==109 && event.modifierFlags.intersection([.command,.control,.shift,.option]) == .shift && showSelectedContextMenu()
+    }
+    override func performKeyEquivalent(with event:NSEvent)->Bool {
+        if performContextKey(event) { return true };return super.performKeyEquivalent(with:event)
+    }
+    override func keyDown(with event:NSEvent) {
+        if performContextKey(event) { return };super.keyDown(with:event)
+    }
+    override func accessibilityPerformShowMenu()->Bool { showSelectedContextMenu() }
     func resize(to viewport: CGSize) {
         let size = model.geometry?.size ?? .zero
         setFrameSize(CGSize(width: max(viewport.width, size.width * model.zoom + 20), height: max(viewport.height, size.height * model.zoom + 20)))
@@ -660,6 +748,7 @@ enum RevisionGraphReferenceCommand {
             let rect = CGRect(x: node.rect.minX * model.zoom + 10, y: node.rect.minY * model.zoom + 10, width: node.rect.width * model.zoom, height: node.rect.height * model.zoom)
             addToolTip(rect, owner: self, userData: nil)
         }
+        updateAccessibleNodes()
     }
     @objc func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData: UnsafeMutableRawPointer?) -> String {
         guard let hash = hit(point), let node = model.nodes.first(where: { $0.hash == hash }) else { return "" }
@@ -759,11 +848,60 @@ enum RevisionGraphReferenceCommand {
         } else { super.scrollWheel(with: event) }
     }
     override func menu(for event: NSEvent) -> NSMenu? {
-        guard interactionAllowed(), !model.busy, !model.closed, let hash = hit(convert(event.locationInWindow, from: nil)) else { return nil }
+        guard interactionAllowed(), !model.busy, !model.closed else { return nil }
+        guard let hash=hit(convert(event.locationInWindow,from:nil)) else {
+            if model.selection.count<2 { model.select(nil,extending:false) };return nil
+        }
         // Upstream preserves a selected pair and rejects menus on a third node.
         if model.selection.count == 2, !model.selection.contains(hash) { return nil }
         if !model.selection.contains(hash) { model.select(hash, extending: false) }
+        window?.makeFirstResponder(self)
         return contextMenu()
+    }
+}
+
+/// Native accessibility objects for individually drawn graph nodes. The canvas
+/// owns them; their parent link stays weak and actions expire with graph reload.
+@MainActor final class RevisionGraphAccessibleNode:NSAccessibilityElement {
+    private weak var canvas:RevisionGraphCanvas?
+    let revisionHash:String
+    private let generation:UUID
+    init(canvas:RevisionGraphCanvas,revisionHash:String,generation:UUID) {
+        self.canvas=canvas;self.revisionHash=revisionHash;self.generation=generation;super.init()
+        setAccessibilityRole(.button);setAccessibilityElement(true)
+        setAccessibilityCustomActions([NSAccessibilityCustomAction(name:"Add or remove comparison selection",handler:{ [weak self] in self?.select(extending:true) ?? false })])
+    }
+    private var available:Bool {
+        guard let canvas else { return false }
+        return canvas.interactionAllowed() && !canvas.model.closed && !canvas.model.busy && canvas.model.generation==generation && canvas.model.nodes.contains{$0.hash==revisionHash}
+    }
+    override func accessibilityParent()->Any? { canvas }
+    override func accessibilityLabel()->String? {
+        guard let canvas,let node=canvas.model.nodes.first(where:{$0.hash==revisionHash}) else { return nil }
+        let refs=canvas.model.lines(node).map{$0.0}.joined(separator:", ")
+        return [refs,String(revisionHash.prefix(8)),node.message.components(separatedBy:"\n").first ?? ""].filter{!$0.isEmpty}.joined(separator:"; ")
+    }
+    override func accessibilityFrame()->NSRect {
+        guard let canvas,let window=canvas.window,let rect=canvas.nodeRect(revisionHash) else { return .zero }
+        return window.convertToScreen(canvas.convert(rect,to:nil))
+    }
+    override func isAccessibilityEnabled()->Bool { available }
+    override func isAccessibilitySelected()->Bool { canvas?.model.selection.contains(revisionHash)==true }
+    override func accessibilityValue()->Any? {
+        guard let index=canvas?.model.selection.firstIndex(of:revisionHash) else { return "Not selected" }
+        return index==0 ? "Base revision" : "Comparison revision"
+    }
+    private func select(extending:Bool)->Bool {
+        guard available,let canvas else { return false }
+        canvas.window?.makeFirstResponder(canvas);canvas.model.select(revisionHash,extending:extending)
+        if let rect=canvas.nodeRect(revisionHash) { canvas.scrollToVisible(rect) };return true
+    }
+    override func accessibilityPerformPress()->Bool { select(extending:false) }
+    override func accessibilityPerformShowMenu()->Bool {
+        guard available,let canvas else { return false }
+        if canvas.model.selection.count==2,!canvas.model.selection.contains(revisionHash) { return false }
+        if !canvas.model.selection.contains(revisionHash) { guard select(extending:false) else { return false } }
+        return canvas.showSelectedContextMenu()
     }
 }
 

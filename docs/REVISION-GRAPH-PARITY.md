@@ -692,3 +692,42 @@ Focused Core/native checks and remaining limits are recorded in
 selection, exact Windows/macOS metrics, monitor/VoiceOver acceptance, arbitrary
 external Graphviz fonts, signed Finder/App Store deployment and full graph
 parity remain open.
+
+## Connected node commands, unified viewers and accessibility — October 15, 2026
+
+The native node popup now separates the source command groups: Log/Browse,
+Switch/Delete, Copy Refs and Compare/Unified. The existing source artwork and
+reference payloads remain. A popup shares a one-use session across every leaf;
+executing one command or constructing the next popup retires the previous
+session. Existing selection and graph generations still reject stale callbacks.
+Toolbar/menu-bar commands retain their independent current-selection routes.
+A blank right-click clears a single selection and preserves a selected pair,
+matching UpdateSelectedEntry's empty-hit behavior.
+
+Unified comparison now captures the initiating Shift/alternate choice before
+its asynchronous Git reads and uses the configured Unified Diff Viewer. External
+success opens no built-in viewer; the built-in fallback retains the original raw
+patch bytes and repository lease. Viewer failures use an owned acknowledgment
+sheet and remain part of the operation/Quit lifetime until settled. Selection
+changes, cancellation and requested/forced Close suppress late fallback windows.
+The comparison callback also receives its captured tool invocation context;
+subsequent file actions in Changed Files retain their separate invocation.
+
+Shift-F10 opens the selected node's menu through the native window/canvas route,
+scrolling the base node into view and anchoring at its center. The canvas and
+individual node accessibility Show Menu actions use that route. Each drawn node
+now has a native accessibility button with reference/subject/hash label, live
+screen frame, selected/base/comparison state, Press selection and an Add/remove
+comparison selection custom action. Node actions expire on graph generation
+changes and refuse busy, filtered/export/error-sheet or retired owners. Retained
+objects use weak parent links and cannot keep a closed graph alive.
+
+These are native macOS adaptations of source node-menu access. Physical menu
+tracking, external accessibility-client discovery/VoiceOver navigation, large
+AX hierarchies, live third-party viewer launching and signed App Store/Finder
+execution still need acceptance. They do not certify complete Graph parity.
+
+The final Debug build and both grouped native engine cases passed. See
+[node-command evidence](qa/graph-node-commands-2026-10-15.json) for exact scope,
+compile repairs, the interrupted preference-isolation run and cleanup records.
+Core data/layout code was unchanged and its suites were not rerun.

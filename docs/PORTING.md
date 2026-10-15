@@ -3,6 +3,13 @@
 *A macOS fork of TortoiseGit*
 
 
+The connected Revision Graph command family now adds source menu groups and
+one-use popup ownership, configured external unified viewers with captured Shift
+choice and owned errors, selected-node Shift-F10 menus and native accessibility
+nodes/selection actions. See [Graph parity](REVISION-GRAPH-PARITY.md). Physical,
+third-party viewer and signed acceptance remain open.
+
+
 The connected Log working-tree action family now includes Clean up and Abort
 Merge, shared repository-bound primary/picker dialog routing, path-scoped Commit,
 fresh merge/stash/submodule gates and cancellable metadata preparation through
