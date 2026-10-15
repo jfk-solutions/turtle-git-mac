@@ -6,7 +6,7 @@ enum TurtleGitHelpTopic: String, CaseIterable {
     case overview, clone, createRepository, workingTree, add, commit, log, reflog
     case browser, references, branchTag, checkout, fetch, pull, push, merge, resolve
     case rebase, cherryPick, stash, revert, reset, clean, submodules, worktrees
-    case synchronization, ignore
+    case synchronization, ignore, lfs
     case patches, export, bisect, settings, finder, folderAccess, statistics
     case revisionGraph, blame, compare, images, unifiedDiff, svn, authentication
     case ssh, savedData, privacy, notes, moving
@@ -119,6 +119,7 @@ enum TurtleGitHelpTopic: String, CaseIterable {
     static func showContext() { show(context(NSApp.keyWindow ?? NSApp.mainWindow)) }
     static func topic(dialog: String) -> TurtleGitHelpTopic {
         let name = dialog.lowercased()
+        if name.contains("lfs") { return .lfs }
         if name.contains("request pull") { return .patches }
         if name.contains("synchronization") { return .synchronization }
         if name.contains("ignore") { return .ignore }

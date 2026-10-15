@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "16c37b50f2d6198275efd8d2ac228c92dfc09f04e5df72437458ef6465bf374e",
+    "Contents/Info.plist": "f1671faac3262ec7e453343b4318d19bc5f137266a0cfef3cc3b86dadfedb2f9",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "bffe41983454087ae3e242c659e7cfd6ff5c1d6a262f5246d5cdd772d84f2c4b",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "04859045f7eeb6a6b5d1187d1978d17df4adb5a0568b6bc5cb85a34951d1ade0",
     "Contents/Resources/en.lproj/CHERRY-PICK.html": "69424c956849c3686861e28c3a1c8d034ded56dba04c84841fc93528b67ee1af",
@@ -12,6 +12,7 @@
     "Contents/Resources/en.lproj/GIT-PROPERTIES.html": "4e71c861dc0f1c93cd123f477e231545fca537150a8e050fbdedfdef204d46a8",
     "Contents/Resources/en.lproj/IMAGE-COMPARISON.html": "fd527ca72885ab9a134f9f7e0cd7adbc439d8af13232bc1d7262bffbae174054",
     "Contents/Resources/en.lproj/InfoPlist.strings": "436e0d7f17990db122633ab657a3a406a252ad892449860b7157494614595b02",
+    "Contents/Resources/en.lproj/LFS.html": "fd0fb4e4be6b14d75da86efa494ec142eadfd17aaad4f1dbdad7385d247a8f02",
     "Contents/Resources/en.lproj/LOG-FIND.html": "f174e2ae7a6d7f89c33924856637455144f7d78954c619aae3a5f9d8c38d6b57",
     "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "71958b1b9f698bc2ab50a3d56bd3fe563cafa377f47929bbaa2b4df69ce7a2d6",
     "Contents/Resources/en.lproj/PRIVACY.html": "2d5694bd5468268eb34083726a366f04317c5d01d4da36a706b37d0bfcd8eaf7",
@@ -28,8 +29,8 @@
     "Contents/Resources/en.lproj/STATISTICS.html": "1922b1a82a1797d28eb33c61b1fcdcb3b8446ad4801e67c892f67df761f3d448",
     "Contents/Resources/en.lproj/SVN-AUTHENTICATION.html": "07ba11505b7b1bd2ff9f55977c12087fbcae75214cc89b2151d9f5fe06c0bd1a",
     "Contents/Resources/en.lproj/help.css": "f68bb2e39c7ed8b34d6d8fe82e77612ec8b0ac901f4955fb1a2b16db2b29c4c7",
-    "Contents/Resources/en.lproj/index.html": "b1d889d6a48ec305a932b7b46fa5d023b8669c267af1e1ee2bb2dd46ebd734be",
-    "Contents/Resources/en.lproj/topics.json": "73c4aa8eb110e77f6e29515af25fa146c51e53b28026b9dbbf4b29bb99873f1e"
+    "Contents/Resources/en.lproj/index.html": "d6a1a97863ed4c13afbfd19b7984f87c5f2b427e9c934210fd267d5a6eedffad",
+    "Contents/Resources/en.lproj/topics.json": "e9af28b5dbd6315415eb7662255b9ac854d7e5221d1ec9ba608052993dc7ea4f"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ea90931832ee313fe03815ccb3a392b0eda50026fdb0324fbd0a2b38b5f00963",
@@ -42,6 +43,7 @@
     "docs/GIT-NOTES.md": "a2fe3e80da5ad3987ded76f1400801c0c4d9707b8a94ca3a93c11e22feec551c",
     "docs/GIT-PROPERTIES.md": "612ac979b47e69e263e308337f2ee7529d9620e73175167a72a1ff043f4d4605",
     "docs/IMAGE-COMPARISON.md": "5dfe781d512a6f95d2f6481fa8170ca59b8981ad5d73737ab114b2ade76d5934",
+    "docs/LFS.md": "0a580afab72d17817e18b4e3936ca5774684a6c178e778c34074622d6c94f729",
     "docs/LOG-FIND.md": "5e31e8642a416f0d94a99cffd6afe182f43359993fd238954efda2978805b36f",
     "docs/MOVING-AND-COPYING.md": "af27ece7f54d23f3a8e43af1144fbde6f794a38d76c6551becfc1909cfc8d7e1",
     "docs/PRIVACY.md": "05a10daf2f9e304da9b306fd8dd212dfe8611f9532013f2a7114ca3e7ce62160",
@@ -57,6 +59,6 @@
     "docs/SSH-AUTHENTICATION.md": "33c00c2bde5c80f561e2b31f124a436127bc78d17466109828ab4742c34b7a8a",
     "docs/STATISTICS.md": "9816003a9a3ccfc24a021a86bb4add7f295b3a3ab3565a857a7d9faa6b4977e6",
     "docs/SVN-AUTHENTICATION.md": "e89e9f230f93b3a1a3357cab07bf84389c66bfdd602d2cea9229c22b1667c0b1",
-    "docs/help-topics.json": "73c4aa8eb110e77f6e29515af25fa146c51e53b28026b9dbbf4b29bb99873f1e"
+    "docs/help-topics.json": "e9af28b5dbd6315415eb7662255b9ac854d7e5221d1ec9ba608052993dc7ea4f"
   }
 }

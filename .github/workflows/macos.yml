@@ -287,6 +287,8 @@ jobs:
         run: python3 scripts/test-log-message-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Add LFS and persistent native list family
         run: python3 scripts/test-add-list-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: LFS captured interactions and progress notifications
+        run: python3 scripts/test-lfs-interaction.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Bundled Mac help and contextual dispatch
         run: python3 scripts/test-help-book.py
       - name: Hierarchical settings operation ownership

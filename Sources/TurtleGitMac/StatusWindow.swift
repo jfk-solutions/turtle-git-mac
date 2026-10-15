@@ -81,6 +81,7 @@ final class StatusNativeWindow: NSWindow {
     private var closingStatus = false
     var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
+        makeLFSOperation = { LFSFileOperationController(repository: $0, access: $1, defaults: defaults) }
         model = StatusWindowModel(repository: repository, access: access, defaults: defaults)
         let window = StatusNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 630),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)

@@ -5,12 +5,13 @@ import TurtleGitCore
 /// upstream's LVBKIF_TYPE_WATERMARK rather than scrolling with the rows.
 @MainActor class NativeWatermarkTable: NSTableView {
     private let defaults: UserDefaults
-    let watermarkImage: NSImage?
+    private(set) var watermarkImage: NSImage?
     init(icon: MenuIcon, defaults: UserDefaults = .standard) {
         self.defaults = defaults; watermarkImage = icon.image(size: 128)
         super.init(frame: .zero)
     }
     required init?(coder: NSCoder) { defaults = .standard; watermarkImage = nil; super.init(coder: coder) }
+    func setWatermark(_ icon: MenuIcon) { watermarkImage = icon.image(size: 128); needsDisplay = true }
     func backdropRect(in viewport: NSRect) -> NSRect? {
         guard defaults.object(forKey: "ShowListBackgroundImage") as? Bool ?? true,
               watermarkImage != nil, viewport.width > 0, viewport.height > 0 else { return nil }

@@ -3,9 +3,9 @@
 Dialog Help buttons now use TurtleGit's Mac guides in a bundled Apple Help book.
 The application Help menu, Command-?, F1/Help key, First Start documentation link,
 Settings footer and Compare/Merge Help actions share the same service. The book
-contains 25 guides and 46 stable topic anchors. It is generated from the Mac
-Markdown guides, includes no remote fonts/scripts, and occupies about 186 KB
-before Apple's search index is added.
+now contains 26 guides and 47 stable topic anchors. It is generated from the Mac
+Markdown guides, includes no remote fonts/scripts, and occupies about 190 KB
+before Apple's search index is added. The LFS interaction continuation adds the 47th topic; the original checkpoint below records its original 46-topic scope.
 
 The installed bundle registers its help book and requests a topic anchor through
 NSHelpManager. The book's bundle identifier is separate from its displayed title.

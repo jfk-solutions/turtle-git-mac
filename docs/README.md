@@ -24,6 +24,7 @@ for baseline and update rules.
 - [Help and the offline Mac manual](HELP.md)
 - [Contextual Help source comparison](HELP-PARITY.md)
 - [Dialog guide](DIALOG-GUIDE.md)
+- [Git LFS locks](LFS.md)
 - [Saved progress action log](ACTION-LOG.md)
 - [Saved Data settings](SAVED-DATA.md)
 - [Dialog sizes and positions](DIALOG-GEOMETRY.md)

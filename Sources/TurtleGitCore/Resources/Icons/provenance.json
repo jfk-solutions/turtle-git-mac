@@ -1551,6 +1551,16 @@
       "asset": "OneWayDiff.bmp",
       "source": "src/Resources/ribbon/OneWayDiff.bmp",
       "sha256": "125e7d8fa00749c21290f26114d5341e8270798d5b991119fc89316bf3b8fd5a"
+    },
+    {
+      "asset": "LockBackground.ico",
+      "source": "src/Resources/LockBackground.ico",
+      "sha256": "2d0449205d815369b72aab1696d02345abdd364cf3e99836f477077d09f6178a"
+    },
+    {
+      "asset": "UnlockBackground.ico",
+      "source": "src/Resources/UnlockBackground.ico",
+      "sha256": "3653249efce1f39c076e6b804e822bc703f2b5514e2cace97475cae9b59a025a"
     }
   ]
 }

@@ -293,3 +293,57 @@ were retained; owned receiver/server processes were reaped. No Core suite was
 repeated for this native-only batch. See [actual results and failures](qa/lfs-readiness-lifecycle-2026-10-12.json).
 Actual LFS servers,
 signed sandbox runtime and displayed light/dark acceptance remain unverified.
+
+## Captured menus, checkboxes and source progress — October 15, 2026
+
+The checkbox handler now follows GitStatusListCtrl::OnLvnItemchanged: clicking a
+selected row propagates the new state across selected rows; an unselected row
+changes only itself. Space retains marked-row inversion. Row context actions and
+the dynamically inserted current-column Copy command capture the initiating IDs,
+paths, displayed order and columns. Selection/sort changes cannot retarget them;
+refresh, metadata/policy replacement, operation review, busy/quit and retirement
+refuse stale actions. Owning preferences apply to both SwiftUI menu icons and
+the native column-copy item.
+
+LFSSetLockedProgressCommand/GitProgressList's Command, Lock/Unlock file and separate
+Error notifications now replace the former Path/Result/Message table. Literal
+file paths remain single file notifications; error messages split into source
+lines. A Core file-begin callback precedes command launch, so long operations show
+the active path immediately. An ordered mailbox drains live starts/results and
+the authoritative final batch supplies final rows. Native selected-row Copy and
+Command-C use path/message text, matching the source progress clipboard shape.
+Old progress menu objects cannot copy from a subsequent Force attempt.
+
+The native table uses the original LockBackground/UnlockBackground artwork with
+the saved background preference. Command gray uses Colors.Cmd and shared native
+color conversion; file rows remain neutral, errors use Conflict and completion
+uses the common success/failure colors. The completed/total indicator, retained
+active path, source-scoped titles and Force review are shared by standalone,
+Add, Commit, Working Tree and Finder progress. Initiating dialogs pass their
+presentation preferences into their child. Per-attempt action logs save the
+recorded rows; retry records the previous attempt once, and closing review
+records the final attempt once.
+
+The new [LFS guide](LFS.md) is the 47th bundled Help topic. The six controls in
+`IDD_LFS_LOCKS` have partial native mappings: list, select-all, Force, Unlock,
+Cancel and Help. This does not certify the dialog or complete common progress.
+
+Native light/dark main-window captures are published without alteration:
+[light](site/assets/lfs-locks-light.png), [dark](site/assets/lfs-locks-dark.png).
+The raw [light progress sheet](qa/lfs-interaction-captures-2026-10-15/lfs-unlock-progress-light.png)
+and [dark progress sheet](qa/lfs-interaction-captures-2026-10-15/lfs-unlock-progress-dark.png)
+retain compositor padding and remain QA evidence, outside the public gallery.
+They show the actual injected mixed result, not authenticated server acceptance.
+
+The ten focused Core cases, Debug build, both new native engine cases, both
+retained native regression cases and the affected Help check are recorded in
+[exact evidence](qa/lfs-interaction-2026-10-15.json). Native repairs were fixture
+raw-string termination, per-engine private log isolation and two old unscoped-
+title assertions. The initial app build had one capture-list warning, repaired
+before the native check; Core was not repeated for that native-only change.
+
+Remaining gaps include the lock-list's own background watermark; complete progress
+file menus/double-click/sorting; exact completion wording and common timing-policy
+comparison; physical checkbox/menu/keyboard/VoiceOver and sheet/compositor sizing;
+authenticated LFS/Pull, signed grants/Finder and full dialog acceptance. No complete
+LFS/application parity is claimed.

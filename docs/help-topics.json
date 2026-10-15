@@ -215,6 +215,10 @@
       "id": "ignore",
       "document": "DIALOG-GUIDE.md",
       "fragment": "working-tree-and-add"
+    },
+    {
+      "id": "lfs",
+      "document": "LFS.md"
     }
   ],
   "additional_guides": [

@@ -1479,3 +1479,13 @@ interoperability in TurtleGit's native SSH key manager. The unmodified source
 archive and PuTTY's permissive licence are packaged with the universal macOS
 CLI runtime. This is the same upstream PuTTY release identified by the pinned
 TortoiseGitPlink version header; TurtleGit's SSH transport remains OpenSSH.
+
+
+The LFS interaction/progress continuation adapts LFSLocksDlg.cpp,
+LFSSetLockedProgressCommand.cpp and GitProgressList.cpp from the pinned TortoiseGit
+source under GPL version 2 or later. LockBackground.ico and UnlockBackground.ico
+are copied unchanged under the existing resource license choice, with their source
+paths and SHA-256 values in the icon provenance manifest. Native task ownership,
+clipboard capture, AppKit notifications and retained Mac folder grants replace
+Windows thread/message/dialog mechanisms. Full visual/signed acceptance remains
+in progress.

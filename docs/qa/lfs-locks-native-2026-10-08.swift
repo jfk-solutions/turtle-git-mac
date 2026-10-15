@@ -321,7 +321,7 @@ import TurtleGitCore
             for file in files { report(file) }; return LFSBatchResult(files: files)
         }
         await contextModel.setSelectionLocked(["c2"], locked: true)
-        try await settle { contextController.window?.attachedSheet?.title == "LFS Lock – TurtleGit" }
+        try await settle { contextController.window?.attachedSheet?.title == RepositoryPresentationSettings(defaults: defaults).title(repository: root, location: root.appendingPathComponent("雪\t🦎.bin"), dialog: "LFS Lock") }
         precondition(contextLockRequests == [["雪\t🦎.bin"]] && contextModel.operationLocked && contextModel.results.count == 1 && !contextModel.results[0].success)
         await contextModel.unlock(forceRetry: true)
         await contextModel.setSelectionLocked(["c2"], locked: false)
@@ -329,7 +329,7 @@ import TurtleGitCore
         contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil && !contextModel.busy }
         contextModel.checked = ["c1"]; contextModel.selection = ["c2"]
         await contextModel.setSelectionLocked(["c2"], locked: false)
-        try await settle { contextController.window?.attachedSheet?.title == "LFS Unlock – TurtleGit" }
+        try await settle { contextController.window?.attachedSheet?.title == RepositoryPresentationSettings(defaults: defaults).title(repository: root, location: root.appendingPathComponent("雪\t🦎.bin"), dialog: "LFS Unlock") }
         precondition(contextUnlockRequests.count == 1 && contextUnlockRequests[0].0 == ["雪\t🦎.bin"] && !contextUnlockRequests[0].1 && contextModel.force)
         await contextModel.unlock(forceRetry: true)
         precondition(contextUnlockRequests.count == 2 && contextUnlockRequests[1].0 == contextUnlockRequests[0].0 && contextUnlockRequests[1].1 && contextModel.results[0].success)

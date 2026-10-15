@@ -86,7 +86,7 @@ extension GitRepository {
     /// Validate every literal target before contacting the server. Like upstream,
     /// individual command failures are reported and do not stop subsequent files.
     /// Cancellation cannot roll back server-side locks already changed.
-    public func setLFSLocked(paths: [String], locked: Bool, force: Bool = false, cancellation: OperationCancellation? = nil, onResult: (@Sendable (LFSFileResult) -> Void)? = nil) throws -> LFSBatchResult {
+    public func setLFSLocked(paths: [String], locked: Bool, force: Bool = false, cancellation: OperationCancellation? = nil, onFileStarted: (@Sendable (String) -> Void)? = nil, onResult: (@Sendable (LFSFileResult) -> Void)? = nil) throws -> LFSBatchResult {
         if cancellation?.isCancelled == true { return LFSBatchResult(files: [], cancelled: true) }
         guard !paths.isEmpty, try !isBare() else { throw LFSLocksFailure.selection }
         var seen = Set<String>(), targets: [String] = []
@@ -98,6 +98,7 @@ extension GitRepository {
         var files: [LFSFileResult] = []
         for path in targets {
             if cancellation?.isCancelled == true { return LFSBatchResult(files: files, cancelled: true) }
+            onFileStarted?(path)
             var arguments = ["lfs", locked ? "lock" : "unlock"]
             if force && !locked { arguments.append("--force") }
             arguments += ["--", path]
@@ -106,7 +107,7 @@ extension GitRepository {
                 let file = LFSFileResult(path: path, success: true, output: result.text)
                 files.append(file); onResult?(file)
             } catch {
-                let file = LFSFileResult(path: path, success: false, output: error.localizedDescription)
+                let file = LFSFileResult(path: path, success: false, output: (error as? GitFailure)?.message ?? error.localizedDescription)
                 files.append(file); onResult?(file)
                 if cancellation?.isCancelled == true { return LFSBatchResult(files: files, cancelled: true) }
             }

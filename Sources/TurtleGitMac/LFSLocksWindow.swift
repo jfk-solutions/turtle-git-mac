@@ -13,8 +13,8 @@ import TurtleGitCore
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 490), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "LFS Locks", preferences: defaults)
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 570, height: 330)
-        window.contentViewController = NSHostingController(rootView: LFSLocksDialog(model: model))
-        super.init(window: window); window.delegate = self; window.center()
+        let host = NSHostingController(rootView: LFSLocksDialog(model: model).defaultAppStorage(defaults)); host.sizingOptions = []; window.contentViewController = host
+        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 760, height: 490)); window.center()
         model.close = { [weak window] in window?.performClose(nil) }
         model.onProgressVisibility = { [weak self] visible in self?.setProgressPresented(visible) }
         model.onPullAfterLock = { [weak self] in self?.onPullAfterLock() }
@@ -25,9 +25,9 @@ import TurtleGitCore
         if visible {
             guard progressWindow == nil else { return }
             let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 390), styleMask: [.titled], backing: .buffered, defer: false)
-            sheet.title = model.operationLocked ? "LFS Lock – TurtleGit" : "LFS Unlock – TurtleGit"; sheet.isReleasedWhenClosed = false
-            sheet.contentViewController = NSHostingController(rootView: LFSUnlockProgress(model: model))
-            progressWindow = sheet; window.beginSheet(sheet)
+            RepositoryWindowTitles.set(sheet, repository: model.repository.root, location: model.progressLocation, dialog: model.operationLocked ? "LFS Lock" : "LFS Unlock", preferences: model.presentationPreferences); TurtleGitHelp.attach(sheet, topic: .lfs); sheet.isReleasedWhenClosed = false
+            sheet.contentViewController = NSHostingController(rootView: LFSUnlockProgress(model: model).defaultAppStorage(model.presentationPreferences))
+            progressWindow = sheet; window.beginSheet(sheet, completionHandler: nil)
         } else if let sheet = progressWindow {
             if sheet.sheetParent === window { window.endSheet(sheet) }
             sheet.orderOut(nil); sheet.close(); progressWindow = nil
@@ -41,21 +41,47 @@ import TurtleGitCore
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
-@MainActor final class LFSLocksWindowModel: ObservableObject {
+@MainActor final class LFSLocksWindowModel: ObservableObject, ActionLogProgress {
     private(set) static var activeOperations = 0
     private(set) var retired = false
     let repository: GitRepository
     private let access: RepositoryAccessLease?
-    @Published var locks: [LFSLock] = []
-    @Published var hasLFS = false
+    @Published var locks: [LFSLock] = [] { didSet { menuGeneration = UUID() } }
+    @Published var hasLFS = false { didSet { menuGeneration = UUID() } }
     @Published var checked = Set<String>() {
         didSet { for lock in locks { checkedPaths[lock.path] = checked.contains(lock.id) } }
     }
+    private var menuGeneration = UUID()
+    struct MenuTarget {
+        let owner: ObjectIdentifier
+        let generation: UUID
+        let rows: [LFSListRow]
+        let columns: [StatusListColumn]
+        let actions: [LFSLockMenuAction]
+    }
+    func menuTarget(_ ids: Set<String>) -> MenuTarget? {
+        guard menuAvailable else { return nil }
+        let selected = rows.filter { ids.contains($0.id) }
+        guard !ids.isEmpty, selected.count == ids.count else { return nil }
+        return MenuTarget(owner: ObjectIdentifier(self), generation: menuGeneration, rows: selected, columns: visibleColumns, actions: lfsActions(ids))
+    }
+    private var menuAvailable: Bool { !retired && !busy && !confirmingQuit && !showingProgress }
+    func accepts(_ target: MenuTarget) -> Bool { menuAvailable && target.owner == ObjectIdentifier(self) && target.generation == menuGeneration }
+    func copy(_ target: MenuTarget, information: StatusListCopy) {
+        guard accepts(target) else { return }
+        let text = clipboardText(selected: target.rows, copy: information, visible: target.columns)
+        if !text.isEmpty { publishClipboard(text) }
+    }
+    func setSelectionLocked(_ target: MenuTarget, locked: Bool) async {
+        guard accepts(target), target.actions.contains(locked ? .lock : .unlock) else { return }
+        await perform(paths: target.rows.map(\.path), locked: locked)
+    }
+    var publishClipboard: (String) -> Void = { NSPasteboard.general.clearContents(); NSPasteboard.general.setString($0, forType: .string) }
     private var checkedPaths: [String: Bool] = [:]
     @Published var selection = Set<String>()
     @Published var sortOrder = [LFSFileSort(column: .path)]
-    @Published var fileColumns: StatusListColumnSettings
-    @Published var fileMetadata: [String: StatusListMetadata] = [:]
+    @Published var fileColumns: StatusListColumnSettings { didSet { menuGeneration = UUID() } }
+    @Published var fileMetadata: [String: StatusListMetadata] = [:] { didSet { menuGeneration = UUID() } }
     var presentationPreferences: UserDefaults { defaults }
     private let defaults: UserDefaults
     private static let columnKey = "LFSLocks.FileColumns"
@@ -68,6 +94,23 @@ import TurtleGitCore
     @Published var error: String?
     @Published var information = ""
     @Published var results: [LFSFileResult] = []
+    @Published private(set) var notifications: [LFSProgressRow] = []
+    @Published private(set) var currentPath = ""
+    private var attemptStarted = false
+    private var operationCancelled = false
+    private var operationFailed = false
+    private var startedPaths = Set<String>()
+    private var fileStarted: @Sendable (String) -> Void = { _ in }
+    var actionLogRepository: URL { repository.root }
+    var actionLogFailed: Bool { operationFailed }
+    var actionLogCancelled: Bool { operationCancelled || cancellation.isCancelled }
+    var actionLogEligible: Bool { attemptStarted }
+    var output: String { notifications.map { $0.action + "\t" + $0.text }.joined(separator: "\n") + "\n" }
+    var progressTotal: Int { operationPaths.count }
+    var progressLocation: URL { RepositoryPresentationSettings.scopedLocation(repository: repository.root, paths: operationPaths, wholeProject: false) }
+    func progressRowsAvailable(_ generation: UUID) -> Bool { !retired && !busy && !confirmingQuit && showingProgress && batchID == generation }
+    var progressGeneration: UUID { batchID }
+    func copyProgress(_ text: String, generation: UUID) { guard progressRowsAvailable(generation), !text.isEmpty else { return }; publishClipboard(text) }
     @Published var operationLocked = false
     @Published var showingProgress = false { didSet { if oldValue != showingProgress { onProgressVisibility(showingProgress) } } }
     private var cancellation = OperationCancellation()
@@ -90,16 +133,22 @@ import TurtleGitCore
     var refreshLocksAfterOperation = true
     var close: () -> Void = {}
     var query: (OperationCancellation) async throws -> [LFSLock]
-    var change: ([String], Bool, OperationCancellation, @escaping @Sendable (LFSFileResult) -> Void) async throws -> LFSBatchResult
-    var lockChange: ([String], OperationCancellation, @escaping @Sendable (LFSFileResult) -> Void) async throws -> LFSBatchResult
+    var change: ([String], Bool, OperationCancellation, @escaping @Sendable (LFSFileResult) -> Void) async throws -> LFSBatchResult = { _,_,_,_ in throw LFSLocksFailure.selection }
+    var lockChange: ([String], OperationCancellation, @escaping @Sendable (LFSFileResult) -> Void) async throws -> LFSBatchResult = { _,_,_ in throw LFSLocksFailure.selection }
     var canUnlock: Bool { !retired && !busy && !confirmingQuit && !showingProgress && locks.contains { checked.contains($0.id) } }
     var rows: [LFSListRow] { locks.map { LFSListRow(lock: $0, metadata: fileMetadata[$0.path]) }.sorted(using: sortOrder) }
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.defaults = defaults
         fileColumns = defaults.integer(forKey: Self.columnKey + ".Version") == 1 ? .load(from: defaults, key: Self.columnKey) : Self.defaultColumns
         query = { try await repository.lfsLocks(cancellation: $0) }
-        change = { try await repository.setLFSLocked(paths: $0, locked: false, force: $1, cancellation: $2, onResult: $3) }
-        lockChange = { try await repository.setLFSLocked(paths: $0, locked: true, cancellation: $1, onResult: $2) }
+        change = { [weak self] paths, force, token, report in
+            let started = self?.fileStarted
+            return try await repository.setLFSLocked(paths: paths, locked: false, force: force, cancellation: token, onFileStarted: started, onResult: report)
+        }
+        lockChange = { [weak self] paths, token, report in
+            let started = self?.fileStarted
+            return try await repository.setLFSLocked(paths: paths, locked: true, cancellation: token, onFileStarted: started, onResult: report)
+        }
     }
     func setSortOrder(_ order: [LFSFileSort]) {
         guard !retired, !busy, !confirmingQuit, !showingProgress else { return }
@@ -107,13 +156,14 @@ import TurtleGitCore
     }
     func setColumn(_ column: StatusListColumn, visible: Bool) {
         guard !retired, !busy, !confirmingQuit, !showingProgress, column != .path, Self.columns.contains(column) else { return }
+        menuGeneration = UUID()
         if visible { fileColumns.visible.insert(column) } else { fileColumns.visible.remove(column) }
         fileColumns.save(to: defaults, key: Self.columnKey)
     }
     @discardableResult func saveColumnLayout(order: [StatusListColumn], widths: [StatusListColumn: Double]) -> Bool {
         guard !retired, !busy, !confirmingQuit, !showingProgress else { return false }
         let next = StatusListColumnSettings(visible: fileColumns.visible, order: order, widths: widths)
-        if fileColumns != next { fileColumns = next; fileColumns.save(to: defaults, key: Self.columnKey) }
+        if fileColumns != next { menuGeneration = UUID(); fileColumns = next; fileColumns.save(to: defaults, key: Self.columnKey) }
         return true
     }
     func requestResetColumns(choose: @escaping () async -> Bool, onAccepted: @escaping () -> Void) {
@@ -122,15 +172,17 @@ import TurtleGitCore
         Task {
             defer { busy = false }
             guard await choose(), !retired, !confirmingQuit else { return }
-            fileColumns = Self.defaultColumns; fileColumns.save(to: defaults, key: Self.columnKey); onAccepted()
+            menuGeneration = UUID(); fileColumns = Self.defaultColumns; fileColumns.save(to: defaults, key: Self.columnKey); onAccepted()
         }
     }
     func clipboardText(_ ids: Set<String>, copy: StatusListCopy) -> String {
-        let selected = rows.filter { ids.contains($0.id) }
+        clipboardText(selected: rows.filter { ids.contains($0.id) }, copy: copy, visible: visibleColumns)
+    }
+    private func clipboardText(selected: [LFSListRow], copy: StatusListCopy, visible: [StatusListColumn]) -> String {
         guard !selected.isEmpty else { return "" }
         let columns: [StatusListColumn]
         switch copy {
-        case .all: columns = visibleColumns
+        case .all: columns = visible
         case .column(let column): columns = [column]
         case .pathsAndStatus: columns = [.path,.status]
         default: columns = []
@@ -146,9 +198,12 @@ import TurtleGitCore
         }.joined(separator: "\n") + "\n"
     }
     func copy(_ ids: Set<String>, information: StatusListCopy) {
-        let text = clipboardText(ids, copy: information)
-        guard !retired, !text.isEmpty else { return }
-        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+        guard let target = menuTarget(ids) else { return }; copy(target, information: information)
+    }
+    func checkClicked(_ id: String, value: Bool) {
+        guard menuAvailable else { return }
+        let targets: Set<String> = selection.contains(id) ? selection : [id]
+        for id in targets { setChecked(id, value) }
     }
     func toggleChecks(_ ids: [String], mark: String) {
         guard !retired, !busy, !confirmingQuit, !showingProgress, locks.contains(where: { $0.id == mark }) else { return }
@@ -180,6 +235,7 @@ import TurtleGitCore
     }
     func retire() {
         guard !retired else { return }; retired = true
+        if !busy { saveActionLog() }; menuGeneration = UUID()
         cancellation.cancel(); batchID = UUID(); acceptingBatchResults = false
         refreshAfterReview = false
         onPullAfterLock = {}; onProgressVisibility = { _ in }; showingProgress = false
@@ -230,43 +286,84 @@ import TurtleGitCore
     }
     private func runOperation(forceRetry: Bool) async {
         guard !retired, !operationPaths.isEmpty, !forceRetry || showingProgress && results.contains(where: { !$0.success }) else { return }
+        ProgressActionLog.nextAttempt(self); attemptStarted = true
+        let began = ProcessInfo.processInfo.systemUptime
         let useForce = !operationLocked && (forceRetry || operationForce)
         refreshAfterReview = refreshLocksAfterOperation
         busy = true; showingProgress = true; results = []; error = nil
         cancellation = OperationCancellation(); batchID = UUID(); acceptingBatchResults = true; let generation = batchID
+        menuGeneration = UUID(); notifications = []; currentPath = ""; startedPaths = []
+        operationCancelled = false; operationFailed = false
+        appendNotification(action: "Command", text: operationLocked ? "Lock" : "Unlock", kind: .command)
+        let mailbox = LFSProgressMailbox()
+        fileStarted = { [weak self] path in
+            mailbox.append(.started(path))
+            Task { @MainActor in self?.drain(mailbox, generation: generation) }
+        }
         Self.activeOperations += 1
         information = "\(operationLocked ? "Locking" : "Unlocking") \(operationPaths.count) file(s)…"
         var openPull = false
         defer {
-            busy = false; acceptingBatchResults = false; Self.activeOperations -= 1
+            busy = false; acceptingBatchResults = false; fileStarted = { _ in }; Self.activeOperations -= 1
+            if !retired {
+                let completion = SubmoduleProgressCompletion(success: !operationFailed && !operationCancelled, cancelled: operationCancelled, exitCode: nil, elapsed: ProcessInfo.processInfo.systemUptime - began, preferences: defaults)
+                appendNotification(action: "Finished!", text: completion.text.trimmingCharacters(in: .whitespacesAndNewlines), kind: !operationFailed && !operationCancelled ? .finishedSuccess : .finishedFailure)
+            } else { saveActionLog() }
+            withExtendedLifetime(access) {}
             if !retired && openPull { onPullAfterLock() }
         }
         do {
             try validateAccess()
             let report: @Sendable (LFSFileResult) -> Void = { [weak self] file in
-                Task { @MainActor in
-                    guard let self, !self.retired, self.busy, self.acceptingBatchResults, self.batchID == generation else { return }
-                    self.results.append(file)
-                }
+                mailbox.append(.result(file))
+                Task { @MainActor in self?.drain(mailbox, generation: generation) }
             }
             let batch: LFSBatchResult
             if operationLocked { batch = try await lockChange(operationPaths, cancellation, report) }
             else { batch = try await change(operationPaths, useForce, cancellation, report) }
             guard !retired, batchID == generation else { return }
-            acceptingBatchResults = false
+            drain(mailbox, generation: generation); acceptingBatchResults = false
             results = batch.files
+            notifications = []; startedPaths = []
+            appendNotification(action: "Command", text: operationLocked ? "Lock" : "Unlock", kind: .command)
+            for result in batch.files { record(result, appendResult: false) }
+            operationCancelled = batch.cancelled || cancellation.isCancelled
+            operationFailed = batch.files.contains { !$0.success }
+            if operationCancelled { appendNotification(action: "Error", text: "User cancelled", kind: .error) }
             openPull = operationLocked && !batch.cancelled && !cancellation.isCancelled &&
                 batch.files.count == operationPaths.count && batch.files.allSatisfy(\.success)
             information = batch.cancelled || cancellation.isCancelled ? "Cancelled. Completed server changes remain; refresh to verify lock state." : "\(results.filter(\.success).count) of \(operationPaths.count) file(s) \(operationLocked ? "locked" : "unlocked")."
         } catch {
             guard !retired else { return }
+            drain(mailbox, generation: generation)
+            operationCancelled = cancellation.isCancelled; operationFailed = !operationCancelled
+            appendNotification(action: "Error", text: operationCancelled ? "User cancelled" : error.localizedDescription, kind: .error)
             if cancellation.isCancelled {
                 self.error = nil; information = "Cancelled. Completed server changes remain; refresh to verify lock state."
             } else { self.error = error.localizedDescription; information = "Could not \(operationLocked ? "lock" : "unlock") files." }
         }
     }
+    private func appendNotification(action: String, text: String, kind: LFSProgressRow.Kind) {
+        for line in (kind == .file ? [text] : text.components(separatedBy: .newlines)) where !line.isEmpty {
+            notifications.append(LFSProgressRow(id: batchID.uuidString + ":" + String(notifications.count), action: action, text: line, kind: kind))
+        }
+    }
+    private func recordStart(_ path: String) {
+        currentPath = path
+        if startedPaths.insert(path).inserted { appendNotification(action: operationLocked ? "Lock" : "Unlock", text: path, kind: .file) }
+    }
+    private func record(_ result: LFSFileResult, appendResult: Bool = true) {
+        recordStart(result.path)
+        if appendResult { results.append(result) }
+        if !result.success { appendNotification(action: "Error", text: result.output, kind: .error) }
+    }
+    private func drain(_ mailbox: LFSProgressMailbox, generation: UUID) {
+        guard !retired, busy, acceptingBatchResults, batchID == generation else { return }
+        for event in mailbox.drain() { switch event { case .started(let path): recordStart(path); case .result(let file): record(file) } }
+    }
     func finishProgress() {
         guard !retired, !busy, !confirmingQuit, showingProgress else { return }
+        saveActionLog()
         if resetTargetChecks { for path in operationPaths { checkedPaths.removeValue(forKey: path) } }
         let reload = refreshAfterReview; refreshAfterReview = false
         // Block a new batch before detaching the results sheet. Each dismissal
@@ -284,7 +381,7 @@ struct LFSLocksDialog: View {
         let rows = model.rows
         VStack(alignment: .leading, spacing: 10) {
             Table(rows, selection: $model.selection, sortOrder: Binding(get: { model.sortOrder }, set: { model.setSortOrder($0) })) {
-                TableColumn("") { lock in Toggle("Select \(lock.path)", isOn: Binding(get: { model.checked.contains(lock.id) }, set: { model.setChecked(lock.id, $0) })).labelsHidden().toggleStyle(.checkbox).disabled(model.busy || model.confirmingQuit) }.width(24)
+                TableColumn("") { lock in Toggle("Select \(lock.path)", isOn: Binding(get: { model.checked.contains(lock.id) }, set: { model.checkClicked(lock.id, value: $0) })).labelsHidden().toggleStyle(.checkbox).disabled(model.busy || model.confirmingQuit) }.width(24)
                 TableColumn("Path", sortUsing: LFSFileSort(column: .path)) { lock in HStack { Image(nsImage: MenuIcon.lock.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(lock.path) }.repositoryFileHelp(repository: model.repository.root, path: lock.path, preferences: model.presentationPreferences) }.width(min: 240, ideal: 420)
                 TableColumn("Filename", sortUsing: LFSFileSort(column: .fileName)) { Text($0.fileName) }.width(min: 100, ideal: 180)
                 TableColumn("Extension", sortUsing: LFSFileSort(column: .fileExtension)) { Text($0.fileExtension) }.width(min: 40, ideal: 75)
@@ -293,7 +390,10 @@ struct LFSLocksDialog: View {
                 TableColumn("LFS Lock", sortUsing: LFSFileSort(column: .lfsOwner)) { Text($0.owner) }.width(min: 100, ideal: 160)
             }.fileListFont().background(CommitFileInteraction(rows: [], keyboardDeleteEnabled: false, nativeColumns: LFSLocksWindowModel.columns,
                 rowTexts: rows.map { row in Dictionary(uniqueKeysWithValues: LFSLocksWindowModel.columns.map { ($0,row.text($0)) }) }, itemIDs: rows.map(\.id),
-                copyIDs: { model.copy(Set($0), information: $1 ? .pathsAndStatus : .relativePaths) }, copyColumnIDs: { model.copy(Set($0), information: .column($1)) },
+                copyIDs: { model.copy(Set($0), information: $1 ? .pathsAndStatus : .relativePaths) }, copyColumnIDs: { model.copy(Set($0), information: .column($1)) }, captureColumnCopy: { [weak model] ids, column in
+                    guard let model, let target = model.menuTarget(Set(ids)) else { return nil }
+                    return { [weak model] in model?.copy(target, information: .column(column)) }
+                },
                 toggleCheckIDs: { model.toggleChecks($0, mark: $1) }, configureRefresh: { view in
                     model.captureListPosition = { [weak view] in view?.storeListPosition() }
                     model.cancelListPosition = { [weak view] in view?.cancelListPosition() }
@@ -303,25 +403,13 @@ struct LFSLocksDialog: View {
                             view.restoreListPosition(ids: ids, enabled: enabled) { continuation.resume() }
                         }
                     }
-                }, visibleColumns: Set(model.visibleColumns), availableColumns: Set(LFSLocksWindowModel.columns),
+                }, preferences: model.presentationPreferences, visibleColumns: Set(model.visibleColumns), availableColumns: Set(LFSLocksWindowModel.columns),
                 columnText: { _,_ in "" }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,
                 saveLayout: { model.saveColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setColumn($0, visible: $1) },
                 resetColumns: { choose, accepted in model.requestResetColumns(choose: choose, onAccepted: accepted) }, focusedPath: $focusedID,
                 enabled: !model.busy && !model.confirmingQuit && !model.showingProgress, delete: { _,_,_ in }, copy: { _,_ in }, copyColumn: { _,_ in }, toggleCheck: { _,_ in }))
             .contextMenu(forSelectionType: String.self) { ids in
-                TurtleGitContextMenu {
-                    ForEach(model.lfsActions(ids), id: \.self) { action in
-                        Button { Task { await model.setSelectionLocked(ids, locked: action == .lock) } } label: {
-                            CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock)
-                        }.disabled(model.busy || model.confirmingQuit || model.showingProgress)
-                    }
-                    Menu {
-                        Button { model.copy(ids, information: .fullPaths) } label: { CommandLabel(title: "Full paths", icon: .copy) }
-                        Button { model.copy(ids, information: .relativePaths) } label: { CommandLabel(title: "Relative paths", icon: .copy) }
-                        Button { model.copy(ids, information: .names) } label: { CommandLabel(title: "File/folder names", icon: .copy) }
-                        Button { model.copy(ids, information: .all) } label: { CommandLabel(title: "Copy all information to clipboard", icon: .copy) }
-                    } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(ids.isEmpty)
-                }
+                if let target = model.menuTarget(ids) { LFSCapturedMenu(model: model, target: target) }
             }.disabled(model.busy || model.confirmingQuit)
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.information).font(.caption); Spacer(); Button("Refresh") { Task { await model.refresh() } }.disabled(model.busy || model.confirmingQuit).keyboardShortcut(KeyEquivalent(Character(UnicodeScalar(NSF5FunctionKey)!)), modifiers: []) }
@@ -331,7 +419,7 @@ struct LFSLocksDialog: View {
                 Spacer()
                 Button { Task { await model.unlock() } } label: { CommandLabel(title: "Unlock", icon: .unlock) }.disabled(!model.canUnlock).keyboardShortcut(.defaultAction)
                 Button("Cancel") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-unlock.adoc")!) }
+                Button("Help") { TurtleGitHelp.show(.lfs) }
             }.disabled(model.confirmingQuit)
         }.padding(12)
     }
@@ -342,11 +430,12 @@ struct LFSUnlockProgress: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             CommandLabel(title: model.operationLocked ? "LFS Lock" : "LFS Unlock", icon: model.operationLocked ? .lock : .unlock).font(.headline)
-            Table(model.results) {
-                TableColumn("Path", value: \.path).width(min: 230, ideal: 340)
-                TableColumn("Result") { result in Text(result.success ? (model.operationLocked ? "Locked" : "Unlocked") : "Failed").foregroundStyle(result.resultTextColor) }.width(80)
-                TableColumn("Message", value: \.output).width(min: 170, ideal: 330)
-            }.frame(minHeight: 200)
+            LFSProgressTable(model: model).frame(minHeight: 200)
+            HStack {
+                Text(model.currentPath).lineLimit(1).truncationMode(.middle).help(model.currentPath)
+                Spacer()
+                if model.progressTotal > 0 { ProgressView(value: Double(model.results.count), total: Double(model.progressTotal)).frame(width: 220) }
+            }
             if model.busy { ProgressView().controlSize(.small) }
             Text(model.information).textSelection(.enabled)
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
@@ -382,21 +471,21 @@ struct LFSUnlockProgress: View {
     var onClosed: () -> Void = {}
     var standalonePresentation: ((NSWindow) -> Void)?
     private var started = false, finished = false
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = LFSLocksWindowModel(repository: repository, access: access)
+    init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
+        model = LFSLocksWindowModel(repository: repository, access: access, defaults: defaults)
         model.refreshLocksAfterOperation = false
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 390), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: LFSUnlockProgress(model: model))
+        window.contentViewController = NSHostingController(rootView: LFSUnlockProgress(model: model).defaultAppStorage(model.presentationPreferences))
         super.init(window: window); window.delegate = self
         model.onProgressVisibility = { [weak self] visible in if !visible { self?.finish() } }
     }
     @discardableResult func present(owner: NSWindow? = nil, paths: [String], locked: Bool) -> Bool {
         guard !started, !finished, !model.retired, owner?.attachedSheet == nil, let window else { return false }
         started = true
-        window.title = locked ? "LFS Lock – TurtleGit" : "LFS Unlock – TurtleGit"
+        RepositoryWindowTitles.set(window, repository: model.repository.root, location: RepositoryPresentationSettings.scopedLocation(repository: model.repository.root, paths: paths, wholeProject: false), dialog: locked ? "LFS Lock" : "LFS Unlock", preferences: model.presentationPreferences); TurtleGitHelp.attach(window, topic: .lfs)
         model.operationLocked = locked
-        if let owner { owner.beginSheet(window) }
+        if let owner { owner.beginSheet(window, completionHandler: nil) }
         else if let standalonePresentation { standalonePresentation(window) }
         else { window.center(); showWindow(nil); window.makeKeyAndOrderFront(nil) }
         Task { await model.perform(paths: paths, locked: locked) }

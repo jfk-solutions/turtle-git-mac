@@ -97,4 +97,31 @@ final class LFSLocksTests: XCTestCase {
         try FileManager.default.createDirectory(at: root.appendingPathComponent(".git/lfs"), withIntermediateDirectories: true)
         let installed = try await repository.hasLFS(); XCTAssertTrue(installed)
     }
+    func testBeginCallbacksFollowValidatedLiteralOrderAndSkipUnstartedFiles() async throws {
+        let (root, repository, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let events = LFSCallbackEvents(), unusual = "雪\t🦎\n.bin"
+        let batch = try await repository.setLFSLocked(paths: ["tracked", "fail", unusual, "tracked"], locked: false,
+            onFileStarted: { events.append("start:" + $0) }, onResult: { events.append("end:" + $0.path) })
+        XCTAssertEqual(batch.files.map(\.success), [true,false,true])
+        XCTAssertEqual(batch.files[1].output.trimmingCharacters(in: .newlines), "owned by another user")
+        XCTAssertEqual(events.values, ["start:tracked","end:tracked","start:fail","end:fail","start:"+unusual,"end:"+unusual])
+        events.clear()
+        do { _ = try await repository.setLFSLocked(paths: ["tracked","../escape"], locked: false, onFileStarted: { events.append($0) }); XCTFail("Invalid target accepted") } catch {}
+        XCTAssertEqual(events.values, [])
+        let token = OperationCancellation()
+        let cancelled = try await repository.setLFSLocked(paths: ["tracked","never"], locked: true, cancellation: token,
+            onFileStarted: { events.append("start:"+$0) }, onResult: { events.append("end:"+$0.path); token.cancel() })
+        XCTAssertTrue(cancelled.cancelled)
+        XCTAssertEqual(events.values, ["start:tracked","end:tracked"])
+    }
+
+}
+
+
+private final class LFSCallbackEvents: @unchecked Sendable {
+    private let lock = NSLock()
+    private var entries: [String] = []
+    func append(_ value: String) { lock.lock(); defer { lock.unlock() }; entries.append(value) }
+    func clear() { lock.lock(); defer { lock.unlock() }; entries = [] }
+    var values: [String] { lock.lock(); defer { lock.unlock() }; return entries }
 }

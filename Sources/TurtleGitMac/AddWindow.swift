@@ -23,6 +23,7 @@ private final class AddNativeWindow: NSWindow {
     var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
+        makeLFSOperation = { LFSFileOperationController(repository: $0, access: $1, defaults: defaults) }
         model = AddWindowModel(repository: repository, access: access, defaults: defaults); self.access = access
         let window = AddNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 480), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Add", preferences: defaults)

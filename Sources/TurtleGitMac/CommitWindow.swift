@@ -38,6 +38,7 @@ import UniformTypeIdentifiers
     private var lfsOperation: LFSFileOperationController?
     var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
+        makeLFSOperation = { LFSFileOperationController(repository: $0, access: $1, defaults: defaults) }
         preferences = defaults
         model = CommitWindowModel(repository: repository, access: access, unversionedDefaults: defaults, dialogDefaults: defaults)
         let window = CommitNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),

@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "b5acf758",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Selected-row checkbox propagation and captured Lock/Unlock/Copy targets and columns",
+    "Per-file begin/result delivery, source Action/Path notifications, colors and original Lock/Unlock artwork",
+    "Force retry of original targets, review refresh, per-attempt action logs and late-result retirement",
+    "Private preferences, scoped progress titles, bundled LFS guide and Help topic"
+  ],
+  "build": {
+    "log": "build/qa/lfs-interaction-build-repair.log",
+    "exit": 0,
+    "earlier_log": "build/qa/lfs-interaction-build.log",
+    "repair": "Explicit weak outer capture removed new warning; existing project diagnostics remain."
+  },
+  "core": {
+    "log": "build/qa/lfs-interaction-core.log",
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'LFSLocksTests|MenuIconTests'",
+    "tests": 10,
+    "failures": 0,
+    "runs": 1
+  },
+  "native": {
+    "new_interaction": {
+      "system_git": {
+        "log": "build/qa/lfs-interaction-native-repair.log",
+        "pid": 45272,
+        "result": "pass"
+      },
+      "bundled_git": {
+        "log": "build/qa/lfs-interaction-bundled-native.log",
+        "pid": 45392,
+        "result": "pass"
+      }
+    },
+    "retained_regression": {
+      "log": "build/qa/lfs-interaction-regression-repair-native.log",
+      "receiver_pids": [
+        45544,
+        46055
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "result": "pass"
+    },
+    "help": {
+      "log": "build/qa/lfs-help-native.log",
+      "pid": 46605,
+      "topics": 47,
+      "result": "pass"
+    },
+    "repairs": [
+      "Initial fixture raw-string terminator fixed before execution",
+      "Bundled fixture PID 45302 failed because two repositories shared one action-log path; fixture now isolates the log inside each repository. Only affected bundled engine repeated.",
+      "Retained fixture PID 45457 trapped at an old unscoped-title assertion; two assertions updated to exact scoped titles and both engines passed."
+    ],
+    "ownership": "All executed receivers reaped; explicit PID inspection found none remaining.",
+    "simulations": "Private repositories/preferences/pasteboard and Python LFS server-state wrapper; actual Core Git execution delegates non-LFS operations to each selected engine. No authenticated remote server."
+  },
+  "captures": {
+    "public": [
+      "docs/site/assets/lfs-locks-light.png",
+      "docs/site/assets/lfs-locks-dark.png"
+    ],
+    "raw_sheet_evidence": [
+      "docs/qa/lfs-interaction-captures-2026-10-15/lfs-unlock-progress-light.png",
+      "docs/qa/lfs-interaction-captures-2026-10-15/lfs-unlock-progress-dark.png"
+    ],
+    "review": "All four inspected. Raw sheet captures retain compositor padding and are not published in the gallery."
+  },
+  "limitations": [
+    "Main lock-list watermark not ported",
+    "Full progress file menus, double-click and sorting remain open",
+    "Exact source completion wording/timing policy remains open",
+    "Physical keyboard, VoiceOver, sheet geometry and signed Finder/grants acceptance remain open",
+    "Authenticated LFS/Pull and signed distribution not exercised",
+    "No complete dialog or application parity claimed"
+  ],
+  "hosted_ci": {
+    "macos": "38792987011 for b5acf758 in progress; build-and-test job 116623819818 at Git integration tests",
+    "pages": "38792986832 for b5acf758 succeeded",
+    "prior_failure": "38785757109 at 0ad4cadc failed Unified Diff editable document workflows; new source-line diagnostics are present in b5acf758",
+    "full_macos_pass_claimed": false
+  },
+  "documentation": {
+    "site_documents": 234,
+    "unresolved_fragments": 0,
+    "help_guides": 26,
+    "help_topics": 47,
+    "mapped_controls": 974,
+    "pending_control_reviews": 685,
+    "certified_dialogs": 0
+  }
+}

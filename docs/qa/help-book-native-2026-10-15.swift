@@ -63,6 +63,6 @@ import TurtleGitCore
         try require(NSApp.sendAction(help.action!,to:help.target,from:help) && anchors.last?.hasSuffix("#topic-savedData")==true,"Settings Help topic dispatch")
         let index=service.bookURL!.appendingPathComponent("Contents/Resources/en.lproj/TurtleGitHelp.helpindex")
         try require((try Data(contentsOf:index)).count>0,"Missing built Apple Help search/anchor index")
-        print("PASS: 46 bundled topics, registration/anchor and offline fallback routing, real controller/Settings Help, F1/sheets/close lifetime, built index")
+        print("PASS: 47 bundled topics, registration/anchor and offline fallback routing, real controller/Settings Help, F1/sheets/close lifetime, built index")
     }
 }

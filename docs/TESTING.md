@@ -2066,3 +2066,27 @@ Viewer registration/opening is injected. The compiled bundle must contain a
 nonempty search/anchor index. All owned windows close and the receiver is reaped.
 Physical Help Viewer/search, actual browser startup, localization and signed
 acceptance are separate checks. Core code is unchanged by this family.
+
+
+## LFS captured interactions and source progress
+
+`TURTLEGIT_CORE_ONLY=1 swift test --filter 'LFSLocksTests|MenuIconTests'`
+checks literal/preflight/cancellation behavior, ordered file-begin callbacks,
+unwrapped LFS failure output and original artwork decoding.
+
+`python3 scripts/test-lfs-interaction.py --git /usr/bin/git --git build/git-runtime/Git/bin/git`
+uses a private executable adapter and JSON lock state, never a real LFS server.
+A held command verifies that the file notification appears before settlement.
+The family checks selected/unselected checkbox propagation, captured row/column
+menus, selection/sort retention, stale/busy refusal, native progress rows/copy,
+Force target retention, per-attempt private action logs and one review refresh.
+The helper delegates other Git commands to the selected engine and preserves
+HEAD/index/config. `--captures build/qa/lfs-interaction-captures` records raw own-
+window light/dark captures on the first engine. Attached-sheet compositor padding
+is retained in QA images; only clean main-window captures enter the public gallery.
+
+`python3 scripts/test-lfs-locks.py --git /usr/bin/git --git build/git-runtime/Git/bin/git`
+retains the earlier query/check/column/review/Pull/retirement family. Its two
+progress-title assertions now require the scoped title. Help's affected catalogue
+check also runs once after the new LFS chapter. Physical server/Finder/accessibility,
+full progress file menus and signed sandbox acceptance remain separate work.

@@ -96,3 +96,16 @@ extension ResolveWindowModel: ActionLogProgress {
     var actionLogFailed: Bool { !success }
     var actionLogCancelled: Bool { cancelled }
 }
+
+
+@MainActor enum ProgressNotificationColor {
+    static func command(preferences: UserDefaults) -> NSColor {
+        let value = preferences.object(forKey: "Colors.Cmd") as? NSNumber
+        let packed = value.flatMap { $0.doubleValue == Double($0.intValue) && (0...0xffffff).contains($0.intValue) ? $0.intValue : nil } ?? 0x646464
+        return NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let channels = StatusTextPalette.transform([(packed >> 16) & 255, (packed >> 8) & 255, packed & 255], dark: dark, highContrast: NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast)
+            return NSColor(srgbRed: CGFloat(channels[0])/255, green: CGFloat(channels[1])/255, blue: CGFloat(channels[2])/255, alpha: 1)
+        }
+    }
+}

@@ -13,4 +13,4 @@ with tempfile.TemporaryDirectory(prefix='tg-help-',dir='/tmp') as temporary:
     env=os.environ.copy();env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
     result=run_receiver([str(receiver),str(root/'build/Build/Products/Debug/TurtleGitMac.app'),str(fixture)],cwd=root,env=env,capture_output=True,text=True)
     print(result.stdout,end='');print(result.stderr,end='');result.check_returncode()
-    if 'PASS: 46 bundled topics' not in result.stdout:raise SystemExit('Help receiver did not complete.')
+    if 'PASS: 47 bundled topics' not in result.stdout:raise SystemExit('Help receiver did not complete.')

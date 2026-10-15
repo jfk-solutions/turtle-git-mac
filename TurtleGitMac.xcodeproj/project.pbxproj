@@ -381,6 +381,7 @@
 		FF0E5C4AB3547674CE31C89B /* PatchPageSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */; };
 		C210101600000000000000F1 /* TurtleGitHelp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101600000000000000F2 /* TurtleGitHelp.swift */; };
 		C210101600000000000000F3 /* TurtleGitHelp.help in Resources */ = {isa = PBXBuildFile; fileRef = C210101600000000000000F4 /* TurtleGitHelp.help */; };
+		C21010170000000000000001 /* LFSProgressTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21010170000000000000002 /* LFSProgressTable.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -860,6 +861,7 @@
 		FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHIdentityAccess.swift; sourceTree = "<group>"; };
 		C210101600000000000000F2 /* TurtleGitHelp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitHelp.swift; sourceTree = "<group>"; };
 		C210101600000000000000F4 /* TurtleGitHelp.help */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources/TurtleGitHelp.help; sourceTree = "<group>"; };
+		C21010170000000000000002 /* LFSProgressTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSProgressTable.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -994,6 +996,7 @@
 				C210101600000000000000D2 /* LogMessageView.swift */,
 				C210101600000000000000E2 /* SourceMessageLinks.swift */,
 				C210101600000000000000F2 /* TurtleGitHelp.swift */,
+				C21010170000000000000002 /* LFSProgressTable.swift */,
 				C210101600000000000000F4 /* TurtleGitHelp.help */,
 				C210101500000000000000A2 /* PatchDocumentSession.swift */,
 				C210101500000000000000B2 /* ExternalDocumentApplication.swift */,
@@ -1974,6 +1977,7 @@
 				C210101600000000000000D1 /* LogMessageView.swift in Sources */,
 				C210101600000000000000E1 /* SourceMessageLinks.swift in Sources */,
 				C210101600000000000000F1 /* TurtleGitHelp.swift in Sources */,
+				C21010170000000000000001 /* LFSProgressTable.swift in Sources */,
 				C210101500000000000000A1 /* PatchDocumentSession.swift in Sources */,
 				C210101500000000000000B1 /* ExternalDocumentApplication.swift in Sources */,
 				90C7E3E08BB57158CF31FB56 /* ImageConflictWindow.swift in Sources */,

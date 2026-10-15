@@ -5,7 +5,7 @@ Choose **TurtleGit Help** from the Help menu, press Command-?, or use a dialog's
 controls) opens help for the active window. Settings also has a Help button for
 its selected page. A child sheet normally inherits its parent's topic.
 
-The application includes an English Mac help book with 25 guides and 46 topics.
+The application includes an English Mac help book with 26 guides and 47 topics.
 Its contents are available offline. The installed app requests the matching topic
 in macOS Help Viewer. Use Help Viewer's search, or follow the topic links and
 Getting started navigation. If help-book registration is unavailable, TurtleGit

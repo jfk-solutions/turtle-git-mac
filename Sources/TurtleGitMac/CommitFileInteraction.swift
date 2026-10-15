@@ -127,6 +127,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     var itemIDs: [String]? = nil
     var copyIDs: (([String], Bool) -> Void)? = nil
     var copyColumnIDs: (([String], StatusListColumn) -> Void)? = nil
+    var captureColumnCopy: (([String], StatusListColumn) -> (() -> Void)?)? = nil
     var toggleCheckIDs: (([String], String) -> Void)? = nil
     var configureRefresh: ((Probe) -> Void)? = nil
     var preferences:UserDefaults = .standard
@@ -154,7 +155,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         view.fileListFont = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
         view.leadingColumnCount = leadingColumnCount; view.keyboardDeleteEnabled = keyboardDeleteEnabled
         view.nativeColumns = nativeColumns; view.rowTexts = rowTexts; view.itemIDs = itemIDs
-        view.copyIDs = copyIDs; view.copyColumnIDs = copyColumnIDs; view.toggleCheckIDs = toggleCheckIDs
+        view.copyIDs = copyIDs; view.copyColumnIDs = copyColumnIDs; view.captureColumnCopy = captureColumnCopy; view.toggleCheckIDs = toggleCheckIDs
         view.columnText = columnText
         view.savedOrder = savedOrder; view.savedWidths = savedWidths; view.saveLayout = saveLayout
         view.availableColumns = availableColumns; view.visibleColumns = visibleColumns; view.setColumnVisible = setColumnVisible; view.resetColumns = resetColumns
@@ -176,6 +177,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         var itemIDs: [String]? = nil
         var copyIDs: (([String], Bool) -> Void)? = nil
         var copyColumnIDs: (([String], StatusListColumn) -> Void)? = nil
+        var captureColumnCopy: (([String], StatusListColumn) -> (() -> Void)?)? = nil
         var toggleCheckIDs: (([String], String) -> Void)? = nil
         var visibleColumns = Set(StatusListColumn.defaultColumns)
         var availableColumns = Set(StatusListColumn.allCases)
@@ -487,6 +489,10 @@ struct CommitFileInteraction: NSViewRepresentable {
             layoutObservers = []
         }
         deinit { stopObserving() }
+        private final class ColumnCopyInvocation: NSObject {
+            let invoke: () -> Void
+            init(_ invoke: @escaping () -> Void) { self.invoke = invoke }
+        }
         private func prepareClipboardMenu(_ menu: NSMenu) {
             guard window?.isKeyWindow == true, let column = contextColumn, (!contextEntries.isEmpty || !contextIDs.isEmpty),
                   let submenu = menu.items.first(where: { $0.title == "Copy to Clipboard" })?.submenu else { return }
@@ -494,10 +500,15 @@ struct CommitFileInteraction: NSViewRepresentable {
             if let previous = submenu.items.first(where: { $0.identifier == identifier }) { submenu.removeItem(previous) }
             let item = NSMenuItem(title: "column '\(column.rawValue)'", action: #selector(copyCurrentColumn(_:)), keyEquivalent: "")
             item.identifier = identifier; item.target = self
+            if let captureColumnCopy {
+                guard let invoke = captureColumnCopy(contextIDs, column) else { return }
+                item.representedObject = ColumnCopyInvocation(invoke)
+            }
             if let image = MenuIcon.copy.contextImage(defaults:preferences)?.copy() as? NSImage { image.size = NSSize(width: 16, height: 16); item.image = image }
             submenu.addItem(item)
         }
         @objc private func copyCurrentColumn(_ sender: NSMenuItem) {
+            if let captured = sender.representedObject as? ColumnCopyInvocation { captured.invoke(); return }
             guard let column = contextColumn else { return }
             if !contextIDs.isEmpty { copyColumnIDs?(contextIDs, column) }
             else if !contextEntries.isEmpty { copyColumn(contextEntries, column) }
