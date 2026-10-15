@@ -66,6 +66,7 @@ import AppKit
         if CredentialSettingsModel.activeSaves > 0 { return .terminateCancel }
         if SSHKeyImportModel.activeOperations > 0 { return .terminateCancel }
         if SSHKeyGenerationModel.activeOperations > 0 { return .terminateCancel }
+        if SSHIdentityPermissionsModel.activeOperations > 0 { return .terminateCancel }
         if SavedSSHAuthenticationModel.activeOperations > 0 { return .terminateCancel }
         if SSHTransportCoordinator.activeOperations > 0 { return .terminateCancel }
         if NetworkSettingsModel.activeSaves > 0 { return .terminateCancel }

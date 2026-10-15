@@ -37,8 +37,8 @@ safe by these checks.
 The selected permission remains available after canceling the settings page,
 but unsaved draft paths are discarded. Earlier Apply/Save operations remain.
 Grants are reusable by path across remotes and repositories; removing a remote
-does not delete its key or grant. A Core forget operation exists; a user-facing
-permission-management page is still pending.
+does not delete its key or grant. Settings → Saved Data → SSH key file permissions → Manage now opens the native
+permission manager described below.
 
 Tests use private fixtures and an injected bookmark provider to prove persistence,
 renewal, moved paths, exact-byte lookup, balanced scope lifetime, permission denial,
@@ -58,3 +58,43 @@ the native remote setting after success (Add writes it on the child origin).
 Old cloned-repository key bookmarks remain
 legacy compatibility paths; new native clones do not send those to repository
 adoption. See [Clone parity](CLONE-PARITY.md) for verification and remaining work.
+
+
+## Connected permission management family — October 15, 2026
+
+Saved Data's new macOS row opens Key File Permissions beside Saved Passphrases in
+the same owned authentication window. It displays key filenames and configured
+paths in a native table, with original key/command artwork, multi-selection,
+context Copy Path/Forget Selected/Authorize File, Delete-to-confirm, Refresh and
+Forget All. The listing reads only the app's grant records: it does not resolve
+bookmarks, start security scopes, inspect private key bytes or renew records.
+Missing/moved files can still be listed and forgotten. Canonically equivalent
+configured names keep separate byte identities.
+
+Authorize File uses an owned native single-file picker and the existing read-only
+bookmark/format/scope validation. Cancel and repeated/retired callbacks cannot
+remember a file. Key bytes, passphrases and Git settings are not copied into this
+list or changed by forgetting. Settings Apply/Cancel does not govern these
+immediate permission actions, matching the existing Saved Data clear controls.
+
+Confirmed removal captures opaque grant snapshots and writes one atomic update.
+A changed, renewed, missing or duplicated reviewed grant refuses the batch and
+refreshes its error/list rather than deleting a replacement. Newly added unreviewed
+permissions survive. Running operations retain their already acquired leases until
+settlement; forgetting affects future acquire attempts. Forget All targets only
+the displayed reviewed records. Files and saved Keychain passphrases are managed
+separately.
+
+The manager blocks ordinary Close while selecting/confirming and retains global
+Quit accounting through an outstanding confirmation, including after forced owner
+closure. Forced retirement ends owned panels/alerts and ignores their late replies.
+Saved Data owns and closes the same child; the permissions page can be opened
+directly without first querying saved passphrases. No signed bookmark acceptance
+or live transport authorization is inferred from injected bookmark providers.
+
+Grouped evidence and remaining limits are in
+[permission-manager QA](qa/ssh-permissions-2026-10-15.json). Native theme hosts are
+not a complete screenshot, physical keyboard/mouse or VoiceOver certification.
+Signed file access, real bookmark renewal/moved-file dialogs and live server
+loading remain release acceptance work. This is a macOS sandbox adaptation, not
+an invented completed Windows resource control.

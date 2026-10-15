@@ -1129,3 +1129,12 @@ fences generated documents and retires mail options while preserving operation
 accounting. Its source End/URL presets also flow through authorized macOS action
 links into editable native inputs. See [Request Pull](REQUEST-PULL-PARITY.md) for
 grouped evidence, command-link syntax and physical/signed acceptance limits.
+
+
+SSH key file permissions now have a user-facing Saved Data manager alongside
+saved passphrases: inspect paths without reading keys, authorize, copy and
+confirmed selected/all forgetting with stale snapshots and owned native panels.
+See [SSH identities](SSH-IDENTITY-PARITY.md). Core CI also skips the duplicate
+SwiftPM UI-executable build through an opt-in manifest mode; full Xcode app/native
+checks remain in the workflow. The package graphs retain identical Core tests,
+resources, SMTP and revision utility targets. Hosted execution is still pending.

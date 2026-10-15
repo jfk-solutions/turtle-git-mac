@@ -17,9 +17,10 @@ public struct SystemSSHIdentityBookmarkProvider: RepositoryBookmarkProvider {
     public func stopAccessing(_ url: URL) { url.stopAccessingSecurityScopedResource() }
 }
 public enum SSHIdentityAccessFailure: LocalizedError {
-    case file, missingGrant, permission, putty
+    case file, missingGrant, permission, putty, changed
     public var errorDescription: String? {
         switch self {
+        case .changed: return "SSH key permissions changed. Refresh the list and review the selection again."
         case .file: return "Choose a regular private key file using Browse."
         case .missingGrant: return "Select this SSH key again using Browse to grant access."
         case .permission: return "The saved SSH key permission could not be renewed. Select it again using Browse."
@@ -31,6 +32,14 @@ public struct SSHIdentityAccess {
     public let file: URL
     /// Retain through ssh-add. Releasing this result balances the security scope.
     public let permission: RepositoryAccessLease
+}
+/// A displayed permission, not the private key. The opaque bookmark is retained
+/// only for conditional removal; clients cannot read it or construct snapshots.
+public struct SSHIdentityGrant: Identifiable, Equatable, Sendable {
+    public let configuredPath: String
+    fileprivate let bookmark: Data
+    public var id: GitReferenceName { GitReferenceName(configuredPath) }
+    public static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id && lhs.bookmark == rhs.bookmark }
 }
 /// Use on the application's main actor. Records contain only bookmarks and paths,
 /// never key bytes or passphrases. They are not exported to Finder or Git config.
@@ -93,6 +102,26 @@ public final class SSHIdentityAccessStore {
         if resolved.stale { grants[index].bookmark = try provider.create(for: resolved.url); try persist(grants) }
         // A moved bookmark resolves the file without silently rewriting Git config.
         return SSHIdentityAccess(file: resolved.url, permission: permission)
+    }
+    /// Listing does not resolve bookmarks, start scopes, inspect key bytes or
+    /// rewrite stale grants. Missing/moved files can still be forgotten.
+    public func grants() throws -> [SSHIdentityGrant] {
+        var seen = Set<GitReferenceName>()
+        return try read().map { grant in
+            guard grant.configuredPath.hasPrefix("/"), !grant.configuredPath.utf8.contains(0),
+                  seen.insert(GitReferenceName(grant.configuredPath)).inserted else { throw SSHIdentityAccessFailure.permission }
+            return SSHIdentityGrant(configuredPath: grant.configuredPath, bookmark: grant.bookmark)
+        }
+    }
+    /// Remove only the reviewed snapshots in one atomic update. A grant renewed
+    /// or reauthorized while confirmation is open must be reviewed again.
+    public func forget(_ selection: [SSHIdentityGrant]) throws {
+        guard !selection.isEmpty else { return }
+        let current = try read(), ids = Set(selection.map(\.id))
+        guard ids.count == selection.count, Set(current.map { GitReferenceName($0.configuredPath) }).count == current.count, selection.allSatisfy({ wanted in
+            current.contains { Data($0.configuredPath.utf8) == Data(wanted.configuredPath.utf8) && $0.bookmark == wanted.bookmark }
+        }) else { throw SSHIdentityAccessFailure.changed }
+        try persist(current.filter { !ids.contains(GitReferenceName($0.configuredPath)) })
     }
     public func forget(path: String) throws {
         try persist(read().filter { Data($0.configuredPath.utf8) != Data(path.utf8) })

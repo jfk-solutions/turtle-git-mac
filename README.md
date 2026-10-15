@@ -58,10 +58,12 @@ python3 scripts/build-issue-regex-runtime.py
 python3 scripts/build-lexilla-runtime.py
 python3 scripts/build-graph-layout-runtime.py
 python3 scripts/build-openssh-runtime.py
-swift test
+TURTLEGIT_CORE_ONLY=1 swift test
 ./scripts/build.sh
 open build/Build/Products/Debug/TurtleGitMac.app
 ```
+
+The Core test mode keeps the same tests, resources and revision utility while skipping a duplicate SwiftPM build of the app. The full app and Finder extension are built separately by `build.sh`; ordinary `swift run TurtleGitMac` remains available without that environment variable.
 
 The build script prepares the editor, regex, graph, SSH and PuTTY key-conversion helpers, plus the merge
 adapter when the Git/SVN runtime is present, before building the unsigned Debug

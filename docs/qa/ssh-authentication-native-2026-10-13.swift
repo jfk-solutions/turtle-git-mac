@@ -126,10 +126,69 @@ private actor HeldSSHAuthentication: SSHAuthenticationStore {
             assert(item[kSecAttrAccessible as String] as? String == kSecAttrAccessibleWhenUnlockedThisDeviceOnly as String)
             return errSecSuccess
         }, delete: { _ in errSecItemNotFound })
+        try await permissions(root: root, credentials: store)
         let injected = SSHKeychainAuthenticationStore(api: api)
         try require(try await injected.read(identity: digest) == nil, "Missing Keychain entry not optional")
         try await injected.save(identity: digest, name: "fixture", passphrase: request.passphrase)
         try await injected.remove(identity: digest)
         do { try await injected.save(identity: digest, name: "fixture", passphrase: "invalid\nphrase"); throw Failure(message: "Invalid phrase reached storage") } catch SSHAgentFailure.passphrase {}
     }
+    @MainActor private static func permissions(root: URL, credentials: FixtureSSHAuthentication) async throws {
+        let directory = root.appendingPathComponent("permission-manager")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let a = directory.appendingPathComponent("key-a"), b = directory.appendingPathComponent("key-b"), other = directory.appendingPathComponent("newer-key")
+        for file in [a, b, other] { try Data("private fixture".utf8).write(to: file) }
+        let store = SSHIdentityAccessStore(storageURL: directory.appendingPathComponent("private/grants.json"), provider: SSHAuthenticationBookmarks())
+        try store.remember(a); try store.remember(b)
+        let owner = SavedSSHAuthenticationWindowController(store: credentials, identities: store, section: .keyFiles)
+        defer { owner.close() }; owner.window!.alphaValue = 0; owner.showWindow(nil)
+        let model = owner.permissions
+        try require(model.entries.count == 2 && owner.model.section == .keyFiles, "Key file permission navigation/list failed")
+        model.selection = [GitReferenceName(a.path)]
+        let board = NSPasteboard.withUniqueName(); defer { board.releaseGlobally() }
+        model.copyPaths(to: board); try require(board.string(forType: .string) == a.path, "Permission copy did not use captured path")
+        model.selection = []; board.clearContents(); board.setString("unchanged", forType: .string); model.copyPaths(to: board)
+        try require(board.string(forType: .string) == "unchanged", "Empty permission selection cleared clipboard")
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            owner.window!.appearance = NSAppearance(named: appearance); owner.window!.contentView?.layoutSubtreeIfNeeded()
+            try require(owner.window!.contentLayoutRect.width >= 700 && owner.window!.contentLayoutRect.height >= 460, "Permission native host smaller than controls")
+        }
+        model.selection = [GitReferenceName(a.path)]; model.confirm = { _ in false }; model.forget()
+        try await wait { !model.busy }; try require(try store.grants().count == 2, "Cancel removed permission")
+        var answer: CheckedContinuation<Bool, Never>?
+        model.confirm = { _ in await withCheckedContinuation { answer = $0 } }; model.forget()
+        try await wait { answer != nil }
+        try require(SSHIdentityPermissionsModel.activeOperations == 1 && !owner.windowShouldClose(owner.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Permission confirmation lost owner/Quit accounting")
+        try store.forget(path: a.path); try store.remember(other)
+        answer?.resume(returning: true); answer = nil; try await wait { !model.busy }
+        try require(model.error == SSHIdentityAccessFailure.changed.localizedDescription && model.entries.count == 2 && FileManager.default.fileExists(atPath: b.path), "Stale snapshot removed different permission")
+        model.confirm = { _ in true }; model.selection = [GitReferenceName(b.path)]; model.forget()
+        try await wait { !model.busy }
+        try require(try store.grants().map(\.configuredPath) == [other.path] && FileManager.default.fileExists(atPath: b.path), "Forget selection did not preserve key bytes/new grant")
+        var panelReply: ((NSApplication.ModalResponse) -> Void)?
+        owner.presentFile = { _, _, reply in panelReply = reply }; owner.selectedFile = { _ in a }
+        owner.authorizeFile(); try require(model.panelOpen && !owner.windowShouldClose(owner.window!), "Authorize panel did not own window")
+        panelReply?(.OK); panelReply?(.OK)
+        try require(!model.panelOpen && model.entries.count == 2 && model.selection == [GitReferenceName(a.path)], "Selected key permission not remembered once")
+        owner.authorizeFile(); panelReply?(.cancel); try require(model.entries.count == 2, "Cancelled panel replaced grants")
+        model.confirm = { _ in await withCheckedContinuation { answer = $0 } }; model.forget(all: true)
+        try await wait { answer != nil }; owner.close()
+        try require(SSHIdentityPermissionsModel.activeOperations == 1, "Forced owner discarded unsettled confirmation accounting")
+        answer?.resume(returning: true); answer = nil; try await wait { SSHIdentityPermissionsModel.activeOperations == 0 }
+        try require(try store.grants().count == 2, "Retired confirmation removed file grants")
+        let parent = NSWindow(contentRect: .init(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+        defer { parent.close() }; parent.isReleasedWhenClosed = false; parent.alphaValue = 0
+        let navigation = SavedDataAuthenticationOwner(store: credentials, identities: store)
+        navigation.show(owner: parent, section: .keyFiles)
+        try require(navigation.controller?.model.section == .keyFiles && navigation.controller?.permissions.entries.count == 2, "Saved Data did not select key permission page")
+        navigation.controller!.presentFile = { _, _, reply in panelReply = reply }
+        navigation.controller!.selectedFile = { _ in b }; navigation.controller!.authorizeFile(); navigation.close(); panelReply?(.OK)
+        try require(try store.grants().count == 2, "Retired file chooser remembered late result")
+        let clear = SSHIdentityPermissionsModel(store: store); clear.confirm = { _ in true }; clear.refresh(); clear.forget(all: true)
+        try await wait { !clear.busy }; try require(try store.grants().isEmpty && FileManager.default.fileExists(atPath: a.path) && FileManager.default.fileExists(atPath: other.path), "Forget all deleted a file or retained reviewed permissions")
+        clear.retire()
+        try require(SSHIdentityPermissionsModel.activeOperations == 0, "Permission operations did not settle")
+        print("PASS SSH file permissions: native tabs/Saved Data ownership, light/dark hosts, copy, authorize/Cancel/late callback, reviewed/stale/retired confirmation, selected/all forget, preserved key files/new grants and Quit lifetime; private mocked bookmarks, no system grants modified.")
+    }
+
 }

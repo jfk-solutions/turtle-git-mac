@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-15",
+  "scope": "Native SSH file-permission manager integrated with Saved Data and saved passphrases; eliminate duplicate UI compilation in Core CI",
+  "implementation": [
+    "Read-only permission snapshots expose configured paths with byte-exact identities without resolving bookmarks or reading key files",
+    "Reviewed selected/all atomic forgetting rejects changed/missing/duplicate grants and preserves unreviewed grants, key files, configuration, passphrases and active leases",
+    "Native key-file table/tabs, original command artwork, multi-selection/context copy/forget/authorize, native single-file chooser, Refresh and Delete confirmation",
+    "Saved Data direct navigation with private store injection, ordinary Close gates and forced panel/confirmation retirement; global Quit lifetime",
+    "Opt-in TURTLEGIT_CORE_ONLY=1 manifest keeps all Core/test/runtime/utility targets and resources; separate full Xcode app/Finder/native steps retained in CI"
+  ],
+  "validation": {
+    "package_graphs": {
+      "status": "passed",
+      "default": "build/qa/ssh-permissions-package-default-2026-10-15.json",
+      "core_only": "build/qa/ssh-permissions-package-core-2026-10-15.json",
+      "assertion": "Only TurtleGitMac executable product/target removed by opt-in; every remaining target descriptor is identical."
+    },
+    "core": {
+      "tests": 8,
+      "failures": 0,
+      "log": "build/qa/ssh-permissions-core-2026-10-15.log",
+      "scope": "SSHIdentityAccessTests and SSHAgentSessionTests; no full suite rerun; opt-in test build omitted UI compilation."
+    },
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/ssh-permissions-build-final-2026-10-15.log",
+      "initial_failure": "Shadowed catch error assignment; changed to self.error before successful build.",
+      "diagnostics": "Existing warnings and exit-code-zero/no-output SwiftCompile diagnostics; not a clean diagnostics claim."
+    },
+    "native": {
+      "accepted_pairs": 4,
+      "engines": [
+        "/usr/bin/git",
+        "Debug TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+      ],
+      "cases": [
+        "ssh-authentication",
+        "settings-family"
+      ],
+      "log": "build/qa/ssh-permissions-native-complete-2026-10-15.log",
+      "initial_fixture_compile_failure": "Private fixture actor in helper signature needed private access.",
+      "initial_receiver_failure": {
+        "pid": 27081,
+        "signal": "SIGSEGV",
+        "log": "build/qa/ssh-permissions-native-final-2026-10-15.log",
+        "repair": "Fixture-owned parent NSWindow used default release-on-close; set isReleasedWhenClosed=false. Production controller already uses false.",
+        "crash_report": "reference-401a30b842f80b7faaa08efdd532d1ffebcbb79d3582e40b914202-2026-10-15-085516.ips"
+      },
+      "receivers_reaped": [
+        27081,
+        27173,
+        27218,
+        27225,
+        27268
+      ],
+      "coverage": [
+        "Native Key File/Saved Passphrases hosts in Aqua/Dark Aqua, Saved Data child selection and ownership",
+        "Private bookmark records and pasteboard, real authorize callback/Cancel/duplicate/late rejection",
+        "Confirmed selected/all forget, stale snapshot refusal, preserved new grants and key files, forced unanswered confirmation and Quit accounting",
+        "Existing real encrypted-key loading into owned private agents, successful-only saved phrase behavior, retry/cancel and agent cleanup",
+        "Existing Settings navigation, cached Apply/Cancel/private preferences and owned child cleanup"
+      ],
+      "limits": "Hidden hosts and mocked security-scope providers; no physical gesture, new screenshot, production Keychain or signed grant acceptance.",
+      "receivers_checked_absent": true
+    },
+    "site": {
+      "status": "passed",
+      "log": "build/qa/ssh-permissions-site-2026-10-15.log",
+      "exit_code": 0,
+      "documents": 216,
+      "unresolved_fragments": []
+    }
+  },
+  "source": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "adaptation": "macOS file authorization alongside native Saved Data authentication; no equivalent new Windows resource control is invented or certified."
+  },
+  "ci_observation": {
+    "run": 38688088886,
+    "job": 116270555472,
+    "commit": "883d19c4",
+    "step": "Git integration tests",
+    "status": "in_progress",
+    "downloaded_log_characters": 2111728,
+    "last_log_timestamp": "2026-10-15T06:02:54.5498140Z",
+    "evidence": "swift test was compiling Sources/TurtleGitMac; repeated UI warnings were the final received output. No concrete compile error or Core test result was present in that snapshot.",
+    "note": "Opt-in build graph removes duplicate compilation in future Core jobs; no current hosted green or measured hosted speedup claimed."
+  },
+  "remaining": [
+    "Physical focus, native table/chooser/context/Delete and VoiceOver acceptance, rendered screenshot comparison",
+    "Real signed bookmarks, moved-file renewal and revoked grants on App Store builds",
+    "Hosted workflow completion and full application parity/distribution remain open"
+  ],
+  "preserved_unrelated_wip": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

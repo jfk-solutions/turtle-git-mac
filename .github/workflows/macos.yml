@@ -265,13 +265,13 @@ jobs:
           python3 scripts/test-dialog-coverage.py
           python3 scripts/reconcile-dialog-coverage.py --check
       - name: Git integration tests
-        run: swift test
+        run: TURTLEGIT_CORE_ONLY=1 swift test
       - name: Working copy revision utility and upstream templates
         run: python3 scripts/test-wcrev.py --tool .build/debug/TurtleGitWCRev --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: SVN command compatibility with pinned Git
         env:
           TURTLEGIT_SVN_TEST_GIT: ${{ github.workspace }}/build/git-runtime/Git/bin/git
-        run: swift test --skip-build --filter GitSVNTests
+        run: TURTLEGIT_CORE_ONLY=1 swift test --skip-build --filter GitSVNTests
       - name: Native historical file and folder item-provider receivers
         run: scripts/verify-browser-item-provider.sh
       - name: Application and embedded Finder extension
@@ -434,7 +434,7 @@ jobs:
       - name: Native Pull and Fetch clipboard input
         run: python3 scripts/test-fetch-clipboard.py
       - name: Synchronization comparisons and transport with bundled Git
-        run: TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" swift test --filter 'SynchronizationTests|SynchronizationTransportTests|SynchronizationReferenceTests|SynchronizationTagTests|SynchronizationSubmoduleTests|SynchronizationStashTests|RemoteTagTests'
+        run: TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" TURTLEGIT_CORE_ONLY=1 swift test --filter 'SynchronizationTests|SynchronizationTransportTests|SynchronizationReferenceTests|SynchronizationTagTests|SynchronizationSubmoduleTests|SynchronizationStashTests|RemoteTagTests'
       - name: Native Synchronization histories and revision lists
         run: |
           python3 scripts/test-synchronization-history.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
@@ -476,7 +476,7 @@ jobs:
       - name: Native Context Menu settings transactions and page previews
         run: python3 scripts/test-context-menu-settings.py
       - name: Patch mail preparation with packaged Git
-        run: TURTLEGIT_SEND_PATCH_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" swift test --filter PatchMail
+        run: TURTLEGIT_SEND_PATCH_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" TURTLEGIT_CORE_ONLY=1 swift test --filter PatchMail
       - name: Sandboxed App Store configuration (unsigned compilation)
         run: >-
           xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore
@@ -492,7 +492,7 @@ jobs:
       - name: Revision Graph through built Debug and Store frameworks and helpers
         run: python3 scripts/test-graph-layout-bundles.py
       - name: Revision Graph data and geometry with bundled Git
-        run: TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" swift test --filter 'RevisionGraphLayoutTests|RevisionGraphTests|HistoryRangeTests'
+        run: TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" TURTLEGIT_CORE_ONLY=1 swift test --filter 'RevisionGraphLayoutTests|RevisionGraphTests|HistoryRangeTests'
       - name: Native Revision Graph window and Filter with both Git engines
         run: python3 scripts/test-revision-graph-window.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native packaged Git SSH client lookup without network

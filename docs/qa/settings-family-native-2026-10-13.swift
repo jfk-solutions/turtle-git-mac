@@ -173,7 +173,7 @@ private actor SettingsSMTPFixture: SMTPCredentialStore {
         var answer:((Bool)->Void)?; saved.confirmTemporaryClear={ answer=$0 }; saved.clearTemporaryFiles(); saved.retire(); answer?(true)
         try require(!saved.confirmingTemporaryClear && saved.retired,"Closed Saved Data accepted retained clear response")
         saved.activate(); saved.maximumLines="123"; saved.apply(); try require(prefs.integer(forKey:"MaxLinesInLogfile")==123,"Reactivated Saved Data draft failed")
-        let authentication=SavedDataAuthenticationOwner(store:SettingsAuthenticationFixture())
+        let authentication=SavedDataAuthenticationOwner(store:SettingsAuthenticationFixture(), identities:SSHIdentityAccessStore(storageURL:root.appendingPathComponent("private-identity-grants.json")))
         authentication.show(owner:window)
         try await wait("Authentication child") { authentication.controller?.model.busy==false }
         try require(authentication.controller?.model.entries.count==1,"Authentication child did not use owned store")

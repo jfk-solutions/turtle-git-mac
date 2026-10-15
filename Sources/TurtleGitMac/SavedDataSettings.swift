@@ -107,6 +107,11 @@ struct SavedDataSettingsPage: View {
                 Button("Clear…") { authentication.show(owner: transaction?.window) }
             }.help("Review and remove TurtleGit’s saved SSH authentication entries.")
             HStack {
+                Text("SSH key file permissions")
+                Spacer()
+                Button("Manage…") { authentication.show(owner: transaction?.window, section: .keyFiles) }
+            }
+            HStack {
                 Text("Temp files (including Gravatar images)")
                 Spacer()
                 Button("Clear") { model.clearTemporaryFiles() }.disabled(!model.canClearTemporaryFiles || model.confirmingTemporaryClear)
@@ -151,10 +156,11 @@ struct SavedDataSettingsPage: View {
 @MainActor final class SavedDataAuthenticationOwner: ObservableObject {
     private(set) var controller: SavedSSHAuthenticationWindowController?
     private let store: any SSHAuthenticationStore
-    init(store: any SSHAuthenticationStore = SSHKeychainAuthenticationStore.shared) { self.store = store }
-    func show(owner: NSWindow?) {
+    private let identities: SSHIdentityAccessStore
+    init(store: any SSHAuthenticationStore = SSHKeychainAuthenticationStore.shared, identities: SSHIdentityAccessStore = SSHIdentityAccessStore()) { self.store = store; self.identities = identities }
+    func show(owner: NSWindow?, section: SavedSSHAuthenticationSection = .passphrases) {
         guard controller == nil, owner?.attachedSheet == nil else { return }
-        let child = SavedSSHAuthenticationWindowController(store:store); controller = child
+        let child = SavedSSHAuthenticationWindowController(store:store, identities: identities, section: section); controller = child
         child.onClosed = { [weak self, weak child] in
             if let window = child?.window, let parent = window.sheetParent { parent.endSheet(window) }
             if self?.controller === child { self?.controller = nil }

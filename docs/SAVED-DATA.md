@@ -13,6 +13,7 @@ questions appear again. The controls follow TortoiseGit's Saved Data page.
 - **Authentication data → Clear…** opens the saved SSH authentication dialog to
   review and remove selected TurtleGit Keychain entries. Git HTTP helper credentials
   and keys already loaded by a running operation are outside this control's scope.
+- **SSH key file permissions → Manage…** opens **Key File Permissions**. Review remembered key paths, authorize a file with the native picker, copy selected paths, or forget selected/all listed permissions after confirmation. Forgetting keeps the key files, saved passphrases, Git configuration and permissions held by running operations. Future key loading may ask for Browse again. This is a macOS addition for sandbox file access.
 - **Dialog sizes and positions → Clear** forgets saved native window frames;
   see [dialog geometry](DIALOG-GEOMETRY.md).
 - **Temp files (including Gravatar images) → Clear** removes app-owned temporary
