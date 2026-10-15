@@ -114,9 +114,12 @@ import UniformTypeIdentifiers
     var settingsContextOverride: (repository:GitRepository,access:RepositoryAccessLease?,localAvailable:Bool)?
     private var gitPropertyWindows: [String:GitPropertiesWindowController] = [:]
     private var commitWindows: [String: CommitWindowController] = [:]
+    var commitWindowFactory:((GitRepository,RepositoryAccessLease?)->CommitWindowController)?
     private var combineWindows: [UUID: HistoryCombineWindowController] = [:]
     private var historyRevertWindows: [UUID: HistoryRevertWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
+    private struct ConfiguredLog { weak var model:LogWindowModel? }
+    private var configuredLogModels:[ObjectIdentifier:ConfiguredLog]=[:]
     var logWindowFactory:((GitRepository,RepositoryAccessLease?)->LogWindowController)?
     private var revisionGraphWindows: [String: RevisionGraphWindowController] = [:]
     private var referenceBrowserWindows: [String: ReferenceBrowserWindowController] = [:]
@@ -153,12 +156,14 @@ import UniformTypeIdentifiers
     var finderMailPresentation: ((NSWindowController) -> Void)?
     private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
     private var cleanWindows: [String: CleanWindowController] = [:]
+    var cleanWindowFactory:((GitRepository)->CleanWindowController)?
     private var cleanProgressWindows: [UUID: CleanProgressWindowController] = [:]
     private var revertWindows: [String: RevertWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
     private var bisectWindows: [String: BisectWindowController] = [:]
     private var exportWindows: [String: ExportWindowController] = [:]
     private var mergeAbortWindows: [UUID: MergeAbortWindowController] = [:]
+    var mergeAbortWindowFactory:((GitRepository,RepositoryAccessLease?)->MergeAbortWindowController)?
     private var mergeWindows: [String: MergeWindowController] = [:]
     private var referenceLogWindows: [String: ReferenceLogWindowController] = [:]
     private var stashRestoreWindows: [String: StashRestoreWindowController] = [:]
@@ -1035,7 +1040,7 @@ import UniformTypeIdentifiers
     }
     private func showCommitDialog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
         let root = repository.root
-        let controller = commitWindows[root.path] ?? CommitWindowController(repository: repository, access: access)
+        let controller = commitWindows[root.path] ?? commitWindowFactory?(repository,access) ?? CommitWindowController(repository: repository, access: access)
         controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
         controller.model.onCommitted = { [weak self] output in
@@ -1406,7 +1411,7 @@ import UniformTypeIdentifiers
     }
     private func showClean(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
         let root = repository.root
-        let controller = cleanWindows[root.path] ?? CleanWindowController(repository: repository)
+        let controller = cleanWindows[root.path] ?? cleanWindowFactory?(repository) ?? CleanWindowController(repository: repository)
         controller.onClosed = { [weak self] in self?.cleanWindows.removeValue(forKey: root.path) }
         controller.model.setScope(paths)
         controller.model.onAccepted = { [weak self] request in
@@ -1936,7 +1941,11 @@ import UniformTypeIdentifiers
         blameWindows[key]=controller;controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
     }
     private func refreshRepositoryLogs(_ root: URL) {
-        for log in logWindows.values where log.model.repository.root == root && !log.model.isInvalidated { log.model.requestRepositoryRefresh() }
+        configuredLogModels=configuredLogModels.filter { $0.value.model?.isInvalidated == false }
+        var refreshed=Set<ObjectIdentifier>()
+        for model in logWindows.values.map(\.model)+configuredLogModels.values.compactMap(\.model) where model.repository.root == root && !model.isInvalidated {
+            if refreshed.insert(ObjectIdentifier(model)).inserted { model.requestRepositoryRefresh() }
+        }
         for graph in revisionGraphWindows.values where graph.model.repository.root == root && !graph.model.closed { graph.requestRepositoryRefresh() }
     }
     private func showHistoryRevert(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?, owner: NSWindow?) {
@@ -2026,16 +2035,6 @@ import UniformTypeIdentifiers
         controller.model.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
         controller.model.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
         configureLogBisect(controller.model, repository: repository, access: access)
-        controller.model.onWorkingCommand = { [weak self] action in
-            switch action {
-            case .stash: self?.showStash(repository: repository, access: access)
-            case .stashPop: self?.showStashRestore(repository: repository, access: access, pop: true)
-            case .stashList: self?.showReferenceLog(repository: repository, access: access, reference: "refs/stash")
-            case .pull, .fetch: self?.showFetch(repository: repository, access: access, isPull: action == .pull)
-            case .submoduleUpdate: self?.showSubmoduleUpdate(repository: repository, access: access, scope: [])
-            default: break
-            }
-        }
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         controller.model.onContainingLog = { [weak self] name, select, range in
             self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range)
@@ -2067,11 +2066,6 @@ import UniformTypeIdentifiers
             self?.showLog(repository: child, access: access, paths: [], endRevision: hash)
         }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
-        controller.model.onCommit = { [weak self] in
-            guard let self else { return }
-            if self.root == root { self.activate(.commit) }
-            else if let access { self.openSession(access, action: .commit) }
-        }
         controller.model.onRevisionChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)
             self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
@@ -2095,6 +2089,25 @@ import UniformTypeIdentifiers
     }
 
     private func configureLogMenus(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        configuredLogModels=configuredLogModels.filter { $0.value.model?.isInvalidated == false }
+        configuredLogModels[ObjectIdentifier(model)]=ConfiguredLog(model:model)
+        model.onCommit={ [weak self,weak model] in
+            guard let model else { return }
+            self?.showCommitDialog(repository:repository,access:access,paths:model.historyPaths)
+        }
+        model.onWorkingCommand={ [weak self,weak model] action in
+            switch action {
+            case .commit:model?.onCommit()
+            case .clean:self?.showClean(repository:repository,access:access,paths:[])
+            case .mergeAbort:self?.showMergeAbort(repository:repository,access:access)
+            case .stash:self?.showStash(repository:repository,access:access)
+            case .stashPop:self?.showStashRestore(repository:repository,access:access,pop:true)
+            case .stashList:self?.showReferenceLog(repository:repository,access:access,reference:"refs/stash")
+            case .pull,.fetch:self?.showFetch(repository:repository,access:access,isPull:action == .pull)
+            case .submoduleUpdate:self?.showSubmoduleUpdate(repository:repository,access:access,scope:[])
+            default:break
+            }
+        }
         model.onCompare={ [weak self,weak model] from,to in
             guard let model else { return }
             self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,paths:model.showWholeProject ? [] : model.historyPaths)
@@ -2151,7 +2164,7 @@ import UniformTypeIdentifiers
     }
     private func showMergeAbort(repository: GitRepository, access: RepositoryAccessLease?) {
         let id = UUID(), root = repository.root
-        let controller = MergeAbortWindowController(repository: repository, access: access)
+        let controller = mergeAbortWindowFactory?(repository,access) ?? MergeAbortWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.mergeAbortWindows.removeValue(forKey: id) }
         controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload()

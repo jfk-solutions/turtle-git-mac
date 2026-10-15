@@ -3,6 +3,14 @@
 *A macOS fork of TortoiseGit*
 
 
+The connected Log working-tree action family now includes Clean up and Abort
+Merge, shared repository-bound primary/picker dialog routing, path-scoped Commit,
+fresh merge/stash/submodule gates and cancellable metadata preparation through
+Close/Quit. Revision Reset/Branch/Tag/Export availability follows the active bare
+and stash source rules. See [Log parity](LOG-PARITY.md). Full consumer masks and
+physical/signed acceptance remain open.
+
+
 The connected Log inspection family now includes forward/reverse/symmetric range
 Logs with path-aware child reuse, first-parent change-set comparison, continuous
 multi-row endpoint comparison and merge-parent/combined unified choices. These

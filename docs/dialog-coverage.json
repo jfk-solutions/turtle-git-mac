@@ -632,6 +632,7 @@
         "docs/qa/log-table-font-2026-10-08.json",
         "docs/qa/log-tag-dates-2026-10-06.json",
         "docs/qa/log-tag-search-2026-10-06.json",
+        "docs/qa/log-working-commands-2026-10-15.json",
         "docs/qa/shared-unversioned-2026-10-07.json",
         "docs/qa/workspace-metadata-access-2026-10-15.json"
       ]
@@ -1401,6 +1402,7 @@
         "docs/qa/log-table-font-2026-10-08.json",
         "docs/qa/log-tag-dates-2026-10-06.json",
         "docs/qa/log-tag-search-2026-10-06.json",
+        "docs/qa/log-working-commands-2026-10-15.json",
         "docs/qa/shared-unversioned-2026-10-07.json",
         "docs/qa/submodule-handoffs-2026-10-14.json",
         "docs/qa/workspace-metadata-access-2026-10-15.json"

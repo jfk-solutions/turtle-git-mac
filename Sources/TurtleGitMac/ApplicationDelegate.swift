@@ -23,7 +23,7 @@ import AppKit
         if RebaseWindowModel.activeColumnReads > 0 { return .terminateCancel }
         if RebaseWindowModel.activeStashRestorations > 0 { return .terminateCancel }
         if SynchronizationWindowModel.activePushWorkflows > 0 { return .terminateCancel }
-        if LogWindowModel.activeActionReads > 0 { return .terminateCancel }
+        if LogWindowModel.activeActionReads > 0 || LogWindowModel.activeWorkingCommandReads > 0 { return .terminateCancel }
         if ReferenceLogWindowModel.activeRevisionReads > 0 { return .terminateCancel }
         if WorktreeListWindowModel.activeOperations > 0 || WorktreeCreateWindowModel.activeOperations > 0 { return .terminateCancel }
         if PushWindowModel.activePreparationReads > 0 || PushWindowModel.activePushWorkflows > 0 || FetchWindowModel.activePreparationReads > 0 { return .terminateCancel }

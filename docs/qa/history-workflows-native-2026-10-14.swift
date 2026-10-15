@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import TurtleGitCore
 
 @main struct HistoryWorkflowsVerification {
@@ -18,6 +19,7 @@ import TurtleGitCore
         defer { prefs.removePersistentDomain(forName:suite) }
         try await menuOwnership(repository:repo,entries:entries,preferences:prefs)
         try await historyMenuCommands(repository:repo,entries:entries,preferences:prefs,git:git)
+        try await workingTreeCommandFamily(repository:repo,entries:entries,preferences:prefs,git:git)
         let helper=root.appendingPathComponent("stream-git"),marker=root.appendingPathComponent("ready"),release=root.appendingPathComponent("release"),counter=root.appendingPathComponent("counter")
         let script = #"""
         #!/bin/sh
@@ -257,12 +259,17 @@ import TurtleGitCore
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in false},comparisonMarks:WorkingComparisonMarkStore(storageURL:repository.root.appendingPathComponent("private-comparison-mark.json")))
         let clipboard=NSPasteboard(name:NSPasteboard.Name("TurtleGit.HistoryMenus."+UUID().uuidString))
         var logs:[LogWindowController]=[],leases:[RepositoryAccessLease?]=[],svnWindows:[SVNWindowController]=[],svnRoots:[URL]=[]
-        defer{logs.forEach{$0.close()};svnWindows.forEach{$0.close()};workspace.closeRepository();workspace.stopMonitoringForTermination();clipboard.releaseGlobally()}
+        var commits:[CommitWindowController]=[],cleans:[CleanWindowController]=[],aborts:[MergeAbortWindowController]=[],dialogLeases:[RepositoryAccessLease?]=[]
+        defer{logs.forEach{$0.close()};svnWindows.forEach{$0.close()};commits.forEach{$0.close()};cleans.forEach{$0.close()};aborts.forEach{$0.close()};workspace.closeRepository();workspace.stopMonitoringForTermination();clipboard.releaseGlobally()}
         workspace.logWindowFactory={repo,access in
             let log=LogWindowController(repository:repo,access:access,labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false,historyRegexExecutable:regexExecutable);log.model.clipboard=clipboard;logs.append(log);leases.append(access);return log
         }
         workspace.svnWindowFactory={repo,access,operation in let child=SVNWindowController(repository:repo,access:access,operation:operation,preferences:preferences,clipboard:clipboard);svnWindows.append(child);return child}
         workspace.svnPresentation={child in svnRoots.append(child.model.repository.root);child.close()}
+        workspace.commitWindowFactory={repo,access in let child=CommitWindowController(repository:repo,access:access,defaults:preferences);commits.append(child);dialogLeases.append(access);return child}
+        workspace.cleanWindowFactory={repo in let child=CleanWindowController(repository:repo,defaults:preferences);cleans.append(child);return child}
+        workspace.mergeAbortWindowFactory={repo,access in let child=MergeAbortWindowController(repository:repo,access:access,preferences:preferences);aborts.append(child);dialogLeases.append(access);return child}
+
         workspace.open(repository.root);try await wait{!workspace.busy && workspace.root != nil};workspace.activate(.log)
         try await wait{logs.count==1 && !logs[0].model.busy}
         let parent=logs[0],hash=entries[1].hash
@@ -284,10 +291,128 @@ import TurtleGitCore
         try require(logs[3] !== scoped && logs[3].model.historyPaths.isEmpty,"Whole-repository range reused a path-restricted child")
         var workspacePatches:[CommitChangeSetComparison]=[];workspace.commitChangeSetPresentation={workspacePatches.append($0)}
         parent.model.compareChangeSets();try await wait{!parent.model.busy};try require(workspacePatches.count==1 && workspacePatches[0].snapshot.root==repository.root,"Workspace did not present prepared change sets from the originating repository")
+        parent.model.historyPaths=["a"];parent.model.select([""]);parent.model.requestWorkingCommand(.commit)
+        try await wait{commits.count==1 && !commits[0].model.busy && !parent.model.busy && LogWindowModel.activeWorkingCommandReads==0}
+        try require(commits[0].model.repository.root==repository.root && commits[0].model.scopePaths==["a"] && dialogLeases[0] === leases[0],"Log Commit lost path scope, original repository or grant")
+        let pickerLog=LogWindowModel(repository:repository,access:leases[0],labelDefaults:preferences,historyRegexExecutable:regexExecutable)
+        defer{pickerLog.invalidate()}
+        commits[0].model.configureLogPicker(pickerLog);pickerLog.reload();try await wait{!pickerLog.busy}
+        commits[0].close()
+        parent.model.requestWorkingCommand(.clean);try await wait{cleans.count==1 && !parent.model.busy}
+        let cleanScopes=try cleans[0].model.directoryScopes()
+        try require(cleans[0].model.repository.root==repository.root && cleanScopes.isEmpty,"Log Clean narrowed the source repository scope")
+        cleans[0].close()
+        let mergeHeader=repository.root.appendingPathComponent(".git/MERGE_HEAD")
+        try Data((entries[0].hash+"\n").utf8).write(to:mergeHeader)
+        defer{try? FileManager.default.removeItem(at:mergeHeader)}
+        parent.model.reload();try await wait{!parent.model.busy};parent.model.select([""]);parent.model.requestWorkingCommand(.mergeAbort)
+        try await wait{aborts.count==1 && !parent.model.busy}
+        try require(aborts[0].model.repository.root==repository.root && dialogLeases[1] === leases[0] && !aborts[0].model.showingProgress,"Log Abort Merge lost repository/grant or submitted before confirmation")
+        let pickerGeneration=pickerLog.contextMenuGeneration
+        pickerLog.referencePickerBlocked=true;aborts[0].model.onChanged("fixture merge completion");aborts[0].model.onChanged("fixture coalesced completion")
+        try require(pickerLog.contextMenuGeneration==pickerGeneration && !pickerLog.busy,"Blocked picker Log reloaded before its reference child closed")
+        pickerLog.referencePickerBlocked=false;try await wait{!pickerLog.busy && pickerLog.contextMenuGeneration>pickerGeneration}
+        try require(pickerLog.contextMenuGeneration==pickerGeneration+1 && pickerLog.onWorkingCommand != nil,"Picker Log refresh was lost/duplicated or lacks shared actions")
+        pickerLog.invalidate();let retiredGeneration=pickerLog.contextMenuGeneration;aborts[0].model.onChanged("fixture retired completion");await Task.yield()
+        try require(pickerLog.contextMenuGeneration==retiredGeneration,"Retired picker Log accepted repository completion")
+        try await wait{!workspace.busy && !parent.model.busy}
+        aborts[0].close();try FileManager.default.removeItem(at:mergeHeader)
         workspace.closeRepository();parent.close()
         try require(!child.model.isInvalidated && child.window?.isVisible==true,"Closing parent/workspace retired independent scoped history")
         child.close()
         print("Log source menu family: range orientations/path reuse, continuous selection, change-set patches/read-only viewer/alternate tool/root failure, merge parent/mode menus; normal/extended/ref/stash/bare Show log and SVN DCommit, original icons, Shift snapshot and stale guards, selected-row Shift-F10/AX routes, Return diff preference, scoped child reuse/selection/grant and captured SVN repository passed. No SVN transport submitted; owned windows closed.")
+    }
+
+    @MainActor static func workingTreeCommandFamily(repository:GitRepository,entries:[LogEntry],preferences:UserDefaults,git:URL) async throws {
+        let root=repository.root,untracked=root.appendingPathComponent("log-command-untracked")
+        try Data("working tree command fixture\n".utf8).write(to:untracked)
+        defer{try? FileManager.default.removeItem(at:untracked)}
+        let owner=LogWindowController(repository:repository,access:nil,labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false),model=owner.model
+        defer{owner.close()}
+        owner.showWindow(nil);model.reload();try await wait{!model.busy};model.select([""])
+        try require(model.selectedWorkingTree,"Working command fixture lacks working-tree row")
+        let coordinator=RevisionTable.Coordinator(model:model),menu=NSMenu()
+        var actions:[RepositoryAction]=[],exports:[String]=[],resets:[String]=[]
+        model.onWorkingCommand={actions.append($0)};model.onExportRevision={exports.append($0)};model.onReset={resets.append($0)}
+        func update(){coordinator.menuNeedsUpdate(menu)}
+        func dismissError() async throws { model.error=nil;try await wait{owner.window?.attachedSheet==nil} }
+        func item(_ action:RepositoryAction)->NSMenuItem? {menu.items.first{$0.representedObject as? String==action.rawValue}}
+        func send(_ item:NSMenuItem){_=NSApp.sendAction(item.action!,to:item.target,from:item)}
+        for action in [RepositoryAction.commit,.stash,.pull,.fetch,.clean] {
+            update();let choice=action == .commit ? menu.items.first{$0.action==NSSelectorFromString("commitWorkingTree")} : item(action)
+            try require(choice?.isEnabled==true && choice?.image != nil,"Working command/icon missing: \(action)")
+            send(choice!);try await wait{!model.busy && LogWindowModel.activeWorkingCommandReads==0}
+            try require(actions.last==action,"Working command failed fresh handoff: \(action)")
+        }
+        update();try require(item(.mergeAbort)==nil && item(.submoduleUpdate)==nil && item(.stashPop)==nil,"Unavailable working commands exposed")
+        let header=root.appendingPathComponent(".git/MERGE_HEAD")
+        try Data((entries[0].hash+"\n").utf8).write(to:header)
+        defer{try? FileManager.default.removeItem(at:header)}
+        let beforeMerge=actions.count
+        model.requestWorkingCommand(.pull);try await wait{!model.busy}
+        update();try require(actions.count==beforeMerge && model.mergeActive && item(.pull)==nil && item(.stash)==nil && item(.mergeAbort)?.image != nil,"Fresh merge state failed to replace cached choices")
+        try await dismissError();update()
+        send(item(.mergeAbort)!);try await wait{!model.busy};try require(actions.last == .mergeAbort,"Abort Merge was not dispatched: enabled=\(item(.mergeAbort)?.isEnabled.description ?? "missing"), can=\(model.canWorkingCommand(.mergeAbort)), selected=\(model.selected), error=\(model.error ?? "none"), actions=\(actions)")
+        try FileManager.default.removeItem(at:header)
+        let beforeAbort=actions.count;model.requestWorkingCommand(.mergeAbort);try await wait{!model.busy};update()
+        try require(actions.count==beforeAbort && !model.mergeActive && item(.mergeAbort)==nil,"Disappeared merge still dispatched Abort Merge")
+        try await dismissError()
+        let modules=root.appendingPathComponent(".gitmodules")
+        try Data("[submodule \"fixture\"]\npath = fixture\nurl = ./fixture\n".utf8).write(to:modules)
+        defer{try? FileManager.default.removeItem(at:modules)}
+        model.reload();try await wait{!model.busy};model.select([""]);update()
+        try require(item(.submoduleUpdate)?.image != nil,"Submodule Update source choice/icon missing")
+        try FileManager.default.removeItem(at:modules);let beforeModules=actions.count
+        model.requestWorkingCommand(.submoduleUpdate);try await wait{!model.busy};update()
+        try require(actions.count==beforeModules && !model.hasSubmodules && item(.submoduleUpdate)==nil,"Removed submodule configuration was dispatched")
+        try await dismissError()
+        _ = try await repository.run(["update-ref","refs/stash",entries[0].hash])
+        model.reload();try await wait{!model.busy};model.select([""]);update()
+        try require(item(.stashList)?.image != nil && item(.stashPop)?.image != nil,"Existing stash choices/icons missing")
+        _ = try await repository.run(["update-ref","-d","refs/stash"]);let beforeStash=actions.count
+        model.requestWorkingCommand(.stashPop);try await wait{!model.busy};update()
+        try require(actions.count==beforeStash && !model.hasStash && item(.stashPop)==nil && item(.stashList)==nil,"Removed stash remained available")
+        try await dismissError()
+        // Source stash/bare menus differ from ordinary working-copy revision menus.
+        var stash=entries[0];stash.references=[RevisionReference(name:"refs/stash")]
+        model.entries=[stash];model.selected=[stash.hash];model.bare=false;update()
+        try require(!model.resetAvailable && menu.items.allSatisfy{!["reset","branchReference:","tagReference:"].contains($0.action.map(NSStringFromSelector) ?? "")} && model.canExportRevision,"Stash Reset/Branch/Tag/Export gates differ")
+        model.request(.reset);model.request(.branch);model.request(.tag);model.requestExport()
+        try require(resets.isEmpty && exports==[stash.hash],"Stash revision bypassed Reset or lost Export")
+        model.entries=entries;model.selected=[entries[0].hash];model.bare=true;update()
+        try require(!model.resetAvailable && menu.items.contains{$0.action==NSSelectorFromString("branchReference:")} && model.canExportRevision,"Bare revision creation/export gates differ")
+        model.request(.reset);try require(resets.isEmpty,"Bare Reset was dispatched")
+        model.bare=false;model.request(.reset);try require(resets==[entries[0].hash],"Working-copy Reset disappeared")
+        owner.close()
+        // Pause a real metadata Git child, then exercise requested and forced close.
+        let helper=root.appendingPathComponent("log-command-git"),gate=root.appendingPathComponent("log-command-gate"),marker=root.appendingPathComponent("log-command-marker")
+        let script = #"""
+        #!/bin/sh
+        if [ "$4" = "rev-parse" ] && [ "$5" = "--absolute-git-dir" ] && [ -e "$TG_LOG_COMMAND_GATE" ]; then
+          printf '%s' "$$" > "$TG_LOG_COMMAND_MARKER"
+          while :;do /bin/sleep 0.05;done
+        fi
+        exec "$TG_LOG_COMMAND_GIT" "$@"
+        """#
+        try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
+        setenv("TG_LOG_COMMAND_GATE",gate.path,1);setenv("TG_LOG_COMMAND_MARKER",marker.path,1);setenv("TG_LOG_COMMAND_GIT",git.path,1)
+        defer{for key in ["TG_LOG_COMMAND_GATE","TG_LOG_COMMAND_MARKER","TG_LOG_COMMAND_GIT"]{unsetenv(key)};for file in [helper,gate,marker]{try? FileManager.default.removeItem(at:file)}}
+        for forced in [false,true] {
+            try? FileManager.default.removeItem(at:gate);try? FileManager.default.removeItem(at:marker)
+            let child=LogWindowController(repository:GitRepository(root:root,executable:helper),access:RepositoryAccessLease(url:root),labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false)
+            defer{child.close()}
+            child.showWindow(nil);child.model.reload();try await wait{!child.model.busy};child.model.select([""])
+            var handedOff=0;child.model.onWorkingCommand={_ in handedOff += 1}
+            try Data().write(to:gate);child.model.requestWorkingCommand(.clean)
+            try await wait{(try? String(contentsOf:marker,encoding:.utf8).isEmpty)==false && LogWindowModel.activeWorkingCommandReads>0}
+            let pid=Int32(try String(contentsOf:marker,encoding:.utf8))!
+            try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Working command metadata lacks Quit ownership")
+            if forced {child.close();try require(LogWindowModel.activeWorkingCommandReads>0,"Forced close dropped metadata ownership before Git settled")}
+            else {child.window!.performClose(nil)}
+            try await wait{LogWindowModel.activeWorkingCommandReads==0 && child.model.isInvalidated}
+            try require(handedOff==0 && child.model.error==nil && child.window?.isVisible==false && kill(pid,0) == -1 && errno==ESRCH,"Closed owner retained its Git child or published a late action/error")
+        }
+        print("Log working-tree commands: Commit/Stash/Pull/Fetch/Clean icons and fresh dispatch; appeared/disappeared merge, stash and submodule gates; stash/bare Reset/Branch/Tag/Export; real Git metadata requested/forced-close cancellation, process reaping and Quit ownership passed. No cleanup or abort submitted; owned windows closed.")
     }
 
 }

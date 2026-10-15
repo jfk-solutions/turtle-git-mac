@@ -2517,3 +2517,45 @@ acceptance and signed distribution remain open.
 The Debug build, three affected Core tests and both grouped native engine cases
 passed. See [inspection family evidence](qa/log-inspection-family-2026-10-15.json)
 for exact scope and acceptance limits. Both owned receivers were reaped.
+
+## Working-tree repository actions — October 15, 2026
+
+The working-tree revision popup now includes **Abort Merge** when a merge is
+active and **Clean up…** after the transport/submodule section, using their
+original action icons. Clean opens the existing whole-repository Clean dialog;
+Abort Merge opens the existing options/progress workflow and awaits submission.
+The common primary/picker Log configuration also connects Commit, Stash Save,
+Stash Pop/List, Pull, Fetch and Submodule Update to the originating repository
+and access grant. Commit retains the Log's invocation paths rather than changing
+the active workspace to recover its context.
+
+Working-tree command preparation now owns a cancellable metadata read. Cached
+merge/stash/submodule availability is refreshed before handing off an action.
+Removed prerequisites suppress the stale command and update the next popup.
+Selection changes cancel the read. Requested Close cancels Git and completes
+Close after settlement; forced retirement suppresses late actions/errors while
+process and permission ownership remain alive. Quit is blocked until the owned
+metadata read finishes, including after window retirement.
+
+Revision menu gates now omit Reset for bare repositories and stash entries,
+omit Branch/Tag for stash entries and allow source Export for stash entries.
+The model rejects Reset when those gates fail. Bare repositories retain Branch,
+Tag and Export. These are the active source gates, separate from still-partial
+per-consumer menu masks and complete physical menu/default-item acceptance.
+
+The existing Clean, Merge Abort, Stash, Commit and transport workflows continue
+to own their eventual Git mutations and post-action refresh. This menu-family
+work does not prove those complete workflows, physical Finder integration or
+signed App Store execution.
+
+Repository completion refresh also reaches configured picker Logs through weak
+model registrations. Primary Logs are deduplicated; retired models are pruned.
+Refresh requests coalesce while a reference child blocks the source and drain
+when it closes, rather than being dropped by the reload guard. Registrations do
+not keep an otherwise closed picker or its access grant alive.
+
+Debug and the four grouped history/Working Tree cases passed on both Git engines.
+The final Log refresh continuation passed both affected history cases against
+the rebuilt app. See [working-tree action evidence](qa/log-working-commands-2026-10-15.json)
+for exact scope, the dismissed error-sheet fixture repair and cleanup records.
+Core Git operations were unchanged and their suite was not rerun.

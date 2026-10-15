@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-15",
+  "scope": "Log working-tree repository actions, dialog handoffs and refresh family",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/GitLogListBase.cpp: working-tree Commit/Abort Merge/Stash/transport/Submodule Update/Clean and bare/stash revision gates",
+      "src/TortoiseProc/GitLogListAction.cpp: Commit invocation paths, whole-repository Clean, Abort Merge and refresh after transport",
+      "src/Resources/TortoiseLoglistCommon.rc2: source menu artwork and captions"
+    ]
+  },
+  "implementation": [
+    "Working-tree Abort Merge and Clean up source menu entries and icons",
+    "Shared primary/picker Log routing for Commit/Clean/Abort/Stash/Pull/Fetch/Submodule Update retains originating repository and grant; Commit retains invocation paths while Clean uses the whole repository",
+    "Owned cancellable fresh metadata gates update cached merge/stash/submodule availability before dispatch, suppress removed prerequisites and cancel on changed selection",
+    "Requested Close cancels the metadata child and closes after settlement; forced retirement suppresses late actions/errors and preserves global process/access ownership until settlement; Quit guard includes these reads",
+    "Stash and bare Reset rejected/omitted; stash Branch/Tag omitted; bare creation retained; stash Export restored",
+    "Weak configured Log model registrations reach picker Logs on repository completion without retaining them; primary models deduplicated; retired entries pruned; blocked reference-child refresh requests coalesce and drain on unblock"
+  ],
+  "validation": {
+    "core": "No Core change; not rerun",
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/log-working-commands-build-final-2026-10-15.log"
+    },
+    "grouped_native": {
+      "result": "four cases passed before final Log refresh continuation",
+      "cases": [
+        "history-workflows/system Git",
+        "working-tree-scope/system Git",
+        "history-workflows/bundled Git",
+        "working-tree-scope/bundled Git"
+      ],
+      "log": "build/qa/log-working-commands-native-final-2026-10-15.log",
+      "receivers_reaped_and_absent": [
+        95182,
+        96044,
+        96174,
+        97042
+      ]
+    },
+    "final_refresh_native": {
+      "result": "both affected history engine cases passed against final Debug objects",
+      "log": "build/qa/log-working-commands-refresh-native-2026-10-15.log",
+      "cases": [
+        "history-workflows/system Git",
+        "history-workflows/bundled Git"
+      ],
+      "receivers_reaped_and_absent": [
+        97295,
+        98402
+      ],
+      "scope": "Private Commit/Clean/Abort native dialog repository/grant/path handoffs, weak picker registration and shared commands, blocked-child coalesced refresh, retired-picker refusal; command menus and fresh prerequisite transitions; source bare/stash gates; real paused metadata Git requested and forced close/Quit/reap checks; retained previous Log/Revert/Combine assertions"
+    },
+    "fixture_repairs": {
+      "failed_receivers_reaped_and_absent": [
+        94031,
+        94625
+      ],
+      "logs": [
+        "build/qa/log-working-commands-native-2026-10-15.log",
+        "build/qa/log-working-commands-native-diagnostic-2026-10-15.log"
+      ],
+      "description": "The stale Pull fixture correctly showed the existing unavailable-command error sheet. Its next Abort action remained disabled behind that sheet. Clear the test error and wait for sheet dismissal before continuing; stale/modal assertions retained. Also require nonempty PID marker before reading it."
+    },
+    "visual": "Native menu construction/icons/payloads and native dialogs inspected by receiver; no physical popup screenshot or full visual acceptance claim.",
+    "documentation": {
+      "site_documents": 216,
+      "unresolved_fragments": [],
+      "coverage_ledger": "regenerated",
+      "log": "build/qa/log-working-commands-site-2026-10-15.log"
+    }
+  },
+  "limits": [
+    "No Clean, Abort Merge, Stash or transport mutations submitted by the new routing fixture; existing workflows retain their separate operation verification",
+    "Merge/stash/submodule prerequisite transitions use private metadata/ref fixtures; no live remote transport",
+    "Complete per-consumer menu masks/order, physical/default-item/VoiceOver behavior and signed Finder/App Store execution remain open",
+    "Full application parity and App Store distribution remain incomplete"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

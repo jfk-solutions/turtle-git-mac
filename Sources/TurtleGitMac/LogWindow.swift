@@ -446,6 +446,7 @@ final class LogHistoryWindow: NSWindow {
     }
     var hasBlockingReferenceChild: Bool { containingReferences.values.contains { $0.hasBlockingChild } }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.cancelWorkingCommandRead(closeAfter:true) { return false }
         if model.cancelStartReferenceRead() { return false }
         guard !model.referencePickerBlocked, (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
@@ -607,8 +608,18 @@ struct LogCommandRequest: Identifiable {
     @Published private(set) var svnRevisions: [String: String] = [:]
     @Published var hasSubmodules = false
     var onWorkingCommand: ((RepositoryAction) -> Void)?
+    private(set) static var activeWorkingCommandReads=0
+    private var workingCommandCancellation:OperationCancellation?
+    private var closeAfterWorkingCommandRead=false
+    @discardableResult func cancelWorkingCommandRead(closeAfter:Bool=false)->Bool {
+        guard let token=workingCommandCancellation else { return false }
+        closeAfterWorkingCommandRead = closeAfterWorkingCommandRead || closeAfter
+        token.cancel();return true
+    }
     private func workingCommandAllowed(_ action: RepositoryAction, working: Bool, stashRow: Bool, bare: Bool, merging: Bool, stash: Bool, submodules: Bool) -> Bool {
         switch action {
+        case .commit,.clean: return working && !bare
+        case .mergeAbort: return working && !bare && merging
         case .stash: return working && !bare && !merging
         case .stashPop: return (working || stashRow) && !bare && stash
         case .stashList: return (working || stashRow) && stash
@@ -622,21 +633,31 @@ struct LogCommandRequest: Identifiable {
         workingCommandAllowed(action, working: selectedWorkingTree, stashRow: selectedIsStash, bare: bare, merging: mergeActive, stash: hasStash, submodules: hasSubmodules)
     }
     func canWorkingCommand(_ action: RepositoryAction) -> Bool {
-        workingCommandAvailable(action) && onWorkingCommand != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails
+        workingCommandAvailable(action) && onWorkingCommand != nil && canStartHistoryTransport && !referencePickerBlocked && workingCommandCancellation==nil
     }
     func requestWorkingCommand(_ action: RepositoryAction) {
         guard canWorkingCommand(action) else { return }
         let selection = selected, request = generation, working = selectedWorkingTree, stashRow = selectedIsStash
+        let token=OperationCancellation();workingCommandCancellation=token;closeAfterWorkingCommandRead=false
+        Self.activeWorkingCommandReads += 1
         busy = true; error = nil
         Task {
-            defer { busy = false }
+            defer {
+                Self.activeWorkingCommandReads -= 1;withExtendedLifetime(access) {}
+                if workingCommandCancellation === token {
+                    workingCommandCancellation=nil;busy=false
+                    let shouldClose=closeAfterWorkingCommandRead;closeAfterWorkingCommandRead=false
+                    if shouldClose,!isInvalidated { close() }
+                }
+            }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let fresh = try await repository.finderMetadata()
+                let fresh = try await repository.finderMetadata(cancellation:token)
+                guard request == generation,selection == selected,!isInvalidated,!token.isCancelled else { return }
+                bare=fresh.bare;mergeActive=fresh.mergeActive;hasStash=fresh.hasStash;hasSubmodules=fresh.hasSubmoduleConfig;hasGitSVN=fresh.hasGitSVN
                 guard workingCommandAllowed(action, working: working, stashRow: stashRow, bare: fresh.bare, merging: fresh.mergeActive, stash: fresh.hasStash, submodules: fresh.hasSubmoduleConfig) else { throw LogWorkingCommandFailure.unavailable }
-                guard request == generation, selection == selected else { return }
                 busy = false; onWorkingCommand?(action)
-            } catch { if request == generation { self.error = error.localizedDescription } }
+            } catch { if request == generation,!isInvalidated,!token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     @Published var showWorkingTree = true
@@ -715,7 +736,8 @@ struct LogCommandRequest: Identifiable {
     }
     @Published var currentBranch = ""
     var onExportRevision: ((String) -> Void)?
-    var canExportRevision: Bool { revision != nil && !selectedIsStash && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && onExportRevision != nil }
+    var canExportRevision: Bool { revision != nil && canStartHistoryTransport && onExportRevision != nil }
+    var resetAvailable:Bool { revision != nil && !bare && !selectedIsStash }
     func requestExport() {
         guard canExportRevision, let revision else { return }
         onExportRevision?(revision.references.first { $0.name.hasPrefix("refs/tags/") }?.name ?? revision.hash)
@@ -810,7 +832,9 @@ struct LogCommandRequest: Identifiable {
     @Published private(set) var startRevisions: [String] = []
     @Published private(set) var fetchHeadRevision: String?
     @Published private(set) var recentReferences: [String] = []
-    @Published var referencePickerBlocked = false
+    @Published var referencePickerBlocked = false {
+        didSet { if !referencePickerBlocked { scheduleRepositoryRefresh() } }
+    }
     var onBrowseStartReference: () -> Void = {}
     var configureStartReferenceBrowser: (ReferenceBrowserWindowModel) -> Void = { _ in }
     private var startReferenceCancellation: OperationCancellation?
@@ -1206,11 +1230,11 @@ struct LogCommandRequest: Identifiable {
         scheduleRepositoryRefresh()
     }
     private func scheduleRepositoryRefresh() {
-        guard pendingRepositoryRefresh, !busy, !isInvalidated, repositoryRefreshTask == nil else { return }
+        guard pendingRepositoryRefresh, !busy, !referencePickerBlocked, !isInvalidated, repositoryRefreshTask == nil else { return }
         repositoryRefreshTask = Task { [weak self] in
             guard let self, !Task.isCancelled else { return }
             self.repositoryRefreshTask = nil
-            guard self.pendingRepositoryRefresh, !self.busy, !self.isInvalidated else { return }
+            guard self.pendingRepositoryRefresh, !self.busy, !self.referencePickerBlocked, !self.isInvalidated else { return }
             self.pendingRepositoryRefresh = false
             self.reload()
         }
@@ -1545,6 +1569,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        workingCommandCancellation?.cancel();closeAfterWorkingCommandRead=false
         changedFileColumnRequest=UUID();resettingChangedFileColumns=false;focusedChangedFile=nil
         combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll()
         startReferenceCancellation?.cancel(); startReferenceCancellation = nil
@@ -1673,6 +1698,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func select(_ hashes: Set<String>) {
+        if hashes != selected { cancelWorkingCommandRead() }
         cancelNoteRead()
         cancelJump(); highlightedRevision = nil
         for entry in entries where !entry.hash.isEmpty && hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
@@ -1721,7 +1747,9 @@ struct LogCommandRequest: Identifiable {
     }
     func request(_ command: LogRevisionCommand, mainline: Int? = nil) {
         if command == .cherryPick { requestCherryPick(); return }
-        guard !busy, let revision else { return }
+        guard canStartHistoryTransport, let revision else { return }
+        guard command != .reset || resetAvailable else { return }
+        guard ![LogRevisionCommand.branch,.tag].contains(command) || !selectedIsStash else { return }
         guard !bare || ![LogRevisionCommand.checkout, .cherryPick, .revert].contains(command) else { return }
         if command == .revert {
             guard canRevertRevision else { return }
@@ -3403,6 +3431,7 @@ struct RevisionTable: NSViewRepresentable {
             menu.autoenablesItems = false
             if model.selectedWorkingTree {
                 item("Commit…", #selector(commitWorkingTree), icon: .commit, enabled: !model.busy)
+                if model.workingCommandAvailable(.mergeAbort) { workingItem(.mergeAbort,menu:menu) }
                 item("Compare with previous revision", #selector(compare), icon: .compare, enabled: !model.busy && model.onCompare != nil)
                 item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: !model.busy && model.workingTreeSnapshot?.entry.parents.first != nil)
                 menu.addItem(.separator())
@@ -3416,6 +3445,7 @@ struct RevisionTable: NSViewRepresentable {
                 }
                 menu.addItem(.separator())
                 for action in [RepositoryAction.pull, .fetch, .submoduleUpdate] where model.workingCommandAvailable(action) { workingItem(action, menu: menu) }
+                if model.workingCommandAvailable(.clean) { menu.addItem(.separator());workingItem(.clean,menu:menu) }
                 return
             }
             if model.selectedIsStash {
@@ -3465,7 +3495,7 @@ struct RevisionTable: NSViewRepresentable {
             if model.integrationAvailable {
                 item(model.integrationTitle(.merge), #selector(mergeReference(_:)), icon: .merge, enabled: model.canIntegrate(.merge)).representedObject = pointed
             }
-            item("Reset current branch to this…", #selector(reset), icon: .reset, enabled: one && !model.busy)
+            if model.resetAvailable { item("Reset current branch to this…", #selector(reset), icon: .reset, enabled: !model.busy) }
             let switchBranches = model.switchBranchCandidates(target: pointed)
             if let revision = model.revision, !switchBranches.isEmpty {
                 if switchBranches.count == 1 {
@@ -3484,12 +3514,14 @@ struct RevisionTable: NSViewRepresentable {
             if one && model.revision?.isHead == false && !model.bare && !model.selectedIsStash {
                 item("Switch/Checkout to this…", #selector(checkoutReference(_:)), icon: .checkout, enabled: !model.busy).representedObject = pointed
             }
-            item("Create branch at this version…", #selector(branchReference(_:)), icon: .branch, enabled: one && !model.busy && !model.selectedIsStash).representedObject = pointed
-            item("Create tag at this version…", #selector(tagReference(_:)), icon: .tag, enabled: one && !model.busy && !model.selectedIsStash)
+            if one,!model.selectedIsStash {
+                item("Create branch at this version…", #selector(branchReference(_:)), icon: .branch, enabled: !model.busy).representedObject = pointed
+                item("Create tag at this version…", #selector(tagReference(_:)), icon: .tag, enabled: !model.busy)
+            }
             if model.integrationAvailable {
                 item(model.integrationTitle(.rebase), #selector(rebaseRevision), icon: .rebase, enabled: model.canIntegrate(.rebase))
             }
-            if one && !model.selectedIsStash { item("Export this version…", #selector(exportRevision), icon: .export, enabled: model.canExportRevision) }
+            if one { item("Export this version…", #selector(exportRevision), icon: .export, enabled: model.canExportRevision) }
             if model.onRevertRevisions != nil {
                 let chosen = model.entries.filter { model.selected.contains($0.hash) }
                 let available = !model.isInvalidated && !model.busy && !model.bare && !model.mergeActive && !model.findBlocked && !model.orderingBlocked && model.window?.attachedSheet == nil
@@ -3714,10 +3746,14 @@ struct RevisionTable: NSViewRepresentable {
         @objc func bisectBad() { model.requestBisect(.bad) }
         @objc func bisectSkip() { model.requestBisect(.skip) }
         @objc func bisectReset() { model.requestBisect(.reset) }
-        @objc func commitWorkingTree() { if model.selectedWorkingTree && !model.busy { model.onCommit() } }
+        @objc func commitWorkingTree() {
+            guard model.selectedWorkingTree,!model.busy else { return }
+            if model.onWorkingCommand != nil { model.requestWorkingCommand(.commit) }
+            else { model.onCommit() }
+        }
         private func workingItem(_ action: RepositoryAction, menu: NSMenu) {
             let item = NSMenuItem(title: action.title, action: #selector(workingCommand), keyEquivalent: "")
-            item.image = action.icon.contextImage(); item.target = self; item.representedObject = action.rawValue
+            item.image = action.icon.contextImage(defaults:model.colorPreferences); item.target = self; item.representedObject = action.rawValue
             item.isEnabled = model.canWorkingCommand(action); menu.addItem(item)
         }
         @objc func workingCommand(_ sender: NSMenuItem) {
