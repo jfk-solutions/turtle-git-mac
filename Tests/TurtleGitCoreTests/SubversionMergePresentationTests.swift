@@ -10,6 +10,62 @@ final class SubversionMergePresentationTests: XCTestCase {
     private func presentation(_ base: String, _ mine: String, _ theirs: String, filter: MergeRegexFilter? = nil) throws -> SubversionMergePresentation {
         try .init(plan: configuration(filter).plan(base: base, mine: mine, theirs: theirs))
     }
+    func testIgnoredWhitespaceConflictsKeepMineBytesButRetainSourceChoices() throws {
+        var engine = configuration(); engine.options = .init(whitespace:.ignoreAll)
+        let base = "head 雪🦎\r\nvalue x y\r\n", mine = "head 雪🦎\r\nvaluexy\r\n", theirs = "head 雪🦎\r\nvalue x  y\r\n"
+        let value = try SubversionMergePresentation(plan:engine.plan(base:base,mine:mine,theirs:theirs))
+        XCTAssertEqual(value.result,mine); XCTAssertFalse(MergeText.hasMarkers(value.result))
+        XCTAssertEqual(value.sources.ignoredConflicts.count,1)
+        XCTAssertEqual(value.sources.rows.last?.mine.state,.conflictAdded)
+        XCTAssertEqual(value.sources.rows.last?.theirs.state,.conflictAdded)
+        XCTAssertEqual(value.sources.resultLocator?.states,[.normal,.conflictedIgnored])
+        let presentation = MergeResultPresentation(text:value.result,states:value.sources.resultLocator!.states,ignoredConflicts:value.sources.ignoredConflicts)
+        let block = try XCTUnwrap(presentation.conflicts().first)
+        XCTAssertTrue(block.isIgnored); XCTAssertEqual(block.mine,"valuexy\r\n"); XCTAssertEqual(block.theirs,"value x  y\r\n")
+        XCTAssertEqual(block.range.location,"head 雪🦎\r\n".utf16.count)
+        XCTAssertEqual(MergeLineStatistics(states:presentation.states(conflicts:[])).conflicted,1)
+        XCTAssertEqual(MergePaneSaveAs.sourceText(rows:value.sources.rows,mine:false,keepRemoved:false),theirs)
+        XCTAssertEqual(MergeFind.matches("value",in:MergeFindLine.document(value.result,states:presentation.states(conflicts:[])),options:.init(modifiedOnly:true)).count,1)
+    }
+    func testIgnoredConflictRequiresThreeDistinctValuesInOneSourceChannel() throws {
+        var engine = configuration(); engine.options = .init(whitespace:.ignoreAll)
+        for (base,mine,theirs,count) in [("a b\n","ab\n","a b\n",0),("a b\n","ab\n","ab\n",0),("a b\n","ab\n","a b\r\n",0),("same\n","same\r\n","same\r",1)] {
+            let value = try SubversionMergePresentation(plan:engine.plan(base:base,mine:mine,theirs:theirs))
+            XCTAssertEqual(value.sources.ignoredConflicts.count,count)
+        }
+        let exact = try presentation("a b\n","ab\n","a  b\n")
+        XCTAssertTrue(MergeText.hasMarkers(exact.result)); XCTAssertTrue(exact.sources.ignoredConflicts.isEmpty)
+    }
+    func testCaseRegexAndCommentsRetainIgnoredConflictIdentity() throws {
+        var caseEngine = configuration(); caseEngine.options = .init(ignoreCase:true)
+        let cases = try SubversionMergePresentation(plan:caseEngine.plan(base:"Title\n",mine:"TITLE\n",theirs:"title\n"))
+        XCTAssertEqual(cases.sources.ignoredConflicts.count,1)
+        let filter = MergeRegexFilter(name:"Versions",expression:"[0-9]+",replacement:"")
+        let filtered = try presentation("v1\n","v2\n","v3\n",filter:filter)
+        XCTAssertEqual(filtered.sources.ignoredConflicts.count,1)
+        var commentEngine = configuration(); commentEngine.options = .init(ignoreComments:true)
+        commentEngine.commentTokens = MergeCommentTokens(line:"//",blockStart:"/*",blockEnd:"*/")
+        let comments = try SubversionMergePresentation(plan:commentEngine.plan(base:"code // one\n",mine:"code // two\n",theirs:"code // three\n"))
+        XCTAssertEqual(comments.sources.ignoredConflicts.count,1)
+    }
+    func testIdenticalAddedIgnoredPostpassKeepsPinnedBaseBoundsRule() throws {
+        let filter = MergeRegexFilter(name:"Versions",expression:"[0-9]+",replacement:"")
+        let value = try presentation("base0\nanchor\n","version1\nanchor\n","version2\nanchor\n",filter:filter)
+        XCTAssertEqual(value.sources.ignoredConflicts.count,1)
+        XCTAssertEqual(value.sources.ignoredConflicts.first?.base,"anchor\n")
+        XCTAssertTrue(value.sources.rows.contains{$0.mine.state == .conflictAdded})
+        let eof = try presentation("base0\n","version1\n","version2\n",filter:filter)
+        XCTAssertTrue(eof.sources.ignoredConflicts.isEmpty)
+    }
+    func testMarkerAndIgnoredConflictsShareOrderedNavigationWithoutInventedMarkers() throws {
+        var engine = configuration(); engine.options = .init(whitespace:.ignoreAll)
+        let value = try SubversionMergePresentation(plan:engine.plan(base:"base\nseparator\nx y\n",mine:"mine\nseparator\nxy\n",theirs:"theirs\nseparator\nx  y\n"))
+        let result = MergeResultPresentation(text:value.result,states:value.sources.resultLocator!.states,ignoredConflicts:value.sources.ignoredConflicts)
+        let blocks = result.conflicts(); XCTAssertEqual(blocks.map(\.id),[0,1]); XCTAssertEqual(blocks.map(\.isIgnored),[false,true])
+        let first = try XCTUnwrap(result.replacing(blocks[0].range,with:blocks[0].replacement(.mine),state:.resolved))
+        XCTAssertEqual(first.conflicts().count,1); XCTAssertTrue(first.conflicts()[0].isIgnored)
+        XCTAssertFalse(MergeText.hasMarkers(first.text)); XCTAssertEqual(first.ignoredConflicts.first?.range.location,"mine\nseparator\n".utf16.count)
+    }
     func testConflictSourceAliasesKeepActualBytesAndDistinctPadding() throws {
         let mine="mine one\r\nmine two\r\n",theirs="theirs\r\n"
         let value=try presentation("base\r\n",mine,theirs)
@@ -87,11 +143,12 @@ final class SubversionMergePresentationTests: XCTestCase {
         XCTAssertEqual(blocks[0].mine, mine); XCTAssertEqual(blocks[0].theirs, theirs)
         XCTAssertEqual(blocks[0].replacement(.mineThenTheirs), mine + theirs)
     }
-    func testFilteredCommonChoosesOriginalMineAndRetainsGreenSourceRows() throws {
+    func testFilteredCommonChoosesOriginalMineAndRetainsIgnoredConflict() throws {
         let filter = MergeRegexFilter(name: "Versions", expression: "[0-9]+", replacement: "")
         let value = try presentation("version 12\r\n", "version 81\r\n", "version 90\r\n", filter: filter)
         XCTAssertEqual(value.result, "version 81\r\n")
-        XCTAssertEqual(value.sources.rows[0].mine.state, .filtered)
+        XCTAssertEqual(value.sources.rows[0].mine.state, .conflictAdded)
+        XCTAssertEqual(value.sources.ignoredConflicts.count,1)
         XCTAssertEqual(value.sources.rows[0].theirs.text, "version 90\r\n")
         XCTAssertFalse(MergeText.hasMarkers(value.result))
     }
@@ -124,15 +181,19 @@ final class SubversionMergePresentationTests: XCTestCase {
         let filter = MergeRegexFilter(name: "Versions", expression: "[0-9]+", replacement: "")
         let document = try await repository.textConflictDocument(path: "sample.txt", engine: configuration(filter))
         XCTAssertNotNil(document.mergeSources)
-        XCTAssertEqual(document.mergeSources?.rows[0].mine.state, .filtered)
+        XCTAssertEqual(document.mergeSources?.rows[0].mine.state, .conflictAdded)
+        XCTAssertEqual(document.mergeSources?.ignoredConflicts.count,1)
         XCTAssertEqual(try Data(contentsOf: file), working)
         XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(".git/index")), index)
-        let result = try MergeText.applying(.mine, block: 0, to: document.initialResult, document: document)
+        var edit = MergeResultPresentation(text:document.initialResult,states:document.mergeSources!.resultLocator!.states,ignoredConflicts:document.mergeSources!.ignoredConflicts)
+        for block in edit.conflicts(document:document).reversed() { edit = try XCTUnwrap(edit.replacing(block.range,with:block.replacement(.mine),state:.resolved)) }
+        XCTAssertTrue(edit.conflicts().isEmpty)
+        let result = edit.text
         XCTAssertEqual(result, "version 2\nmine")
         let saved = try await repository.saveTextConflict(document, result: result, markResolved: false)
         XCTAssertNotNil(saved.mergeSources)
         XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(".git/index")), index)
-        _ = try await repository.saveTextConflict(saved, result: result, markResolved: true)
+        _ = try await repository.saveTextConflict(saved, result: result, markResolved: true, ignoredConflictsResolved:edit.ignoredConflicts.isEmpty)
         let stages = try await repository.conflicts(), afterHead = try await repository.run(["rev-parse", "HEAD"]).stdout
         XCTAssertTrue(stages.isEmpty); XCTAssertEqual(afterHead, head)
         XCTAssertEqual(try Data(contentsOf: file), Data(result.utf8))

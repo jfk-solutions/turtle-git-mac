@@ -2113,3 +2113,16 @@ keyboard handlers and captured column menu items, checks the original watermark
 and private preference, and captures the actual main window in light/dark mode.
 See [native-list evidence](qa/lfs-native-table-2026-10-15.json) for build repairs,
 engine results and limits. Core is unchanged for this batch.
+
+### Merge conflicts hidden by comparison options
+
+Run `python3 scripts/test-merge-ignored.py --git /usr/bin/git --git
+"$PWD/build/git-runtime/Git/bin/git"` after the connected implementation batch.
+One cached receiver checks real filtered three-way conflicts, source/result
+attributed colors, modified Find/navigation, Save cancellation and Mark resolved
+refusal, identical-byte Mine choices with Undo/Redo, and actual selected staging
+with unrelated-index/working-file preservation. The retained engine/filter and
+result-history families run once because their standalone Subversion behavior is
+independent of Git selection. `--only workflow` or `--only retained` limits a
+failure repair to the affected group. Private preferences and owned-window/process
+cleanup remain required. See [dated evidence](qa/merge-ignored-2026-10-15.json).

@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "3c445a30",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "DiffData.cpp ignored-conflict post-pass and eligible Normal/IdenticalAdded source rows",
+    "DiffStates.h, DiffColors/SetColorPage aliases and BaseView status categories",
+    "BottomView.cpp UseBlock / SetModified and existing block choices"
+  ],
+  "implementation": [
+    "Original payload/ending pairwise checks after normalized comparison; preserve source Base-index bounds in identical changes",
+    "ConflictAdded source rows and ConflictedIgnored result identity without invented marker bytes",
+    "UTF-16 ignored ranges, mixed marker/ignored navigation, adjacent grouping and captured original side choices",
+    "Remap unaffected ranges; choices/manual edits clear affected metadata, native Undo/Redo restores snapshots",
+    "Same-byte resolution choices retain source modified state until saved; Save establishes a new semantic savepoint",
+    "Source/result palette, locator/count/modified Find integration; guarded Save warning and explicit backend acknowledgement before staging"
+  ],
+  "build": {
+    "logs": [
+      "build/qa/merge-ignored-build.log",
+      "build/qa/merge-ignored-final-build.log",
+      "build/qa/merge-ignored-dirty-build.log"
+    ],
+    "exit_codes": [
+      0,
+      0,
+      0
+    ],
+    "scope": "Initial connected implementation; generalized unresolved-conflict error wording; final source SetModified/savepoint behavior and updated Help. Existing project diagnostics remain."
+  },
+  "core": {
+    "initial_log": "build/qa/merge-ignored-core.log",
+    "initial_tests": 44,
+    "initial_failures": 4,
+    "affected_cases": 3,
+    "repairs": "Existing filtered-row expectations changed to ConflictAdded/ignored metadata; engine-backed save case now explicitly resolves both marker and ignored blocks before acknowledgement; allCases conflict count includes the new source state.",
+    "recheck_log": "build/qa/merge-ignored-core-repair.log",
+    "recheck_tests": 3,
+    "recheck_failures": 0,
+    "new_cases": 8,
+    "scope": "Actual Subversion whitespace/case/comment/regex/ending plans; one-sided/equal/mixed-channel exclusions; source same-block EOF rule; Unicode/range/grouping/coexisting marker behavior; same-byte choices/remapping; backend staging refusal and unrelated-state preservation. Existing result provenance, Find, palette and conflict save cases included.",
+    "full_suite_rerun": false,
+    "note": "Forty-four distinct behavior cases passed cumulatively after only the three affected cases were repeated. No full green single-run claim."
+  },
+  "native": {
+    "initial_log": "build/qa/merge-ignored-native.log",
+    "initial_pid": 53526,
+    "initial_failure": "Fixture requested deferred initialization but called ordinary Load; corrected to existing beginTransferredDocument entry point.",
+    "first_repair_log": "build/qa/merge-ignored-native-repair.log",
+    "first_workflow_pids": [
+      53668,
+      53726
+    ],
+    "first_workflow_result": "both engines passed",
+    "retained_initial_pid": 53784,
+    "retained_initial_failure": "Old fixture assumed a single conflict/choice after a regex filter; it now asserts and resolves both ignored and marker blocks.",
+    "retained_final_log": "build/qa/merge-ignored-retained-repair.log",
+    "retained_final_pid": 54068,
+    "retained_result": "Three-pane production engine/filter/palette/reload/save/close and native result/history/two-pane annotations passed. Old stdout said green regex rows; only that message was subsequently corrected.",
+    "final_workflow_log": "build/qa/merge-ignored-dirty-native.log",
+    "final_workflow_pids": [
+      54506,
+      54568
+    ],
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "final_workflow_result": "pass",
+    "scope": "Real unmerged repository, actual source/result light/dark attributed colors, modified Find/navigation, Save warning/cancellation and Quit ownership, Mark resolved refusal, same-byte Mine dirty/Undo/Redo/savepoint without early staging, exact Theirs staging, HEAD and unrelated index/working contents retained.",
+    "rerun_scope": "After the native-only SetModified/savepoint follow-up, only the affected workflow ran on both engines; Core and the passing retained family were not repeated.",
+    "ownership": "All receivers reaped and owned windows closed; private repositories/preferences. No authenticated remote, installed Finder or signed sandbox."
+  },
+  "limitations": [
+    "No new compositor screenshots or physical/VoiceOver/complete theme geometry certification",
+    "Whitespace aliases, resolved-empty gaps and full source editing/endings equivalence remain open",
+    "Large-file performance and signed Finder/App Store scopes/distribution remain unverified",
+    "No complete Merge/application parity claimed"
+  ],
+  "hosted_ci": {
+    "full_pass_claimed": false,
+    "state": "Earlier e67417b3 macOS run active and 3c445a30 pending at last observation; this batch has local evidence only.",
+    "pages": "3c445a30 run 38801309289 succeeded; this batch has not yet run hosted CI."
+  },
+  "documentation": {
+    "site_documents": 234,
+    "unresolved_fragments": 0,
+    "help_guides": 26,
+    "help_topics": 47,
+    "help_bytes_before_index": 191253,
+    "mapped_controls": 974,
+    "pending_control_reviews": 685,
+    "certified_dialogs": 0
+  }
+}

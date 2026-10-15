@@ -2,6 +2,20 @@ import XCTest
 @testable import TurtleGitCore
 
 final class TextConflictTests: XCTestCase {
+    func testIgnoredConflictCannotBeStagedWithoutExplicitResolutionAcknowledgement() async throws {
+        let (root,repo,path) = try await ConflictResolutionTests().fixture(); defer { try? FileManager.default.removeItem(at:root) }
+        let project = URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let engine = SubversionMergeConfiguration(executable:project.appendingPathComponent("build/merge-diff-runtime/MergeDiff/merge-diff"),runtimeRoot:project.appendingPathComponent("build/git-runtime/Git"),regexExecutable:project.appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex"),filter:.init(name:"All",expression:"[a-z]+",replacement:""))
+        let document = try await repo.textConflictDocument(path:path,engine:engine)
+        XCTAssertFalse(MergeText.hasMarkers(document.initialResult)); XCTAssertFalse(document.mergeSources!.ignoredConflicts.isEmpty)
+        let index = try Data(contentsOf:root.appendingPathComponent(".git/index")), bytes = try Data(contentsOf:root.appendingPathComponent(path))
+        do { _ = try await repo.saveTextConflict(document,result:document.initialResult,markResolved:true); XCTFail("Ignored conflict staged without acknowledgement") } catch TextConflictFailure.markers {}
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index); XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(path)),bytes)
+        _ = try await repo.saveTextConflict(document,result:document.initialResult,markResolved:true,ignoredConflictsResolved:true)
+        let staged = try await repo.run(["show",":" + path]).text; XCTAssertEqual(staged,document.mine)
+        let other = try await repo.run(["show",":other.txt"]).text; XCTAssertEqual(other,"other index\n")
+        XCTAssertEqual(try String(contentsOf:root.appendingPathComponent("other.txt")),"other working\n")
+    }
     func testExplicitOutputFormatsPreserveModesAndIndexUntilResolution() async throws {
         let (root, repo, path) = try await ConflictResolutionTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

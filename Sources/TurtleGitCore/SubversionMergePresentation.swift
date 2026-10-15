@@ -62,6 +62,7 @@ public struct SubversionMergePresentation: Sendable {
         guard let theirs = plan.theirs else { throw SubversionMergeDiffFailure.invalidOutput }
         var rows: [MergeSourceRow] = [], output = "", anchors: [Int: Int] = [:]
         var spans: [(Range<Int>, MergeSourceState)] = [], outputLength = 0
+        var ignoredConflicts: [IgnoredMergeConflict] = []
         func append(_ text: String, state: MergeSourceState) {
             let count = text.utf16.count
             if count > 0 { spans.append((outputLength..<outputLength + count, state)); outputLength += count }
@@ -77,19 +78,34 @@ public struct SubversionMergePresentation: Sendable {
                   equal(last, MergeLineEndings.droppingFinalEnding(last)) else { return text }
             return text + "\n"
         }
+        // DiffData's post-pass compares raw payloads and endings separately;
+        // pairwise differences must occur in one channel, not across both.
+        func ignored(_ base: Int, _ mine: Int, _ other: Int) -> Bool {
+            guard plan.normalizedComparison, plan.base.indices.contains(base), plan.mine.indices.contains(mine), theirs.indices.contains(other) else { return false }
+            let values = [plan.base[base], plan.mine[mine], theirs[other]]
+            let contents = values.map(MergeLineEndings.droppingFinalEnding)
+            let endings = zip(values,contents).map { ($0 as NSString).substring(from:$1.utf16.count) }
+            func distinct(_ strings:[String]) -> Bool { !equal(strings[0],strings[1]) && !equal(strings[0],strings[2]) && !equal(strings[1],strings[2]) }
+            return distinct(contents) || distinct(endings)
+        }
+        func appendIgnored(base: Int, mine: Int, other: Int, ordinaryState: MergeSourceState) {
+            let conflict = ignored(base,mine,other)
+            if conflict { ignoredConflicts.append(.init(range:NSRange(location:outputLength,length:plan.mine[mine].utf16.count),mine:plan.mine[mine],base:plan.base[base],theirs:theirs[other])) }
+            append(plan.mine[mine],state:conflict ? .conflictedIgnored : ordinaryState)
+        }
         for segment in plan.segments {
             let baseText = plan.base[segment.base].joined(), mineText = plan.mine[segment.mine].joined(), theirsText = theirs[segment.theirs].joined()
             if segment.kind == .common {
                 let firstRow = rows.count
                 for offset in 0..<segment.base.count {
                     let b = segment.base.lowerBound + offset, m = segment.mine.lowerBound + offset, t = segment.theirs.lowerBound + offset
-                    let state: MergeSourceState = equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered
+                    let state: MergeSourceState = ignored(b,m,t) ? .conflictAdded : equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered
                     rows.append(.init(mine: cell(plan.mine, m, state), theirs: cell(theirs, t, state)))
                 }
                 for offset in 0..<segment.mine.count {
                     let m = segment.mine.lowerBound + offset, b = segment.base.lowerBound + offset, t = segment.theirs.lowerBound + offset
                     anchors[firstRow + offset] = outputLength
-                    append(plan.mine[m], state: equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered)
+                    appendIgnored(base:b,mine:m,other:t,ordinaryState:equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered)
                 }
                 continue
             }
@@ -109,20 +125,22 @@ public struct SubversionMergePresentation: Sendable {
             for offset in 0..<max(mineAdded, theirsAdded) {
                 // DiffData uses IdenticalAdded for Mine-only source rows, while
                 // the result records YoursAdded. Theirs keeps TheirsAdded.
-                let state: MergeSourceState = segment.kind == .conflict ? .conflictAdded : segment.kind == .latest ? .theirsAdded : .identicalAdded
+                let hiddenConflict = segment.kind == .same && ignored(segment.base.upperBound,segment.mine.lowerBound + offset,segment.theirs.lowerBound + offset)
+                let state: MergeSourceState = segment.kind == .conflict || hiddenConflict ? .conflictAdded : segment.kind == .latest ? .theirsAdded : .identicalAdded
                 rows.append(.init(mine: offset < mineAdded ? cell(plan.mine, segment.mine.lowerBound + offset, state) : gap(segment.kind == .conflict ? .conflictEmpty : .empty),
                                   theirs: offset < theirsAdded ? cell(theirs, segment.theirs.lowerBound + offset, state) : gap(segment.kind == .conflict ? .conflictEmpty : .empty)))
             }
             switch segment.kind {
             case .common: break
             case .modified: append(mineText, state: .yoursAdded)
-            case .same: append(mineText, state: .identicalAdded)
+            case .same:
+                for offset in 0..<segment.mine.count { appendIgnored(base:segment.base.upperBound,mine:segment.mine.lowerBound + offset,other:segment.theirs.lowerBound + offset,ordinaryState:.identicalAdded) }
             case .latest: append(theirsText, state: .theirsAdded)
             case .conflict:
                 let separator = separated(output).utf16.count > outputLength ? "\n" : ""
                 append(separator + "<<<<<<< Mine\n" + separated(mineText) + "||||||| Base\n" + separated(baseText) + "=======\n" + separated(theirsText) + ">>>>>>> Theirs\n", state: .conflicted)
             }
         }
-        sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans), resultAnchors: anchors); result = output
+        sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans), resultAnchors: anchors, ignoredConflicts: ignoredConflicts); result = output
     }
 }

@@ -10,12 +10,16 @@ public struct MergeConflictBlock: Identifiable, Sendable {
     public let mine: String
     public let base: String
     public let theirs: String
+    public let isIgnored: Bool
     private let joiningLineEnding: String
     private let mineNeedsSeparator: Bool
     private let theirsNeedsSeparator: Bool
-    init(id: Int, range: NSRange, mine: String, base: String, theirs: String, joiningLineEnding: String = "\n", mineNeedsSeparator: Bool = false, theirsNeedsSeparator: Bool = false) {
+    init(id: Int, range: NSRange, mine: String, base: String, theirs: String, joiningLineEnding: String = "\n", mineNeedsSeparator: Bool = false, theirsNeedsSeparator: Bool = false, isIgnored: Bool = false) {
         self.id = id; self.range = range; self.mine = mine; self.base = base; self.theirs = theirs; self.joiningLineEnding = joiningLineEnding
-        self.mineNeedsSeparator = mineNeedsSeparator; self.theirsNeedsSeparator = theirsNeedsSeparator
+        self.mineNeedsSeparator = mineNeedsSeparator; self.theirsNeedsSeparator = theirsNeedsSeparator; self.isIgnored = isIgnored
+    }
+    func identified(_ id: Int) -> Self {
+        .init(id:id,range:range,mine:mine,base:base,theirs:theirs,joiningLineEnding:joiningLineEnding,mineNeedsSeparator:mineNeedsSeparator,theirsNeedsSeparator:theirsNeedsSeparator,isIgnored:isIgnored)
     }
     public func replacement(_ choice: MergeBlockChoice) -> String {
         func joined(_ first: String, _ second: String, needsSeparator: Bool) -> String {
@@ -100,7 +104,8 @@ public struct TextConflictDocument: Sendable {
     public let mineStage: Int
     public let theirsStage: Int
     public let initialResult: String
-    /// Original marker-delimited result, retained across saves for source metadata.
+    /// Original generated result, retained across saves for source metadata.
+    /// Ignored conflicts keep Mine text without inserting markers.
     public let generatedResult: String
     public let workingContents: Data?
     public let permissions: Int
@@ -124,7 +129,7 @@ public enum TextConflictFailure: LocalizedError {
         case .encoding: return "This file is binary or uses an unsupported text encoding. Choose a supported Unicode text file for the native merge editor."
         case .changedWorkingFile: return "The working file or its permissions changed while the merge was open. Reload before saving to review those changes."
         case .readOnly: return "The working file is read-only. Use Save As to export the merged result."
-        case .markers: return "Resolve the remaining conflict markers before marking this file as resolved."
+        case .markers: return "Resolve the remaining conflicts before marking this file as resolved."
         case .block: return "The selected conflict block changed. Select a current conflict before applying a side."
         }
     }
@@ -180,9 +185,9 @@ extension GitRepository {
         guard try conflictIsRebase(cancellation: cancellation) == rebase else { throw ResolveFailure.stale }
         try cancellation?.check(); return document
     }
-    public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> TextConflictDocument {
+    public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init(), ignoredConflictsResolved: Bool = false) throws -> TextConflictDocument {
         try validateConflicts([document.entry], using: .current)
-        if markResolved && MergeText.hasMarkers(result) { throw TextConflictFailure.markers }
+        if markResolved && (MergeText.hasMarkers(result) || !ignoredConflictsResolved && document.mergeSources?.ignoredConflicts.isEmpty == false) { throw TextConflictFailure.markers }
         guard !result.utf8.contains(0) else { throw TextConflictFailure.encoding }
         let location = root.appendingPathComponent(document.entry.path)
         let current: Data?, permissions: Int?

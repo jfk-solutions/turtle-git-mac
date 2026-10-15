@@ -468,6 +468,7 @@ private enum MergeSourceSide {
         regexList?.retire(); regexList = nil
         editorConfigRequests = [:]
     }
+    private var savedIgnoredConflicts: [IgnoredMergeConflict] = []
     @Published private(set) var resultPresentation = MergeResultPresentation(text: "", states: [])
     @Published var result = "" { didSet { if !resultPresentation.text.utf8.elementsEqual(result.utf8) { resultPresentation = resultPresentation.reconciling(result) } } }
     var resultStates: [MergeSourceState] { resultPresentation.states(conflicts: blocks.map(\.range)) }
@@ -552,14 +553,20 @@ private enum MergeSourceSide {
             peer.verticalRulerView?.needsDisplay = true
         }
     }
-    var blocks: [MergeConflictBlock] { MergeText.conflicts(in: result, document: document) }
+    var blocks: [MergeConflictBlock] { resultPresentation.conflicts(document: document) }
+    var hasUnresolvedConflicts: Bool { !blocks.isEmpty || MergeText.hasMarkers(result) }
+    var confirmUnresolvedSave: (String) -> Bool = { message in
+        let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = message
+        alert.addButton(withTitle:"Cancel"); alert.addButton(withTitle:"Save")
+        return alert.runModal() == .alertSecondButtonReturn
+    }
     var dirty: Bool {
         document.map { document in
             let previous: String
             if workingMerge == nil { previous = document.initialResult }
             else if workingMergeOutput != nil { previous = standaloneSavedResult ?? document.initialResult }
             else { previous = document.workingContents.flatMap { document.encoding.decode($0) } ?? "" }
-            return !result.utf8.elementsEqual(previous.utf8) || encoding != (workingMergeOutput != nil ? standaloneSavedEncoding ?? document.encoding : document.encoding)
+            return !result.utf8.elementsEqual(previous.utf8) || resultPresentation.ignoredConflicts != savedIgnoredConflicts || encoding != (workingMergeOutput != nil ? standaloneSavedEncoding ?? document.encoding : document.encoding)
         } ?? false
     }
     private var formatPending = false
@@ -668,7 +675,8 @@ private enum MergeSourceSide {
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
         resetHistory()
-        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.initialResult, states: comparison.resultLocator?.states ?? [], foldAnchors: .init(offsets: comparison.resultAnchors)); result = next.initialResult; encoding = next.encoding
+        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, states: comparison.resultLocator?.states ?? [], foldAnchors: .init(offsets: comparison.resultAnchors), ignoredConflicts: comparison.ignoredConflicts).reconciling(next.initialResult); result = next.initialResult; encoding = next.encoding
+        savedIgnoredConflicts = resultPresentation.ignoredConflicts
         commentProfiles = profiles
         comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
@@ -718,13 +726,16 @@ private enum MergeSourceSide {
         save(markResolved: false, quitApproved: true, completion: completion)
     }
     func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, chooseNewOutput: Bool = false, quitApproved: Bool = false, completion: ((Bool) -> Void)? = nil) {
-        guard !busy, (!confirmingQuit || quitApproved), !retired, !markResolved || workingMerge == nil, window?.attachedSheet == nil, let document else { completion?(false); return }
-        if !markResolved && MergeText.hasMarkers(result) {
-            let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = "Save with unresolved conflict markers?"
-            alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Save")
-            guard alert.runModal() == .alertSecondButtonReturn else { completion?(false); return }
+        guard !busy, (!confirmingQuit || quitApproved), !retired, !markResolved || workingMerge == nil && !hasUnresolvedConflicts, window?.attachedSheet == nil, let document else { completion?(false); return }
+        if !markResolved && hasUnresolvedConflicts {
+            let message = resultPresentation.ignoredConflicts.isEmpty ? "Save with unresolved conflict markers?" : "Save with unresolved conflicts ignored by comparison options?"
+            let warningText = result
+            busy = true; MergeRegexOperations.activeRequests += 1
+            let accepted = confirmUnresolvedSave(message)
+            busy = false; MergeRegexOperations.activeRequests -= 1
+            guard accepted, !retired, result.utf8.elementsEqual(warningText.utf8) else { completion?(false); return }
         }
-        let text = result, outputEncoding = encoding; busy = true
+        let text = result, outputEncoding = encoding, ignoredResolved = resultPresentation.ignoredConflicts.isEmpty, ignoredSnapshot = resultPresentation.ignoredConflicts; busy = true
         loadCancellation = OperationCancellation(); MergeRegexOperations.activeRequests += 1
         Task {
             var saved = false
@@ -754,8 +765,9 @@ private enum MergeSourceSide {
                     workingMergeOutput = standaloneOutput; standaloneSavedResult = text; standaloneSavedEncoding = outputEncoding
                     window?.title = standaloneOutput!.lastPathComponent + " – TurtleGitMerge"
                 } else {
-                    self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved, encoding: outputEncoding, options: options)
+                    self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved, encoding: outputEncoding, options: options, ignoredConflictsResolved: ignoredResolved)
                 }
+                savedIgnoredConflicts = ignoredSnapshot
                 onChanged(markResolved ? "Resolved: " + path : "Saved merged result: " + (workingMergeOutput?.path ?? path))
                 if markResolved || closeAfter { close() }
                 else if reloadAfter { try await reloadDocument(filterName: regexFilterName, cancellation: loadCancellation) }
@@ -768,7 +780,7 @@ private enum MergeSourceSide {
     func export() {
         guard sourceToolsAllowed, let window else { return }
         if workingMerge != nil { save(markResolved: false, chooseNewOutput: true); return }
-        do { sourceExporter.save(try encoding.encode(result), name: (path as NSString).lastPathComponent, owner: window, warning: MergeText.hasMarkers(result) ? "Save with unresolved conflict markers?" : nil) }
+        do { sourceExporter.save(try encoding.encode(result), name: (path as NSString).lastPathComponent, owner: window, warning: hasUnresolvedConflicts ? "Save with unresolved conflicts?" : nil) }
         catch { self.error = error.localizedDescription }
     }
 
@@ -843,7 +855,7 @@ private struct TextConflictDialog: View {
             if !model.nativeToolbarInstalled {
             HStack(spacing: 10) {
                 Button { model.save(markResolved: false) } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s", modifiers: .command)
-                Button { model.save(markResolved: true) } label: { CommandLabel(title: "Mark as resolved", icon: .mergeResolved) }.disabled(model.workingMerge != nil || model.document == nil || MergeText.hasMarkers(model.result))
+                Button { model.save(markResolved: true) } label: { CommandLabel(title: "Mark as resolved", icon: .mergeResolved) }.disabled(model.workingMerge != nil || model.document == nil || model.hasUnresolvedConflicts)
                 Menu {
                     Button { model.exportSource(mine: false) } label: { CommandLabel(title: "Save left pane as…", icon: .mergeSaveAs) }
                     Button { model.exportSource(mine: true) } label: { CommandLabel(title: "Save right pane as…", icon: .mergeSaveAs) }
@@ -898,7 +910,7 @@ private struct TextConflictDialog: View {
                     }
                 }
                 HStack {
-                    Text(model.blocks.isEmpty ? (MergeText.hasMarkers(model.result) ? "Incomplete conflict markers" : "No remaining conflicts") : "Conflict \(min(model.selectedConflict + 1, model.blocks.count)) of \(model.blocks.count)").foregroundStyle(model.blocks.isEmpty ? Color.secondary : .red)
+                    Text(model.blocks.isEmpty ? (MergeText.hasMarkers(model.result) ? "Incomplete conflict markers" : "No remaining conflicts") : "\(model.blocks[min(model.selectedConflict,model.blocks.count - 1)].isIgnored ? "Ignored conflict" : "Conflict") \(min(model.selectedConflict + 1, model.blocks.count)) of \(model.blocks.count)").foregroundStyle(model.blocks.isEmpty ? Color.secondary : .red)
                     Spacer()
                     Button { model.undo() } label: { CommandLabel(title: "Undo", icon: .mergeUndo) }.keyboardShortcut("z", modifiers: .command).disabled(!model.canUndo)
                     Button { model.redo() } label: { CommandLabel(title: "Redo", icon: .mergeRedo) }.keyboardShortcut("z", modifiers: [.command, .shift]).disabled(!model.canRedo)

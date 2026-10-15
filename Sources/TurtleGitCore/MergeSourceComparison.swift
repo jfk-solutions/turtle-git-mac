@@ -3,10 +3,10 @@ import Foundation
 public enum MergeSourceState: Sendable, Equatable, CaseIterable {
     case normal, removed, added, conflicted, resolved, edited, empty, filtered
     case identicalRemoved, identicalAdded, theirsRemoved, theirsAdded, yoursRemoved, yoursAdded
-    case conflictAdded, conflictEmpty
+    case conflictAdded, conflictEmpty, conflictedIgnored
     public var isRemoval: Bool { [.removed,.identicalRemoved,.theirsRemoved,.yoursRemoved].contains(self) }
     public var isAddition: Bool { [.added,.identicalAdded,.theirsAdded,.yoursAdded,.conflictAdded].contains(self) }
-    public var isConflict: Bool { [.conflicted,.conflictAdded,.conflictEmpty].contains(self) }
+    public var isConflict: Bool { [.conflicted,.conflictAdded,.conflictEmpty,.conflictedIgnored].contains(self) }
     public var isUnchanged: Bool { self == .normal || self == .filtered }
 }
 
@@ -19,7 +19,7 @@ public struct MergeLineStatistics: Equatable, Sendable {
         for state in states {
             if state.isAddition {added += 1}
             else if state.isRemoval {removed += 1}
-            else if state == .conflicted {conflicted += 1}
+            else if state == .conflicted || state == .conflictedIgnored {conflicted += 1}
         }
     }
     public var isEmpty: Bool {added == 0 && removed == 0 && conflicted == 0}
@@ -50,11 +50,12 @@ public struct MergeSourceComparison: Sendable {
     /// Alignment-row anchors into the initial editable result. Common rows only;
     /// conflict markers and removed/gap rows never acquire guessed anchors.
     public let resultAnchors: [Int: Int]
-    public init(rows: [MergeSourceRow], resultLocator: MergeLocatorResult? = nil, resultAnchors: [Int: Int] = [:]) {
-        self.rows = rows; self.resultLocator = resultLocator; self.resultAnchors = resultAnchors
+    public let ignoredConflicts: [IgnoredMergeConflict]
+    public init(rows: [MergeSourceRow], resultLocator: MergeLocatorResult? = nil, resultAnchors: [Int: Int] = [:], ignoredConflicts: [IgnoredMergeConflict] = []) {
+        self.rows = rows; self.resultLocator = resultLocator; self.resultAnchors = resultAnchors; self.ignoredConflicts = ignoredConflicts
     }
     public init(base: String, mine: String, theirs: String) {
-        resultLocator = nil; resultAnchors = [:]
+        resultLocator = nil; resultAnchors = [:]; ignoredConflicts = []
         let baseLines = Self.lines(base), mineLines = Self.lines(mine), theirLines = Self.lines(theirs)
         let mineHunks = Self.hunks(base: baseLines, side: mineLines, mine: true)
         let theirHunks = Self.hunks(base: baseLines, side: theirLines, mine: false)

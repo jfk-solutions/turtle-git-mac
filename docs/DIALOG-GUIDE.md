@@ -135,6 +135,15 @@ reviewing the remaining conflicts. [Conflict identities](CONFLICT-IDENTITIES.md)
 explains the side captions, and [Save As targets](SAVE-AS-TARGETS.md) explains
 how an exported copy differs from the actual merge result.
 
+Comparison options can make different source lines compare equal. When Base,
+Mine and Theirs still differ in their original text or endings, the merge editor
+flags an **Ignored conflict**, retaining Mine text without inventing marker lines.
+Use the normal conflict navigation and Mine/Theirs choices to resolve it. Undo
+restores its unresolved state even when choosing Mine did not change any bytes.
+Choosing a side counts as a modified result until saved, including that same-byte
+Mine choice, so Close and Quit still offer to save it. Save warns while such conflicts remain; Mark as resolved stays unavailable.
+
+
 ## Rebase and Cherry Pick
 
 Rebase prepares commits relative to the selected branch/upstream and optional

@@ -411,6 +411,8 @@ jobs:
         run: python3 scripts/test-log-filters.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Compare and Merge AppKit toolbar workflows
         run: python3 scripts/test-merge-toolbar.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Ignored merge conflict choices, history and staging guard
+        run: python3 scripts/test-merge-ignored.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Compare and Merge Find highlighting and selected-text commands
         run: python3 scripts/test-merge-find-highlights.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Save As source targets

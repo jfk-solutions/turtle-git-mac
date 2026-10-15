@@ -1,6 +1,27 @@
 import XCTest
 @testable import TurtleGitCore
 final class MergeResultPresentationTests: XCTestCase {
+    func testIgnoredConflictRemapsOutsideEditsAndChoicesResolveEvenUnchangedBytes() throws {
+        let text = "head 🦎\nxy\nfooter\n", range = (text as NSString).range(of:"xy\n")
+        let value = MergeResultPresentation(text:text,states:[.normal,.conflictedIgnored,.normal],ignoredConflicts:[.init(range:range,mine:"xy\n",base:"x y\n",theirs:"x  y\n")])
+        let shifted = try XCTUnwrap(value.replacing(NSRange(location:0,length:4),with:"long header"))
+        XCTAssertEqual(shifted.ignoredConflicts.first?.range.location,range.location + 7)
+        XCTAssertTrue(shifted.conflicts().first?.isIgnored == true)
+        let chosen = try XCTUnwrap(value.replacing(range,with:"xy\n",state:.resolved))
+        XCTAssertEqual(chosen.text,value.text); XCTAssertTrue(chosen.ignoredConflicts.isEmpty); XCTAssertEqual(chosen.states(conflicts:[]),[.normal,.resolved,.normal]); XCTAssertNotEqual(chosen,value)
+        let typed = try XCTUnwrap(value.replacing(NSRange(location:range.location + 1,length:0),with:"edited"))
+        XCTAssertTrue(typed.conflicts().isEmpty); XCTAssertEqual(typed.states(conflicts:[]),[.normal,.edited,.normal])
+        XCTAssertEqual(value.states(conflicts:[]),[.normal,.conflictedIgnored,.normal])
+    }
+    func testAdjacentIgnoredLinesGroupAndNoEndingChoicesKeepSeparators() throws {
+        let value = MergeResultPresentation(text:"one\nlast",states:[],ignoredConflicts:[.init(range:NSRange(location:0,length:4),mine:"one\n",base:"base1\n",theirs:"their1\n"),.init(range:NSRange(location:4,length:4),mine:"last",base:"base2",theirs:"their2")])
+        let block = try XCTUnwrap(value.conflicts().first)
+        XCTAssertEqual(value.conflicts().count,1); XCTAssertEqual(block.replacement(.mine),"one\nlast")
+        XCTAssertEqual(block.replacement(.mineThenTheirs),"one\nlast\ntheir1\ntheir2")
+        XCTAssertEqual(block.replacement(.theirsThenMine),"their1\ntheir2\none\nlast")
+        let edited = try XCTUnwrap(value.replacing(NSRange(location:8,length:0),with:"!"))
+        XCTAssertEqual(edited.ignoredConflicts.count,1); XCTAssertEqual(edited.ignoredConflicts[0].range.location,0)
+    }
     func testDisjointEditsRetainUnchangedMiddleAndResolvedProvenance() throws {
         let text="first\nmiddle\nlast\n",original=MergeResultPresentation(text:text,states:[.normal,.filtered,.added])
         let first=try XCTUnwrap(original.replacing(NSRange(location:0,length:5),with:"changed",state:.resolved))

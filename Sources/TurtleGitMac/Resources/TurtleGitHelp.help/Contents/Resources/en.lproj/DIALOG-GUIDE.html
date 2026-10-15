@@ -101,6 +101,13 @@ intended result and mark it resolved. Continue the parent operation only after
 reviewing the remaining conflicts. <a href="CONFLICT-IDENTITIES.html">Conflict identities</a>
 explains the side captions, and <a href="SAVE-AS-TARGETS.html">Save As targets</a> explains
 how an exported copy differs from the actual merge result.</p>
+<p>Comparison options can make different source lines compare equal. When Base,
+Mine and Theirs still differ in their original text or endings, the merge editor
+flags an <strong>Ignored conflict</strong>, retaining Mine text without inventing marker lines.
+Use the normal conflict navigation and Mine/Theirs choices to resolve it. Undo
+restores its unresolved state even when choosing Mine did not change any bytes.
+Choosing a side counts as a modified result until saved, including that same-byte
+Mine choice, so Close and Quit still offer to save it. Save warns while such conflicts remain; Mark as resolved stays unavailable.</p>
 <a name="topic-rebase"></a><h2 id="rebase-and-cherry-pick">Rebase and Cherry Pick</h2>
 <p>Rebase prepares commits relative to the selected branch/upstream and optional
 onto target. Review the plan and each row action before starting. Edit, squash,

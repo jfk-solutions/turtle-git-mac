@@ -115,8 +115,8 @@ import TurtleGitCore
         precondition(MergeLocatorPreferences.load(from: defaults) == .init(visible: false, fishEye: false))
         model.setLocatorPreferences(.init())
         model.selectRegexFilter(filter.name); try await wait { !model.busy }
-        precondition(model.regexFilterName == filter.name && model.sourceComparison?.rows[0].mine.state == .filtered)
-        precondition(model.result.hasPrefix("version 2\n") && model.blocks.count == 1)
+        precondition(model.regexFilterName == filter.name && model.sourceComparison?.rows[0].mine.state == .conflictAdded)
+        precondition(model.result.hasPrefix("version 2\n") && model.blocks.count == 2 && model.blocks.first?.isIgnored == true)
         controller.window?.contentView?.layoutSubtreeIfNeeded()
         try await Task.sleep(nanoseconds: 150_000_000)
         try await wait { !model.busy }
@@ -177,7 +177,9 @@ import TurtleGitCore
         model.load(); try await wait { !model.busy }
         precondition(model.supportsComments && model.error == nil)
         try await wait { editableView(controller.window?.contentView) != nil }
-        model.choose(.mine); precondition(!MergeText.hasMarkers(model.result) && model.dirty)
+        precondition(model.blocks.count == 2 && model.blocks.first?.isIgnored == true)
+        for _ in 0..<2 { model.selectConflict(0); model.choose(.mine) }
+        precondition(model.blocks.isEmpty && !MergeText.hasMarkers(model.result) && model.dirty)
         model.chooseReload = { .save }; model.selectRegexFilter(nil); try await wait { !model.busy }
         try await wait { editableView(controller.window?.contentView) != nil }
         let savedBeforeReload = try Data(contentsOf: file), indexBeforeResolution = try Data(contentsOf: root.appendingPathComponent(".git/index"))
@@ -217,6 +219,6 @@ import TurtleGitCore
         let deletedConflicts = try await repository.conflicts(), preservedBackup = try Data(contentsOf: URL(fileURLWithPath: file.path + ".bak"))
         precondition(deletedConflicts.isEmpty && preservedBackup == beforeEmpty && empty.error == nil)
         emptyOwner.window?.close(); try await wait { MergeRegexOperations.activeRequests == 0 }
-        print("Three-pane Subversion integration: production panes/result, green regex rows, original Mine preference, Cancel/Undo, No Filter, discard and Save-before-Reload, unchanged Git state before Save, explicit resolution, HEAD preservation and standard Close cancellation passed. Owned windows/helpers closed; private repository/preferences only.")
+        print("Three-pane Subversion integration: production panes/result, ignored regex conflicts, original Mine preference, Cancel/Undo, No Filter, discard and Save-before-Reload, unchanged Git state before Save, explicit resolution, HEAD preservation and standard Close cancellation passed. Owned windows/helpers closed; private repository/preferences only.")
     }
 }

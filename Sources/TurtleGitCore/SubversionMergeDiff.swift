@@ -29,6 +29,10 @@ public struct SubversionDiffPlan: Sendable {
     public let base: [String]
     public let mine: [String]
     public let theirs: [String]?
+    public let normalizedComparison: Bool
+    public init(segments: [SubversionDiffSegment], base: [String], mine: [String], theirs: [String]?, normalizedComparison: Bool = false) {
+        self.segments = segments; self.base = base; self.mine = mine; self.theirs = theirs; self.normalizedComparison = normalizedComparison
+    }
     /// Original line arrays are retained separately from filtered engine keys.
     /// Consumers must use these originals for display, transfers and result text.
     public var hasConflicts: Bool { segments.contains { $0.kind == .conflict } }
@@ -172,6 +176,6 @@ public enum SubversionMergeDiff {
             guard let last = parent.resolved.last, last.mineStart + last.mineLength == parent.mine.upperBound,
                   last.theirsStart + last.theirsLength == parent.theirs.upperBound else { throw SubversionMergeDiffFailure.invalidOutput }
         }
-        return .init(segments: segments, base: lines[0], mine: lines[1], theirs: lines.count == 3 ? lines[2] : nil)
+        return .init(segments: segments, base: lines[0], mine: lines[1], theirs: lines.count == 3 ? lines[2] : nil, normalizedComparison: filter != nil || options.whitespace != .compare || options.ignoreCase || options.ignoreEndings || options.ignoreComments)
     }
 }

@@ -76,3 +76,47 @@ locator/Find and existing history/inline regressions separately from physical
 status-bar layout, VoiceOver and signed acceptance. Whitespace-only, ignored
 conflict and resolved-empty state production, complete source editing and full
 Merge/application parity remain open.
+
+## Ignored conflicts from comparison options — October 15, 2026
+
+The source `DiffData.cpp` post-pass checks Normal/IdenticalAdded rows after the
+comparison engine has ignored whitespace, case, endings, comments or a regex
+filter. Three distinct original payloads, or three distinct original endings,
+produce `Conflicted_Ignored` even though the comparison keys match. The native
+projection now retains that identity, marks both source rows ConflictAdded and
+leaves the original Mine bytes in the result without inserting marker lines.
+Single-sided changes, equal Mine/Theirs values, or differences spread across
+payload/ending channels do not invent such a conflict. The source's bounds rule
+for the Base index after an IdenticalAdded block is retained, including its
+one-past-EOF exclusion.
+
+The editor shows **Ignored conflict** and includes it in normal conflict
+navigation, source/result colors, locator, line counts and modified-only Find.
+Mine/Theirs and combined-side choices act on original captured text, including
+Unicode, mixed endings and absent final endings. Adjacent ignored rows form a
+single navigable block, ordered together with ordinary marker conflicts.
+
+Result presentation stores unresolved ignored ranges separately from file text.
+Edits outside them remap their UTF-16 positions; editing an affected line resolves
+that line's metadata. Explicit choices clear the affected range even when Mine
+replaces it with identical bytes. Existing native Undo/Redo snapshots restore
+both content and unresolved metadata. As in BottomView::UseBlock/SetModified,
+a same-byte choice still marks the result modified until Save; Undo back to the
+initial unresolved metadata restores clean state. Close/Quit therefore keep the
+existing Save prompt even when resolution did not change any bytes. No color
+or resolution metadata is serialized into files or the index. Reload reconstructs
+it from source comparison and remaps into a retained result snapshot.
+
+Save warns while ignored conflicts remain; its warning participates in the
+existing operation/Quit guard. Mark as resolved is unavailable until all conflicts
+are resolved. The Core save route also requires an explicit acknowledgement for
+a document with ignored conflicts before staging; choosing comparison options
+alone cannot silently stage Mine. Source Save As retains captured original source
+bytes; result Save As includes the unresolved-conflict warning.
+
+[Grouped evidence](qa/merge-ignored-2026-10-15.json) records the source conditions,
+actual engine plans, byte/range/history behavior, native paint and Git staging
+checks. The older statement that ignored-conflict production was missing is
+superseded by this batch. Whitespace-state aliases, resolved-empty gap production,
+complete physical/VoiceOver/theme geometry and signed Finder/App Store acceptance
+remain open. This is not complete Merge/application certification.

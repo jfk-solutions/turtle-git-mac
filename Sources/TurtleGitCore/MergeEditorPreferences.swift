@@ -142,7 +142,7 @@ extension MergeSourceState {
         case .normal: return .normal
         case .removed,.identicalRemoved,.theirsRemoved,.yoursRemoved: return .removed
         case .added,.identicalAdded,.theirsAdded,.yoursAdded: return .added
-        case .conflicted,.conflictAdded,.conflictEmpty: return .conflicted
+        case .conflicted,.conflictAdded,.conflictEmpty,.conflictedIgnored: return .conflicted
         case .resolved: return .resolved
         case .edited: return .modified
         case .empty: return .empty
