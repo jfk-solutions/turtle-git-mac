@@ -5,6 +5,7 @@ import TurtleGitCore
 @MainActor private final class CompletionChoicesModel: ObservableObject {
     @Published var candidates: [String] = []
     var catalog = MessageCompletionCatalog()
+    var overrideIcon: MenuIcon?
     @Published var selected = 0
     @Published var width: CGFloat = 420
 }
@@ -15,10 +16,10 @@ import TurtleGitCore
     private let popover = NSPopover()
     var isShown: Bool { popover.isShown }
     init() { popover.behavior = .semitransient; popover.animates = false }
-    func show(_ values: [String], catalog: MessageCompletionCatalog, in editor: NSTextView) {
+    func show(_ values: [String], catalog: MessageCompletionCatalog, icon: MenuIcon? = nil, in editor: NSTextView) {
         guard editor.window != nil else { return }
         let prior = state.candidates.indices.contains(state.selected) ? state.candidates[state.selected] : nil
-        state.catalog = catalog
+        state.catalog = catalog; state.overrideIcon = icon
         state.candidates = values; state.selected = prior.flatMap { value in values.firstIndex { $0.utf16.elementsEqual(value.utf16) } } ?? 0
         let textWidth = values.map { ($0 as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: NSFont.systemFontSize)]).width }.max() ?? 0
         state.width = min(600, max(160, ceil(textWidth + 36)))
@@ -47,6 +48,7 @@ private struct CompletionChoices: View {
     @ObservedObject var model: CompletionChoicesModel
     let choose: (Int) -> Void
     private func icon(for candidate: String) -> MenuIcon {
+        if let icon = model.overrideIcon { return icon }
         switch model.catalog.kind(for: candidate) {
         case .snippet: return .completionSnippet
         case .code: return .completionCode
@@ -68,7 +70,7 @@ private struct CompletionChoices: View {
                             }.padding(.horizontal, 6).frame(height: 26)
                                 .background(model.selected == index ? Color.accentColor.opacity(0.22) : Color.clear)
                                 .contentShape(Rectangle())
-                        }.buttonStyle(.plain).accessibilityLabel("Complete " + model.candidates[index]).id(index)
+                        }.buttonStyle(.plain).accessibilityLabel((model.overrideIcon == .completionSpelling ? "Spelling suggestion " : "Complete ") + model.candidates[index]).id(index)
                     }
                 }.padding(.vertical, 4)
             }.onChange(of: model.selected) { proxy.scrollTo($0) }

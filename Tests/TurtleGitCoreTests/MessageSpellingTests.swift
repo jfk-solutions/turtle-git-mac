@@ -2,6 +2,18 @@ import XCTest
 @testable import TurtleGitCore
 
 final class MessageSpellingTests: XCTestCase {
+    func testSuggestionRangeIncludesSuffixPreservesMarkersAndUTF16Offsets() {
+        let text = "🐢 Fix _mispelt_ and café"
+        let word = (text as NSString).range(of: "mispelt")
+        XCTAssertEqual(MessageSpellingPolicy.suggestionRange(message: text, selection: NSRange(location: word.location + 3, length: 0), styling: true), word)
+        XCTAssertEqual(MessageSpellingPolicy.suggestionRange(message: text, selection: NSRange(location: word.location, length: word.length), styling: true), word)
+        XCTAssertNil(MessageSpellingPolicy.suggestionRange(message: "word", selection: NSRange(location: 0, length: 0), styling: true))
+        XCTAssertEqual(MessageSpellingPolicy.suggestionRange(message: "can't", selection: NSRange(location: 3, length: 0), styling: false), NSRange(location: 0, length: 5))
+        XCTAssertEqual(MessageSpellingPolicy.suggestionRange(message: "cafe\u{301}", selection: NSRange(location: 3, length: 0), styling: false), NSRange(location: 0, length: 5))
+        XCTAssertNil(MessageSpellingPolicy.suggestionRange(message: "word", selection: NSRange(location: NSNotFound, length: 0), styling: false))
+        XCTAssertNil(MessageSpellingPolicy.suggestionRange(message: "word", selection: NSRange(location: 4, length: 1), styling: false))
+    }
+
     func testKnownTokensFilenamesAndNumericIdentifiers() {
         let policy = MessageSpellingPolicy(candidates: ["Widget.zzz", "turtlegit"])
         for text in ["Widget.zzz", "turtlegit", "42zzzz"] {

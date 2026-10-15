@@ -37,6 +37,7 @@ struct CommitMessageEditor: NSViewRepresentable {
             editor.string = model.message
             editor.setSelectedRange(NSRange(location: min(range.location, (model.message as NSString).length), length: 0))
         }
+        editor.spellingPreferences = model.messageEditorPreferences
         editor.applyProjectPresentation()
         editor.applyIssueStyles(model.issueMessageStyles, base: MessageEditorFont.resolve(name: fontName, size: fontSize))
         editor.setSpellingCandidates(model.messageCompletionCatalog.candidates)
@@ -46,7 +47,7 @@ struct CommitMessageEditor: NSViewRepresentable {
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
         coordinator.invalidate()
         if let editor = scroll.documentView as? MessageTextView {
-            editor.delegate = nil; editor.model = nil; editor.onAttachmentChange = nil
+            editor.dismissSpellingSuggestions(); editor.delegate = nil; editor.model = nil; editor.onAttachmentChange = nil
         }
     }
     func makeCoordinator() -> Coordinator { Coordinator(model) }
@@ -146,6 +147,7 @@ private final class MessageTextView: ProjectMessageTextView {
     private var processingTypedKey = false
     private var insertedTypedText = false
     override func keyDown(with event: NSEvent) {
+        if handleSpellingKey(event) { completionPopup.close(); return }
         if completionPopup.isShown {
             if event.keyCode == 53 { completionPopup.close(); return }
             if event.keyCode == 125 || event.keyCode == 126 { completionPopup.move(event.keyCode == 125 ? 1 : -1); return }
@@ -164,7 +166,7 @@ private final class MessageTextView: ProjectMessageTextView {
         insertedTypedText = false
         super.keyDown(with: event)
         processingTypedKey = false
-        if insertedTypedText { showCompletions(minimum: UserDefaults.standard.object(forKey: "AutoCompleteMinChars") as? Int ?? 3) }
+        if insertedTypedText { showCompletions(minimum: model?.messageEditorPreferences.object(forKey: "AutoCompleteMinChars") as? Int ?? 3) }
     }
     override func insertText(_ insertString: Any, replacementRange: NSRange) {
         super.insertText(insertString, replacementRange: replacementRange)
@@ -174,7 +176,7 @@ private final class MessageTextView: ProjectMessageTextView {
     override func complete(_ sender: Any?) { showCompletions(minimum: 1) }
     private func showCompletions(minimum: Int) {
         guard isEditable, let model else { return }
-        guard UserDefaults.standard.object(forKey: "Autocompletion") as? Bool ?? true else { completionPopup.close(); return }
+        guard model.messageEditorPreferences.object(forKey: "Autocompletion") as? Bool ?? true else { completionPopup.close(); return }
         let snippets = model.messageSnippets
         let catalog = model.messageCompletionCatalog
         let candidates = catalog.candidates

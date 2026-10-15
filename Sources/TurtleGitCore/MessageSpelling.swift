@@ -35,6 +35,22 @@ public struct MessageSpellingPolicy: Equatable, Sendable {
         guard pieces.count > 1 else { return false }
         return pieces.allSatisfy { $0.utf16.count <= 2 || !misspelled($0) }
     }
+    /// SciEdit suggestions replace the entire word around the caret, including
+    /// its suffix. An insertion point at the beginning has no preceding word.
+    public static func suggestionRange(message: String, selection: NSRange, styling: Bool) -> NSRange? {
+        let text = message as NSString
+        guard selection.location != NSNotFound, selection.location >= 0, selection.length >= 0,
+              selection.location <= text.length, selection.length <= text.length - selection.location else { return nil }
+        let caret = NSMaxRange(selection)
+        guard let match = suggestionWords.matches(in: message, range: NSRange(location: 0, length: text.length)).first(where: { $0.range.location < caret && caret <= NSMaxRange($0.range) }) else { return nil }
+        var range = match.range
+        if styling {
+            if text.character(at: NSMaxRange(range) - 1) == 95 { range.length -= 1 }
+            if range.length > 0, text.character(at: range.location) == 95 { range.location += 1; range.length -= 1 }
+        }
+        return range.length > 0 ? range : nil
+    }
+    private static let suggestionWords = try! NSRegularExpression(pattern: "[\\p{L}\\p{M}\\p{N}_'-]+")
     private static let words = try! NSRegularExpression(pattern: "[\\p{L}\\p{N}_]+(?:[.][\\p{L}\\p{N}_]+)?")
     private static let components = try! NSRegularExpression(pattern: "[\\p{L}\\p{N}_]+")
 }

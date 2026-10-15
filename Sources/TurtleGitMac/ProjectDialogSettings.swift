@@ -304,6 +304,60 @@ private struct ProjectDialogWindowProbe: NSViewRepresentable {
 
 /// SciEdit's project language and margin are shared by Commit, Merge and Rebase.
 class ProjectMessageTextView: NSTextView {
+    var spellingPreferences = UserDefaults.standard
+    var spellingSuggestions: ((String, String?) -> [String])?
+    private let spellingPopup = CommitCompletionPopup()
+    private(set) var spellingChoices: [String] = []
+    var spellingPopupShown: Bool { spellingPopup.isShown }
+    func dismissSpellingSuggestions() { spellingPopup.close(); spellingChoices = [] }
+    @discardableResult func handleSpellingKey(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.control, .option, .command])
+        if modifiers == .control, event.keyCode == 48 { showSpellingSuggestions(); return true }
+        guard spellingPopup.isShown else { return false }
+        switch event.keyCode {
+        case 53: dismissSpellingSuggestions(); return true
+        case 125, 126: spellingPopup.move(event.keyCode == 125 ? 1 : -1); return true
+        case 36, 48: spellingPopup.choose(); return true
+        default: dismissSpellingSuggestions(); return false
+        }
+    }
+    override func keyDown(with event: NSEvent) { if !handleSpellingKey(event) { super.keyDown(with: event) } }
+    @objc func showSpellingSuggestions() {
+        dismissSpellingSuggestions()
+        guard isEditable, !hasMarkedText(), selectedRanges.count == 1,
+              ProjectLanguages.code(projectSettings.language.value) != -1,
+              spellingPreferences.object(forKey: "Spellchecker") as? Bool ?? true,
+              let range = MessageSpellingPolicy.suggestionRange(message: string, selection: selectedRange(), styling: spellingPreferences.object(forKey: "StyleCommitMessages") as? Bool ?? true), window?.attachedSheet == nil else { return }
+        let original = string, word = (original as NSString).substring(with: range)
+        let language = ProjectLanguages.identifier(projectSettings.language.value)
+        let guesses = spellingSuggestions?(word, language) ?? NSSpellChecker.shared.guesses(forWordRange: NSRange(location: 0, length: (word as NSString).length), in: word, language: language, inSpellDocumentWithTag: spellCheckerDocumentTag) ?? []
+        var seen = Set<[UInt16]>()
+        spellingChoices = guesses.filter { !$0.isEmpty && !$0.contains("\0") && seen.insert(Array($0.utf16)).inserted }
+        setSelectedRange(range)
+        guard !spellingChoices.isEmpty else { return }
+        spellingPopup.accept = { [weak self] value in
+            guard let self else { return }; self.spellingChoices = []
+            guard self.isEditable, !self.hasMarkedText(), self.window?.attachedSheet == nil,
+                  self.string.utf8.elementsEqual(original.utf8), self.selectedRange() == range else { return }
+            self.breakUndoCoalescing(); self.insertText(value, replacementRange: range); self.breakUndoCoalescing()
+            self.spellingChoices = []; self.window?.makeFirstResponder(self)
+        }
+        spellingPopup.show(spellingChoices, catalog: MessageCompletionCatalog(), icon: .completionSpelling, in: self)
+    }
+    override func resignFirstResponder() -> Bool { dismissSpellingSuggestions(); return super.resignFirstResponder() }
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); if window == nil { dismissSpellingSuggestions() } }
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = super.menu(for: event)
+        if isEditable, let menu {
+            menu.addItem(.separator())
+            let item = NSMenuItem(title: "Spelling suggestions", action: #selector(showSpellingSuggestions), keyEquivalent: "")
+            item.target = self; item.image = MenuIcon.completionSpelling.contextImage()
+            item.isEnabled = ProjectLanguages.code(projectSettings.language.value) != -1 && (spellingPreferences.object(forKey: "Spellchecker") as? Bool ?? true)
+            menu.addItem(item)
+        }
+        return menu
+    }
+
     private var projectSettings = ProjectDialogSettings()
     private var spellingPolicy = MessageSpellingPolicy()
     var spellingDictionary: ((String, String?) -> Bool)?
@@ -319,14 +373,14 @@ class ProjectMessageTextView: NSTextView {
         // The source suggests corrections; it never rewrites commit-message bytes automatically.
         isAutomaticSpellingCorrectionEnabled = false; isAutomaticTextReplacementEnabled = false
         isAutomaticQuoteSubstitutionEnabled = false; isAutomaticDashSubstitutionEnabled = false
-        isContinuousSpellCheckingEnabled = ProjectLanguages.code(settings.language.value) != -1 && (UserDefaults.standard.object(forKey: "Spellchecker") as? Bool ?? true)
+        isContinuousSpellCheckingEnabled = ProjectLanguages.code(settings.language.value) != -1 && (spellingPreferences.object(forKey: "Spellchecker") as? Bool ?? true)
         guard projectSettings != settings else { return }
         projectSettings = settings; needsDisplay = true
     }
     override func checkText(in range: NSRange, types checkingTypes: NSTextCheckingTypes, options: [NSSpellChecker.OptionKey: Any] = [:]) {
         var options = options, types = checkingTypes
         let language = projectSettings.language.value
-        if ProjectLanguages.code(language) == -1 || !(UserDefaults.standard.object(forKey: "Spellchecker") as? Bool ?? true) {
+        if ProjectLanguages.code(language) == -1 || !(spellingPreferences.object(forKey: "Spellchecker") as? Bool ?? true) {
             types &= ~(NSTextCheckingResult.CheckingType.spelling.rawValue | NSTextCheckingResult.CheckingType.grammar.rawValue)
         } else if let identifier = ProjectLanguages.identifier(language) {
             options[.orthography] = NSOrthography.defaultOrthography(forLanguage: identifier)
@@ -335,7 +389,7 @@ class ProjectMessageTextView: NSTextView {
     }
     func filteredSpellingResults(_ results: [NSTextCheckingResult]) -> [NSTextCheckingResult] {
         let language = ProjectLanguages.identifier(projectSettings.language.value)
-        let enabled = ProjectLanguages.code(projectSettings.language.value) != -1 && (UserDefaults.standard.object(forKey: "Spellchecker") as? Bool ?? true)
+        let enabled = ProjectLanguages.code(projectSettings.language.value) != -1 && (spellingPreferences.object(forKey: "Spellchecker") as? Bool ?? true)
         let urls = MessageURLFinder.ranges(in: string)
         return results.filter { result in
             guard result.resultType == .spelling else { return true }
@@ -369,6 +423,7 @@ struct ProjectMessageEditor: NSViewRepresentable {
     @Binding var text: String
     let settings: ProjectDialogSettings
     let label: String
+    var preferences: UserDefaults = .standard
     @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
     @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     @Environment(\.isEnabled) private var enabled
@@ -399,9 +454,11 @@ struct ProjectMessageEditor: NSViewRepresentable {
             let selected = editor.selectedRange(); editor.string = text
             editor.setSelectedRange(.init(location: min(selected.location, (text as NSString).length), length: 0))
         }
+        editor.spellingPreferences = preferences
         editor.applyProjectSettings(settings)
     }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
+        (scroll.documentView as? ProjectMessageTextView)?.dismissSpellingSuggestions()
         (scroll.documentView as? NSTextView)?.delegate = nil
     }
     func makeCoordinator() -> Coordinator { Coordinator($text) }

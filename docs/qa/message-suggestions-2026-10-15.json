@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-15",
+  "scope": "Explicit message spelling suggestions in Commit, Merge and Rebase shared message editors",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/Utils/MiscUI/SciEdit.cpp: SuggestSpellingAlternatives, GetWordUnderCursor, PreTranslateMessage Ctrl-Tab",
+      "src/TortoiseProc/CommitDlg.cpp: AUTOCOMPLETE_SPELLING = IDI_SPELL"
+    ],
+    "icon": {
+      "source": "src/Resources/spell.ico",
+      "asset": "Sources/TurtleGitCore/Resources/Icons/spell.ico",
+      "sha256": "57e881fc07caf51fc772083b5e117fc8485b6889440d7e4ff78336ac2d731e37",
+      "byte_identical": true
+    }
+  },
+  "implementation": [
+    "Whole-word Ctrl-Tab and Ctrl-Shift-Tab macOS dictionary guesses using project language",
+    "Original spelling artwork, caret popup, ordered exact-UTF16 unique guesses, arrows/Return/Tab/Escape",
+    "Full-word replacement preserves underscore markers and suffix; independent Undo; spelling never expands snippets",
+    "Changed message/selection, disabled/read-only, marked-text composition and attached-sheet guards",
+    "Owned popup dismissed on focus loss/removal; icon-bearing context action",
+    "Use host Commit/Merge/Rebase private spelling preferences; Commit filename completion also uses host preferences"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/message-suggestions-build-2026-10-15.log",
+      "diagnostics": "Existing warnings and exit-code-zero/no-output SwiftCompile diagnostics; not a clean-diagnostics claim."
+    },
+    "core": {
+      "tests": 8,
+      "failures": 0,
+      "scope": "MessageSpellingTests and MessageCompletionTests",
+      "log": "build/qa/message-suggestions-core-2026-10-15.log"
+    },
+    "native": {
+      "accepted_pairs": [
+        "existing source-aware spelling/system",
+        "explicit suggestions/system",
+        "existing source-aware spelling/bundled",
+        "explicit suggestions/bundled"
+      ],
+      "log": "build/qa/message-suggestions-native-2026-10-15.log",
+      "coverage": [
+        "Actual Commit native editor and shared Merge/Rebase text-view classes in Aqua/Dark Aqua hosts",
+        "Ctrl/Control-Shift-Tab, order/deduplication, selection/Return/Escape, suffix/marker replacement and Undo",
+        "Changed drafts refuse old choices; global/project disabled, read-only and marked text refuse suggestions",
+        "Project language forwarded to injected guesses; original artwork resolves; private defaults; repository HEAD unchanged"
+      ],
+      "owned_receivers_reaped_and_verified_absent": [
+        38045,
+        38046,
+        38054,
+        38055
+      ],
+      "dictionary": "Injected guesses; no personal dictionary edits or installed language coverage claim."
+    }
+  },
+  "limitations": [
+    "No complete Windows locale/Scintilla word classification equivalence",
+    "No physical Ctrl-Tab/context menu/popup pointer/VoiceOver or all-editor layout certification",
+    "No new screenshots claimed",
+    "Signed sandbox/Finder/App Store and complete dialog/application parity remain open"
+  ]
+}

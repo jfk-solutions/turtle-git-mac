@@ -25,7 +25,7 @@ public enum MenuIcon: String, CaseIterable {
     case imageBlend = "blend"
     case imageOverlay = "overlap", imageLink = "link", imageFit = "fitinwindow", imageOriginal = "origsize"
     case imageZoomIn = "zoomin", imageZoomOut = "zoomout", imageInfo = "imginfo", imageVertical = "vertical", imageAlphaToggle = "alphatoggle"
-    case completionFile = "file", completionSnippet = "snippet", completionCode = "code"
+    case completionFile = "file", completionSnippet = "snippet", completionCode = "code", completionSpelling = "spell"
     case certificate = "certcheck"
     case turtle = "TortoiseSmall", status = "menushowchanged", commit = "menucommit", log = "menulog"
     case blame = "TortoiseGitBlame"

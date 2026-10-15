@@ -616,6 +616,7 @@ import UniformTypeIdentifiers
     var queryAmendMessage: (OperationCancellation) async throws -> String?
     @Published var showUnversioned = true { didSet { if showUnversioned != oldValue { fileMenuGeneration = UUID() } } }
     private let unversionedDefaults: UserDefaults
+    var messageEditorPreferences: UserDefaults { dialogDefaults }
     private let dialogDefaults: UserDefaults
     private var selectFilesAutomatically: Bool
     private let doNotAutoselectMissing: Bool

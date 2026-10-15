@@ -96,6 +96,7 @@ import TurtleGitCore
     @Published private(set) var progress: MergeProgressWindowModel?
     var onProgress: ((MergeProgressWindowModel) -> Void)?
     var onPostAction: ((MergePostAction, MergeOptions) -> Void)?
+    var messageEditorPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
     private var loadToken: OperationCancellation?
     private var invalidated = false

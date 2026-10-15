@@ -50,8 +50,9 @@ See [recorded acceptance](qa/commit-completion-2026-10-05.json).
   Definitions, extraction and content gates are implemented in the audit below.
 - Exact Windows ANSI decoding and embedded-NUL snippet behavior; native snippet
   loading, icons and expansion are accepted in the section below.
-- Spelling dictionaries, custom words, Ctrl-Tab suggestions and dictionary-aware
-  completion behavior.
+- Complete installed-language/personal-word coverage and physical spelling-menu
+  acceptance. Source-aware native spelling and Ctrl-Tab suggestions are implemented
+  in subsequent dated batches.
 - Exact Windows locale casing/word classification, arbitrary DWORD minimums,
   empty-prefix edge cases, full Scintilla popup lifecycle and Tab focus behavior.
 - Large catalogs, input methods, accessibility navigation, signed sandbox
@@ -125,8 +126,8 @@ themselves request automatic completion.
 With no active popup, Tab/Shift-Tab call the native window's next/previous key
 view selection rather than inserting a tab in the message. This maps the source
 WM_NEXTDLGCTL rule to macOS focus order and keyboard-navigation preferences.
-Tab continues to accept an active popup. Ctrl-Tab spelling suggestions remain
-unported, and input-method composition/full popup lifecycle still need acceptance.
+Tab continues to accept an active popup. Ctrl-Tab spelling suggestions are implemented in the October 15 batch below.
+Broader input-method composition and full popup lifecycle still need acceptance.
 
 Unsigned Debug/App Store builds, bundle audits and eight completion/snippet
 regression tests passed. At that stage, native acceptance was pending because
@@ -167,3 +168,39 @@ definitions, raw decoding, cache and content gates are implemented. Native code
 acceptance, snippet collision, Undo, unchecked rows and F5 rescanning are recorded
 in the [code-symbol audit](COMMIT-CODE-SYMBOL-PARITY.md). Complete decoding, visual,
 keyboard-focus and signed sandbox acceptance remain partial.
+
+## Explicit spelling suggestions across message editors — October 15, 2026
+
+Pinned `SciEdit.cpp::SuggestSpellingAlternatives`, `GetWordUnderCursor` and the
+Ctrl-Tab branch in `PreTranslateMessage` select the full word around the caret,
+query the dictionary, display spelling entries and replace the suffix as well as
+the prefix. CommitDlg registers `IDI_SPELL` for this completion kind. The native
+shared message text view now implements that route for Commit, Merge and Rebase.
+Ctrl-Shift-Tab also requests spelling, matching the source's modifier check.
+Plain Tab retains Commit's existing focus/completion behavior.
+
+The native popup reuses the original byte-identical `spell.ico` and the existing
+caret-anchored light/dark suggestion presentation. Dictionary order is preserved;
+empty/duplicate exact UTF-16 suggestions are removed. Up/Down selects, Return or
+Tab accepts and Escape dismisses. Replacement preserves surrounding source-style
+underscores and is a separate Undo operation. Spelling values bypass filename
+completion/snippet expansion. A changed message or selection refuses the old
+replacement. Read-only editors, disabled project/global spelling, an attached
+sheet and active marked-text composition do not query suggestions. Closing or
+removing the editor dismisses the popup.
+
+macOS dictionaries supply guesses using the project's existing language mapping;
+Windows Hunspell files are not loaded. An explicit request is independent of the
+filename Autocompletion switch. The shared views now read spelling preferences
+from the hosting Commit/Merge/Rebase preference domain, and Commit filename
+completion reads that domain as well. Native macOS spelling/personal-word menus
+remain available. This batch adds a Spelling suggestions context action with the
+original icon; physical context-menu activation remains separate acceptance.
+
+The Core whole-word adapter uses UTF-16 ranges, Unicode letters/marks/numbers and
+the source apostrophe/underscore/hyphen word characters. Exact Windows locale and
+Scintilla word classification are not certified. The native fixture uses injected
+guesses to keep installed dictionaries and personal words unchanged; it does not
+prove every installed dictionary, physical keyboard routing or VoiceOver.
+[Recorded checks](qa/message-suggestions-2026-10-15.json) identify the actual
+scope. Complete editor/dialog/application and signed sandbox parity remain open.

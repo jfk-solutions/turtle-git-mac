@@ -1511,6 +1511,11 @@
       "asset": "certcheck.ico",
       "source": "src/Resources/certcheck.ico",
       "sha256": "7efed508445fac8e4b31707d2f96ac5c8e3fc4a5f3d928a341c3799f7c61165d"
+    },
+    {
+      "asset": "spell.ico",
+      "source": "src/Resources/spell.ico",
+      "sha256": "57e881fc07caf51fc772083b5e117fc8485b6889440d7e4ff78336ac2d731e37"
     }
   ]
 }
