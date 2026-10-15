@@ -74,6 +74,7 @@ import UniformTypeIdentifiers
         model.onLFSOperation = { [weak self, weak window] paths, locked in
             guard let self, !self.closingCommit, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
             let progress = self.makeLFSOperation(repository, access)
+            progress.model.onProgressLog = { [weak self] path in self?.model.onFileLog(path) }
             progress.model.onPullAfterLock = { [weak self] in guard let self, !self.closingCommit else { return }; self.onPullAfterLFSLock() }
             progress.onClosed = { [weak self, weak progress] in
                 guard let self, !self.closingCommit, self.lfsOperation === progress else { return }

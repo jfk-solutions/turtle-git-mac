@@ -97,6 +97,7 @@ final class StatusNativeWindow: NSWindow {
         model.onLFSOperation = { [weak self, weak window] paths, locked in
             guard let self, !self.closingStatus, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
             let progress = self.makeLFSOperation(repository, access)
+            progress.model.onProgressLog = { [weak self] path in self?.model.onAction(.log, [path]) }
             progress.model.onPullAfterLock = { [weak self] in guard let self, !self.closingStatus else { return }; self.onPullAfterLFSLock() }
             progress.onClosed = { [weak self, weak progress] in
                 guard let self, !self.closingStatus, self.lfsOperation === progress else { return }

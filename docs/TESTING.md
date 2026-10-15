@@ -2090,3 +2090,13 @@ retains the earlier query/check/column/review/Pull/retirement family. Its two
 progress-title assertions now require the scoped title. Help's affected catalogue
 check also runs once after the new LFS chapter. Physical server/Finder/accessibility,
 full progress file menus and signed sandbox acceptance remain separate work.
+
+### LFS progress file interactions
+
+The same `test-lfs-interaction.py` batch now also verifies source single-file
+menus/icons, auxiliary/multi-selection/folder gates, captured action dispatch,
+double-click routing, block sorting, real Command-A/Command-C, completion timing,
+configured history routing and real fallback Log/child LFS controllers. Application
+launch, chooser responses and Finder reveal are intercepted. A held chooser
+checks ownership and refusal after retirement. This adds no Core test run; see
+[the dated evidence](qa/lfs-progress-actions-2026-10-15.json).

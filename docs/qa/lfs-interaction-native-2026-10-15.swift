@@ -103,17 +103,103 @@ import TurtleGitCore
         let copy=table.menu!.item(withTitle:"Copy to Clipboard")!;_=NSApp.sendAction(copy.action!,to:copy.target,from:copy)
         try require(copied.last==paths[0] && copy.image != nil,"Native progress selected copy/artwork")
         let staleProgressCopy=copy
+        let menuTitles = table.menu!.items.filter { !$0.isSeparatorItem }.map(\.title)
+        try require(menuTitles == ["Show log","Open","Open With…","Explore to","LFS Lock","LFS Unlock","Copy to Clipboard"], "Source single-file progress actions/order")
+        var commands: [(LFSProgressCommand,String)] = []
+        model.progressActionHandler = { commands.append(($0,$1)) }
+        for command in LFSProgressCommand.allCases {
+            let item = table.menu!.item(withTitle: command.rawValue)!
+            try require(item.image != nil, "Source action artwork missing")
+            let expectedCount = commands.count + 1
+            _ = NSApp.sendAction(item.action!,to:item.target,from:item)
+            try await wait { commands.count == expectedCount && !model.progressActionBusy }
+            try require(commands.last!.0 == command && commands.last!.1 == paths[0], "Progress action changed captured path")
+        }
+        let targetBeforeSort = model.progressTarget([model.notifications[1]])!
+        let staleProgressOpen = table.menu!.item(withTitle:"Open")!
+        await model.progressDoubleClick(model.notifications[1])
+        try require(commands.last!.0 == .open, "File double-click did not open")
+        let beforeAux = commands.count
+        await model.progressDoubleClick(model.notifications[0])
+        try require(commands.count == beforeAux, "Auxiliary row double-click launched")
+        table.selectRowIndexes(IndexSet([1,2]),byExtendingSelection:false);table.menu!.delegate?.menuNeedsUpdate?(table.menu!)
+        try require(table.menu!.items.map(\.title) == ["Copy to Clipboard"], "Multi-selection exposed single-file actions")
+        table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false);table.menu!.delegate?.menuNeedsUpdate?(table.menu!)
+        try require(table.menu!.items.map(\.title) == ["Copy to Clipboard"], "Auxiliary row exposed file actions")
+        table.selectRowIndexes(IndexSet([1,2]),byExtendingSelection:false)
+        let event = NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.command,timestamp:0,windowNumber:sheet.windowNumber,context:nil,characters:"c",charactersIgnoringModifiers:"c",isARepeat:false,keyCode:8)!
+        try require(table.performKeyEquivalent(with:event) && copied.last == "Unlock: \(paths[0])  \nUnlock: \(paths[1])  \n", "Keyboard clipboard differs from source Action: Path format")
+        let selectAll = NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.command,timestamp:0,windowNumber:sheet.windowNumber,context:nil,characters:"a",charactersIgnoringModifiers:"a",isARepeat:false,keyCode:0)!
+        _ = table.performKeyEquivalent(with:selectAll);try require(table.selectedRowIndexes.count == model.notifications.count,"Command-A did not select notifications")
+        let pathColumn = table.tableColumns[1]
+        table.delegate?.tableView?(table,didClick:pathColumn);table.delegate?.tableView?(table,didClick:pathColumn)
+        let displayedPath = (table.delegate?.tableView?(table,viewFor:pathColumn,row:1) as? NSTextField)?.stringValue
+        try require(displayedPath == paths[1] && table.selectedRowIndexes.count == model.notifications.count, "Header descending sort or selected identity")
+        await model.progressCommand(.log,target:targetBeforeSort)
+        try require(commands.last!.1 == paths[0],"Sorting retargeted old file action")
+        // Auxiliary error rows split independent sortable file blocks.
+        let sample = [LFSProgressRow(id:"cmd",action:"Command",text:"Unlock",kind:.command),LFSProgressRow(id:"b",action:"Unlock",text:"b",kind:.file),LFSProgressRow(id:"a",action:"Unlock",text:"a",kind:.file),LFSProgressRow(id:"err",action:"Error",text:"failure",kind:.error),LFSProgressRow(id:"d",action:"Unlock",text:"d",kind:.file),LFSProgressRow(id:"c",action:"Unlock",text:"c",kind:.file)]
+        try require(LFSProgressRow.sorted(sample,column:"path",ascending:true).map(\.id) == ["cmd","a","b","err","c","d"],"Sort crossed auxiliary boundary")
+        let spaced = LFSProgressRow(id:"s",action:"Unlock",text:" leading path ",kind:.file)
+        try require(LFSProgressRow.clipboard([spaced],keyboard:false) == " leading path", "Menu clipboard trimmed leading whitespace")
+        try require(LFSProgressRow.completion(success:true,elapsed:1.234,date:Date(timeIntervalSince1970:0)).hasPrefix("Success (1234 ms @ ") && model.notifications.last!.text.hasPrefix("Fail ("),"Source completion ignores timing checkbox and uses source wording")
+        let directoryPath = root.appendingPathComponent(paths[0])
+        try FileManager.default.removeItem(at:directoryPath);try FileManager.default.createDirectory(at:directoryPath,withIntermediateDirectories:false)
+        table.selectRowIndexes(IndexSet(integer:2),byExtendingSelection:false);table.menu!.delegate?.menuNeedsUpdate?(table.menu!)
+        try require(table.menu!.item(withTitle:"Open") == nil && table.menu!.item(withTitle:"Open With…") == nil && table.menu!.item(withTitle:"Explore to") != nil,"Directory progress menu exposed file opening")
+        await model.progressDoubleClick(model.notifications[1]);try require(commands.last!.0 == .explore,"Directory double-click did not explore")
+        try FileManager.default.removeItem(at:directoryPath);try Data("base\n".utf8).write(to:directoryPath)
+        model.progressActionHandler = nil
+        var launched: [(URL,URL?)] = [], revealed: [URL] = []
+        model.progressActions.launch = { launched.append(($0,$1)) };model.progressActions.reveal = { revealed.append($0) }
+        model.progressActions.chooseApplication = { URL(fileURLWithPath:"/Applications/QA.app") }
+        await model.progressCommand(.open,target:targetBeforeSort);await model.progressCommand(.openWith,target:targetBeforeSort);await model.progressCommand(.explore,target:targetBeforeSort)
+        try require(launched.count == 2 && launched.allSatisfy{$0.0 == root.appendingPathComponent(paths[0])} && launched[1].1?.lastPathComponent == "QA.app" && revealed == [root.appendingPathComponent(paths[0])],"Actual native host lost file/application routing")
+        var routedLog: String?
+        model.onProgressLog = { routedLog = $0 }
+        await model.progressCommand(.log,target:targetBeforeSort)
+        try require(routedLog == paths[0] && model.progressActions.logs.isEmpty,"Application history route was bypassed")
+        model.onProgressLog = nil
+        // Production history/child progress controllers, with only presentation hidden.
+        model.progressActions.presentLog = { $0.window!.alphaValue = 0;$0.window!.orderFront(nil) }
+        model.progressActions.presentOperation = { $0.alphaValue = 0;$0.orderFront(nil) }
+        await model.progressCommand(.log,target:targetBeforeSort)
+        try require(model.progressActions.logs.count == 1 && model.progressActions.logs.values.first!.model.historyPaths == [paths[0]],"Source Show log did not open scoped native history")
+        model.progressActions.logs.values.first!.close()
+        await model.progressCommand(.unlock,target:targetBeforeSort)
+        try await wait { model.progressActions.operations.values.first?.model.results.count == 1 && model.progressActions.operations.values.first?.model.busy == false }
+        let child = model.progressActions.operations.values.first!
+        try require(child.model.results.first?.path == paths[0],"LFS progress child retargeted")
+        child.model.finishProgress();try require(model.progressActions.operations.isEmpty,"Child progress ownership leaked")
+        // An application chooser owns Quit/review until completion and is fenced after retirement.
+        let lateModel = LFSLocksWindowModel(repository:repository,access:nil,defaults:preferences)
+        lateModel.refreshLocksAfterOperation = false;lateModel.change = { paths,_,_,_ in LFSBatchResult(files:paths.map{LFSFileResult(path:$0,success:true,output:"")},cancelled:false) }
+        await lateModel.perform(paths:[paths[0]],locked:false)
+        var chooseReply: CheckedContinuation<URL?,Never>?, lateLaunch = false
+        lateModel.progressActions.chooseApplication = { await withCheckedContinuation { chooseReply = $0 } }
+        lateModel.progressActions.launch = { _,_ in lateLaunch = true }
+        let lateTarget = lateModel.progressTarget([lateModel.notifications[1]])!
+        let pendingOpen = Task { await lateModel.progressCommand(.openWith,target:lateTarget) }
+        try await wait { chooseReply != nil }
+        try require(lateModel.progressActionBusy && LFSLocksWindowModel.activeOperations == 1,"Chooser lost operation/Quit ownership")
+        lateModel.finishProgress();try require(lateModel.showingProgress,"Review closed while chooser owned operation")
+        lateModel.retire();chooseReply!.resume(returning:URL(fileURLWithPath:"/Applications/QA.app"));await pendingOpen.value
+        try require(!lateLaunch && LFSLocksWindowModel.activeOperations == 0,"Late application chooser launched or leaked ownership")
+        table.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false);table.menu!.delegate?.menuNeedsUpdate?(table.menu!)
         preferences.set(false,forKey:"ShowAppContextMenuIcons");table.menu!.delegate?.menuNeedsUpdate?(table.menu!);try require(table.menu!.items.first?.image==nil,"Private progress icon preference")
         preferences.set(true,forKey:"ShowAppContextMenuIcons");try await capture(sheet,name:"lfs-unlock-progress")
         model.selection=[];model.checked=[];await model.unlock(forceRetry:true)
+        let beforeStaleOpen = launched.count
+        _ = NSApp.sendAction(staleProgressOpen.action!,to:staleProgressOpen.target,from:staleProgressOpen)
+        await Task.yield();try require(launched.count == beforeStaleOpen,"Old progress Open survived Force generation")
         let afterForce=copied.count;_=NSApp.sendAction(staleProgressCopy.action!,to:staleProgressCopy.target,from:staleProgressCopy)
         try require(copied.count==afterForce && model.results.map(\.path)==paths && model.results.allSatisfy(\.success),"Retry retargeted or old progress menu survived")
         model.finishProgress();try await wait { !model.busy && !model.showingProgress && owner.window!.attachedSheet==nil }
         try require(model.locks.isEmpty,"Force result review did not refresh final state")
         let calls=try String(contentsOf:root.appendingPathComponent(".git/lfs-calls.jsonl"),encoding:.utf8).split(separator:"\n").map { try JSONDecoder().decode([String].self,from:Data($0.utf8)) }
         let unlocks=calls.filter{$0.count>1 && $0[1]=="unlock"}
-        try require(unlocks.map{$0.last!}==paths+paths && unlocks.suffix(2).allSatisfy{$0.contains("--force")},"Force commands lost captured targets")
-        let saved=try log.read();try require(saved.components(separatedBy:"Command\tUnlock").count-1==2 && saved.contains("owned by another user"),"Per-attempt action log missing/duplicated")
+        try require(unlocks.map{$0.last!}==paths+[paths[0]]+paths && unlocks.suffix(2).allSatisfy{$0.contains("--force")},"Force commands lost captured targets")
+        let saved=try log.read();try require(saved.components(separatedBy:"Command\tUnlock").count-1==4 && saved.contains("owned by another user"),"Per-attempt action log missing/duplicated")
         let late=model.menuTarget(["1"]);try require(late==nil,"Removed lock still produced menu")
         owner.close();try require(TurtleGitHelp.context(owner.window) == .overview,"Closed LFS help context retained")
         try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==index && Data(contentsOf:root.appendingPathComponent(".git/config"))==config,"LFS UI changed local index/config")

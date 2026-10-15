@@ -27,6 +27,7 @@ import TurtleGitCore
             let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 390), styleMask: [.titled], backing: .buffered, defer: false)
             RepositoryWindowTitles.set(sheet, repository: model.repository.root, location: model.progressLocation, dialog: model.operationLocked ? "LFS Lock" : "LFS Unlock", preferences: model.presentationPreferences); TurtleGitHelp.attach(sheet, topic: .lfs); sheet.isReleasedWhenClosed = false
             sheet.contentViewController = NSHostingController(rootView: LFSUnlockProgress(model: model).defaultAppStorage(model.presentationPreferences))
+            model.progressActions.window = sheet
             progressWindow = sheet; window.beginSheet(sheet, completionHandler: nil)
         } else if let sheet = progressWindow {
             if sheet.sheetParent === window { window.endSheet(sheet) }
@@ -108,8 +109,40 @@ import TurtleGitCore
     var output: String { notifications.map { $0.action + "\t" + $0.text }.joined(separator: "\n") + "\n" }
     var progressTotal: Int { operationPaths.count }
     var progressLocation: URL { RepositoryPresentationSettings.scopedLocation(repository: repository.root, paths: operationPaths, wholeProject: false) }
-    func progressRowsAvailable(_ generation: UUID) -> Bool { !retired && !busy && !confirmingQuit && showingProgress && batchID == generation }
+    func progressRowsAvailable(_ generation: UUID) -> Bool { !retired && !busy && !progressActionBusy && !confirmingQuit && showingProgress && batchID == generation }
     var progressGeneration: UUID { batchID }
+    lazy var progressActions = LFSProgressActionHost(model: self, access: access)
+    @Published private(set) var progressActionBusy = false
+    var progressActionToken: UUID?
+    var onProgressLog: ((String) -> Void)?
+    var progressActionHandler: ((LFSProgressCommand, String) async throws -> Void)?
+    func progressTarget(_ rows: [LFSProgressRow]) -> LFSProgressTarget? {
+        guard progressRowsAvailable(batchID), !rows.isEmpty,
+              rows.allSatisfy({ row in notifications.contains { $0.id == row.id } }) else { return nil }
+        return LFSProgressTarget(generation: batchID, rows: rows)
+    }
+    func progressCommand(_ command: LFSProgressCommand, target: LFSProgressTarget) async {
+        guard progressRowsAvailable(target.generation), let row = target.file else { return }
+        if command == .open || command == .openWith {
+            guard !progressActions.isDirectory(row.text) else { return }
+        }
+        let token = UUID(); progressActionToken = token; progressActionBusy = true
+        Self.activeOperations += 1
+        defer { progressActionBusy = false; progressActionToken = nil; Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+        do {
+            try validateAccess()
+            if let progressActionHandler { try await progressActionHandler(command, row.text) }
+            else { try await progressActions.perform(command, path: row.text, token: token) }
+        } catch { if !retired, progressGeneration == target.generation { self.error = error.localizedDescription } }
+    }
+    func progressDoubleClick(_ row: LFSProgressRow) async {
+        guard let target = progressTarget([row]), target.file != nil else { return }
+        await progressCommand(progressActions.isDirectory(row.text) ? .explore : .open, target: target)
+    }
+    func copyProgressKeyboard(_ text: String, generation: UUID) {
+        guard !retired, !confirmingQuit, showingProgress, batchID == generation, !text.isEmpty else { return }
+        publishClipboard(text)
+    }
     func copyProgress(_ text: String, generation: UUID) { guard progressRowsAvailable(generation), !text.isEmpty else { return }; publishClipboard(text) }
     @Published var operationLocked = false
     @Published var showingProgress = false { didSet { if oldValue != showingProgress { onProgressVisibility(showingProgress) } } }
@@ -236,6 +269,7 @@ import TurtleGitCore
     func retire() {
         guard !retired else { return }; retired = true
         if !busy { saveActionLog() }; menuGeneration = UUID()
+        progressActionToken = nil; progressActions.retire()
         cancellation.cancel(); batchID = UUID(); acceptingBatchResults = false
         refreshAfterReview = false
         onPullAfterLock = {}; onProgressVisibility = { _ in }; showingProgress = false
@@ -285,7 +319,7 @@ import TurtleGitCore
         await runOperation(forceRetry: false)
     }
     private func runOperation(forceRetry: Bool) async {
-        guard !retired, !operationPaths.isEmpty, !forceRetry || showingProgress && results.contains(where: { !$0.success }) else { return }
+        guard !retired, !progressActionBusy, !operationPaths.isEmpty, !forceRetry || showingProgress && results.contains(where: { !$0.success }) else { return }
         ProgressActionLog.nextAttempt(self); attemptStarted = true
         let began = ProcessInfo.processInfo.systemUptime
         let useForce = !operationLocked && (forceRetry || operationForce)
@@ -306,8 +340,8 @@ import TurtleGitCore
         defer {
             busy = false; acceptingBatchResults = false; fileStarted = { _ in }; Self.activeOperations -= 1
             if !retired {
-                let completion = SubmoduleProgressCompletion(success: !operationFailed && !operationCancelled, cancelled: operationCancelled, exitCode: nil, elapsed: ProcessInfo.processInfo.systemUptime - began, preferences: defaults)
-                appendNotification(action: "Finished!", text: completion.text.trimmingCharacters(in: .whitespacesAndNewlines), kind: !operationFailed && !operationCancelled ? .finishedSuccess : .finishedFailure)
+                let completion = LFSProgressRow.completion(success: !operationFailed && !operationCancelled, elapsed: ProcessInfo.processInfo.systemUptime - began)
+                appendNotification(action: "Finished!", text: completion, kind: !operationFailed && !operationCancelled ? .finishedSuccess : .finishedFailure)
             } else { saveActionLog() }
             withExtendedLifetime(access) {}
             if !retired && openPull { onPullAfterLock() }
@@ -362,7 +396,7 @@ import TurtleGitCore
         for event in mailbox.drain() { switch event { case .started(let path): recordStart(path); case .result(let file): record(file) } }
     }
     func finishProgress() {
-        guard !retired, !busy, !confirmingQuit, showingProgress else { return }
+        guard !retired, !busy, !progressActionBusy, !confirmingQuit, showingProgress else { return }
         saveActionLog()
         if resetTargetChecks { for path in operationPaths { checkedPaths.removeValue(forKey: path) } }
         let reload = refreshAfterReview; refreshAfterReview = false
@@ -436,18 +470,18 @@ struct LFSUnlockProgress: View {
                 Spacer()
                 if model.progressTotal > 0 { ProgressView(value: Double(model.results.count), total: Double(model.progressTotal)).frame(width: 220) }
             }
-            if model.busy { ProgressView().controlSize(.small) }
+            if model.busy || model.progressActionBusy { ProgressView().controlSize(.small) }
             Text(model.information).textSelection(.enabled)
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             HStack {
                 if !model.busy && !model.operationLocked && model.results.contains(where: { !$0.success }) {
-                    Button { Task { await model.unlock(forceRetry: true) } } label: { CommandLabel(title: "Force unlock", icon: .unlock) }.disabled(model.confirmingQuit)
+                    Button { Task { await model.unlock(forceRetry: true) } } label: { CommandLabel(title: "Force unlock", icon: .unlock) }.disabled(model.confirmingQuit || model.progressActionBusy)
                 }
                 Spacer()
                 if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
-                else { Button("Close") { model.finishProgress() }.keyboardShortcut(.defaultAction).disabled(model.confirmingQuit) }
+                else { Button("Close") { model.finishProgress() }.keyboardShortcut(.defaultAction).disabled(model.confirmingQuit || model.progressActionBusy) }
             }
-        }.padding(14).frame(width: 760, height: 390).interactiveDismissDisabled(model.busy || model.confirmingQuit)
+        }.padding(14).frame(width: 760, height: 390).interactiveDismissDisabled(model.busy || model.progressActionBusy || model.confirmingQuit)
     }
 }
 
@@ -478,6 +512,7 @@ struct LFSUnlockProgress: View {
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: LFSUnlockProgress(model: model).defaultAppStorage(model.presentationPreferences))
         super.init(window: window); window.delegate = self
+        model.progressActions.window = window
         model.onProgressVisibility = { [weak self] visible in if !visible { self?.finish() } }
     }
     @discardableResult func present(owner: NSWindow? = nil, paths: [String], locked: Bool) -> Bool {

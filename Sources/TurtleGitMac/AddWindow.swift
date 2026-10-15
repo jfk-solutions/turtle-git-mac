@@ -44,6 +44,7 @@ private final class AddNativeWindow: NSWindow {
         model.onLFSOperation = { [weak self, weak window] paths, locked in
             guard let self, !self.closing, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
             let progress = self.makeLFSOperation(repository, access)
+            progress.model.onProgressLog = { [weak self] path in self?.model.onLog(path) }
             progress.model.onPullAfterLock = { [weak self] in guard let self, !self.closing else { return }; self.onPullAfterLFSLock() }
             progress.onClosed = { [weak self, weak progress] in
                 guard let self, !self.closing, self.lfsOperation === progress else { return }

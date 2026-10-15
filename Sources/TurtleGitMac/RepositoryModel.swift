@@ -1163,6 +1163,7 @@ import UniformTypeIdentifiers
         if let existing = lfsLocksWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let access = activeAccess
         let controller = LFSLocksWindowController(repository: repository, access: access)
+        controller.model.onProgressLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
         controller.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.lfsLocksWindows.removeValue(forKey: key) }
         lfsLocksWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -1178,6 +1179,7 @@ import UniformTypeIdentifiers
                 let targets = try await repository.finderLFSPaths(paths)
                 guard !confirmingQuit else { return }
                 let id = UUID(), controller = LFSFileOperationController(repository: repository, access: access)
+                controller.model.onProgressLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
                 controller.model.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
                 controller.onClosed = { [weak self] in
                     guard let self else { return }; self.lfsFileOperations.removeValue(forKey: id)

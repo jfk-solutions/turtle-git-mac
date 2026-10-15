@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "1d5614e9",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Single-file source progress menus, original artwork/private icon preference, folder and multiple/auxiliary row gates",
+    "Captured actions and double-click, app history routing and owned fallback history/child LFS controllers",
+    "File-block header sorting with auxiliary boundaries and retained selected identities",
+    "Source context versus keyboard clipboard formats, Command-A and unconditional completion timing",
+    "Application chooser ownership, Close/Force gates, late choice retirement and scoped application launch"
+  ],
+  "build": {
+    "logs": [
+      "build/qa/lfs-progress-actions-build.log",
+      "build/qa/lfs-progress-actions-final-build.log"
+    ],
+    "exit_codes": [
+      0,
+      0
+    ],
+    "reason_for_final_build": "Connected app-history routes and updated bundled LFS guide added after initial build; native validation ran only after the final build.",
+    "diagnostics": "No new LFS-specific diagnostics observed; existing project diagnostics remain."
+  },
+  "core": {
+    "run": false,
+    "reason": "Native interaction/presentation only; Core unchanged."
+  },
+  "native": {
+    "command": "python3 scripts/test-lfs-interaction.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"",
+    "fixture": "docs/qa/lfs-interaction-native-2026-10-15.swift",
+    "log": "build/qa/lfs-progress-actions-native.log",
+    "exit": 0,
+    "receiver_pids": [
+      48868,
+      48897
+    ],
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "result": "pass",
+    "new_checks": [
+      "Exact file menu titles/order and original icons; auxiliary/multiple/folder gates",
+      "All captured command dispatch and stale Open refusal after Force retry",
+      "File/folder/auxiliary double-click dispatch",
+      "Real table header sorting, selected identities, auxiliary block partitioning",
+      "Real Command-C and Command-A; leading-space menu clipboard preservation",
+      "Success/Fail elapsed/local timestamp despite ShowGitexeTimings false",
+      "Host file/application/reveal targets with intercepted system launch",
+      "Configured app history callback and real scoped fallback Log controller",
+      "Real child LFS Unlock controller executing the wrapper and owned result review",
+      "Delayed chooser retains active-operation count and review, then refuses launch after retirement",
+      "Four distinct parent/child attempts recorded exactly once; HEAD/index/config retained"
+    ],
+    "retained_checks": "Earlier checkboxes, captured list/column menus, live file begin, per-file errors, Force captured targets and review refresh assertions also passed in this same receiver.",
+    "ownership": "Both receiver processes reaped; test-owned Log/progress windows closed.",
+    "simulation": "Private repository/preferences/pasteboard; Python LFS state wrapper delegates ordinary Git to each selected engine. System app launch, app picker choice and Finder reveal injected; no real server/external app."
+  },
+  "limitations": [
+    "No new captures; earlier published screenshots remain dated evidence",
+    "Main lock-list watermark and complete geometry/VoiceOver acceptance remain open",
+    "Native case comparison is not certified equal to Windows FastCompareNoCase for all Unicode pairs",
+    "Child progress and fallback history use owned native lifetimes rather than separate processes",
+    "Authenticated servers, physical Finder and signed App Store/security-scope acceptance remain open",
+    "No complete dialog/application parity claimed"
+  ],
+  "hosted_ci": {
+    "macos": "38792987011 at b5acf758 still in progress in Git integration tests; 1d5614e9 run 38797902687 pending at last observation",
+    "log_fetch": "Current job log fetch returned BlobNotFound while its job remained live; no restart or failure inferred.",
+    "full_pass_claimed": false
+  },
+  "documentation": {
+    "site_documents": 234,
+    "unresolved_fragments": 0,
+    "help_guides": 26,
+    "help_topics": 47,
+    "help_bytes_before_index": 190391,
+    "mapped_controls": 974,
+    "pending_control_reviews": 685,
+    "certified_dialogs": 0
+  }
+}

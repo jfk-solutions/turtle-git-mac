@@ -347,3 +347,46 @@ file menus/double-click/sorting; exact completion wording and common timing-poli
 comparison; physical checkbox/menu/keyboard/VoiceOver and sheet/compositor sizing;
 authenticated LFS/Pull, signed grants/Finder and full dialog acceptance. No complete
 LFS/application parity is claimed.
+
+## Progress file actions and interaction — October 15, 2026
+
+Pinned `GitProgressList::WC_File_NotificationData` supplies the next native
+progress interaction batch. A single file row offers Show log, Open, Open With,
+Explore to, LFS Lock and LFS Unlock, with original command artwork and source
+separators. Directories omit Open/Open With. Multiple or auxiliary rows offer
+Copy only. Actions capture their row and attempt, so sorting/selection cannot
+retarget them; Force retry, busy operation, Quit confirmation and retirement
+refuse obsolete invocations. Double-click opens a file or reveals a directory;
+auxiliary rows have no double-click action.
+
+Header clicks sort only contiguous file blocks between auxiliary command/error/
+completion messages. Action uses its text then the path; Path compares paths
+without numeric sorting. The native comparison is a macOS adaptation of
+`FastCompareNoCase`, not proven identical for every Unicode casing pair.
+Selection stays attached to notification identities. Sorting is refused while
+an operation or application chooser owns the progress window.
+
+The earlier clipboard description above applies to the earlier implementation.
+The source has two distinct formats: the context menu copies path/message text
+and trims trailing whitespace only; Command-C copies `Action: Path` plus the
+source's two spaces and line ending for each selected row. The Mac uses LF.
+Command-A selects all notifications. Keyboard copying is available during a
+running operation, as in `PreTranslateMessage`; the context menu remains blocked.
+Completion now always uses `Success`/`Fail (milliseconds ms @ local date/time)`,
+independently of ShowGitexeTimings, matching this progress class's policy.
+
+Open With owns the native application picker and retains the application and
+repository grants through launch completion. Close/Force and Quit cannot bypass
+that ownership; forced owner retirement cancels its picker and refuses a late
+choice. The app's history routes retain the usual configured Log commands and independent
+history window lifetime. A fallback history controller is retained for standalone
+hosts without an app route. Child LFS progress and fallback history controllers
+close with their owning host; that differs from upstream's separate process
+windows. System application launch and Finder reveal still require
+physical/signed acceptance. The main lock-list watermark and complete dialog
+geometry/accessibility acceptance remain open.
+
+Both native engine cases passed in one grouped run, including the retained LFS
+interaction checks. No Core run was needed for native-only changes. See the
+[progress-action evidence](qa/lfs-progress-actions-2026-10-15.json) for exact
+builds, assertions, simulations and remaining acceptance work.

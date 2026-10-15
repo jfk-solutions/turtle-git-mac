@@ -50,7 +50,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_TOOLASSOC` | partial-native-replacement | 0/7 mapped; 7 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_CHECKFORUPDATES` | partial-native-replacement | 0/13 mapped; 13 pending | [RELEASE-UPDATES-PARITY](RELEASE-UPDATES-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REVERT` | partial-native-replacement | 6/6 mapped; 0 pending | [REVERT-PARITY](REVERT-PARITY.md); 1 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_LFS_LOCKS` | partial-native-replacement | 6/6 mapped; 0 pending | [LFS-PARITY](LFS-PARITY.md); 16 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_LFS_LOCKS` | partial-native-replacement | 6/6 mapped; 0 pending | [LFS-PARITY](LFS-PARITY.md); 17 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_STATGRAPH` | partial-native-replacement | 45/49 mapped; 4 pending | [LOG-STATISTICS-PARITY](LOG-STATISTICS-PARITY.md); 9 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETOVERLAYICONS` | partial-native-replacement | 5/5 mapped; 0 pending | [FINDER-OVERLAY-SETTINGS-PARITY](FINDER-OVERLAY-SETTINGS-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSPROGSDIFF` | partial-native-replacement | 5/12 mapped; 7 pending | [UNIFIED-DIFF-VIEWER-PARITY](UNIFIED-DIFF-VIEWER-PARITY.md); 9 QA records |

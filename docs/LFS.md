@@ -25,10 +25,16 @@ the results window also offers **Force unlock**, retrying the captured targets.
 Review server ownership and permission errors before retrying.
 
 Progress shows Command, Lock/Unlock file and Error rows, followed by completion
-information. The counter advances as files finish. Right-click selected progress
-rows, or use Command-C, to copy their displayed path/message text. Successful
-lock rows use ordinary text; errors use the configured conflict color. Original
-lock/unlock background artwork follows ShowListBackgroundImage.
+information. The counter advances as files finish. Right-click one file row for
+Show log, Open, Open With, Explore to, LFS Lock and LFS Unlock. Double-click opens
+a file or reveals a folder. Auxiliary messages and multiple selected rows offer
+Copy only. Header clicks sort file groups between command/error messages.
+
+Menu Copy copies path/message text. Command-C copies each selected row as
+`Action: Path`; Command-A selects all rows. Completion always shows Success/Fail,
+elapsed milliseconds and local date/time. File rows use ordinary text; errors use
+the configured conflict color. Original lock/unlock background artwork follows
+ShowListBackgroundImage.
 
 Cancel stops remaining work where possible. Completed server changes remain;
 cancellation does not undo a lock or unlock already accepted by the server.
@@ -41,7 +47,7 @@ Saved progress action logs retain the recorded command/file/error rows for each
 attempt. See [Saved Data](SAVED-DATA.md) and [the action log](ACTION-LOG.md).
 
 Authenticated server, physical Finder and signed sandbox acceptance remain in
-progress. Context actions on individual progress files beyond copying still
-need comparison with the complete upstream progress menu.
+progress. Full dialog layout, accessibility and source behavior acceptance are
+still incomplete.
 
 [Source comparison and native captures](LFS-PARITY.md) record the tested scope.
