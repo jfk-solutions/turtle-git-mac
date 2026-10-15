@@ -1,5 +1,15 @@
 # Testing TurtleGit for Mac
 
+`python3 scripts/test-reference-menu-targets.py --git /usr/bin/git --git
+build/git-runtime/Git/bin/git` links the current Debug app objects once and runs
+owned sequential receivers for captured reference-menu commands and retained
+folder/comparison/tracking/rename/standalone workflows. `--only` permits focused
+failure repair. The new fixture dispatches actual AppKit menu items after moving
+the selection, verifies read/child/range/copy/remote targets, performs real Git
+tracking/rename/deletion and filtered folder deletion, and refuses stale or closed
+commands. It checks that HEAD, index and working bytes remain unchanged. This
+native-only batch does not change Core algorithms or require a full Core rerun.
+
 ## Development batch cadence
 
 Implement a complete related feature group across Core, native dialogs, Finder

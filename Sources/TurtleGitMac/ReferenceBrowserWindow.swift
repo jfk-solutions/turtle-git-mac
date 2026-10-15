@@ -289,7 +289,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     private var resolvingCurrentBranch = false
     private(set) var initialFocusPending = true
     var closed: Bool { invalidated }
-    @Published private(set) var renameReference: GitReferenceName?
+    @Published private(set) var renameReference: GitReferenceName? { didSet { if oldValue != renameReference { menuEpoch &+= 1 } } }
     private var renameFolder: GitReferenceName?
     private var renameHash: String?
     static private(set) var activeRenames = 0
@@ -313,13 +313,13 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     func dismissOutput() { guard !mutationActive else { return }; saveActionLog(); renameOutput = "" }
 
 
-    @Published var hasChild = false
+    @Published var hasChild = false { didSet { if oldValue != hasChild { menuEpoch &+= 1 } } }
     @Published private(set) var bare = false
     private(set) var folders: [GitReferenceName] = ["refs"]
     @Published private(set) var snapshot: ReferenceBrowserSnapshot?
-    @Published private(set) var busy = false
+    @Published private(set) var busy = false { didSet { if oldValue != busy { menuEpoch &+= 1 } } }
     @Published var error: String?
-    @Published var folder: GitReferenceName = "refs"
+    @Published var folder: GitReferenceName = "refs" { didSet { if oldValue != folder { menuEpoch &+= 1 } } }
     @Published private(set) var selection: Set<GitReferenceName> = []
     @Published private(set) var lastSelected: GitReferenceName?
     var selected: GitReferenceName? {
@@ -331,8 +331,31 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         selection = references
         lastSelected = last.flatMap { selection.contains($0) ? $0 : nil } ?? rows.last(where: { selection.contains($0.reference.name) })?.reference.name
     }
-    var selectedRows: [ReferenceBrowserRow] { rows.filter { selection.contains($0.reference.name) } }
-    var range: ReferenceBrowserRange? { ReferenceBrowserRange(references: selectedRows.map { $0.reference.name }, lastSelected: lastSelected) }
+    // A menu owns its displayed leaves, while the native selection remains free
+    // to move. Only synchronous action dispatch reads this captured selection;
+    // child controllers and asynchronous Git operations capture their own inputs.
+    struct MenuContext {
+        fileprivate let owner: ObjectIdentifier
+        fileprivate let epoch: UInt64
+        fileprivate let selectedRows: [ReferenceBrowserRow]
+        fileprivate let lastSelected: GitReferenceName?
+    }
+    private var menuEpoch: UInt64 = 0
+    private var dispatchingMenu: MenuContext?
+    func menuContext() -> MenuContext? {
+        guard !invalidated, !busy, !hasChild, !confirmingCancellation, !awaitingConfirmation, renameReference == nil, snapshot != nil else { return nil }
+        return MenuContext(owner: ObjectIdentifier(self), epoch: menuEpoch, selectedRows: selectedRows, lastSelected: lastSelected)
+    }
+    func performMenu(_ context: MenuContext, action: () -> Void) {
+        guard context.owner == ObjectIdentifier(self), context.epoch == menuEpoch,
+              !invalidated, !busy, !hasChild, !confirmingCancellation, !awaitingConfirmation,
+              renameReference == nil, dispatchingMenu == nil else { return }
+        dispatchingMenu = context
+        defer { dispatchingMenu = nil }
+        action()
+    }
+    var selectedRows: [ReferenceBrowserRow] { dispatchingMenu?.selectedRows ?? rows.filter { selection.contains($0.reference.name) } }
+    var range: ReferenceBrowserRange? { ReferenceBrowserRange(references: selectedRows.map { $0.reference.name }, lastSelected: dispatchingMenu == nil ? lastSelected : dispatchingMenu?.lastSelected) }
     var copyReferences: (String) -> Void = { text in NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
     func copySelection() { guard !invalidated, !busy, !hasChild, renameReference == nil else { return }; copyReferences(selectedRows.map { $0.reference.name.browserShortName }.joined(separator: "\n")) }
     func logRange(symmetric: Bool) { guard !invalidated, !busy, !hasChild, renameReference == nil, let range else { return }; onLogRange?(range.history(symmetric: symmetric)) }
@@ -341,13 +364,13 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         guard !invalidated, !busy, !hasChild, renameReference == nil, let reference = selectedRows.first?.reference else { return }
         if reference.objectType == "tree" { onBrowse?(reference.name.rawValue) } else { onLog?(reference.name.rawValue) }
     }
-    @Published var query = ""
+    @Published var query = "" { didSet { if !GitReferenceName.equal(oldValue, query) { menuEpoch &+= 1 } } }
     static let allFields: HistorySearchFields = [.referenceNames, .subject, .authors, .revisions]
-    @Published var fields: HistorySearchFields = allFields
-    @Published var mergeFilter = ReferenceBrowserMergeFilter.all
-    @Published var nested: Bool
-    @Published var sortColumn = "name"
-    @Published var descending = false
+    @Published var fields: HistorySearchFields = allFields { didSet { if oldValue != fields { menuEpoch &+= 1 } } }
+    @Published var mergeFilter = ReferenceBrowserMergeFilter.all { didSet { if oldValue != mergeFilter { menuEpoch &+= 1 } } }
+    @Published var nested: Bool { didSet { if oldValue != nested { menuEpoch &+= 1 } } }
+    @Published var sortColumn = "name" { didSet { if oldValue != sortColumn { menuEpoch &+= 1 } } }
+    @Published var descending = false { didSet { if oldValue != descending { menuEpoch &+= 1 } } }
     var finish: (String?) -> Void = { _ in }
     var confirmDeletion: ((ReferenceBrowserDeletionConfirmation) async -> Bool)?
     var deletionKind: ReferenceBrowserDeletionKind? {
@@ -378,7 +401,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     }
     private func deleteReferences(_ references: [GitReferenceName]) {
         guard !invalidated, !busy, !hasChild, renameReference == nil, !references.isEmpty, let confirmDeletion else { return }
-        let hashes = Dictionary(uniqueKeysWithValues: selectedRows.map { ($0.reference.name, $0.reference.hash) })
+        let names = Set(references)
+        let hashes = Dictionary(uniqueKeysWithValues: rows.filter { names.contains($0.reference.name) }.map { ($0.reference.name, $0.reference.hash) })
         let factory = sshSettings.capture()
         ProgressActionLog.nextAttempt(self); let request = OperationCancellation(); token = request; deletingReference = true; busy = true; error = nil; mutationTitle = "Delete references"; mutationFailed = false; mutationCancelled = false; renameOutput = ""; cancellingRename = false
         Self.activeMutations += 1; LocalGitCommandProgress.begin()
@@ -494,8 +518,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             return descending ? comparison == .orderedDescending : comparison == .orderedAscending
         }
     }
-    var chosen: BrowserReference? { guard selection.count == 1, let selected else { return nil }; return rows.first { $0.reference.name == selected }?.reference }
-    var canAccept: Bool { !confirmingCancellation && !awaitingConfirmation && !busy && !hasChild && !invalidated && renameReference == nil && (pickMultiple ? !selectedRows.isEmpty && selectedRows.count == selection.count : chosen != nil) }
+    var chosen: BrowserReference? { (dispatchingMenu?.selectedRows.count ?? selection.count) == 1 ? selectedRows.first?.reference : nil }
+    var canAccept: Bool { !confirmingCancellation && !awaitingConfirmation && !busy && !hasChild && !invalidated && renameReference == nil && (pickMultiple ? !selectedRows.isEmpty && selectedRows.count == (dispatchingMenu?.selectedRows.count ?? selection.count) : chosen != nil) }
     var canFinish: Bool { picking ? canAccept : !busy && !hasChild && !invalidated && renameReference == nil }
     var canRename: Bool { canAccept && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
     func beginRename() -> String? {
@@ -797,6 +821,26 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             let fromTree = menu === tree?.menu
             if fromTree, let tree, let clicked = tree.item(atRow: tree.clickedRow) as? Folder, clicked.key != model.folder { model.setFolder(clicked.key) }
             if !fromTree, visible.indices.contains(table.clickedRow), !table.selectedRowIndexes.contains(table.clickedRow) { table.selectRowIndexes(IndexSet(integer: table.clickedRow), byExtendingSelection: false) }
+            guard let context = model.menuContext() else { return }
+            // Wrap every entry, including dynamically generated remote entries.
+            // Keep NSMenuItem's weak target alive through representedObject.
+            let owner = model
+            defer {
+                for entry in menu.items where !entry.isSeparatorItem {
+                    guard let selector = entry.action else { continue }
+                    let payload = entry.representedObject
+                    let command = ReferenceBrowserMenuCommand { [weak self, weak owner, weak entry] in
+                        guard let self, let owner, self.model === owner, let entry else { return }
+                        owner.performMenu(context) {
+                            let invocation = NSMenuItem(title: entry.title, action: selector, keyEquivalent: "")
+                            invocation.representedObject = payload
+                            if NSStringFromSelector(selector).contains(":") { _ = self.perform(selector, with: invocation) }
+                            else { _ = self.perform(selector) }
+                        }
+                    }
+                    entry.target = command; entry.action = #selector(ReferenceBrowserMenuCommand.invoke(_:)); entry.representedObject = command
+                }
+            }
             menu.autoenablesItems = false
             func item(_ title: String, _ action: Selector, _ icon: MenuIcon, _ enabled: Bool) { let entry = NSMenuItem(title: title, action: action, keyEquivalent: ""); entry.target = self; entry.image = icon.contextImage(defaults: model.preferences); entry.isEnabled = enabled; menu.addItem(entry) }
             if fromTree || model.selectedRows.isEmpty {
@@ -890,4 +934,12 @@ private final class ReferenceBrowserRenameTable: NSTableView {
         if event.keyCode == 120 { rename(); return }
         super.keyDown(with: event)
     }
+}
+
+// A retained command belongs to one displayed menu, rather than the coordinator's
+// next selection. The coordinator and window model are deliberately weak owners.
+@MainActor private final class ReferenceBrowserMenuCommand: NSObject {
+    private let action: () -> Void
+    init(_ action: @escaping () -> Void) { self.action = action }
+    @objc func invoke(_ sender: NSMenuItem) { guard sender.isEnabled else { return }; action() }
 }

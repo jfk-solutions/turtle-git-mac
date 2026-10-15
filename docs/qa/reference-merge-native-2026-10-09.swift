@@ -53,7 +53,7 @@ import TurtleGitCore
             let menu = try menu(); let title = browser.model.mergeTitle
             guard let command = menu.items.first(where: { $0.title == title }), command.isEnabled, command.image != nil else { throw Failure(description: "Original Merge menu/icon missing") }
             try require(menu.indexOfItem(withTitle: title) < menu.indexOfItem(withTitle: "Switch/Checkout to this…"), "Merge/Switch order differs")
-            _ = (command.target as? NSObject)?.perform(command.action!)
+            try require(NSApplication.shared.sendAction(command.action!, to: command.target, from: command), "Native menu dispatch")
             guard let child = browser.mergeDialog else { throw Failure(description: "Owned Merge missing") }; return child
         }
         for (ref, target) in [("refs/heads/feature", CheckoutTarget.branch), ("refs/remotes/origin/topic", .branch), ("refs/remotes/origin/HEAD", .branch), ("refs/tags/release", .tag), ("refs/notes/custom", .commit), (nfc, .branch), (nfd, .branch)] {

@@ -34,7 +34,7 @@ import TurtleGitCore
         table.layoutSubtreeIfNeeded(); menu.delegate?.menuNeedsUpdate?(menu)
         guard let command = menu.items.first(where: { $0.title == "Edit description" }) else { throw Failure(description: "Description command absent") }
         try require(command.image != nil && command.isEnabled, "Original rename icon and command enabled")
-        _ = (command.target as? NSObject)?.perform(command.action!)
+        try require(NSApplication.shared.sendAction(command.action!, to: command.target, from: command), "Native menu dispatch")
         guard let child = browser.descriptionEditor, let window = child.window else { throw Failure(description: "Owned editor absent") }
         window.contentView?.layoutSubtreeIfNeeded(); child.focusEditor()
         try require(window.title == "Edit description" && child.editor.string == "first\nsecond 🐢", "Title and multiline prefill")

@@ -1,5 +1,35 @@
 # Reference browser parity
 
+## Captured native context commands — October 16, 2026
+
+The native list and namespace menus now retain the leaves, row order and
+last-selected reference used to build each menu. Selecting another row before
+invoking an existing menu entry preserves that entry's original target without
+replacing the user's visible selection. This applies to Log, Browse, Reflog,
+working-tree comparison, pair/unified comparison, both history ranges, Copy,
+owned child dialogs, inline Rename, tracking and reference deletion. Dynamically
+generated remote-folder entries retain their remote payload and original icons.
+
+Captured commands are scoped to their model and catalog/view epoch. Refresh,
+folder/filter/search-field/nesting/sort changes, child-modal transitions and
+rename transitions retire old entries, including changes followed by restoration.
+Busy, confirmation and closed-owner states reject dispatch. Synchronous dispatch
+provides captured inputs to existing controllers; asynchronous operations retain
+their own reference/hash/cancellation inputs. No transient selection is published.
+Delete-all keeps upstream's explicit selection of every displayed tag, and obtains
+expected hashes for those displayed references rather than a previous selection.
+
+The source reference is `BrowseRefsDlg.cpp::ShowContextMenu` at the pinned
+commit: it dispatches against the collected `selectedLeafs`, uses the captured
+remote-menu index, and selects all displayed rows for `eCmd_DeleteAllTags`.
+The native epoch checks adapt that synchronous popup lifetime to AppKit ownership.
+`scripts/test-reference-menu-targets.py` groups the new captured-action receiver
+with retained folder, comparison, tracking, rename and standalone workflows.
+The [batch evidence](qa/reference-menu-targets-2026-10-16.json) records the build,
+twelve passing system/bundled native cases, both fixture repairs and owned cleanup.
+This remains partial parity; physical popup interaction, complete visual/control
+review and signed sandbox/Finder acceptance remain open.
+
 TurtleGit's Reset, Switch, Branch/Tag and New Worktree browse routes uses a native reference browser based on
 TortoiseGit `BrowseRefsDlg`, `BrowseRefsDlgFilter`, `GitRevRefBrowser` and
 `CChooseVersion` at commit `7338078f8ddd924b8cddee35f512f2286072136d`.

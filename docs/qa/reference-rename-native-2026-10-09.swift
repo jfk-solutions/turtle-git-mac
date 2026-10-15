@@ -40,7 +40,7 @@ import TurtleGitCore
             menu.delegate?.menuNeedsUpdate?(menu)
             guard let item = menu.items.first(where: { $0.title == "Rename" }) else { throw Failure(description: "Rename menu absent") }
             try require(item.isEnabled && item.image != nil, "Original rename icon/enabled")
-            _ = (item.target as? NSObject)?.perform(item.action!)
+            try require(NSApplication.shared.sendAction(item.action!, to: item.target, from: item), "Native menu dispatch")
             guard let field = find(NSTextField.self, window.contentView!, label: "Rename branch") else { throw Failure(description: "Inline name field absent") }
             return field
         }

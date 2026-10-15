@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "a3721aff",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "BrowseRefsDlg.cpp ShowContextMenu: collected selectedLeafs, last-selected ranges, remote menu indices and displayed-row DeleteAllTags"
+  ],
+  "scope": [
+    "Captured list and folder commands preserve original refs/order/last-selected after selection-only changes, without publishing a replacement selection",
+    "Synchronous captured model context feeds existing read/child/mutation paths; asynchronous work keeps its captured inputs",
+    "Catalog/view epochs retire commands on refresh, query/field/folder/nesting/filter/sort/child/rename transitions, including change-and-return; closed, busy, confirmation and cross-owner rejection",
+    "Deletion hashes are selected from displayed refs independently of original selection, including filtered folder Delete-all",
+    "Dynamic remote payloads and original icons retained; real tracking, rename, branch/tag deletion preserve HEAD/index/worktree"
+  ],
+  "build": {
+    "log": "build/qa/reference-menu-targets-build.log",
+    "exit": 0
+  },
+  "core": {
+    "run": false,
+    "reason": "Native-only model/menu changes; Core algorithms unchanged"
+  },
+  "native": [
+    {
+      "log": "build/qa/reference-menu-targets-native.log",
+      "receivers_reaped": [
+        66068
+      ],
+      "final_case_pass_markers": 0,
+      "result": "failed fixture, repaired",
+      "failure": "New fixture omitted heads/ from the relative inline rename label at refs root; corrected fixture only."
+    },
+    {
+      "log": "build/qa/reference-menu-targets-repair.log",
+      "receivers_reaped": [
+        66198,
+        66299,
+        66476,
+        66543
+      ],
+      "final_case_pass_markers": 3,
+      "result": "failed fixture, repaired",
+      "failure": "Retained tracking fixture used NSObject.perform without a sender for the now sender-taking menu command. Crash report confirmed objc_retain in ReferenceBrowserMenuCommand.invoke; changed tracking/rename and other affected legacy menu fixtures to normal NSApplication.sendAction with their NSMenuItem sender."
+    },
+    {
+      "log": "build/qa/reference-menu-retained-repair.log",
+      "receivers_reaped": [
+        66617,
+        66722,
+        66798
+      ],
+      "final_case_pass_markers": 3,
+      "result": "pass",
+      "failure": null
+    },
+    {
+      "log": "build/qa/reference-menu-targets-bundled.log",
+      "receivers_reaped": [
+        66865,
+        66967,
+        67144,
+        67211,
+        67323,
+        67399
+      ],
+      "final_case_pass_markers": 6,
+      "result": "pass",
+      "failure": null
+    },
+    {
+      "log": "build/qa/submodule-selection-repair.log",
+      "receivers_reaped": [
+        66149
+      ],
+      "final_case_pass_markers": 0,
+      "result": "pass",
+      "failure": null
+    }
+  ],
+  "hosted_ci": {
+    "run": 38808679175,
+    "sha": "ddfb57ab",
+    "git_integration": "passed step 58",
+    "unified_diff": "passed step 69",
+    "failure": "step 85 Submodule Update selection runner compiled an incomplete production-source subset without RepositoryWindowTitles or TurtleGitHelp",
+    "repair": "Use cached built-app native receiver and bounded owned run with required final assertion marker",
+    "local_repair": "passed receiver 66149",
+    "full_hosted_latest_pass": false,
+    "other_live_run": 38814893133,
+    "pending_run": 38817913199,
+    "pages": {
+      "run": 38817913218,
+      "sha": "a3721aff",
+      "conclusion": "success"
+    }
+  },
+  "limits": [
+    "No full upstream dialog/control/layout certification",
+    "Physical popup/keyboard/AX and signed Finder/App Store acceptance remain open",
+    "No new public screenshot or pixel comparison",
+    "Only target, folder, comparison, tracking, rename and standalone receivers executed in this batch; merge/description/switch legacy fixture sender adaptations did not rerun their complete workflows",
+    "Expected hashes are preflight guards, not an atomic ref/config transaction"
+  ],
+  "cleanup": {
+    "receivers_recorded": 15,
+    "all_reaped": true,
+    "ps_after_checks": "none present",
+    "unrelated_processes_terminated": false
+  },
+  "documentation": {
+    "bundled_help_documents": 26,
+    "topics": 47,
+    "files": 32,
+    "bytes": 193605,
+    "site_documents": 235,
+    "broken_fragments": 0,
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 974,
+      "pending_control_reviews": 685
+    }
+  }
+}

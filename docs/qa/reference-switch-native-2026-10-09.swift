@@ -53,7 +53,7 @@ import TurtleGitCore
             guard let table = find(NSTableView.self, window.contentView!, label: "References"), let menu = table.menu else { throw Failure(description: "Current native menu missing") }
             menu.delegate?.menuNeedsUpdate?(menu)
             guard let command = menu.items.first(where: { $0.title == "Switch/Checkout to this…" }), command.isEnabled, command.image != nil, command.target != nil else { throw Failure(description: "Original Switch icon/menu missing") }
-            _ = (command.target as? NSObject)?.perform(command.action!)
+            try require(NSApplication.shared.sendAction(command.action!, to: command.target, from: command), "Native menu dispatch")
         }
         for (ref, target, create) in [("refs/heads/main", CheckoutTarget.branch, false), ("refs/remotes/origin/main", .branch, true), ("refs/remotes/origin/HEAD", .branch, true), ("refs/tags/release", .tag, false), ("refs/notes/custom", .commit, false), (nfc, .branch, false), (nfd, .branch, false)] {
             try await select(ref); try invoke()

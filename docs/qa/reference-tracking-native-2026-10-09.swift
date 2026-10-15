@@ -43,7 +43,7 @@ import TurtleGitCore
             guard let item = currentMenu.items.first(where: { $0.title == title }), item.isEnabled, item.target != nil else { throw Failure(description: "Menu missing/disabled/target absent: " + title) }
             try require(item.image != nil, "Requested original artwork adaptation")
             print("ACTION \(title), target \(type(of: item.target!)), window exists=\(browser.window != nil), sheet=\(browser.window?.attachedSheet != nil)"); fflush(stdout)
-            _ = (item.target as? NSObject)?.perform(item.action!)
+            try require(NSApplication.shared.sendAction(item.action!, to: item.target, from: item), "Native menu dispatch")
         }
         var pickerCount = 0
         func picker() async throws -> ReferenceBrowserWindowController {
