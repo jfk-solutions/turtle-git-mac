@@ -10,6 +10,19 @@ final class SubversionMergePresentationTests: XCTestCase {
     private func presentation(_ base: String, _ mine: String, _ theirs: String, filter: MergeRegexFilter? = nil) throws -> SubversionMergePresentation {
         try .init(plan: configuration(filter).plan(base: base, mine: mine, theirs: theirs))
     }
+    func testConflictSourceAliasesKeepActualBytesAndDistinctPadding() throws {
+        let mine="mine one\r\nmine two\r\n",theirs="theirs\r\n"
+        let value=try presentation("base\r\n",mine,theirs)
+        XCTAssertTrue(value.sources.rows.contains {$0.mine.state == .conflictAdded})
+        XCTAssertTrue(value.sources.rows.contains {$0.theirs.state == .conflictEmpty})
+        XCTAssertEqual(MergePaneSaveAs.sourceText(rows:value.sources.rows,mine:true,keepRemoved:false),mine)
+        XCTAssertFalse(MergePaneSaveAs.sourceText(rows:value.sources.rows,mine:true,keepRemoved:false).contains("<<<<<<<"))
+        XCTAssertEqual(value.sources.rows.compactMap {$0.theirs.lineNumber == nil ? nil:$0.theirs.text}.joined(),theirs)
+        let counts=MergeLineStatistics(states:value.sources.rows.map { $0.mine.state })
+        XCTAssertEqual(counts.added,2);XCTAssertEqual(counts.removed,1);XCTAssertEqual(counts.conflicted,0)
+        let locator=MergeLocatorMap(columns:[value.sources.rows.map {$0.mine.state},value.sources.rows.map {$0.theirs.state}])
+        XCTAssertTrue(locator.columns[1].contains {$0.state == .conflictEmpty})
+    }
     func testTwoPaneSubversionPresentationRetainsRowsGapsAndTransferBytes() throws {
         let base = "head\r\nold\r\nlast", destination = "head\r\nnew\r\nextra\r\nlast"
         let value = try SubversionComparisonPresentation(plan: configuration().plan(base: base, mine: destination)).alignment
@@ -40,21 +53,21 @@ final class SubversionMergePresentationTests: XCTestCase {
         let base = "head\nfirst\nmiddle\nsecond\nlast", mine = "head\nMINE\nmiddle\nsecond\nlast", theirs = "head\nfirst\nmiddle\nTHEIRS\nlast"
         let value = try presentation(base, mine, theirs)
         XCTAssertEqual(value.result, "head\nMINE\nmiddle\nTHEIRS\nlast")
-        XCTAssertEqual(value.sources.resultLocator?.states, [.normal, .added, .normal, .added, .normal])
+        XCTAssertEqual(value.sources.resultLocator?.states, [.normal, .yoursAdded, .normal, .theirsAdded, .normal])
         XCTAssertEqual(value.sources.rows.compactMap { $0.mine.lineNumber == nil ? nil : $0.mine.text }.joined(), mine)
         XCTAssertEqual(value.sources.rows.compactMap { $0.theirs.lineNumber == nil ? nil : $0.theirs.text }.joined(), theirs)
-        XCTAssertTrue(value.sources.rows.contains { $0.mine.state == .removed && $0.theirs.state == .normal })
-        XCTAssertTrue(value.sources.rows.contains { $0.mine.state == .normal && $0.theirs.state == .removed })
+        XCTAssertTrue(value.sources.rows.contains { $0.mine.state == .yoursRemoved && $0.theirs.state == .normal })
+        XCTAssertTrue(value.sources.rows.contains { $0.mine.state == .normal && $0.theirs.state == .theirsRemoved })
     }
     func testIdenticalChangesAddAddAndUnequalConflictsPreserveSources() throws {
         let identical = try presentation("base\n", "changed\n", "changed\n")
         XCTAssertEqual(identical.result, "changed\n")
-        XCTAssertEqual(identical.sources.rows.map(\.mine.state), [.removed, .added])
+        XCTAssertEqual(identical.sources.rows.map(\.mine.state), [.identicalRemoved, .identicalAdded])
         let added = try presentation("", "mine\n", "theirs\nmore\n")
         XCTAssertEqual(MergeText.conflicts(in: added.result).count, 1)
         XCTAssertEqual(added.sources.resultLocator?.states.count, MergeRegexFilters.lines(added.result).count)
         XCTAssertTrue(added.sources.resultLocator?.states.allSatisfy { $0 == .conflicted } == true)
-        XCTAssertEqual(added.sources.rows.last?.mine.state, .conflicted)
+        XCTAssertEqual(added.sources.rows.last?.mine.state, .conflictEmpty)
         XCTAssertNil(added.sources.rows.last?.mine.lineNumber)
         XCTAssertEqual(added.sources.rows.compactMap { $0.mine.lineNumber == nil ? nil : $0.mine.text }.joined(), "mine\n")
         XCTAssertEqual(added.sources.rows.compactMap { $0.theirs.lineNumber == nil ? nil : $0.theirs.text }.joined(), "theirs\nmore\n")
@@ -65,7 +78,7 @@ final class SubversionMergePresentationTests: XCTestCase {
         XCTAssertEqual(value.sources.rows.count, 5)
         XCTAssertEqual(value.sources.rows[0].mine.text, "base\n")
         XCTAssertEqual(value.sources.rows[1].mine.text, "")
-        XCTAssertEqual(value.sources.rows[1].mine.state, .removed)
+        XCTAssertEqual(value.sources.rows[1].mine.state, .identicalRemoved)
         XCTAssertNil(value.sources.rows[1].mine.lineNumber)
         XCTAssertEqual(value.sources.rows.compactMap { $0.mine.lineNumber == nil ? nil : $0.mine.text }.joined(), mine)
         XCTAssertEqual(value.sources.rows.compactMap { $0.theirs.lineNumber == nil ? nil : $0.theirs.text }.joined(), theirs)

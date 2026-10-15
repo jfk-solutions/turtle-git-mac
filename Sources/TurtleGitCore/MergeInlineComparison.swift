@@ -84,7 +84,7 @@ public struct MergeInlineComparison: Sendable {
 public enum MergeInlinePresentation {
     public static func comparison(cell: MergeSourceCell, other: MergeSourceCell, left: Bool,
                                   word: Bool, maximumLength: Int) -> MergeInlineComparison? {
-        guard cell.state != .normal, cell.state != .filtered, cell.state != .empty,
+        guard !cell.state.isUnchanged, cell.state != .empty, cell.state != .conflictEmpty,
               !cell.displayText.isEmpty, !other.displayText.isEmpty,
               cell.displayText.utf16.count <= maximumLength else { return nil }
         return MergeInlineComparison(base: left ? cell.displayText : other.displayText,

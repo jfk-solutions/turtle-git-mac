@@ -98,7 +98,8 @@ public struct SubversionMergePresentation: Sendable {
             // It still treats the complete parent as unresolved.
             let resolvedPadding = segment.kind == .conflict ? segment.resolved.first.flatMap { child in child.mine.flatMap { mine in child.theirs.map { min(mine.count, $0.count) } } } ?? 0 : 0
             for offset in 0..<max(segment.base.count, resolvedPadding) {
-                let removed = MergeSourceCell(text: offset < segment.base.count ? plan.base[segment.base.lowerBound + offset] : "", lineNumber: nil, state: .removed)
+                let removedState: MergeSourceState = segment.kind == .modified ? .yoursRemoved : segment.kind == .latest ? .theirsRemoved : .identicalRemoved
+                let removed = MergeSourceCell(text: offset < segment.base.count ? plan.base[segment.base.lowerBound + offset] : "", lineNumber: nil, state: removedState)
                 rows.append(.init(
                     mine: segment.kind == .latest ? cell(plan.mine, segment.mine.lowerBound + offset, .normal) : removed,
                     theirs: segment.kind == .modified ? cell(theirs, segment.theirs.lowerBound + offset, .normal) : removed))
@@ -106,14 +107,17 @@ public struct SubversionMergePresentation: Sendable {
             let mineAdded = segment.kind == .latest ? 0 : segment.mine.count
             let theirsAdded = segment.kind == .modified ? 0 : segment.theirs.count
             for offset in 0..<max(mineAdded, theirsAdded) {
-                let state: MergeSourceState = segment.kind == .conflict ? .conflicted : .added
-                rows.append(.init(mine: offset < mineAdded ? cell(plan.mine, segment.mine.lowerBound + offset, state) : gap(segment.kind == .conflict ? .conflicted : .empty),
-                                  theirs: offset < theirsAdded ? cell(theirs, segment.theirs.lowerBound + offset, state) : gap(segment.kind == .conflict ? .conflicted : .empty)))
+                // DiffData uses IdenticalAdded for Mine-only source rows, while
+                // the result records YoursAdded. Theirs keeps TheirsAdded.
+                let state: MergeSourceState = segment.kind == .conflict ? .conflictAdded : segment.kind == .latest ? .theirsAdded : .identicalAdded
+                rows.append(.init(mine: offset < mineAdded ? cell(plan.mine, segment.mine.lowerBound + offset, state) : gap(segment.kind == .conflict ? .conflictEmpty : .empty),
+                                  theirs: offset < theirsAdded ? cell(theirs, segment.theirs.lowerBound + offset, state) : gap(segment.kind == .conflict ? .conflictEmpty : .empty)))
             }
             switch segment.kind {
             case .common: break
-            case .modified, .same: append(mineText, state: .added)
-            case .latest: append(theirsText, state: .added)
+            case .modified: append(mineText, state: .yoursAdded)
+            case .same: append(mineText, state: .identicalAdded)
+            case .latest: append(theirsText, state: .theirsAdded)
             case .conflict:
                 let separator = separated(output).utf16.count > outputLength ? "\n" : ""
                 append(separator + "<<<<<<< Mine\n" + separated(mineText) + "||||||| Base\n" + separated(baseText) + "=======\n" + separated(theirsText) + ">>>>>>> Theirs\n", state: .conflicted)

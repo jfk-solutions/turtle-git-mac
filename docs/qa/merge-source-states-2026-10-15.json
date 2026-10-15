@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-15",
+  "scope": "Merge source-state aliases, palette channels, source export and pane line statistics",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "DiffStates.h and DiffData.cpp common/one-side/identical/conflict source groups",
+    "SetColorPage.cpp Added/Removed aliases and ConflictEmpty Apply channels",
+    "BaseView.cpp UpdateStatusBar, GetSelectedText and SaveFile"
+  ],
+  "implementation": [
+    "Authoritative Identical/Mine/Theirs removed/added state projections and ConflictAdded/ConflictEmpty source rows",
+    "Retain Conflicted result states and exact marker text; preserve numbered source reconstruction",
+    "Palette alias grouping and cold/Colors-applied conflict-gap backgrounds with Conflict foreground",
+    "Immutable palette snapshot records applied state; per-row painting does not decode preferences",
+    "Removal aliases use removal inline colors; conflict gaps do not request inline comparison",
+    "Locator, result provenance/history and modified-only Find retain alias identities",
+    "Source Save As excludes removal aliases/gaps unless requested, and no longer invents result conflict markers for actual conflict-added source rows",
+    "Source categories drive nonzero per-pane Removed/Added/Conflicted counts in two-pane/combined/three-pane views; readable system text plus palette swatches"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/merge-source-states-build-2026-10-15.log"
+    },
+    "core": {
+      "initial_checks": 34,
+      "initial_failures": 1,
+      "initial_log": "build/qa/merge-source-states-core-2026-10-15.log",
+      "initial_failure": "Existing unequal add/add assertion expected a source conflict instead of the new shorter-side ConflictEmpty gap. Corrected the exact state expectation.",
+      "recheck_checks": 1,
+      "recheck_failures": 0,
+      "recheck_log": "build/qa/merge-source-states-core-recheck-2026-10-15.log",
+      "scope": [
+        "Actual Subversion plans and source reconstruction",
+        "Exact side/identical/conflict-gap states and result aliases",
+        "Actual source export bytes without artificial markers",
+        "Cold/applied light/dark palette roles and status categories",
+        "Existing Find, clipboard, inline and result provenance checks"
+      ]
+    },
+    "native_group": {
+      "log": "build/qa/merge-source-states-native-2026-10-15.log",
+      "command_mode": "--states-only",
+      "scope": [
+        "Three-pane engine integration plus native attributed source alias painting in custom light/dark palettes",
+        "Two-pane engine",
+        "Merge Find",
+        "Native Colors controls/lifecycle",
+        "Clipboard target workflow"
+      ],
+      "result": "5 grouped phases passed",
+      "owned_compiler_and_receiver_pids_reaped": [
+        94799,
+        94869
+      ]
+    },
+    "native_history": {
+      "log": "build/qa/merge-source-states-history-native-2026-10-15.log",
+      "result": "passed",
+      "owned_receiver_reaped": 94859,
+      "scope": "Actual result resolution colors, native typing Undo/Redo provenance, Save exact bytes, Reload reset and two-pane annotations"
+    },
+    "orchestration_note": "Initial reference command named an unavailable merge-inline case and exited during argument parsing; no receiver launched. Corrected to the available result-colors case. Inline Core checks were already included.",
+    "all_owned_processes_absent": true,
+    "documentation": {
+      "reconciled": true,
+      "site_exit_code": 0,
+      "documents": 215,
+      "unresolved_fragments": []
+    }
+  },
+  "limits": [
+    "Eight additional source aliases are emitted, not the full upstream DiffState catalogue",
+    "Whitespace-only, ignored-conflict and resolved-empty state production remains open",
+    "No new complete window screenshot or physical status-bar/input/VoiceOver acceptance",
+    "Save As byte checks establish Core projection, not physical file-panel acceptance",
+    "Signed/minimum-OS, Finder and App Store distribution remain open",
+    "No full hosted CI or whole-application parity claim"
+  ]
+}

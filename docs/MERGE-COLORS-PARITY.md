@@ -79,3 +79,10 @@ Resolved and manual edited result channels are now connected to editing, history
 save/reload, Find and locator presentation in
 [Result states parity](MERGE-RESULT-STATES-PARITY.md). Remaining source aliases and
 physical/signed acceptance are still open.
+
+
+Side-specific, identical-change and conflict source/gap aliases now share the
+source palette channels and Colors Apply behavior. Pane statistics use these
+state categories as well. See [source states and counts](MERGE-RESULT-STATES-PARITY.md).
+Whitespace-only/ignored/resolved-empty production and physical whole-window
+acceptance remain open; the new aliases do not certify the full state catalogue.

@@ -44,6 +44,46 @@ import TurtleGitCore
         let configuration = SubversionMergeConfiguration(executable: URL(fileURLWithPath: CommandLine.arguments[1]), runtimeRoot: URL(fileURLWithPath: CommandLine.arguments[2]), regexExecutable: URL(fileURLWithPath: CommandLine.arguments[3]))
         try await verify(configuration: configuration, screenshots: CommandLine.arguments.count > 4 ? URL(fileURLWithPath: CommandLine.arguments[4]) : nil)
     }
+    @MainActor static func aliasRGB(_ color:NSColor,_ appearance:NSAppearance)->UInt32? {
+        var value:UInt32?;appearance.performAsCurrentDrawingAppearance {if let c=color.usingColorSpace(.sRGB) {value=UInt32((c.redComponent*255).rounded())<<16 | UInt32((c.greenComponent*255).rounded())<<8 | UInt32((c.blueComponent*255).rounded())}};return value
+    }
+    @MainActor static func verifyAliases(_ model:TextConflictWindowModel,_ owner:TextConflictWindowController,_ defaults:UserDefaults) async throws {
+        let old=defaults.data(forKey:"TurtleGitMerge.Colors"),inline=model.showInlineDiff,appearance=owner.window?.appearance
+        defer {
+            if let old {defaults.set(old,forKey:"TurtleGitMerge.Colors")} else {defaults.removeObject(forKey:"TurtleGitMerge.Colors")}
+            MergePalette.reload(defaults:defaults);owner.window?.appearance=appearance;model.setInlineDiff(inline);model.objectWillChange.send()
+        }
+        var palette=MergeColorPreferences()
+        palette.light[.conflicted]=UnifiedDiffColors(0x112233,0xcc3344);palette.dark[.conflicted]=UnifiedDiffColors(0xaabbcc,0x552233)
+        palette.light[.empty]=UnifiedDiffColors(0,0x778899);palette.dark[.empty]=UnifiedDiffColors(0,0x223344)
+        try palette.save(to:defaults);MergePalette.reload(defaults:defaults);model.setInlineDiff(false)
+        guard let rows=model.sourceComparison?.rows else {preconditionFailure("No alias source rows")}
+        precondition(rows.contains {$0.mine.state == .conflictAdded} && rows.contains {$0.mine.state == .identicalRemoved})
+        for dark in [false,true] {
+            let appearance=NSAppearance(named:dark ? .darkAqua:.aqua)!
+            owner.window?.appearance=appearance;model.objectWillChange.send()
+            try await Task.sleep(nanoseconds:100_000_000)
+            for state in MergeSourceState.allCases {
+                let expected=palette.stateColors(state,dark:dark,applied:true)
+                precondition(aliasRGB(MergePalette.color(state),appearance)==expected.background)
+                precondition(aliasRGB(MergePalette.foreground(state),appearance)==expected.foreground)
+            }
+            for mine in [false,true] {
+                let cells=rows.map {mine ? $0.mine:$0.theirs},display=cells.map(\.displayText).joined(separator:"\n")+"\n"
+                try await wait {textViews(owner.window?.contentView).contains {$0.string==display && !$0.isEditable}}
+                let view=textViews(owner.window?.contentView).first {$0.string==display && !$0.isEditable}!
+                var offset=0
+                for cell in cells {
+                    let expected=palette.stateColors(cell.state,dark:dark,applied:true)
+                    let background=view.textStorage?.attribute(.backgroundColor,at:offset,effectiveRange:nil) as? NSColor
+                    precondition(background.flatMap {aliasRGB($0,appearance)}==expected.background)
+                    offset += cell.displayText.utf16.count+1
+                }
+            }
+        }
+        let counts=MergeLineStatistics(states:rows.map {$0.mine.state})
+        precondition(counts.added>0 && counts.removed>0 && counts.conflicted==0)
+    }
     @MainActor static func verify(configuration: SubversionMergeConfiguration, screenshots: URL? = nil) async throws {
         let discovered = try SubversionMergeConfiguration.bundled()
         precondition(discovered.executable.resolvingSymlinksInPath().path == configuration.executable.resolvingSymlinksInPath().path)
@@ -81,6 +121,7 @@ import TurtleGitCore
         try await Task.sleep(nanoseconds: 150_000_000)
         try await wait { !model.busy }
         try await wait { editableView(controller.window?.contentView) != nil }
+        try await verifyAliases(model,controller,defaults)
         model.setWhitespaceDisplay(.init(visible: false, endingIcons: true))
         try await wait {
             let views = textViews(controller.window?.contentView)

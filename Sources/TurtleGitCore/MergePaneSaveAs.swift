@@ -22,7 +22,7 @@ public enum MergePaneSaveAs {
                 output += ">>>>>>> .theirs"
                 index = end; continue
             }
-            if cell.state != .empty && (keepRemoved || cell.state != .removed) { output += cell.text }
+            if cell.state != .empty && (keepRemoved || !cell.state.isRemoval && cell.state != .conflictEmpty) { output += cell.text }
             index += 1
         }
         return output

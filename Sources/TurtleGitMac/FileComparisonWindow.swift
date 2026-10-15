@@ -1062,6 +1062,11 @@ private struct FileComparisonDialog: View {
                 else if let image = NSImage(data: content.bytes) { Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: .infinity) }
                 else { ScrollView { Text("Binary or unsupported text encoding · \(content.bytes.count) bytes\n\n" + content.bytes.prefix(4096).enumerated().map { ($0.offset % 16 == 0 ? "\n" : " ") + String(format: "%02X", $0.element) }.joined()).font(.system(.caption, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) } }
             } else { Color(nsColor: .textBackgroundColor) }
+            if let alignment=model.alignment {
+                let states=model.onePaneActive ? model.combined?.rows.map { $0.cell.state } ?? []:alignment.rows.map {base ? $0.base.state:$0.destination.state}
+                let counts=MergeLineStatistics(states:states)
+                if !counts.isEmpty {MergeLineStatisticsView(statistics:counts)}
+            }
             HStack {
                 MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { model.changeEncoding($0, base: base) }, changeEnding: { model.changeLineEnding($0, base: base) }, showFormatDialog:{ model.showFormatDialog(base:base) })
                 Spacer()

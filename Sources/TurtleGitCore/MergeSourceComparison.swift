@@ -1,6 +1,29 @@
 import Foundation
 
-public enum MergeSourceState: Sendable, Equatable { case normal, removed, added, conflicted, resolved, edited, empty, filtered }
+public enum MergeSourceState: Sendable, Equatable, CaseIterable {
+    case normal, removed, added, conflicted, resolved, edited, empty, filtered
+    case identicalRemoved, identicalAdded, theirsRemoved, theirsAdded, yoursRemoved, yoursAdded
+    case conflictAdded, conflictEmpty
+    public var isRemoval: Bool { [.removed,.identicalRemoved,.theirsRemoved,.yoursRemoved].contains(self) }
+    public var isAddition: Bool { [.added,.identicalAdded,.theirsAdded,.yoursAdded,.conflictAdded].contains(self) }
+    public var isConflict: Bool { [.conflicted,.conflictAdded,.conflictEmpty].contains(self) }
+    public var isUnchanged: Bool { self == .normal || self == .filtered }
+}
+
+/// CBaseView::UpdateStatusBar counts source state categories, not text rows or
+/// conflict-marker matches. ConflictAdded counts as added; Empty/ConflictEmpty
+/// gaps do not count. IdenticalRemoved padding follows the source removal count.
+public struct MergeLineStatistics: Equatable, Sendable {
+    public private(set) var added = 0, removed = 0, conflicted = 0
+    public init(states: [MergeSourceState]) {
+        for state in states {
+            if state.isAddition {added += 1}
+            else if state.isRemoval {removed += 1}
+            else if state == .conflicted {conflicted += 1}
+        }
+    }
+    public var isEmpty: Bool {added == 0 && removed == 0 && conflicted == 0}
+}
 
 public struct MergeSourceCell: Sendable {
     /// Original bytes represented by this line, including its line ending.

@@ -136,6 +136,20 @@ public enum MergeColorRole: String, CaseIterable, Codable, Hashable, Sendable {
     public var supportsForeground: Bool { ![Self.modified, .filtered, .inlineAdded, .inlineRemoved].contains(self) }
     public var supportsBackground: Bool { self != .whitespace }
 }
+extension MergeSourceState {
+    public var colorRole: MergeColorRole {
+        switch self {
+        case .normal: return .normal
+        case .removed,.identicalRemoved,.theirsRemoved,.yoursRemoved: return .removed
+        case .added,.identicalAdded,.theirsAdded,.yoursAdded: return .added
+        case .conflicted,.conflictAdded,.conflictEmpty: return .conflicted
+        case .resolved: return .resolved
+        case .edited: return .modified
+        case .empty: return .empty
+        case .filtered: return .filtered
+        }
+    }
+}
 public struct MergeColorPreferences: Codable, Equatable, Sendable {
     public var light: [MergeColorRole: UnifiedDiffColors]
     public var dark: [MergeColorRole: UnifiedDiffColors]
@@ -161,6 +175,14 @@ public struct MergeColorPreferences: Codable, Equatable, Sendable {
         return UnifiedDiffColors(role == .whitespace ? (dark ? 0xaaaaaa : 0x808080) : (dark ? 0xdddddd : 0), background)
     }
     public func colors(_ role: MergeColorRole, dark: Bool) -> UnifiedDiffColors { (dark ? self.dark : light)[role] ?? Self.standard(role, dark: dark) }
+    /// SetColorPage groups side/identical aliases with Added/Removed. Its
+    /// Apply path gives ConflictEmpty the Empty background and Conflict text;
+    /// before the first saved Colors page, the source default is Conflict red.
+    public func stateColors(_ state: MergeSourceState, dark: Bool, applied: Bool = false) -> UnifiedDiffColors {
+        let foreground = colors(state == .edited ? .added : state.colorRole, dark: dark).foreground
+        let background = colors(state == .conflictEmpty && applied ? .empty : state.colorRole, dark: dark).background
+        return UnifiedDiffColors(foreground, background)
+    }
     public mutating func restore(dark: Bool) {
         for role in MergeColorRole.allCases { if dark { self.dark[role] = Self.standard(role, dark: true) } else { light[role] = Self.standard(role, dark: false) } }
     }

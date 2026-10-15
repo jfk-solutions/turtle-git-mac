@@ -61,7 +61,7 @@ public enum MergeFind {
         var result: [NSRange] = []
         let flags: NSString.CompareOptions = options.matchCase ? [.literal] : [.literal, .caseInsensitive]
         for line in lines {
-            guard line.state != .empty, !options.modifiedOnly || (line.state != .normal && line.state != .filtered) else { continue }
+            guard line.state != .empty, !options.modifiedOnly || !line.state.isUnchanged else { continue }
             let text = line.text as NSString
             var cursor = 0
             while cursor < text.length {

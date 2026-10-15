@@ -348,7 +348,7 @@ private enum MergeSourceSide {
             inlineCache = [:]; inlineCacheWord = inlineWordDiff; inlineCacheMaximum = maximum
         }
         let cell = mine ? rows[row].mine : rows[row].theirs, other = mine ? rows[row].theirs : rows[row].mine
-        guard cell.state != .normal, cell.state != .filtered, cell.state != .empty,
+        guard !cell.state.isUnchanged, cell.state != .empty, cell.state != .conflictEmpty,
               cell.displayText.utf16.count <= maximum else { return nil }
         if let cached = inlineCache[row] { return cached.value }
         let value = MergeInlinePresentation.comparison(cell: cell, other: other, left: !mine,
@@ -722,14 +722,15 @@ private enum MergeSourceSide {
 enum MergePalette {
     private final class Storage: @unchecked Sendable {
         let lock = NSLock(); var value = MergeColorPreferences.load(); var revision = 0
-        func snapshot() -> (MergeColorPreferences, Int) { lock.lock(); defer { lock.unlock() }; return (value, revision) }
-        func replace(_ value: MergeColorPreferences) { lock.lock(); defer { lock.unlock() }; self.value = value; revision += 1 }
+        var applied = UserDefaults.standard.data(forKey:"TurtleGitMerge.Colors") != nil
+        func snapshot() -> (MergeColorPreferences, Int, Bool) { lock.lock(); defer { lock.unlock() }; return (value, revision, applied) }
+        func replace(_ value: MergeColorPreferences, applied: Bool) { lock.lock(); defer { lock.unlock() }; self.value = value; self.applied = applied; revision += 1 }
     }
     private static let storage = Storage()
     static var revision: Int { storage.snapshot().1 }
-    static func reload(defaults: UserDefaults = .standard) { storage.replace(.load(from: defaults)) }
+    static func reload(defaults: UserDefaults = .standard) { storage.replace(.load(from: defaults),applied:defaults.data(forKey:"TurtleGitMerge.Colors") != nil) }
     static func role(_ state: MergeSourceState) -> MergeColorRole {
-        switch state { case .normal: return .normal; case .removed: return .removed; case .added: return .added; case .conflicted: return .conflicted; case .resolved: return .resolved; case .edited: return .modified; case .empty: return .empty; case .filtered: return .filtered }
+        state.colorRole
     }
     static func roleColor(_ role: MergeColorRole, foreground: Bool = false) -> NSColor {
         let palette = storage.snapshot().0
@@ -739,8 +740,16 @@ enum MergePalette {
             return NSColor(srgbRed: CGFloat((rgb >> 16) & 255) / 255, green: CGFloat((rgb >> 8) & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1)
         }
     }
-    static func color(_ state: MergeSourceState) -> NSColor { roleColor(role(state)) }
-    static func foreground(_ state: MergeSourceState) -> NSColor { roleColor(state == .edited ? .added : role(state), foreground: true) }
+    private static func stateColor(_ state: MergeSourceState, foreground: Bool) -> NSColor {
+        let (palette,_,applied)=storage.snapshot()
+        return NSColor(name:nil) { appearance in
+            let color=palette.stateColors(state,dark:appearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua,applied:applied)
+            let rgb=foreground ? color.foreground:color.background
+            return NSColor(srgbRed:CGFloat((rgb >> 16) & 255)/255,green:CGFloat((rgb >> 8) & 255)/255,blue:CGFloat(rgb & 255)/255,alpha:1)
+        }
+    }
+    static func color(_ state: MergeSourceState) -> NSColor {stateColor(state,foreground:false)}
+    static func foreground(_ state: MergeSourceState) -> NSColor {stateColor(state,foreground:true)}
     static var inlineCommon: NSColor { roleColor(.modified) }
     static var inlineAdded: NSColor { roleColor(.inlineAdded) }
     static var inlineRemoved: NSColor { roleColor(.inlineRemoved) }
@@ -758,6 +767,8 @@ private struct TextConflictDialog: View {
         return VStack(spacing: 0) {
             HStack { Text(title).font(.headline); Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
+            let counts=MergeLineStatistics(states:cells?.map(\.state) ?? model.resultStates)
+            if !counts.isEmpty {MergeLineStatisticsView(statistics:counts).padding(.horizontal,7).padding(.vertical,2)}
             HStack {
                 MergeFormatControls(label: title, encoding: encoding, text: text, editable: editable && !model.busy && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, showFormatDialog:model.showFormatDialog)
                 Spacer()
@@ -925,7 +936,7 @@ private struct MergeEditor: NSViewRepresentable {
                 view.textStorage?.addAttributes([.backgroundColor: MergePalette.color(cell.state), .foregroundColor: MergePalette.foreground(cell.state)], range: NSRange(location: offset, length: length))
                 if let sourceSide, let diff = model.inlineDifference(row, mine: sourceSide == .mine) {
                     let left = sourceSide == .theirs
-                    let removal = cell.state == .removed
+                    let removal = cell.state.isRemoval
                     view.textStorage?.addAttribute(.backgroundColor, value: MergePalette.inlineCommon, range: NSRange(location: offset, length: length))
                     for range in left ? diff.base : diff.destination {
                         view.textStorage?.addAttribute(.backgroundColor, value: removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length))

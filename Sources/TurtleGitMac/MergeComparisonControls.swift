@@ -430,3 +430,22 @@ struct MergeLocatorBar: NSViewRepresentable {
     }
     func retire() { retired = true; entries = [:]; alignedHeights = []; geometryChanged = {} }
 }
+
+
+struct MergeLineStatisticsView: View {
+    let statistics: MergeLineStatistics
+    private func count(_ title:String,_ value:Int,_ state:MergeSourceState)->some View {
+        HStack(spacing:4) {
+            Rectangle().fill(Color(nsColor:MergePalette.color(state))).overlay(Rectangle().stroke(.secondary,lineWidth:0.5)).frame(width:8,height:8).accessibilityHidden(true)
+            Text("\(title): \(value)")
+        }
+    }
+    var body: some View {
+        HStack(spacing:12) {
+            if statistics.removed > 0 {count("Removed",statistics.removed,.removed)}
+            if statistics.added > 0 {count("Added",statistics.added,.added)}
+            if statistics.conflicted > 0 {count("Conflicted",statistics.conflicted,.conflicted)}
+            Spacer(minLength:0)
+        }.font(.caption).accessibilityElement(children:.combine)
+    }
+}

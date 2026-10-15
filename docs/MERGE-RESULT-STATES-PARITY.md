@@ -35,3 +35,44 @@ not repeated for those native-only repairs. The final two-case native group pass
 result/history/colors and clipboard regression checks with all owned processes
 reaped. No duplicate Git-engine run was needed for standalone file-state checks.
 See [batch evidence](qa/merge-result-colors-2026-10-14.json).
+
+
+## Source state aliases and pane statistics — October 15, 2026
+
+The authoritative three-pane presentation now retains IdenticalRemoved/Added,
+YoursRemoved/Added, TheirsRemoved/Added and ConflictAdded/Empty identities instead
+of collapsing all source rows into Removed/Added/Conflicted. Common changes use
+identical aliases; single-side changes retain the changed side. The source's
+Mine-only source-row IdenticalAdded convention is retained, while the result
+records YoursAdded. Conflict Base padding is IdenticalRemoved; real source lines
+are ConflictAdded and shorter-side gaps are ConflictEmpty. The unresolved result
+continues to use Conflicted and its exact marker text.
+
+These states propagate into locator stripes, result presentation/history,
+modified-only Find and source inline colors. Removal aliases keep removal inline
+painting. Empty conflict gaps do not request character comparisons. Clipboard
+keeps the upstream distinction between Empty rows and conflict gaps. Source Save
+As suppresses removal aliases and conflict gaps unless Save Removed Lines is
+requested; ConflictAdded exports actual source contents without inventing the
+unresolved-result marker serialization. Original encodings and endings survive.
+
+Two-pane, combined and three-pane footers now show nonzero Removed, Added and
+Conflicted line counts using the source status categories. ConflictAdded counts
+as added, not as an unresolved result line; Empty/ConflictEmpty gaps, filtered
+and edited states do not count. IdenticalRemoved Base padding retains the source
+removal count. Text stays in the system foreground with small palette
+swatches for readable light/dark presentation.
+
+The existing Colors page groups all side/identical aliases with Added/Removed
+without adding unsupported swatches. ConflictAdded uses Conflict channels.
+ConflictEmpty follows the source cold default and Colors Apply distinction:
+initially the Conflict background, then the Empty background with Conflict
+foreground once a Colors palette has been saved. The in-memory palette snapshot
+retains that state; no preferences are decoded during per-row drawing.
+
+[Batch evidence](qa/merge-source-states-2026-10-15.json) records actual engine
+projections, source export bytes, native attributed source painting in light/dark,
+locator/Find and existing history/inline regressions separately from physical
+status-bar layout, VoiceOver and signed acceptance. Whitespace-only, ignored
+conflict and resolved-empty state production, complete source editing and full
+Merge/application parity remain open.

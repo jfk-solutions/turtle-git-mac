@@ -95,6 +95,14 @@ struct NativeBatch {
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.contains("--states-only") {
+            try await phase("ThreePaneEngineVerification") { try await ThreePaneEngineVerification.verify(configuration: SubversionMergeConfiguration.bundled()) }
+            try await phase("TwoPaneEngineVerification") { try await TwoPaneEngineVerification.verify() }
+            try await phase("MergeFindNativeVerification") { try await MergeFindNativeVerification.verify() }
+            try await phase("MergeColorsNativeVerification") { try await MergeColorsNativeVerification.verify() }
+            try await phase("ClipboardTargetNativeVerification") { try await ClipboardTargetNativeVerification.verify() }
+            return
+        }
         if CommandLine.arguments.contains("--email-only") { try await phase("EmailSettingsVerification") { try await EmailSettingsVerification.verify() }; return }
         if CommandLine.arguments.contains("--lfs-only") { try await phase("LFSLocksVerification") { try await LFSLocksVerification.main() }; return }
         if !CommandLine.arguments.contains("--lfs-mail-only") {
@@ -167,11 +175,11 @@ struct NativeBatch {
     environment = os.environ.copy()
     environment.update(DYLD_FRAMEWORK_PATH=str(products), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1')
     for variable in ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL']: environment.pop(variable, None)
-    if '--lfs-only' in sys.argv or '--email-only' in sys.argv:
-        mode = '--email-only' if '--email-only' in sys.argv else '--lfs-only'
+    if any(mode in sys.argv for mode in ['--lfs-only', '--email-only', '--states-only']):
+        mode = '--states-only' if '--states-only' in sys.argv else '--email-only' if '--email-only' in sys.argv else '--lfs-only'
         receiver = subprocess.Popen([str(executable), str(mail_fixture), '0', str(lfs_fixture), '/usr/bin/git', str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex'), mode], cwd=root, env=environment, start_new_session=True)
         try:
-            try: code = receiver.wait(timeout=120)
+            try: code = receiver.wait(timeout=300 if mode == '--states-only' else 120)
             except subprocess.TimeoutExpired as error:
                 phase_file = mail_fixture / 'phase.json'
                 phase = phase_file.read_text() if phase_file.exists() else 'not published'
