@@ -279,6 +279,10 @@ jobs:
           # Core-only SwiftPM deliberately does not build .build/debug/TurtleGitMac.
           TURTLEGIT_REBASE_EDITOR: ${{ github.workspace }}/build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac
         run: TURTLEGIT_CORE_ONLY=1 swift test
+      - name: Pinned inline parser and matching oracle
+        run: python3 scripts/test-inline-source.py
+      - name: Inline engine native consumers
+        run: python3 scripts/test-inline-native.py
       - name: Working copy revision utility and upstream templates
         run: python3 scripts/test-wcrev.py --tool .build/debug/TurtleGitWCRev --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: SVN command compatibility with pinned Git

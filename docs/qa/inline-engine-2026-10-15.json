@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "e5f34171",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Shared in-process Subversion inline matching across Compare, combined and three-pane source painting, line preview and navigation; retain UTF-16 ranges, missing markers, similarity, length limits and text/Undo ownership.",
+  "implementation": {
+    "runtime": "Bundled private Subversion 1.14.5 libsvn_diff; per-call APR pools and callback contexts, process-lifetime library; no per-line helper",
+    "runtime_resolution": "Packaged app own bundle only; standalone development companion app or non-AppStore checkout runtime",
+    "source_behavior": "Character UTF-16 tokens; source Adler32 seed zero on UTF-16LE word tokens; svn_diff_diff_2/output2 callbacks; source similarity gate",
+    "remaining_classifier_limit": "Foundation UTF-16 alphanumerics are not certified equivalent to all Windows IsCharAlphaNumeric locales"
+  },
+  "validation": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/inline-engine-build.log",
+      "notes": "Existing diagnostic warnings and exit-zero compiler-command noise remain. Only copyright attribution comments were added to the new Core source after its object compiled; executable code was unchanged."
+    },
+    "source_core": {
+      "exit": 0,
+      "log": "build/qa/inline-engine-source.log",
+      "tests": 7,
+      "failures": 0,
+      "reference_pairs": 1803,
+      "concurrent_calls": 160,
+      "source": "Original GPL SVNLineDiff header/cpp read at pinned commit and Git blob identity verified; char16_t/u16string replace Windows wchar types. ASCII word classifier adaptation; original parser/hash/callbacks retained. Public output2 extracts source segments. ShowInlineDiff private-struct traversal excluded; source formula checked separately."
+    },
+    "old_matcher_comparison": {
+      "log": "build/qa/inline-old-ties.log",
+      "different_pairs": 827,
+      "total_pairs": 1803,
+      "example": {
+        "base": "keep a shared tail",
+        "destination": "keep baa shared tail",
+        "source_modified_token_ranges": [
+          [
+            5,
+            0,
+            5,
+            1
+          ],
+          [
+            6,
+            0,
+            7,
+            1
+          ]
+        ],
+        "old_swift_added_tokens": [
+          5,
+          6
+        ]
+      }
+    },
+    "native": {
+      "first_attempt": {
+        "exit": 1,
+        "log": "build/qa/inline-engine-native.log",
+        "owned_pid": 8850,
+        "reason": "Fixture compared anonymous dynamic NSColor objects directly; assertion failed at preview highlight. Fixed resolved sRGB comparisons in each appearance, all common/changed units, and strengthened retained three-pane distinct-color assertion."
+      },
+      "final": {
+        "exit": 0,
+        "log": "build/qa/inline-engine-native-final.log",
+        "owned_pid": 8943,
+        "completion_marker": "PASS: inline engine completed:",
+        "scope": "Retained actual two/three-pane inline family plus four repeated-text character/word cases in both directions. Source reference positions, actual native caret stops, per-unit pane and line-preview sRGB colors in Aqua/Dark Aqua, immutable files and Undo."
+      }
+    }
+  },
+  "ownership": "Receivers own private files/preferences and windows. Runner terminates/waits its process group on every exit; no unrelated apps terminated.",
+  "not_proven": [
+    "Complete application/dialog parity",
+    "Physical keyboard/focus/VoiceOver behavior",
+    "All three-pane result states",
+    "All Windows locale word classifications",
+    "Signed hardened/sandbox/App Store execution of the in-process runtime",
+    "Minimum supported OS and Intel native acceptance",
+    "Hosted CI completion for this batch"
+  ],
+  "screenshots": "No screenshots added: engine change; native assertions cover rendered text attributes and existing gallery remains unchanged."
+}

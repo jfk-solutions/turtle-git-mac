@@ -64,7 +64,11 @@ struct MergeInlineNativeVerification {
         try await ThreePaneEngineVerification.wait {
             guard let changed = source.textStorage?.attribute(.backgroundColor, at: offset, effectiveRange: nil) as? NSColor,
                   let common = source.textStorage?.attribute(.backgroundColor, at: commonOffset, effectiveRange: nil) as? NSColor else { return false }
-            return !changed.isEqual(common)
+            var distinct = false
+            (triple.window?.effectiveAppearance ?? NSAppearance(named: .aqua)!).performAsCurrentDrawingAppearance {
+                if let changed = changed.usingColorSpace(.sRGB), let common = common.usingColorSpace(.sRGB) { distinct = changed != common }
+            }
+            return distinct
         }
         let originalDirty = three.dirty, originalUndo = three.canUndo
         let originalResult = three.result, originalSelection = sourceViews.map { $0.selectedRange() }, originalStrings = sourceViews.map(\.string)

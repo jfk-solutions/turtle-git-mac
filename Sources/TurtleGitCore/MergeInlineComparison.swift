@@ -1,8 +1,8 @@
 import Foundation
 
 /// UTF-16 ranges for inline display of paired source lines. Source text is never changed.
-/// Token classes and the similarity gate follow SVNLineDiff; matching uses the
-/// Swift diff engine, so ambiguous repeated-token ties can differ from libsvn.
+/// Token classes, matching and similarity gate follow SVNLineDiff. Matching uses
+/// the bundled Subversion engine in process, including repeated-token LCS ties.
 public struct MergeInlineComparison: Sendable {
     public let base: [NSRange]
     public let destination: [NSRange]
@@ -50,29 +50,25 @@ public struct MergeInlineComparison: Sendable {
         }
         let ar = tokens(a), br = tokens(b)
         let at = ar.map { Array(a[$0]) }, bt = br.map { Array(b[$0]) }
-        var removed = Set<Int>(), added = Set<Int>()
-        for change in bt.difference(from: at) {
-            switch change { case .remove(let i, _, _): removed.insert(i); case .insert(let i, _, _): added.insert(i) }
-        }
-        var i = 0, j = 0, common = 0, chunks = 0
+        guard let segments = SubversionInlineDiff.segments(base: at, destination: bt, word: word) else { return nil }
+        var common = 0, removed = 0, added = 0, chunks = 0
         var left: [NSRange] = [], right: [NSRange] = [], leftMissing: [Int] = [], rightMissing: [Int] = []
         var leftPositions: [NSRange] = [], rightPositions: [NSRange] = []
         func offset(_ ranges: [Range<Int>], _ index: Int, _ end: Int) -> Int { index < ranges.count ? ranges[index].lowerBound : end }
-        while i < ar.count || j < br.count {
-            if removed.contains(i) || added.contains(j) {
-                let firstA = i, firstB = j; chunks += 1
-                while removed.contains(i) { i += 1 }
-                while added.contains(j) { j += 1 }
-                let x = offset(ar, firstA, a.count), y = offset(br, firstB, b.count)
-                leftPositions.append(NSRange(location: x, length: offset(ar, i, a.count) - x))
-                rightPositions.append(NSRange(location: y, length: offset(br, j, b.count) - y))
-                if i > firstA { left.append(NSRange(location: x, length: ar[i - 1].upperBound - x)) }
-                if j > firstB { right.append(NSRange(location: y, length: br[j - 1].upperBound - y)) }
-                if i - firstA < j - firstB { leftMissing.append(x) }
-                if j - firstB < i - firstA { rightMissing.append(y) }
-            } else { common += 1; i += 1; j += 1 }
+        for segment in segments {
+            if segment.common { common += segment.base.count; continue }
+            let firstA = segment.base.lowerBound, firstB = segment.destination.lowerBound
+            let i = segment.base.upperBound, j = segment.destination.upperBound
+            chunks += 1; removed += segment.base.count; added += segment.destination.count
+            let x = offset(ar, firstA, a.count), y = offset(br, firstB, b.count)
+            leftPositions.append(NSRange(location: x, length: offset(ar, i, a.count) - x))
+            rightPositions.append(NSRange(location: y, length: offset(br, j, b.count) - y))
+            if i > firstA { left.append(NSRange(location: x, length: ar[i - 1].upperBound - x)) }
+            if j > firstB { right.append(NSRange(location: y, length: br[j - 1].upperBound - y)) }
+            if segment.base.count < segment.destination.count { leftMissing.append(x) }
+            if segment.destination.count < segment.base.count { rightMissing.append(y) }
         }
-        guard chunks > 0, common * 2 > removed.count + added.count + 2 * chunks else { return nil }
+        guard chunks > 0, common * 2 > removed + added + 2 * chunks else { return nil }
         self.base = left; self.destination = right
         baseMissing = leftMissing; destinationMissing = rightMissing
         basePositions = leftPositions; destinationPositions = rightPositions

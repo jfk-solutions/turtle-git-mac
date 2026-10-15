@@ -2,6 +2,62 @@ import XCTest
 @testable import TurtleGitCore
 
 final class MergeInlineComparisonTests: XCTestCase {
+    func testPinnedSourceParserAndRepeatedTokenTies() throws {
+        struct Sample: Decodable {
+            let base: String, destination: String, word: Bool
+            let common: [[Int]], modified: [[Int]], tokens: [[Int]]
+        }
+        guard let path = ProcessInfo.processInfo.environment["TURTLEGIT_INLINE_SOURCE_EXPECTED"] else {
+            throw XCTSkip("Run scripts/test-inline-source.py for the independently compiled pinned-source corpus")
+        }
+        XCTAssertTrue(SubversionInlineDiff.available, "Bundled inline runtime must load")
+        let samples = try JSONDecoder().decode([Sample].self, from: Data(contentsOf: URL(fileURLWithPath: path)))
+        XCTAssertGreaterThan(samples.count, 1800)
+        for sample in samples {
+            let units = [Array(sample.base.utf16), Array(sample.destination.utf16)]
+            let lengths = sample.word ? sample.tokens : units.map { $0.map { _ in 1 } }
+            let offsets = lengths.map { side -> [Int] in
+                var values = [0]; for n in side { values.append(values.last! + n) }; return values
+            }
+            let tokens = units.enumerated().map { side, text in
+                lengths[side].indices.map { Array(text[offsets[side][$0]..<offsets[side][$0 + 1]]) }
+            }
+            let segments = try XCTUnwrap(SubversionInlineDiff.segments(base: tokens[0], destination: tokens[1], word: sample.word))
+            let raw = segments.map { [$0.base.lowerBound, $0.base.count, $0.destination.lowerBound, $0.destination.count] }
+            XCTAssertEqual(zip(segments, raw).filter { $0.0.common }.map { $0.1 }, sample.common, sample.base + " → " + sample.destination)
+            XCTAssertEqual(zip(segments, raw).filter { !$0.0.common }.map { $0.1 }, sample.modified, sample.base + " → " + sample.destination)
+            let common = sample.common.reduce(0) { $0 + $1[1] }
+            let changed = sample.modified.reduce(0) { $0 + $1[1] + $1[3] }
+            let visible = !sample.modified.isEmpty && common * 2 > changed + 2 * sample.modified.count
+            let actual = MergeInlineComparison(base: sample.base, destination: sample.destination, word: sample.word)
+            XCTAssertEqual(actual != nil, visible)
+            guard let actual else { continue }
+            func positions(_ side: Int) -> [NSRange] {
+                sample.modified.map { item in
+                    let start = item[side * 2], end = start + item[side * 2 + 1]
+                    return NSRange(location: offsets[side][start], length: offsets[side][end] - offsets[side][start])
+                }
+            }
+            XCTAssertEqual(actual.basePositions, positions(0)); XCTAssertEqual(actual.destinationPositions, positions(1))
+            XCTAssertEqual(actual.base, positions(0).filter { $0.length > 0 })
+            XCTAssertEqual(actual.destination, positions(1).filter { $0.length > 0 })
+            XCTAssertEqual(actual.baseMissing, sample.modified.filter { $0[1] < $0[3] }.map { offsets[0][$0[0]] })
+            XCTAssertEqual(actual.destinationMissing, sample.modified.filter { $0[3] < $0[1] }.map { offsets[1][$0[2]] })
+        }
+    }
+    func testConcurrentComparisonsKeepIndependentPoolsAndContexts() {
+        let errors = NSLock()
+        var failures = 0
+        DispatchQueue.concurrentPerform(iterations: 160) { index in
+            let prefix = "🐢 keep \(index) shared ", a = prefix + "old tail constant", b = prefix + "new tail constant"
+            let expected = NSRange(location: prefix.utf16.count, length: 3)
+            let actual = MergeInlineComparison(base: a, destination: b, word: true)
+            if actual?.base != [expected] || actual?.destination != [expected] {
+                errors.lock(); failures += 1; errors.unlock()
+            }
+        }
+        XCTAssertEqual(failures, 0)
+    }
     func testNavigationVisitsStartsEndsAndZeroWidthChunksWithoutWrapping() throws {
         let diff = try XCTUnwrap(MergeInlineComparison(base: "keep shared ending", destination: "keep new shared ending", word: true))
         XCTAssertEqual(diff.basePositions, [NSRange(location: 5, length: 0)])

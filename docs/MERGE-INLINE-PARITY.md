@@ -40,9 +40,28 @@ As upstream, inline navigation is unavailable with the merge-result pane visible
 or in a combined view without live opposite data. Source painting remains
 available in a three-pane layout. Navigation is independent of the smaller saved
 painting cutoff, and suppresses comparison when both lines exceed 100000 UTF-16 units. A
-shorter current line can still compare against a longer opposite line. The existing
-Swift inline matcher still differs from libsvn on ambiguous repeated-token ties;
-adding navigation does not certify engine equivalence.
+shorter current line can still compare against a longer opposite line. The shared matcher now calls the bundled Subversion 1.14.5 `svn_diff_diff_2`
+in process, using source-compatible UTF-16 character/word tokens, word Adler32
+hashes, callback ordering and the source similarity gate. Compare panes, combined
+view, three-pane source painting, the line preview and inline navigation consume
+the same result. Repeated-token ties no longer come from Swift
+`CollectionDifference`. Each call owns its APR pool and callback context; no
+per-line process is launched. A missing runtime or engine failure suppresses the
+inline projection rather than substituting another matcher.
+
+The packaged app loads only its own private architecture-specific runtime.
+Standalone development receivers can use the companion Debug app; SwiftPM tests
+can use the checkout runtime. App Store builds never use the checkout fallback.
+The library remains loaded for process lifetime. Existing runtime embedding and
+signing must include it; hardened/sandboxed acceptance of this new in-process
+consumer remains open.
+
+Word classification uses Foundation alphanumerics for individual UTF-16 units
+and the source space/tab rule. Windows `IsCharAlphaNumeric` locale behavior is
+not certified equivalent for every Unicode unit. The independent word oracle
+therefore covers ASCII; Unicode units, combining text, surrogate pairs and NUL
+are included in character-mode coverage. This does not certify all source-locale
+word classifications or equivalence to every vendored Subversion revision.
 
 The shared missing-character drawing uses TextKit's current glyph origin and
 line fragment geometry, including wrapping. Source panes use the same native
@@ -60,8 +79,18 @@ combined refusal, attributed source colors, light/dark appearance, cache limits,
 retirement and unchanged text/selection/history/files. The dated QA record reports
 actual execution results separately.
 
+`scripts/test-inline-source.py` compiles the pinned original `SVNLineDiff`
+parser, hash and callbacks after explicit Windows UTF-16 type adaptation. Source
+Git blob hashes are verified before compilation. It compares 1,803 line pairs
+against the Core bridge, public UTF-16 ranges, missing markers and similarity
+gate; 160 concurrent comparisons check independent contexts.
+`scripts/test-inline-native.py` groups the existing inline native family with
+repeated character/word tie cases in both directions, native caret stops, actual
+source and line-preview attributes, Aqua/Dark Aqua and unchanged files/Undo.
+Results and any repairs are recorded in the dated QA record.
+
 Physical shortcut/menu/focus/VoiceOver acceptance, complete current light/dark
-window captures, exact libsvn token ties, all three-pane result states and
+window captures, all three-pane result states and
 signed/minimum-OS acceptance remain open. No whole-editor or app certification
 is implied.
 

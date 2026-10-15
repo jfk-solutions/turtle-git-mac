@@ -1801,3 +1801,29 @@ row cell rectangle clipped to the table viewport. Set
 `TURTLEGIT_REBASE_COLUMN_CAPTURE_DIR` to retain raw diagnostic window PNGs. Older
 macOS retains the cached-cell fallback. This does not certify hosted success
 until that SDK executes the new fixture.
+
+## Shared Subversion inline engine
+
+After the Debug build, run the connected checkpoint:
+
+```sh
+python3 scripts/test-inline-source.py
+python3 scripts/test-inline-native.py
+```
+
+The first command verifies the Git blob identities of pinned `SVNLineDiff.h/.cpp`,
+compiles their original parser, hashes and callbacks with explicit UTF-16 Windows
+type adaptations, and runs seven focused Core tests. Its 1,803-pair corpus covers
+repeated/crossed runs, ASCII word tokens and Unicode character tokens; a separate
+case runs 160 comparisons concurrently. The generated reference JSON under
+`build/qa` is required by the native receiver. An ordinary Core invocation skips
+only that reference-file case; CI explicitly runs the source command afterward.
+
+The second command links current Debug app objects once, reuses the prior inline
+family, then checks original-source repeated-token positions through the model,
+actual native caret stops and source/line-preview attributes in character and
+word modes, both directions and Aqua/Dark Aqua. It requires its completion marker
+and reaps its owned receiver; no unrelated editor groups or Git operations are
+repeated. This inline engine always uses the bundled Subversion library, regardless
+of the selected command-line Git. See [engine scope and remaining limits](MERGE-INLINE-PARITY.md)
+and [the dated evidence](qa/inline-engine-2026-10-15.json).
