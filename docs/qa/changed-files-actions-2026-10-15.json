@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-15",
+  "scope": "Connected Changed Files comparison file-action family",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/FileDiffDlg.cpp: OnContextMenu, RevertSelectedItemToVersion, ID_BLAME, ID_EXPORT and ID_LOGSUBMODULE",
+      "src/Resources/TortoiseProcENG.rc: IDD_DIFFFILES",
+      "src/TortoiseGitBlame/TortoiseGitBlameDoc.cpp: omitted revision defaults to HEAD"
+    ]
+  },
+  "implementation": [
+    "Both-version Revert with fresh path/action validation, pinned object targets, source added/deleted rm-cached and historical/working rename cleanup; selected index/working contents change without moving HEAD",
+    "Recycling preference and retained Trash error records; per-file protected checkout retains access/process ownership through requested/forced Close; cancel stops preparation or next step",
+    "Blame chooses deleted Base, Version 2 and working rename old Base path; skips working additions; tree history guards",
+    "Export pinned commit/tree bytes or current working contents to owned chosen folder, skips deleted/gitlink entries and preflights sources/metadata/destination containment; temporary-file publication",
+    "Child-submodule Log validates initialized checkout and respects destination pointer pinning preference",
+    "Owned folder, Ignore/Abort default, Revert result count and cancellation UI; repository-consumer refresh callbacks",
+    "Captured one-use file-menu input/options/generation/displayed-file context prevents stale or duplicate dispatch",
+    "Root/shared comparison consumers and Abort Merge Modified Files configure new routes; Abort-owned comparison inherits parent preferences"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/changed-files-actions-build-connected-2026-10-15.log"
+    },
+    "core": {
+      "result": "20 RevisionComparisonTests passed, 0 failures",
+      "log": "build/qa/changed-files-actions-core-complete-2026-10-15.log",
+      "scope": "New real historical/working rename and added-file Revert semantics, protected chosen paths/HEAD, cancellation and rejected foreign selection; pinned tree/raw binary and working export, destination/source/metadata rejection and unchanged read-only HEAD/index; existing comparison metadata/statistics/path/similarity/common-ancestor checks"
+    },
+    "native": {
+      "result": "both grouped engine cases passed",
+      "cases": [
+        "comparison-launch/system Git",
+        "comparison-launch/bundled Git"
+      ],
+      "log": "build/qa/changed-files-actions-native-complete-2026-10-15.log",
+      "receivers_reaped_and_absent": [
+        4331,
+        4846
+      ],
+      "scope": "Captured menu stale input/duplicate refusal; deleted and renamed Blame targets; actual both-version checkout/index writes, result acknowledgment and refresh; real historical export/deleted skip, Ignore/Abort error default and continuation, folder cancellation; paused real checkout requested/forced-close lifetime and no late result; Abort Modified Files ownership/routing; initialized local submodule pinned/unpinned Log; existing many-diff/tool choice/late question/patch ownership and repository invariants retained"
+    },
+    "repairs": [
+      {
+        "logs": [
+          "build/qa/changed-files-actions-build-2026-10-15.log",
+          "build/qa/changed-files-actions-core-2026-10-15.log"
+        ],
+        "description": "Qualify Darwin.rename to avoid the repository instance method name."
+      },
+      {
+        "log": "build/qa/changed-files-actions-core-final-2026-10-15.log",
+        "description": "Supply required statistics/submodule fields in the invalid-selection test fixture."
+      },
+      {
+        "log": "build/qa/changed-files-actions-native-2026-10-15.log",
+        "receiver_reaped_and_absent": 3797,
+        "description": "Identical fixture blobs let Git pair the deleted path with the renamed file. Give files distinct original contents to assert one unambiguous rename/deletion."
+      },
+      {
+        "log": "build/qa/changed-files-actions-native-final-2026-10-15.log",
+        "receiver_reaped_and_absent": 4004,
+        "description": "The valid initialized child URL carried a trailing directory slash while the constructed expected URL did not. Compare standardized paths; final diagnostics retain exact expected/actual tip and URL."
+      }
+    ],
+    "visual": "Native owned folder/error/result and comparison child controls exercised; no new screenshot or full visual matching claim.",
+    "documentation": {
+      "site_documents": 216,
+      "unresolved_fragments": [],
+      "coverage_ledger": "regenerated",
+      "log": "build/qa/changed-files-actions-site-2026-10-15.log"
+    }
+  },
+  "limits": [
+    "Whole-selection Revert preflight errors currently stop before the per-file Ignore/Abort loop; copy-side and missing-object variants require further source matching",
+    "Physical Trash was not invoked; private native preferences disable recycling. Trash/error/concurrent filesystem/index writers remain acceptance work",
+    "All revision-entry timing, chooser interactions, column persistence and physical menus remain partial",
+    "Submodule history checks use an initialized local child; no remote transport or Blame application launched by new native fixtures",
+    "Signed export/submodule grants, Finder/App Store and full application parity remain open"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

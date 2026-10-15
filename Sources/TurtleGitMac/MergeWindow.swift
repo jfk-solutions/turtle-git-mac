@@ -725,9 +725,12 @@ private final class MergeAbortNativeWindow: NSWindow {
 @MainActor final class MergeAbortWindowController: NSWindowController, NSWindowDelegate {
     let model: MergeAbortWindowModel
     var onClosed: () -> Void = {}
+    var configureModifiedComparison:(RevisionComparisonWindowModel)->Void = { _ in }
+    private let comparisonPreferences:UserDefaults
     private(set) var modifiedFiles: RevisionComparisonWindowController?
     private(set) var progress: MergeAbortProgressWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        comparisonPreferences=preferences
         model = MergeAbortWindowModel(repository: repository, access: access, preferences: preferences)
         let window = MergeAbortNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 265), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Abort Merge – TurtleGit"; window.isReleasedWhenClosed = false
@@ -763,7 +766,8 @@ private final class MergeAbortNativeWindow: NSWindow {
     }
     private func showModifiedFiles(access: RepositoryAccessLease?) {
         guard let window, !model.busy, !model.hasChild, !model.showingProgress, window.attachedSheet == nil else { return }
-        let child = RevisionComparisonWindowController(repository: model.repository, access: access, from: .revision("HEAD"), to: .workingTree)
+        let child = RevisionComparisonWindowController(repository: model.repository, access: access, from: .revision("HEAD"), to: .workingTree,preferences:comparisonPreferences)
+        configureModifiedComparison(child.model)
         guard let sheet = child.window else { return }
         modifiedFiles = child; model.hasChild = true
         child.onClosed = { [weak self, weak sheet] in

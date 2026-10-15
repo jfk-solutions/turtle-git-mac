@@ -491,3 +491,51 @@ receivers were reaped; fixture-only URL repairs did not repeat app/Core builds.
 See [results and limitations](qa/submodule-handoffs-2026-10-14.json). Physical sheets,
 Shift alternative tools, complete visual comparison and signed scope acceptance
 remain open.
+
+## Connected Changed Files file actions — October 15, 2026
+
+The native file menu now includes the source's two **Revert to revision** choices,
+**Blame**, **Export selection to…** and **Show submodule log**, alongside Compare,
+unified diff, parent-repository file Log, Save List and clipboard commands. Source
+first-row/submodule, bare and deleted-version gates determine the offered actions;
+clipboard choices follow the source order. Existing original command artwork is
+used. Blame routes deleted rows to Base, historical rows to Version 2, and working
+renames to their old Base path; working additions are skipped. Tree objects do not
+acquire invented commit history. Submodule Log validates an initialized child and
+honors LogSubmoduleShowRevision when pinning its destination pointer.
+
+Revert preparation validates the displayed snapshot against fresh comparison
+paths/actions and pins the chosen tree. Checkout updates the selected index and
+working files without moving HEAD. The source added/deleted rm-cached cases and
+working-rename cleanup are preserved, including the difference between historical
+and working comparisons. Recycling obeys RevertWithRecycleBin and retains Trash
+URLs on errors. Each recycle/remove/checkout recipe is a protected step: Cancel
+stops preparation or the next file, while an already-started checkout settles
+before Close/Quit ownership is released. Completed writes refresh repository
+consumers; retired/cancelled owners do not open late result dialogs.
+
+Export preserves nested literal paths and raw destination bytes from pinned
+commits/trees, or copies current working file contents. Deleted files and gitlinks
+are skipped. The selected folder grant lasts through the operation. Preflight
+rejects Git metadata, escaping destination parents and overwriting a selected
+source; temporary files are renamed into place. Per-file errors use the source
+Ignore/Abort choice, with Abort as default. Revert shows its completed count in
+an owned acknowledgment sheet. Folder selection, error/result sheets, cancellation
+and requested/forced Close participate in the native operation lifetime.
+
+Complete source revision-entry timing and chooser behavior, file-table layout
+persistence/physical menu acceptance, concurrent filesystem/index writers,
+physical Trash/Finder behavior and signed export/submodule grants remain open.
+This is a connected file-action implementation, not complete FileDiffDlg parity.
+
+The file popup also captures its comparison generation, revision input bytes,
+options and displayed file records. Every leaf claims that context once before
+dispatch; changed inputs/options/files, a reload, a blocked owner or a repeated
+claim refuse the action. Independent double-click commands still use the current
+selection through their normal route.
+
+The final Debug build, 20 affected Core tests and both grouped native engine cases
+passed. See [file-action evidence](qa/changed-files-actions-2026-10-15.json) for
+exact mutation/read-only scope, fixture repairs and cleanup. Whole-selection
+Revert preflight errors currently stop before per-file Ignore/Abort; copy-side
+and missing-object variants still need further source matching.

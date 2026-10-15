@@ -1338,6 +1338,7 @@
       ],
       "qa_records": [
         "docs/qa/branch-revision-number-2026-10-08.json",
+        "docs/qa/changed-files-actions-2026-10-15.json",
         "docs/qa/ci-compatibility-2026-10-10.json",
         "docs/qa/dialog-captures-2026-10-10.json",
         "docs/qa/historical-export-2026-10-05.json",
@@ -2819,6 +2820,7 @@
         "docs/SUBMODULE-DIFF-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/changed-files-actions-2026-10-15.json",
         "docs/qa/submodule-handoffs-2026-10-14.json"
       ]
     },

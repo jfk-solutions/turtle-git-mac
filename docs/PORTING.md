@@ -3,6 +3,13 @@
 *A macOS fork of TortoiseGit*
 
 
+The connected Changed Files action family now adds both-version Revert, Blame,
+Export and child-submodule Log with source rename/deletion rules, pinned data,
+owned folder/error/result sheets and protected checkout cancellation/Close
+lifetimes. See [Changed Files parity](SUBMODULE-DIFF-PARITY.md). Complete revision
+entry/chooser, physical and signed acceptance remain open.
+
+
 The connected Revision Graph command family now adds source menu groups and
 one-use popup ownership, configured external unified viewers with captured Shift
 choice and owned errors, selected-node Shift-F10 menus and native accessibility

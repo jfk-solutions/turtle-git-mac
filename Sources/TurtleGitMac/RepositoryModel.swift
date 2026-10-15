@@ -1486,6 +1486,12 @@ import UniformTypeIdentifiers
         revisionGraphWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configureRevisionComparisonInteractions(_ model: RevisionComparisonWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        model.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
+        model.onSubmoduleLog={ [weak self] checkout,revision in self?.showLog(repository:GitRepository(root:checkout,executable:repository.executable),access:access,paths:[],endRevision:revision,selectedRevision:revision) }
+        model.onFilesChanged={ [weak self] in
+            self?.refreshRepositoryLogs(repository.root);self?.statusWindows[repository.root.path]?.model.requestReload();self?.commitWindows[repository.root.path]?.model.reload()
+            if self?.root==repository.root {Task{await self?.refresh()}}
+        }
         model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
         model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
         model.onSubmoduleCompare = { [weak self] path, old, new in
@@ -2165,6 +2171,7 @@ import UniformTypeIdentifiers
     private func showMergeAbort(repository: GitRepository, access: RepositoryAccessLease?) {
         let id = UUID(), root = repository.root
         let controller = mergeAbortWindowFactory?(repository,access) ?? MergeAbortWindowController(repository: repository, access: access)
+        controller.configureModifiedComparison={ [weak self] model in self?.configureRevisionComparisonInteractions(model,repository:repository,access:access) }
         controller.onClosed = { [weak self] in self?.mergeAbortWindows.removeValue(forKey: id) }
         controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload()

@@ -247,6 +247,7 @@ import TurtleGitCore
         viewer.retireImageLoader()
         try await wait { !viewer.busy && FileListComparisonSession.activeOperations == 0 }
         try require(viewer.document == nil && viewer.error == nil, "Retired blob read published a document/error")
+        try await verifyFileActions(executable:executable,prefs:prefs)
         try await verifyFinderChoices(executable:executable,prefs:prefs)
         try await verifyTools(repo: repo, prefs: prefs, snapshot: snapshot)
         // Aggregated status-list GNU patches stay one captured patch, without a many-viewer warning.
@@ -278,4 +279,110 @@ import TurtleGitCore
         for path in paths { try require(try Data(contentsOf: root.appendingPathComponent(path)) == Data("changed\n".utf8), "Comparison routes modified working bytes") }
         print("Comparison launch: captured working/historical/grouped targets, No/Yes/equality, pending question/Quit, late approval refusal, actual owned sheet teardown and started Git cancellation; Commit/Working Tree/Log patch routes and repository preservation passed. Owners closed; no external viewers launched.")
     }
+    @MainActor static func verifyFileActions(executable:URL,prefs:UserDefaults) async throws {
+        DialogGeometry.install(preferences:prefs)
+        let oldRecycle=prefs.object(forKey:"RevertWithRecycleBin");prefs.set(false,forKey:"RevertWithRecycleBin")
+        defer{if let oldRecycle{prefs.set(oldRecycle,forKey:"RevertWithRecycleBin")}else{prefs.removeObject(forKey:"RevertWithRecycleBin")}}
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitChangedActions-"+UUID().uuidString),folder=root.appendingPathComponent("export")
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true);defer{try? FileManager.default.removeItem(at:root)}
+        let repo=GitRepository(root:root,executable:executable)
+        _ = try await repo.run(["init","-b","main"])
+        for (key,value) in [("user.name","Changed Files QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
+        for path in ["modified","deleted","old-name","dir/nested"] {try FileManager.default.createDirectory(at:root.appendingPathComponent(path).deletingLastPathComponent(),withIntermediateDirectories:true);try Data((path=="modified" ? "base\n" : "base "+path+"\n").utf8).write(to:root.appendingPathComponent(path))}
+        try await repo.stage(["modified","deleted","old-name","dir/nested"]);_ = try await repo.commit(message:"base")
+        let base=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["mv","old-name","renamed"]);_ = try await repo.run(["rm","deleted"])
+        for path in ["modified","dir/nested","added"] {try Data("new\n".utf8).write(to:root.appendingPathComponent(path))}
+        try await repo.stage(["modified","dir/nested","added"]);_ = try await repo.commit(message:"changes")
+        let tip=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let owner=RevisionComparisonWindowController(repository:repo,access:RepositoryAccessLease(url:root),from:.revision(base),to:.revision(tip),preferences:prefs),model=owner.model
+        owner.window!.alphaValue=0;model.confirmManyDiffs={_ in true};owner.showWindow(nil);model.load();try await wait{!model.busy && model.snapshot != nil};defer{owner.close()}
+        let stale=model.captureFileMenu(["modified"]);model.from="HEAD~1"
+        try require(!model.claimFileMenu(stale),"Old file menu accepted changed revision input");model.from=base
+        let fresh=model.captureFileMenu(["modified"]);try require(model.claimFileMenu(fresh) && !model.claimFileMenu(fresh),"File popup action repeated")
+        var blame:[(String,String)]=[],notices:[String]=[],changed=0
+        model.onBlame={blame.append(($0,$1))};model.blameFiles(Set(model.visibleFiles.map(\.path)));try await wait{!model.busy}
+        try require(blame.contains{$0.0=="deleted" && $0.1==base} && blame.contains{$0.0=="renamed" && $0.1==tip},"Changed Files Blame lost deleted/new side")
+        let originalNotice=model.fileActionNotice,originalFailure=model.fileActionFailure,originalFolder=model.chooseExportFolder
+        model.fileActionNotice={notices.append($0)};model.onFilesChanged={changed += 1}
+        model.revertFiles(["modified"],base:true);try await wait{!model.busy && RevisionComparisonWindowModel.activeFileOperations==0}
+        try require(try Data(contentsOf:root.appendingPathComponent("modified"))==Data("base\n".utf8),"Revert to Base did not restore working bytes")
+        try require(changed==1 && notices.count==1,"Revert result/refresh handoff missing")
+        model.fileActionNotice=originalNotice;model.revertFiles(["modified"],base:false);try await wait{owner.window?.attachedSheet != nil}
+        try require(model.busy && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Revert result lacks operation ownership")
+        func button(_ title:String,in window:NSWindow)->NSButton? {func all(_ view:NSView)->[NSView]{[view]+view.subviews.flatMap(all)};return window.contentView.flatMap{all($0).compactMap{$0 as? NSButton}.first{$0.title==title}}}
+        button("OK",in:owner.window!.attachedSheet!)!.performClick(nil);try await wait{!model.busy && owner.window?.attachedSheet==nil}
+        try require(try Data(contentsOf:root.appendingPathComponent("modified"))==Data("new\n".utf8),"Revert to Version 2 failed")
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true);model.chooseExportFolder={folder}
+        model.exportFiles(Set(model.visibleFiles.map(\.path)));try await wait{!model.busy}
+        try require(try Data(contentsOf:folder.appendingPathComponent("renamed"))==Data("base old-name\n".utf8),"Historical rename export lost bytes")
+        try require(!FileManager.default.fileExists(atPath:folder.appendingPathComponent("deleted").path),"Deleted entry exported")
+        // Exercise source Ignore/Abort with a real unwritable nested destination.
+        try FileManager.default.removeItem(at:folder.appendingPathComponent("dir"));try Data("blocker".utf8).write(to:folder.appendingPathComponent("dir"))
+        model.fileActionFailure=originalFailure;model.exportFiles(["dir/nested","modified"]);try await wait{owner.window?.attachedSheet != nil}
+        let failure=owner.window!.attachedSheet!;try require(!owner.windowShouldClose(owner.window!) && failure.defaultButtonCell?.title=="Abort","Export error lacks owned Abort default")
+        button("Ignore",in:failure)!.performClick(nil);try await wait{!model.busy && owner.window?.attachedSheet==nil}
+        try Data("sentinel".utf8).write(to:folder.appendingPathComponent("modified"));model.exportFiles(["dir/nested","modified"]);try await wait{owner.window?.attachedSheet != nil}
+        button("Abort",in:owner.window!.attachedSheet!)!.performClick(nil);try await wait{!model.busy}
+        try require(try Data(contentsOf:folder.appendingPathComponent("modified"))==Data("sentinel".utf8),"Abort continued exporting later files")
+        model.chooseExportFolder=originalFolder;model.exportFiles(["modified"]);try await wait{owner.window?.attachedSheet is NSOpenPanel}
+        model.cancelFileAction();try await wait{!model.busy && owner.window?.attachedSheet==nil}
+        try require(model.error==nil,"Folder cancellation produced an error")
+        // A paused protected checkout must settle before requested or forced close
+        // drops ownership; cancel does not kill a checkout after recycling starts.
+        let gate=root.appendingPathComponent(".git/action-gate"),ready=root.appendingPathComponent(".git/action-ready"),release=root.appendingPathComponent(".git/action-release"),helper=root.appendingPathComponent(".git/action-git")
+        let script="""
+        #!/bin/sh
+        if [ "$4" = checkout ] && [ -f \(quote(gate.path)) ];then
+          : > \(quote(ready.path))
+          while [ ! -f \(quote(release.path)) ];do /bin/sleep 0.02;done
+        fi
+        exec \(quote(executable.path)) "$@"
+        """
+        try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
+        for forced in [false,true] {
+            for file in [gate,ready,release]{try? FileManager.default.removeItem(at:file)}
+            let child=RevisionComparisonWindowController(repository:GitRepository(root:root,executable:helper),access:RepositoryAccessLease(url:root),from:.revision(base),to:.revision(tip),preferences:prefs)
+            child.window!.alphaValue=0;child.showWindow(nil);child.model.load();try await wait{!child.model.busy && child.model.snapshot != nil};defer{child.close()}
+            var results=0;child.model.fileActionNotice={_ in results += 1}
+            try Data().write(to:gate);child.model.revertFiles(["modified"],base:true);try await wait{FileManager.default.fileExists(atPath:ready.path)}
+            if forced {child.close()}else{child.window!.performClose(nil)}
+            try require(RevisionComparisonWindowModel.activeFileOperations>0 && (forced || !child.model.closed),"Close dropped protected file operation")
+            try Data().write(to:release);try await wait{RevisionComparisonWindowModel.activeFileOperations==0 && child.model.closed}
+            try require(results==0 && child.window?.isVisible==false,"Closed source published a late result")
+        }
+        let abort=MergeAbortWindowController(repository:repo,access:RepositoryAccessLease(url:root),preferences:prefs)
+        defer{abort.close()};abort.window!.alphaValue=0;abort.showWindow(nil)
+        var configured=false,abortBlame=false
+        abort.configureModifiedComparison={child in configured=true;child.confirmManyDiffs={_ in true};child.onBlame={path,revision in abortBlame=path=="modified" && revision=="HEAD"}}
+        abort.model.showModified();try await wait{abort.modifiedFiles != nil && abort.modifiedFiles?.model.busy==false}
+        try require(configured && abort.model.hasChild,"Abort Merge did not configure/own Changed Files")
+        abort.modifiedFiles!.model.blameFiles(["modified"]);try await wait{abort.modifiedFiles?.model.busy==false};try require(abortBlame,"Abort-owned Changed Files lost action routing")
+        abort.modifiedFiles!.close();try await wait{!abort.model.hasChild};abort.close()
+        let parentURL=root.appendingPathComponent("module-parent"),childURL=parentURL.appendingPathComponent("module")
+        try FileManager.default.createDirectory(at:childURL,withIntermediateDirectories:true)
+        let parent=GitRepository(root:parentURL,executable:executable),module=GitRepository(root:childURL,executable:executable)
+        for repository in [parent,module] {
+            _ = try await repository.run(["init","-b","main"])
+            for (key,value) in [("user.name","Module QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repository.run(["config",key,value])}
+        }
+        try Data("base\n".utf8).write(to:childURL.appendingPathComponent("file"));try await module.stage(["file"]);_ = try await module.commit(message:"module base")
+        try Data("[submodule \"fixture\"]\npath = module\nurl = ./module\n".utf8).write(to:parentURL.appendingPathComponent(".gitmodules"));try await parent.stage([".gitmodules","module"]);_ = try await parent.commit(message:"pointer base")
+        let oldPointer=try await parent.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        try Data("new\n".utf8).write(to:childURL.appendingPathComponent("file"));try await module.stage(["file"]);_ = try await module.commit(message:"module next");try await parent.stage(["module"]);_ = try await parent.commit(message:"pointer next")
+        let newPointer=try await parent.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines),childTip=try await module.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let moduleModel=RevisionComparisonWindowModel(repository:parent,access:nil,from:.revision(oldPointer),to:.revision(newPointer),preferences:prefs);defer{moduleModel.invalidate()};moduleModel.confirmManyDiffs={_ in true}
+        moduleModel.load();try await wait{!moduleModel.busy && moduleModel.snapshot != nil}
+        var moduleLogs:[(URL,String?)]=[];moduleModel.onSubmoduleLog={moduleLogs.append(($0,$1))}
+        moduleModel.logSubmodules(["module"]);try await wait{!moduleModel.busy}
+        print("Changed Files module route:",moduleLogs.map{($0.0.absoluteString,$0.1 ?? "none")},"expected:",childURL.absoluteString,childTip,"error:",moduleModel.error ?? "none")
+        try require(moduleLogs.count==1 && moduleLogs[0].0.standardizedFileURL.path==childURL.standardizedFileURL.path && moduleLogs[0].1==childTip,"Changed Files submodule Log lost child repository/tip: \(moduleModel.error ?? "none")")
+        let oldPin=prefs.object(forKey:"LogSubmoduleShowRevision");prefs.set(false,forKey:"LogSubmoduleShowRevision")
+        moduleModel.logSubmodules(["module"]);try await wait{!moduleModel.busy}
+        if let oldPin{prefs.set(oldPin,forKey:"LogSubmoduleShowRevision")}else{prefs.removeObject(forKey:"LogSubmoduleShowRevision")}
+        try require(moduleLogs.count==2 && moduleLogs[1].1==nil,"Unpinned submodule Log forced a revision")
+        let final=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines);try require(final==tip,"File actions moved HEAD")
+        print("Changed Files actions: deleted/rename Blame routing, both version reverts and owned results/refresh, historical export/deleted skip, Ignore/Abort/folder cancel, protected checkout requested/forced-close ownership passed; private preferences/files, owned windows closed.")
+    }
+
 }

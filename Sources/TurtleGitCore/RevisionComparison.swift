@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// Shared source percentage, captured with a repository session so paired name,
 /// statistic and patch reads cannot observe different preferences mid-operation.
@@ -228,5 +229,112 @@ extension GitRepository {
         else if to == .workingTree { args += [try hash(from)] }
         else { args += [try hash(from), try hash(to)] }
         return args
+    }
+}
+
+/// FileDiffDlg's checkout/rm recipe, pinned before any protected working-tree step.
+public struct ComparisonFileRevert: Sendable {
+    public let path: String
+    public let revision: String
+    fileprivate let root: URL
+    fileprivate let unstage: Bool
+    fileprivate let ignoreUnmatched: Bool
+    fileprivate let submodule: Bool
+    fileprivate let removals: [(path: String, always: Bool)]
+}
+public struct ComparisonFileExport: Sendable {
+    public let paths: [String]
+    fileprivate let snapshot: RevisionComparisonSnapshot
+    fileprivate let folder: URL
+}
+extension GitRepository {
+    private func checkedComparisonSelection(_ snapshot: RevisionComparisonSnapshot, files: [CommitFile], cancellation: OperationCancellation?) throws {
+        try cancellation?.check()
+        guard snapshot.root == root, !files.isEmpty, Set(files.map(\.path)).count == files.count,
+              files.allSatisfy({ snapshot.files.contains($0) }) else { throw RevisionComparisonFailure.selection }
+        for side in [snapshot.from, snapshot.to] {
+            if case .revision(let hash) = side {
+                guard [40,64].contains(hash.count), hash.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else { throw RevisionComparisonFailure.range }
+            }
+        }
+        for file in files { _ = try restoreLocation(file.path); if let old=file.oldPath { _ = try restoreLocation(old) } }
+    }
+    public func prepareComparisonRevert(_ snapshot: RevisionComparisonSnapshot, files: [CommitFile], base: Bool, cancellation: OperationCancellation? = nil) throws -> [ComparisonFileRevert] {
+        try checkedComparisonSelection(snapshot,files:files,cancellation:cancellation)
+        guard try !isBare(cancellation:cancellation),case .revision(let revision) = base ? snapshot.from : snapshot.to else { throw RevisionComparisonFailure.selection }
+        let fresh=try revisionComparison(from:snapshot.from,to:snapshot.to,options:snapshot.options,cancellation:cancellation,paths:snapshot.scopePaths)
+        guard files.allSatisfy({ file in fresh.files.contains { $0.path==file.path && $0.oldPath==file.oldPath && $0.action==file.action && $0.isSubmodule==file.isSubmodule } }) else { throw WorkingFileRestoreFailure.changed }
+        return try files.map { file in
+            try cancellation?.check()
+            let added=file.action.hasPrefix("A"),deleted=file.action.hasPrefix("D"),renamed=file.action.hasPrefix("R")
+            let unstage=base ? added : deleted
+            let otherWorking=(base ? snapshot.to : snapshot.from) == .workingTree
+            let path=base && renamed ? file.oldPath ?? file.path : file.path
+            var removals:[(String,Bool)]=[]
+            if unstage { removals.append((file.path,otherWorking)) }
+            else {
+                if renamed,otherWorking { removals.append((base ? file.path : file.oldPath ?? file.path,true)) }
+                removals.append((path,false))
+                // Validate the chosen tree entry before deleting or recycling anything.
+                let records=try run(["ls-tree","-z",revision,"--",path],cancellation:cancellation).stdout.split(separator:0)
+                guard records.contains(where: { record in
+                    guard let tab=record.firstIndex(of:9),Data(record[record.index(after:tab)...])==Data(path.utf8) else { return false }
+                    let mode=String(decoding:record[..<tab],as:UTF8.self).split(separator:" ").first
+                    return ["100644","100755","120000","160000"].contains(mode.map(String.init) ?? "")
+                }) else { throw RevisionComparisonFailure.selection }
+            }
+            for removal in removals { _ = try restoreLocation(removal.0) }
+            return ComparisonFileRevert(path:path,revision:revision,root:root,unstage:unstage,ignoreUnmatched:base && added,submodule:file.isSubmodule,removals:removals)
+        }
+    }
+    /// Recycle/remove + index/working-tree checkout is one protected step. Cancel
+    /// is checked before it starts and between files, never halfway through it.
+    public func revertComparisonFile(_ target: ComparisonFileRevert, recycle: Bool, cancellation: OperationCancellation? = nil) throws -> [URL] {
+        try cancellation?.check()
+        guard target.root==root,try !isBare(cancellation:cancellation) else { throw RevisionComparisonFailure.selection }
+        _ = try restoreLocation(target.path)
+        var trash:[URL]=[]
+        do {
+            for removal in target.removals {
+                let url=try restoreLocation(removal.path)
+                guard let type=(try? FileManager.default.attributesOfItem(atPath:url.path)[.type]) as? FileAttributeType else { continue }
+                guard [.typeRegular,.typeSymbolicLink].contains(type) || target.submodule && type == .typeDirectory else { throw WorkingFileRestoreFailure.unsupported }
+                guard removal.always || recycle && type != .typeDirectory else { continue }
+                if recycle {
+                    var moved:NSURL?;try FileManager.default.trashItem(at:url,resultingItemURL:&moved)
+                    if let moved { trash.append(moved as URL) }
+                } else { try FileManager.default.removeItem(at:url) }
+            }
+            if target.unstage { _ = try run(["rm","--cached"] + (target.ignoreUnmatched ? ["--ignore-unmatch"] : []) + ["--",target.path]) }
+            else { _ = try run(["checkout",target.revision,"--",target.path]) }
+            return trash
+        } catch { throw WorkingFileRevertFailure(gitError:error.localizedDescription,wasCancelled:false,trashedFiles:trash) }
+    }
+    public func prepareComparisonExport(_ snapshot: RevisionComparisonSnapshot, files: [CommitFile], to folder: URL, cancellation: OperationCancellation? = nil) throws -> ComparisonFileExport {
+        try checkedComparisonSelection(snapshot,files:files,cancellation:cancellation)
+        let folder=folder.standardizedFileURL.resolvingSymlinksInPath()
+        guard try folder.resourceValues(forKeys:[.isDirectoryKey]).isDirectory==true,!folder.pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}) else { throw WorkingFileExportFailure.location }
+        let paths=files.filter{!$0.isSubmodule && !$0.action.hasPrefix("D")}.map(\.path)
+        let sources=try paths.map { try restoreLocation($0).resolvingSymlinksInPath().path }
+        for path in paths {
+            let destination=folder.appendingPathComponent(path).standardizedFileURL
+            guard RepositoryAccessLease.pathIsContained(destination.deletingLastPathComponent(),by:folder),!destination.deletingLastPathComponent().resolvingSymlinksInPath().pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}) else { throw WorkingFileExportFailure.location }
+            guard !sources.contains(destination.resolvingSymlinksInPath().path) else { throw WorkingFileExportFailure.source }
+        }
+        return ComparisonFileExport(paths:paths,snapshot:snapshot,folder:folder)
+    }
+    public func exportComparisonFile(_ export: ComparisonFileExport, path: String, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        guard export.snapshot.root==root,export.paths.contains(path) else { throw RevisionComparisonFailure.selection }
+        let destination=export.folder.appendingPathComponent(path),parent=destination.deletingLastPathComponent()
+        guard RepositoryAccessLease.pathIsContained(parent,by:export.folder),!parent.resolvingSymlinksInPath().pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}) else { throw WorkingFileExportFailure.location }
+        try FileManager.default.createDirectory(at:parent,withIntermediateDirectories:true)
+        if export.snapshot.to == .workingTree { try saveWorkingFile(path:path,to:destination,cancellation:cancellation);return }
+        let content=try comparisonFile(export.snapshot,path:path,cancellation:cancellation).destination
+        let temporary=parent.appendingPathComponent(".TurtleGitExport-"+UUID().uuidString)
+        defer{try? FileManager.default.removeItem(at:temporary)}
+        try content.bytes.write(to:temporary,options:.withoutOverwriting);try cancellation?.check()
+        guard RepositoryAccessLease.pathIsContained(parent,by:export.folder),!parent.resolvingSymlinksInPath().pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}) else { throw WorkingFileExportFailure.location }
+        guard Darwin.rename(temporary.path,destination.path)==0 else { throw GitFailure(arguments:["export",path],code:1,message:String(cString:strerror(errno))) }
     }
 }

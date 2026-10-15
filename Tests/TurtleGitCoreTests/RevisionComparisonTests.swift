@@ -406,4 +406,53 @@ final class RevisionComparisonTests: XCTestCase {
         XCTAssertEqual(snapshot.from, .revision(base)); XCTAssertEqual(snapshot.fromDetails?.subject, "base")
     }
 
+    func testComparisonRevertHistoricalRenameAndWorkingAddedRenameMatchSourceWithoutMovingHEAD() async throws {
+        let (root,repo,path)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let base=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let renamed="renamed :(glob)* 雪\n.txt"
+        _ = try await repo.run(["mv","--",path,renamed]);try Data("new\n".utf8).write(to:root.appendingPathComponent("added"));try await repo.stage(["added"]);_ = try await repo.commit(message:"rename and add")
+        let tip=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let comparison=try await repo.revisionComparison(from:.revision(base),to:.revision(tip))
+        let rename=try XCTUnwrap(comparison.files.first{$0.path==renamed}),addition=try XCTUnwrap(comparison.files.first{$0.path=="added"})
+        let plan=try await repo.prepareComparisonRevert(comparison,files:[rename,addition],base:true)
+        for target in plan {_ = try await repo.revertComparisonFile(target,recycle:false)}
+        XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent(path).path));XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent(renamed).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent("added").path))
+        let cached=try await repo.run(["ls-files","-z"]).stdout
+        XCTAssertFalse(cached.split(separator:0).contains(Data("added".utf8)))
+        _ = try await repo.run(["reset","--hard",tip])
+        let moved="working rename 雪.txt";_ = try await repo.run(["mv","--",renamed,moved])
+        try Data("staged addition\n".utf8).write(to:root.appendingPathComponent("new-working"));try await repo.stage(["new-working"])
+        let working=try await repo.revisionComparison(from:.revision(tip),to:.workingTree)
+        let selected=working.files.filter{$0.path==moved || $0.path=="new-working"};XCTAssertEqual(selected.count,2)
+        let workingPlan=try await repo.prepareComparisonRevert(working,files:selected,base:true)
+        for target in workingPlan {_ = try await repo.revertComparisonFile(target,recycle:false)}
+        XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent(renamed).path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent(moved).path));XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent("new-working").path))
+        let final=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines);XCTAssertEqual(final,tip)
+        let cancelled=OperationCancellation();cancelled.cancel()
+        do {_ = try await repo.prepareComparisonRevert(comparison,files:[rename],base:true,cancellation:cancelled);XCTFail("Cancelled restore preparation accepted")}catch is OperationCancellationFailure{}
+        do {_ = try await repo.prepareComparisonRevert(comparison,files:[CommitFile(path:"../escape",oldPath:nil,action:"M",added:nil,removed:nil,hasStatistics:false,isSubmodule:false)],base:true);XCTFail("Foreign path accepted")}catch{}
+    }
+    func testComparisonExportPinnedTreesRawBytesWorkingContentsAndDestinationPreflight() async throws {
+        let (root,repo,path)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let raw=Data([0,255,13,10]),name="folder/:(glob)* 雪\n.bin"
+        try FileManager.default.createDirectory(at:root.appendingPathComponent("folder"),withIntermediateDirectories:true);try raw.write(to:root.appendingPathComponent(name));try await repo.stage([name]);_ = try await repo.commit(message:"binary export")
+        let tree=try await repo.run(["rev-parse","HEAD^{tree}"]).text.trimmingCharacters(in:.newlines)
+        let snapshot=try await repo.revisionComparison(from:.emptyTree,to:.revision(tree)),selected=try XCTUnwrap(snapshot.files.first{$0.path==name})
+        let folder=root.deletingLastPathComponent().appendingPathComponent("comparison-export-"+UUID().uuidString);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true);defer{try? FileManager.default.removeItem(at:folder)}
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),head=try await repo.run(["rev-parse","HEAD"]).stdout
+        let export=try await repo.prepareComparisonExport(snapshot,files:[selected],to:folder);try await repo.exportComparisonFile(export,path:name)
+        XCTAssertEqual(try Data(contentsOf:folder.appendingPathComponent(name)),raw)
+        do {_ = try await repo.prepareComparisonExport(snapshot,files:[selected],to:root);XCTFail("Source overwrite accepted")}catch is WorkingFileExportFailure{}
+        do {_ = try await repo.prepareComparisonExport(snapshot,files:[selected],to:root.appendingPathComponent(".git"));XCTFail("Git export accepted")}catch is WorkingFileExportFailure{}
+        let working=Data([0xfe,10]);try working.write(to:root.appendingPathComponent(path))
+        let range=try await repo.revisionComparison(from:.revision("HEAD"),to:.workingTree),file=try XCTUnwrap(range.files.first{$0.path==path})
+        let live=try await repo.prepareComparisonExport(range,files:[file],to:folder);try await repo.exportComparisonFile(live,path:path)
+        XCTAssertEqual(try Data(contentsOf:folder.appendingPathComponent(path)),working)
+        let cancelled=OperationCancellation();cancelled.cancel()
+        do {try await repo.exportComparisonFile(live,path:path,cancellation:cancelled);XCTFail("Cancelled export accepted")}catch is OperationCancellationFailure{}
+        let after=try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(after,head);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+
 }
