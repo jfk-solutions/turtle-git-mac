@@ -1827,3 +1827,29 @@ and reaps its owned receiver; no unrelated editor groups or Git operations are
 repeated. This inline engine always uses the bundled Subversion library, regardless
 of the selected command-line Git. See [engine scope and remaining limits](MERGE-INLINE-PARITY.md)
 and [the dated evidence](qa/inline-engine-2026-10-15.json).
+
+## Connected image commands
+
+After a current Debug build:
+
+```sh
+python3 scripts/test-image-command-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+One linked receiver build contains native toolbar, existing Load Images, conflict
+selection and frames/playback cases. Each runs in a private fixture/process and
+must print the final case marker. `--only toolbar` (or `open`, `conflict`, `frames`)
+rechecks only an affected repair. `--captures build/qa/image-command-captures`
+captures the two actual toolbar windows in Aqua/Dark Aqua using the current-process
+compositor. No screenshots are accepted from an early exit. These are app-only
+changes, so the batch does not repeat Core tests. See [source scope](IMAGE-COMMAND-PARITY.md)
+and [actual evidence](qa/image-command-2026-10-15.json).
+
+## Darwin receiver group probes
+
+`python3 scripts/test-native-receiver.py` retains actual owned-child termination
+and timeout/reap tests. An EPERM signal/probe is accepted as an ended group only
+when `ps` proves no matching members or only zombies; live members, unavailable,
+empty or malformed process tables retain the permission error. Six contracts,
+including the injected Darwin cases, passed locally. The [record](qa/receiver-darwin-cleanup-2026-10-15.json)
+links the hosted failure; full hosted success remains pending.

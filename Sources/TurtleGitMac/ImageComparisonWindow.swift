@@ -10,6 +10,9 @@ import TurtleGitCore
         self.presentation = presentation ?? ImageWindowPresentation()
         presentationObserver = self.presentation.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
     }
+    @Published var nativeToolbarInstalled = false
+    var commandsAllowed: () -> Bool = { true }
+    var reloadImages: () -> Void = {}
     @Published var overlay = false { didSet { if overlay { stopAllPlayback(); linked = true; alpha = 0.5 } } }
     @Published var blendAlpha = true
     @Published var vertical = false
@@ -114,36 +117,45 @@ import TurtleGitCore
     func toggleHeights() { freezeFit(); sizing.toggleHeights() }
     func toggleAlpha() { alpha = ImageComparisonBlend.toggled(alpha) }
     func alphaWheel(_ event: NSEvent) -> Bool {
-        guard overlay, event.modifierFlags.contains([.control, .shift]) else { return false }
+        guard commandsAllowed(), overlay, event.modifierFlags.contains([.control, .shift]) else { return false }
         // AppKit maps a Shift-modified vertical wheel into the horizontal axis.
         let delta = event.scrollingDeltaY != 0 ? event.scrollingDeltaY : event.scrollingDeltaX
         let steps = event.hasPreciseScrollingDeltas ? delta / 120 : delta
         alpha = ImageComparisonBlend.wheel(alpha, steps: Double(steps)); return true
     }
+    func commandState(_ command: ImageEditorCommand) -> ImageEditorCommandState {
+        let allowed = commandsAllowed()
+        switch command {
+        case .blend: return .init(enabled: allowed && overlay, checked: overlay && blendAlpha)
+        case .link: return .init(enabled: allowed && !overlay, checked: linked)
+        case .vertical: return .init(enabled: allowed && !overlay, checked: vertical && !overlay)
+        case .overlay: return .init(enabled: allowed, checked: overlay)
+        case .widths: return .init(enabled: allowed, checked: fitWidths)
+        case .heights: return .init(enabled: allowed, checked: fitHeights)
+        case .info: return .init(enabled: allowed, checked: showInfo)
+        case .dark: return .init(enabled: allowed, checked: presentation.darkMode)
+        default: return .init(enabled: allowed)
+        }
+    }
+    func perform(_ command: ImageEditorCommand) {
+        guard commandState(command).enabled else { return }
+        switch command {
+        case .overlay: overlay.toggle(); case .blend: blendAlpha.toggle(); case .link: linked.toggle()
+        case .widths: toggleWidths(); case .heights: toggleHeights(); case .fit: fit = true
+        case .original: originalSize(); case .zoomIn: changeZoom(zoomIn: true); case .zoomOut: changeZoom(zoomIn: false)
+        case .info: showInfo.toggle(); case .vertical: vertical.toggle(); case .dark: presentation.toggleDarkMode()
+        case .open: presentation.openImages(); case .reload: reloadImages(); case .transparentColor: presentation.chooseTransparentColor()
+        case .fileMenu, .viewMenu: break
+        }
+    }
     func performKey(_ event: NSEvent, window: NSWindow) -> Bool {
+        guard commandsAllowed() else { return false }
+        if let command = ImageEditorCommand.key(event) { perform(command); return true }
         let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
-        let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
-        if flags == .command, key == "o" { presentation.openImages(); return true }
-        if flags == .command, key == "v" { vertical.toggle(); return true }
         guard flags.isEmpty || flags == .shift else { return false }
         switch event.keyCode {
-        case 126: alpha = 0; return true
-        case 125: alpha = 1; return true
-        case 123,124: alpha = 0.5; return true
-        case 49: toggleAlpha(); return true
-        case 53: window.performClose(nil); return true
-        default: break
-        }
-        switch key {
-        case "d": presentation.toggleDarkMode()
-        case "o": overlay.toggle()
-        case "f": fit = true
-        case "s": originalSize()
-        case "w": toggleWidths()
-        case "h": toggleHeights()
-        case "i": showInfo.toggle()
-        case "+", "=": changeZoom(zoomIn: true)
-        case "-": changeZoom(zoomIn: false)
+        case 126: alpha = 0; case 125: alpha = 1; case 123,124: alpha = 0.5
+        case 49: toggleAlpha(); case 53: window.performClose(nil)
         default: return false
         }
         return true
@@ -178,6 +190,7 @@ import TurtleGitCore
         let content = base ? document.base : document.destination
         return VStack(alignment: .leading, spacing: 0) {
             Text((content.path.isEmpty ? (base ? "Left image" : "Right image") : content.path) + " — " + content.revision.label).font(.caption).lineLimit(1).truncationMode(.middle)
+                .help((content.path.isEmpty ? (base ? "Left image" : "Right image") : content.path) + " — " + content.revision.label)
                 .padding(7).frame(maxWidth: .infinity, alignment: .leading).background(Color(nsColor: .controlBackgroundColor))
             ImageFrameControls(model: model, base: base, label: base ? "Base" : "Second image")
             ZStack(alignment: .topLeading) {
@@ -199,6 +212,7 @@ import TurtleGitCore
     }
     var body: some View {
         VStack(spacing: 0) {
+            if !model.nativeToolbarInstalled {
             HStack(spacing: 5) {
                 tool("Overlay images", .imageOverlay, active: model.overlay) { model.overlay.toggle() }
                 tool("Blend alpha", .imageBlend, active: model.overlay && model.blendAlpha) { model.blendAlpha.toggle() }.disabled(!model.overlay)
@@ -235,6 +249,7 @@ import TurtleGitCore
                 }
             }.padding(8)
             Divider()
+            }
             if model.overlay {
                 HStack(spacing: 0) {
                     if model.blendAlpha { VStack {
@@ -249,7 +264,7 @@ import TurtleGitCore
             else { HSplitView { pane(base: true); pane(base: false) } }
             Divider()
             HStack { Text(model.fit ? "Fit in window" : "Zoom: \(Int(model.zoom * 100))%"); Spacer(); Text("Read-only image comparison") }.font(.caption).padding(8)
-        }.background(Color(nsColor: .windowBackgroundColor))
+        }.background(Color(nsColor: .windowBackgroundColor)).disabled(!model.commandsAllowed())
         .background(ImageComparisonKeyBridge(model: model).frame(width: 0,height: 0))
         .onDisappear { model.stopAllPlayback() }
     }

@@ -1,0 +1,164 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "fd8a69ab",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected native image command surface for comparison and conflict selection: AppKit toolbars/source grouping/artwork, menu/overflow checks, keyboard gates, full header help, stable viewer ownership, accepted Load Images after sheet closure and playback retirement.",
+  "source": "TortoiseIDiff MainWindow.cpp CreateToolbar/DoCommand/WM_NOTIFY; existing original icons unchanged.",
+  "builds": [
+    {
+      "log": "build/qa/image-command-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/image-command-menu-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/image-command-replacement-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/image-command-final-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/image-command-file-menu-build.log",
+      "exit": 0
+    }
+  ],
+  "build_notes": "Builds retained existing warnings and exit-zero compiler-command diagnostic noise. Core executable behavior was unchanged; no Core tests repeated. First implementation build then focused rebuilds for observed menu/Open defects and common replacement guard.",
+  "failed_native_attempts": [
+    {
+      "log": "build/qa/image-command-native.log",
+      "exit": 1,
+      "reason": "New fixture called beginSheet without an explicit completion handler, selecting its async overload. Fixed fixture only; no receiver launched."
+    },
+    {
+      "log": "build/qa/image-command-native-final.log",
+      "exit": 1,
+      "owned_pid": 9912,
+      "reason": "Native View popup checkmark did not refresh after width matching; fixed observed menu updates and native validation."
+    },
+    {
+      "log": "build/qa/image-command-native-menu.log",
+      "exit": 1,
+      "owned_pid": 10020,
+      "reason": "Fixture assumed initial Light appearance. Fixed to assert Dark Mode toggles the actual initial state; no app rebuild for this fixture."
+    },
+    {
+      "log": "build/qa/image-command-native-appearance.log",
+      "exit": 1,
+      "owned_pids": [
+        10067,
+        10141
+      ],
+      "reason": "Toolbar passed; retained Open case found load rejected while chooser sheet attached. Capture review also found blank menu-only toolbar labels. Replaced with labeled native popups and deferred captured input/grants to chooser closure."
+    },
+    {
+      "log": "build/qa/image-command-native-replacement.log",
+      "exit": 1,
+      "owned_pids": [
+        10281,
+        10358,
+        10380,
+        10475
+      ],
+      "passed": [
+        "system toolbar",
+        "system Open",
+        "system conflict selection"
+      ],
+      "reason": "Frame fixture expected model churn on reload. Adapted it to require stable owner, changed decoded-image identity and replaced live key bridge, retaining stop/wrap/pixel/close assertions. Comparison replacement guard was unified for keyboard and toolbar in final code review. Black captures from regular activation were rejected; final accessory capture requires visible red/blue sample pixels."
+    }
+  ],
+  "passing_native": [
+    {
+      "log": "build/qa/image-command-native-system.log",
+      "exit": 0,
+      "git": "/usr/bin/git",
+      "cases": [
+        "toolbar",
+        "open",
+        "frames"
+      ],
+      "owned_pids": [
+        10647,
+        10727,
+        10744
+      ],
+      "notes": "Final current Debug objects; reference selection case had already passed on unchanged selection code in preceding replacement group and was not redundantly repeated."
+    },
+    {
+      "log": "build/qa/image-command-native-replacement.log",
+      "git": "/usr/bin/git",
+      "case": "conflict",
+      "case_exit": 0,
+      "owned_pid": 10380,
+      "notes": "This case passed before final comparison-only gate change; group later failed its old frame-model identity assertion."
+    },
+    {
+      "log": "build/qa/image-command-native-bundled.log",
+      "exit": 0,
+      "git": "build/git-runtime/Git/bin/git",
+      "cases": [
+        "toolbar",
+        "open",
+        "conflict",
+        "frames"
+      ],
+      "owned_pids": [
+        10810,
+        10894,
+        10914,
+        11008
+      ],
+      "notes": "Final objects and unchanged receiver compilation reused."
+    },
+    {
+      "log": "build/qa/image-command-native-file-menu.log",
+      "exit": 0,
+      "git": "/usr/bin/git",
+      "cases": [
+        "toolbar"
+      ],
+      "owned_pid": 11342,
+      "notes": "Final direct File Open dispatch now also uses the common image guard. Added actual controller File Open refusal during an owned replacement workflow. Only this affected toolbar case repeated; other image behavior unchanged."
+    }
+  ],
+  "coverage": [
+    "actual source toolbar order and original artwork/help",
+    "native checkbox/button/menu and overflow state updates",
+    "overlay and Command-V gating",
+    "busy, attached-sheet, owned Open workflow and retired/stale action refusal",
+    "Load Images actual OK/Cancel/invalid/empty/single/identical/replacement/permission and grant lifetime",
+    "Mine/Base/Theirs pixels, actual Select Yes/No/stale disk/reload/resolve and Quit guards",
+    "GIF frame pixels and independent/linked playback/wrap/overlay/reload/close retirement; TIFF pages and ICO variants",
+    "retained input file bytes, relevant HEAD/raw index and source metadata"
+  ],
+  "captures": {
+    "files": [
+      "docs/site/assets/image-toolbar-comparison-light.png",
+      "docs/site/assets/image-toolbar-comparison-dark.png",
+      "docs/site/assets/image-toolbar-selection-light.png",
+      "docs/site/assets/image-toolbar-selection-dark.png"
+    ],
+    "source_log": "build/qa/image-command-native-system.log",
+    "owned_pid": 10647,
+    "method": "Unaltered current-process SCScreenshotManager images with complete window chrome; visible sample-color pixel guard; all four visually reviewed. Inactive accessory application appearance, not physical active toolbar acceptance.",
+    "sha256": {
+      "docs/site/assets/image-toolbar-comparison-light.png": "e3e4cdedcd51dcc1f5340d8f05f0f8bdbb84a41ba8d9fa03b5854d80912b0b7c",
+      "docs/site/assets/image-toolbar-comparison-dark.png": "fd57eee6178bb9598d756e33f2fa0d856dbfd9b0796ab2377e1824423050ffe9",
+      "docs/site/assets/image-toolbar-selection-light.png": "7363c96725d2a0a7e49b3566e7fe0f55087686507153a236b1b4c78f3521ebb2",
+      "docs/site/assets/image-toolbar-selection-dark.png": "cdc5cb039452f9a07103cf6c39e0d3d718aedf45f3b13ba5a2f6c33a48e4965b"
+    }
+  },
+  "ownership": "All recorded receivers reaped their process groups and closed owned windows. Exact PID absence checked before commit. Private fixture repositories/preferences and input files; unrelated app instances untouched.",
+  "not_proven": [
+    "Whole TortoiseGit/image dialog parity",
+    "Physical tracking, overflow gestures, keyboard/VoiceOver and full multi-display layout",
+    "Historical-blob left Open path prefill",
+    "Every source image format or Windows codec/rounding",
+    "Signed minimum-OS/Intel sandbox/Finder/App Store acceptance",
+    "Complete hosted CI result for this batch"
+  ]
+}

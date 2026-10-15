@@ -199,3 +199,11 @@ is not certified. EMF/WMF and any remaining unsupported native codecs stay open.
 [Container QA](qa/image-containers-2026-10-15.json) records actual pixel/metadata,
 format failure/repair and native window evidence. Full upstream image-format,
 physical layout/input and signed sandbox/App Store acceptance remain unfinished.
+
+## Native command surface — October 15, 2026
+
+The connected [native image command family](IMAGE-COMMAND-PARITY.md) replaces
+controller-hosted content tool rows with source-ordered AppKit toolbars and
+native menu/overflow actions, common keyboard gates, full header tooltips and
+stable model ownership across image replacement. See its dated evidence for
+validation and remaining acceptance limits.

@@ -159,11 +159,11 @@ import TurtleGitCore
 @MainActor final class MergeEditorFileMenu {
     private weak var menu: NSMenu?
     private var items: [NSMenuItem] = []
-    func install(target: AnyObject, open: Selector, reload: Selector) {
+    func install(target: AnyObject, open: Selector, reload: Selector, images: Bool = false) {
         remove()
         guard let menu = NSApplication.shared.mainMenu?.items.first(where: { $0.title == "File" })?.submenu else { return }
         self.menu = menu
-        for (title, action, key, icon) in [("Open in TurtleGitMerge…", open, "o", MenuIcon.open), ("Reload comparison", reload, "", MenuIcon.refresh)] {
+        for (title, action, key, icon) in [(images ? "Load Images…" : "Open in TurtleGitMerge…", open, "o", MenuIcon.open), ("Reload comparison", reload, "", MenuIcon.refresh)] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
             item.target = target; item.image = icon.image(); items.append(item); menu.addItem(item)
         }

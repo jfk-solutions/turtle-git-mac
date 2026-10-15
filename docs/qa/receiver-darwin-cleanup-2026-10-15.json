@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-15",
+  "scope": "Repair hosted native-receiver process group probe without hiding live-process failures or dropping descendant cleanup.",
+  "hosted_failure": {
+    "run": 38747006244,
+    "head": "e5f34171",
+    "job": 116490560396,
+    "step": "Native receiver cache and process ownership contracts",
+    "test": "test_success_terminates_owned_descendant",
+    "observed": "PermissionError EPERM from os.killpg(receiver.pid, 0) after SIGTERM and leader wait. Hosted log does not contain its process table, so zombie-only state there is not proven."
+  },
+  "implementation": "Signal/probe exact receiver PGID. ESRCH means absent. For EPERM, read pgid/stat process table and accept only an empty matching group or all matching members in Z state. Preserve error for any live member, ps failure, malformed output or empty table. TERM/wait/KILL and descendant checks remain.",
+  "validation": [
+    {
+      "log": "build/qa/receiver-darwin-permission.log",
+      "exit": 0,
+      "tests": 6
+    },
+    {
+      "log": "build/qa/receiver-darwin-permission-final.log",
+      "exit": 0,
+      "tests": 6,
+      "notes": "Added explicit empty-table refusal. Retained actual fork/helper termination, exact timeout/reap, stdin/output/error and content-key contracts; injected only EPERM table variants for deterministic branch checks."
+    }
+  ],
+  "not_proven": "Complete hosted run including the new guard. Physical Finder/App Store acceptance unaffected."
+}

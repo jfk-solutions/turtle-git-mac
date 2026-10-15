@@ -36,13 +36,18 @@ import TurtleGitCore
 @MainActor final class FileComparisonWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     let model: FileComparisonWindowModel
     private(set) var editorToolbar: MergeEditorToolbar?
+    private(set) var imageToolbar: ImageEditorToolbar?
     var showEditorHelp: () -> Void = { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug.html")!) }
     private let editorFileMenu = MergeEditorFileMenu()
     private weak var patchMenu: NSMenu?
     private var patchMenuItem: NSMenuItem?
     func windowDidBecomeKey(_ notification: Notification) {
-        editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:)))
+        refreshScopedFileMenu()
+    }
+    func refreshScopedFileMenu() {
+        editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:)), images: model.imageComparison != nil)
         removePatchMenu()
+        guard model.imageComparison == nil else { return }
         guard let menu = NSApplication.shared.mainMenu?.items.first(where: { $0.title == "File" })?.submenu else { return }
         let item = NSMenuItem(title: "Create patch file", action: #selector(createPatchFile(_:)), keyEquivalent: "")
         item.target = self; item.image = MenuIcon.patch.image(); menu.addItem(item)
@@ -54,13 +59,14 @@ import TurtleGitCore
         patchMenuItem = nil; patchMenu = nil
     }
     func detachForReplacement() {
-        editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu(); model.retireImageLoader(); model.resetHistory(); model.window = nil
+        imageToolbar?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu(); model.retireImageLoader(); model.resetHistory(); model.window = nil
     }
     @objc func createPatchFile(_ sender: Any?) { model.createUnifiedPatch() }
     @objc func reloadEditor(_ sender: Any?) {
         guard !preparingReplacement, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load()
     }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if model.imageComparison != nil, item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return model.imageCommandsAllowed && !preparingReplacement && editorOpenWorkflow == nil }
         if item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return !preparingReplacement && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.hasPendingEditorChoice && !model.filtering && !model.confirmingQuit && window?.attachedSheet == nil }
         return item.action == #selector(createPatchFile(_:)) && model.canCreateUnifiedPatch
     }
@@ -71,6 +77,7 @@ import TurtleGitCore
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
     var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
     @objc func openMergeDocument(_ sender: Any?) {
+        if model.imageComparison != nil { model.imageViewerModel.perform(.open); return }
         guard !preparingReplacement, editorOpenWorkflow == nil, let window, !model.busy, !model.hasPendingEditorChoice, !model.filtering, !model.confirmingQuit, window.attachedSheet == nil else { return }
         let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
         editorOpenWorkflow = workflow
@@ -118,6 +125,7 @@ import TurtleGitCore
         window.setContentSize(NSSize(width: 1120, height: 720))
         window.center()
         installEditorToolbar()
+        imageToolbar = ImageEditorToolbar.comparison(self)
 
         DialogGeometry.attach(window, identifier: "TurtleGit.TwoFileDiff", legacyName: "TurtleGit.TwoFileDiff")
     }
@@ -136,7 +144,7 @@ import TurtleGitCore
     }
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow, closing === window else { return }
-        editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu()
+        imageToolbar?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu()
         if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.stopAllPlayback(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
         editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retireImageLoader(); model.resetHistory(); onClosed()
     }
@@ -150,6 +158,14 @@ import TurtleGitCore
     private var standaloneImages: ImageFileComparison?
     private var imageLoader: ImageLoadWindowController?
     var retainedImageModel: ImageComparisonViewModel?
+    var imageCommandsAllowed: Bool { contextCommandsAllowed && imageComparison != nil && imageLoader == nil }
+    var imageViewerModel: ImageComparisonViewModel {
+        if let retainedImageModel { return retainedImageModel }
+        let image = ImageComparisonViewModel(presentation: imagePresentation)
+        image.commandsAllowed = { [weak self] in self?.imageCommandsAllowed == true }
+        image.reloadImages = { [weak self] in if self?.imageCommandsAllowed == true { self?.load() } }
+        retainedImageModel = image; return image
+    }
     var makeImageLoader: (String, [RepositoryAccessLease]) -> ImageLoadWindowController = { ImageLoadWindowController(leftPath: $0, permissions: $1) }
     private var workingPermissions: [RepositoryAccessLease] = []
     private(set) var paneTargets: [Bool: SavedMergePane] = [:]
@@ -811,19 +827,29 @@ import TurtleGitCore
         onExportStateChanged = {}
         retired = true; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
         imageLoader?.retire(); imageLoader = nil
+        retainedImageModel?.stopAllPlayback(); retainedImageModel?.presentation.retire()
     }
     func chooseImageFiles() {
-        guard !busy, !confirmingQuit, imageLoader == nil, let window, window.attachedSheet == nil else { return }
+        guard !retired, !busy, !confirmingQuit, imageLoader == nil, let window, window.attachedSheet == nil else { return }
         let left = document?.base.path ?? ""
         let loader = makeImageLoader(left.hasPrefix("/") ? left : "", workingPermissions + [access].compactMap { $0 })
-        imageLoader = loader
-        loader.onAccepted = { [weak self] comparison, permissions in
-            guard let self else { return }
-            self.retainedImageModel = (self.window as? ImageComparisonKeyRouting)?.imageKeyModel
-            self.retainedImageModel?.fit = true
-            self.standaloneImages = comparison; self.workingPermissions = permissions; self.load()
+        objectWillChange.send(); imageLoader = loader
+        var accepted: (ImageFileComparison, [RepositoryAccessLease])?
+        loader.onAccepted = { [weak self, weak loader] comparison, permissions in
+            guard let self, let loader, !self.retired, self.imageLoader === loader else { throw CocoaError(.userCancelled) }
+            accepted = (comparison, permissions)
         }
-        loader.onClosed = { [weak self] in self?.imageLoader = nil }
+        loader.onClosed = { [weak self, weak loader] in
+            guard let self, let loader, self.imageLoader === loader else { accepted = nil; return }
+            self.objectWillChange.send(); self.imageLoader = nil
+            guard let request = accepted, !self.retired else { accepted = nil; return }
+            accepted = nil
+            self.imageViewerModel.fit = true
+            self.standaloneImages = request.0; self.workingPermissions = request.1
+            // The chooser must end its sheet before the ordinary reload guards
+            // can admit this captured replacement. Cancel never supplies input.
+            self.load()
+        }
         loader.present(parent: window)
     }
     private var conflictBaseEntry: ConflictEntry?
@@ -1225,7 +1251,7 @@ private struct FileComparisonDialog: View {
     var body: some View {
         Group {
             if let images = model.imageComparison, let document = model.document {
-                ImageComparisonDialog(images: images, document: document, model: model.retainedImageModel ?? ImageComparisonViewModel(presentation: model.imagePresentation)).id(images.id)
+                ImageComparisonDialog(images: images, document: document, model: model.imageViewerModel).id(images.id)
             } else { textBody }
         }.onAppear { model.load() }
         .onReceive(NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged)) { _ in model.refreshPreferences() }

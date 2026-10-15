@@ -114,31 +114,48 @@ def build_receiver(root: Path, fixtures: list[Path], directory: Path) -> Path:
     return executable
 
 
+def signal_receiver_group(pid, number):
+    """Darwin may report EPERM for an orphan's zombie-only process group.
+
+    Only confirm that case with the process table; a live member or an unreadable
+    table retains the error. Signal numbers and the owned PGID stay unchanged.
+    """
+    try:
+        os.killpg(pid, number)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        table = subprocess.run(['ps', '-axo', 'pgid=,stat='], capture_output=True, text=True)
+        if table.returncode != 0:
+            raise
+        try:
+            rows = [(int(fields[0]), fields[1]) for line in table.stdout.splitlines()
+                    if (fields := line.split())]
+        except (ValueError, IndexError):
+            raise PermissionError('Cannot verify owned process group state')
+        if not rows:
+            raise PermissionError("Cannot verify an empty process table")
+        members = [state for group, state in rows if group == pid]
+        if not members or all(state.startswith('Z') for state in members):
+            return False
+        raise
+
+
 def close_receiver(receiver):
     """Stop the owned process group, reap its leader, then terminate leftovers."""
-    try:
-        os.killpg(receiver.pid, signal.SIGTERM)
-    except ProcessLookupError:
-        pass
+    signal_receiver_group(receiver.pid, signal.SIGTERM)
     try:
         receiver.wait(timeout=5)
     except subprocess.TimeoutExpired:
-        try:
-            os.killpg(receiver.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        signal_receiver_group(receiver.pid, signal.SIGKILL)
         receiver.wait()
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
-        try:
-            os.killpg(receiver.pid, 0)
-        except ProcessLookupError:
+        if not signal_receiver_group(receiver.pid, 0):
             return
         time.sleep(0.05)
-    try:
-        os.killpg(receiver.pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
+    signal_receiver_group(receiver.pid, signal.SIGKILL)
 
 
 def run_receiver(command, *, timeout=300, **kwargs):

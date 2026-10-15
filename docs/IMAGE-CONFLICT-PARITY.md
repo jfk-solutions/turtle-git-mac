@@ -72,3 +72,11 @@ partial; earlier generic-label gaps are superseded within this documented scope.
 
 [Grouped validation and visual review](qa/conflict-identities-2026-10-15.json)
 record actual coverage and remaining limits; no dialog is newly certified.
+
+## Native command surface — October 15, 2026
+
+The connected [native image command family](IMAGE-COMMAND-PARITY.md) replaces
+controller-hosted content tool rows with source-ordered AppKit toolbars and
+native menu/overflow actions, common keyboard gates, full header tooltips and
+stable model ownership across image replacement. See its dated evidence for
+validation and remaining acceptance limits.

@@ -160,6 +160,14 @@ work that remains.
 
 ## Screenshots and website
 
+Image comparison and conflict selection now use native source-ordered toolbars
+with original artwork and common menu/keyboard guards. Reviewed
+[comparison light](docs/site/assets/image-toolbar-comparison-light.png) /
+[dark](docs/site/assets/image-toolbar-comparison-dark.png) and
+[selection light](docs/site/assets/image-toolbar-selection-light.png) /
+[dark](docs/site/assets/image-toolbar-selection-dark.png) captures show the current
+windows. [Source scope and remaining limits](docs/IMAGE-COMMAND-PARITY.md).
+
 Blame embedded-language fonts and line-tail fills now retain the source style
 intervals. Reviewed [light](docs/site/assets/blame-embedded-light.png) /
 [dark](docs/site/assets/blame-embedded-dark.png) captures and

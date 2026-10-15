@@ -10,8 +10,9 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
-from native_receiver import fingerprint, run_receiver
+from native_receiver import fingerprint, run_receiver, signal_receiver_group
 
 
 class ReceiverContracts(unittest.TestCase):
@@ -69,6 +70,18 @@ while not Path(PIDFILE).exists(): time.sleep(.01)
                 time.sleep(.05)
             else:
                 self.fail('Owned descendant remained alive after receiver success')
+
+    def test_darwin_permission_probe_accepts_only_empty_or_zombie_group(self):
+        for output in ['8 S\n', '123 Z\n123 Zs\n8 S\n']:
+            with self.subTest(table=output), patch('native_receiver.os.killpg', side_effect=PermissionError(1, 'Operation not permitted')) as send, patch('native_receiver.subprocess.run', return_value=subprocess.CompletedProcess([], 0, output, '')):
+                self.assertFalse(signal_receiver_group(123, 0))
+                send.assert_called_once_with(123, 0)
+
+    def test_permission_error_for_live_group_or_unreadable_state_is_preserved(self):
+        for status, output in [(0, '123 S\n123 Z\n'), (1, ''), (0, ''), (0, 'invalid row\n')]:
+            with self.subTest(status=status, table=output), patch('native_receiver.os.killpg', side_effect=PermissionError(1, 'Operation not permitted')), patch('native_receiver.subprocess.run', return_value=subprocess.CompletedProcess([], status, output, '')):
+                with self.assertRaises(PermissionError):
+                    signal_receiver_group(123, signal.SIGTERM)
 
     def test_content_and_recipe_changes_invalidate_cache(self):
         with tempfile.TemporaryDirectory() as temporary:

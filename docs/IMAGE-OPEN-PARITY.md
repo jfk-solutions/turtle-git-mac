@@ -63,3 +63,11 @@ and verifies that both matching controls remain selected across duplicate and
 single-image replacement. This follows upstream `ID_FILE_OPEN` → `SetPic`: the
 pictures and fitted zoom change, while the window's `bFitWidths`/`bFitHeights`
 choices remain. See [the follow-up QA record](qa/image-open-sizing-2026-10-10.json).
+
+## Native command surface — October 15, 2026
+
+The connected [native image command family](IMAGE-COMMAND-PARITY.md) replaces
+controller-hosted content tool rows with source-ordered AppKit toolbars and
+native menu/overflow actions, common keyboard gates, full header tooltips and
+stable model ownership across image replacement. See its dated evidence for
+validation and remaining acceptance limits.

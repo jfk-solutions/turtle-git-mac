@@ -109,8 +109,12 @@ import Darwin
         try await Task.sleep(nanoseconds: 450_000_000)
         try require(model.playing.isEmpty && frame(true) == overlayLeft && frame(false) == overlayRight)
         model.overlay = false; try await settle()
+        let priorImage = model.currentImage(base: true)?.id
+        let priorKeyOwner = (window as? ImageComparisonKeyRouting)?.imageKeyOwner
         try press("Play images (Base)"); controller.model.load()
-        try await wait { !controller.model.busy && (window as? ImageComparisonKeyRouting)?.imageKeyModel != nil && (window as? ImageComparisonKeyRouting)?.imageKeyModel !== model }
+        // The native toolbar and pane now share a stable window-owned model.
+        // Require new decoded input and a new live key bridge, not model churn.
+        try await wait { !controller.model.busy && (window as? ImageComparisonKeyRouting)?.imageKeyModel === model && model.currentImage(base: true)?.id != priorImage && (window as? ImageComparisonKeyRouting)?.imageKeyOwner != priorKeyOwner }
         try await wait { model.playing.isEmpty }
         let replacement = (window as! ImageComparisonKeyRouting).imageKeyModel!
         replacement.togglePlayback(base: true); try require(!replacement.playing.isEmpty)

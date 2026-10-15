@@ -7,25 +7,16 @@ import TurtleGitCore
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         guard attachedSheet == nil, (firstResponder as? NSTextView)?.isFieldEditor != true,
               let imageModel, !imageModel.busy, !imageModel.retired else { return super.performKeyEquivalent(with: event) }
-        let flags = event.modifierFlags.intersection([.command,.shift,.control,.option])
-        let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
-        if flags == .command, key == "v" { imageModel.vertical.toggle(); return true }
-        guard flags.isEmpty || flags == .shift else { return super.performKeyEquivalent(with: event) }
-        if event.keyCode == 53 { performClose(nil); return true }
-        switch key {
-        case "f": imageModel.fitImages()
-        case "s": imageModel.originalSize()
-        case "+", "=": imageModel.zoom(true)
-        case "-": imageModel.zoom(false)
-        case "i": imageModel.showInfo.toggle()
-        case "d": imageModel.presentation.toggleDarkMode()
-        default: return super.performKeyEquivalent(with: event)
+        if let command = ImageEditorCommand.key(event), imageModel.commandState(command) != nil {
+            imageModel.perform(command); return true
         }
-        return true
+        if event.modifierFlags.intersection([.command,.shift,.control,.option]).isEmpty, event.keyCode == 53 { performClose(nil); return true }
+        return super.performKeyEquivalent(with: event)
     }
 }
 @MainActor final class ImageConflictWindowController: NSWindowController, NSWindowDelegate {
     let model: ImageConflictWindowModel
+    private(set) var imageToolbar: ImageEditorToolbar?
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, document: ImageConflictDocument, preferences: UserDefaults = .standard) {
         model = ImageConflictWindowModel(repository: repository, access: access, document: document, preferences: preferences)
@@ -33,7 +24,7 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false; window.title = document.entry.path + " — TurtleGitIDiff"
         window.contentView = NSHostingView(rootView: ImageConflictDialog(model: model))
         window.minSize = NSSize(width: 800,height: 400)
-        super.init(window: window); model.presentation.attach(window); window.delegate = self; window.imageModel = model; window.center()
+        super.init(window: window); model.presentation.attach(window); model.windowForCommands = window; window.delegate = self; window.imageModel = model; window.center()
         model.close = { [weak window] in window?.close() }
         model.askMarkResolved = { [weak window] path in
             guard let window else { return false }
@@ -45,11 +36,12 @@ import TurtleGitCore
                 alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertFirstButtonReturn) }
             }
         }
+        imageToolbar = ImageEditorToolbar.conflict(self)
         DialogGeometry.attach(window, identifier: "TurtleGit.ImageConflict", legacyName: "TurtleGit.ImageConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
-        model.retire(); (window as? ImageConflictNSWindow)?.imageModel = nil; onClosed()
+        imageToolbar?.retire(); model.retire(); (window as? ImageConflictNSWindow)?.imageModel = nil; onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -58,6 +50,7 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?
     private let preferences: UserDefaults
     @Published private(set) var document: ImageConflictDocument
+    @Published var nativeToolbarInstalled = false
     @Published var vertical = false
     @Published var showInfo = false
     @Published private(set) var busy = false
@@ -80,6 +73,26 @@ import TurtleGitCore
             let pane = ImageComparisonViewModel(presentation: presentation); pane.configureImages(base: decoded[side], destination: nil)
             return (side,pane)
         })
+    }
+    func commandState(_ command: ImageEditorCommand) -> ImageEditorCommandState? {
+        let ready = !busy && !retired && windowForCommands?.attachedSheet == nil
+        switch command {
+        case .info: return .init(enabled: ready, checked: showInfo)
+        case .vertical: return .init(enabled: ready, checked: vertical)
+        case .dark: return .init(enabled: ready, checked: presentation.darkMode)
+        case .fit, .original, .zoomIn, .zoomOut, .reload, .transparentColor, .fileMenu, .viewMenu: return .init(enabled: ready)
+        default: return nil
+        }
+    }
+    weak var windowForCommands: NSWindow?
+    func perform(_ command: ImageEditorCommand) {
+        guard commandState(command)?.enabled == true else { return }
+        switch command {
+        case .fit: fitImages(); case .original: originalSize(); case .zoomIn: zoom(true); case .zoomOut: zoom(false)
+        case .info: showInfo.toggle(); case .vertical: vertical.toggle(); case .reload: reload()
+        case .dark: presentation.toggleDarkMode(); case .transparentColor: presentation.chooseTransparentColor()
+        default: break
+        }
     }
     func fitImages() { for pane in panes.values { pane.fit = true } }
     func originalSize() { for pane in panes.values { pane.originalSize() } }
@@ -135,6 +148,7 @@ struct ImageConflictDialog: View {
     }
     var body: some View {
         VStack(spacing: 0) {
+            if !model.nativeToolbarInstalled {
             HStack(spacing: 5) {
                 tool("Fit images in window", .imageFit) { model.fitImages() }
                 tool("Original size", .imageOriginal) { model.originalSize() }
@@ -152,7 +166,6 @@ struct ImageConflictDialog: View {
                     Button { model.zoom(false) } label: { CommandLabel(title: "Zoom out", icon: .imageZoomOut) }
                     Button { model.zoom(true) } label: { CommandLabel(title: "Zoom in", icon: .imageZoomIn) }
                     Divider()
-                    Divider()
                     Toggle(isOn: $model.showInfo) { CommandLabel(title: "Image info", icon: .imageInfo) }
                     Toggle(isOn: $model.vertical) { CommandLabel(title: "Arrange vertical", icon: .imageVertical) }
                     Divider()
@@ -161,6 +174,7 @@ struct ImageConflictDialog: View {
                 Button("Reload") { model.reload() }
             }.padding(8)
             Divider()
+            }
             if model.vertical {
                 VSplitView { pane(.mine); pane(.base); pane(.theirs) }
             } else {
@@ -187,7 +201,7 @@ private struct ImageConflictPane: View {
     var body: some View {
         let current = model.currentImage(base: true)
         VStack(spacing: 0) {
-            Text(title).font(.caption).padding(7).frame(maxWidth: .infinity).background(Color(nsColor: .controlBackgroundColor))
+            Text(title).font(.caption).lineLimit(1).truncationMode(.middle).help(title).padding(7).frame(maxWidth: .infinity).background(Color(nsColor: .controlBackgroundColor))
             ImageFrameControls(model: model, base: true, label: side.rawValue)
             ZStack(alignment: .bottomLeading) {
                 ImageComparisonScroll(model: model, image: current, second: nil, base: true)
