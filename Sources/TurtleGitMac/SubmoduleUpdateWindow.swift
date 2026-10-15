@@ -32,6 +32,7 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
 }
 
 @MainActor final class SubmoduleUpdateWindowModel: ObservableObject {
+    private(set) static var activeReads = 0
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     let scope: [String]
@@ -59,11 +60,12 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
     func invalidate() { invalidated = true; loadToken?.cancel() }
     func load() {
         guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; busy = true
-        let token = OperationCancellation(); loadToken = token
+        let token = OperationCancellation(); loadToken = token; Self.activeReads += 1
         let requestedScope = wholeProject ? [] : scope
         Task {
-            defer { busy = false }
+            defer { Self.activeReads -= 1; busy = false; withExtendedLifetime(access) {} }
             do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let next = try await repository.submoduleUpdatePaths(scope: requestedScope, cancellation: token)
                 guard !invalidated, !token.isCancelled else { return }
                 let saved = requestedSelection.isEmpty ? preferences.stringArray(forKey: key + ".selection") ?? [] : requestedSelection

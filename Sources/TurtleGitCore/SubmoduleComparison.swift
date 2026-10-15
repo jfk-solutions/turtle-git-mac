@@ -19,14 +19,27 @@ public struct SubmoduleComparison: Sendable {
 }
 
 public enum SubmoduleComparisonFailure: LocalizedError {
-    case unsupported, unsafeCheckout, conflicted
+    case unsupported, unsafeCheckout, conflicted, unavailable
     public var errorDescription: String? {
         switch self {
+        case .unavailable: return "The displayed submodule revision is no longer available. Refresh the comparison."
         case .unsupported: return "Choose a path that is a submodule in at least one revision."
         case .unsafeCheckout: return "The submodule checkout is outside its expected working-tree location."
         case .conflicted: return "Resolve the submodule index conflict before comparing its working checkout."
         }
     }
+}
+
+public enum SubmoduleComparisonAction: Sendable {
+    case logFrom, logTo, compareRevisions, compareWorkingTree
+}
+
+public struct PreparedSubmoduleComparison: Sendable {
+    public enum Command: Sendable {
+        case log(String), status, compare(ComparisonRevision, ComparisonRevision)
+    }
+    public let repository: GitRepository
+    public let command: Command
 }
 
 public enum SubmoduleWorkingHistoryFailure: LocalizedError {
@@ -38,9 +51,12 @@ extension GitRepository {
     /// Resolve only an initialized working checkout; never let Git discover the
     /// superproject from an empty/uninitialized child directory.
     public func submoduleWorkingRepository(path: String, cancellation: OperationCancellation? = nil) throws -> GitRepository {
+        try submoduleCheckout(path: path, requireCurrentGitlink: true, cancellation: cancellation)
+    }
+    private func submoduleCheckout(path: String, requireCurrentGitlink: Bool, cancellation: OperationCancellation?) throws -> GitRepository {
         try cancellation?.check()
         let location = try restoreLocation(path)
-        if try !submoduleUpdatePaths(cancellation: cancellation).contains(path) {
+        if try requireCurrentGitlink && !submoduleUpdatePaths(cancellation: cancellation).contains(path) {
             let previous = try run(["ls-tree", "--full-tree", "-z", "HEAD", "--", path], successfulExitCodes: 0...128, cancellation: cancellation)
             let wasGitlink = previous.exitCode == 0 && previous.stdout.split(separator: 0).contains { record in
                 let parts = record.split(separator: 9, maxSplits: 1)
@@ -59,6 +75,41 @@ extension GitRepository {
         try cancellation?.check()
         return GitRepository(root: location, executable: executable, askpass: askpass)
     }
+    /// Revalidate the checkout and immutable displayed objects immediately before
+    /// dispatch. Moving parent refs or child HEAD must not retarget this action.
+    public func prepareSubmoduleComparison(_ snapshot: SubmoduleComparison, action: SubmoduleComparisonAction, cancellation: OperationCancellation? = nil) async throws -> PreparedSubmoduleComparison {
+        try cancellation?.check()
+        let child = try submoduleCheckout(path: snapshot.path, requireCurrentGitlink: false, cancellation: cancellation)
+        guard child.root == snapshot.checkout else { throw SubmoduleComparisonFailure.unsafeCheckout }
+        func validate(_ side: SubmoduleComparisonSide) async throws {
+            guard side.available else { throw SubmoduleComparisonFailure.unavailable }
+            if let hash = side.revision {
+                let resolved = try await child.run(["rev-parse", "--verify", "--end-of-options", hash + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+                guard resolved == hash else { throw SubmoduleComparisonFailure.unavailable }
+            }
+        }
+        let command: PreparedSubmoduleComparison.Command
+        switch action {
+        case .logFrom, .logTo:
+            let side: SubmoduleComparisonSide
+            if case .logFrom = action { side = snapshot.from } else { side = snapshot.to }
+            try await validate(side)
+            guard let hash = side.revision else { throw SubmoduleComparisonFailure.unavailable }
+            command = .log(hash)
+        case .compareRevisions, .compareWorkingTree:
+            try await validate(snapshot.from); try await validate(snapshot.to)
+            if snapshot.change == .identical { command = .status }
+            else {
+                let working: Bool
+                if case .compareWorkingTree = action { working = true } else { working = snapshot.dirty && snapshot.change == .unknown }
+                command = .compare(snapshot.from.revision.map(ComparisonRevision.revision) ?? .emptyTree,
+                                   working ? .workingTree : snapshot.to.revision.map(ComparisonRevision.revision) ?? .emptyTree)
+            }
+        }
+        try cancellation?.check()
+        return PreparedSubmoduleComparison(repository: child, command: command)
+    }
+
     /// `from` and `to` are revisions of this superproject; nil `to` compares
     /// against the actual child HEAD (or indexed gitlink if uninitialized).
     public func submoduleComparison(path: String, from: String = "HEAD", to: String? = nil, cancellation: OperationCancellation? = nil) throws -> SubmoduleComparison {

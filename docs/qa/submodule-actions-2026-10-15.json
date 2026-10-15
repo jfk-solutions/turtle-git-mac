@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-15",
+  "scope": "Connected Submodule Diff Log/Compare/conflict and owned Update options/progress handoffs",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/SubmoduleDiffDlg.cpp: ShowLog, OnBnClickedShowDiff, OnBnClickedButtonUpdate",
+      "src/TortoiseProc/AppUtils.cpp: submodule conflict routing"
+    ]
+  },
+  "implementation": [
+    "Revalidate initialized checkout and immutable displayed commit objects before child Log/Compare; preserve historical gitlinks after removal from current parent",
+    "Log pins range and selected child revision",
+    "Capture Shift through asynchronous preparation and retain it through Changed Files and file viewer; distinguish comparison reuse",
+    "Route working index conflicts to existing conflict editor",
+    "Own Update options and progress as sheets; retain one-use completion through Cancel/result acknowledgment and refuse duplicates",
+    "Wait for actual AppKit sheet detachment before starting progress",
+    "Cancel and close reads after settlement; explicit Cancel retains window; late callbacks cannot reopen retired windows",
+    "Keep global read/update Quit guards and repository access leases until async settlement"
+  ],
+  "validation": {
+    "core": {
+      "tests": 20,
+      "failures": 0,
+      "scope": "SubmoduleComparisonTests and SubmoduleUpdateTests",
+      "log": "build/qa/submodule-actions-core-2026-10-15.log"
+    },
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/submodule-actions-build-repair-2026-10-15.log",
+      "initial_failure": "Child repository actor call in synchronous validator; corrected asynchronous preparation.",
+      "diagnostics": "Existing warnings and exit-code-zero/no-output compiler diagnostic; not a clean diagnostics claim."
+    },
+    "native": {
+      "status": "passed",
+      "accepted_pairs": [
+        "submodule-handoffs/system Git",
+        "submodule-handoffs/bundled Git"
+      ],
+      "log": "build/qa/submodule-actions-native-final-2026-10-15.log",
+      "initial_failure": "Options completion ran before sheet detachment; progress refused. Added pending action drained on didEndSheet notification and completion.",
+      "receiver_pids_reaped_and_verified_absent": [
+        30344,
+        30476,
+        30759,
+        30909
+      ],
+      "coverage": [
+        "Existing separate parent/child Status and Commit Log",
+        "Pinned Diff Log and Compare callback revisions",
+        "Owned Update Cancel, duplicate refusal, selected path, actual command/result and acknowledgment",
+        "Injected conflicted read routing",
+        "Explicit Shift through preparation and Changed Files to file callback",
+        "Held command cancellation without viewer dispatch",
+        "Close during held read, read cancellation and forced retirement",
+        "Uninitialized checkout never discovers parent"
+      ]
+    },
+    "documentation": {
+      "site_exit_code": 0,
+      "unresolved_links": 0,
+      "ledger": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_static_controls": 876,
+        "pending_control_reviews": 783
+      }
+    },
+    "hosted_observation": {
+      "sha": "27b5973f",
+      "github_pages": "success",
+      "macOS": "pending",
+      "macOS_run_id": 38695753862
+    }
+  },
+  "limitations": [
+    "No full upstream dialog/visual parity claim",
+    "Native fixtures use private repos/preferences and controlled callback assertions; no physical Finder or keyboard/menu acceptance",
+    "Signed Finder integration, App Store sandbox/distribution and complete hosted macOS CI remain unverified"
+  ]
+}

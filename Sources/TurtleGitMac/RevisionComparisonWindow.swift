@@ -239,6 +239,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         let query = ComparisonPathFilter(filter)
         return snapshot?.files.filter { query.matches(path: $0.path, oldPath: $0.oldPath) }.sorted(using: sortOrder) ?? []
     }
+    let alternateTool = ComparisonToolInvocation.alternate
     init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = [], preferences: UserDefaults = .standard) {
         self.preferences = preferences; self.repository = repository; self.access = access
         self.from = from.label; self.to = to.label; scopePaths = paths
@@ -325,7 +326,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     }
     private func runFiles(_ files: [CommitFile], operation: @escaping (OperationCancellation) async -> Void) {
         guard !closed, !busy, !confirmingQuit, !files.isEmpty else { return }
-        let request = UUID(), session = FileListComparisonSession(window: window, preferences: preferences)
+        let request = UUID(), session = FileListComparisonSession(window: window, preferences: preferences, alternateTool: alternateTool)
         session.confirmation = confirmManyDiffs; comparisonSessions[request] = session
         patchTokens[request] = session.cancellation; busy = true; Self.activeFileOperations += 1
         Task {

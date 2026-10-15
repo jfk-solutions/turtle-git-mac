@@ -33,6 +33,7 @@ import TurtleGitCore
 }
 
 @MainActor final class SubmoduleUpdateProgressWindowModel: ObservableObject, ActionLogProgress {
+    private(set) static var activeOperations = 0
     let repository: GitRepository
     private let access: RepositoryAccessLease?, paths: [String], options: SubmoduleUpdateOptions, preferences: UserDefaults, autoClosePolicy: GitProgressAutoClose
     private let token = OperationCancellation()
@@ -66,9 +67,9 @@ import TurtleGitCore
     }
     func invalidate() { invalidated = true; token.cancel() }
     func start() {
-        guard !started, !invalidated, !confirmingQuit else { return }; started = true; busy = true; startedAt = ProcessInfo.processInfo.systemUptime
+        guard !started, !invalidated, !confirmingQuit else { return }; started = true; busy = true; Self.activeOperations += 1; startedAt = ProcessInfo.processInfo.systemUptime
         Task {
-            defer { withExtendedLifetime(access) {} }
+            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild { guard access?.hasSecurityScope == true, access?.contains(repository.root) == true else { throw RepositoryAccessFailure.securityScopeUnavailable } }
                 let parser = GitCliOutputParser(limit: outputState.limit)

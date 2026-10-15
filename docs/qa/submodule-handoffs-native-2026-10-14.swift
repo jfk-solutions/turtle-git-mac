@@ -4,9 +4,9 @@ import TurtleGitCore
 @main struct SubmoduleHandoffsVerification {
     struct Failure: Error, LocalizedError { let message: String; var errorDescription: String? { message } }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(message: message) } }
-    @MainActor static func wait(_ ready: () -> Bool) async throws {
+    @MainActor static func wait(line: Int = #line, _ ready: () -> Bool) async throws {
         for _ in 0..<2000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(message: "Submodule timeout")
+        throw Failure(message: "Submodule timeout at line \(line)")
     }
     @MainActor static func main() async {
         do { try await verify() } catch { fputs("Submodule handoffs failed: \(error)\n", stderr); exit(1) }
@@ -41,18 +41,70 @@ import TurtleGitCore
         commit.submodules = [path]; commit.onSubmoduleLog = { childLogs.append($0.root) }; commit.showSubmoduleLog(path)
         try await wait { !commit.busy && SubmoduleWorkingLogSession.activeReads == 0 }
         try require(childLogs.map(\.path) == [child.root.path, child.root.path], "Commit child history missing")
-        let controller = SubmoduleDiffWindowController(repository: parent, access: nil, path: path, from: "HEAD"), model = controller.model
+        let controller = SubmoduleDiffWindowController(repository: parent, access: nil, path: path, from: "HEAD", preferences: defaults), model = controller.model
         defer { model.invalidate(); controller.close() }
         model.load(); try await wait { !model.busy && SubmoduleDiffWindowModel.activeReads == 0 }
         let details = model.details!; try require(details.from.revision == old && details.to.revision == current, "Diff read lost parent gitlink/child HEAD")
         var pinned: [String] = [], comparisons = 0
         model.onLog = { _, revision in pinned.append(revision) }; model.onCompare = { _, _, _ in comparisons += 1 }
-        model.log(details.from); model.log(details.to); model.compare()
+        model.log(details.from); try await wait { !model.busy }
+        model.log(details.to); try await wait { !model.busy }
+        var usedAlternate = false
+        model.onCompare = { _, _, _ in comparisons += 1; usedAlternate = ComparisonToolInvocation.alternate == true }
+        ComparisonToolInvocation.$alternate.withValue(true) { model.compare() }; try await wait { !model.busy }
+        try require(usedAlternate, "Shift choice lost during preparation")
+        controller.showWindow(nil)
+        model.update(); try await wait { controller.updateOptions != nil }
+        let owned = controller.updateOptions
+        model.update(); try require(controller.updateOptions === owned && model.hasUpdateChild, "Duplicate Update replaced owned options")
+        owned?.model.close(); try await wait { !model.hasUpdateChild && !model.busy }
+        try require(controller.updateOptions == nil && controller.updateProgress == nil, "Cancel retained update owner")
+        model.update(); try await wait { controller.updateOptions?.model.busy == false }
+        let submitted = controller.updateOptions!
+        try require(submitted.model.selection == [path], "Update lost selected gitlink")
+        submitted.model.options.noFetch = true; submitted.model.apply()
+        try await wait { controller.updateProgress != nil }
+        let progress = controller.updateProgress!
+        try await wait { !progress.model.activeOperation && SubmoduleUpdateProgressWindowModel.activeOperations == 0 }
+        try require(model.hasUpdateChild && controller.updateOptions == nil, "Update result lost ownership before acknowledgment")
+        progress.model.close(); try await wait { !model.hasUpdateChild && !model.busy }
+        let conflict = SubmoduleDiffWindowController(repository: parent, access: nil, path: path, from: "HEAD", preferences: defaults)
+        var routedConflict = false
+        conflict.model.readDetails = { _ in throw SubmoduleComparisonFailure.conflicted }
+        conflict.model.onConflict = { routedConflict = true }
+        conflict.model.load(); try await wait { !conflict.model.busy }
+        try require(routedConflict && conflict.model.error == nil, "Working conflict did not route to conflict workflow")
+        conflict.close()
+
         try require(pinned == [old, current] && comparisons == 1, "Diff child callbacks lost revisions")
+        let comparison = ComparisonToolInvocation.$alternate.withValue(true) {
+            RevisionComparisonWindowModel(repository: child, access: nil, from: .revision(old), to: .revision(current), preferences: defaults)
+        }
+        comparison.load(); try await wait { !comparison.busy }
+        var viewerAlternate = false
+        comparison.openComparedFile = { _, _ in viewerAlternate = ComparisonToolInvocation.alternate == true }
+        comparison.compare(["file"]); try await wait { !comparison.busy }
+        try require(viewerAlternate, "Changed Files lost initiating alternate-tool choice")
+        comparison.invalidate()
+        var prepared: CheckedContinuation<PreparedSubmoduleComparison, Error>?
+        model.readCommand = { _, _, _ in try await withCheckedThrowingContinuation { prepared = $0 } }
+        model.compare(); try await wait { prepared != nil }
+        try require(model.cancelRead(), "Preparation was not cancellable")
+        let ignored = try await parent.prepareSubmoduleComparison(details, action: .compareRevisions)
+        prepared?.resume(returning: ignored); prepared = nil
+        try await wait { !model.busy }
+        try require(comparisons == 1, "Cancelled command opened a viewer")
+        let closing = SubmoduleDiffWindowController(repository: parent, access: nil, path: path, from: "HEAD", preferences: defaults)
+        var closeRead: CheckedContinuation<SubmoduleComparison, Error>?
+        closing.model.readDetails = { _ in try await withCheckedThrowingContinuation { closeRead = $0 } }
+        closing.model.load(); try await wait { closeRead != nil }
+        try require(!closing.windowShouldClose(closing.window!), "Close escaped active read")
+        closeRead?.resume(returning: details); closeRead = nil
+        try await wait { closing.model.retired && !closing.model.busy }
         var pending: CheckedContinuation<SubmoduleComparison, Error>?
         model.readDetails = { _ in try await withCheckedThrowingContinuation { pending = $0 } }; model.load()
         try await wait { pending != nil }
-        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel && !controller.windowShouldClose(controller.window!), "Diff read escaped close/Quit")
+        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel && model.cancelRead(), "Diff read escaped close/Quit")
         pending?.resume(returning: details); pending = nil
         try await wait { !model.busy && SubmoduleDiffWindowModel.activeReads == 0 }
         try require(model.details?.to.revision == current, "Cancelled read changed details")

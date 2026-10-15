@@ -26,7 +26,7 @@ Paths and revisions are literal arguments. Tree records use NUL delimiters and
 exact path matches, preserving Unicode, commas, newlines and pathspec-looking
 names. Child checkout roots are verified before metadata access; external
 checkout symlinks and escaping parents are rejected. A conflicted index is rejected instead of presenting stage zero as
-resolved; explicit Diff-to-conflict-window routing still needs acceptance. Reads do not publish index updates or change HEAD/working contents.
+resolved; working Diff routes that result to the existing conflict editor. Reads do not publish index updates or change HEAD/working contents.
 
 Seven existing real-Git metadata tests cover the change categories, dirty and
 ignored files, historical comparisons, missing objects, uninitialized modules,
@@ -38,7 +38,7 @@ Submodule Diff groups From and To revisions and subjects, with a separate Log
 button for each side. The To group labels the working tree when appropriate.
 The type colors match the upstream RGB values; a dirty checkout uses red text
 on yellow. Missing metadata disables comparisons and highlights the subject.
-Update opens the existing Submodule Update window with that path selected.
+Update owns the existing Submodule Update options and progress sheets with that path selected. Canceling options releases the owner; the progress result retains ownership until acknowledgment.
 Identical revisions open child repository status; otherwise Show diff compares
 the two child commits. The dirty comparison menu also offers Compare against
 the working tree. F5 refreshes the metadata in place.
@@ -93,14 +93,14 @@ This remains a UI-observation limitation to investigate.
 The gallery contains inspected, unedited actual light-mode captures:
 `submodule-diff.png` and `changed-files.png`.
 
-## Remaining work
+## Original review gaps (see subsequent dated implementation records)
 
 Full reference-browser tree/context behavior, upstream Log range behavior,
 the remaining file context actions need porting. Native
 complete two-pane editing/save workflows, image-diff controls,
 alternative diff tools, blame, export and restore integration remain pending.
 Conflicted gitlinks retain the existing conflict workflow and need explicit
-Diff routing acceptance. Shift-alternative comparison is not wired. Dedicated
+physical Diff routing acceptance. Shift-alternative comparison is carried through asynchronous preparation and Changed Files to the file viewer. Dedicated
 native tests for identical/missing/historical states, Log and Update handoffs,
 F5, filter/swap/whitespace controls, multi-monitor placement and busy
 Quit remain. Signed Finder and sandbox security-scope acceptance are pending.
@@ -559,3 +559,32 @@ passed. See [file-action evidence](qa/changed-files-actions-2026-10-15.json) for
 exact mutation/read-only scope, fixture repairs and cleanup. Whole-selection
 Revert preflight errors currently stop before per-file Ignore/Abort; copy-side
 and missing-object variants still need further source matching.
+
+## Submodule action and Update ownership batch — 2026-10-15
+
+The pinned `SubmoduleDiffDlg.cpp` uses both `/endrev` and `/rev` for each
+child Log, routes identical gitlinks to child status, carries Shift as
+`/alternative`, and sends the selected path to Submodule Update. Native Log
+now pins both the range and selected revision. Log and Compare first revalidate
+the initialized child root and the immutable displayed commit objects under
+cancellation; advancing refs cannot replace the displayed revisions. Historical
+gitlinks remain actionable after deletion from the current superproject.
+Absent sides use the empty tree, while working comparisons retain the working
+tree sentinel. Preparation does not update either repository index.
+
+The captured Shift choice survives asynchronous preparation and is retained by
+the Changed Files window and its file comparison session. Reuse distinguishes
+an explicitly chosen alternate tool from independent comparison windows.
+Working index conflicts route to the existing submodule conflict workflow.
+
+Update options and progress belong to the initiating Diff window. The same
+preferences and appearance are used, duplicate Update requests are refused,
+and options cancellation or result acknowledgment refreshes the parent once.
+Force-closing the parent invalidates the children. Reads and the actual update
+process retain their access lease and application Quit guard until settlement,
+even if their windows have been retired. Closing during a Diff read cancels
+and closes after settlement; the explicit Cancel button only cancels the read.
+
+This remains partial parity. Physical menu/keyboard gestures, comprehensive
+light/dark layout review, signed Finder integration and App Store sandbox
+acceptance remain open. The dated QA record states the actual local scope.

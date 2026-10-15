@@ -1454,10 +1454,21 @@ import UniformTypeIdentifiers
         let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree")
         let controller = submoduleDiffWindows[key] ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to)
         controller.onClosed = { [weak self] in self?.submoduleDiffWindows.removeValue(forKey: key) }
-        controller.model.onLog = { [weak self] child, hash in self?.showLog(repository: child, access: access, paths: [], endRevision: hash) }
+        controller.model.onLog = { [weak self] child, hash in self?.showLog(repository: child, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
         controller.model.onStatus = { [weak self] child in self?.showStatus(repository: child, access: access) }
         controller.model.onCompare = { [weak self] child, old, new in self?.showRevisionComparison(repository: child, access: access, from: old, to: new) }
-        controller.model.onUpdate = { [weak self] done in self?.showSubmoduleUpdate(repository: repository, access: access, scope: [], selected: [path], completion: done) }
+        controller.model.onConflict = { [weak self, weak controller] in
+            controller?.window?.close()
+            self?.showConflictEditor(repository: repository, access: access, path: path)
+        }
+        controller.onUpdated = { [weak self] output in
+            self?.refreshRepositoryLogs(repository.root)
+            self?.statusWindows[repository.root.path]?.model.requestReload()
+            self?.commitWindows[repository.root.path]?.model.reload()
+            self?.rebaseWindows[repository.root.path]?.model.refreshState()
+            if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
+        }
+        controller.onBisect = { [weak self] in self?.showBisect(repository: repository, access: access, operation: $0) }
         submoduleDiffWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.load()
     }
@@ -1465,7 +1476,7 @@ import UniformTypeIdentifiers
         let baseKey = repository.root.path + "\0" + from.label + "\0" + to.label + "\0scope\0" + paths.joined(separator: "\0")
         let reusable = revisionComparisonWindows.first { _, controller in
             controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
-            controller.window?.attachedSheet == nil && controller.model.canReuseForComparison(from: from, to: to, paths: paths)
+            controller.model.alternateTool == ComparisonToolInvocation.alternate && controller.window?.attachedSheet == nil && controller.model.canReuseForComparison(from: from, to: to, paths: paths)
         }
         let key = reusable?.key ?? (revisionComparisonWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to, paths: paths)

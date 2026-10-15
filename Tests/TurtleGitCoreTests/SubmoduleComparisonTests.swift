@@ -275,6 +275,29 @@ final class SubmoduleComparisonTests: XCTestCase {
         let current = try await parent.submoduleComparison(path: path); XCTAssertEqual(current.change, .identical)
     }
 
+    func testPreparedCommandsKeepDisplayedObjectsAfterRefsAdvanceAndDoNotWrite() async throws {
+        let (root, parent, child, path, base) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let snapshot = try await parent.submoduleComparison(path: path, from: "", to: "HEAD")
+        try Data("later\n".utf8).write(to: child.root.appendingPathComponent("file.txt"))
+        try await child.stage(["file.txt"]); _ = try await child.commit(message: "later")
+        _ = try await parent.run(["update-index", "--force-remove", "--", path]); _ = try await parent.commit(message: "remove gitlink")
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let childIndex = try Data(contentsOf: child.root.appendingPathComponent(".git/index"))
+        let command = try await parent.prepareSubmoduleComparison(snapshot, action: .compareRevisions)
+        if case .compare(.emptyTree, .revision(let hash)) = command.command { XCTAssertEqual(hash, base) } else { XCTFail("Retargeted displayed comparison") }
+        let log = try await parent.prepareSubmoduleComparison(snapshot, action: .logTo)
+        if case .log(let hash) = log.command { XCTAssertEqual(hash, base) } else { XCTFail("Lost pinned Log") }
+        let working = try await parent.prepareSubmoduleComparison(snapshot, action: .compareWorkingTree)
+        if case .compare(.emptyTree, .workingTree) = working.command {} else { XCTFail("Lost working comparison") }
+        XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index")))
+        XCTAssertEqual(childIndex, try Data(contentsOf: child.root.appendingPathComponent(".git/index")))
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await parent.prepareSubmoduleComparison(snapshot, action: .logTo, cancellation: token); XCTFail("Cancelled command ran") } catch is OperationCancellationFailure {}
+        try FileManager.default.removeItem(at: child.root.appendingPathComponent(".git"))
+        do { _ = try await parent.prepareSubmoduleComparison(snapshot, action: .logTo); XCTFail("Fell back to parent") } catch is SubmoduleWorkingHistoryFailure {}
+    }
+
     func testConflictedIndexUsesConflictWorkflow() async throws {
         let (root, source, parent, _, path) = try await ConflictResolutionTests().submoduleFixture(initialized: true)
         defer { try? FileManager.default.removeItem(at: root); try? FileManager.default.removeItem(at: source) }
