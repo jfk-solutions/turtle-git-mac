@@ -366,6 +366,7 @@
 		FAB82E3107DA7034BF3479F6 /* PatchTargetMatching.swift in Sources */ = {isa = PBXBuildFile; fileRef = D621E333B5222878393878C2 /* PatchTargetMatching.swift */; };
 		C21010160000000000000005 /* MessageEditorStylingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21010160000000000000006 /* MessageEditorStylingSession.swift */; };
 		C210101600000000000000D1 /* LogMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101600000000000000D2 /* LogMessageView.swift */; };
+		C210101600000000000000E1 /* SourceMessageLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101600000000000000E2 /* SourceMessageLinks.swift */; };
 		C210101500000000000000A1 /* PatchDocumentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101500000000000000A2 /* PatchDocumentSession.swift */; };
 		C210101500000000000000B1 /* ExternalDocumentApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101500000000000000B2 /* ExternalDocumentApplication.swift */; };
 		C21010160000000000000003 /* ImageEditorToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21010160000000000000004 /* ImageEditorToolbar.swift */; };
@@ -810,6 +811,7 @@
 		DF564D01D7A2390D6F148B73 /* MergeResultPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeResultPresentation.swift; sourceTree = "<group>"; };
 		C21010160000000000000006 /* MessageEditorStylingSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorStylingSession.swift; sourceTree = "<group>"; };
 		C210101600000000000000D2 /* LogMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogMessageView.swift; sourceTree = "<group>"; };
+		C210101600000000000000E2 /* SourceMessageLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceMessageLinks.swift; sourceTree = "<group>"; };
 		C210101500000000000000A2 /* PatchDocumentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchDocumentSession.swift; sourceTree = "<group>"; };
 		C210101500000000000000B2 /* ExternalDocumentApplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExternalDocumentApplication.swift; sourceTree = "<group>"; };
 		C21010160000000000000004 /* ImageEditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageEditorToolbar.swift; sourceTree = "<group>"; };
@@ -986,6 +988,7 @@
 				C21010160000000000000004 /* ImageEditorToolbar.swift */,
 				C21010160000000000000006 /* MessageEditorStylingSession.swift */,
 				C210101600000000000000D2 /* LogMessageView.swift */,
+				C210101600000000000000E2 /* SourceMessageLinks.swift */,
 				C210101500000000000000A2 /* PatchDocumentSession.swift */,
 				C210101500000000000000B2 /* ExternalDocumentApplication.swift */,
 				C12C65B53D4E28A9F6C52DF1 /* ImageConflictWindow.swift */,
@@ -1950,6 +1953,7 @@
 				C21010160000000000000003 /* ImageEditorToolbar.swift in Sources */,
 				C21010160000000000000005 /* MessageEditorStylingSession.swift in Sources */,
 				C210101600000000000000D1 /* LogMessageView.swift in Sources */,
+				C210101600000000000000E1 /* SourceMessageLinks.swift in Sources */,
 				C210101500000000000000A1 /* PatchDocumentSession.swift in Sources */,
 				C210101500000000000000B1 /* ExternalDocumentApplication.swift in Sources */,
 				90C7E3E08BB57158CF31FB56 /* ImageConflictWindow.swift in Sources */,

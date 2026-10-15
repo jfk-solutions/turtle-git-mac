@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "f943e1b9",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/Utils/MiscUI/SciEdit.cpp:SCN_HOTSPOTRELEASECLICK/SCN_DWELLSTART",
+    "src/TortoiseProc/LogDlg.cpp:OnEnLinkMsgview/GetAbsoluteUrlFromRelativeUrl and all references to m_sRepositoryRoot"
+  ],
+  "scope": [
+    "Shared explicit editable hotspot dispatch across Commit, Merge, Rebase shared editor, Input/Notes/Description",
+    "Captured text/range/target/owner/generation for native Open/Copy link actions; invalidation after edits, identical-text restoration, restyling, detach or close",
+    "Nonempty selection, disabled/marked editors, model busy state and owned modal guards; default AppKit link actions removed by selector",
+    "Original Open/Copy and standard editing artwork with private owning icon preferences; native scissors fallback for Cut",
+    "Log shares menu item/URL adapter while retaining separate read-only hash/message identity",
+    "Source-relative helper audit: pinned m_sRepositoryRoot never populated; no inferred remote mapping or claimed working relative-URL feature"
+  ],
+  "build": {
+    "log": "build/qa/source-message-links-build.log",
+    "exit": 0,
+    "diagnostics": "Existing exit-zero command noise and warnings; no clean-diagnostics claim."
+  },
+  "core": {
+    "run": false,
+    "reason": "Core byte styling, UTF-16 issue matcher, URL finder and escaping unchanged; native-only workflow batch."
+  },
+  "native": {
+    "runner": "scripts/test-message-style-family.py",
+    "command": "python3 scripts/test-message-style-family.py --only links --only styles --only log --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "fixture": "docs/qa/source-message-links-native-2026-10-15.swift",
+    "log": "build/qa/source-message-links-native.log",
+    "exit": 0,
+    "cases": 6,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "case_names": [
+      "links",
+      "styles",
+      "log"
+    ],
+    "receiver_pids": [
+      37716,
+      37844,
+      37990,
+      38060,
+      38187,
+      38334
+    ],
+    "all_receiver_pids_absent": true,
+    "exact_new_checks": [
+      "Actual Input/Notes/Description/Merge/Commit editors and Rebase shared editor with loaded real project properties",
+      "Ordinary hotspot callback preserves existing percent escapes; mismatched event value and selected-text activation refused",
+      "Synthetic localized native link action removed by selector; Open/Copy and standard Copy icon images present",
+      "Injected clipboard receives exact captured address, without writing shared pasteboard",
+      "Old menu actions refuse disabled editor and owned modal; unchanged target works after modal ends",
+      "Edit and restore exact old text does not revive old menu identity",
+      "Private ShowAppContextMenuIcons false hides link images",
+      "Link actions preserve message text/Undo state; retired and closed owners cannot activate/copy old targets",
+      "Exact private Git HEAD/index and saved note bytes unchanged, including Git-created trailing LF"
+    ],
+    "regression_checks": [
+      "Existing styles case covers real Notes/Log/Merge issue properties, Rebase shared editor, descriptions, private live font/style settings, Undo/selection/raw text, IME, cancelled stale queries/Quit and Git/note preservation",
+      "Existing Log case covers rich links/traits, visible hash selection/scroll, selection/busy refusal, stale menu identity, private preferences, owned warning and held styling/Quit lifetime"
+    ],
+    "simulations": "URL opening and clipboard publication injected into actual native handlers; no public browser/tracker or shared pasteboard. Rebase uses its shared editor with actual loaded model settings, not a live replay operation."
+  },
+  "fixture_failures": [
+    {
+      "log": "build/qa/source-message-links-interrupted-native.log",
+      "receiver": 37155,
+      "result": "Explicitly interrupted/reaped after idle AppKit sampling beyond expected bounded fixture waits; no complete case result.",
+      "diagnostic": "build/qa/source-message-links-sample.log"
+    },
+    {
+      "log": "build/qa/source-message-links-sheet-overload-native.log",
+      "receiver": 37263,
+      "result": "Phase trace located blocking no-completion sheet presentation. Explicit synchronous completion-handler overload lets async fixture reach dismissal; process interrupted/reaped for repair."
+    },
+    {
+      "log": "build/qa/source-message-links-load-fixture-failure.log",
+      "receiver": 37337,
+      "result": "Merge properties wait failed because fixture bypassed router load call. Added explicit Merge load and Commit reload, matching production router setup."
+    },
+    {
+      "log": "build/qa/source-message-links-note-fixture-failure.log",
+      "receiver": 37519,
+      "result": "All editor interaction stages reached completion, then combined Git/note assertion failed. Fixture compared saved note to input without Git trailing LF; replaced with separate exact before/after HEAD/index/note byte comparisons."
+    }
+  ],
+  "ci": {
+    "pages_previous_commit": "38782542948 success for f943e1b9",
+    "macos_latest": "38782543150 pending at inspection",
+    "in_progress_previous": "38778092594 job116573435120 observed in Git integration tests; no full hosted success claimed",
+    "updated_step": "Shared message styles and spelling now also runs --only links with both engines"
+  },
+  "limitations": [
+    "No actual external browser/tracker, shared pasteboard, physical hotspot/hover/menu/VoiceOver or all localized native menu variants exercised",
+    "No new screenshot; existing message/Log captures retain relevant appearance, new context-menu icons verified as native menu objects",
+    "Literal relative targets retain source dispatch boundary; no invented Git remote/root resolution",
+    "Foundation URL construction replaces Windows ShellExecute behavior; signed App Store receiving-app behavior remains unverified",
+    "No dialog newly certified; complete application parity remains open"
+  ]
+}

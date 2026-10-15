@@ -282,7 +282,7 @@ jobs:
       - name: Pinned inline parser and matching oracle
         run: python3 scripts/test-inline-source.py
       - name: Shared message styles and spelling
-        run: python3 scripts/test-message-style-family.py --only styles --only spelling --only font --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+        run: python3 scripts/test-message-style-family.py --only styles --only spelling --only font --only links --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Log rich message links and owned styling
         run: python3 scripts/test-log-message-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Add LFS and persistent native list family

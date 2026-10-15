@@ -31,6 +31,7 @@ struct CommitMessageEditor: NSViewRepresentable {
         guard let editor = scroll.documentView as? MessageTextView else { return }
         context.coordinator.updateModel(model)
         editor.isEditable = enabled && !model.loadingAmendMessage; editor.model = model
+        editor.sourceLinkAvailable = { [weak model] in model?.messageFocusAvailable == true && model?.busy == false && model?.confirmingQuit == false }
         model.prepareMessageCompletions()
         if !editor.string.utf8.elementsEqual(model.message.utf8) {
             let range = editor.selectedRange()
@@ -47,7 +48,7 @@ struct CommitMessageEditor: NSViewRepresentable {
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
         coordinator.invalidate()
         if let editor = scroll.documentView as? MessageTextView {
-            editor.dismissSpellingSuggestions(); editor.delegate = nil; editor.model = nil; editor.onAttachmentChange = nil
+            editor.dismissSpellingSuggestions(); editor.retireSourceStyling(); editor.delegate = nil; editor.model = nil; editor.onAttachmentChange = nil
         }
     }
     func makeCoordinator() -> Coordinator { Coordinator(model) }
@@ -120,8 +121,7 @@ struct CommitMessageEditor: NSViewRepresentable {
             }
         }
         func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
-            guard let value = link as? String, let url = URL(string: value) else { return true }
-            NSWorkspace.shared.open(url)
+            (textView as? ProjectMessageTextView)?.followSourceLink(link,at:charIndex)
             return true
         }
     }
@@ -199,14 +199,14 @@ private final class MessageTextView: ProjectMessageTextView {
         menu.addItem(.separator())
         for (title, action) in [("Pick commit hash…", #selector(pickHash)), ("Pick commit message…", #selector(pickMessage))] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-            item.target = self; item.image = MenuIcon.log.contextImage(); menu.addItem(item)
+            item.target = self; item.image = MenuIcon.log.contextImage(defaults:spellingPreferences); menu.addItem(item)
         }
         let fileList = NSMenuItem(title: "Paste file list", action: #selector(pasteFileList), keyEquivalent: "")
-        fileList.target = self; fileList.image = MenuIcon.copy.contextImage(); menu.addItem(fileList)
+        fileList.target = self; fileList.image = MenuIcon.copy.contextImage(defaults:spellingPreferences); menu.addItem(fileList)
         if model?.messageHistory?.entries.isEmpty == false {
             for (title, action) in [("Paste last message", #selector(pasteLastMessage)), ("Recent messages…", #selector(recentMessages))] {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-                item.target = self; item.image = (title == "Paste last message" ? MenuIcon.copy : MenuIcon.log).contextImage(); menu.addItem(item)
+                item.target = self; item.image = (title == "Paste last message" ? MenuIcon.copy : MenuIcon.log).contextImage(defaults:spellingPreferences); menu.addItem(item)
             }
         }
         return menu

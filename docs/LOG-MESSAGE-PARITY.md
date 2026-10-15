@@ -48,7 +48,9 @@ preferences apply. Closing retires the view and cancels its work; Quit remains
 blocked until outstanding reads settle. External URL opening requires an explicit
 link action. No Git index, working file or commit content is written by this pane.
 
-Relative bugtraq URLs still require the source remote-relative resolver. Exact
+The source relative-URL helper has no populated repository-root field in the
+pinned source; literal target dispatch is preserved. See the
+[shared hotspot audit](MESSAGE-LINK-INTERACTION-PARITY.md). Exact
 RichEdit adjacent-link merging, all Windows Unicode/locale boundaries, source
 message clipboard/context-menu variants, physical interactions and signed
 App Store acceptance remain open. No dialog is certified complete.

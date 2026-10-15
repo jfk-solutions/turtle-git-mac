@@ -118,17 +118,17 @@ struct LogMessageView: NSViewRepresentable {
             guard expected == nil || expected == request else { return }
             guard interactive, styles.links.contains(link) else { return }
             if link.kind == .hash { model?.followMessageHash(link.target) }
-            else if let url = URL(string:link.target) { openURL(url) }
+            else if let url = SourceMessageLinkURL.url(link.target) { openURL(url) }
         }
         func menu(at index: Int) -> NSMenu {
             let menu = NSMenu(); menu.autoenablesItems = false; let expected = request
             if let link = link(at:index) {
-                let open = LogMessageMenuItem(title:link.kind == .hash ? "Jump to commit" : "Open link",icon:link.kind == .hash ? .log : .open) { [weak self] in self?.activate(link, expected:expected) }
+                let open = MessageLinkMenuItem(title:link.kind == .hash ? "Jump to commit" : "Open link",icon:link.kind == .hash ? .log : .open, defaults:model?.colorPreferences ?? .standard) { [weak self] in self?.activate(link, expected:expected) }
                 open.isEnabled = interactive; menu.addItem(open)
-                let copy = LogMessageMenuItem(title:link.kind == .hash ? "Copy hash" : "Copy link address",icon:.copy) { [weak self] in self?.copyLink(link, expected:expected) }
+                let copy = MessageLinkMenuItem(title:link.kind == .hash ? "Copy hash" : "Copy link address",icon:.copy, defaults:model?.colorPreferences ?? .standard) { [weak self] in self?.copyLink(link, expected:expected) }
                 copy.isEnabled = current; menu.addItem(copy); menu.addItem(.separator())
             }
-            let copy = NSMenuItem(title:"Copy",action:#selector(NSTextView.copy(_:)),keyEquivalent:""); copy.target = editor; copy.image = MenuIcon.copy.contextImage(); copy.isEnabled = current && (editor?.selectedRange().length ?? 0) > 0; menu.addItem(copy)
+            let copy = NSMenuItem(title:"Copy",action:#selector(NSTextView.copy(_:)),keyEquivalent:""); copy.target = editor; copy.image = MenuIcon.copy.contextImage(defaults:model?.colorPreferences ?? .standard); copy.isEnabled = current && (editor?.selectedRange().length ?? 0) > 0; menu.addItem(copy)
             let all = NSMenuItem(title:"Select All",action:#selector(NSTextView.selectAll(_:)),keyEquivalent:""); all.target = editor; all.isEnabled = current; menu.addItem(all)
             return menu
         }
@@ -150,12 +150,4 @@ final class LogMessageTextView: NSTextView {
         let range = selectedRange(); guard range.length > 0, NSMaxRange(range) <= (string as NSString).length else { return }
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString((string as NSString).substring(with:range),forType:.string)
     }
-}
-private final class LogMessageMenuItem: NSMenuItem {
-    let invoke: () -> Void
-    init(title: String, icon: MenuIcon, invoke: @escaping () -> Void) {
-        self.invoke = invoke; super.init(title:title,action:#selector(invokeMenuAction),keyEquivalent:""); target = self; image = icon.contextImage()
-    }
-    required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    @objc func invokeMenuAction() { invoke() }
 }

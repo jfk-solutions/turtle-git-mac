@@ -2002,3 +2002,21 @@ pane dividers and uses a private font so all message sections remain visible.
 covers source hash/trailer/DWORD/visible-prefix rules, document sections, RichEdit
 traits, UTF-16 issue/template positions, overlap precedence, invalid expressions,
 filter ranges and cancellation. See [parity](LOG-MESSAGE-PARITY.md).
+
+## Shared editable message hotspots
+
+`python3 scripts/test-message-style-family.py --only links --only styles --only log --git /usr/bin/git --git build/git-runtime/Git/bin/git`
+compiles fixtures against current Debug app objects once and runs private receivers
+sequentially. The link case uses actual Input, Notes, Description, Merge and Commit
+editors plus the shared Rebase editor with loaded project properties. It injects
+URL opening and clipboard publication, checks original menu images/private icon
+preferences, replaces inherited link actions, exercises selected/disabled/modal
+refusal and edit/restore/close retirement, and compares exact Git/note bytes.
+The existing styles and rich Log families remain separate cases in the same batch.
+
+The fixture uses explicit synchronous sheet completion handlers, mirroring the
+controller API while allowing its async verification code to dismiss the sheet.
+Phase diagnostics in the private root identify stalled interactions. No browser,
+real tracker or shared pasteboard is used. Physical clicks/hover, all native
+localized menu variants and signed App Store acceptance remain open. See
+[MESSAGE-LINK-INTERACTION-PARITY](MESSAGE-LINK-INTERACTION-PARITY.md).

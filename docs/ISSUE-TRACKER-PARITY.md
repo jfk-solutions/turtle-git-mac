@@ -364,3 +364,9 @@ accessibility labels and matching the source blank boxes. Its Debug build exited
 suite was rerun for this presentation-only change. The optional capture case is
 excluded from the default CI group and requires local window-capture permission.
 See `qa/issue-tracker-captures-2026-10-12.json` for final dimensions and hashes.
+
+The [shared hotspot interaction family](MESSAGE-LINK-INTERACTION-PARITY.md) now
+owns editable link activation and captured icon menus across Commit, Merge,
+Rebase and Input/Notes/Description. It records the source's dormant relative-root
+helper instead of inventing a remote mapping. Existing byte styling/escaping is
+unchanged; physical/signed acceptance remains partial.

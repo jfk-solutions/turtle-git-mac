@@ -305,6 +305,19 @@ private struct ProjectDialogWindowProbe: NSViewRepresentable {
 /// SciEdit's project language and margin are shared by Commit, Merge and Rebase.
 class ProjectMessageTextView: NSTextView {
     private var sourceStyling: MessageEditorStylingSession?
+    var sourceLinkAvailable: () -> Bool = { true }
+    lazy var sourceLinks: SourceMessageLinkInteraction = {
+        let links = SourceMessageLinkInteraction(editor:self)
+        links.preferences = { [weak self] in self?.spellingPreferences ?? .standard }
+        links.canInteract = { [weak self] in
+            guard let self else { return false }
+            return self.isEditable && !self.hasMarkedText() && self.sourceLinkAvailable() && self.string.utf8.elementsEqual(self.styledText.utf8)
+        }
+        return links
+    }()
+    override func clicked(onLink link: Any, at charIndex: Int) { sourceLinks.clicked(link,at:charIndex) }
+    func followSourceLink(_ link: Any, at index: Int) { sourceLinks.clicked(link,at:index) }
+
     func configureSourceStyling(properties: IssueTrackerProperties = IssueTrackerProperties(), preferences: UserDefaults, font: NSFont) {
         spellingPreferences = preferences
         isAutomaticLinkDetectionEnabled = false
@@ -312,14 +325,15 @@ class ProjectMessageTextView: NSTextView {
         if sourceStyling == nil { sourceStyling = MessageEditorStylingSession(editor: self) }
         sourceStyling?.configure(properties: properties, preferences: preferences, font: font)
     }
-    func retireSourceStyling() { sourceStyling?.retire(); sourceStyling = nil }
-    override func didChangeText() { super.didChangeText(); sourceStyling?.refresh() }
+    func retireSourceStyling() { sourceStyling?.retire(); sourceStyling = nil; sourceLinks.retire() }
+    override func didChangeText() { sourceLinks.invalidate(); super.didChangeText(); sourceStyling?.refresh() }
     override func unmarkText() { super.unmarkText(); sourceStyling?.refresh() }
     private var appliedStyles: [IssueMessageStyle] = []
     private var styledText = ""
     private var styledBaseFont: NSFont?
     func applyIssueStyles(_ styles: [IssueMessageStyle], base: NSFont) {
         guard styles != appliedStyles || !string.utf8.elementsEqual(styledText.utf8) || styledBaseFont != base, let storage = textStorage else { return }
+        sourceLinks.invalidate()
         appliedStyles = styles; styledText = string; styledBaseFont = base
         let selection = selectedRanges
         let undoEnabled = undoManager?.isUndoRegistrationEnabled == true
@@ -385,13 +399,17 @@ class ProjectMessageTextView: NSTextView {
         spellingPopup.show(spellingChoices, catalog: MessageCompletionCatalog(), icon: .completionSpelling, in: self)
     }
     override func resignFirstResponder() -> Bool { dismissSpellingSuggestions(); return super.resignFirstResponder() }
-    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); if window == nil { dismissSpellingSuggestions(); retireSourceStyling() } }
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); sourceLinks.attachOwner(); if window == nil { dismissSpellingSuggestions(); retireSourceStyling() } }
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event)
+        if let menu {
+            let point = convert(event.locationInWindow,from:nil)
+            sourceLinks.prepareMenu(menu,at:characterIndexForInsertion(at:point))
+        }
         if isEditable, let menu {
             menu.addItem(.separator())
             let item = NSMenuItem(title: "Spelling suggestions", action: #selector(showSpellingSuggestions), keyEquivalent: "")
-            item.target = self; item.image = MenuIcon.completionSpelling.contextImage()
+            item.target = self; item.image = MenuIcon.completionSpelling.contextImage(defaults:spellingPreferences)
             item.isEnabled = ProjectLanguages.code(projectSettings.language.value) != -1 && (spellingPreferences.object(forKey: "Spellchecker") as? Bool ?? true)
             menu.addItem(item)
         }

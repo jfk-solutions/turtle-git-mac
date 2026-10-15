@@ -23,6 +23,7 @@ struct MergeMessageEditor: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let editor = scroll.documentView as? MergeMessageTextView else { return }
         editor.model = model; editor.isEditable = enabled
+        editor.sourceLinkAvailable = { [weak model] in model?.busy == false && model?.closed == false }
         let preferences = model.messageEditorPreferences
         let font = MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: preferences.object(forKey: "LogFontSize") as? Int ?? MessageEditorFont.defaultSize)
         editor.spellingPreferences = model.messageEditorPreferences
@@ -67,7 +68,7 @@ final class MergeMessageTextView: ProjectMessageTextView {
         menu.addItem(.separator())
         for (title, action, icon) in [("Paste last message", #selector(pasteLastMessage), MenuIcon.copy), ("Recent messages…", #selector(recentMessages), MenuIcon.log)] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-            item.target = self; item.image = icon.contextImage(); menu.addItem(item)
+            item.target = self; item.image = icon.contextImage(defaults:spellingPreferences); menu.addItem(item)
         }
     }
     @objc func pasteLastMessage() {
