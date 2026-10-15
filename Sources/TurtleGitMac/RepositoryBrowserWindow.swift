@@ -440,6 +440,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     }
     func showFolderLog(_ path: String) {
         guard folderObjectID(path) != nil, let revision = snapshot?.objectID else { return }
+        guard snapshot?.treeID != revision else { error = "Tree objects contain file snapshots, but have no commit history or blame information. Choose a commit or tag to view history."; return }
         onLog(path,revision)
     }
     func copyFolder(_ path: String, hashes: Bool = false, pasteboard: NSPasteboard = .general) {
@@ -449,11 +450,13 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     }
     func showEntryLog(_ entry: RepositoryBrowserEntry) {
         guard canUseMenu, let snapshot, snapshot.entries.contains(entry), let revision = snapshot.objectID else { return }
+        guard snapshot.treeID != revision else { error = "Tree objects contain file snapshots, but have no commit history or blame information. Choose a commit or tag to view history."; return }
         onLog(entry.path,revision)
     }
     func showEntryBlame(_ entry: RepositoryBrowserEntry) {
         guard canUseMenu, let snapshot, !snapshot.bare, snapshot.entries.contains(entry),
               ![.directory,.submodule].contains(entry.kind), let revision = snapshot.objectID else { return }
+        guard snapshot.treeID != revision else { error = "Tree objects contain file snapshots, but have no commit history or blame information. Choose a commit or tag to view history."; return }
         onBlame(entry.path,revision)
     }
     func compareEntryToWorkingTree(_ entry: RepositoryBrowserEntry) {

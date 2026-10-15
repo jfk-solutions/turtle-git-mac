@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-15",
+  "scope": "Repository Browser standalone-tree comparison family",
+  "implementation": [
+    "Shared comparison resolution accepts peeled commits or trees and rejects blobs; preserves exact object identity",
+    "Working-tree and marked-path comparisons, external working-file pairs, historical file reads and raw patch export accept tree snapshots",
+    "Changed Files labels tree metadata without invented author or dates; common-ancestor mode retains direct tree comparisons",
+    "Browser file/folder Log and Blame plus Changed Files history actions explain trees have no commit history"
+  ],
+  "validation": {
+    "core": {
+      "checks": 49,
+      "failures": 0,
+      "scope": "RepositoryBrowserTests, RevisionComparisonTests, FileComparisonTests and matching ImageFileComparisonTests",
+      "log": "build/qa/browser-tree-core-2026-10-15.log",
+      "new_case": "Standalone tree/tag comparisons, reverse and common-ancestor ranges, working and marked bytes, external binary bytes, literal newline path historical read, patch scope, commit metadata retention, invalid objects, cancelled request and unchanged index/HEAD/disk"
+    },
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/browser-tree-build-2026-10-15.log"
+    },
+    "native_system": {
+      "result": "passed",
+      "log": "build/qa/browser-tree-native-2026-10-15.log",
+      "receiver_pid": 6709
+    },
+    "native_bundled": {
+      "result": "passed",
+      "log": "build/qa/browser-tree-bundled-2026-10-15.log",
+      "receiver_pid": 8454,
+      "cache": "Reused compiled receiver"
+    },
+    "initial_invocation_error": {
+      "description": "Supplied nonexistent TurtleGit.app path instead of TurtleGitMac.app for bundled Git; corrected path and reran only bundled browser case",
+      "receiver_pid": 7436,
+      "reaped": true
+    },
+    "native_scope": "Existing browser lifecycle group plus tree working and marked handoffs, downstream exact-byte reads, Changed Files commit/tree details, history guards, light/dark appearance host assignment, owned window close",
+    "hosted_status_observed": {
+      "commit": "1d6e74db",
+      "pages": "success",
+      "macos": "pending",
+      "note": "Previous push only; no hosted acceptance claim for this batch"
+    },
+    "cleanup": "Receivers 6709, 7436 and 8454 reaped by runner; subsequent ps check found all three absent.",
+    "documentation": "Coverage ledger regenerated; site build passed."
+  },
+  "limits": [
+    "Light/dark host assignment does not certify visual parity",
+    "No physical Finder drag/drop, signed shell invocation or App Store distribution acceptance",
+    "Tree objects contain no ancestry or attribution; user must select a commit or tag pointing to a commit for Log/Blame",
+    "Standalone commit-change-set and parent-selection APIs still require commits intentionally"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

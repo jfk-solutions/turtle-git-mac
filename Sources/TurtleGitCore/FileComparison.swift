@@ -184,16 +184,12 @@ extension GitRepository {
     /// Pin each historical side; working sides remain live and editable.
     public func preparedPathComparison(from: ComparisonRevision, fromPath: String, to: ComparisonRevision, toPath: String, cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
         try cancellation?.check()
-        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
-            try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
-        }
-
         _ = try restoreLocation(fromPath); _ = try restoreLocation(toPath)
         if from == .workingTree || to == .workingTree { guard try !isBare(cancellation: cancellation) else { throw RevisionComparisonFailure.selection } }
         func pin(_ revision: ComparisonRevision) throws -> ComparisonRevision {
             if revision == .workingTree { return revision }
             guard case .revision(let name) = revision else { throw RevisionComparisonFailure.selection }
-            return .revision(try read(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"]).text.trimmingCharacters(in: .newlines))
+            return .revision(try comparisonObject(name, cancellation: cancellation))
         }
         let from = try pin(from), to = try pin(to)
         let file = CommitFile(path: toPath, oldPath: fromPath, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
@@ -201,7 +197,7 @@ extension GitRepository {
         _ = try comparisonFile(snapshot, path: toPath, cancellation: cancellation)
         return snapshot
     }
-    /// Read exact bytes from a pinned commit for Save As; no checkout or index write.
+    /// Read exact bytes from a pinned commit or tree for Save As; no checkout or index write.
     public func historicalFile(revision: String, path: String, cancellation: OperationCancellation? = nil) throws -> ComparisonFileContent {
         try cancellation?.check()
 
@@ -296,11 +292,7 @@ public struct HistoricalWorkingFileComparison: Sendable {
 extension GitRepository {
     public func historicalWorkingFileComparison(revision: String, path: String, workingFile: URL, cancellation: OperationCancellation? = nil) throws -> HistoricalWorkingFileComparison {
         try cancellation?.check()
-        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
-            try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
-        }
-
-        let hash = try read(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+        let hash = try comparisonObject(revision, cancellation: cancellation)
         _ = try historicalFile(revision: hash, path: path, cancellation: cancellation)
         let url = workingFile.standardizedFileURL
         _ = try WorkingFileComparison.workingContent(at: url)

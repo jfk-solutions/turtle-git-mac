@@ -793,6 +793,7 @@
         "docs/REPOSITORY-BROWSER-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/browser-tree-comparisons-2026-10-15.json",
         "docs/qa/repository-browser-2026-10-05.json",
         "docs/qa/repository-browser-actions-2026-10-13.json",
         "docs/qa/repository-browser-export-2026-10-05.json",

@@ -35,6 +35,7 @@ public struct RevisionDiffOptions: Equatable, Sendable {
 }
 public struct ComparisonRevisionDetails: Sendable {
     public let shortHash: String
+    public var isTree = false
     public let subject: String
     public let author: String
     public let authorDate: Date?
@@ -62,6 +63,17 @@ public enum RevisionComparisonFailure: LocalizedError {
     }
 }
 extension GitRepository {
+    /// Comparisons consume snapshots, so accept both commits and standalone trees.
+    /// Preserve a commit's identity for metadata/history; never replace a tree with
+    /// an arbitrary commit that happens to contain the same files.
+    func comparisonObject(_ name: String, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
+        guard !name.isEmpty, !name.utf8.contains(0) else { throw RevisionComparisonFailure.range }
+        let object = try run(["rev-parse", "--verify", "--end-of-options", name + "^{}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let kind = try run(["cat-file", "-t", object], cancellation: cancellation).text
+        guard kind == "commit\n" || kind == "tree\n" else { throw RevisionComparisonFailure.range }
+        return object
+    }
     /// PrevDiffCommand uses HEAD~1 for directories, and the second commit
     /// touching a selected file for files. Both compare against working bytes.
     public func previousDiffBase(path: String, cancellation: OperationCancellation? = nil) throws -> (revision: String, directory: Bool) {
@@ -168,7 +180,7 @@ extension GitRepository {
         let token = cancellation ?? OperationCancellation()
         try token.check()
         func resolve(_ side: ComparisonRevision) throws -> ComparisonRevision {
-            if case .revision(let name) = side { return .revision(try run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)) }
+            if case .revision(let name) = side { return .revision(try comparisonObject(name, cancellation: token)) }
             return side
         }
         func isAncestor(_ a: String, _ b: String) throws -> Bool {
@@ -198,6 +210,9 @@ extension GitRepository {
     }
     private func comparisonDetails(_ side: ComparisonRevision, useMailmap: Bool, cancellation: OperationCancellation? = nil) throws -> ComparisonRevisionDetails? {
         guard case .revision(let hash) = side else { return nil }
+        if try run(["cat-file", "-t", hash], cancellation: cancellation).text == "tree\n" {
+            return ComparisonRevisionDetails(shortHash: String(hash.prefix(12)), isTree: true, subject: "Tree", author: "", authorDate: nil, committerDate: nil)
+        }
         let fields = try run(["show", "--encoding=UTF-8", "--no-patch", "--no-notes", "--format=%h%x00%s%x00" + GitIdentityDisplay(useMailmap: useMailmap).authorName + "%x00%at%x00%ct", hash, "--"], cancellation: cancellation).text.trimmingCharacters(in: .newlines).components(separatedBy: "\0")
         guard fields.count == 5 else { throw RevisionComparisonFailure.range }
         return ComparisonRevisionDetails(shortHash: fields[0], subject: fields[1], author: fields[2], authorDate: TimeInterval(fields[3]).map(Date.init(timeIntervalSince1970:)), committerDate: TimeInterval(fields[4]).map(Date.init(timeIntervalSince1970:)))

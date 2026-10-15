@@ -223,8 +223,9 @@ See [structured evidence](qa/repository-browser-2026-10-05.json).
   representations and file/folder receivers are implemented and checked.
 - Broader native parent/child Log and initialized/missing child Open/update acceptance.
   Separate child Log and its pinned read-only routing are now implemented.
-- Historical tree-object Log/Blame/compare handoffs: listing and blob reads accept
-  tree objects, while existing helpers generally expect commits.
+- Historical tree-object comparisons are implemented in the October 15 tree
+  handoff batch below. Tree objects have no commit history; Log/Blame explain
+  that a commit or tag is needed instead of dispatching a failing history read.
 - Complete Open With, alternative editor, Save, Blame and working comparison
   acceptance from this window, plus imported Finder comparison marks.
 - Complete physical column/divider/frame acceptance, full keyboard selection,
@@ -433,3 +434,35 @@ and files, not a claim of full physical or accessibility acceptance.
 ![Native Repository Browser folder tree in light mode](site/assets/repository-browser-tree-light.png)
 
 ![Native Repository Browser folder tree in dark mode](site/assets/repository-browser-tree-dark.png)
+
+## Standalone tree comparison handoffs — October 15, 2026
+
+Repository Browser accepts commits, annotated tags and standalone trees. The
+comparison family now accepts the same snapshot objects: selected historical
+files against working bytes, marked historical paths against other historical
+or working paths, imported external working files, full revision comparisons,
+selected raw patch export, and historical Save As reads. Annotated tags peel to
+their underlying commit or tree. Blob objects and invalid revisions are rejected.
+A standalone tree stays pinned to its object ID even when references move; the
+code never substitutes a commit containing similar content.
+
+Changed Files displays a tree's short hash and **Tree**, with a tooltip explaining
+that it has no commit metadata. It leaves author/date fields empty and does not
+claim a newer commit date. Common-ancestor mode keeps a direct comparison when
+one side is a tree. Forward/reverse diffs and working bytes use the existing Git
+diff pipeline, literal paths, raw patch data and cancellation tokens.
+
+The pinned source's `eCmd_CompareWC`, `eCmd_ViewLog` and `eCmd_Blame` handlers pass
+the browser revision to their downstream helpers. Git trees themselves have no
+parent commits or attribution. Browser Log/Blame and Changed Files history actions
+therefore explain that the user must choose a commit or tag; they do not launch
+an invalid tree-as-commit request or invent history. A tag pointing to a tree has
+the same limitation. Commit-backed history routes retain their existing behavior.
+
+Grouped Core/native evidence is recorded in
+[tree comparison QA](qa/browser-tree-comparisons-2026-10-15.json). The native
+receiver exercises browser working/marked callbacks, downstream blob reads,
+Changed Files metadata/history guards and owned window cleanup. Assigning light
+and dark appearances is a host check, not visual screenshot certification.
+Signed Finder invocation, physical drag/drop, complete accessibility and full
+source-dialog visual parity remain separate acceptance work.

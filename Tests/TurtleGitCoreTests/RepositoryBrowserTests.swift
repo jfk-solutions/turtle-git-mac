@@ -2,6 +2,58 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RepositoryBrowserTests: XCTestCase {
+    func testStandaloneTreesSupportComparisonMarksPatchesAndHistoricalReadsWithoutInventingHistory() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = try Data(contentsOf: root.appendingPathComponent(path))
+        let first = try await repo.browseRepository(), tree = try XCTUnwrap(first.treeID)
+        _ = try await repo.run(["tag", "-a", "snapshot-tree", tree, "-m", "Tree snapshot"])
+        let changed = Data("tree comparison changed\n".utf8), literal = ":(glob)* 雪\n.bin"
+        try changed.write(to: root.appendingPathComponent(path))
+        try Data([0xff, 0x85, 0, 10]).write(to: root.appendingPathComponent(literal))
+        try await repo.stage([path, literal]); _ = try await repo.commit(message: "second snapshot")
+        let second = try await repo.browseRepository(), newer = try XCTUnwrap(second.treeID)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let comparison = try await repo.revisionComparison(from: .revision("snapshot-tree"), to: .revision(newer))
+        XCTAssertEqual(comparison.from, .revision(tree)); XCTAssertEqual(comparison.to, .revision(newer))
+        XCTAssertEqual(comparison.fromDetails?.isTree, true); XCTAssertEqual(comparison.toDetails?.isTree, true)
+        XCTAssertEqual(comparison.fromDetails?.author, ""); XCTAssertNil(comparison.fromDetails?.authorDate)
+        XCTAssertTrue(comparison.files.contains { $0.path == path })
+        let document = try await repo.comparisonFile(comparison, path: path)
+        XCTAssertEqual(document.base.bytes, original); XCTAssertEqual(document.destination.bytes, changed)
+        let patch = try await repo.revisionComparisonPatchData(comparison, paths: [path])
+        XCTAssertTrue(String(decoding: patch, as: UTF8.self).contains("+tree comparison changed"))
+        let reverse = try await repo.revisionComparison(from: .revision(newer), to: .revision(tree))
+        let reversed = try await repo.comparisonFile(reverse, path: path)
+        XCTAssertEqual(reversed.base.bytes, changed); XCTAssertEqual(reversed.destination.bytes, original)
+        var options = RevisionDiffOptions(); options.commonAncestor = true
+        let direct = try await repo.revisionComparison(from: .revision(tree), to: .revision(newer), options: options)
+        XCTAssertEqual(direct.from, comparison.from); XCTAssertEqual(direct.files, comparison.files)
+        let working = try await repo.revisionFileComparison(from: .revision(tree), to: .workingTree, paths: [path])
+        let workingDocument = try await repo.comparisonFile(working, path: path)
+        XCTAssertEqual(workingDocument.base.bytes, original); XCTAssertEqual(workingDocument.destination.bytes, changed)
+        let marked = try await repo.preparedPathComparison(from: .revision(tree), fromPath: path, to: .revision("snapshot-tree"), toPath: path)
+        let markedDocument = try await repo.comparisonFile(marked, path: path)
+        XCTAssertEqual(markedDocument.base.bytes, original); XCTAssertEqual(markedDocument.destination.bytes, original)
+        let external = try await repo.historicalWorkingFileComparison(revision: tree, path: path, workingFile: root.appendingPathComponent(literal))
+        let externalDocument = try await repo.comparisonFile(external)
+        XCTAssertEqual(externalDocument.base.bytes, Data([0xff, 0x85, 0, 10])); XCTAssertEqual(externalDocument.destination.bytes, original)
+        let saved = try await repo.historicalFile(revision: newer, path: literal)
+        XCTAssertEqual(saved.bytes, Data([0xff, 0x85, 0, 10])); XCTAssertEqual(saved.revision, .revision(newer))
+        let commit = try await repo.revisionComparison(from: .revision(first.objectID!), to: .revision(second.objectID!))
+        XCTAssertEqual(commit.fromDetails?.isTree, false); XCTAssertFalse(commit.fromDetails?.author.isEmpty ?? true)
+        let blob = try XCTUnwrap(first.entries.first { $0.path == path }?.objectID)
+        for invalid in [blob, "--help", "missing-snapshot"] {
+            do { _ = try await repo.revisionComparison(from: .revision(invalid), to: .workingTree); XCTFail("Non-tree object accepted") } catch {}
+            do { _ = try await repo.preparedPathComparison(from: .revision(invalid), fromPath: path, to: .workingTree, toPath: path); XCTFail("Non-tree mark accepted") } catch {}
+        }
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.revisionComparison(from: .revision(tree), to: .workingTree, cancellation: token); XCTFail("Cancelled tree read accepted") } catch {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(head, second.objectID)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), changed)
+    }
     func testLiteralTreeEntriesModesAndExactBlobContents() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

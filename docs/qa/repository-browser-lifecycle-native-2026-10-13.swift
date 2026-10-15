@@ -116,6 +116,45 @@ import TurtleGitCore
         try FileManager.default.removeItem(at:lock)
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
         try require(head==afterHead && index==afterIndex,"Retirement checks changed HEAD/index")
+        // Tree-object handoffs keep the exact snapshot rather than requiring a commit.
+        let tree = try await repo.run(["rev-parse", pinned + "^{tree}"]).text.trimmingCharacters(in: .newlines)
+        let treeOwner = RepositoryBrowserWindowController(repository:repo,access:nil,revision:tree)
+        defer { treeOwner.close() }
+        let treeModel = treeOwner.model
+        try await wait { !treeModel.busy && treeModel.snapshot != nil }
+        treeModel.loadDirectory("a/b",select:true)
+        try await wait { treeModel.snapshot?.directory == "a/b" }
+        let treeEntry = treeModel.entries.first { $0.name == "one" }!
+        var workingHandoff:(String,String)?, markedHandoff:(PreparedFileComparisonMark,PreparedFileComparisonMark)?
+        var historyCalls = 0
+        treeModel.onCompare = { workingHandoff = ($0,$1) }
+        treeModel.onPreparedFileCompare = { markedHandoff = ($0,$1) }
+        treeModel.onLog = { _,_ in historyCalls += 1 }; treeModel.onBlame = { _,_ in historyCalls += 1 }
+        treeModel.compareEntryToWorkingTree(treeEntry)
+        try require(workingHandoff?.0 == treeEntry.path && workingHandoff?.1 == tree,"Tree working handoff lost identity")
+        let comparison = try await repo.revisionFileComparison(from:.revision(workingHandoff!.1),to:.workingTree,paths:[workingHandoff!.0])
+        let treeDocument = try await repo.comparisonFile(comparison,path:treeEntry.path)
+        let treeSnapshot = try await repo.repositoryBrowserFile(treeModel.snapshot!,entry:treeEntry)
+        try require(treeDocument.base.bytes == treeSnapshot.bytes,"Tree comparison changed historical bytes")
+        treeModel.markForComparison(treeEntry);treeModel.compareWithMarkedFile(treeEntry)
+        try require(markedHandoff?.0.revision == tree && markedHandoff?.1.revision == tree,"Tree mark lost identity")
+        let marked = try await repo.preparedPathComparison(from:.revision(markedHandoff!.0.revision),fromPath:markedHandoff!.0.path,to:.revision(markedHandoff!.1.revision),toPath:markedHandoff!.1.path)
+        let markedDocument = try await repo.comparisonFile(marked,path:treeEntry.path)
+        try require(markedDocument.base.bytes == treeSnapshot.bytes && markedDocument.destination.bytes == treeSnapshot.bytes,"Tree marked comparison failed")
+        treeModel.showEntryLog(treeEntry);try require(treeModel.error?.contains("no commit history") == true,"Tree Log explanation missing")
+        treeModel.error=nil;treeModel.showEntryBlame(treeEntry)
+        try require(historyCalls == 0 && treeModel.error?.contains("no commit history") == true,"Tree Blame fabricated history")
+        let treeCompare = RevisionComparisonWindowController(repository:repo,access:nil,from:.revision(pinned),to:.revision(tree))
+        defer { treeCompare.close() }
+        treeCompare.model.load();try await wait { !treeCompare.model.busy && treeCompare.model.snapshot != nil }
+        try require(treeCompare.model.snapshot?.toDetails?.isTree == true,"Tree revision metadata missing")
+        try require(treeCompare.model.revisionDescription(base:false).contains("Tree") && treeCompare.model.revisionTooltip(base:false).contains("no commit metadata"),"Tree details show commit metadata")
+        treeCompare.model.onLog = { _ in historyCalls += 1 };treeCompare.model.onFileLog = { _,_ in historyCalls += 1 }
+        treeCompare.model.log();treeCompare.model.logFiles([treeEntry.path])
+        try require(historyCalls == 0 && treeCompare.model.error?.contains("no commit history") == true,"Changed Files launched tree history")
+        for appearance in [NSAppearance.Name.aqua,.darkAqua] { treeCompare.window?.appearance=NSAppearance(named:appearance);treeOwner.window?.appearance=NSAppearance(named:appearance) }
+        treeOwner.close();treeCompare.close()
+        print("Tree-object browser: working and marked comparison handoffs, exact blob content, commit/tree details, history explanations, light/dark native hosts and owned close passed.")
         print("Repository Browser: retained ancestor/selection refresh, removed-folder fallback, pinned child lookup, private Copy, multi-file Continue/Cancel and duplicate guards, root/tree/blob/checkout cancellation with owned process reaping, Quit lifetime, Save/Open With/failure sheet retirement passed. Owned windows closed.")
     }
 }

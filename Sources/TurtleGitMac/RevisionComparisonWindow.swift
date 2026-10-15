@@ -134,6 +134,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     }
     func revisionTooltip(base: Bool) -> String {
         guard let snapshot, let detail = base ? snapshot.fromDetails : snapshot.toDetails else { return "" }
+        if detail.isTree { return "Tree object — no commit metadata" }
         return (detail.authorDate?.formatted(date: .numeric, time: .standard) ?? "") + "  " + detail.author
     }
     func revisionTitle(base: Bool) -> String {
@@ -144,10 +145,12 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     func swap() { guard !closed, !busy, !confirmingQuit, side(to) != .workingTree else { return }; (from, to) = (to, from); load() }
     func log() {
         guard !closed, !busy, !confirmingQuit, let snapshot else { return }
+        guard snapshot.toDetails?.isTree != true else { error = "Tree objects have no commit history. Choose a commit or tag to view history."; return }
         if case .revision(let value) = snapshot.to { onLog(value) } else { onLog(nil) }
     }
     func logFiles(_ ids: Set<String>) {
         guard !closed, !busy, !confirmingQuit, let snapshot else { return }
+        guard snapshot.toDetails?.isTree != true else { error = "Tree objects have no commit history. Choose a commit or tag to view history."; return }
         let revision: String? = { if case .revision(let value) = snapshot.to { return value }; return nil }()
         for file in visibleFiles where ids.contains(file.path) { onFileLog(file.path, revision) }
     }
