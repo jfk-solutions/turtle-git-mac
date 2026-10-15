@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "e98a8f63",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/LogDlg.cpp:FillLogMessageCtrl, FindGitHashPositions, LookLikeGitHash, OnEnLinkMsgview, JumpToGitHash",
+    "src/TortoiseProc/AppUtils.cpp:FormatTextInRichEditControl/FindStyleChars/FindURLMatches",
+    "src/TortoiseProc/ProjectProperties.cpp:FindBugIDPositions"
+  ],
+  "scope": [
+    "Read-only native rich message pane replaces plain OutputView; source text sections and persistent bold subject/labels",
+    "Lowercase hash discovery, source trailer/boundary/g-prefix/DWORD rules, visible downward/wrapped navigation and missing-target warning",
+    "UTF-16 issue/template positions, URL/email precedence and additive RichEdit font traits without removing link targets",
+    "Applied filter snapshot/section highlights, owning font/style/hash preferences and attribute-only selection/viewport retention",
+    "Captured message/menu identity, selection/busy/picker/modal guards, cancelled/retired styling/Quit ownership and owned warning suppression"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/log-message-build.log",
+      "exit": 65,
+      "reason": "NSMenuItem perform selector collided with inherited NSObject methods."
+    },
+    {
+      "log": "build/qa/log-message-selector-build.log",
+      "exit": 0,
+      "repair": "Dedicated invokeMenuAction selector; existing exit-zero command diagnostic noise/warnings remain."
+    }
+  ],
+  "core": {
+    "distinct_cases": 14,
+    "initial": {
+      "log": "build/qa/log-message-core.log",
+      "exit": 1,
+      "cases": 14,
+      "failed_cases": 1,
+      "failed_assertions": 2,
+      "reason": "Expected nested formatting pattern used a closing marker preceded by another marker and followed by text, which source rejects."
+    },
+    "affected_recheck": {
+      "log": "build/qa/log-message-format-core.log",
+      "exit": 0,
+      "cases": 1,
+      "reason": "Source-valid nested example retains the production boundary algorithm; other 13 cases already passed."
+    },
+    "scope": [
+      "Hash boundaries/trailers/g-prefix/UTF-16 offsets and signed DWORD clamp",
+      "Visible downward/wrapped prefix ambiguity; current-row exclusion",
+      "CR normalization, sections and metadata/Describe hash exclusion",
+      "RichEdit start/end behavior and overlapping style ranges; StyleCommitMessages off",
+      "UTF-16 issue positions and URL/hash overlap priority; template positions; invalid regex fallback",
+      "Section-restricted highlight ranges and pre-cancelled work"
+    ]
+  },
+  "native": {
+    "runner": "scripts/test-log-message-family.py",
+    "fixture": "docs/qa/log-message-native-2026-10-15.swift",
+    "log": "build/qa/log-message-native.log",
+    "exit": 0,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "receiver_pids": [
+      36069,
+      36146
+    ],
+    "receiver_pids_absent": true,
+    "exact_checks": [
+      "Real private Git Log and notes feed native read-only message; hash metadata header remains unlinked",
+      "Actual font attributes accumulate bold/italic and underline; private font/style/minimum-hash preferences restyle without losing selection",
+      "Injected issue URL opening receives expected absolute URL; nonempty selection and busy owner suppress actions",
+      "Actual hash link changes selected revision and scroll request within visible history",
+      "Captured old menu refuses activation after navigating away and returning",
+      "Held asynchronous style cancelled by owner closure retains Quit count until settlement; late result cannot republish",
+      "Actual missing-hash warning saves suppression only to private preferences and tears down on forced close",
+      "Exact private Git HEAD and index bytes unchanged"
+    ],
+    "captures": [
+      "log-message-light.png",
+      "log-message-dark.png"
+    ],
+    "capture_dimensions": [
+      2240,
+      1624
+    ],
+    "capture_method": "Unmodified current-process ScreenCaptureKit; inactive accessory window, native pane divider positions and private Menlo font. Both originals visually reviewed."
+  },
+  "ci": {
+    "added_step": "Log rich message links and owned styling",
+    "pages_previous_commit": "38779862967 success for e98a8f63",
+    "macos": "38779862957 pending; earlier 38778092594 still in progress at inspection. No complete hosted pass claimed."
+  },
+  "limitations": [
+    "Relative bugtraq URL resolution remains missing",
+    "Exact adjacent-link merging and all Windows Unicode classification/locale boundaries remain unverified",
+    "Copy implementation is compiled; shared pasteboard publication and full source message context-menu variants not exercised",
+    "Filter ranges verified in Core; full native filtered-history highlight interaction remains unverified",
+    "No real browser/tracker, physical gestures/VoiceOver or signed App Store acceptance",
+    "One already-mapped IDC_MSGVIEW mapping updated; no dialog newly certified"
+  ],
+  "documentation": {
+    "initial_reconcile": "Rejected a duplicate dialog review; merged native source reference into existing Log review and let explicit resource ID link the new parity document.",
+    "site_documents": 227,
+    "unresolved_fragments": 0
+  }
+}

@@ -283,6 +283,8 @@ jobs:
         run: python3 scripts/test-inline-source.py
       - name: Shared message styles and spelling
         run: python3 scripts/test-message-style-family.py --only styles --only spelling --only font --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Log rich message links and owned styling
+        run: python3 scripts/test-log-message-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Add LFS and persistent native list family
         run: python3 scripts/test-add-list-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First Start forms and setup operation ownership

@@ -91,6 +91,7 @@
 		369DA51D3F695575992439FC /* WindowGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C0E5814B5E3AC88F6511F4 /* WindowGeometry.swift */; };
 		36CCF97A9662F8905E4612BA /* ImageWindowPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8507AEE60EB25AB3DFDC1830 /* ImageWindowPresentation.swift */; };
 		36CE920A634EEDFBC16B0A9D /* IssueMessageStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */; };
+		C210101600000000000000C1 /* HistoryMessagePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101600000000000000C2 /* HistoryMessagePresentation.swift */; };
 		37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */; };
 		37FF0ADA08C102C423B8A3C0 /* WorktreeCreateWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */; };
 		399947645BD361DF78ED305C /* CommitFileDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6550FBB1F596C99DAC65C4C3 /* CommitFileDrop.swift */; };
@@ -364,6 +365,7 @@
 		F985838996B74756D7DE40B9 /* FinderTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EECCE7959BF8AB6672556218 /* FinderTransfer.swift */; };
 		FAB82E3107DA7034BF3479F6 /* PatchTargetMatching.swift in Sources */ = {isa = PBXBuildFile; fileRef = D621E333B5222878393878C2 /* PatchTargetMatching.swift */; };
 		C21010160000000000000005 /* MessageEditorStylingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21010160000000000000006 /* MessageEditorStylingSession.swift */; };
+		C210101600000000000000D1 /* LogMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101600000000000000D2 /* LogMessageView.swift */; };
 		C210101500000000000000A1 /* PatchDocumentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101500000000000000A2 /* PatchDocumentSession.swift */; };
 		C210101500000000000000B1 /* ExternalDocumentApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101500000000000000B2 /* ExternalDocumentApplication.swift */; };
 		C21010160000000000000003 /* ImageEditorToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21010160000000000000004 /* ImageEditorToolbar.swift */; };
@@ -705,6 +707,7 @@
 		9B6A308CF3E486ADD7497BD1 /* WorktreeListTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorktreeListTable.swift; sourceTree = "<group>"; };
 		9C0D58AA19D852666927E54D /* GitAskpassPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitAskpassPrompt.swift; sourceTree = "<group>"; };
 		9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueMessageStyle.swift; sourceTree = "<group>"; };
+		C210101600000000000000C2 /* HistoryMessagePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryMessagePresentation.swift; sourceTree = "<group>"; };
 		4A40F17F43A03D5EC6A0AA92 /* MergeEditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeEditorToolbar.swift; sourceTree = "<group>"; };
 		9D954D7C476A0758756B6D99 /* MergeFindWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeFindWindow.swift; sourceTree = "<group>"; };
 		9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFixedFontChoice.swift; sourceTree = "<group>"; };
@@ -806,6 +809,7 @@
 		DE3C7BF5278D5807BDDF4B21 /* Reset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reset.swift; sourceTree = "<group>"; };
 		DF564D01D7A2390D6F148B73 /* MergeResultPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeResultPresentation.swift; sourceTree = "<group>"; };
 		C21010160000000000000006 /* MessageEditorStylingSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorStylingSession.swift; sourceTree = "<group>"; };
+		C210101600000000000000D2 /* LogMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogMessageView.swift; sourceTree = "<group>"; };
 		C210101500000000000000A2 /* PatchDocumentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchDocumentSession.swift; sourceTree = "<group>"; };
 		C210101500000000000000B2 /* ExternalDocumentApplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExternalDocumentApplication.swift; sourceTree = "<group>"; };
 		C21010160000000000000004 /* ImageEditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageEditorToolbar.swift; sourceTree = "<group>"; };
@@ -981,6 +985,7 @@
 				8C9B173C5B4A10A0D415C859 /* ImageComparisonWindow.swift */,
 				C21010160000000000000004 /* ImageEditorToolbar.swift */,
 				C21010160000000000000006 /* MessageEditorStylingSession.swift */,
+				C210101600000000000000D2 /* LogMessageView.swift */,
 				C210101500000000000000A2 /* PatchDocumentSession.swift */,
 				C210101500000000000000B2 /* ExternalDocumentApplication.swift */,
 				C12C65B53D4E28A9F6C52DF1 /* ImageConflictWindow.swift */,
@@ -1230,6 +1235,7 @@
 				DDA6BCF99B24BA72CE43F823 /* ImageConflict.swift */,
 				AB93559771ED0B23D12480BE /* ImageFileComparison.swift */,
 				9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */,
+				C210101600000000000000C2 /* HistoryMessagePresentation.swift */,
 				5BAEA33A191EE642CA0F4FCA /* IssueRegex.swift */,
 				D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */,
 				018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */,
@@ -1764,6 +1770,7 @@
 				BCD150BA60D833990C3FB778 /* ImageConflict.swift in Sources */,
 				E04C5627AD25CC2EF1C86987 /* ImageFileComparison.swift in Sources */,
 				36CE920A634EEDFBC16B0A9D /* IssueMessageStyle.swift in Sources */,
+				C210101600000000000000C1 /* HistoryMessagePresentation.swift in Sources */,
 				86578F215A688D810DC90ED6 /* IssueRegex.swift in Sources */,
 				0DDC9B58143481D73B56D530 /* IssueTracker.swift in Sources */,
 				CA6AEC3FE2A7F57C339F0ABE /* LFSLocks.swift in Sources */,
@@ -1942,6 +1949,7 @@
 				4452DB2F9B5533ACBEAAD448 /* ImageComparisonWindow.swift in Sources */,
 				C21010160000000000000003 /* ImageEditorToolbar.swift in Sources */,
 				C21010160000000000000005 /* MessageEditorStylingSession.swift in Sources */,
+				C210101600000000000000D1 /* LogMessageView.swift in Sources */,
 				C210101500000000000000A1 /* PatchDocumentSession.swift in Sources */,
 				C210101500000000000000B1 /* ExternalDocumentApplication.swift in Sources */,
 				90C7E3E08BB57158CF31FB56 /* ImageConflictWindow.swift in Sources */,

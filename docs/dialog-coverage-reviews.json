@@ -653,6 +653,10 @@
         {
           "path": "Sources/TurtleGitMac/LogFilterField.swift",
           "anchor": "struct LogFilterField"
+        },
+        {
+          "path": "Sources/TurtleGitMac/LogMessageView.swift",
+          "anchor": "struct LogMessageView"
         }
       ],
       "parity_document": "docs/LOG-FILTER-PARITY.md",

@@ -209,3 +209,21 @@ extension GitRepository {
         return "Signed-off-by: \(name) <\(email)>"
     }
 }
+
+extension IssueTrackerProperties {
+    /// ProjectProperties::FindBugIDPositions uses UTF-16 ECMAScript, not SciEdit's byte styles.
+    public func logIssuePositions(in message: String, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [NSRange] {
+        try cancellation?.check()
+        if !checkExpression.isEmpty {
+            return try IssueRegexRuntime.match(message:message,check:checkExpression,extract:extractionExpression,executable:executable,cancellation:cancellation,ignoreInvalidPattern:true).ranges
+        }
+        guard let found = templateLine(in: message), found.id.length > 0 else { return [] }
+        var value = found.text.substring(with:found.id)
+        while value.first == "," { value.removeFirst() }; while value.last == "," { value.removeLast() }
+        var offset = found.id.location
+        return value.components(separatedBy:",").map { part in
+            defer { offset += part.utf16.count + 1 }
+            return NSRange(location:offset,length:part.utf16.count)
+        }
+    }
+}

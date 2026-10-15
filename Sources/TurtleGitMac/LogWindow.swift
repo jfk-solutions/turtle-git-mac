@@ -1271,14 +1271,17 @@ struct LogCommandRequest: Identifiable {
             }
         }
     }
+    private var jumpAlert: NSAlert?
     private func showJumpNotFound() {
-        guard !UserDefaults.standard.bool(forKey: "NoJumpNotFoundWarning") else { return }
+        guard !isInvalidated, jumpAlert == nil, !labelDefaults.bool(forKey: "NoJumpNotFoundWarning") else { return }
         guard let window, window.attachedSheet == nil else { navigationNotice = "No more revisions found."; return }
         let alert = NSAlert(); alert.messageText = "No more revisions found."; alert.alertStyle = .informational
         alert.addButton(withTitle: "OK"); alert.showsSuppressionButton = true
         alert.suppressionButton?.title = "Do not show this message again"
-        alert.beginSheetModal(for: window) { _ in
-            if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "NoJumpNotFoundWarning") }
+        jumpAlert = alert
+        alert.beginSheetModal(for: window) { [weak self] _ in
+            guard let self, !self.isInvalidated, self.jumpAlert === alert else { return }; self.jumpAlert = nil
+            if alert.suppressionButton?.state == .on { self.labelDefaults.set(true, forKey: "NoJumpNotFoundWarning") }
         }
     }
     @Published var filterPaths = "" { didSet {
@@ -1585,16 +1588,24 @@ struct LogCommandRequest: Identifiable {
         return files.filter { (unrelatedPathMode != .hide || !unrelatedFile($0)) && filter.matches($0) }
     }
     var information: HistoryInformation { .init(entries: entries, selected: selected, files: files, selectedFiles: selectedFiles, visibleFileIDs: Set(visibleFiles.map(\.id))) }
-    var message: String {
-        if selectedWorkingTree, let snapshot = workingTreeSnapshot { return "Working tree changes\n" + snapshot.entry.message + (snapshot.entry.parents.first.map { "\nHEAD: " + $0 } ?? "") }
-        guard let revision else { return selected.isEmpty ? "Select a revision to see its commit message and changed files." : "\(selected.count) revisions selected." }
-        let prefix = asteriskLogPrefix ? "* " : ""
-        let describe = describedRevision.map { "Describe: " + $0 + "\n" } ?? ""
-        return "SHA-1: \(revision.hash)" + (branchRevisionNumber.map { ", Branch RevNo: " + $0 } ?? "") + "\n" + describe + "\n" +
-            prefix + revision.message.replacingOccurrences(of: "\r", with: "") +
-            (revision.notes.isEmpty ? "" : "\n" + prefix + "Notes:\n" + revision.notes.replacingOccurrences(of: "\r", with: "")) +
-            (revision.tagInfo.isEmpty ? "" : "\n" + prefix + "Tag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
+    @Published private(set) var appliedMessageSearch = HistoryMessageOptions()
+    private(set) var messageLinkGeneration = UUID()
+    var canFollowMessageLink: Bool {
+        !isInvalidated && !busy && !jumping && !findBlocked && !orderingBlocked && !referencePickerBlocked && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && !unifiedViewerBusy && window?.attachedSheet == nil
     }
+    func followMessageHash(_ prefix: String) {
+        guard canFollowMessageLink, let revision else { return }
+        guard let target = HistoryMessageHash.target(prefix: prefix, hashes: entries.map(\.hash), current: revision.hash) else { showJumpNotFound(); return }
+        select([target]); scrollRevision = target; scrollRequest += 1
+    }
+    var messageDocument: HistoryMessageDocument {
+        if selectedWorkingTree, let snapshot = workingTreeSnapshot { return .init(plain: "Working tree changes\n" + snapshot.entry.message + (snapshot.entry.parents.first.map { "\nHEAD: " + $0 } ?? "")) }
+        guard let revision else { return .init(plain: selected.isEmpty ? "Select a revision to see its commit message and changed files." : "\(selected.count) revisions selected.") }
+        return .init(hash: revision.hash, branchNumber: branchRevisionNumber, describe: describedRevision,
+                     subject: revision.historySubject, body: revision.historyBody, notes: revision.notes,
+                     tagInfo: HistoryDateSettings.load(defaults: labelDefaults).tagInfo(revision.tagInfo), asterisk: asteriskLogPrefix)
+    }
+    var message: String { messageDocument.text }
     init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil, historyRegexExecutable: URL? = nil) {
         changedFileColumns = .load(from:labelDefaults,key:Self.changedFileColumnsKey)
         fileCache = (labelDefaults.object(forKey: "EnableLogCache") as? Bool ?? true) ? HistoryFileCache() : nil
@@ -1710,6 +1721,8 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        messageLinkGeneration = UUID()
+        if let jumpAlert, let parent = jumpAlert.window.sheetParent { parent.endSheet(jumpAlert.window, returnCode: .abort) }; jumpAlert = nil
         cancelSearchFilter(); pathFilterGeneration += 1; pathFilterTask?.cancel(); pathFilterTask = nil
         followedSession?.cancel();closeAfterFollowedRead=false
         workingCommandCancellation?.cancel();closeAfterWorkingCommandRead=false
@@ -1837,11 +1850,16 @@ struct LogCommandRequest: Identifiable {
                 selected.formIntersection(Set(result.map(\.hash)))
                 if selected.isEmpty, let first = result.first { selected = [first.hash] }
                 historyRestore = nil; provisionalHistory = []; nextHistoryPublication = 128
+                var messageSearch = HistoryMessageOptions(defaults: labelDefaults)
+                messageSearch.query = options.search; messageSearch.fields = options.searchFields
+                messageSearch.regex = options.searchRegex; messageSearch.caseSensitive = options.searchCaseSensitive
+                appliedMessageSearch = messageSearch
                 historyCancellation = nil; busy = false; select(selected)
             } catch { if request == generation { restoreHistorySnapshot(); historyCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription }; busy = false } }
         }
     }
     func select(_ hashes: Set<String>) {
+        messageLinkGeneration = UUID()
         if hashes != selected { cancelWorkingCommandRead(); cancelFollowedComparison() }
         cancelNoteRead()
         cancelJump(); highlightedRevision = nil
@@ -2801,7 +2819,7 @@ struct LogDialog: View {
             VSplitView {
                 RevisionTable(model: model, savesColumnLayout: savesColumnLayout).frame(minHeight: 200, idealHeight: 350)
                 HStack(alignment: .top, spacing: 0) {
-                    OutputView(text: model.message, usesLogFont: true).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    LogMessageView(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
                     if model.showGravatar { LogGravatarView(loader: model.gravatar) }
                 }.frame(minHeight: 110, idealHeight: 150)
                     .onChange(of: shortDate) { _ in model.objectWillChange.send() }

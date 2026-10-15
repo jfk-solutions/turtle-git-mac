@@ -2640,3 +2640,8 @@ file selection before preview refresh. Whole Project is always visible, restores
 repository-specific choices for path Logs and preserves Follow renames/busy/
 retired guards, with matching window titles and the existing owned history reader.
 [Source details and limits](LOG-FOOTER-PARITY.md) describe the full family.
+
+The connected [rich message pane](LOG-MESSAGE-PARITY.md) adds source hash/issue/URL
+links, rich-edit formatting, applied-filter highlighting, visible hash navigation
+and owned styling/menu lifetime. Its dated grouped evidence supersedes the earlier
+plain-text pane description within that scope; full Log acceptance remains open.

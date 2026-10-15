@@ -570,6 +570,10 @@
           "anchor": "struct LogFilterField"
         },
         {
+          "path": "Sources/TurtleGitMac/LogMessageView.swift",
+          "anchor": "struct LogMessageView"
+        },
+        {
           "path": "Sources/TurtleGitCore/CommitHistory.swift",
           "origin": "recorded-control-mapping"
         }
@@ -578,6 +582,7 @@
       "parity_documents": [
         "docs/LOG-FILTER-PARITY.md",
         "docs/LOG-FOOTER-PARITY.md",
+        "docs/LOG-MESSAGE-PARITY.md",
         "docs/LOG-PARITY.md"
       ],
       "qa_records": [
@@ -616,6 +621,7 @@
         "docs/qa/log-live-walk-2026-10-15.json",
         "docs/qa/log-mark-2026-10-05.json",
         "docs/qa/log-match-highlights-2026-10-09.json",
+        "docs/qa/log-message-2026-10-15.json",
         "docs/qa/log-message-line-2026-10-09.json",
         "docs/qa/log-message-search-copy-2026-10-09.json",
         "docs/qa/log-metadata-2026-10-14.json",

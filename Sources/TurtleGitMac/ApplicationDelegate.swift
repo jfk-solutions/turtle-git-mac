@@ -34,6 +34,7 @@ import AppKit
         if ConflictReviewOperation.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? DeleteConflictWindowController }).contains(where: { !$0.model.operation.canClose }) || sender.windows.compactMap({ $0.delegate as? SubmoduleConflictWindowController }).contains(where: { !$0.model.operation.canClose }) { return .terminateCancel }
         if ResolveWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? ResolveWindowController }).contains(where: { $0.model.hasQuestion || $0.model.hasChild || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if IgnoreWindowModel.activeOperations > 0 { return .terminateCancel }
+        if LogMessageView.Coordinator.activeOperations > 0 { return .terminateCancel }
         if AddWindowModel.activeOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeCommitPreflights > 0 { return .terminateCancel }
         if CommitWindowModel.activeFileOperations > 0 { return .terminateCancel }

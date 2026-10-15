@@ -1984,3 +1984,21 @@ and HEAD must remain unchanged. No LFS server is contacted.
 Add windows in light/dark with optional columns shown in a wider native window.
 Physical gestures, authenticated transport and signed sandbox/Finder acceptance
 remain outside this receiver. See [Add parity](ADD-PARITY.md).
+
+## Rich Log message family
+
+`python3 scripts/test-log-message-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git`
+links current Debug app objects once and exercises the actual Log message pane
+with private commits, notes and preferences. It checks issue URL callbacks, visible
+hash selection/scroll, selected-text/busy refusal, stale menus, font/style/hash
+length preferences, selection preservation, held style retirement/Quit and actual
+missing-hash warning suppression/closure. External browser opening is injected;
+shared clipboard publication and physical gestures are not driven.
+
+Add `--captures build/qa/log-message-captures` for unmodified current-process
+light/dark captures of the inactive accessory window. The fixture adjusts native
+pane dividers and uses a private font so all message sections remain visible.
+`TURTLEGIT_CORE_ONLY=1 swift test --filter 'HistoryMessagePresentationTests|IssueTrackerTests'`
+covers source hash/trailer/DWORD/visible-prefix rules, document sections, RichEdit
+traits, UTF-16 issue/template positions, overlap precedence, invalid expressions,
+filter ranges and cancellation. See [parity](LOG-MESSAGE-PARITY.md).
