@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-15",
+  "scope": "Connected Finder overlay path-policy, per-volume metadata, alias badge lookup and Settings validation",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseShell/ShellCache.cpp: CPathFilter AddEntry/PostProcessData/IsPathAllowed",
+      "src/TortoiseShell/IconOverlay.cpp: allowed path/volume gate, normal excluded folders and index-flag handlers",
+      "src/Resources/TortoiseProcENG.rc: IDD_SETTINGSOVERLAY, IDD_SETTINGSOVERLAYHANDLERS, IDD_SETOVERLAYICONS"
+    ]
+  },
+  "implementation": [
+    "Compile include/exclude exact/recursive rule tables once per projection; deepest ancestor precedence, duplicate includes, root rules, native HOME expansion and CRLF parsing",
+    "Case-folded/canonical Unicode names on insensitive volumes; literal rule and badge keys on sensitive volumes; lexical normalization preserves filename bytes",
+    "First-invalid editor/line diagnostics and valid entry counts in shared Settings page; invalid policies cannot publish or grant a partial include exception",
+    "Refresh-local filesystem metadata cache groups files by containing directory and resolves mounted children independently; missing items fall back to existing ancestors; final symlink entries use containing volume",
+    "Per-path volume/case policy shared by badge masks and optional index flags; cached menu status remains unchanged",
+    "Finder badge alias lookup uses highest-priority cached alias state; old/new assignments share lookup; unknown/unbadged requests avoid metadata I/O",
+    "Volume mount/unmount/rename notifications recalculate Finder projection without starting Git",
+    "Recorded partial native mappings for 30 existing source controls across the three Overlay settings resources; Windows-only and alternate Shell engines remain explicitly pending"
+  ],
+  "validation": {
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/overlay-path-policy-build-complete-2026-10-15.log",
+      "scope": "App, shared Core framework and Finder extension compile"
+    },
+    "core": {
+      "unique_tests": 19,
+      "initial_pass": 18,
+      "initial_failure": 1,
+      "initial_log": "build/qa/overlay-path-policy-core-2026-10-15.log",
+      "repair": "Foundation URL standardization normalized Unicode rule spelling; replaced with lexical slash/dot normalization preserving filename bytes.",
+      "group_final_tests": 19,
+      "group_final_failures": 0,
+      "group_final_log": "build/qa/overlay-path-policy-core-final-2026-10-15.log",
+      "last_affected_tests": 11,
+      "last_affected_failures": 0,
+      "last_affected_log": "build/qa/overlay-path-policy-core-complete-2026-10-15.log",
+      "last_change": "Lazy sensitivity evaluation ensures unknown/unbadged requests and literal sensitive names do not query filesystem metadata.",
+      "coverage": [
+        "Case-sensitive/insensitive and Unicode aliases, exact-vs-recursive ties, root/ancestor precedence and invalid-policy refusal",
+        "HOME/CRLF and exact editor/line diagnostics",
+        "Synthetic per-path network mount and optional index-flag policy, hidden/excluded folder behavior",
+        "Directory metadata query reuse, symlink-containing volume, missing ancestor fallback and no-query unbadged lookup",
+        "Existing real Git index flags, source overlay asset decoding, proxy/overlay persistence and subtree projection checks"
+      ]
+    },
+    "native": {
+      "case": "overlay-settings",
+      "engines": [
+        "/usr/bin/git",
+        "Debug TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "log": "build/qa/overlay-path-policy-native-2026-10-15.log",
+      "receivers_reaped": [
+        19676,
+        19677
+      ],
+      "coverage": [
+        "Three shared native pages at minimum-size hosts in light/dark with scroll surfaces",
+        "Actual shared Settings Apply/Cancel, private atomic JSON readback and notification-after-local-save",
+        "Published rule projection with synthetic mount/case metadata and Finder alias lookup",
+        "Precise live validation and Cancel reset; invalid/failing publication retains draft and does not notify",
+        "Unsigned local-save notice and existing optional handlers/icon-set state"
+      ]
+    },
+    "site": {
+      "status": "passed",
+      "log": "build/qa/overlay-path-policy-site-final-2026-10-15.log",
+      "exit_code": 0,
+      "documents": 216,
+      "unresolved_fragments": []
+    },
+    "visual": "Shared light/dark page hosts exercised; no new screenshot, complete visual matching or physical Finder activation claim."
+  },
+  "remaining": [
+    "Actual network/RAM/optical mounts and permission failures, filesystem Unicode edge cases and mount churn during a snapshot read",
+    "Physical Finder registration/request delivery, Settings gestures/focus/VoiceOver and Symbols switching",
+    "Windows Shell/Shell Extended alternate status engines remain unimplemented; Windows process/elevation/registry/drive-letter controls require macOS adaptation",
+    "Signed App Group/security scope and App Store acceptance; full application/dialog parity remains incomplete"
+  ],
+  "preserved_unrelated_wip": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

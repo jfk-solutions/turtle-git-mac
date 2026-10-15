@@ -577,6 +577,54 @@
           "anchor": "struct GitSVNAuthenticationPrompt"
         }
       ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSOVERLAY",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FinderOverlaySettings.swift",
+          "anchor": "FinderOverlaySettingsPage"
+        },
+        {
+          "path": "Sources/TurtleGitCore/FinderOverlaySettings.swift",
+          "anchor": "FinderOverlayPathPolicy"
+        }
+      ],
+      "parity_document": "docs/FINDER-OVERLAY-SETTINGS-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSOVERLAYHANDLERS",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FinderOverlaySettings.swift",
+          "anchor": "FinderOverlaySettingsPage"
+        },
+        {
+          "path": "Sources/TurtleGitCore/FinderOverlaySettings.swift",
+          "anchor": "FinderOverlayPathPolicy"
+        }
+      ],
+      "parity_document": "docs/FINDER-OVERLAY-SETTINGS-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETOVERLAYICONS",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FinderOverlaySettings.swift",
+          "anchor": "FinderOverlaySettingsPage"
+        },
+        {
+          "path": "Sources/TurtleGitCore/FinderOverlaySettings.swift",
+          "anchor": "FinderOverlayPathPolicy"
+        }
+      ],
+      "parity_document": "docs/FINDER-OVERLAY-SETTINGS-PARITY.md",
+      "status": "partial-native-replacement"
     }
   ]
 }

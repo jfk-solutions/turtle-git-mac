@@ -19,7 +19,7 @@ import TurtleGitCore
         let initial = FinderOverlaySettings.from(defaults: preferences); draft = initial; saved = initial
     }
     var modified: Bool { draft != saved }
-    var validationError: String? { draft.valid ? nil : "Enter one absolute overlay path per line." }
+    var validationError: String? { draft.pathPolicy.issue?.message }
     func apply() -> Bool {
         let value = draft
         guard validationError == nil else { error = validationError; notice = nil; return false }
@@ -91,7 +91,9 @@ struct FinderOverlaySettingsPage: View {
                     }
                     pathEditor("Exclude paths:", text: $model.draft.excludePaths)
                     pathEditor("Include paths:", text: $model.draft.includePaths)
-                    Text("One absolute path per line. A trailing * includes descendants; ? matches only that path. ~ and $HOME expand to your home folder. More specific paths take precedence.").font(.caption).foregroundStyle(.secondary)
+                    Text("One absolute path per line. A trailing * includes descendants; ? matches only that path. ~ and $HOME expand to your home folder. More specific paths take precedence. Matching follows each volume’s case sensitivity.").font(.caption).foregroundStyle(.secondary)
+                    if let issue = model.validationError { Text(issue).font(.caption).foregroundStyle(.red).accessibilityLabel("Overlay path error: " + issue) }
+                    else { Text("\(model.draft.pathPolicy.includeCount) include rule(s), \(model.draft.pathPolicy.excludeCount) exclude rule(s)").font(.caption).foregroundStyle(.secondary) }
                     Toggle("Show excluded folders as normal", isOn: $model.draft.showExcludedAsNormal)
                 }
                 if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }

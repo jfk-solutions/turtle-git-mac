@@ -7,12 +7,17 @@ import TurtleGitCore
     private var snapshot: FinderSnapshot?
     private var badges: [String: FinderOverlayBadge] = [:]
     private var iconSet: FinderOverlayIconSet?
+    private var fileSystem = FinderOverlayFileSystem()
+    private var badgeLookup = FinderOverlayBadgeLookup(badges: [:], caseSensitive: { _ in true })
     override init() {
         super.init()
         reload()
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(reload), name: NSNotification.Name(FinderIntegration.notification), object: nil)
+        for name in [NSWorkspace.didMountNotification, NSWorkspace.didUnmountNotification, NSWorkspace.didRenameVolumeNotification] {
+            NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(reload), name: name, object: nil)
+        }
     }
-    deinit { DistributedNotificationCenter.default().removeObserver(self) }
+    deinit { DistributedNotificationCenter.default().removeObserver(self); NSWorkspace.shared.notificationCenter.removeObserver(self) }
     @objc private func reload() {
         let old = badges
         snapshot = FinderSnapshot.read()
@@ -25,21 +30,21 @@ import TurtleGitCore
             }
             iconSet = settings.iconSet
         }
+        let fileSystem = FinderOverlayFileSystem(); self.fileSystem = fileSystem
         if let snapshot {
-            let volumes = Dictionary(uniqueKeysWithValues: Set(snapshot.roots).map { ($0, FinderOverlaySettings.volumeKind(for: URL(fileURLWithPath: $0))) })
-            badges = settings.overlayBadges(snapshot: snapshot, volume: { volumes[$0] ?? .unknown }, isDirectory: { path in
-                var directory: ObjCBool = false; return FileManager.default.fileExists(atPath: path, isDirectory: &directory) && directory.boolValue
-            })
+            badges = settings.overlayBadges(snapshot: snapshot, volume: { fileSystem.volume($0).kind },
+                isDirectory: fileSystem.isDirectory, caseSensitive: { fileSystem.volume($0).caseSensitive })
         } else { badges = [:] }
+        badgeLookup = FinderOverlayBadgeLookup(badges: badges, caseSensitive: { fileSystem.volume($0).caseSensitive })
         controller.directoryURLs = Set((snapshot?.roots ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) })
         let paths = Set(old.keys).union(badges.keys)
         for path in paths where changedIcons || old[path] != badges[path] {
             if changedIcons { controller.setBadgeIdentifier("", for: URL(fileURLWithPath: path)) }
-            controller.setBadgeIdentifier(badges[path]?.rawValue ?? "", for: URL(fileURLWithPath: path))
+            controller.setBadgeIdentifier(badgeLookup.badge(for: path, caseSensitive: fileSystem.volume(path).caseSensitive)?.rawValue ?? "", for: URL(fileURLWithPath: path))
         }
     }
     override func requestBadgeIdentifier(for url: URL) {
-        FIFinderSyncController.default().setBadgeIdentifier(badges[url.path]?.rawValue ?? "", for: url)
+        FIFinderSyncController.default().setBadgeIdentifier(badgeLookup.badge(for: url.path, caseSensitive: fileSystem.volume(url.path).caseSensitive)?.rawValue ?? "", for: url)
     }
     override var toolbarItemName: String { "TurtleGit" }
     override var toolbarItemToolTip: String { "TurtleGit for Mac" }

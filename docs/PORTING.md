@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected Finder overlay path-policy family now compiles source precedence
+rules per refresh, follows per-directory volume/case metadata across mount
+boundaries, resolves Finder badge aliases, refreshes on volume events and reports
+precise include/exclude editor errors. Existing icon sets and handler choices
+retain their shared Apply/Cancel workflow. See [overlay parity](FINDER-OVERLAY-SETTINGS-PARITY.md).
+Real mount, physical Finder and signed acceptance remain open.
+
 The connected transport selection family now uses the shared source/destination
 reference browser in Push, private owned Log/RefLog selectors and repository-bound
 commands, plus captured-draft and post-sheet handling across Push/Pull/Fetch/Sync.

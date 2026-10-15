@@ -132,3 +132,51 @@ keyboard/VoiceOver and complete visual matching, Symbols switching, actual Finde
 refresh/notification/volume boundaries, watched-root management and signed
 sandbox/App Store acceptance remain open. Windows registry/elevation/overlay-slot
 controls still require macOS adaptation; no dialog is certified complete.
+
+## Volume-aware path rules and badge aliases — October 15, 2026
+
+The active `ShellCache.cpp` CPathFilter parser/merge/lookup defines terminal
+`*`/`?`, include/exclude ties, exact-path overrides and ancestor precedence.
+Those rules now compile into literal and case-folded lookup tables once per badge
+projection, instead of reparsing every path rule for every file. The deepest
+recursive ancestor applies, exact-only entries override that same path without
+changing descendants, and duplicate includes win within the same rule category.
+CRLF editors and native `~`/`$HOME` expansion retain their source meanings.
+Validation names the first invalid editor and line; invalid drafts cannot publish
+or grant a partial include exception. The native page displays live diagnostics
+and valid include/exclude entry counts, with Apply/Cancel still shared.
+
+The Finder extension now resolves volume kind and name-case sensitivity for each
+containing directory rather than assuming all paths use their repository root's
+volume. Metadata is cached for files sharing a directory during a refresh; a
+mounted child directory has its own result. Deleted items fall back to an existing
+ancestor. Final symlink entries use their containing directory rather than the
+link target's volume. Unknown volume/case information remains conservative.
+Volume mount, unmount and rename notifications also rebuild the overlay policy.
+This uses native filesystem metadata and starts no Git process in Finder.
+
+Rule spelling and badge requests now follow the target volume's case behavior.
+Insensitive-volume names fold case and canonical Unicode spellings. Sensitive
+volumes retain literal byte distinctions. An immutable badge lookup handles an
+alternate Finder spelling and chooses the highest-priority state for conflicting
+cached aliases. Refresh-time assignments use that same lookup so clearing an old
+spelling cannot erase its replacement alias. Path masks and optional index-flag
+handlers share the per-path volume/case decision; menu eligibility keeps its
+original cached Git status independently.
+
+This supersedes the earlier cached-spelling/root-volume limitations for the
+implemented lookup and projection. Real network/RAM/optical mounts, permission
+failures, filesystem Unicode edge cases, mount churn during a snapshot read,
+physical Finder activation and signed sandbox/App Store acceptance remain open.
+Shell and Shell Extended's alternate Windows status engines remain unported and
+are still not exposed as equivalent working modes. All 16 existing icon sets,
+handler choices and the independent cache service retain their prior behavior.
+
+Validation: Debug app/framework/Finder-extension build exited 0. The first grouped
+Core run passed 18 of 19 checks; the Unicode rule test exposed Foundation path
+normalization and passed after lexical normalization replaced it. All 19 grouped
+checks passed after that repair; the 11 affected overlay checks passed after the
+lazy metadata-lookup continuation. Both native shared Settings cases passed with
+private preferences/publication and their receivers were reaped. Thirty current
+controls now have explicit partial source mappings; alternate Windows engines and
+unmapped platform controls remain pending. See [path-policy evidence](qa/overlay-path-policy-2026-10-15.json).

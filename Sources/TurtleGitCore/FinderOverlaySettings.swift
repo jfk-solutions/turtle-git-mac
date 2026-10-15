@@ -80,14 +80,8 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
     public static func read(from url: URL? = sharedURL) -> Self {
         guard let url, let data = try? Data(contentsOf: url), let settings = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }; return settings
     }
-    public var valid: Bool {
-        [excludePaths, includePaths].allSatisfy { text in
-            !text.contains("\0") && text.replacingOccurrences(of: "\r", with: "").split(separator: "\n").allSatisfy { line in
-                var path = String(line); if path.hasSuffix("*") || path.hasSuffix("?") { path.removeLast() }
-                return path.hasPrefix("/") || path == "~" || path.hasPrefix("~/") || path == "$HOME" || path.hasPrefix("$HOME/")
-            }
-        }
-    }
+    public var pathPolicy: FinderOverlayPathPolicy { FinderOverlayPathPolicy(exclude: excludePaths, include: includePaths) }
+    public var valid: Bool { pathPolicy.issue == nil }
     @discardableResult public func write(to url: URL? = sharedURL) throws -> Bool {
         guard valid else { throw GitConfigurationFailure.invalidValue }
         guard let url else { return false }
@@ -100,25 +94,8 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
     }
     /// Source terminal '*' means recursive and '?' means this path only.
     /// More specific paths win; equal include/exclude specifications prefer include.
-    public func allows(_ path: String, volume: FinderVolumeKind) -> Bool {
-        struct Rule { let path: String; let include: Bool; let exact: Bool }
-        func rules(_ text: String, include: Bool) -> [Rule] {
-            text.replacingOccurrences(of: "\r", with: "").split(separator: "\n").map { line in
-                var path = String(line); let exact = path.hasSuffix("?")
-                if exact || path.hasSuffix("*") { path.removeLast() }
-                if path == "~" || path.hasPrefix("~/") { path = FileManager.default.homeDirectoryForCurrentUser.path + path.dropFirst() }
-                if path == "$HOME" || path.hasPrefix("$HOME/") { path = FileManager.default.homeDirectoryForCurrentUser.path + path.dropFirst(5) }
-                path = URL(fileURLWithPath: path).standardizedFileURL.path
-                return Rule(path: path, include: include, exact: exact)
-            }
-        }
-        let matches = (rules(excludePaths, include: false) + rules(includePaths, include: true)).filter {
-            path == $0.path || !$0.exact && path.hasPrefix($0.path == "/" ? "/" : $0.path + "/")
-        }
-        guard let depth = matches.map({ $0.path.count }).max() else { return volumes.contains(volume) }
-        let closest = matches.filter { $0.path.count == depth }
-        let exact = closest.filter { $0.exact && $0.path == path }
-        return (exact.isEmpty ? closest : exact).contains { $0.include }
+    public func allows(_ path: String, volume: FinderVolumeKind, caseSensitive: Bool = true) -> Bool {
+        pathPolicy.allows(path, fallback: volumes.contains(volume), caseSensitive: caseSensitive)
     }
     public static func volumeKind(for url: URL) -> FinderVolumeKind {
         var info = statfs()
@@ -135,7 +112,10 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
     }
     /// Badge projection stays independent of the snapshot used for context-menu
     /// eligibility. No Git command runs in the extension.
-    public func badges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool) -> [String: FileState] {
+    public func badges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool = { _ in true }) -> [String: FileState] {
+        projectedBadges(snapshot: snapshot, volume: volume, isDirectory: isDirectory, caseSensitive: caseSensitive, policy: pathPolicy)
+    }
+    private func projectedBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool, policy: FinderOverlayPathPolicy) -> [String: FileState] {
         let roots = snapshot.roots.sorted { $0.count > $1.count }
         let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
         var badges: [String: FileState] = [:], folders = Set(roots)
@@ -177,24 +157,164 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
         }
         return badges.reduce(into: [:]) { result, entry in
             guard !entry.key.split(separator: "/").contains(".git") else { return }
-            let root = roots.first { entry.key == $0 || entry.key.hasPrefix($0 + "/") }
-            if allows(entry.key, volume: volume(root ?? entry.key)) {
+            if policy.allows(entry.key, fallback: volumes.contains(volume(entry.key)), caseSensitive: caseSensitive(entry.key)) {
                 if !hiddenStates.contains(entry.value) { result[entry.key] = entry.value }
             } else if showExcludedAsNormal && (folders.contains(entry.key) || isDirectory(entry.key)) { result[entry.key] = .normal }
         }
     }
-    public func overlayBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool) -> [String: FinderOverlayBadge] {
-        let states = badges(snapshot: snapshot, volume: volume, isDirectory: isDirectory)
-        let roots = snapshot.roots.sorted { $0.count > $1.count }
+    public func overlayBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool = { _ in true }) -> [String: FinderOverlayBadge] {
+        let policy = pathPolicy
+        let states = projectedBadges(snapshot: snapshot, volume: volume, isDirectory: isDirectory, caseSensitive: caseSensitive, policy: policy)
         return states.mapValues { FinderOverlayBadge(rawValue: $0.rawValue)! }.reduce(into: [:]) { result, entry in
             var badge = entry.value
             if cacheMode == .standard, badge == .normal, let flags = snapshot.indexFlags?[entry.key] {
-                let root = roots.first { entry.key == $0 || entry.key.hasPrefix($0 + "/") }
-                guard allows(entry.key, volume: volume(root ?? entry.key)) else { result[entry.key] = badge; return }
+                guard policy.allows(entry.key, fallback: volumes.contains(volume(entry.key)), caseSensitive: caseSensitive(entry.key)) else { result[entry.key] = badge; return }
                 if flags.skipWorktree && showSkipWorktree { badge = .skipWorktree }
                 else if flags.assumeUnchanged && showAssumeUnchanged { badge = .assumeUnchanged }
             }
             result[entry.key] = badge
         }
+    }
+}
+
+/// CPathFilter's exact/recursive precedence compiled once per Finder refresh.
+/// Case-sensitive volumes retain byte distinctions; insensitive volumes fold
+/// names and canonical Unicode spellings before matching component boundaries.
+public struct FinderOverlayPathPolicy: Sendable {
+    public struct Issue: Equatable, Sendable {
+        public let include: Bool
+        public let line: Int
+        public let reason: String
+        public var message: String { "\(include ? "Include" : "Exclude") paths, line \(line): " + reason }
+    }
+    private struct Rule: Sendable {
+        var exact: Bool?
+        var recursive: Bool?
+        mutating func merge(include: Bool, exact: Bool) {
+            if exact { self.exact = self.exact == true || include }
+            else { recursive = recursive == true || include }
+        }
+    }
+    private var exactNames: [GitReferenceName: Rule] = [:]
+    private var foldedNames: [GitReferenceName: Rule] = [:]
+    public private(set) var issue: Issue?
+    public private(set) var includeCount = 0
+    public private(set) var excludeCount = 0
+    private static func normalized(_ path: String) -> String {
+        // NSURL standardization may normalize Unicode on macOS. Only collapse
+        // separators and dot components here; preserve every filename byte.
+        var components: [String] = []
+        for part in path.utf8.split(separator: 47) {
+            if part.elementsEqual([46]) { continue }
+            if part.elementsEqual([46, 46]) { if !components.isEmpty { components.removeLast() }; continue }
+            components.append(String(decoding: part, as: UTF8.self))
+        }
+        return "/" + components.joined(separator: "/")
+    }
+    static func folded(_ path: String) -> String {
+        path.folding(options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX")).precomposedStringWithCanonicalMapping
+    }
+    public init(exclude: String, include: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) {
+        for (text, included) in [(exclude, false), (include, true)] {
+            for (index, raw) in text.components(separatedBy: "\n").enumerated() {
+                var path = raw; if path.hasSuffix("\r") { path.removeLast() }
+                if path.isEmpty { continue }
+                if path.utf8.contains(0) {
+                    if issue == nil { issue = Issue(include: included, line: index + 1, reason: "A path cannot contain a NUL character.") }; continue
+                }
+                let only = path.hasSuffix("?")
+                if only || path.hasSuffix("*") { path.removeLast() }
+                if path == "~" || path.hasPrefix("~/") { path = home.path + path.dropFirst() }
+                else if path == "$HOME" || path.hasPrefix("$HOME/") { path = home.path + path.dropFirst(5) }
+                guard path.hasPrefix("/") else {
+                    if issue == nil { issue = Issue(include: included, line: index + 1, reason: "Enter an absolute path, ~ or $HOME.") }; continue
+                }
+                path = Self.normalized(path)
+                let key = GitReferenceName(path), folded = GitReferenceName(Self.folded(path))
+                var rule = exactNames[key] ?? Rule(); rule.merge(include: included, exact: only); exactNames[key] = rule
+                var foldedRule = foldedNames[folded] ?? Rule(); foldedRule.merge(include: included, exact: only); foldedNames[folded] = foldedRule
+                if included { includeCount += 1 } else { excludeCount += 1 }
+            }
+        }
+    }
+    public func allows(_ path: String, fallback: Bool, caseSensitive: Bool) -> Bool {
+        // A corrupt policy must not accidentally grant an include exception.
+        guard issue == nil, path.utf8.first == 47, !path.utf8.contains(0) else { return false }
+        let table = caseSensitive ? exactNames : foldedNames
+        let name = caseSensitive ? path : Self.folded(path)
+        if let rule = table[GitReferenceName(name)], let result = rule.exact ?? rule.recursive { return result }
+        let bytes = Array(name.utf8)
+        for index in bytes.indices.reversed() where bytes[index] == 47 && index > 0 {
+            if let result = table[GitReferenceName(String(decoding: bytes[..<index], as: UTF8.self))]?.recursive { return result }
+        }
+        return table["/"]?.recursive ?? fallback
+    }
+}
+
+public struct FinderOverlayVolume: Equatable, Sendable {
+    public let kind: FinderVolumeKind
+    public let caseSensitive: Bool
+    public init(kind: FinderVolumeKind, caseSensitive: Bool) { self.kind = kind; self.caseSensitive = caseSensitive }
+}
+/// A refresh-local metadata cache: all files in one directory share its volume
+/// query, while a mounted child directory is resolved independently of its root.
+public final class FinderOverlayFileSystem {
+    private let readVolume: (URL) -> FinderOverlayVolume?
+    private let readDirectory: (URL) -> Bool?
+    private var directories: [GitReferenceName: Bool] = [:]
+    private var volumes: [GitReferenceName: FinderOverlayVolume] = [:]
+    public init(readVolume: @escaping (URL) -> FinderOverlayVolume? = FinderOverlayFileSystem.systemVolume,
+                readDirectory: @escaping (URL) -> Bool? = { url in
+                    guard let type = try? FileManager.default.attributesOfItem(atPath: url.path)[.type] as? FileAttributeType else { return nil }
+                    return type == .typeDirectory
+                }) {
+        self.readVolume = readVolume; self.readDirectory = readDirectory
+    }
+    public func isDirectory(_ path: String) -> Bool {
+        let key = GitReferenceName(path)
+        if let result = directories[key] { return result }
+        let result = readDirectory(URL(fileURLWithPath: path)) ?? false; directories[key] = result; return result
+    }
+    public func volume(_ path: String) -> FinderOverlayVolume {
+        var directory = URL(fileURLWithPath: path)
+        if !isDirectory(path) { directory.deleteLastPathComponent() }
+        var visited: [GitReferenceName] = []
+        while true {
+            let key = GitReferenceName(directory.path)
+            if let cached = volumes[key] { for key in visited { volumes[key] = cached }; return cached }
+            visited.append(key)
+            if let info = readVolume(directory) { for key in visited { volumes[key] = info }; return info }
+            if directory.path == "/" { break }; directory.deleteLastPathComponent()
+        }
+        let unknown = FinderOverlayVolume(kind: .unknown, caseSensitive: true)
+        for key in visited { volumes[key] = unknown }; return unknown
+    }
+    public static func systemVolume(_ url: URL) -> FinderOverlayVolume? {
+        var info = statfs(); guard statfs(url.path, &info) == 0 else { return nil }
+        let values = try? url.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey])
+        return FinderOverlayVolume(kind: FinderOverlaySettings.volumeKind(for: url), caseSensitive: values?.volumeSupportsCaseSensitiveNames ?? true)
+    }
+}
+
+/// Finder may request the same item with a different case/Unicode spelling on an
+/// insensitive volume. Keep literal identities on sensitive volumes.
+public struct FinderOverlayBadgeLookup {
+    private var exact: [GitReferenceName: FinderOverlayBadge] = [:]
+    private var folded: [GitReferenceName: FinderOverlayBadge] = [:]
+    public init(badges: [String: FinderOverlayBadge], caseSensitive: (String) -> Bool) {
+        let rank: [FinderOverlayBadge: Int] = [.normal: 0, .assumeUnchanged: 1, .skipWorktree: 2, .ignored: 3, .untracked: 4, .added: 5, .deleted: 6, .modified: 7, .conflicted: 8]
+        for (path, badge) in badges {
+            exact[GitReferenceName(path)] = badge
+            if !caseSensitive(path) {
+                let key = GitReferenceName(FinderOverlayPathPolicy.folded(path))
+                if rank[badge, default: 0] >= rank[folded[key] ?? .normal, default: 0] { folded[key] = badge }
+            }
+        }
+    }
+    public func badge(for path: String, caseSensitive: @autoclosure () -> Bool) -> FinderOverlayBadge? {
+        let literal = exact[GitReferenceName(path)]
+        guard let alias = folded[GitReferenceName(FinderOverlayPathPolicy.folded(path))] else { return literal }
+        // Unbadged paths and known sensitive names need no filesystem query.
+        return caseSensitive() ? literal : alias
     }
 }
