@@ -97,8 +97,20 @@ selection. Existing caret-driven expansion of folded rows is retained.
 
 [Grouped evidence](qa/merge-whitespace-states-2026-10-15.json) records source
 conditions, actual engine plans, palette/folding/Find and byte mappings, native
-mode changes and editing/export/Save/Undo. Source per-state next-block navigation
-for neutral pairs is still open; the current toolbar follows engine difference
-regions. In-place Edited row retention, all whitespace aliases/legacy overrides,
+mode changes and editing/export/Save/Undo. The two-pane and combined editors now
+search active-pane source states on the visible folding projection. Neutral
+RemovedWhitespace and AddedWhitespace are separate navigable blocks; Normal and
+FilteredDiff are skipped. Forward Added/Removed accepts Empty padding, while
+backward Empty accepts Added/Removed, using the entry state throughout as upstream
+LinesInOneChange does. Navigation selects the whole block in both panes, retains
+the backward entry caret, and stops at boundaries. Toolbar, context commands and
+Control-Up/Down use the same search and availability gates.
+[Navigation evidence](qa/merge-block-navigation-2026-10-15.json) records the source,
+focused Core results, initial fixture failure and final grouped native pass.
+This selection is
+also the existing transfer/Copy block selection. Three-pane conflict navigation,
+wrapped screen-row grouping, source separate block/caret and automatic inline
+advance/centering still require a further port. In-place Edited row retention,
+all whitespace aliases/legacy overrides,
 physical/VoiceOver/large-file and signed App Store acceptance also remain open.
 This does not certify the complete Merge/editor family.

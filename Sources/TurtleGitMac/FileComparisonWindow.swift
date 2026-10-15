@@ -629,6 +629,7 @@ import TurtleGitCore
         if onePaneActive, let combined, combined.rows.indices.contains(row) { row = combined.rows[row].alignmentRow }
         let index = alignment.differences.firstIndex { $0.contains(row) } ?? -1
         if difference != index { difference = index }
+        else { objectWillChange.send() }
     }
     @Published private(set) var exporting = false { didSet { onExportStateChanged() } }
     // Includes held output/format choices after their owner has retired.
@@ -1182,17 +1183,59 @@ import TurtleGitCore
             target.reflectScrolledClipView(target.contentView)
         }
     }
-    func navigate(_ step: Int) {
-        guard !filtering, let alignment, !alignment.differences.isEmpty else { return }
-        difference = min(alignment.differences.count - 1, max(0, difference + step))
-        let row = onePaneActive ? combined?.differences[difference].lowerBound ?? 0 : alignment.differences[difference].lowerBound
-        for scroll in scrolls.values {
-            guard let text = scroll.documentView as? NSTextView else { continue }
-            let lines = text.string.components(separatedBy: "\n")
-            let offset = lines.prefix(row).reduce(0) { $0 + ($1 as NSString).length + 1 }
-            text.setSelectedRange(NSRange(location: min(offset, (text.string as NSString).length), length: 0))
-            text.scrollRangeToVisible(text.selectedRange())
+    private struct BlockCaret {
+        let generation: Int
+        let selection: NSRange
+        let row: Int
+    }
+    private var blockCarets: [Bool: BlockCaret] = [:]
+    private(set) var selectingDifferenceBlock = false
+    private func differenceTarget(_ step: Int) -> (MergeBlockNavigation.Target, Bool)? {
+        guard contextCommandsAllowed, !filtering, alignment != nil,
+              let view = activeFindText else { return nil }
+        let base = onePaneActive ? false : scrolls[true]?.documentView === view
+        let cells = displayCells(base: base)
+        let selection = view.selectedRange()
+        let row: Int
+        if let saved = blockCarets[base], saved.generation == alignmentGeneration, saved.selection == selection {
+            row = saved.row
+        } else {
+            var offset = 0, found = max(0, cells.count - 1)
+            for (index, cell) in cells.enumerated() {
+                offset += cell.displayText.utf16.count + 1
+                if selection.location < offset { found = index; break }
+            }
+            row = found
         }
+        let visible = folding.projection.rows.map(\.sourceRow)
+        return MergeBlockNavigation.target(states: cells.map(\.state), visibleRows: visible,
+                                           caret: row, direction: step).map { ($0, base) }
+    }
+    func canNavigateDifference(_ step: Int) -> Bool { differenceTarget(step) != nil }
+    func navigate(_ step: Int) {
+        guard let (target, base) = differenceTarget(step) else { return }
+        selectingDifferenceBlock = true
+        defer { selectingDifferenceBlock = false }
+        activeBase = base
+        selectionRequest = nil
+        for (side, scroll) in scrolls {
+            guard let text = scroll.documentView as? NSTextView else { continue }
+            let cells = displayCells(base: side)
+            guard cells.indices.contains(target.rows.lowerBound), cells.indices.contains(target.rows.upperBound - 1) else { continue }
+            let start = cells.prefix(target.rows.lowerBound).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
+            let length = cells[target.rows].reduce(0) { $0 + $1.displayText.utf16.count + 1 } - 1
+            let range = NSRange(location: start, length: max(0, length))
+            guard NSMaxRange(range) <= text.string.utf16.count else { continue }
+            text.setSelectedRange(range)
+            blockCarets[side] = BlockCaret(generation: alignmentGeneration, selection: range, row: target.caret)
+            let caret = cells.prefix(target.caret).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
+            // Scroll the entry row rather than the end of a potentially long block.
+            text.scrollRangeToVisible(NSRange(location: caret, length: 0))
+        }
+        if let text = scrolls[base]?.documentView as? NSTextView {
+            updateSelection(text.selectedRange(), cells: displayCells(base: base))
+        }
+        objectWillChange.send()
     }
     var activeFindText: NSTextView? {
         scrolls.values.compactMap { $0.documentView as? NSTextView }.first { $0.window?.firstResponder === $0 }
@@ -1269,8 +1312,8 @@ private struct FileComparisonDialog: View {
                 Button { model.undo() } label: { Image(nsImage: MenuIcon.mergeUndo.image() ?? NSImage()) }.help("Undo").accessibilityLabel("Undo").disabled(!model.canUndo)
                 Button { model.redo() } label: { Image(nsImage: MenuIcon.mergeRedo.image() ?? NSImage()) }.help("Redo").accessibilityLabel("Redo").disabled(!model.canRedo)
                 Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }
-                Button { model.navigate(-1) } label: { CommandLabel(title: "Previous difference", icon: .mergePreviousConflict) }.disabled(model.difference <= 0)
-                Button { model.navigate(1) } label: { CommandLabel(title: "Next difference", icon: .mergeNextConflict) }.disabled(model.alignment?.differences.isEmpty != false || model.difference >= (model.alignment?.differences.count ?? 0) - 1)
+                Button { model.navigate(-1) } label: { CommandLabel(title: "Previous difference", icon: .mergePreviousConflict) }.disabled(!model.canNavigateDifference(-1))
+                Button { model.navigate(1) } label: { CommandLabel(title: "Next difference", icon: .mergeNextConflict) }.disabled(!model.canNavigateDifference(1))
                 Button { model.find(.showFindInterface) } label: { CommandLabel(title: "Find", icon: .mergeFind) }.disabled(model.alignment == nil)
                 Button { model.createUnifiedPatch() } label: { CommandLabel(title: "Create patch file", icon: .patch) }.disabled(!model.canCreateUnifiedPatch)
                 Spacer()
@@ -1404,7 +1447,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         view.needsDisplay = true
         if !view.string.utf8.elementsEqual(value.string.utf8) { view.textStorage?.setAttributedString(value) }
         else { value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in view.textStorage?.setAttributes(attributes, range: range) } }
-        if let sourceSelection, !(model.onePaneActive && oldDisplay.utf8.elementsEqual(value.string.utf8)) {
+        if let sourceSelection, !oldDisplay.utf8.elementsEqual(value.string.utf8) {
             let start = min(FileComparisonEditing.displayOffset(sourceOffset: sourceSelection.location, cells: cells), value.length)
             let end = min(FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(sourceSelection), cells: cells), value.length)
             let range = NSRange(location: start, length: max(0, end - start))
@@ -1513,7 +1556,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let view = notification.object as? NSTextView else { return }
-            (view as? FileComparisonTextView)?.foldLayout.reveal(selection: view.selectedRange(), in: view)
+            if !model.selectingDifferenceBlock { (view as? FileComparisonTextView)?.foldLayout.reveal(selection: view.selectedRange(), in: view) }
             let range = view.selectedRange(), cells = cells, generation = model.alignmentGeneration
             // A user's new selection supersedes the caret requested by the
             // preceding edit. Clear it synchronously before a queued hosting
@@ -1594,7 +1637,13 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     @objc private func nextInlineDifference(_ sender: Any?) { navigateInline(forward: true) }
     @objc private func previousInlineDifference(_ sender: Any?) { navigateInline(forward: false) }
 
+    @objc private func nextDifferenceBlock(_ sender: Any?) { model?.navigate(1) }
+    @objc private func previousDifferenceBlock(_ sender: Any?) { model?.navigate(-1) }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.keyCode == 125 || event.keyCode == 126,
+           event.modifierFlags.intersection([.command, .shift, .option, .control]) == .control {
+            model?.navigate(event.keyCode == 125 ? 1 : -1); return true
+        }
         let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
         if modifiers == .control, event.charactersIgnoringModifiers?.lowercased() == "g" {
             goToSourceLine(nil); return true
@@ -1610,7 +1659,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     var sourceCells: [MergeSourceCell] = []
     let foldLayout = MergeFoldTextLayout()
     override func scrollRangeToVisible(_ range: NSRange) {
-        foldLayout.reveal(selection: range, in: self, includeMarker: true)
+        if model?.selectingDifferenceBlock != true { foldLayout.reveal(selection: range, in: self, includeMarker: true) }
         super.scrollRangeToVisible(range)
     }
     private var lineDiffTracking: NSTrackingArea?
@@ -1799,6 +1848,8 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
 
         }
         menu.addItem(.separator())
+        add("Previous difference", #selector(previousDifferenceBlock(_:)), MenuIcon.mergePreviousDifference.image(), model.canNavigateDifference(-1))
+        add("Next difference", #selector(nextDifferenceBlock(_:)), MenuIcon.mergeNextDifference.image(), model.canNavigateDifference(1))
         add("Find…", #selector(turtleShowMergeFind(_:)), MenuIcon.mergeFind.image(), model.contextCommandsAllowed)
         MergeFindInterface.appendSelectionCommands(to: menu, text: self, defaults: defaults)
         add("Next inline difference", #selector(nextInlineDifference(_:)), MenuIcon.mergeNextInline.image(), canNavigateInline(forward: true))

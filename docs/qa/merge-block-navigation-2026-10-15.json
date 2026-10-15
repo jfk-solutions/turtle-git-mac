@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "5404712b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "BaseView.cpp LinesInOneChange, SelectNextBlock, SetupAllSelection",
+    "TortoiseMergeENG.rc Control-Up/Down navigation accelerators"
+  ],
+  "scope": [
+    "Shared directional state-block search with fixed entry state, asymmetric Empty/ConflictEmpty grouping, filtered exclusions and no wrap",
+    "Two-pane and combined active-pane commands; neutral whitespace states independent of engine regions",
+    "Whole-block peer selections, backward entry caret, original transfer selection, visible folding projection and no navigation-driven fold expansion",
+    "Toolbar availability, source-icon context commands, Control-Up/Down, busy/filter/Quit/retired gates",
+    "Retained whitespace palette/Find/export and combined native typing/Save/Undo/Redo/mode-switch workflows"
+  ],
+  "build": [
+    {
+      "log": "build/qa/merge-block-navigation-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/merge-block-navigation-fold-build.log",
+      "exit": 0
+    }
+  ],
+  "core": {
+    "log": "build/qa/merge-block-navigation-core.log",
+    "tests": 32,
+    "failures": 0,
+    "suites": [
+      "MergeBlockNavigationTests",
+      "MergeFoldingTests",
+      "FileComparisonEditingTests"
+    ],
+    "repeated_after_native_only_repair": false
+  },
+  "native": {
+    "first_log": "build/qa/merge-block-navigation-native.log",
+    "first_exit": 1,
+    "first_receiver_pid": 57393,
+    "first_result": "New navigation and whitespace workflows passed; retained fixture assumed Next returned first engine region regardless of actual caret. Establish unchanged header and assert entire removal block for source caret-relative semantics.",
+    "source_followup": "Suppress automatic Find/caret fold expansion while source block selection and entry scrolling are installed; preserve selections during unchanged-text hosting updates.",
+    "final_log": "build/qa/merge-block-navigation-fold-native.log",
+    "final_exit": 0,
+    "final_receiver_pid": 57580,
+    "final_result": "Navigation, whitespace states and retained combined editor workflows passed",
+    "owned_receivers_reaped": true,
+    "owned_windows_closed": true,
+    "new_screenshots": false
+  },
+  "open": [
+    "Three-pane difference/conflict command routing remains on its separate conflict-block implementation",
+    "Wrapped screen-row grouping versus native source-line projection",
+    "Source separate block selection/caret and automatic inline advancement and centered scroll",
+    "Full source state production, in-place Edited row retention, physical/VoiceOver/large-file and signed installed acceptance",
+    "Hosted CI confirmation remains outstanding"
+  ],
+  "certifies_complete_dialog": false
+}

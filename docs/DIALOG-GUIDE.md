@@ -144,6 +144,12 @@ Choosing a side counts as a modified result until saved, including that same-byt
 Mine choice, so Close and Quit still offer to save it. Save warns while such conflicts remain; Mark as resolved stays unavailable.
 
 
+In two-pane and one-pane comparison, Previous/Next difference searches from the
+active pane's caret and selects the whole source-state block. Control-Up and
+Control-Down and the corresponding context-menu actions use the same navigation.
+Neutral Base and Mine rows are separate stops; filtered common rows are skipped.
+Collapsed sections remain collapsed, and navigation stops at the first/last block.
+
 In one-pane comparison, a filtered common line can appear as a neutral pair.
 Ignore whitespace changes can fold that pair, while Modified-only Find still
 includes it. Ignore all whitespace changes collapses common pairs to Mine.

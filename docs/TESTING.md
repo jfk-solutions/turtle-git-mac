@@ -2138,3 +2138,10 @@ Core checks cover actual plans, source leading-trim/all-whitespace policy,
 visibility independent of Find categories, neutral palette defaults, line numbers,
 raw serialization and original Mine selection offsets. See
 [the evidence](qa/merge-whitespace-states-2026-10-15.json).
+
+The same grouped whitespace-state receiver also runs
+`docs/qa/merge-block-navigation-native-2026-10-15.swift`: neutral per-state
+navigation, multi-row forward/backward blocks, no wrap, active-pane ownership,
+peer selections and Quit gating. Core `MergeBlockNavigationTests` pins source
+state grouping, filtered/conflict categories, visible rows and boundaries.
+These checks do not certify three-pane or wrapped screen-row navigation.

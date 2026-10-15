@@ -26,7 +26,9 @@ struct MergeOnePaneNativeVerification {
         let view = TwoPaneEngineVerification.editors(owner.window?.contentView)[0]
         try check(model.onePaneActive && view.string == "same\nold 🦎 words\nremoved\nnew words\nlast\n" && !model.canCreateUnifiedPatch, "Combined ordering/default/patch gate differs: mode=\(model.onePaneMode), active=\(model.onePaneActive), string=\(String(reflecting: view.string)), patch=\(model.canCreateUnifiedPatch)")
         try check(model.locatorMap.lineCount == 5 && model.locatorMap.columns[2].isEmpty, "Combined locator differs")
-        model.navigate(1); try check(view.selectedRange().location == 5, "Next difference did not target first removal")
+        // Next now searches from the actual caret; establish the unchanged header.
+        view.setSelectedRange(NSRange(location:0,length:0));await Task.yield()
+        model.navigate(1); try check(view.selectedRange().location == 5 && (view.string as NSString).substring(with:view.selectedRange()) == "old 🦎 words\nremoved", "Next difference did not select first removal block from header")
         let selected = (view.string as NSString).range(of: "old 🦎 words"); view.setSelectedRange(selected)
         model.showInlineDiff = false; owner.window?.contentView?.layoutSubtreeIfNeeded()
         try await Task.sleep(nanoseconds: 30_000_000)

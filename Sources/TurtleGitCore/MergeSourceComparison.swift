@@ -216,6 +216,49 @@ public struct MergeSourceComparison: Sendable {
     private static func sameBytes(_ first: String, _ second: String) -> Bool { first.utf8.elementsEqual(second.utf8) }
 }
 
+/// CBaseView::SelectNextBlock searches visible screen rows in the active pane.
+/// State blocks deliberately differ from the diff engine's changed regions.
+public enum MergeBlockNavigation {
+    public struct Target: Equatable, Sendable {
+        public let rows: Range<Int>
+        public let caret: Int
+    }
+    public static func sameChange(_ initial: MergeSourceState, _ current: MergeSourceState, direction: Int) -> Bool {
+        if initial == current { return true }
+        if direction > 0 {
+            return (current == .empty && (initial == .added || initial == .removed))
+                || (initial == .conflictAdded && current == .conflictEmpty)
+        }
+        return (initial == .empty && (current == .added || current == .removed))
+            || (initial == .conflictEmpty && current == .conflictAdded)
+    }
+    public static func target(states: [MergeSourceState], visibleRows: [Int], caret: Int,
+                              direction: Int, conflictsOnly: Bool = false, skipCurrent: Bool = true) -> Target? {
+        guard direction != 0, !visibleRows.isEmpty,
+              visibleRows.allSatisfy({ states.indices.contains($0) }),
+              zip(visibleRows, visibleRows.dropFirst()).allSatisfy({ $0 < $1 }) else { return nil }
+        let step = direction > 0 ? 1 : -1
+        var screen = visibleRows.firstIndex(of: caret)
+            ?? visibleRows.lastIndex(where: { $0 <= caret }) ?? 0
+        func valid(_ index: Int) -> Bool { visibleRows.indices.contains(index) }
+        func state(_ index: Int) -> MergeSourceState { states[visibleRows[index]] }
+        if skipCurrent {
+            let initial = state(screen)
+            while valid(screen), sameChange(initial, state(screen), direction: step) { screen += step }
+        }
+        while valid(screen) {
+            let current = state(screen)
+            if conflictsOnly ? current.isConflict : !current.isUnchanged { break }
+            screen += step
+        }
+        guard valid(screen) else { return nil }
+        let entry = screen, initial = state(screen)
+        while valid(screen + step), sameChange(initial, state(screen + step), direction: step) { screen += step }
+        return Target(rows: min(visibleRows[entry], visibleRows[screen])..<(max(visibleRows[entry], visibleRows[screen]) + 1),
+                      caret: visibleRows[entry])
+    }
+}
+
 /// LocatorBar.cpp compresses consecutive state runs and scales all panes by the
 /// longest view. Three stripes are Left, Bottom, Right, also in two-pane mode.
 public struct MergeLocatorMap: Sendable {
