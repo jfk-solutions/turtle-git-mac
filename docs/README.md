@@ -232,3 +232,7 @@ are not recursively audited.
 
 Finder context now shares normalized selections, nearest repository ownership and
 explicit ignore inheritance; see [selection context](FINDER-SELECTION-CONTEXT.md).
+
+[Native Compare/Merge toolbar](MERGE-NATIVE-TOOLBAR.md): original artwork, live
+commands and dropdowns, independent saved layouts, replacement ownership and
+reviewed full-window light/dark captures.

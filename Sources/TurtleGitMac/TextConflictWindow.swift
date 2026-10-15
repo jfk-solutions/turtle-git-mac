@@ -176,9 +176,11 @@ private enum MergeSourceSide {
     private let editorFileMenu = MergeEditorFileMenu()
     func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:))) }
     func windowDidResignKey(_ notification: Notification) { editorFileMenu.remove() }
-    func detachForReplacement() { editorFileMenu.remove(); model.retire(); model.window = nil }
+    func detachForReplacement() { editorToolbar?.retire(); editorFileMenu.remove(); model.retire(); model.window = nil }
     @objc func reloadEditor(_ sender: Any?) { guard !preparingReplacement, !model.exportingSource, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
     func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.confirmingQuit && !model.retired && !model.exportingSource && window?.attachedSheet == nil }
+    private(set) var editorToolbar: MergeEditorToolbar?
+    var showEditorHelp: () -> Void = { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) }
     let model: TextConflictWindowModel
     var onClosed: () -> Void = {}
     var editorOpenWorkflow: MergeEditorOpenWorkflow?
@@ -200,9 +202,9 @@ private enum MergeSourceSide {
         if sharedReplacementOwner == nil { replacementOwner = owner }
         try owner.replace(request, permissions: permissions, preferences: model.comparisonDefaults, window: window, previous: self)
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, workingMerge: WorkingTextMerge? = nil, permissions: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, workingMerge: WorkingTextMerge? = nil, permissions: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard, deferInitialLoad: Bool = false) {
         model = TextConflictWindowModel(repository: repository, access: access, path: path)
-        model.comparisonDefaults = preferences
+        model.comparisonDefaults = preferences; model.initialLoadDeferred = deferInitialLoad
         model.workingMerge = workingMerge; model.workingMergePermissions = permissions
         let window = TextConflictNSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
@@ -214,6 +216,7 @@ private enum MergeSourceSide {
         super.init(window: window); window.delegate = self; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; window.center(); model.window = window; model.close = { [weak window] in window?.close() }
 
 
+        installEditorToolbar()
         DialogGeometry.attach(window, identifier: "TurtleGit.TextConflict", legacyName: "TurtleGit.TextConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -230,7 +233,8 @@ private enum MergeSourceSide {
         default: return false
         }
     }
-    func windowWillClose(_ notification: Notification) { editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire(); onClosed() }
+    func windowWillClose(_ notification: Notification) { guard let closing = notification.object as? NSWindow, closing === window else { return }; editorToolbar?.retire(); editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire(); onClosed() }
+    func installEditorToolbar() { editorToolbar?.retire(); editorToolbar = MergeEditorToolbar.conflict(self) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class TextConflictWindowModel: ObservableObject {
@@ -477,6 +481,7 @@ private enum MergeSourceSide {
     @Published private(set) var preparing = false
     @Published var confirmingQuit = false
     @Published var error: String?
+    @Published var nativeToolbarInstalled = false
     @Published var showBase = false
     @Published var canUndo = false
     @Published var canRedo = false
@@ -604,7 +609,9 @@ private enum MergeSourceSide {
             } else { self.editorPreferences = next }
         }
     }
-    func load() { load(filterName: regexFilterName) }
+    var initialLoadDeferred = false
+    func beginTransferredDocument() { initialLoadDeferred = false; load() }
+    func load() { guard !initialLoadDeferred else { return }; load(filterName: regexFilterName) }
     private func load(filterName: String?) {
         guard !busy, !confirmingQuit, !retired, window?.attachedSheet == nil else { return }
         if dirty {
@@ -833,6 +840,7 @@ private struct TextConflictDialog: View {
     }
     var body: some View {
         VStack(spacing: 0) {
+            if !model.nativeToolbarInstalled {
             HStack(spacing: 10) {
                 Button { model.save(markResolved: false) } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s", modifiers: .command)
                 Button { model.save(markResolved: true) } label: { CommandLabel(title: "Mark as resolved", icon: .mergeResolved) }.disabled(model.workingMerge != nil || model.document == nil || MergeText.hasMarkers(model.result))
@@ -855,6 +863,7 @@ private struct TextConflictDialog: View {
                 Spacer()
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
+            }
             HStack {
                 MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed)
                 MergeInlineControls(enabled: model.showInlineDiff, word: model.inlineWordDiff, applyEnabled: model.setInlineDiff, applyWord: model.setInlineWordDiff).disabled(model.busy || model.confirmingQuit || model.sourceComparison == nil)

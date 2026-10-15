@@ -35,6 +35,8 @@ import TurtleGitCore
 }
 @MainActor final class FileComparisonWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     let model: FileComparisonWindowModel
+    private(set) var editorToolbar: MergeEditorToolbar?
+    var showEditorHelp: () -> Void = { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug.html")!) }
     private let editorFileMenu = MergeEditorFileMenu()
     private weak var patchMenu: NSMenu?
     private var patchMenuItem: NSMenuItem?
@@ -52,7 +54,7 @@ import TurtleGitCore
         patchMenuItem = nil; patchMenu = nil
     }
     func detachForReplacement() {
-        editorFileMenu.remove(); removePatchMenu(); model.retireImageLoader(); model.resetHistory(); model.window = nil
+        editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu(); model.retireImageLoader(); model.resetHistory(); model.window = nil
     }
     @objc func createPatchFile(_ sender: Any?) { model.createUnifiedPatch() }
     @objc func reloadEditor(_ sender: Any?) {
@@ -89,12 +91,13 @@ import TurtleGitCore
         let model = FileComparisonWindowModel(repository: repository, access: access, conflict: conflict)
         model.comparisonDefaults = preferences; self.init(model: model)
     }
-    convenience init(images: ImageFileComparison, permissions: [RepositoryAccessLease]) {
-        self.init(model: FileComparisonWindowModel(images: images, permissions: permissions))
+    convenience init(images: ImageFileComparison, permissions: [RepositoryAccessLease], preferences: UserDefaults = .standard) {
+        let model = FileComparisonWindowModel(images: images, permissions: permissions); model.comparisonDefaults = preferences
+        self.init(model: model)
     }
-    convenience init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease], preferences: UserDefaults = .standard) {
+    convenience init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease], preferences: UserDefaults = .standard, deferInitialLoad: Bool = false) {
         let model = FileComparisonWindowModel(comparison: comparison, permissions: permissions)
-        model.comparisonDefaults = preferences
+        model.comparisonDefaults = preferences; model.initialLoadDeferred = deferInitialLoad
         self.init(model: model)
     }
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, comparison: HistoricalWorkingFileComparison, permission: RepositoryAccessLease) {
@@ -114,6 +117,7 @@ import TurtleGitCore
         model.externalDidOpen = { [weak window] in window?.close() }
         window.setContentSize(NSSize(width: 1120, height: 720))
         window.center()
+        installEditorToolbar()
 
         DialogGeometry.attach(window, identifier: "TurtleGit.TwoFileDiff", legacyName: "TurtleGit.TwoFileDiff")
     }
@@ -131,10 +135,12 @@ import TurtleGitCore
         }
     }
     func windowWillClose(_ notification: Notification) {
-        editorFileMenu.remove(); removePatchMenu()
+        guard let closing = notification.object as? NSWindow, closing === window else { return }
+        editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu()
         if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.stopAllPlayback(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
         editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retireImageLoader(); model.resetHistory(); onClosed()
     }
+    func installEditorToolbar() { editorToolbar?.retire(); editorToolbar = MergeEditorToolbar.comparison(self) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class FileComparisonWindowModel: ObservableObject {
@@ -182,6 +188,7 @@ import TurtleGitCore
     func captureToolChoice(_ alternate: Bool) { guard !busy, !externalAttempted, !retired else { return }; alternateTool = alternate }
     @Published var document: FileComparisonDocument?
     var singleFileMode = false
+    @Published var nativeToolbarInstalled = false
     @Published var alignment: FileComparisonAlignment? { didSet { combinedCache = nil } }
     @Published private(set) var onePaneMode = false
     private var loadedPaneMode = false
@@ -851,8 +858,10 @@ import TurtleGitCore
         guard let loadSession else { return false }
         closeAfterLoad = true; loadSession.cancel(); return true
     }
+    var initialLoadDeferred = false
+    func beginTransferredDocument() { initialLoadDeferred = false; load() }
     func load() {
-        guard !retired, !busy, !hasPendingEditorChoice, !confirmingQuit, window?.attachedSheet == nil else { return }
+        guard !initialLoadDeferred, !retired, !busy, !hasPendingEditorChoice, !confirmingQuit, window?.attachedSheet == nil else { return }
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
         if !loadedPaneMode { onePaneMode = OnePaneFileComparison.defaultEnabled(from: comparisonDefaults); loadedPaneMode = true }
@@ -1225,6 +1234,7 @@ private struct FileComparisonDialog: View {
     }
     private var textBody: some View {
         VStack(spacing: 0) {
+            if !model.nativeToolbarInstalled {
             HStack {
                 Button { model.save() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.disabled(!model.activeDirty)
                 Menu { if !model.onePaneActive { Button("Save left pane as…") { model.saveAs(base: true) } }; Button("Save right pane as…") { model.saveAs(base: false) } } label: { CommandLabel(title: "Save As", icon: .mergeSaveAs) }.disabled(!model.canSavePaneAs)
@@ -1237,6 +1247,7 @@ private struct FileComparisonDialog: View {
                 Button { model.createUnifiedPatch() } label: { CommandLabel(title: "Create patch file", icon: .patch) }.disabled(!model.canCreateUnifiedPatch)
                 Spacer()
             }.padding(10).disabled(model.busy || model.confirmingQuit)
+            }
             HStack {
                 Toggle("Enable editing", isOn: $model.editingEnabled).disabled(model.editableBase == nil || model.busy || model.confirmingQuit)
                 Spacer()

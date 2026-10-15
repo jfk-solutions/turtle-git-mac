@@ -1,0 +1,157 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "2ffd6bda",
+  "scope": "Connected native Compare/Merge command toolbar, source artwork, saved layouts, overflow/dropdown actions and replacement-document lifetime",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/Resources/TortoiseMergeENG.rc::IDR_MAINFRAME toolbar",
+      "src/Resources/ribbon Open/UpGreen/DownGreen/WrapLines/Collapse/TabSpace/OneWayDiff.bmp",
+      "src/TortoiseMerge/MainFrm.cpp command handlers",
+      "Local macOS SDK NSToolbar.h identifier synchronization, configuration and validation contracts"
+    ]
+  },
+  "implementation": [
+    "AppKit customizable command toolbar replaces primary content row for text owners; original green difference/red conflict arrows and source Open/Save/Undo/Find/block artwork",
+    "Save As and source comparison dropdowns retain existing targets/routes; default overflow includes former primary commands",
+    "Live checked toggle states and both manual/runtime validation; retained controls cannot dispatch to retired/busy/sheet-owned documents",
+    "Unique native toolbar identity per window; bounded allowed layout IDs/display mode saved in supplied preferences under editor-family profile; no automatic global writes",
+    "Image views remove text toolbar; replacement models defer initial reads until surviving-window adoption, then install a fresh toolbar; close callbacks check the current window",
+    "Seven byte-identical upstream BMPs added with hashes and existing alpha decoder"
+  ],
+  "validation": {
+    "core_icons": {
+      "cases": 3,
+      "failures": 0,
+      "log": "build/qa/merge-toolbar-icons.log",
+      "scope": "Original bitmap decoding/alpha, menu/Retina sizes and existing icon regressions; no unrelated Core suite rerun"
+    },
+    "debug": {
+      "exit_code": 0,
+      "final_log": "build/qa/merge-toolbar-deferred-load-build.log",
+      "earlier_successful_build_logs": [
+        "build/qa/merge-toolbar-build.log",
+        "build/qa/merge-toolbar-build-recheck.log",
+        "build/qa/merge-toolbar-ownership-build.log",
+        "build/qa/merge-toolbar-transfer-build.log"
+      ],
+      "diagnostics": "Existing warnings/exit-zero-no-output diagnostic noise; no clean diagnostics claim"
+    },
+    "native_toolbar": {
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/merge-toolbar-native-deferred-load.log",
+      "completed_markers": 2,
+      "owned_reaped_pids": [
+        96511,
+        96520
+      ],
+      "scope": [
+        "Actual NSToolbar/NSMenuToolbarItem/NSButton objects, default order/original images, native validation while busy",
+        "Native target/overflow dispatch, Find ownership, real Save and conflict-choice Undo",
+        "Private saved item order/display mode restoration",
+        "Distinct text/image replacement controllers using the surviving window, live documents, new toolbar items and retired item refusal",
+        "Both native editor appearances captured from current process only"
+      ]
+    },
+    "retained_find_word": {
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/merge-toolbar-find-regression.log",
+      "owned_reaped_pids": [
+        96547,
+        96604
+      ],
+      "scope": "Retained two/three-pane Find/Replace/Count/Undo and shared/local marked-word/locator/foreign/retired guards with unchanged disk/index assertions"
+    },
+    "bundle": {
+      "exit_code": 0,
+      "log": "build/qa/merge-toolbar-bundle.log",
+      "scope": "Unsigned Debug package/runtime/resource/license/hash audit, all 309 upstream icon resources; performed before final lifecycle-only edits, resources unchanged"
+    },
+    "failures_and_repairs": [
+      {
+        "kind": "fixture_compile",
+        "log": "build/qa/merge-toolbar-native.log",
+        "detail": "NSMenuToolbarItem.menu is nonoptional; fixture optional chaining corrected without changing assertions."
+      },
+      {
+        "kind": "production_validation",
+        "log": "build/qa/merge-toolbar-native-recheck.log",
+        "detail": "Explicit AppKit validation re-enabled a busy item; NSToolbarItemValidation now rechecks live owner state."
+      },
+      {
+        "kind": "incomplete_capture_run",
+        "log": "build/qa/merge-toolbar-native-validation-recheck.log",
+        "detail": "Exit zero after first captures did not prove completion and was rejected. Capture lifecycle adjusted, captures moved after workflow checks, and runner now requires a final completed marker."
+      },
+      {
+        "kind": "fixture_timing_and_diagnosis_correction",
+        "logs": [
+          "build/qa/merge-toolbar-item-diagnostic.log",
+          "build/qa/merge-toolbar-native-final.log"
+        ],
+        "detail": "Initial replacement request occurred while Save comparison filtering was active and was correctly refused. Fixture waits for full gate and proves replacement !== old controller. Earlier claimed item-target sharing was not established; unique native IDs/manual family profiles instead implement deliberate independent layout ownership under SDK documented synchronization."
+      },
+      {
+        "kind": "production_initial_load_lifetime",
+        "logs": [
+          "build/qa/merge-toolbar-native-settled.log",
+          "build/qa/merge-toolbar-native-transfer.log"
+        ],
+        "detail": "Toolbar layout mounted prepared editor early; its read session belonged to temporary window and was cancelled on adoption. Replacement constructors now defer initial read until surviving-window binding. Current-window close guard retained as explicit ownership protection. Final full toolbar and retained groups passed."
+      }
+    ],
+    "cleanup": {
+      "failed_or_incomplete_receiver_pids_reaped": [
+        95467,
+        95554,
+        95562,
+        95612,
+        95668,
+        95715,
+        95836,
+        96224,
+        96275,
+        96364
+      ],
+      "execution": "Owned bounded process groups; sequential receivers and engine cases; shared current Debug objects reused. Private preferences/files; Help injected; no authenticated network or Finder activation."
+    },
+    "captures": {
+      "reviewed": true,
+      "kind": "Unaltered ScreenCaptureKit currentProcess window compositor captures after final behavioral checks; final bundled-Git case",
+      "assets": [
+        "site/assets/compare-native-toolbar-light.png",
+        "site/assets/compare-native-toolbar-dark.png",
+        "site/assets/merge-native-toolbar-light.png",
+        "site/assets/merge-native-toolbar-dark.png"
+      ],
+      "observations": "Native source-art toolbar and overflow, green versus red navigation, independent Save As menu, original colored comparison/conflict panes with light/dark native chrome; fixture includes saved replacement result and restored unresolved merge"
+    },
+    "hosted_observation": {
+      "run": 38721704928,
+      "commit": "12b65f85",
+      "job": 116378009960,
+      "conclusion": "failure",
+      "core_cases": 1433,
+      "core_skipped": 1,
+      "core_failures": 0,
+      "failed_step": "Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle",
+      "diagnostic": "Rebase columns failed: Native committer pixels missing",
+      "scope": "Earlier hosted commit, independent of local toolbar pass; full hosted CI remains unresolved"
+    }
+  },
+  "limits": [
+    "Physical customization/overflow tracking, toolbar VoiceOver/client interaction",
+    "Complete Windows Ribbon commands/groups, shortcut and all-state layout parity",
+    "All replacement routes, external-tool/hook combinations and signed access",
+    "Full hosted CI and signed Finder/App Store acceptance",
+    "Complete application port"
+  ]
+}

@@ -1516,6 +1516,41 @@
       "asset": "spell.ico",
       "source": "src/Resources/spell.ico",
       "sha256": "57e881fc07caf51fc772083b5e117fc8485b6889440d7e4ff78336ac2d731e37"
+    },
+    {
+      "asset": "Open.bmp",
+      "source": "src/Resources/ribbon/Open.bmp",
+      "sha256": "e63b3824f617d641efe21a828418af071fd26479d149bbf130e0728978df5d1c"
+    },
+    {
+      "asset": "UpGreen.bmp",
+      "source": "src/Resources/ribbon/UpGreen.bmp",
+      "sha256": "0d879094dc15d033c8c30e98ca709920f489bb7f7a218b460ee41ebe7c0b1ba2"
+    },
+    {
+      "asset": "DownGreen.bmp",
+      "source": "src/Resources/ribbon/DownGreen.bmp",
+      "sha256": "f604600cb83f5df16085eed5269617134f9e7cda2e5c2c6e88cb508189be6e54"
+    },
+    {
+      "asset": "WrapLines.bmp",
+      "source": "src/Resources/ribbon/WrapLines.bmp",
+      "sha256": "7fa27ec80216ee0d42570798b0106f96b8540e00cbf2a257d0c2e34564726c17"
+    },
+    {
+      "asset": "Collapse.bmp",
+      "source": "src/Resources/ribbon/Collapse.bmp",
+      "sha256": "127abe651af5f6c056857ebc2776bc4ab6ae468d3106ce5915cf299d2a3a6991"
+    },
+    {
+      "asset": "TabSpace.bmp",
+      "source": "src/Resources/ribbon/TabSpace.bmp",
+      "sha256": "6be2feaf826548a999581e22c8b186213616978d05ffa42a7791766bcf87d420"
+    },
+    {
+      "asset": "OneWayDiff.bmp",
+      "source": "src/Resources/ribbon/OneWayDiff.bmp",
+      "sha256": "125e7d8fa00749c21290f26114d5341e8270798d5b991119fc89316bf3b8fd5a"
     }
   ]
 }

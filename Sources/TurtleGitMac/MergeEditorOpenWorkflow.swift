@@ -81,11 +81,11 @@ import TurtleGitCore
         let next: NSWindowController
         switch request {
         case .compare(let base, let mine, let single):
-            let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: permissions, preferences: preferences)
+            let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: permissions, preferences: preferences, deferInitialLoad: true)
             controller.model.singleFileMode = single; next = controller
         case .merge(let base, let theirs, let mine):
             let merge = try WorkingTextMerge(base: base, theirs: theirs, mine: mine)
-            next = TextConflictWindowController(repository: GitRepository(root: mine.deletingLastPathComponent(), executable: try GitRuntime.executable()), access: nil, path: mine.lastPathComponent, workingMerge: merge, permissions: permissions, preferences: preferences)
+            next = TextConflictWindowController(repository: GitRepository(root: mine.deletingLastPathComponent(), executable: try GitRuntime.executable()), access: nil, path: mine.lastPathComponent, workingMerge: merge, permissions: permissions, preferences: preferences, deferInitialLoad: true)
         case .patch(let file, let target, let bytes):
             let workflow = try makePatchWorkflow(file, target, bytes, permissions, preferences)
             preparePatch(workflow, window: window, previous: previous, preferences: preferences)
@@ -109,17 +109,17 @@ import TurtleGitCore
         window.contentViewController = content; window.title = title; window.contentMinSize = minimum
         current = next; Self.live[id] = self
         if let pair = next as? FileComparisonWindowController {
-            pair.sharedReplacementOwner = self; pair.model.window = window; host.model = pair.model
+            pair.sharedReplacementOwner = self; pair.model.window = window; host.model = pair.model; pair.installEditorToolbar()
             host.openMergeDocument = { [weak pair] in pair?.openMergeDocument(nil) }
             window.delegate = pair; pair.onClosed = { [weak self] in self?.finish() }
             pair.model.externalDidOpen = { [weak window] in window?.close() }
-            pair.model.load(); pair.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: window))
+            pair.model.beginTransferredDocument(); pair.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: window))
         } else if let merge = next as? TextConflictWindowController {
-            merge.sharedReplacementOwner = self; merge.model.window = window
+            merge.sharedReplacementOwner = self; merge.model.window = window; merge.installEditorToolbar()
             merge.model.close = { [weak window] in window?.close() }
             host.openMergeDocument = { [weak merge] in merge?.openMergeDocument(nil) }
             window.delegate = merge; merge.onClosed = { [weak self] in self?.finish() }
-            merge.model.load(); merge.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: window))
+            merge.model.beginTransferredDocument(); merge.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: window))
         }
         if let patch = next as? WorkingTreePatchWindowController {
             patch.sharedReplacementOwner = self; patch.model.window = window; host.patchModel = patch.model

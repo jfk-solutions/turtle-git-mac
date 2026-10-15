@@ -1727,3 +1727,15 @@ Debug and both system/bundled Git native groups on their first attempts.
 [Evidence and reviewed component captures](qa/merge-marked-word-2026-10-15.json)
 record scope and cleanup. Synthetic AppKit handler dispatch does not prove
 physical gesture or signed sandbox acceptance.
+
+## Native Compare/Merge toolbar batch
+
+`python3 scripts/test-merge-toolbar.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"`
+links current Debug objects and checks the actual toolbar/overflow/menu/Save/Undo,
+private layout persistence and distinct replacement controllers. The runner requires
+a final completion marker, in addition to process success. Optional
+`TURTLEGIT_MERGE_TOOLBAR_CAPTURE` captures owned windows after workflow checks.
+Three Core icon tests, final Debug compilation, both toolbar configurations and
+the retained Find/word groups passed; the Debug resource audit verified 309 icon
+resources. [The record](qa/merge-toolbar-2026-10-15.json) includes failed attempts,
+rejected incomplete exit-zero runs, repairs, reviewed captures and cleanup.
