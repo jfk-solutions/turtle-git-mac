@@ -150,6 +150,13 @@ Control-Down and the corresponding context-menu actions use the same navigation.
 Neutral Base and Mine rows are separate stops; filtered common rows are skipped.
 Collapsed sections remain collapsed, and navigation stops at the first/last block.
 
+In three-pane Merge, navigation follows the focused source or result pane.
+Control-Up/Down or F7/Shift-F7 moves between differences; F8/Shift-F8 moves between
+conflicts. Source-pane context menus offer block choices for the matching result
+conflict. Selecting a common line disables those choices. Undo/Redo also restores
+the relationship between the source block and result selection. Sections omitted
+from a pane can cause its highlighted block to span a different number of lines.
+
 In one-pane comparison, a filtered common line can appear as a neutral pair.
 Ignore whitespace changes can fold that pair, while Modified-only Find still
 includes it. Ignore all whitespace changes collapses common pairs to Mine.

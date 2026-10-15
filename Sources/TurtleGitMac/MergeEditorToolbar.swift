@@ -241,9 +241,9 @@ extension MergeEditorToolbar {
     }
     static func conflict(_ owner: TextConflictWindowController) -> MergeEditorToolbar? {
         guard let window = owner.window else { return nil }; let model = owner.model
-        let commands: [MergeToolbarCommand] = [.open, .save, .saveAs, .reload, .undo, .redo, .previousConflict, .nextConflict, .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs, .resolved, .whitespace, .wrap, .inline, .inlineWord, .collapsed, .find, .compareSources, .showBase, .help]
+        let commands: [MergeToolbarCommand] = [.open, .save, .saveAs, .reload, .undo, .redo, .previousDifference, .nextDifference, .previousConflict, .nextConflict, .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs, .resolved, .whitespace, .wrap, .inline, .inlineWord, .collapsed, .find, .compareSources, .showBase, .help]
         return MergeEditorToolbar(window: window, identifier: "TurtleGit.Merge.Conflict", commands: commands,
-            defaults: [.open, .save, .saveAs, .reload, .undo, .redo, .previousConflict, .nextConflict, .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs, .resolved, .wrap, .find, .compareSources, .showBase, .help],
+            defaults: [.open, .save, .saveAs, .reload, .undo, .redo, .previousDifference, .nextDifference, .previousConflict, .nextConflict, .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs, .resolved, .wrap, .find, .compareSources, .showBase, .help],
             menus: [.saveAs: [.saveLeft, .saveRight, .saveMerged, .continueResolving], .compareSources: [.compareTheirs, .compareMine]],
             changes: model.objectWillChange, preferences: model.comparisonDefaults,
             visible: { [weak model] in model?.retired == false }, installed: { [weak model] installed in if model?.nativeToolbarInstalled != installed { model?.nativeToolbarInstalled = installed } },
@@ -258,10 +258,12 @@ extension MergeEditorToolbar {
                 case .continueResolving: return .init(enabled: text && !model.blocks.isEmpty)
                 case .undo: return .init(enabled: text && model.canUndo)
                 case .redo: return .init(enabled: text && model.canRedo)
-                case .previousConflict: return .init(enabled: text && !model.blocks.isEmpty && model.selectedConflict > 0)
-                case .nextConflict: return .init(enabled: text && model.selectedConflict < model.blocks.count - 1)
-                case .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs: return .init(enabled: text && !model.blocks.isEmpty)
-                case .resolved: return .init(enabled: text && model.workingMerge == nil && !MergeText.hasMarkers(model.result))
+                case .previousDifference: return .init(enabled: text && model.canNavigateBlock(-1,conflictsOnly:false))
+                case .nextDifference: return .init(enabled: text && model.canNavigateBlock(1,conflictsOnly:false))
+                case .previousConflict: return .init(enabled: text && model.canNavigateBlock(-1,conflictsOnly:true))
+                case .nextConflict: return .init(enabled: text && model.canNavigateBlock(1,conflictsOnly:true))
+                case .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs: return .init(enabled: text && model.canChooseConflict)
+                case .resolved: return .init(enabled: text && model.workingMerge == nil && !model.hasUnresolvedConflicts)
                 case .find: return .init(enabled: text)
                 case .showBase: return .init(enabled: text, checked: model.showBase)
                 case .whitespace: return .init(enabled: text, checked: model.whitespaceDisplay.visible)
@@ -280,7 +282,8 @@ extension MergeEditorToolbar {
                 case .saveMerged: model.export(); case .continueResolving: model.continueResolving()
                 case .compareTheirs: model.compareSourceWithBase(mine: false); case .compareMine: model.compareSourceWithBase(mine: true)
                 case .undo: model.undo(); case .redo: model.redo()
-                case .previousConflict: model.selectConflict(model.selectedConflict - 1); case .nextConflict: model.selectConflict(model.selectedConflict + 1)
+                case .previousDifference: model.navigateBlock(-1,conflictsOnly:false); case .nextDifference: model.navigateBlock(1,conflictsOnly:false)
+                case .previousConflict: model.navigateBlock(-1,conflictsOnly:true); case .nextConflict: model.navigateBlock(1,conflictsOnly:true)
                 case .useTheirs: model.choose(.theirs); case .useMine: model.choose(.mine)
                 case .theirsThenMine: model.choose(.theirsThenMine); case .mineThenTheirs: model.choose(.mineThenTheirs)
                 case .resolved: model.save(markResolved: true)

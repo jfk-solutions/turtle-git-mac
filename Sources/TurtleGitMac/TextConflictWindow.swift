@@ -675,11 +675,12 @@ private enum MergeSourceSide {
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
         resetHistory()
-        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, states: comparison.resultLocator?.states ?? [], foldAnchors: .init(offsets: comparison.resultAnchors), ignoredConflicts: comparison.ignoredConflicts).reconciling(next.initialResult); result = next.initialResult; encoding = next.encoding
+        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, states: comparison.resultLocator?.states ?? [], foldAnchors: .init(offsets: comparison.resultAnchors), ignoredConflicts: comparison.ignoredConflicts, navigationMap: comparison.navigationMap).reconciling(next.initialResult); result = next.initialResult; encoding = next.encoding
         savedIgnoredConflicts = resultPresentation.ignoredConflicts
         commentProfiles = profiles
         comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
+        navigationCarets = [:]; navigationOwnsChoice = false; navigationChoiceRange = nil
         selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         generalPreferences = .load(from: comparisonDefaults)
@@ -690,6 +691,115 @@ private enum MergeSourceSide {
         selectionRequest = generalPreferences.initialTarget(difference: difference, conflict: blocks.first?.range)
         reloadEditorConfig()
     }
+    private struct NavigationCaret {
+        let selection: NSRange
+        let text: String
+        let states: [MergeSourceState]
+        let row: Int
+    }
+    private var navigationCarets: [ObjectIdentifier: NavigationCaret] = [:]
+    private weak var lastNavigationView: MergeTextView?
+    private(set) var selectingNavigationBlock = false
+    private var navigationOwnsChoice = false
+    private var navigationChoiceRange: NSRange?
+    private var navigationViews: [MergeTextView] {
+        var views = sourceScrolls.values.compactMap { $0.view?.documentView as? MergeTextView }.filter { $0.sourceSide != nil }
+        if let result = locatorResultScroll?.documentView as? MergeTextView { views.append(result) }
+        return views
+    }
+    private var activeNavigationView: MergeTextView? {
+        if let view = window?.firstResponder as? MergeTextView {
+            return view.mergeEditable || view.sourceSide != nil ? view : nil
+        }
+        return lastNavigationView ?? locatorResultScroll?.documentView as? MergeTextView
+    }
+    fileprivate func focusNavigation(_ view: MergeTextView) {
+        guard view.mergeEditable || view.sourceSide != nil else { return }
+        lastNavigationView = view; objectWillChange.send()
+    }
+    private func navigationStates(_ view: MergeTextView) -> [MergeSourceState] {
+        if let side = view.sourceSide {
+            return sourceComparison?.rows.map { side == .mine ? $0.mine.state : $0.theirs.state } ?? []
+        }
+        return view.mergeEditable ? resultStates : []
+    }
+    private func navigationRanges(_ view: MergeTextView) -> [NSRange] {
+        if let cells = view.sourceCells {
+            var offset = 0
+            return cells.map { cell in
+                defer { offset += cell.displayText.utf16.count + 1 }
+                return NSRange(location:offset,length:cell.displayText.utf16.count)
+            }
+        }
+        return MergeSourceComparison.navigationRanges(text:view.string)
+    }
+    private func navigationRow(_ view: MergeTextView, ranges: [NSRange]) -> Int {
+        let selection = view.selectedRange(), states = navigationStates(view)
+        if let saved = navigationCarets[ObjectIdentifier(view)], saved.selection == selection,
+           saved.text.utf8.elementsEqual(view.string.utf8), saved.states == states { return saved.row }
+        return ranges.lastIndex(where: { $0.location <= selection.location }) ?? 0
+    }
+    private func navigationTarget(_ direction: Int, conflictsOnly: Bool) -> (MergeTextView, MergeBlockNavigation.Target)? {
+        guard sourceToolsAllowed, let view = activeNavigationView else { return nil }
+        let states = navigationStates(view), ranges = navigationRanges(view)
+        guard ranges.count == states.count else { return nil }
+        let projection = view.mergeEditable ? resultFolding.projection : folding.projection
+        return MergeBlockNavigation.target(states:states,visibleRows:projection.rows.map(\.sourceRow),
+            caret:navigationRow(view,ranges:ranges),direction:direction,conflictsOnly:conflictsOnly).map { (view,$0) }
+    }
+    func canNavigateBlock(_ direction: Int, conflictsOnly: Bool) -> Bool { navigationTarget(direction,conflictsOnly:conflictsOnly) != nil }
+    private func navigationRange(rows: Range<Int>, in view: MergeTextView) -> NSRange? {
+        let ranges = navigationRanges(view)
+        guard ranges.indices.contains(rows.lowerBound), ranges.indices.contains(rows.upperBound - 1) else { return nil }
+        return NSRange(location:ranges[rows.lowerBound].location,length:NSMaxRange(ranges[rows.upperBound - 1]) - ranges[rows.lowerBound].location)
+    }
+    fileprivate func navigationSelectionChanged(_ view: MergeTextView) {
+        guard !retired, !selectingNavigationBlock, window?.firstResponder === view else { return }
+        if view.mergeEditable { caret = view.selectedRange() }
+        let mapped: NSRange?
+        if view.mergeEditable { mapped = view.selectedRange() }
+        else if view.sourceSide != nil {
+            let ranges = navigationRanges(view), selection = view.selectedRange()
+            let start = ranges.lastIndex(where: { $0.location <= selection.location }) ?? 0
+            let end = ranges.lastIndex(where: { $0.location <= NSMaxRange(selection) }) ?? start
+            mapped = resultPresentation.navigationMap.resultRange(sourceRows:start..<(end + 1))
+        } else { return }
+        navigationOwnsChoice = true; navigationChoiceRange = mapped
+        if let index = conflictIndex(in:mapped) { selectedConflict = index }
+        objectWillChange.send()
+    }
+    private func conflictIndex(in range: NSRange?) -> Int? {
+        guard let range else { return nil }
+        return blocks.firstIndex { NSIntersectionRange($0.range,range).length > 0 || range.length == 0 && NSLocationInRange(range.location,$0.range) }
+    }
+    var canChooseConflict: Bool { !blocks.isEmpty && (!navigationOwnsChoice || conflictIndex(in:navigationChoiceRange) != nil) }
+    func navigateBlock(_ direction: Int, conflictsOnly: Bool) {
+        guard let (active,target) = navigationTarget(direction,conflictsOnly:conflictsOnly),
+              let activeRange = navigationRange(rows:target.rows,in:active) else { return }
+        selectionRequest = nil
+        selectingNavigationBlock = true; defer { selectingNavigationBlock = false }
+        let sourceRows = active.mergeEditable ? resultPresentation.navigationMap.sourceRows(resultRange:activeRange) : target.rows
+        let resultRange = active.mergeEditable ? activeRange : resultPresentation.navigationMap.resultRange(sourceRows:target.rows)
+        for view in navigationViews {
+            let range: NSRange?
+            if view === active { range = activeRange }
+            else if view.mergeEditable { range = resultRange }
+            else { range = sourceRows.flatMap { navigationRange(rows:$0,in:view) } }
+            guard let range, NSMaxRange(range) <= view.string.utf16.count else {
+                view.setSelectedRange(NSRange(location:min(view.selectedRange().location,view.string.utf16.count),length:0))
+                navigationCarets.removeValue(forKey:ObjectIdentifier(view)); continue
+            }
+            view.setSelectedRange(range)
+            let ranges = navigationRanges(view)
+            let row = view === active ? target.caret : ranges.lastIndex(where: { $0.location <= range.location }) ?? 0
+            navigationCarets[ObjectIdentifier(view)] = NavigationCaret(selection:range,text:view.string,states:navigationStates(view),row:row)
+            if ranges.indices.contains(row) { view.scrollRangeToVisible(NSRange(location:ranges[row].location,length:0)) }
+        }
+        navigationOwnsChoice = true; navigationChoiceRange = resultRange
+        if let index = conflictIndex(in:resultRange) { selectedConflict = index }
+        if let view = locatorResultScroll?.documentView as? NSTextView { caret = view.selectedRange() }
+        objectWillChange.send()
+    }
     func continueResolving() {
         guard sourceToolsAllowed, let block = blocks.first else { return }
         selectConflict(0)
@@ -699,12 +809,13 @@ private enum MergeSourceSide {
         }
     }
     func selectConflict(_ index: Int) {
-        let blocks = blocks; guard !blocks.isEmpty else { return }
+        let blocks = blocks; guard !retired, !blocks.isEmpty else { return }
+        navigationOwnsChoice = false; navigationChoiceRange = nil
         selectedConflict = min(max(index, 0), blocks.count - 1); selectionRequest = blocks[selectedConflict].range
     }
     func choose(_ choice: MergeBlockChoice) {
-        guard !busy, !blocks.isEmpty else { return }
-        let index = min(selectedConflict, blocks.count - 1)
+        guard sourceToolsAllowed, canChooseConflict else { return }
+        let index = navigationOwnsChoice ? conflictIndex(in:navigationChoiceRange)! : min(selectedConflict, blocks.count - 1)
         do {
             if let applyBlock { let block = blocks[index]; applyBlock(block.range, block.replacement(choice)) }
             else { let block = blocks[index], replacement = block.replacement(choice); if let presentation = resultPresentation.replacing(block.range, with: replacement, state: .resolved) { resultPresentation = presentation; result = presentation.text } }
@@ -867,8 +978,10 @@ private struct TextConflictDialog: View {
                     Button { model.compareSourceWithBase(mine: true) } label: { CommandLabel(title: "Compare Mine with Base", icon: .compare) }
                 }.disabled(!model.sourceToolsAllowed)
                 Divider().frame(height: 20)
-                Button { model.selectConflict(model.selectedConflict - 1) } label: { CommandLabel(title: "Previous conflict", icon: .mergePreviousConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict == 0)
-                Button { model.selectConflict(model.selectedConflict + 1) } label: { CommandLabel(title: "Next conflict", icon: .mergeNextConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict >= model.blocks.count - 1)
+                Button { model.navigateBlock(-1,conflictsOnly:false) } label: { CommandLabel(title: "Previous difference", icon: .mergePreviousDifference) }.disabled(!model.canNavigateBlock(-1,conflictsOnly:false))
+                Button { model.navigateBlock(1,conflictsOnly:false) } label: { CommandLabel(title: "Next difference", icon: .mergeNextDifference) }.disabled(!model.canNavigateBlock(1,conflictsOnly:false))
+                Button { model.navigateBlock(-1,conflictsOnly:true) } label: { CommandLabel(title: "Previous conflict", icon: .mergePreviousConflict) }.disabled(!model.canNavigateBlock(-1,conflictsOnly:true))
+                Button { model.navigateBlock(1,conflictsOnly:true) } label: { CommandLabel(title: "Next conflict", icon: .mergeNextConflict) }.disabled(!model.canNavigateBlock(1,conflictsOnly:true))
                 Toggle("Show Base", isOn: $model.showBase).toggleStyle(.button)
                 Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }.help("Reload the current conflict stages; offer to save an edited result first.")
 
@@ -916,7 +1029,7 @@ private struct TextConflictDialog: View {
                     Button { model.redo() } label: { CommandLabel(title: "Redo", icon: .mergeRedo) }.keyboardShortcut("z", modifiers: [.command, .shift]).disabled(!model.canRedo)
                     Menu("Use text block") {
                         ForEach(MergeBlockChoice.allCases, id: \.self) { choice in Button { model.choose(choice) } label: { CommandLabel(title: choice.rawValue, icon: choice.icon) } }
-                    }.disabled(model.blocks.isEmpty)
+                    }.disabled(!model.canChooseConflict)
                     Text("Line \(MergeLineEndings.lineNumber(in: model.result, utf16Offset: model.caret.location))").font(.caption).foregroundStyle(.secondary)
                 }.padding(8)
             } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
@@ -1070,13 +1183,11 @@ private struct MergeEditor: NSViewRepresentable {
         }
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let view = notification.object as? MergeTextView else { return }
-            view.foldLayout.reveal(selection: view.selectedRange(), in: view)
-            guard editable else { return }
+            if !model.selectingNavigationBlock { view.foldLayout.reveal(selection: view.selectedRange(), in: view) }
             let range = view.selectedRange()
-            DispatchQueue.main.async {
-                if self.model.caret != range { self.model.caret = range }
-                let block = self.model.blocks.first(where: { NSIntersectionRange($0.range, range).length > 0 || NSLocationInRange(range.location, $0.range) })
-                if let block, self.model.selectedConflict != block.id { self.model.selectedConflict = block.id }
+            DispatchQueue.main.async { [weak view] in
+                guard let view, view.selectedRange() == range else { return }
+                self.model.navigationSelectionChanged(view)
             }
         }
     }
@@ -1091,8 +1202,26 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     var navigationCells: [MergeSourceCell]? { sourceCells }
     var navigationAllowed: Bool { model?.busy == false && model?.confirmingQuit == false }
     @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        if accepted { model?.focusNavigation(self) }
+        return accepted
+    }
+    @objc private func nextDifference(_ sender: Any?) { model?.navigateBlock(1,conflictsOnly:false) }
+    @objc private func previousDifference(_ sender: Any?) { model?.navigateBlock(-1,conflictsOnly:false) }
+    @objc private func nextConflict(_ sender: Any?) { model?.navigateBlock(1,conflictsOnly:true) }
+    @objc private func previousConflict(_ sender: Any?) { model?.navigateBlock(-1,conflictsOnly:true) }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        if modifiers == .control, event.keyCode == 125 || event.keyCode == 126 {
+            model?.navigateBlock(event.keyCode == 125 ? 1 : -1,conflictsOnly:false); return true
+        }
+        if (event.keyCode == 98 || event.keyCode == 103), modifiers.isEmpty || modifiers == .shift || event.keyCode == 103 && modifiers == .control {
+            model?.navigateBlock(modifiers.isEmpty ? 1 : -1,conflictsOnly:false); return true
+        }
+        if event.keyCode == 100, modifiers.isEmpty || modifiers == .shift {
+            model?.navigateBlock(modifiers == .shift ? -1 : 1,conflictsOnly:true); return true
+        }
         if modifiers == .control, event.charactersIgnoringModifiers?.lowercased() == "g" {
             goToSourceLine(nil); return true
         }
@@ -1124,7 +1253,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     }
     let foldLayout = MergeFoldTextLayout()
     override func scrollRangeToVisible(_ range: NSRange) {
-        foldLayout.reveal(selection: range, in: self, includeMarker: true)
+        if model?.selectingNavigationBlock != true { foldLayout.reveal(selection: range, in: self, includeMarker: true) }
         super.scrollRangeToVisible(range)
     }
     override func mouseDown(with event: NSEvent) {
@@ -1226,7 +1355,8 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         if mergeEditable { (window as? TextConflictNSWindow)?.mergedText = self }
     }
     override func menu(for event: NSEvent) -> NSMenu? {
-        if mergeEditable, selectedRange().length == 0 { setSelectedRange(NSRange(location: characterIndexForInsertion(at: convert(event.locationInWindow, from: nil)), length: 0)) }
+        if mergeEditable || sourceSide != nil, selectedRange().length == 0 { setSelectedRange(NSRange(location: characterIndexForInsertion(at: convert(event.locationInWindow, from: nil)), length: 0)) }
+        window?.makeFirstResponder(self); model?.navigationSelectionChanged(self)
         return mergeContextMenu(defaults: .standard, pasteboard: .general)
     }
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu {
@@ -1256,8 +1386,17 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         if model?.folding.collapsed == true {
             editingItem("Expand unchanged section", #selector(expandFoldedSection(_:)), MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "Expand") : nil, foldLayout.canExpandSelection(in: self))
         }
+        menu.addItem(.separator())
+        editingItem("Previous difference", #selector(previousDifference(_:)), MenuIcon.mergePreviousDifference.contextImage(defaults:defaults), model?.canNavigateBlock(-1,conflictsOnly:false) == true)
+        editingItem("Next difference", #selector(nextDifference(_:)), MenuIcon.mergeNextDifference.contextImage(defaults:defaults), model?.canNavigateBlock(1,conflictsOnly:false) == true)
+        editingItem("Previous conflict", #selector(previousConflict(_:)), MenuIcon.mergePreviousConflict.contextImage(defaults:defaults), model?.canNavigateBlock(-1,conflictsOnly:true) == true)
+        editingItem("Next conflict", #selector(nextConflict(_:)), MenuIcon.mergeNextConflict.contextImage(defaults:defaults), model?.canNavigateBlock(1,conflictsOnly:true) == true)
         if let sourceSide {
             menu.addItem(.separator())
+            for (index,choice) in MergeBlockChoice.allCases.enumerated() {
+                editingItem(choice.rawValue,#selector(useSourceBlock(_:)),choice.icon.contextImage(defaults:defaults),model?.sourceToolsAllowed == true && sourceConflictAvailable)
+                menu.items.last?.tag = index
+            }
             let useFile = NSMenuItem(title: "Use this whole file", action: #selector(useSourceFile(_:)), keyEquivalent: "")
             editingItem("Save this pane as…", #selector(saveSourceAs(_:)), MenuIcon.mergeSaveAs.contextImage(defaults: defaults), model?.sourceToolsAllowed == true)
             editingItem("Compare with Base", #selector(compareSourceWithBase(_:)), MenuIcon.compare.contextImage(defaults: defaults), model?.sourceToolsAllowed == true)
@@ -1355,6 +1494,19 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         guard !converted.utf8.elementsEqual(string.utf8) else { return }
         window?.makeFirstResponder(self)
         replaceMergeBlock(NSRange(location: 0, length: (string as NSString).length), with: converted, actionName: command.rawValue)
+    }
+    private var sourceConflictAvailable: Bool {
+        guard sourceSide != nil, let model, let cells = sourceCells else { return false }
+        let lines = MergeFindLine.displayCells(cells), selection = selectedRange()
+        guard let start = lines.lastIndex(where: { $0.offset <= selection.location }) else { return false }
+        let end = lines.lastIndex(where: { $0.offset <= NSMaxRange(selection) }) ?? start
+        guard let range = model.resultPresentation.navigationMap.resultRange(sourceRows:start..<(end + 1)) else { return false }
+        return model.blocks.contains { NSIntersectionRange($0.range,range).length > 0 || range.length == 0 && NSLocationInRange(range.location,$0.range) }
+    }
+    @objc private func useSourceBlock(_ sender: NSMenuItem) {
+        guard sourceConflictAvailable, MergeBlockChoice.allCases.indices.contains(sender.tag) else { return }
+        window?.makeFirstResponder(self); model?.navigationSelectionChanged(self)
+        model?.choose(MergeBlockChoice.allCases[sender.tag])
     }
     @objc private func useBlock(_ sender: NSMenuItem) {
         guard mergeEditable, isEditable, MergeBlockChoice.allCases.indices.contains(sender.tag), let model, !model.busy, !model.confirmingQuit, let block = model.blocks.first(where: { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }) else { return }

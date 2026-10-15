@@ -60,3 +60,47 @@ final class MergeBlockNavigationTests: XCTestCase {
         }
     }
 }
+
+final class MergeNavigationMapTests: XCTestCase {
+    let entries: [MergeNavigationMap.Entry] = [
+        .init(sourceRows:0..<1,resultRange:NSRange(location:0,length:5)),
+        .init(sourceRows:1..<5,resultRange:NSRange(location:5,length:20)),
+        .init(sourceRows:5..<6,resultRange:NSRange(location:25,length:5))]
+    func testEngineGroupCoordinatesAreIndependent() {
+        let map=MergeNavigationMap(entries:entries)
+        XCTAssertEqual(map.resultRange(sourceRows:2..<3),NSRange(location:5,length:20))
+        XCTAssertEqual(map.sourceRows(resultRange:NSRange(location:8,length:2)),1..<5)
+        XCTAssertEqual(map.sourceRows(resultRange:NSRange(location:4,length:22)),0..<6)
+        XCTAssertEqual(map.resultRange(sourceRows:0..<6),NSRange(location:0,length:30))
+        XCTAssertNil(map.resultRange(sourceRows:8..<9))
+        XCTAssertNil(map.sourceRows(resultRange:NSRange(location:30,length:0)))
+    }
+    func testResolvedReplacementAndOutsideEditShiftRelationships() {
+        let map=MergeNavigationMap(entries:entries).replacing(NSRange(location:5,length:20),replacementLength:3)
+        XCTAssertEqual(map.entries.map(\.resultRange),[NSRange(location:0,length:5),NSRange(location:5,length:3),NSRange(location:8,length:5)])
+        let after=map.replacing(NSRange(location:1,length:2),replacementLength:4)
+        XCTAssertEqual(after.entries.map(\.resultRange),[NSRange(location:0,length:7),NSRange(location:7,length:3),NSRange(location:10,length:5)])
+    }
+    func testCrossBoundaryEditInvalidatesOnlyAmbiguousGroups() {
+        let map=MergeNavigationMap(entries:entries).replacing(NSRange(location:3,length:6),replacementLength:2)
+        XCTAssertEqual(map.entries,[.init(sourceRows:5..<6,resultRange:NSRange(location:21,length:5))])
+    }
+    func testInsertionBoundariesAndDeletionAnchors() {
+        let map=MergeNavigationMap(entries:entries).replacing(NSRange(location:5,length:0),replacementLength:2)
+        XCTAssertEqual(map.entries.map(\.resultRange),[NSRange(location:0,length:5),NSRange(location:7,length:20),NSRange(location:27,length:5)])
+        let empty=MergeNavigationMap(entries:[.init(sourceRows:0..<2,resultRange:NSRange(location:0,length:0))])
+        XCTAssertEqual(empty.resultRange(sourceRows:0..<1),NSRange(location:0,length:0))
+        XCTAssertEqual(empty.sourceRows(resultRange:NSRange(location:0,length:0)),0..<2)
+        XCTAssertTrue(empty.replacing(NSRange(location:0,length:0),replacementLength:1).entries.isEmpty)
+    }
+    func testPresentationSnapshotsCarryMappingsThroughResolutionAndUndo() throws {
+        let text="head\nconflict contentsxx\nlast\n"
+        let map=MergeNavigationMap(entries:entries)
+        let before=MergeResultPresentation(text:text,states:[],navigationMap:map)
+        let next=try XCTUnwrap(before.replacing(NSRange(location:5,length:20),with:"ok\n",state:.resolved))
+        XCTAssertEqual(next.navigationMap.resultRange(sourceRows:2..<3),NSRange(location:5,length:3))
+        XCTAssertEqual(before.navigationMap,map)
+        XCTAssertNotEqual(before,MergeResultPresentation(text:text,states:[]))
+        XCTAssertEqual(before.reconciling(text),before)
+    }
+}

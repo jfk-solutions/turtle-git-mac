@@ -58,11 +58,12 @@ public struct MergeSourceComparison: Sendable {
     /// conflict markers and removed/gap rows never acquire guessed anchors.
     public let resultAnchors: [Int: Int]
     public let ignoredConflicts: [IgnoredMergeConflict]
-    public init(rows: [MergeSourceRow], resultLocator: MergeLocatorResult? = nil, resultAnchors: [Int: Int] = [:], ignoredConflicts: [IgnoredMergeConflict] = []) {
-        self.rows = rows; self.resultLocator = resultLocator; self.resultAnchors = resultAnchors; self.ignoredConflicts = ignoredConflicts
+    public let navigationMap: MergeNavigationMap
+    public init(rows: [MergeSourceRow], resultLocator: MergeLocatorResult? = nil, resultAnchors: [Int: Int] = [:], ignoredConflicts: [IgnoredMergeConflict] = [], navigationMap: MergeNavigationMap = .init()) {
+        self.navigationMap = navigationMap; self.rows = rows; self.resultLocator = resultLocator; self.resultAnchors = resultAnchors; self.ignoredConflicts = ignoredConflicts
     }
     public init(base: String, mine: String, theirs: String) {
-        resultLocator = nil; resultAnchors = [:]; ignoredConflicts = []
+        resultLocator = nil; resultAnchors = [:]; ignoredConflicts = []; navigationMap = .init()
         let baseLines = Self.lines(base), mineLines = Self.lines(mine), theirLines = Self.lines(theirs)
         let mineHunks = Self.hunks(base: baseLines, side: mineLines, mine: true)
         let theirHunks = Self.hunks(base: baseLines, side: theirLines, mine: false)
@@ -214,6 +215,50 @@ public struct MergeSourceComparison: Sendable {
         return result
     }
     private static func sameBytes(_ first: String, _ second: String) -> Bool { first.utf8.elementsEqual(second.utf8) }
+}
+
+/// Exact engine segment relationships. The native result omits alignment gaps
+/// and contains marker lines, so source and result row numbers are not equal.
+public struct MergeNavigationMap: Equatable, Sendable {
+    public struct Entry: Equatable, Sendable {
+        public let sourceRows: Range<Int>
+        public let resultRange: NSRange
+        public init(sourceRows: Range<Int>, resultRange: NSRange) {
+            self.sourceRows = sourceRows; self.resultRange = resultRange
+        }
+    }
+    public let entries: [Entry]
+    public init(entries: [Entry] = []) { self.entries = entries }
+    public func resultRange(sourceRows: Range<Int>) -> NSRange? {
+        let matches = entries.filter { $0.sourceRows.overlaps(sourceRows) }.map(\.resultRange)
+        guard let first = matches.first else { return nil }
+        return matches.dropFirst().reduce(first) { NSUnionRange($0, $1) }
+    }
+    public func sourceRows(resultRange: NSRange) -> Range<Int>? {
+        let matches = entries.filter {
+            if resultRange.length == 0 { return $0.resultRange.length == 0 ? $0.resultRange.location == resultRange.location : NSLocationInRange(resultRange.location, $0.resultRange) }
+            return NSIntersectionRange($0.resultRange, resultRange).length > 0
+        }.map(\.sourceRows)
+        guard let first = matches.first else { return nil }
+        return matches.dropFirst().reduce(first) { min($0.lowerBound, $1.lowerBound)..<max($0.upperBound, $1.upperBound) }
+    }
+    /// Preserve edits wholly inside an engine group; invalidate ambiguous edits
+    /// crossing group boundaries. Undo retains the complete previous mapping.
+    public func replacing(_ range: NSRange, replacementLength: Int) -> Self {
+        let end = NSMaxRange(range), delta = replacementLength - range.length
+        return Self(entries: entries.compactMap { entry in
+            let start = entry.resultRange.location, limit = NSMaxRange(entry.resultRange)
+            if range.length == 0 && start == limit && start == range.location { return nil }
+            if limit <= range.location { return entry }
+            if start >= end {
+                return Entry(sourceRows:entry.sourceRows,resultRange:NSRange(location:start + delta,length:entry.resultRange.length))
+            }
+            if range.location >= start && end <= limit {
+                return Entry(sourceRows:entry.sourceRows,resultRange:NSRange(location:start,length:entry.resultRange.length + delta))
+            }
+            return nil
+        })
+    }
 }
 
 /// CBaseView::SelectNextBlock searches visible screen rows in the active pane.

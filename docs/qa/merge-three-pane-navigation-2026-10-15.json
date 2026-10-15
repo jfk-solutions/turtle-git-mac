@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "ddfb57ab",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "BaseView.cpp LinesInOneChange/SelectNextBlock/SetupAllSelection",
+    "DiffData.cpp three-way source states and changed groups",
+    "TortoiseMergeENG.rc difference/conflict accelerators"
+  ],
+  "scope": [
+    "Active-source/result difference and conflict state searches, directional padding, entry caret, visible projection and no wrapping",
+    "Engine source-row/result-UTF16 mapping independent of unequal source lengths and marker lines",
+    "Mapped peer selections and source-pane conflict choices using original icons",
+    "Retained edit mappings, shifted following groups, invalidated crossed groups, complete Undo/Redo snapshots",
+    "Toolbar/default/customization command routing, context actions, Control-Up/Down, F7/F11 and F8 variants",
+    "Common-line stale-choice refusal and ignored-conflict Mark as resolved availability"
+  ],
+  "build": {
+    "log": "build/qa/merge-three-pane-navigation-build.log",
+    "exit": 0
+  },
+  "core": {
+    "log": "build/qa/merge-three-pane-navigation-core.log",
+    "tests": 41,
+    "failures": 0,
+    "suites": [
+      "MergeBlockNavigationTests",
+      "MergeNavigationMapTests",
+      "SubversionMergePresentationTests",
+      "MergeResultPresentationTests",
+      "MergeFoldingTests"
+    ]
+  },
+  "native": {
+    "log": "build/qa/merge-three-pane-navigation-native.log",
+    "exit": 0,
+    "receivers": [
+      {
+        "pid": 58536,
+        "case": "ignored conflict workflow, system Git"
+      },
+      {
+        "pid": 58598,
+        "case": "ignored conflict workflow, bundled Git"
+      },
+      {
+        "pid": 58659,
+        "case": "new three-pane navigation plus retained engine and result-color/history workflows"
+      }
+    ],
+    "result": "All grouped workflows passed; native source menu chose the second conflict without resolving the first, exact result matched, mapping Undo/Redo restored; unrelated input files/index/HEAD preserved where applicable"
+  },
+  "native_toolbar": {
+    "log": "build/qa/merge-three-pane-navigation-toolbar.log",
+    "exit": 0,
+    "receivers": [
+      58971,
+      58984
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "result": "Real AppKit toolbar artwork/default order, busy refusal, caret-relative comparison dispatch, Save, conflict choice/Undo, replacement rebinding, image suppression and retired-item refusal passed",
+    "fixture_updates": "Establish first comparison change as actual caret before Next, assert selected second payload; explicitly continue resolving before choosing rather than relying on a stale footer selection"
+  },
+  "ownership": {
+    "all_five_receivers_reaped": true,
+    "owned_windows_closed": true,
+    "ps_confirmed_pids_absent": true,
+    "new_screenshots": false
+  },
+  "hosted_ci": {
+    "older_run": 38799322056,
+    "older_commit": "e67417b3",
+    "older_conclusion": "failure",
+    "older_failure": "Unified Diff editable document workflows; system Git; fixture line 107; owned receiver 51490 reaped",
+    "repair_commit": "3c445a30",
+    "current_run": 38808679175,
+    "current_commit": "ddfb57ab",
+    "current_status_at_inspection": "in_progress, Application and embedded Finder extension step",
+    "pages_run": 38808679265,
+    "pages_conclusion": "success",
+    "full_macos_pass_confirmed": false
+  },
+  "open": [
+    "Wrapped screen-row traversal and separate native block highlight/insertion caret",
+    "Source automatic inline advance and centered peer scrolling",
+    "Fully aligned result including removed/empty rows and exact per-line mapping inside changed groups",
+    "Ambiguous cross-group edits invalidate peer mappings; retained results can have partial mappings",
+    "Source-pane choices currently target unresolved marker/ignored conflicts, not arbitrary source block replacement",
+    "Physical keyboard/VoiceOver, large-file, signed Finder and App Store acceptance"
+  ],
+  "certifies_complete_dialog": false
+}

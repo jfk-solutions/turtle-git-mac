@@ -108,8 +108,9 @@ Control-Up/Down use the same search and availability gates.
 [Navigation evidence](qa/merge-block-navigation-2026-10-15.json) records the source,
 focused Core results, initial fixture failure and final grouped native pass.
 This selection is
-also the existing transfer/Copy block selection. Three-pane conflict navigation,
-wrapped screen-row grouping, source separate block/caret and automatic inline
+also the existing transfer/Copy block selection. [Three-pane navigation](MERGE-NAVIGATION-PARITY.md) now shares the search with
+explicit engine peer mappings. Wrapped screen-row grouping, source separate
+block/caret and automatic inline
 advance/centering still require a further port. In-place Edited row retention,
 all whitespace aliases/legacy overrides,
 physical/VoiceOver/large-file and signed App Store acceptance also remain open.

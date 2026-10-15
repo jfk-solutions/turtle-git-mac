@@ -64,6 +64,7 @@ public struct SubversionMergePresentation: Sendable {
         var rows: [MergeSourceRow] = [], output = "", anchors: [Int: Int] = [:]
         var spans: [(Range<Int>, MergeSourceState)] = [], outputLength = 0
         var ignoredConflicts: [IgnoredMergeConflict] = []
+        var navigation: [MergeNavigationMap.Entry] = []
         func append(_ text: String, state: MergeSourceState) {
             let count = text.utf16.count
             if count > 0 { spans.append((outputLength..<outputLength + count, state)); outputLength += count }
@@ -106,10 +107,12 @@ public struct SubversionMergePresentation: Sendable {
                 for offset in 0..<segment.mine.count {
                     let m = segment.mine.lowerBound + offset, b = segment.base.lowerBound + offset, t = segment.theirs.lowerBound + offset
                     anchors[firstRow + offset] = outputLength
+                    navigation.append(.init(sourceRows:(firstRow + offset)..<(firstRow + offset + 1),resultRange:NSRange(location:outputLength,length:plan.mine[m].utf16.count)))
                     appendIgnored(base:b,mine:m,other:t,ordinaryState:equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered)
                 }
                 continue
             }
+            let sourceStart = rows.count, resultStart = outputLength
             // DiffData's conflict loop pads the removed Base section using
             // the first resolved child's overlapping Mine/Theirs lengths.
             // It still treats the complete parent as unresolved.
@@ -141,7 +144,10 @@ public struct SubversionMergePresentation: Sendable {
                 let separator = separated(output).utf16.count > outputLength ? "\n" : ""
                 append(separator + "<<<<<<< Mine\n" + separated(mineText) + "||||||| Base\n" + separated(baseText) + "=======\n" + separated(theirsText) + ">>>>>>> Theirs\n", state: .conflicted)
             }
+            if rows.count > sourceStart {
+                navigation.append(.init(sourceRows:sourceStart..<rows.count,resultRange:NSRange(location:resultStart,length:outputLength - resultStart)))
+            }
         }
-        sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans), resultAnchors: anchors, ignoredConflicts: ignoredConflicts); result = output
+        sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans), resultAnchors: anchors, ignoredConflicts: ignoredConflicts, navigationMap:.init(entries:navigation)); result = output
     }
 }

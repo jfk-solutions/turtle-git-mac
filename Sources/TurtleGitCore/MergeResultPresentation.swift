@@ -24,9 +24,10 @@ public struct MergeResultPresentation: Sendable, Equatable {
     public let runs: [Run]
     public let foldAnchors: MergeFoldAnchors
     public let ignoredConflicts: [IgnoredMergeConflict]
-    public static func == (a: Self, b: Self) -> Bool { a.text.utf8.elementsEqual(b.text.utf8) && a.runs == b.runs && a.foldAnchors == b.foldAnchors && a.ignoredConflicts == b.ignoredConflicts }
-    public init(text: String, states: [MergeSourceState], foldAnchors: MergeFoldAnchors = .init(), ignoredConflicts: [IgnoredMergeConflict] = []) {
-        self.text = text; self.foldAnchors = foldAnchors
+    public let navigationMap: MergeNavigationMap
+    public static func == (a: Self, b: Self) -> Bool { a.text.utf8.elementsEqual(b.text.utf8) && a.runs == b.runs && a.foldAnchors == b.foldAnchors && a.ignoredConflicts == b.ignoredConflicts && a.navigationMap == b.navigationMap }
+    public init(text: String, states: [MergeSourceState], foldAnchors: MergeFoldAnchors = .init(), ignoredConflicts: [IgnoredMergeConflict] = [], navigationMap: MergeNavigationMap = .init()) {
+        self.text = text; self.foldAnchors = foldAnchors; self.navigationMap = navigationMap
         let count = text.utf16.count, source = text as NSString
         self.ignoredConflicts = ignoredConflicts.filter { item in
             item.range.location >= 0 && item.range.length > 0 && item.range.location <= count && item.range.length <= count - item.range.location && source.substring(with:item.range).utf8.elementsEqual(item.mine.utf8)
@@ -35,7 +36,7 @@ public struct MergeResultPresentation: Sendable, Equatable {
             Run(range: range.location..<NSMaxRange(range), state: states.indices.contains(index) && states[index] != .conflictedIgnored ? states[index] : .normal)
         })
     }
-    private init(text: String, runs: [Run], foldAnchors: MergeFoldAnchors, ignoredConflicts: [IgnoredMergeConflict]) { self.text = text; self.runs = Self.compact(runs); self.foldAnchors = foldAnchors; self.ignoredConflicts = ignoredConflicts }
+    private init(text: String, runs: [Run], foldAnchors: MergeFoldAnchors, ignoredConflicts: [IgnoredMergeConflict], navigationMap: MergeNavigationMap) { self.navigationMap = navigationMap; self.text = text; self.runs = Self.compact(runs); self.foldAnchors = foldAnchors; self.ignoredConflicts = ignoredConflicts }
     private static func compact(_ runs: [Run]) -> [Run] {
         var result: [Run] = []
         for run in runs where !run.range.isEmpty {
@@ -90,7 +91,7 @@ public struct MergeResultPresentation: Sendable, Equatable {
             if touched { return nil }
             return item.range.location >= end ? item.shifted(by:delta) : item
         }
-        return Self(text: value, runs: output, foldAnchors: anchors, ignoredConflicts:remaining)
+        return Self(text: value, runs: output, foldAnchors: anchors, ignoredConflicts:remaining, navigationMap:navigationMap.replacing(range,replacementLength:replacementLength))
     }
     /// Source navigation groups adjacent ignored lines; marker conflicts keep
     /// their normal parsing and original EOF/separator rules.

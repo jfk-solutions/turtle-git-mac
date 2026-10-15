@@ -2145,3 +2145,12 @@ navigation, multi-row forward/backward blocks, no wrap, active-pane ownership,
 peer selections and Quit gating. Core `MergeBlockNavigationTests` pins source
 state grouping, filtered/conflict categories, visible rows and boundaries.
 These checks do not certify three-pane or wrapped screen-row navigation.
+
+The retained case of `scripts/test-merge-ignored.py` also runs
+`merge-three-pane-navigation-native-2026-10-15.swift`: active source/result
+navigation across unequal source lengths and marker rows, peer selection, F8,
+native source block menus and icons, exact chosen result, mapping Undo/Redo,
+common-line stale-choice prevention and Quit gating. `MergeNavigationMapTests`
+and real-engine `SubversionMergePresentationTests` cover mapping ownership,
+UTF-16 offsets, replacements, boundary insertions, crossed-group invalidation
+and ignored conflicts. See [navigation limitations](MERGE-NAVIGATION-PARITY.md).

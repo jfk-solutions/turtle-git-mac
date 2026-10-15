@@ -54,10 +54,15 @@ import TurtleGitCore
         for item in toolbar.toolbar.items { try require(item.image != nil && item.menuFormRepresentation?.image != nil && !item.autovalidates) }
         var helpCalls = 0; owner.showEditorHelp = { helpCalls += 1 }
         toolbar.perform(.help); try require(helpCalls == 1)
+        // Navigation is caret-relative; start inside the first changed block.
+        try await wait { model.activeFindText?.string.contains("new\n") == true }
+        let comparisonText = model.activeFindText!
+        owner.window?.makeFirstResponder(comparisonText)
+        comparisonText.setSelectedRange((comparisonText.string as NSString).range(of:"new"))
         let next = item(.nextDifference, in: toolbar), oldDifference = model.difference
         model.busy = true; toolbar.refresh(); toolbar.toolbar.validateVisibleItems(); try require(!next.isEnabled)
         try send(next); try require(model.difference == oldDifference)
-        model.busy = false; toolbar.refresh(); try send(next); try require(model.difference != oldDifference)
+        model.busy = false; toolbar.refresh(); try send(next); try require(model.difference != oldDifference && (comparisonText.string as NSString).substring(with:comparisonText.selectedRange()) == "new2")
         let wrapping = item(.wrap, in: toolbar).view as! NSButton, oldWrap = model.wrapLines
         wrapping.performClick(nil); try require(model.wrapLines != oldWrap && wrapping.state == (model.wrapLines ? .on : .off))
         toolbar.toolbar.insertItem(withItemIdentifier: MergeToolbarCommand.whitespace.identifier, at: toolbar.toolbar.items.count)
@@ -118,6 +123,9 @@ import TurtleGitCore
         let conflictBar = merge.editorToolbar!, original = merge.model.result
         try await wait { conflictBar.toolbar.items.count >= 10 }
         conflictBar.refresh(); try require(!item(.resolved, in: conflictBar).isEnabled)
+        merge.model.continueResolving()
+        try await wait { merge.model.canChooseConflict }
+        conflictBar.refresh()
         let useMine = item(.useMine, in: conflictBar); try send(useMine)
         try require(merge.model.result != original && !MergeText.hasMarkers(merge.model.result))
         try await wait { merge.model.canUndo }

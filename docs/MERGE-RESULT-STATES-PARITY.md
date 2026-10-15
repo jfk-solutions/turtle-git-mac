@@ -122,3 +122,7 @@ complete physical/VoiceOver/theme geometry and signed Finder/App Store acceptanc
 remain open. This is not complete Merge/application certification.
 
 The connected [one-pane whitespace continuation](MERGE-ONE-PANE-PARITY.md#source-whitespace-aliases-and-visibility--october-15-2026) now produces neutral RemovedWhitespace/AddedWhitespace rows, separate source hide flags and original Mine coordinate mappings. Resolved-empty gaps and the remaining whitespace aliases remain open.
+
+[Three-pane navigation](MERGE-NAVIGATION-PARITY.md) uses those result states and
+engine source/result mappings, retaining the mappings through block choices and
+Undo/Redo. This remains a partial port of the fully aligned upstream result view.

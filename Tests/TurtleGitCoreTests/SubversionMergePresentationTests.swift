@@ -10,6 +10,32 @@ final class SubversionMergePresentationTests: XCTestCase {
     private func presentation(_ base: String, _ mine: String, _ theirs: String, filter: MergeRegexFilter? = nil) throws -> SubversionMergePresentation {
         try .init(plan: configuration(filter).plan(base: base, mine: mine, theirs: theirs))
     }
+    func testNavigationMapsEngineGroupsAcrossMarkerLinesAndUnequalSources() throws {
+        let base = "head 🦎\nbase1\nsepA\nbase2\nsepB\nbase3\ntail\n"
+        let mine = "head 🦎\nmine1a\nmine1b\nsepA\nmine2\nsepB\nbase3\ntail\n"
+        let theirs = "head 🦎\ntheirs1\nsepA\ntheirs2\nsepB\ntheirs3\ntail\n"
+        let value = try presentation(base,mine,theirs)
+        let blocks = MergeText.conflicts(in:value.result)
+        XCTAssertEqual(blocks.count,2)
+        for (text,index) in [("mine1a",0),("mine2",1)] {
+            let row = try XCTUnwrap(value.sources.rows.firstIndex { $0.mine.displayText == text })
+            let mapped = try XCTUnwrap(value.sources.navigationMap.resultRange(sourceRows:row..<(row + 1)))
+            XCTAssertEqual(mapped,blocks[index].range)
+            let sources = try XCTUnwrap(value.sources.navigationMap.sourceRows(resultRange:blocks[index].range))
+            XCTAssertTrue(sources.contains(row))
+        }
+        XCTAssertEqual(value.sources.navigationMap.entries.first?.resultRange,NSRange(location:0,length:"head 🦎\n".utf16.count))
+        let last = try XCTUnwrap(value.sources.navigationMap.entries.last)
+        XCTAssertEqual(NSMaxRange(last.resultRange),value.result.utf16.count)
+        XCTAssertTrue(value.sources.navigationMap.entries.allSatisfy { $0.sourceRows.upperBound <= value.sources.rows.count && NSMaxRange($0.resultRange) <= value.result.utf16.count })
+    }
+    func testIgnoredConflictNavigationMapsPlainMinePayload() throws {
+        var engine = configuration();engine.options = .init(whitespace:.ignoreAll)
+        let value = try SubversionMergePresentation(plan:engine.plan(base:"head\na b\nend\n",mine:"head\nab\nend\n",theirs:"head\na  b\nend\n"))
+        let item = try XCTUnwrap(value.sources.ignoredConflicts.first)
+        XCTAssertEqual(value.sources.navigationMap.resultRange(sourceRows:1..<2),item.range)
+        XCTAssertEqual(value.sources.navigationMap.sourceRows(resultRange:item.range),1..<2)
+    }
     func testIgnoredWhitespaceConflictsKeepMineBytesButRetainSourceChoices() throws {
         var engine = configuration(); engine.options = .init(whitespace:.ignoreAll)
         let base = "head 雪🦎\r\nvalue x y\r\n", mine = "head 雪🦎\r\nvaluexy\r\n", theirs = "head 雪🦎\r\nvalue x  y\r\n"
