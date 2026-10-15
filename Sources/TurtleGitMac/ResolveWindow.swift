@@ -91,6 +91,7 @@ import TurtleGitCore
 }
 
 @MainActor final class ResolveWindowModel: ObservableObject {
+    let progressPresentation: GitCommandPresentation
     static private(set) var activeOperations = 0
     let repository: GitRepository
     private let access: RepositoryAccessLease?
@@ -138,7 +139,7 @@ import TurtleGitCore
     var canInteract: Bool { active && !busy && !showingProgress && !hasQuestion && !hasChild }
     var canCancel: Bool { active && busy && !cancelling && !confirmingCancellation && !hasQuestion && !hasChild }
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?, preferences: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.paths = paths; self.quick = quick; self.preferences = preferences
+        self.repository = repository; self.access = access; self.paths = paths; self.quick = quick; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences)
     }
     func invalidate() {
         if busy { cancelled = true }; saveActionLog(); active = false; generation = UUID(); cancellation?.cancel(); refreshCancellation?.cancel(); pendingResolution = nil; reloadQueued = false; patch = nil
@@ -315,7 +316,7 @@ private struct ResolveDialog: View {
                     SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences)
                     Text("Reminder: Commit your change after resolve").font(.caption).foregroundStyle(.secondary)
                     HStack {
-                        if model.busy { LocalGitProgressIndicator(percentage: model.percentage); Text(model.cancelling ? "Cancelling…" : model.currentWork).font(.caption) }
+                        if model.busy { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity); Text(model.cancelling ? "Cancelling…" : model.currentWork).font(.caption) }
                         Spacer()
                         if model.busy { Button("Cancel") { model.cancel() }.disabled(!model.canCancel) }
                         else if model.hasChild { Button("Back") { model.dismissSubmoduleReset() } }
@@ -326,7 +327,7 @@ private struct ResolveDialog: View {
                     }
                 }.padding(16)
             } else if model.quick != nil {
-                HStack(spacing: 16) { ProgressView().controlSize(.small); Text(model.busy ? "Resolving selected conflicts…" : "Review the selected resolution.") }.padding(20)
+                HStack(spacing: 16) { GitCommandActivity(animate: model.progressPresentation.animateActivity); Text(model.busy ? "Resolving selected conflicts…" : "Review the selected resolution.") }.padding(20)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     Table(model.entries, selection: $model.selection) {
@@ -351,7 +352,7 @@ private struct ResolveDialog: View {
                         Text("Reminder: Commit your change after resolve").font(.caption).foregroundStyle(.secondary)
                     }
                     HStack {
-                        if model.busy { ProgressView().controlSize(.small) }
+                        if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
                         Spacer()
                         Button("OK") { model.resolveChecked() }.disabled(model.checked.isEmpty || !model.canInteract).keyboardShortcut(.defaultAction)
                         Button(model.busy ? "Cancel read" : "Cancel") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction)

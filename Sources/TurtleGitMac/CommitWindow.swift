@@ -2286,6 +2286,7 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     private let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
     private var outputState: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { outputState.presentation }
     @Published private(set) var busy = true
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
@@ -2397,7 +2398,7 @@ private struct CommitProgressDialog: View {
                 .tint(model.busy ? .accentColor : model.success ? .blue : .red).accessibilityLabel("Git command progress")
             SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Committing…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Commit failed").foregroundStyle(model.busy ? Color.primary : model.success ? .green : .red); Spacer() }
+            HStack { if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Committing…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Commit failed").foregroundStyle(model.busy ? Color.primary : model.success ? .green : .red); Spacer() }
             HStack {
                 if let first = model.postActions.first {
                     Button { model.choose(first) } label: { CommandLabel(title: first.title,icon: first.icon) }.disabled(model.confirmingCancellation)

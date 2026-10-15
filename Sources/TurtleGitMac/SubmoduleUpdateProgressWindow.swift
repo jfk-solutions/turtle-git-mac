@@ -41,6 +41,7 @@ import TurtleGitCore
     private var startedAt: TimeInterval = 0
     @Published private(set) var completionRange: NSRange?
     private var outputState: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { outputState.presentation }
     @Published var busy = false
     @Published var confirmingCancellation = false
     @Published var confirmingQuit = false
@@ -144,7 +145,7 @@ private struct SubmoduleUpdateProgressDialog: View {
                 .accessibilityLabel("Git command progress")
             SubmoduleProgressOutputView(text:model.output, completed:!model.busy, completionRange:model.completionRange, success:model.success).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
-                if model.busy { ProgressView().controlSize(.small) }
+                if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
                 Text(model.busy ? model.cancelling ? "Cancelling…" : "Updating…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Update failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red)
                 Spacer()
                 if let first = model.postActions.first {

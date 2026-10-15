@@ -326,6 +326,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
     @Published private(set) var confirmingCancellation = false
     private(set) var rawOutput = ""
     private var outputState: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { outputState.presentation }
     var outputLimit: Int { outputState.limit }
     var canCancel: Bool { busy && !cancelling && !confirmingCancellation && !confirmingConflictHint }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
@@ -544,7 +545,7 @@ struct MergeProgressDialog: View {
             if model.busy, let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100).tint(.green) }
             if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
             HStack {
-                if model.busy { if model.percentage == nil { ProgressView().controlSize(.small) }; Text(model.cancelling ? "Cancelling…" : "Running…") }
+                if model.busy { if model.percentage == nil { GitCommandActivity(animate: model.progressPresentation.animateActivity) }; Text(model.cancelling ? "Cancelling…" : "Running…") }
                 else { Text(model.cancelled ? "Cancelled" : model.success ? "Finished" : "Merge failed").foregroundStyle(model.success ? Color.green : Color.red) }
                 Spacer()
             }
@@ -585,6 +586,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     private var operationMode = MergeAbortMode.merge
     private var worker: Task<Void, Never>?
     private var outputState: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { outputState.presentation }
     private var rawOutput = ""
     private var closeAfterCancellation = false
     private var pendingConfirmation: UUID?
@@ -841,7 +843,7 @@ private struct MergeAbortDialog: View {
         VStack(alignment: .leading, spacing: 12) {
             if model.showingProgress {
                 HStack { Text(model.currentWork.isEmpty ? "Resetting HEAD…" : model.currentWork).foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
-                if model.busy && model.percentage == nil { ProgressView().progressViewStyle(.linear) }
+                if model.busy && model.percentage == nil { GitCommandProgressBar(percentage: nil, animate: model.progressPresentation.animateActivity) }
                 else { ProgressView(value: Double(model.busy ? model.percentage ?? 0 : 100), total: 100).tint(model.busy || model.success ? Color.accentColor : Color.red) }
                 SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success, preferences: model.outputPreferences, clipboard: model.outputClipboard).frame(maxWidth: .infinity, maxHeight: .infinity)
                 HStack {

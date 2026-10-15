@@ -100,6 +100,7 @@ import TurtleGitCore
 }
 
 @MainActor final class WorktreeListWindowModel: ObservableObject {
+    let progressPresentation: GitCommandPresentation
     static var activeOperations = 0
     let preferences:UserDefaults
     private(set) var active=true
@@ -145,7 +146,7 @@ import TurtleGitCore
     var authorizeWorktrees: @MainActor ([URL], AccessPurpose) async throws -> [RepositoryAccessLease] = { _, _ in
         if GitRuntime.isAppStoreBuild { throw RepositoryAccessFailure.securityScopeUnavailable }; return []
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, requiresScope: Bool = GitRuntime.isAppStoreBuild,preferences:UserDefaults = .standard) { self.repository = repository; self.access = access; self.requiresScope = requiresScope; self.preferences=preferences }
+    init(repository: GitRepository, access: RepositoryAccessLease?, requiresScope: Bool = GitRuntime.isAppStoreBuild,preferences:UserDefaults = .standard) { self.repository = repository; self.access = access; self.requiresScope = requiresScope; self.preferences=preferences; progressPresentation = GitCommandPresentation(defaults: preferences) }
     func beginRequest() -> OperationCancellation {
         let token=OperationCancellation(); cancellation=token; generation=UUID(); busy=true; Self.activeOperations += 1; return token
     }
@@ -394,7 +395,7 @@ private struct WorktreeProgress: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(model.busy ? "Working…" : model.result).font(.headline)
             SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: !model.failed && !model.cancelled, preferences: model.preferences)
-            HStack { if model.busy { LocalGitProgressIndicator(percentage: model.percentage); Text(model.cancelling ? "Cancelling…" : model.currentWork).font(.caption) }; Spacer()
+            HStack { if model.busy { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity); Text(model.cancelling ? "Cancelling…" : model.currentWork).font(.caption) }; Spacer()
                 if model.busy { Button("Cancel") { model.cancel() }.disabled(!model.canCancel) }
                 else {
                     if model.failedRemoval != nil { Button { model.retryRemovalWithForce() } label: { CommandLabel(title: "Force remove", icon: .remove) } }

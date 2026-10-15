@@ -237,3 +237,6 @@ subsequent Save and Reload. See [Save As behavior and limitations](docs/SAVE-AS-
 
 Conflict editors and external merge tools share [operation-aware side identities](docs/CONFLICT-IDENTITIES.md),
 including merge/rebase branch names and the Advanced branch-guessing preference.
+
+Existing Advanced settings now control [Fetch verbosity and native progress animation](docs/TRANSPORT-PRESENTATION.md),
+with captured request policy and shared bounded visible-output settings.

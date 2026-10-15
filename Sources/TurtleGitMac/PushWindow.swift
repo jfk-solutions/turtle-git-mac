@@ -642,6 +642,7 @@ enum PushPostAction: String, Hashable {
     var icon: MenuIcon { switch self { case .requestPull: return .unifiedDiff; case .push: return .push; case .switchBranch: return .checkout; case .commitSuperproject: return .commit; case .pull: return .pull; case .fetch: return .fetch } }
 }
 @MainActor final class PushProgressWindowModel: ObservableObject {
+    let progressPresentation: GitCommandPresentation
     let options: PushOptions
     let superproject: URL?
     private let autoClosePolicy: GitProgressAutoClose
@@ -658,7 +659,7 @@ enum PushPostAction: String, Hashable {
     var close: () -> Void = {}
     var cancelWithoutPresenter: () -> Void = {}
     var onPostAction: ((PushPostAction) -> Void)?
-    init(options: PushOptions, superproject: URL?, preferences: UserDefaults = .standard) { self.options = options; self.superproject = superproject; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); outputLimit = max(16, min(preferences.object(forKey: "GitOutputLimitinKiB") as? Int ?? 2048, 100 * 1024)) * 1024 }
+    init(options: PushOptions, superproject: URL?, preferences: UserDefaults = .standard) { self.options = options; self.superproject = superproject; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); progressPresentation = GitCommandPresentation(defaults: preferences); outputLimit = progressPresentation.outputLimit }
     func invalidate() { invalidated = true }
     func abandonPresentation() { abandoned = true; cancelWithoutPresenter(); if !busy { close() } }
     func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
@@ -737,7 +738,7 @@ struct PushProgressDialog: View {
             }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
             if result.busy, let percentage = result.percentage { ProgressView(value:Double(percentage),total:100).tint(.green) }
             if !result.currentWork.isEmpty { Text(result.currentWork).font(.caption).lineLimit(2) }
-            HStack { if result.busy && result.percentage == nil { ProgressView().controlSize(.small) }; Text(result.busy ? owner.cancelling ? "Cancelling…" : "Pushing…" : result.cancelled ? "Cancelled" : result.success ? "Finished" : "Push failed").foregroundStyle(result.busy ? Color.primary : result.success ? Color.green : Color.red); Spacer() }
+            HStack { if result.busy && result.percentage == nil { GitCommandActivity(animate: result.progressPresentation.animateActivity) }; Text(result.busy ? owner.cancelling ? "Cancelling…" : "Pushing…" : result.cancelled ? "Cancelled" : result.success ? "Finished" : "Push failed").foregroundStyle(result.busy ? Color.primary : result.success ? Color.green : Color.red); Spacer() }
             HStack {
                 if let first = result.postActions.first {
                     Button { result.perform(first) } label: { CommandLabel(title:first.title,icon:first.icon) }

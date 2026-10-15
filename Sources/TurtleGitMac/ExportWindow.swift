@@ -285,6 +285,7 @@ struct ExportDialog: View {
     private let autoClosePolicy: GitProgressAutoClose
     private let cancellation = OperationCancellation()
     private var outputState: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { outputState.presentation }
     private let startedAt = ProcessInfo.processInfo.systemUptime
     var actionLogEligible: Bool { !busy && !invalidated }
     var onAbandonedCompletion: () -> Void = {}
@@ -402,7 +403,7 @@ struct ExportProgressDialog: View {
                 .tint(model.busy ? .accentColor : model.success ? .blue : .red).accessibilityLabel("Git command progress")
             SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Exporting…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Export failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            HStack { if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Exporting…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Export failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
             HStack {
                 if model.success { Button { model.explore() } label: { CommandLabel(title:"Show in Finder",icon:.explore) }; Menu { Button { model.explore() } label: { CommandLabel(title:"Show in Finder",icon:.explore) } } label: { Image(systemName:"chevron.down").accessibilityLabel("Export post-actions") }.menuStyle(.borderlessButton).fixedSize() }
                 Spacer()

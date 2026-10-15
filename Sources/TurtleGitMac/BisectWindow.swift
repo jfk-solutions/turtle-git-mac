@@ -88,6 +88,7 @@ import TurtleGitCore
 }
 
 @MainActor final class BisectWindowModel: ObservableObject {
+    let progressPresentation: GitCommandPresentation
     private(set) static var activeOperations = 0
     private(set) var retired = false
     private var token: OperationCancellation?
@@ -179,7 +180,7 @@ import TurtleGitCore
     func updateSubmodules() { guard canUpdateSubmodules else { return }; onSubmoduleUpdate?() }
     var canStart: Bool { !retired && !showingProgress && !hasPicker && !busy && !confirmingCancellation && state?.active == false && !good.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !bad.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     func canPerform(_ operation: BisectOperation) -> Bool { !retired && !hasPicker && !busy && !confirmingCancellation && state?.active == true && (operation == .reset || lastExitCode == nil || lastExitCode == 0) }
-    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences }
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences) }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
@@ -305,7 +306,7 @@ private struct BisectDialog: View {
                 }
 
             }
-            HStack { if model.busy { LocalGitProgressIndicator(percentage:model.percentage);Text(model.currentWork).font(.caption) }; Spacer()
+            HStack { if model.busy { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity);Text(model.currentWork).font(.caption) }; Spacer()
                 if !model.showingProgress { Button("OK") { model.start() }.keyboardShortcut(.defaultAction).disabled(!model.canStart) }
                 if model.showingProgress && model.state?.active == false && model.lastExitCode != 0 { Button("Back") { model.returnToOptions() }.disabled(model.busy || model.hasPicker || model.confirmingCancellation) }
                 Button(model.busy ? (model.cancelling ? "Cancelling…" : "Cancel") : model.output.isEmpty ? "Cancel" : "Close") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction).disabled(model.cancelling || model.hasPicker || model.confirmingCancellation)

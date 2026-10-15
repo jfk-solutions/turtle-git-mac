@@ -66,6 +66,7 @@ import TurtleGitCore
 }
 
 @MainActor final class WorktreeCreateWindowModel: ObservableObject {
+    let progressPresentation: GitCommandPresentation
     static var activeOperations=0
     var active:Bool { !invalidated }
     let chooser: SwitchWindowModel
@@ -106,7 +107,7 @@ import TurtleGitCore
     var onSubmodules: (URL, RepositoryAccessLease?) -> Void = { _, _ in }
     var automaticDetach: Bool { !createBranch && !useHead && (chooser.options.target != .branch || chooser.remote) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
-        self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.access = access; chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences)
+        self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.access = access; chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences)
         let root = repository.root.path
         directory = root.hasSuffix(".git") ? String(root.dropLast(4)) : root + "-worktree"
     }
@@ -280,7 +281,7 @@ private struct WorktreeCreateDialog: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(model.busy ? "Creating worktree…" : model.success ? "Worktree created" : model.cancelled ? "Cancelled" : "Worktree creation failed").font(.headline)
             SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences).frame(maxHeight: .infinity)
-            HStack { if model.busy { LocalGitProgressIndicator(percentage: model.percentage); Text(model.cancelling ? "Cancelling…" : model.currentWork).font(.caption) }; Spacer()
+            HStack { if model.busy { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity); Text(model.cancelling ? "Cancelling…" : model.currentWork).font(.caption) }; Spacer()
                 if model.success && model.hasSubmodules { Button { model.updateSubmodules() } label: { CommandLabel(title: "Submodule Update…", icon: .fetch) } }
                 if model.busy { Button("Cancel") { model.cancel() }.disabled(!model.canCancel) }
                 else {

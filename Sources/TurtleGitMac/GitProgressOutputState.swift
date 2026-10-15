@@ -1,17 +1,19 @@
 import Foundation
+import AppKit
 import SwiftUI
 import TurtleGitCore
 
 /// Native presentation of ProgressDlg::UpdateCmdOutput / UpdateProgressFromLine.
 /// The parser owns producer bytes; this value owns the bounded visible log.
 struct GitProgressOutputState {
-    let limit: Int
+    let presentation: GitCommandPresentation
+    var limit: Int { presentation.outputLimit }
     private var bytes = Data(), truncated = false
     private(set) var output = "", currentWork = ""
     private(set) var percentage: Int?
     var hasOutput: Bool { !bytes.isEmpty }
     init(preferences: UserDefaults) {
-        limit = max(16, min(preferences.object(forKey: "GitOutputLimitinKiB") as? Int ?? 2048, 100 * 1024)) * 1024
+        presentation = GitCommandPresentation(defaults: preferences)
     }
     mutating func reset() { bytes.removeAll(); truncated = false; output = ""; currentWork = ""; percentage = nil }
     mutating func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
@@ -85,8 +87,45 @@ struct GitProgressOutputState {
 
 struct LocalGitProgressIndicator: View {
     let percentage: Int?
+    var animate = true
     var body: some View {
         if let percentage { ProgressView(value: Double(percentage), total: 100).frame(width: 130) }
-        else { ProgressView().controlSize(.small) }
+        else { GitCommandActivity(animate: animate) }
+    }
+}
+
+/// DownloadAnimation controls the decorative activity animation, independently
+/// of numeric progress, running status, output and cancellation controls.
+struct GitCommandActivity: NSViewRepresentable {
+    let animate: Bool
+    func makeNSView(context: Context) -> GitCommandActivityView { GitCommandActivityView(frame: NSRect(x: 0, y: 0, width: 16, height: 16)) }
+    func updateNSView(_ view: GitCommandActivityView, context: Context) { view.setAnimating(animate) }
+}
+final class GitCommandActivityView: NSView {
+    let indicator = NSProgressIndicator()
+    private let icon = NSImageView()
+    override var intrinsicContentSize: NSSize { NSSize(width: 16, height: 16) }
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        indicator.style = .spinning; indicator.controlSize = .small; indicator.isIndeterminate = true
+        icon.image = MenuIcon.refresh.image(size: 14); icon.imageScaling = .scaleProportionallyDown
+        for view in [indicator as NSView, icon] { view.frame = bounds; view.autoresizingMask = [.width, .height]; addSubview(view) }
+        setAccessibilityElement(true); setAccessibilityLabel("Operation in progress")
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    func setAnimating(_ enabled: Bool) {
+        indicator.isHidden = !enabled; icon.isHidden = enabled
+        if enabled { indicator.startAnimation(nil) } else { indicator.stopAnimation(nil) }
+    }
+}
+struct GitCommandProgressBar: View {
+    let percentage: Int?
+    let animate: Bool
+    var body: some View {
+        Group {
+            if let percentage { ProgressView(value: Double(percentage), total: 100) }
+            else if animate { ProgressView().progressViewStyle(.linear) }
+            else { ProgressView(value: 0, total: 100).accessibilityValue("Running; progress unknown") }
+        }
     }
 }

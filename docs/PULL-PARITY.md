@@ -227,3 +227,16 @@ Normal close cancels and then closes; forced closure fences late publication.
 See [the shared preparation/ownership scope](PUSH-PARITY.md). The Debug build and six grouped native cases passed after the Core Push
 cancellation repair; see [batch evidence](qa/transport-preparation-2026-10-14.json).
 Physical/source/signed/App Store acceptance remains open.
+
+## Captured transport/progress presentation — October 15, 2026
+
+The [connected presentation family](TRANSPORT-PRESENTATION.md) now consumes
+FetchVerbose and DownloadAnimation without extra dialog controls. It shares the
+source byte-limit interpretation across Clone, Push and common progress. The
+pinned ProgressDlgLinesLimit entry remains dormant, with no invented consumer.
+Full workflow, physical and signed acceptance remain partial.
+
+[Grouped evidence](qa/transport-presentation-2026-10-15.json) records 33 affected
+Core cases, the Debug build and four native groups on both Git engines, including
+the argument-recorder setup repair. Complete hosted/physical/signed parity is
+not established.

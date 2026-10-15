@@ -45,6 +45,7 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
     private let mailbox = DaemonOutputMailbox()
     private let parser: GitCliOutputParser
     private var outputState: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { outputState.presentation }
     private var started = false, retired = false, closeAfterStop = false
     private var pump: Task<Void, Never>?
     var busy: Bool { phase == .running || phase == .stopping }
@@ -152,7 +153,7 @@ private struct GitDaemonDialog: View {
                     Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .topLeading)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor)).overlay(Rectangle().stroke(Color(nsColor: .separatorColor)))
                 HStack {
-                    if model.busy { ProgressView().controlSize(.small) }
+                    if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
                     Text(model.error ?? model.status).foregroundStyle(model.error == nil ? Color.primary : Color.red).textSelection(.enabled)
                     Spacer()
                     Button(model.busy ? "Cancel" : "Close") { model.cancel() }.disabled(model.phase == .stopping).keyboardShortcut(.cancelAction)

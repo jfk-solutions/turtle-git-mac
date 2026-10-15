@@ -321,6 +321,7 @@ import TurtleGitCore
         let keepMerges = preserveMerges
         if wantsRebase && (options.allRemotes || options.branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) { error = FetchRebaseFailure.destination.localizedDescription; return }
         var snapshot = options
+        snapshot.verbose = GitCommandPresentation(defaults: preferences).fetchVerbose
         snapshot.branch = FetchDialogHistory.trim(snapshot.branch)
         if options.arbitraryURL { snapshot.remote = FetchDialogHistory.trim(url); snapshot.allRemotes = false }
         if shallow && depthEnabled {
@@ -566,6 +567,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
     @Published private(set) var currentWork = ""
     private(set) var rawOutput = ""
     private var outputState: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { outputState.presentation }
     var outputLimit: Int { outputState.limit }
     private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
         guard !invalidated else { return }
@@ -769,7 +771,7 @@ struct PullProgressDialog: View {
             }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
             if model.busy, let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100).tint(.green) }
             if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
-            HStack { if model.busy && model.percentage == nil { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Pulling…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Pull failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            HStack { if model.busy && model.percentage == nil { GitCommandActivity(animate: model.progressPresentation.animateActivity) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Pulling…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Pull failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
             HStack {
                 if let first = model.postActions.first {
                     Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
@@ -837,6 +839,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     @Published private(set) var currentWork = ""
     private(set) var rawOutput = ""
     private var outputState: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { outputState.presentation }
     var outputLimit: Int { outputState.limit }
     private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser, prefix: String = "") {
         guard !invalidated else { return }
@@ -1083,7 +1086,7 @@ struct FetchProgressDialog: View {
             }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
             if model.busy, let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100).tint(.green) }
             if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
-            HStack { if model.busy && model.percentage == nil { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : model.confirmingRebaseDecision ? "Waiting for your choice…" : model.merging ? "Merging…" : "Fetching…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : model.merging ? "Merge failed" : "Fetch failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            HStack { if model.busy && model.percentage == nil { GitCommandActivity(animate: model.progressPresentation.animateActivity) }; Text(model.busy ? model.cancelling ? "Cancelling…" : model.confirmingRebaseDecision ? "Waiting for your choice…" : model.merging ? "Merging…" : "Fetching…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : model.merging ? "Merge failed" : "Fetch failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
             HStack {
                 if let first = model.postActions.first {
                     Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }

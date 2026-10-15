@@ -259,6 +259,7 @@ import TurtleGitCore
     @Published private(set) var percentage: Int?
     @Published private(set) var completionRange: NSRange?
     private var outputState: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { outputState.presentation }
     var actionLogEligible: Bool { !busy && !invalidated && (progress || !output.isEmpty) }
     var canCancel: Bool { busy && cancellation != nil && !cancelRequested && !confirmingCancellation && !invalidated }
     @Published var success = false
@@ -484,7 +485,7 @@ struct FormatPatchDialog: View {
             Toggle("No a/ and b/ prefixes", isOn: $model.noPrefix)
             HStack {
                 Button("Save unified diff since HEAD") { model.unifiedDiff(alternate: NSEvent.modifierFlags.contains(.shift)) }.disabled(!model.hasHead || model.bare)
-                Spacer(); if model.busy { ProgressView().controlSize(.small) }
+                Spacer(); if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
                 Button("OK") { model.export() }.keyboardShortcut(.defaultAction).disabled(!model.valid)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                     .environment(\.isEnabled, !model.isRetired && !model.hasOptionSheet && !model.progress && !model.finishScheduled && !model.composingMail && !model.openingViewer)
@@ -511,7 +512,7 @@ struct FormatPatchProgressDialog: View {
             SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
-                if model.busy { ProgressView().controlSize(.small) }
+                if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
                 Text(model.progressStatus).foregroundStyle(model.busy ? Color.primary : model.success ? .green : .red)
                 Spacer()
                 Button("Close") { model.finish() }.keyboardShortcut(.defaultAction).disabled(model.busy || model.confirmingCancellation)

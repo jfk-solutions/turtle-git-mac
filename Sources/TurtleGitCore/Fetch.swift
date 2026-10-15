@@ -7,6 +7,7 @@ public struct FetchOptions: Sendable {
     public var allRemotes = false
     public var branch = ""
     public var namedRemoteFetchAll = true
+    public var verbose = true
     public var tags = FetchOverride.configured
     public var prune = FetchOverride.configured
     public var depth: Int?
@@ -147,7 +148,8 @@ extension GitRepository {
             do { _ = try run(["check-ref-format", full], cancellation: cancellation) }
             catch { try cancellation?.check(); throw FetchFailure.branch }
         }
-        var args = ["fetch", "--progress", "--verbose"]
+        var args = ["fetch", "--progress"]
+        if options.verbose { args.append("--verbose") }
         if let depth = options.depth { args.append("--depth=" + String(depth)) }
         if options.tags != .configured { args.append(options.tags == .enabled ? "--tags" : "--no-tags") }
         if options.prune != .configured { args.append(options.prune == .enabled ? "--prune" : "--no-prune") }

@@ -1,0 +1,107 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "cba4720d",
+  "scope": "Captured Fetch verbosity and native command-progress activity/byte-limit presentation across connected progress owners",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/AppUtils.cpp::DoFetch and merge Pull command",
+      "src/TortoiseProc/SyncDlg.cpp::Fetch / ShowProgressCtrl",
+      "src/TortoiseProc/ProgressDlg.cpp::s_iSizeLimit / OnProgressUpdateUI",
+      "src/TortoiseProc/ProgressCommands/RemoteProgressCommand.h::CSmartAnimation",
+      "src/TortoiseProc/Settings/SettingsAdvanced.cpp"
+    ]
+  },
+  "implementation": [
+    "Source default-true FetchVerbose is captured at standalone submission and Sync plan construction; normal and pre-Rebase Fetch retain --progress when verbose omitted; source merge Pull and Push keep explicit verbosity",
+    "Source default-true DownloadAnimation captured with progress ownership; actual AppKit spinning indicator or original static refresh artwork retains running accessibility label; numeric progress/status/output/Cancel independent",
+    "Connected Clone/Push/Fetch/Pull/Merge/Abort/Commit/FormatPatch/Export/submodule/Sync/SVN/daemon/local-command/Resolve/conflict-review progress consumers use policy without extra dialog checkboxes",
+    "Core value owns GitOutputLimitinKiB default/min/max and signed DWORD cast; Clone, Push and shared output state reuse it without rewriting preferences",
+    "ProgressDlgLinesLimit remains registered/dormant: no live reader found in pinned source, no invented line-based truncation policy"
+  ],
+  "validation": {
+    "core": {
+      "initial_cases": 33,
+      "initial_failures": 1,
+      "initial_log": "build/qa/transport-presentation-core.log",
+      "repair": "Argument recorder tested $1, but Git adapter prefixes --literal-pathspecs -C root. Recorder now checks actual fourth argument, leaving real executed args intact.",
+      "focused_recheck_cases": 1,
+      "focused_recheck_failures": 0,
+      "recheck_log": "build/qa/transport-presentation-core-recheck.log",
+      "unique_cases_accepted": 33,
+      "families": [
+        "GitCommandPresentationTests",
+        "FetchTests",
+        "PullTests",
+        "GitCliOutputParserTests"
+      ]
+    },
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/transport-presentation-build.log",
+      "diagnostics": "Existing exit-zero/no-output and unrelated compiler warnings; no clean-diagnostics claim"
+    },
+    "native_policy": {
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/transport-presentation-native-recheck.log",
+      "initial_log": "build/qa/transport-presentation-native.log",
+      "initial_failure": "Same recorder prefix mismatch as Core; corrected fixture only, no repeated app build",
+      "coverage": [
+        "real native static/spinning control transitions and accessibility label",
+        "Clone/Push/Fetch policy capture and fresh-owner preference reload",
+        "actual standalone Fetch submission immutable options despite setting mutation in presentation callback; next submission reflects new setting",
+        "actual Synchronization fetch command omits -v but keeps --progress",
+        "captured 16 KiB presentation bound, split progress and Unicode-safe truncation"
+      ]
+    },
+    "retained_native": {
+      "exit_code": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "groups": [
+        "Clone live stream",
+        "Push live stream",
+        "Fetch/Pull live stream"
+      ],
+      "logs": [
+        "build/qa/transport-presentation-clone-stream.log",
+        "build/qa/transport-presentation-push-stream.log",
+        "build/qa/transport-presentation-fetch-pull-stream.log"
+      ],
+      "coverage": "Retained receivers/assertions: live split UTF-8/remote CR/percentage before command exit, actual refs, full raw failure diagnostics, captured truncation limits, cancellation confirmations/process ownership, Retry and deferred result/close/Quit behavior",
+      "execution": "Sequential, at most one receiver at a time; shared Debug-object library reused"
+    },
+    "cleanup": {
+      "owned_pids": [
+        89362,
+        89465,
+        89609,
+        89767,
+        89856,
+        89954,
+        90162,
+        90383,
+        90536
+      ],
+      "remaining": [],
+      "policy": "Exact process-group cleanup/reaping on success/failure/timeout; fixture preferences/private repositories removed; no unrelated app termination"
+    },
+    "hosted": "Previously observed Pages cba4720d run 38724061552 succeeded; macOS cba4720d run 38724061523 pending behind live 12b65f85 run 38721704928. No hosted green claim."
+  },
+  "limits": [
+    "No Windows AVI equivalence; native static/spinner adaptation",
+    "No certification of every displayed progress window/physical gestures/VoiceOver",
+    "Source progress variants, live network/authentication timing and signed Finder/App Store acceptance remain incomplete",
+    "Visible-output bound does not bound original complete Git result storage"
+  ],
+  "unrelated_wip_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

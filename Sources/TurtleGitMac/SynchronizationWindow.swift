@@ -109,6 +109,7 @@ extension SynchronizationTagKind {
 }
 
 @MainActor final class SynchronizationProgressModel: ObservableObject {
+    let progressPresentation: GitCommandPresentation
     let repository: GitRepository, operation: SynchronizationProgressOperation, preferences: UserDefaults
     private let cancellation: OperationCancellation
     private let autoClosePolicy: GitProgressAutoClose
@@ -123,7 +124,7 @@ extension SynchronizationTagKind {
     var confirmCancel: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, transportFactory: SSHTransportFactory? = nil) {
         self.transportFactory = transportFactory; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
-        self.repository = repository; self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
+        self.repository = repository; self.operation = operation; self.cancellation = cancellation; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences)
     }
     func invalidate() { closed = true; if busy { cancellation.cancel() }; transportCoordinator?.close(); transportCoordinator = nil; busy = false; confirmingCancellation = false }
     func cancel() {
@@ -209,7 +210,7 @@ private struct SynchronizationProgressDialog: View {
                 SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: { if case .success = model.result { return true }; return false }(), preferences: model.preferences)
             }
             HStack {
-                if model.busy { ProgressView().controlSize(.small); Text(model.operation.work) } else if case .success = model.result { Text("Finished") } else { Text(model.operation.failure).foregroundStyle(.red) }
+                if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity); Text(model.operation.work) } else if case .success = model.result { Text("Finished") } else { Text(model.operation.failure).foregroundStyle(.red) }
                 Spacer()
                 if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
@@ -1150,6 +1151,7 @@ enum SynchronizationHistoryDiff {
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var onTransportFinished: (String) -> Void = { _ in }
     private var outputState: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { outputState.presentation }
     private var cancellationQuestion: UUID?
     private var transportID: UUID?
     private var token: OperationCancellation?
@@ -1738,6 +1740,7 @@ enum SynchronizationHistoryDiff {
         outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
         var options = SynchronizationTransportOptions(action: action)
         options.localBranch = localBranch; options.remote = remote; options.remoteBranch = remoteBranch; options.force = force
+        options.fetchVerbose = GitCommandPresentation(defaults: preferences).fetchVerbose
         let factory = sshSettings.capture()
         sshSettings.save(preferences, key: historyKey + ".autoload")
         if pushing { Self.activePushWorkflows += 1 }
@@ -2005,8 +2008,7 @@ private struct SynchronizationDialog: View {
             } else if model.tab == 2 {
                 SubmoduleProgressOutputView(text: model.commandOutput, completed: model.commandCompleted, success: model.commandSucceeded, preferences: model.preferences)
                 if model.transportRunning {
-                    if let value = model.percentage { ProgressView(value: Double(value), total: 100) }
-                    else { ProgressView().progressViewStyle(.linear) }
+                    GitCommandProgressBar(percentage: model.percentage, animate: model.progressPresentation.animateActivity)
                 }
             } else if model.tab == 0 || model.tab == 4 {
                 SynchronizationHistoryTable(model: model)
@@ -2084,7 +2086,7 @@ private struct SynchronizationDialog: View {
                 Spacer()
             }
             HStack {
-                if model.busy { ProgressView().controlSize(.small) }
+                if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
                 Text(model.status).foregroundStyle(model.error == nil ? Color.secondary : Color.red).textSelection(.enabled)
                 Spacer()
                 if model.transportRunning {

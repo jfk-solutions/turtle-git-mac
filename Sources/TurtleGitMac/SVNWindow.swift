@@ -40,6 +40,7 @@ import TurtleGitCore
     private var token = OperationCancellation()
     private var parser: GitCliOutputParser
     private var visible: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { visible.presentation }
     private var pump: Task<Void, Never>?
     private var opened = false, retired = false, closeAfterCancel = false
     private var stashHash: String?
@@ -287,7 +288,7 @@ private struct SVNDialog: View {
                 Text(model.error ?? model.status).foregroundStyle(model.error == nil ? Color.primary : Color.red).textSelection(.enabled)
             }
             HStack {
-                if model.busy { ProgressView().controlSize(.small) }
+                if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
                 if model.phase == .finished, model.operation == .fetch, let result = model.fetched, result.changed {
                     Button { model.onCompare(result.oldHash, result.newHash) } label: { CommandLabel(title: "Diff", icon: .compare) }
                     Button { model.onLog(result) } label: { CommandLabel(title: "Log", icon: .log) }

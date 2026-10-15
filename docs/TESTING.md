@@ -1685,3 +1685,12 @@ the external-app launch and never starts a third-party app. Optional `--captures
 writes light/dark native-view images into the specified folder; all owned windows
 and receivers close afterward. Core identity tests additionally cover ref priority,
 annotated tags, cherry-pick/revert, rebase metadata and saved-document propagation.
+
+## Transport presentation batch
+
+After a current Debug build, run
+`python3 scripts/test-transport-presentation.py --git /usr/bin/git --git build/git-runtime/Git/bin/git`.
+The receiver owns private Git repositories/preferences and checks real Fetch/Sync
+arguments, submission-time capture, native static/spinning activity and bounded
+Unicode output. The retained Fetch/Pull live-stream receiver covers cancellation,
+raw diagnostics and retry with the same app objects.

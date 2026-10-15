@@ -1789,7 +1789,8 @@
         "docs/qa/commit-message-file-2026-10-07.json",
         "docs/qa/conflict-identities-2026-10-15.json",
         "docs/qa/history-boundaries-2026-10-09.json",
-        "docs/qa/log-list-preferences-2026-10-09.json"
+        "docs/qa/log-list-preferences-2026-10-09.json",
+        "docs/qa/transport-presentation-2026-10-15.json"
       ]
     },
     {
@@ -1872,7 +1873,8 @@
         "docs/qa/push-progress-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/reset-progress-2026-10-08.json",
-        "docs/qa/switch-progress-2026-10-08.json"
+        "docs/qa/switch-progress-2026-10-08.json",
+        "docs/qa/transport-presentation-2026-10-15.json"
       ]
     },
     {
@@ -1909,7 +1911,8 @@
         "docs/qa/remote-dialogs-2026-10-13.json",
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/temporary-files-2026-10-08.json",
-        "docs/qa/transport-preparation-2026-10-14.json"
+        "docs/qa/transport-preparation-2026-10-14.json",
+        "docs/qa/transport-presentation-2026-10-15.json"
       ]
     },
     {
@@ -1945,7 +1948,8 @@
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/transport-pickers-2026-10-15.json",
-        "docs/qa/transport-preparation-2026-10-14.json"
+        "docs/qa/transport-preparation-2026-10-14.json",
+        "docs/qa/transport-presentation-2026-10-15.json"
       ]
     },
     {

@@ -590,6 +590,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class SwitchProgressWindowModel: ObservableObject {
+    let progressPresentation: GitCommandPresentation
     let repository: GitRepository
     let reference: String
     private let access: RepositoryAccessLease?
@@ -622,7 +623,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         self.init(repository: repository, access: access, options: options, preferences: preferences)
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: CheckoutOptions, preferences: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.options = options; self.reference = options.revision; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences)
+        self.repository = repository; self.access = access; self.options = options; self.reference = options.revision; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); self.autoClosePolicy = GitProgressAutoClose(preferences: preferences)
     }
     func start() { Task { await run() } }
     func run() async { guard !started, !invalidated else { return }; started = true; await execute(merge: options.merge) }
@@ -709,7 +710,7 @@ struct SwitchProgressDialog: View {
             Text("Switch to \(model.reference)").font(.headline)
             SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
-                if model.busy { LocalGitProgressIndicator(percentage: model.percentage); Text(model.cancelling ? "Cancelling…" : model.currentWork.isEmpty ? "Switching…" : model.currentWork) }
+                if model.busy { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity); Text(model.cancelling ? "Cancelling…" : model.currentWork.isEmpty ? "Switching…" : model.currentWork) }
                 else { Text(model.cancelled ? "Cancelled" : model.success ? "Finished" : "Switch failed").foregroundStyle(model.success ? Color.green : Color.red) }
                 Spacer()
             }

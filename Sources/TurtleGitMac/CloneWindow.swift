@@ -387,6 +387,7 @@ enum ClonePostAction: String, Hashable {
 }
 @MainActor final class CloneProgressWindowModel: ObservableObject {
     static var activeOperations = 0
+    let progressPresentation: GitCommandPresentation
     let options: CloneOptions
     let destination: URL
     private let executable: URL
@@ -414,7 +415,7 @@ enum ClonePostAction: String, Hashable {
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { busy && !cancelling && !confirmingCancellation }
     init(options: CloneOptions, destination: URL, executable: URL, destinationAccess: RepositoryAccessLease, sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
-        self.options = options; self.destination = destination; self.executable = executable; self.destinationAccess = destinationAccess; self.sourceAccess = sourceAccess; self.keyAccess = keyAccess; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences); outputLimit = max(16, min(preferences.object(forKey: "GitOutputLimitinKiB") as? Int ?? 2048, 100 * 1024)) * 1024
+        self.options = options; self.destination = destination; self.executable = executable; self.destinationAccess = destinationAccess; self.sourceAccess = sourceAccess; self.keyAccess = keyAccess; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences); progressPresentation = GitCommandPresentation(defaults: preferences); outputLimit = progressPresentation.outputLimit
     }
     var makeSSHCoordinator: SSHCloneTransportFactory?
     func invalidate() { invalidated = true; cancellation.cancel() }
@@ -537,7 +538,7 @@ struct CloneProgressDialog: View {
             }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
             if model.busy, let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100).tint(.green) }
             if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
-            HStack { if model.busy && model.percentage == nil { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Cloning…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Clone failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            HStack { if model.busy && model.percentage == nil { GitCommandActivity(animate: model.progressPresentation.animateActivity) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Cloning…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Clone failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
             HStack { if let first = model.postActions.first { Button { model.perform(first) } label: { CommandLabel(title:first.title,icon:first.icon) }; Menu { ForEach(model.postActions,id:\.self) { action in Button { model.perform(action) } label: { CommandLabel(title:action.title,icon:action.icon) } } } label: { Image(systemName:"chevron.down").accessibilityLabel("Clone post-actions") }.menuStyle(.borderlessButton).fixedSize() }; Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }

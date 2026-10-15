@@ -51,6 +51,7 @@ private struct RevertProgressRow: Identifiable {
 }
 
 @MainActor final class RevertProgressWindowModel: ObservableObject, ActionLogProgress {
+    let progressPresentation: GitCommandPresentation
     static private(set) var activeOperations = 0
     let repository: GitRepository
     private let access: RepositoryAccessLease?
@@ -85,7 +86,7 @@ private struct RevertProgressRow: Identifiable {
     var onFinished: (String, Bool) -> Void = { _, _ in }
     var execute: (([StatusEntry], OperationCancellation, @escaping @Sendable (WorkingFileRevertProgress) -> Void, @escaping @Sendable (GitOutputChunk) -> Void) async throws -> WorkingFileRevertResult)?
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.entries = entries; self.amend = amend; self.againstHead = againstHead; self.autoCloseSuccess = autoCloseSuccess; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
+        self.repository = repository; self.access = access; self.entries = entries; self.amend = amend; self.againstHead = againstHead; self.autoCloseSuccess = autoCloseSuccess; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); autoClosePolicy = GitProgressAutoClose(preferences: preferences)
     }
     func retire() { guard !retired else { return }; if busy { cancelled = true }; saveActionLog(); retired = true; cancellation?.cancel() }
     func cancel() {
@@ -176,7 +177,7 @@ private struct RevertProgressDialog: View {
                 Text(model.current).lineLimit(1).help(model.current).foregroundStyle(model.failed ? Color.red : model.cancelled ? Color.orange : Color.primary)
                 Spacer()
                 if model.total > 0 { ProgressView(value: Double(model.completed), total: Double(model.total)).frame(width: 230) }
-                else if model.busy { ProgressView().controlSize(.small) }
+                else if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
             }
             if !model.commandOutput.isEmpty { SubmoduleProgressOutputView(text: model.commandOutput, completed: !model.busy, success: !model.failed && !model.cancelled, preferences: model.preferences).frame(height: 90) }
             if !model.information.isEmpty {

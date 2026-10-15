@@ -157,6 +157,7 @@ import TurtleGitCore
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class HistoryRevertWindowModel: ObservableObject {
+    let progressPresentation: GitCommandPresentation
     private(set) static var activeOperations = 0
     let repository: GitRepository
     let access: RepositoryAccessLease?
@@ -182,7 +183,7 @@ import TurtleGitCore
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.entries = entries; self.mainline = mainline;self.preferences=preferences }
+    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.entries = entries; self.mainline = mainline;self.preferences=preferences; progressPresentation = GitCommandPresentation(defaults: preferences) }
     func start() {
         guard !started, !invalidated else { return }; started = true; busy = true; Self.activeOperations += 1
         worker = Task { [weak self, access] in
@@ -268,7 +269,7 @@ private struct HistoryRevertDialog: View {
             ProgressView(value: Double(model.completed), total: Double(max(1, model.entries.count)))
             SubmoduleProgressOutputView(text:model.output,completed:!model.busy,success:model.success,preferences:model.preferences).frame(maxHeight:.infinity)
             HStack {
-                if model.busy { LocalGitProgressIndicator(percentage:model.percentage);Text(model.currentWork).font(.caption) }
+                if model.busy { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity);Text(model.currentWork).font(.caption) }
                 Text(model.busy ? "Reverting…" : model.cancelled ? "Cancelled" : model.success ? "Reverted" : "Revert failed").foregroundStyle(model.success ? Color.green : Color.secondary)
                 Spacer()
                 if model.busy { Button("Cancel", action: model.cancel).disabled(model.confirming).keyboardShortcut(.cancelAction) }
@@ -360,6 +361,7 @@ private struct HistoryRevertDialog: View {
     }
 }
 @MainActor final class HistoryCombineWindowModel: ObservableObject {
+    let progressPresentation: GitCommandPresentation
     private(set) static var activeOperations = 0
     let repository: GitRepository
     let access: RepositoryAccessLease?
@@ -383,7 +385,7 @@ private struct HistoryRevertDialog: View {
     var presentCommit: (HistoryCombinePlan) async -> Bool = { _ in false }
     var onChanged: (String) -> Void = { _ in }
     var close: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], firstOffset: Int, expectedHead: String, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.entries = entries; self.firstOffset = firstOffset; self.expectedHead = expectedHead;self.preferences=preferences }
+    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], firstOffset: Int, expectedHead: String, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.entries = entries; self.firstOffset = firstOffset; self.expectedHead = expectedHead;self.preferences=preferences; progressPresentation = GitCommandPresentation(defaults: preferences) }
     func start() {
         guard !started, !invalidated else { return }; started = true; busy = true; Self.activeOperations += 1
         worker = Task { [weak self, access] in
@@ -441,7 +443,7 @@ private struct HistoryCombineDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(model.status).font(.headline)
-            if model.busy { HStack { LocalGitProgressIndicator(percentage:model.percentage);Text(model.currentWork).font(.caption) } }
+            if model.busy { HStack { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity);Text(model.currentWork).font(.caption) } }
             SubmoduleProgressOutputView(text:model.output,completed:!model.busy,success:model.success,preferences:model.preferences).frame(maxHeight:.infinity)
             HStack { Spacer(); if model.busy { Button("Cancel", action: model.cancel).keyboardShortcut(.cancelAction).disabled(model.recovering || model.presentingCommit) } else { Button("Close", action: model.close).keyboardShortcut(.defaultAction) } }
         }.padding(12).frame(minWidth: 600, minHeight: 260)

@@ -449,6 +449,7 @@ enum ResetPostAction: String, Hashable {
     var icon: MenuIcon { switch self { case .retry: return .refresh; case .submoduleUpdate: return .fetch; case .bisectGood: return .bisectGood; case .bisectBad: return .bisectBad; case .bisectSkip: return .bisect; case .bisectReset: return .bisectReset; case .clean: return .clean } }
 }
 @MainActor final class ResetProgressWindowModel: ObservableObject {
+    let progressPresentation: GitCommandPresentation
     let repository: GitRepository
     let plan: ResetPlan
     private let access: RepositoryAccessLease?
@@ -470,7 +471,7 @@ enum ResetPostAction: String, Hashable {
     var onPostAction: ((ResetPostAction) -> Void)?
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { busy && !cancelling && !confirmingCancellation }
-    init(repository: GitRepository, plan: ResetPlan, preferences: UserDefaults = .standard, access: RepositoryAccessLease? = nil) { self.access = access; self.repository = repository; self.plan = plan; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
+    init(repository: GitRepository, plan: ResetPlan, preferences: UserDefaults = .standard, access: RepositoryAccessLease? = nil) { self.access = access; self.repository = repository; self.plan = plan; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
     func invalidate() { invalidated = true; cancellation.cancel(); confirmingCancellation = false; busy = false; postActions = [] }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
     func start() { Task { await run() } }
@@ -549,7 +550,7 @@ struct ResetProgressDialog: View {
     var body: some View {
         VStack(alignment:.leading,spacing:12) {
             SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences).frame(maxWidth: .infinity, maxHeight: .infinity)
-            HStack { if model.busy { LocalGitProgressIndicator(percentage: model.percentage) }; Text(model.busy ? model.cancelling ? "Cancelling…" : model.currentWork.isEmpty ? "Resetting…" : model.currentWork : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Reset failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            HStack { if model.busy { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity) }; Text(model.busy ? model.cancelling ? "Cancelling…" : model.currentWork.isEmpty ? "Resetting…" : model.currentWork : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Reset failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
             HStack { if let first = model.postActions.first { Button { model.perform(first) } label: { CommandLabel(title:first.title,icon:first.icon) }; Menu { ForEach(model.postActions,id:\.self) { action in Button { model.perform(action) } label: { CommandLabel(title:action.title,icon:action.icon) } } } label: { Image(systemName:"chevron.down").accessibilityLabel("Reset post-actions") }.menuStyle(.borderlessButton).fixedSize() }; Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }

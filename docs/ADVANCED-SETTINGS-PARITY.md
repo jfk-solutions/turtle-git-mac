@@ -183,3 +183,16 @@ partial; earlier generic-label gaps are superseded within this documented scope.
 
 [Grouped validation and visual review](qa/conflict-identities-2026-10-15.json)
 record actual coverage and remaining limits; no dialog is newly certified.
+
+## Captured transport/progress presentation — October 15, 2026
+
+The [connected presentation family](TRANSPORT-PRESENTATION.md) now consumes
+FetchVerbose and DownloadAnimation without extra dialog controls. It shares the
+source byte-limit interpretation across Clone, Push and common progress. The
+pinned ProgressDlgLinesLimit entry remains dormant, with no invented consumer.
+Full workflow, physical and signed acceptance remain partial.
+
+[Grouped evidence](qa/transport-presentation-2026-10-15.json) records 33 affected
+Core cases, the Debug build and four native groups on both Git engines, including
+the argument-recorder setup repair. Complete hosted/physical/signed parity is
+not established.

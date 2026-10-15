@@ -43,6 +43,7 @@ import TurtleGitCore
     private let identities: SSHIdentityAccessStore, makeSSHCoordinator: SSHCloneTransportFactory?
     private var token: OperationCancellation?, invalidated = false, started = false
     private var streamState: GitProgressOutputState
+    var progressPresentation: GitCommandPresentation { streamState.presentation }
     @Published private(set) var busy = false
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
@@ -147,7 +148,7 @@ private struct SubmoduleAddProgressDialog: View {
                 .accessibilityLabel("Git command progress")
             SubmoduleProgressOutputView(text:model.output, completed:!model.busy, completionRange:model.completionRange, success:model.success).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
-                if model.busy { ProgressView().controlSize(.small) }
+                if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
                 Text(model.busy ? model.cancelling ? "Cancelling…" : "Adding…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Add failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red)
                 Spacer()
                 if !model.busy && !model.success { Button("Retry") { model.retry() }.disabled(model.activeOperation) }

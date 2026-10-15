@@ -160,6 +160,7 @@ private struct DeleteConflictDialog: View {
 /// Shared conflict-review request lifetime. The chooser owns its permission and
 /// callbacks; this state owns the child-process token and bounded presentation.
 @MainActor final class ConflictReviewOperation: ObservableObject, ActionLogProgress {
+    let progressPresentation: GitCommandPresentation
     static private(set) var activeOperations = 0
     let repository: GitRepository
     let access: RepositoryAccessLease?
@@ -182,7 +183,7 @@ private struct DeleteConflictDialog: View {
     var canInteract: Bool { active && !busy && !showingProgress && !hasQuestion && !hasChild && !confirmingCancellation }
     var canClose: Bool { active && !busy && !hasQuestion && !hasChild && !confirmingCancellation }
     var canCancel: Bool { active && busy && !hasQuestion && !hasChild && !cancelling && !confirmingCancellation }
-    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults) { self.repository = repository; self.access = access; self.preferences = preferences }
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults) { self.repository = repository; self.access = access; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences) }
     func checkAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
@@ -268,7 +269,7 @@ struct ConflictReviewProgressView: View {
             SubmoduleProgressOutputView(text: operation.output, completed: !operation.busy, success: operation.success, preferences: operation.preferences)
             Text("Reminder: Commit your change after resolve").font(.caption).foregroundStyle(.secondary)
             HStack {
-                if operation.busy { ProgressView().controlSize(.small); Text(operation.cancelling ? "Cancelling…" : "Working…").font(.caption) }
+                if operation.busy { GitCommandActivity(animate: operation.progressPresentation.animateActivity); Text(operation.cancelling ? "Cancelling…" : "Working…").font(.caption) }
                 Spacer()
                 if operation.busy { Button("Cancel") { operation.cancel() }.disabled(!operation.canCancel) }
                 else { Button("Back") { back() }.disabled(!operation.canClose).keyboardShortcut(.defaultAction) }

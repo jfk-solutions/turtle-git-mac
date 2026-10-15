@@ -143,6 +143,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     }
 }
 @MainActor final class StashSaveProgressWindowModel: ObservableObject {
+    let progressPresentation: GitCommandPresentation
     let repository: GitRepository
     let options: StashSaveOptions
     let followUp: StashSaveFollowUp
@@ -167,7 +168,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     var close: () -> Void = {}
     var onFinished: (StashSaveResult?, String) -> Void = { _, _ in }
     var onPostAction: ((StashSavePostAction, StashSaveFollowUp) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, options: StashSaveOptions, followUp: StashSaveFollowUp, preferences: UserDefaults = .standard) { self.preferences = preferences; self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: StashSaveOptions, followUp: StashSaveFollowUp, preferences: UserDefaults = .standard) { self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
     func start() { Task { await run() } }
     func cancel() {
         guard canCancel else { return }
@@ -248,7 +249,7 @@ private struct StashSaveProgressDialog: View {
         VStack(alignment: .leading, spacing: 12) {
             SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
-                if model.busy { LocalGitProgressIndicator(percentage: model.percentage); Text(model.currentWork.isEmpty ? "Saving stash…" : model.currentWork) }
+                if model.busy { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity); Text(model.currentWork.isEmpty ? "Saving stash…" : model.currentWork) }
                 else { Text(model.cancelled ? "Cancelled" : model.success ? "Finished" : "Stash failed").foregroundStyle(model.success ? Color.green : Color.red) }
                 Spacer()
             }
