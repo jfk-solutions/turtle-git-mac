@@ -98,3 +98,67 @@ visible-draft adapter rather than the file-only sharing service. See
 [client parity/evidence](SEND-PATCH-PARITY.md#delivery-modes).
 The earlier system-composer bypass describes a historical checkpoint. Actual
 Apple Mail execution and full modal mail-client lifecycle remain unverified.
+
+
+## Connected Request Pull invocation and ownership family — October 15, 2026
+
+Start's ellipsis now opens single-selection Log at the entered revision before
+its first history load. It shares the owning preferences, appearance, visibility,
+repository lease and production downstream commands. Working-tree rows stay
+hidden. One captured request owns the options until the sheet retires. Changing
+Start, URL, End or Send Mail while it is open rejects that result; duplicate,
+Cancel, refused-presentation and retired callbacks cannot replace inputs.
+Creation, reload, URL deletion, fallback Open and owner closure remain gated while
+that picker is owned. Accepted/Cancel results restore the owner after sheet exit.
+
+Initial branch reads, End's `check-ref-format` validation and generation now use
+cancellable owned Git processing. Validation preserves an execution failure or
+cancellation instead of converting either into an invalid branch name. Requested
+Close cancels and waits; forced Close fences publication while global Quit
+accounting and repository permissions survive until child cleanup. Cancel during
+generation retains the existing retry/error flow; Close suppresses a redundant
+cancel alert while retiring the owner. Initial loading has its own status text.
+App Store repository access is checked before reads and generation. Hidden denied-
+scope fixtures exercise that gate but do not establish signed sandbox acceptance.
+
+Generated request bytes retain the existing private document and Open request
+fallback. Failed external-open dispatch keeps the options and document; successful
+fallback retires the options and leaves the document for the editor. Mail options
+and progress inherit the owner appearance/visibility and are invalidated on forced
+owner closure, suppressing late submissions/completion. Existing mail options
+still require explicit user review; no link or picker result sends anything.
+
+### macOS command-link presets
+
+The existing `turtlegit://action` protocol now adapts RequestPullCommand's `endrev`
+and `url` options. A request with `command=requestPull` and an absolute repository
+`path` can include one `endrev` and one `url` query value. Build the query with URL
+encoding so punctuation, spaces and Unicode stay literal. These fields are valid
+only for Request Pull; duplicates, missing values and NUL are refused. Empty
+values keep the source's saved-default fallback. The advertised URL supplies the
+editable Repository URL field, not a filesystem permission. The normal repository
+authorization/adoption pipeline runs before presentation, and generation waits
+for OK. Windows `/command:` executable syntax is not added by this URL adaptation.
+
+The actual dispatcher was exercised with private snapshot/preferences and its
+existing repository authorization path. It delivered the requested End/URL into
+the native dialog without generating a document. The Core URL cases cover legacy
+links, literal round trips, empty fields and malformed/wrong-command fields.
+
+The Debug build passed. The affected Core group ran 19 cases: 18 passed and one
+new fixture incorrectly compared directory URL slash hints. Its corrected path
+comparison passed in the focused recheck, giving cumulative passing evidence for
+all 19 cases. The new native fixture initially attempted fallback while its error
+alert remained open; it now dismisses that actual alert before using Open request.
+The grouped native result and remaining acceptance limits are recorded in
+[Request Pull lifecycle QA](qa/request-pull-lifecycle-2026-10-15.json). The runner
+reuses the patch-family Debug object/module cache instead of recompiling the app.
+No full Core suite or new Store build is claimed. Physical keyboard/menu/alert
+interaction, live editor/SMTP/Apple Mail, full source visual/VoiceOver parity,
+signed Finder/repository grants and App Store acceptance remain open.
+
+
+Both the existing generation/mail and new lifecycle checks passed with system
+and bundled Git: four accepted fixture/engine pairs. The failed fixture receiver
+and all four accepted receivers were reaped and independently checked absent.
+No external editor or mail application was launched and no message was sent.

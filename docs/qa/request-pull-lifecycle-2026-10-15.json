@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-15",
+  "scope": "Connected Request Pull Start picker, reads/validation/generation, authorized invocation and document/mail ownership",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "RequestPullDlg.cpp/.h and IDD_REQUESTPULL",
+      "Commands/RequestPullCommand.cpp: endrev/url",
+      "AppUtils.cpp: RequestPull and Push post-action"
+    ]
+  },
+  "implementation": [
+    "Start Log begins at entered revision before first load, inherits private preferences/theme/visibility and shared production command configuration",
+    "One captured options ticket through sheet retirement, stale/duplicate/Cancel/refused/retirement guards",
+    "Owned cancellable initial branches, CLI End validation and generation; global accounting/grants survive forced close",
+    "Execution/cancellation failures preserve their cause; requested Close waits and suppresses redundant cancellation alert",
+    "App Store repository scope gate before reads/generation",
+    "Actual generated document fallback and owned mail retirement; no automatic external delivery",
+    "URL endrev/url presets decoded literally and passed through repository authorization before editable presentation",
+    "11 partial source-control mappings; no complete dialog claim"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/request-pull-lifecycle-build-2026-10-15.log",
+      "diagnostics": "Existing warnings and exit-code-zero/no-output SwiftCompile diagnostics; not a clean diagnostics claim."
+    },
+    "core": {
+      "unique_tests": 19,
+      "initial_pass": 18,
+      "initial_fixture_failure": 1,
+      "log": "build/qa/request-pull-lifecycle-core-2026-10-15.log",
+      "repair": "Directory URL slash hint mismatch: compare path values rather than URL hasDirectoryPath encoding.",
+      "affected_recheck_tests": 1,
+      "affected_recheck_failures": 0,
+      "affected_recheck_log": "build/qa/request-pull-lifecycle-core-final-2026-10-15.log",
+      "scope": "RequestPullTests and FinderRequestTests; no repeated full suite."
+    },
+    "native": {
+      "status": "passed",
+      "initial_log": "build/qa/request-pull-lifecycle-native-2026-10-15.log",
+      "lifecycle_log": "build/qa/request-pull-lifecycle-native-final-2026-10-15.log",
+      "bundled_regression_log": "build/qa/request-pull-regression-bundled-2026-10-15.log",
+      "initial_fixture_failure": "Open request attempted while previous actual error alert remained attached; fixture now dismisses alert before retry.",
+      "accepted_pairs": [
+        "existing generation/mail/system",
+        "new lifecycle/system",
+        "new lifecycle/bundled",
+        "existing generation/mail/bundled"
+      ],
+      "receivers_reaped": [
+        24260,
+        24583,
+        24911,
+        25298,
+        25728
+      ],
+      "coverage": [
+        "Actual Start Log callbacks in hidden light/dark hosts; changed/duplicate/refused/Cancel/retired results",
+        "Actual request bytes and external-open failure/retry callbacks; no external app opened",
+        "Forced owner retirement of native unsent mail options, inherited theme/visibility and Quit gates",
+        "Actual RepositoryModel URL authorization/adoption/dispatch with private snapshot/preferences; no automatic generation",
+        "Owned leader/child cancellation during initial for-each-ref, check-ref-format and request-pull, requested and forced close",
+        "Missing repository-scope read/generation denial; synthetic unsigned policy only",
+        "Existing actual published request, scoped histories, default/preset and Send Mail persistence, all delivery option preparation, cancellation/retry and read-only invariants"
+      ],
+      "accepted_runs": 4,
+      "failed_fixture_runs": 1,
+      "receivers_checked_absent": true
+    },
+    "site": {
+      "status": "passed",
+      "log": "build/qa/request-pull-lifecycle-site-2026-10-15.log",
+      "exit_code": 0,
+      "documents": 216,
+      "unresolved_fragments": []
+    }
+  },
+  "ci_observation": {
+    "commit": "ebd537c9",
+    "pages": "success",
+    "macos": "pending",
+    "note": "Pre-commit snapshot; does not prove hosted acceptance of this batch."
+  },
+  "remaining": [
+    "Physical fields, menu/sheet/alert/default/focus/keyboard and VoiceOver acceptance, full layout screenshots",
+    "Live external editor, SMTP or Apple Mail invocation and long-lived document retention",
+    "Signed Finder/repository/advertised-local-path grants and App Store acceptance; complete application parity remains open"
+  ],
+  "preserved_unrelated_wip": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

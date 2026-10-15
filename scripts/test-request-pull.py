@@ -1,28 +1,17 @@
 #!/usr/bin/env python3
-"""Headless native Request Pull fields, histories, Log selection and real Git generation/cancellation. No mail or editor is launched."""
+"""Grouped owned Request Pull checks using the current Debug object/module cache."""
 import argparse
-import os
 from pathlib import Path
-import platform
 import subprocess
-import tempfile
+import sys
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
+parser.add_argument('--receiver', type=Path, action='append')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
-products = root / 'build/Build/Products/Debug'
-with tempfile.TemporaryDirectory(prefix='turtlegit-request-pull-native-') as temporary:
-    directory = Path(temporary)
-    app = root / 'Sources/TurtleGitMac/TurtleGitMacApp.swift'
-    copy = directory / app.name
-    copy.write_text(app.read_text().replace('@main struct', 'struct', 1))
-    sources = sorted(str(p) for p in (root / 'Sources/TurtleGitMac').glob('*.swift') if p != app)
-    executable = directory / 'request-pull-native-receiver'
-    subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products), *sources, str(copy), str(root / 'docs/qa/request-pull-native-2026-10-08.swift'), '-framework', 'TurtleGitCore', '-o', str(executable)], cwd=root, check=True)
-    environment = os.environ.copy()
-    environment['DYLD_FRAMEWORK_PATH'] = str(products)
-    for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
-        fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
-        print('Checking ' + str(git), flush=True)
-        subprocess.run([str(executable), str(fixture), str(git.resolve())], cwd=root, env=environment, check=True)
+command = [sys.executable, str(root / 'scripts/test-format-patch-progress.py')]
+for fixture in args.receiver or [Path('docs/qa/request-pull-native-2026-10-08.swift'), Path('docs/qa/request-pull-lifecycle-native-2026-10-15.swift')]:
+    command += ['--receiver', str(fixture)]
+for git in args.git or [Path('/usr/bin/git')]: command += ['--git', str(git.absolute())]
+subprocess.run(command, cwd=root, check=True)

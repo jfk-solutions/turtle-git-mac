@@ -16,20 +16,22 @@ public enum RequestPullFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func validateRequestPullEnd(_ end: String) throws {
+    public func validateRequestPullEnd(_ end: String, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
         // CGit::IsBranchNameValid rejects these Windows characters in addition
         // to libgit2's branch name check. Keep the source dialog's input gate.
-        guard !end.isEmpty, !end.hasPrefix("-"), end != "HEAD", !end.contains("\0"), end.rangeOfCharacter(from: CharacterSet(charactersIn: "\"|<>")) == nil,
-              (try? run(["check-ref-format", "refs/heads/" + end])) != nil else {
+        guard !end.isEmpty, !end.hasPrefix("-"), end != "HEAD", !end.contains("\0"), end.rangeOfCharacter(from: CharacterSet(charactersIn: "\"|<>")) == nil else {
             throw RequestPullFailure.end
         }
+        let result = try run(["check-ref-format", "refs/heads/" + end], successfulExitCodes: 0...1, cancellation: cancellation)
+        guard result.exitCode == 0 else { throw RequestPullFailure.end }
     }
     /// Generates request text only. Git checks that the advertised URL publishes
     /// the requested end; no refs, index or working-tree files are changed.
     public func requestPull(_ options: RequestPullOptions, cancellation: OperationCancellation? = nil) throws -> Data {
         try cancellation?.check()
         guard !options.start.contains("\0"), !options.repositoryURL.contains("\0"), !options.end.contains("\0") else { throw RequestPullFailure.argument }
-        try validateRequestPullEnd(options.end)
+        try validateRequestPullEnd(options.end, cancellation: cancellation)
         let start = options.start.hasPrefix("remotes/") ? String(options.start.dropFirst(8)) : options.start
         return try run(["request-pull", "--", start, options.repositoryURL, options.end], cancellation: cancellation).stdout
     }

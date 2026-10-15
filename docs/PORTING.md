@@ -1121,3 +1121,11 @@ and unified reads, source count limits and private viewer preferences. The conne
 options/progress/streaming family passed grouped system/bundled native checks and
 30 affected Core cases (plus the changed no-tag case recheck). Physical and signed
 acceptance remain open; see [Format Patch](FORMAT-PATCH-PARITY.md).
+
+
+Request Pull now owns its Start Log/options and closes cancellable branch,
+validation and generation processes before ordinary retirement. Forced closure
+fences generated documents and retires mail options while preserving operation
+accounting. Its source End/URL presets also flow through authorized macOS action
+links into editable native inputs. See [Request Pull](REQUEST-PULL-PARITY.md) for
+grouped evidence, command-link syntax and physical/signed acceptance limits.

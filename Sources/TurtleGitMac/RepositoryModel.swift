@@ -126,6 +126,10 @@ import UniformTypeIdentifiers
     private var browserWindows: [String: RepositoryBrowserWindowController] = [:]
     private var worktreeListWindows: [String: WorktreeListWindowController] = [:]
     private var worktreeCreateWindows: [String: WorktreeCreateWindowController] = [:]
+    var requestPullPresentation: ((RequestPullWindowController) -> Void)?
+    var makeRequestPull: (GitRepository, RepositoryAccessLease?, String?, String?) -> RequestPullWindowController = { repository, access, end, url in
+        RequestPullWindowController(repository: repository, access: access, end: end, repositoryURL: url)
+    }
     private var requestPullWindows: [String: RequestPullWindowController] = [:]
     private var importPatchWindows: [String: ImportPatchWindowController] = [:]
     private var formatPatchWindows: [String: FormatPatchWindowController] = [:]
@@ -444,6 +448,8 @@ import UniformTypeIdentifiers
                         if let finderTransferPresentation { finderTransferPresentation(request, repository, sessionAccess) }
                         else if action == .pasteCopy { showCopy(repository: repository, access: sessionAccess, sources: request.sources, paste: true, folder: destination) }
                         else { showMove(repository: repository, access: sessionAccess, paths: [], clipboard: request.sources, destination: destination) }
+                    } else if action == .requestPull, let repository {
+                        showRequestPull(repository: repository, access: sessionAccess, end: selected?.requestPullEnd, repositoryURL: selected?.requestPullURL)
                     } else { activate(action, paths: paths) }
                 }
                 onOpened?()
@@ -1851,9 +1857,12 @@ import UniformTypeIdentifiers
     }
     private func showRequestPull(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil) {
         let key = repository.root.path + ":requestPull:" + UUID().uuidString
-        let controller = RequestPullWindowController(repository: repository, access: access, end: end, repositoryURL: repositoryURL)
+        let controller = makeRequestPull(repository, access, end, repositoryURL)
+        controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.onClosed = { [weak self] in self?.requestPullWindows.removeValue(forKey: key) }
-        requestPullWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        requestPullWindows[key] = controller
+        if let requestPullPresentation { requestPullPresentation(controller) }
+        else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
     private func showImportPatch(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
         let key = repository.root.path

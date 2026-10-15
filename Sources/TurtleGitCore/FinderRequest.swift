@@ -8,8 +8,12 @@ public struct FinderRequest: Sendable {
     public let sources: [URL]
     /// nil preserves legacy URL behavior; explicit false captures the default tool.
     public let alternateTool: Bool?
-    public init(action: RepositoryAction, paths: [URL], sources: [URL] = [], alternateTool: Bool? = nil) {
+    /// Request Pull command presets remain editable input, never authorization.
+    public let requestPullEnd: String?
+    public let requestPullURL: String?
+    public init(action: RepositoryAction, paths: [URL], sources: [URL] = [], alternateTool: Bool? = nil, requestPullEnd: String? = nil, requestPullURL: String? = nil) {
         self.action = action; self.alternateTool = alternateTool
+        self.requestPullEnd = requestPullEnd; self.requestPullURL = requestPullURL
         var seen = Set<String>()
         self.paths = paths.map(Self.normalizedSelectionURL).filter { seen.insert($0.path).inserted }
         seen = []; self.sources = sources.map(Self.normalizedSelectionURL).filter { seen.insert($0.path).inserted }
@@ -35,21 +39,29 @@ public struct FinderRequest: Sendable {
         let toolFields=fields.filter {$0.name=="alternate"}
         guard toolFields.count <= 1,toolFields.allSatisfy({$0.value=="0" || $0.value=="1"}) else {return nil}
         let alternateTool=toolFields.first.map {$0.value=="1"}
+        let endFields = fields.filter { $0.name == "endrev" }, urlFields = fields.filter { $0.name == "url" }
+        guard endFields.count <= 1, urlFields.count <= 1,
+              (endFields + urlFields).allSatisfy({ $0.value != nil && $0.value?.contains("\0") == false }),
+              action == .requestPull || (endFields.isEmpty && urlFields.isEmpty) else { return nil }
         let paths = fields.filter { $0.name == "path" }.compactMap(\.value)
         guard (!paths.isEmpty || action.allowsEmptySelection), paths.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
               paths.count == fields.filter({ $0.name == "path" }).count else { return nil }
         let sourceFields = fields.filter { $0.name == "source" }, sources = sourceFields.compactMap(\.value)
         guard sources.count == sourceFields.count, sources.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
               action.isFileTransfer ? paths.count == 1 && !sources.isEmpty && sources.count <= 256 && url.absoluteString.utf8.count <= 131072 : sources.isEmpty else { return nil }
-        self.init(action: action, paths: paths.map { URL(fileURLWithPath: $0) }, sources: sources.map { URL(fileURLWithPath: $0) }, alternateTool:alternateTool)
+        self.init(action: action, paths: paths.map { URL(fileURLWithPath: $0) }, sources: sources.map { URL(fileURLWithPath: $0) }, alternateTool:alternateTool, requestPullEnd: endFields.first?.value, requestPullURL: urlFields.first?.value)
     }
     public var url: URL? {
-        guard !action.isMenuHeader, !paths.isEmpty || action.allowsEmptySelection else { return nil }
+        guard !action.isMenuHeader, !paths.isEmpty || action.allowsEmptySelection,
+              action == .requestPull || (requestPullEnd == nil && requestPullURL == nil),
+              [requestPullEnd, requestPullURL].compactMap({ $0 }).allSatisfy({ !$0.contains("\0") }) else { return nil }
         guard paths.allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }), sources.allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }),
               action.isFileTransfer ? paths.count == 1 && !sources.isEmpty && sources.count <= 256 : sources.isEmpty else { return nil }
         var components = URLComponents()
         components.scheme = "turtlegit"; components.host = "action"
         components.queryItems = [URLQueryItem(name: "command", value: action.rawValue)] + paths.map { URLQueryItem(name: "path", value: $0.path) } + sources.map { URLQueryItem(name: "source", value: $0.path) }
+        if let requestPullEnd { components.queryItems?.append(URLQueryItem(name: "endrev", value: requestPullEnd)) }
+        if let requestPullURL { components.queryItems?.append(URLQueryItem(name: "url", value: requestPullURL)) }
         if let alternateTool {components.queryItems?.append(URLQueryItem(name:"alternate",value:alternateTool ? "1":"0"))}
         guard let result = components.url, !action.isFileTransfer || result.absoluteString.utf8.count <= 131072 else { return nil }; return result
     }

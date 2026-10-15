@@ -2,6 +2,23 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RequestPullTests: XCTestCase {
+    func testEndValidationPropagatesCancellationAndExecutionFailures() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let helper = root.appendingPathComponent("git"), marker = root.appendingPathComponent("executed")
+        let script = "#!/bin/sh\nprintf invoked > '" + marker.path + "'\nexit 17\n"
+        try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let repository = GitRepository(root: root, executable: helper)
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { try await repository.validateRequestPullEnd("main", cancellation: cancelled); XCTFail("Pre-cancelled validation ran") }
+        catch is OperationCancellationFailure {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path))
+        do { try await repository.validateRequestPullEnd("main"); XCTFail("Execution failure became invalid name") }
+        catch let error as GitFailure { XCTAssertEqual(error.code, 17) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path))
+    }
+
     func testRequestTextUsesPublishedRangeAndPreservesMixedChanges() async throws {
         let (root, repo, remote, path) = try await PushTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)

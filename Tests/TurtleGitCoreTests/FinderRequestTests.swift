@@ -2,6 +2,27 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FinderRequestTests: XCTestCase {
+    func testRequestPullCommandPresetsRoundTripAsLiteralEditableInput() throws {
+        let root = URL(fileURLWithPath: "/repo 雪 &?", isDirectory: true)
+        let end = "feature/é雪", advertised = "ssh://host/space &?#%/雪.git"
+        let request = FinderRequest(action: .requestPull, paths: [root], requestPullEnd: end, requestPullURL: advertised)
+        let decoded = try XCTUnwrap(FinderRequest(url: XCTUnwrap(request.url)))
+        XCTAssertEqual(decoded.requestPullEnd, end); XCTAssertEqual(decoded.requestPullURL, advertised)
+        XCTAssertEqual(decoded.paths.map(\.path), [root.path]); XCTAssertEqual(decoded.action, .requestPull)
+        let legacy = try XCTUnwrap(FinderRequest(url: XCTUnwrap(FinderRequest(action: .requestPull, paths: [root]).url)))
+        XCTAssertNil(legacy.requestPullEnd); XCTAssertNil(legacy.requestPullURL)
+        let empty = try XCTUnwrap(FinderRequest(url: XCTUnwrap(FinderRequest(action: .requestPull, paths: [root], requestPullEnd: "", requestPullURL: "").url)))
+        XCTAssertEqual(empty.requestPullEnd, ""); XCTAssertEqual(empty.requestPullURL, "")
+        XCTAssertNil(FinderRequest(action: .commit, paths: [root], requestPullEnd: end).url)
+        XCTAssertNil(FinderRequest(action: .requestPull, paths: [root], requestPullURL: "bad\0url").url)
+        let link = try XCTUnwrap(request.url)
+        for extra in ["&endrev=duplicate", "&url=duplicate", "&url", "&endrev", "&url=%00"] {
+            XCTAssertNil(FinderRequest(url: try XCTUnwrap(URL(string: link.absoluteString + extra))))
+        }
+        let other = try XCTUnwrap(FinderRequest(action: .log, paths: [root]).url)
+        XCTAssertNil(FinderRequest(url: try XCTUnwrap(URL(string: other.absoluteString + "&endrev=main"))))
+    }
+
     func testExplicitFinderToolChoiceRoundTripsAndLegacyLinksRemainUnspecified() throws {
         let file=URL(fileURLWithPath:"/repo 雪/space &?\n.txt")
         for action in [RepositoryAction.diff,.previousDiff,.diffLater,.editConflict] {
