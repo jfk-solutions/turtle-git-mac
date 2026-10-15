@@ -80,6 +80,18 @@ import UniformTypeIdentifiers
         }
         DialogGeometry.attach(window, identifier: "PatchWindowController")
     }
+    func presentDocument(_ bytes: Data, title: String, comparison: String, information: String, paths: [String] = [], file: URL? = nil, fileAccess: RepositoryAccessLease? = nil, refreshAvailable: Bool = false, refresh: (() -> Void)? = nil) {
+        model.allowsDocumentEditing = true
+        // The model's readOnly bit fences staging; standalone document editing
+        // has its separate gate. Publish every comparison field as one request.
+        model.readOnly = true
+        documentSession.present(bytes, file: file, access: fileAccess) { [weak self] in
+            guard let self else { return }
+            self.model.comparisonTitle = comparison; self.model.readOnlyInformation = information
+            self.model.paths = paths; self.model.refreshAvailable = refreshAvailable; self.model.customRefresh = refresh
+            self.window?.title = title
+        }
+    }
     func windowWillClose(_ notification: Notification) {
         flashGeneration += 1; window?.contentView?.layer?.borderWidth = 0
         documentSession.retire(); model.retire()
@@ -116,6 +128,8 @@ import UniformTypeIdentifiers
     private var approvedReplacementText: String?
     private var savedText = ""
     var savedDocumentBytes: Data { savedDocument?.bytes ?? Data() }
+    var refreshReplacementApproved: Bool { approvedReplacementText == document.text }
+    var repositoryAccess: RepositoryAccessLease? { access }
     var requestReplacement: ((Data) -> Void)?
     var requestReload: (([String], Bool) -> Void)?
     var documentChanged: () -> Void = {}
@@ -585,6 +599,14 @@ struct PatchTextView: NSViewRepresentable {
             guard let tag = (sender as? NSMenuItem)?.tag, let action = NSTextFinder.Action(rawValue: tag) else { return }
             find(action)
         }
+        @objc func applyPatchFile(_ sender: NSMenuItem) {
+            guard let owner = window?.delegate as? PatchWindowController, sender.representedObject as? String == owner.documentSession.documentIdentity.uuidString else { return }
+            owner.documentSession.applyPatch()
+        }
+        @objc func unifiedSettings(_ sender: NSMenuItem) {
+            guard let owner = window?.delegate as? PatchWindowController, sender.representedObject as? String == owner.documentSession.documentIdentity.uuidString else { return }
+            owner.documentSession.showSettings()
+        }
         @objc func showFind(_ sender: Any?) { find(.showFindInterface) }
         override func menu(for event: NSEvent) -> NSMenu? {
             guard let coordinator else { return super.menu(for: event) }
@@ -598,6 +620,12 @@ struct PatchTextView: NSViewRepresentable {
             let print = NSMenuItem(title: "Print…", action: #selector(printPatch(_:)), keyEquivalent: "")
             print.target = self; print.image = MenuPresentationSettings.applicationContextIcons() ? NSImage(systemSymbolName: "printer", accessibilityDescription: "Print") : nil
             menu.addItem(print)
+            if coordinator.model.allowsDocumentEditing, let owner = window?.delegate as? PatchWindowController {
+                for (title, selector, icon) in [("Apply Patch…", #selector(applyPatchFile(_:)), MenuIcon.patch), ("Unified Diff Settings…", #selector(unifiedSettings(_:)), .settingsUnifiedDiff)] {
+                    let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self; item.image = icon.contextImage()
+                    item.representedObject = owner.documentSession.documentIdentity.uuidString; item.isEnabled = coordinator.model.canFind; menu.addItem(item)
+                }
+            }
             menu.addItem(.separator())
             if !coordinator.model.readOnly {
                 for (title, selector, enabled) in [("selected hunks", #selector(Coordinator.hunks(_:)), coordinator.model.canApplyHunks), ("selected lines", #selector(Coordinator.lines(_:)), coordinator.model.canApplyLines)] {

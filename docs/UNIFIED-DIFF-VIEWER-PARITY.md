@@ -454,3 +454,46 @@ file grants, App Store execution and full UDiff layout/accessibility acceptance
 remain open. In-flight writes may finish after a forced close; their late UI
 result is suppressed. This batch does not add Apply Patch routing or certify the
 dialog complete. Earlier read-only/native-Find descriptions document older states.
+
+## Apply Patch, Settings and comparison replacement — October 15, 2026
+
+The standalone document's File/context menus now expose **Apply Patch…** and
+**Unified Diff Settings…** with the existing source artwork. Save remains visible
+and disabled during owned work/sheets. Commands recheck the focused owner;
+context actions also expire when their captured document identity changes.
+
+Apply Patch follows `MainWindow.cpp` `ID_FILE_APPLYPATCH`: a named patch is passed
+to the existing TurtleGitMerge review/apply workflow using its saved file, not
+unsaved editor text. A generated comparison uses its immutable loaded bytes,
+the native equivalent of TortoiseProc's read-only temporary patch in
+`AppUtils.cpp` `StartShowUnifiedDiff`/`StartUnifiedDiffViewer`. A genuinely empty,
+unnamed document uses the workflow's patch-file chooser. Target selection and
+better-target detection retain their existing permission boundaries. Opening
+review does not apply changes; the review window owns the subsequent Apply.
+The originating patch, preferences, Git engine and retained file/repository
+permissions are captured. Closing the UDiff owner during preparation cancels
+that preparation and fences late review presentation. A prepared review is
+independent, as in the source's detached Merge handoff.
+
+Settings opens the existing native settings controller directly on **Unified
+Diff**, using the owning preferences and a global-only settings context. Its
+sheet locks document actions until dismissal. The settings navigator's optional
+initial-page argument defaults to General for existing callers.
+
+Standalone comparison producers now publish bytes, title, comparison labels,
+paths, information and Refresh closure through one owned replacement request.
+While an unsaved-change question is active, newer requests replace the pending
+request; Cancel retains every field of the displayed document. A successful
+Save or Don’t Save publishes only the latest request. Cancelled Save As also
+retains the old context. Replacements clear obsolete saved-file identities and
+retain a supplied source file's existing grant where applicable (Send Mail).
+Refresh callbacks capture the document identity so an older read cannot replace
+a different document opened in the same window. Embedded/Commit previews keep
+their separate presentation paths.
+
+The connected native evidence, including an actual saved-patch review/apply in a
+private working tree, is recorded in [handoff QA](qa/unified-handoffs-2026-10-15.json).
+This advances the previous batch's Apply Patch and replacement-metadata gaps.
+Physical menu/panel gestures, all Settings Apply/font/palette transactions,
+full producer-specific timing races, signed grants/App Store execution and
+complete UDiff parity remain unverified. No dialog is certified complete.

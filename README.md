@@ -267,3 +267,8 @@ Standalone [Unified Diff documents](docs/UNIFIED-DIFF-VIEWER-PARITY.md#editable-
 support native editing/Undo, Open, Save/Save As, unsaved-change decisions and the
 source-style bottom Find bar. Editing a patch document does not stage or apply
 its changes to a repository.
+
+Unified Diff's Apply Patch command opens TurtleGitMerge review for the saved
+patch or loaded generated comparison; unsaved editor text is excluded until
+saved. Its Settings command opens the UDiff page directly. Comparison replacement
+keeps the document and its labels/paths together through unsaved-change decisions.

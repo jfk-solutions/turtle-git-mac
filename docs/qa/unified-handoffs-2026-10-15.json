@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "f11b19ea",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseUDiff/MainWindow.cpp:ID_FILE_APPLYPATCH / ID_FILE_SETTINGS",
+    "src/TortoiseProc/AppUtils.cpp:StartShowUnifiedDiff and StartUnifiedDiffViewer"
+  ],
+  "scope": [
+    "Source saved-file Apply Patch handoff, immutable loaded generated patch equivalent to upstream read-only temporary file, empty unnamed file chooser, target permissions and actual existing Merge review/apply",
+    "Owned Settings sheet opens UDiff appearance page directly with private/owning preferences and global-only context",
+    "Transactional bytes/title/comparison/paths/info/Refresh publication for reused standalone windows",
+    "Latest request accepted through an unsaved-change question; Cancel and cancelled Save As retain current metadata/source identity; changed source clears prior save target",
+    "Refresh document-identity checks; source file/grant adoption for Send Mail",
+    "Persistent disabled document menu commands and focused/expired context action guards"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/unified-handoffs-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/unified-handoffs-snapshot-build.log",
+      "exit": 0,
+      "reason": "Source AppUtils inspection confirmed generated comparisons use read-only temporary patch files; native handoff retains immutable loaded bytes instead of requiring another file choice."
+    }
+  ],
+  "core": "No Core changes or Core suite repetition; native model/controller, settings initial-page support and caller integration only.",
+  "native": {
+    "runner": "scripts/test-unified-document-family.py",
+    "new_fixture": "docs/qa/unified-handoffs-native-2026-10-15.swift",
+    "log": "build/qa/unified-handoffs-native.log",
+    "exit": 0,
+    "cases": 6,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "retained": [
+      "docs/qa/unified-document-native-2026-10-15.swift",
+      "docs/qa/partial-patch-native-2026-10-13.swift"
+    ],
+    "exact_checks": [
+      "An edited file retains every displayed context field while B/C replacements await a single decision; Cancel keeps source identity/file URL and edits",
+      "A second replacement decision publishes only C bytes/title/info/path and Refresh callback, detaching the prior save destination",
+      "Cancelled Save As during replacement preserves text, dirty state, identity and window title",
+      "Actual settings controller/heading selects Unified Diff with global-only context, locks owner/menu commands and delays queued replacement; dismissal/cancelled Save preserves patch/preferences",
+      "Focused menu refuses background Apply Patch; saved-file handoff opens actual prepared review using disk bytes despite modified editor text",
+      "Opening review does not mutate target; subsequent WorkingTreePatchWindowModel.apply produces the saved patch result while preserving HEAD/index/source patch",
+      "A context Apply Patch command captured before document replacement is refused",
+      "Generated patch review uses loaded immutable bytes despite edits, with no file chooser; genuinely empty unnamed document invokes file chooser",
+      "Forced owner close while target selection awaits a controlled reply cancels workflow and refuses late prepared review",
+      "Retained document/Undo/encoding/Find/read-retirement and actual partial-stage/hunk-unstage checks pass with both engines"
+    ],
+    "panels": "File/target choices and replacement decisions injected; actual Settings sheet/page and actual private working-tree review/apply exercised. Physical popup/panel/typing gestures not established.",
+    "receiver_pids": [
+      29271,
+      29289,
+      29622,
+      29777,
+      29790,
+      30119
+    ],
+    "all_receiver_pids_absent": true,
+    "failure_repairs": "No failing native run in this batch."
+  },
+  "ci": {
+    "last_checked_run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38769002674",
+    "state": "Pending for previous commit when inspected; preceding run38766386937 remained active. No full hosted pass claimed.",
+    "addition": "CI UDiff step runs document and handoff cases with both engines; retained partial case remains in existing reference groups."
+  },
+  "limitations": [
+    "No signed sandbox/file grants/App Store/Finder acceptance",
+    "No exhaustive physical menu/panel, keyboard or VoiceOver acceptance",
+    "Settings initial page/lock/dismissal tested; all Apply/font/palette interactions and arbitrary page navigation not newly exercised",
+    "Producer-specific live Git read interleavings beyond the session/native cases remain unverified",
+    "Existing external-viewer templates and full UDiff/search/encoding parity remain incomplete",
+    "No new screenshot; previous light/dark UDiff captures remain applicable to unchanged text/Find presentation",
+    "No dialog certified complete"
+  ]
+}

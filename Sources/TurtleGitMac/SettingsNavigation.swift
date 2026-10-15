@@ -51,11 +51,11 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var hooks: HookSettingsModel?
     private var delegateProxy: SettingsWindowDelegate?
     private var updating = false
-    init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false, preferences: UserDefaults = .standard, smtpCredentials: any SMTPCredentialStore = SMTPKeychainStore()) {
+    init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false, preferences: UserDefaults = .standard, initialPage: SettingsPageID = .general, smtpCredentials: any SMTPCredentialStore = SMTPKeychainStore()) {
         overlayDraft = FinderOverlaySettingsModel(preferences:preferences)
         emailDraft = EmailSettingsModel(preferences:preferences,credentials:smtpCredentials)
         contextMenuDraft = FinderContextMenuSettingsModel(defaults:preferences)
-        self.preferences = preferences; self.workspace = workspace; self.appearance = appearance; self.globalOnly = globalOnly; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
+        self.selected = initialPage; self.preferences = preferences; self.workspace = workspace; self.appearance = appearance; self.globalOnly = globalOnly; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func loadView() {
         view = NSView(); view.setAccessibilityLabel("TurtleGit settings")
@@ -92,7 +92,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             content.heightAnchor.constraint(greaterThanOrEqualToConstant: 640)
         ])
         split.setPosition(220, ofDividerAt: 0)
-        rebuildTree(); show(.general); renderFooter()
+        rebuildTree(); show(selected); renderFooter()
     }
     override func viewDidAppear() {
         super.viewDidAppear()

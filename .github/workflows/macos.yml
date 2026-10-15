@@ -284,7 +284,7 @@ jobs:
       - name: Shared message styles and spelling
         run: python3 scripts/test-message-style-family.py --only styles --only spelling --only font --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Unified Diff editable document workflows
-        run: python3 scripts/test-unified-document-family.py --only document --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+        run: python3 scripts/test-unified-document-family.py --only document --only handoffs --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Git Properties live parent pages and scoped ownership
         run: python3 scripts/test-git-properties-family.py --only parents --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Image native command family

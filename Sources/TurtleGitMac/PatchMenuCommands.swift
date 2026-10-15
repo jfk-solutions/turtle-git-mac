@@ -8,6 +8,7 @@ import TurtleGitCore
 @MainActor final class PatchMenuContext: ObservableObject {
     @Published private(set) var available = false
     @Published private(set) var documentAvailable = false
+    @Published private(set) var documentVisible = false
     @Published private(set) var partialAvailable = false
     @Published private(set) var stageLinesAvailable = false
     @Published private(set) var stageHunksAvailable = false
@@ -46,7 +47,9 @@ import TurtleGitCore
         }
         let enabled = controller.map { !$0.model.retired && !$0.model.busy && !$0.model.confirmingQuit && $0.model.error == nil && $0.window?.attachedSheet == nil } ?? false
         if available != enabled { available = enabled }
-        let document = enabled && controller?.documentSession.enabled == true
+        let visible = controller?.documentSession.enabled == true
+        if documentVisible != visible { documentVisible = visible }
+        let document = enabled && visible
         if documentAvailable != document { documentAvailable = document }
         let partial = controller.map { !$0.model.retired && !$0.model.readOnly } ?? false
         if partialAvailable != partial { partialAvailable = partial }
@@ -67,6 +70,8 @@ import TurtleGitCore
     }
     func copyPatch() { refresh(); guard available else { return }; current?.model.copyPatch() }
     func saveDocument() { refresh(); guard documentAvailable else { return }; current?.documentSession.saveDocument() }
+    func applyPatch() { refresh(); guard documentAvailable else { return }; current?.documentSession.applyPatch() }
+    func showSettings() { refresh(); guard documentAvailable else { return }; current?.documentSession.showSettings() }
     func saveAs() { refresh(); guard available else { return }; current?.model.saveAs() }
     func printDiff() { refresh(); guard available else { return }; current?.model.printDiff() }
     func pageSetup() { refresh(); guard available else { return }; current?.model.pageSetup() }
@@ -86,10 +91,16 @@ struct PatchFileCommands: Commands {
             }
         }
         CommandGroup(after: .saveItem) {
-            if context.documentAvailable { Button { context.saveDocument() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s") }
+            if context.documentVisible { Button { context.saveDocument() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s").disabled(!context.documentAvailable) }
             Button { context.copyPatch() } label: { CommandLabel(title: "Copy Patch", icon: .copy) }.disabled(!context.available)
             Button("Save As…") { context.saveAs() }
                 .keyboardShortcut("s", modifiers: [.command, .shift]).disabled(!context.available)
+            if context.documentVisible {
+                Divider()
+                Button { context.applyPatch() } label: { CommandLabel(title: "Apply Patch…", icon: .patch) }.disabled(!context.documentAvailable)
+                    .help("Review the saved patch file; save document edits first.")
+                Button { context.showSettings() } label: { CommandLabel(title: "Unified Diff Settings…", icon: .settingsUnifiedDiff) }.disabled(!context.documentAvailable)
+            }
         }
         CommandGroup(replacing: .printItem) {
             Button("Page Setup…") { context.pageSetup() }.disabled(!context.available)

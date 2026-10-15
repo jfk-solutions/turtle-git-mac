@@ -293,11 +293,10 @@ final class ApplicationMailContext: @unchecked Sendable {
                     guard let self else { return }
                     if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences) { return }
                     let controller = self.patch ?? PatchWindowController(repository: repository, access: repositoryAccess, preferences: preferences)
-                    controller.model.allowsDocumentEditing = true
-                    controller.model.setReadOnlyDiff(bytes); controller.model.refreshAvailable = false
-                    controller.model.customRefresh = nil; controller.model.comparisonTitle = file.lastPathComponent
-                    controller.model.readOnlyInformation = "Patch document. Save As exports the original bytes until edited."
-                    controller.window?.title = "\(file.lastPathComponent) – Unified Diff – TurtleGit"
+                    let grants = try self.model.fileGrants(for: [file])
+                    let fileAccess = grants.first { $0.contains(file) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) }
+                    controller.presentDocument(bytes, title: "\(file.lastPathComponent) – Unified Diff – TurtleGit", comparison: file.lastPathComponent,
+                        information: "Patch document. Save As exports the original bytes until edited.", file: file, fileAccess: fileAccess)
                     controller.onClosed = { [weak self, weak controller] in if self?.patch === controller { self?.patch = nil; self?.model.objectWillChange.send() } }
                     self.patch = controller
                     if let presentation { presentation(controller) }

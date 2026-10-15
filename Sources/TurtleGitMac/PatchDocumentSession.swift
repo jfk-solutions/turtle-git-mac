@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import Combine
 import TurtleGitCore
 import UniformTypeIdentifiers
 
@@ -24,7 +25,19 @@ import UniformTypeIdentifiers
     private var diskBytes: Data?
     private var working = false, retired = false
     private var generation = 0
+    private(set) var documentIdentity = UUID()
     private var cancellation: OperationCancellation?
+    private struct Replacement { let bytes: Data; let file: URL?; let access: RepositoryAccessLease?; let publish: () -> Void }
+    private var pendingReplacement: Replacement?
+    private var replacing = false
+    private var updates: AnyCancellable?
+    private(set) var reviewWorkflow: ReviewPatchWorkflow?
+    private(set) var settingsWindow: NSWindow?
+    private(set) var settingsNavigation: SettingsNavigationController?
+    private var settingsObserver: NSObjectProtocol?
+    var configureReview: (ReviewPatchWorkflow) -> Void = { _ in }
+    var presentReview: (ReviewPatchWorkflow) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
+
     var askChanges: (NSWindow, @escaping (Decision) -> Void) -> Void = { window, reply in
         let alert = NSAlert(); alert.messageText = "Save changes to this patch before continuing?"
         alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
@@ -59,6 +72,9 @@ import UniformTypeIdentifiers
     }
     init(owner: PatchWindowController) {
         self.owner = owner
+        updates = owner.model.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor [weak self] in self?.pumpReplacement() }
+        }
         owner.model.documentChanged = { [weak self] in self?.owner?.window?.isDocumentEdited = self?.dirty == true }
         owner.model.requestReplacement = { [weak self] bytes in
             Task { @MainActor [weak self] in self?.replace(bytes) }
@@ -73,15 +89,16 @@ import UniformTypeIdentifiers
     var enabled: Bool { !retired && owner?.model.allowsDocumentEditing == true && owner?.model.readOnly == true }
     var dirty: Bool { enabled && owner?.model.documentDirty == true }
     private func launch(_ operation: @escaping (PatchDocumentSession) async -> Void) {
-        guard enabled, !working, let owner, !owner.model.busy, !owner.model.confirmingQuit, owner.window?.attachedSheet == nil else { return }
+        guard enabled, !working, let owner, !owner.model.busy, !owner.model.confirmingQuit, owner.model.error == nil, owner.window?.attachedSheet == nil else { return }
         working = true; Self.activeOperations += 1
         Task {
-            defer { working = false; Self.activeOperations -= 1 }
+            defer { working = false; Self.activeOperations -= 1; pumpReplacement() }
             await operation(self)
         }
     }
     func openDocument() {
         launch { session in
+            session.pendingReplacement = nil
             guard await session.resolveChanges(), let window = session.owner?.window else { return }
             session.owner?.model.busy = true
             let url = await withCheckedContinuation { reply in session.chooseOpen(window) { reply.resume(returning: $0) } }
@@ -92,12 +109,74 @@ import UniformTypeIdentifiers
     }
     func saveDocument(as newFile: Bool = false) { launch { _ = await $0.save(as: newFile) } }
     func requestClose() { launch { if await $0.resolveChanges() { $0.owner?.close() } } }
-    func replace(_ bytes: Data) {
-        launch { session in
-            guard await session.resolveChanges(), let model = session.owner?.model else { return }
-            session.fileURL = nil; session.fileAccess = nil; session.diskBytes = nil
-            model.setReadOnlyDiff(bytes, discardingEdits: true)
+    func replace(_ bytes: Data) { present(bytes, publish: {}) }
+    func present(_ bytes: Data, file: URL? = nil, access: RepositoryAccessLease? = nil, publish: @escaping () -> Void) {
+        guard enabled, !working || replacing else { return }
+        pendingReplacement = Replacement(bytes: bytes, file: file, access: access, publish: publish)
+        pumpReplacement()
+    }
+    private func publish(_ request: Replacement) {
+        guard !retired, let owner else { return }
+        if let file = request.file, GitRuntime.isAppStoreBuild, request.access?.permits(file) != true {
+            owner.model.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return
         }
+        documentIdentity = UUID(); fileURL = request.file; fileAccess = request.access; diskBytes = request.file == nil ? nil : request.bytes
+        owner.window?.representedURL = request.file
+        owner.model.setReadOnlyDiff(request.bytes, discardingEdits: true); request.publish()
+    }
+    private func pumpReplacement() {
+        guard enabled, pendingReplacement != nil, !working, let model = owner?.model,
+              !model.busy, !model.confirmingQuit, model.error == nil, owner?.window?.attachedSheet == nil else { return }
+        if !dirty || model.refreshReplacementApproved {
+            let request = pendingReplacement!; pendingReplacement = nil; publish(request); return
+        }
+        replacing = true
+        launch { session in
+            let accepted = await session.resolveChanges()
+            let latest = session.pendingReplacement; session.pendingReplacement = nil; session.replacing = false
+            if accepted, let latest { session.publish(latest) }
+        }
+    }
+    func applyPatch() {
+        launch { session in
+            guard let owner = session.owner else { return }
+            // Upstream passes m_filename, including its saved on-disk contents,
+            // to TortoiseGitMerge /diff. Unsaved editor text is not substituted.
+            let grants = [owner.model.repositoryAccess, session.fileAccess].compactMap { $0 }
+            // TortoiseProc supplies a read-only temporary patch for generated
+            // comparisons. Its native equivalent is an immutable loaded snapshot.
+            let snapshot = session.fileURL == nil && !owner.model.savedDocumentBytes.isEmpty ? owner.model.savedDocumentBytes : nil
+            let workflow = ReviewPatchWorkflow(file: session.fileURL, target: nil, preferred: owner.model.repository.root,
+                grants: grants, executable: owner.model.repository.executable, preferences: owner.model.appearancePreferences,
+                clipboardBytes: snapshot, title: owner.model.comparisonTitle)
+            session.reviewWorkflow = workflow; owner.model.busy = true
+            workflow.onFinished = { [weak session, weak workflow] in
+                guard let session, session.reviewWorkflow === workflow else { return }
+                session.reviewWorkflow = nil; session.owner?.model.busy = false; session.pumpReplacement()
+            }
+            session.configureReview(workflow); session.presentReview(workflow); workflow.start()
+        }
+    }
+    func showSettings() {
+        guard enabled, !working, let owner, !owner.model.busy, !owner.model.confirmingQuit, owner.model.error == nil, let window = owner.window, window.attachedSheet == nil else { return }
+        let preferences = owner.model.appearancePreferences
+        let workspace = RepositoryModel(startMonitoring: false, initializePreferences: false)
+        let navigation = SettingsNavigationController(workspace: workspace, appearance: AppAppearance(preferences: preferences), globalOnly: true, preferences: preferences, initialPage: .unifiedDiff)
+        let child = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 740), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        child.isReleasedWhenClosed = false; child.contentMinSize = NSSize(width: 980, height: 700)
+        child.title = "Unified Diff Settings – TurtleGit"; child.contentViewController = navigation
+        settingsWindow = child; settingsNavigation = navigation; owner.model.busy = true
+        settingsObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: child, queue: .main) { [weak self, weak child] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.settingsWindow === child else { return }
+                if let child { self.owner?.window?.endSheet(child); child.orderOut(nil) }
+                self.settingsNavigation?.invalidate(); self.settingsNavigation = nil; self.settingsWindow = nil
+                self.owner?.model.busy = false
+                if let token = self.settingsObserver { NotificationCenter.default.removeObserver(token) }; self.settingsObserver = nil
+                self.pumpReplacement()
+            }
+        }
+        window.beginSheet(child)
     }
     func resolveChanges() async -> Bool {
         guard !retired, let owner, !owner.model.busy, let window = owner.window, window.attachedSheet == nil else { return false }
@@ -117,7 +196,7 @@ import UniformTypeIdentifiers
         do {
             let bytes = try await readFile(url, token)
             guard !retired, generation == request, !token.isCancelled else { return }
-            fileURL = url; fileAccess = access; diskBytes = bytes
+            documentIdentity = UUID(); fileURL = url; fileAccess = access; diskBytes = bytes
             owner.model.setReadOnlyDiff(bytes, discardingEdits: true)
             owner.model.refreshAvailable = false; owner.model.customRefresh = nil
             owner.model.comparisonTitle = url.lastPathComponent
@@ -172,6 +251,10 @@ import UniformTypeIdentifiers
     func retire() {
         guard !retired else { return }; retired = true; generation += 1; cancellation?.cancel()
         if let window = owner?.window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.close() }
+        pendingReplacement = nil; updates = nil
+        reviewWorkflow?.cancel(); reviewWorkflow = nil
+        settingsNavigation?.invalidate(); settingsWindow?.close(); settingsNavigation = nil; settingsWindow = nil
+        if let token = settingsObserver { NotificationCenter.default.removeObserver(token) }; settingsObserver = nil
         fileAccess = nil
     }
 }

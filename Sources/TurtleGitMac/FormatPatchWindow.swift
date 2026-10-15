@@ -185,14 +185,14 @@ import TurtleGitCore
             }
         } catch { model.error = error.localizedDescription; return }
         let controller = patch ?? PatchWindowController(repository: model.repository, access: model.access)
-        controller.model.allowsDocumentEditing = true
-        controller.model.setReadOnlyDiff(bytes)
-        controller.model.comparisonTitle = "HEAD → Working tree"
-        controller.model.readOnlyInformation = "Unified diff since HEAD. Right-click to save the patch."
-        controller.model.customRefresh = { [weak model = model, weak controller] in
-            model?.unifiedDiff(onResult: { [weak controller] bytes in controller?.model.setReadOnlyDiff(bytes) })
-        }
-        controller.window?.title = "Unified Diff – TurtleGit"
+        controller.presentDocument(bytes, title: "Unified Diff – TurtleGit", comparison: "HEAD → Working tree",
+            information: "Unified diff since HEAD. Right-click to save the patch.", refreshAvailable: true, refresh: { [weak model = model, weak controller] in
+                guard let controller else { return }; let identity = controller.documentSession.documentIdentity
+                model?.unifiedDiff(onResult: { [weak controller] bytes in
+                    guard let controller, controller.documentSession.documentIdentity == identity else { return }
+                    controller.documentSession.replace(bytes)
+                })
+            })
         controller.onClosed = { [weak self] in self?.patch = nil }
         controller.window?.appearance = window?.appearance; controller.window?.alphaValue = window?.alphaValue ?? 1
         patch = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

@@ -1918,3 +1918,14 @@ before publishing. A capture-only fixture correction does not repeat staging
 or Core checks. No Core algorithm changed in this native document batch.
 See [scope](UNIFIED-DIFF-VIEWER-PARITY.md#editable-documents-file-actions-and-source-find--october-15-2026)
 and [evidence](qa/unified-document-2026-10-15.json).
+
+The UDiff family runner also includes `--only handoffs`. Its new case retains
+comparison metadata through Cancel and cancelled Save As, collapses replacement
+requests to the newest accepted snapshot, checks the actual UDiff Settings
+heading/owner locks and queued replacement, and drives the saved-file Apply Patch
+handoff through a real working-tree apply. Generated loaded bytes and empty
+file-chooser paths are checked separately. Forced closure while target selection
+is pending refuses a late review. See [handoff evidence](qa/unified-handoffs-2026-10-15.json).
+The default grouped checkpoint runs document, partial and handoff cases with both
+engines; affected repairs may use `--only handoffs`. Native-only changes do not
+repeat Core suites.

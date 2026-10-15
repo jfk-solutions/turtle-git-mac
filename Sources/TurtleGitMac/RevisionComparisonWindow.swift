@@ -409,26 +409,23 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                     guard !closed, !token.isCancelled else { return }
                     if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences), !closed, !token.isCancelled {
                         let controller = unifiedWindows[file.path] ?? PatchWindowController(repository: repository, access: access)
-                        controller.model.allowsDocumentEditing = true
-                        controller.model.setReadOnlyDiff(bytes)
-                        controller.model.paths = [file.path]
-                        controller.model.comparisonTitle = "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))"
-                        controller.model.readOnlyInformation = "Read-only unified diff for \(file.path). Right-click to save the patch."
-                        controller.window?.title = "\(file.path) – Unified Diff – TurtleGit"
-                        controller.model.customRefresh = { [weak self, weak controller] in
-                            guard let self, let controller, !self.closed, !controller.model.busy, !controller.model.confirmingQuit else { return }
-                            controller.model.busy = true
-                            let refresh = UUID(), token = OperationCancellation(); self.patchTokens[refresh] = token
-                            Task {
-                                defer { self.patchTokens.removeValue(forKey: refresh); if !self.closed { controller.model.busy = false } }
-                                do {
-                                    try self.checkPatchAccess()
-                                    let bytes = try await self.repository.revisionComparisonPatchData(snapshot, paths: [file.path], cancellation: token)
-                                    guard !self.closed, !token.isCancelled else { return }
-                                    controller.model.setReadOnlyDiff(bytes)
-                                } catch { if !self.closed, !token.isCancelled { controller.model.error = error.localizedDescription } }
-                            }
-                        }
+                        controller.presentDocument(bytes, title: "\(file.path) – Unified Diff – TurtleGit",
+                            comparison: "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))",
+                            information: "Unified diff for \(file.path). Right-click to save the patch.", paths: [file.path], refreshAvailable: true, refresh: { [weak self, weak controller] in
+                                guard let self, let controller, !self.closed, !controller.model.busy, !controller.model.confirmingQuit else { return }
+                                let identity = controller.documentSession.documentIdentity
+                                controller.model.busy = true
+                                let refresh = UUID(), token = OperationCancellation(); self.patchTokens[refresh] = token
+                                Task {
+                                    defer { self.patchTokens.removeValue(forKey: refresh); if !self.closed { controller.model.busy = false } }
+                                    do {
+                                        try self.checkPatchAccess()
+                                        let bytes = try await self.repository.revisionComparisonPatchData(snapshot, paths: [file.path], cancellation: token)
+                                        guard !self.closed, !token.isCancelled, controller.documentSession.documentIdentity == identity else { return }
+                                        controller.documentSession.replace(bytes)
+                                    } catch { if !self.closed, !token.isCancelled { controller.model.error = error.localizedDescription } }
+                                }
+                            })
                         controller.onClosed = { [weak self] in self?.unifiedWindows.removeValue(forKey: file.path) }
                         unifiedWindows[file.path] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
                     }
