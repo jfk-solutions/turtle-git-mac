@@ -2,6 +2,29 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ReferenceBrowserTests: XCTestCase {
+    func testTransportTrackingSelectionPreservesSlashAndByteDistinctNames() {
+        let remotes = ["team", "team/nested", "origin", "café", "cafe\u{301}"]
+        let nested = RemoteTrackingSelection(reference: "refs/remotes/team/nested/topic/雪", remotes: remotes)
+        XCTAssertEqual(nested?.remote, "team/nested"); XCTAssertEqual(nested?.branch, "topic/雪")
+        XCTAssertEqual(RemoteTrackingSelection(reference: "refs/remotes/origin/topic/one", remotes: remotes)?.branch, "topic/one")
+        XCTAssertEqual(RemoteTrackingSelection(reference: "refs/remotes/cafe\u{301}/main", remotes: remotes)?.remote.utf8.map { $0 }, Array("cafe\u{301}".utf8))
+        XCTAssertNil(RemoteTrackingSelection(reference: "refs/heads/origin/topic", remotes: remotes))
+        XCTAssertNil(RemoteTrackingSelection(reference: "refs/remotes/origin-other/topic", remotes: remotes))
+        XCTAssertNil(RemoteTrackingSelection(reference: "refs/remotes/origin/", remotes: remotes))
+        XCTAssertEqual(RemoteTrackingSelection.initialReference(remote: "team/nested", branch: "refs/heads/topic/one"), "refs/remotes/team/nested/topic/one")
+        XCTAssertEqual(RemoteTrackingSelection.initialReference(remote: "origin", branch: "refs/remotes/elsewhere/main"), "refs/remotes/elsewhere/main")
+    }
+    func testTransportSourceBrowserContainsOnlyHeadsAndTags() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["tag", "picker-release"])
+        _ = try await repo.run(["update-ref", "refs/remotes/origin/topic", "HEAD"])
+        _ = try await repo.run(["update-ref", "refs/custom/picker", "HEAD"])
+        let snapshot = try await repo.referenceBrowser(scope: .headsAndTags)
+        XCTAssertTrue(snapshot.references.contains { $0.name.rawValue.hasPrefix("refs/heads/") })
+        XCTAssertTrue(snapshot.references.contains { $0.name.rawValue.hasPrefix("refs/tags/") })
+        XCTAssertTrue(snapshot.references.allSatisfy { $0.name.rawValue.hasPrefix("refs/heads/") || $0.name.rawValue.hasPrefix("refs/tags/") })
+        XCTAssertFalse(snapshot.references.contains { $0.name.rawValue.hasPrefix("refs/remotes/") })
+    }
     func testRemoteResolutionUsesConfiguredOrderAndExactNamespaces() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         // Recent Git refuses creating a remote below another remote's namespace.

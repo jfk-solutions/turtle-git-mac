@@ -247,6 +247,9 @@ enum SynchronizationHistoryOperation: Equatable {
     private(set) var emailWorkflow: SendMailWorkflow?
     private var emailAlert: NSAlert?
     private(set) var branchPicker: ReferenceBrowserWindowController?
+    private var branchPickerRequest: UUID?
+    private var branchPickerCompletion: (() -> Void)?
+    private weak var branchPickerFocus: NSResponder?
     var configureBranchPicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
     var configureHistoryReference: (BranchTagWindowController) -> Void = { _ in }
     private(set) var historyReferenceController: BranchTagWindowController?
@@ -553,6 +556,7 @@ enum SynchronizationHistoryOperation: Equatable {
         model.onBrowseBranch = { [weak self] target in self?.showBranchPicker(target) }
         model.onManageRemotes = { [weak self] in self?.showRemoteSettings() }
         model.comparison.window = window; model.incomingComparison.window = window; window.center()
+        NotificationCenter.default.addObserver(self, selector: #selector(branchPickerSheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         DialogGeometry.attach(window, identifier: "SyncDlg", legacyName: "SyncDlg")
         if model.preferences.bool(forKey: "SyncDialogRandomPos"), Self.placementSequence > 0 {
             let offset = CGFloat(Self.placementSequence % 5) * 30
@@ -609,24 +613,34 @@ enum SynchronizationHistoryOperation: Equatable {
             }
         emailWorkflow = workflow; workflow.start()
     }
+    @objc private func branchPickerSheetEnded() {
+        guard !model.closed, let window, window.attachedSheet == nil, let completion = branchPickerCompletion else { return }
+        branchPickerCompletion = nil; branchPickerRequest = nil; model.choosingBranch = false
+        if let focus = branchPickerFocus { window.makeFirstResponder(focus) }; branchPickerFocus = nil
+        completion()
+    }
     func showBranchPicker(_ target: SynchronizationBranchTarget) {
         guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
-              let owner = window, owner.attachedSheet == nil, branchPicker == nil else { return }
-        owner.makeFirstResponder(nil)
-        let initial = target == .local ? model.localBranch : model.remoteBranch
+              let owner = window, owner.attachedSheet == nil, branchPicker == nil, branchPickerRequest == nil else { return }
+        branchPickerFocus = (owner.firstResponder as? NSTextView).flatMap { $0.isFieldEditor ? $0.delegate as? NSResponder : $0 } ?? owner.firstResponder
+        let request = UUID(), values = [model.localBranch, model.remote, model.remoteBranch].map { GitReferenceName($0) }
+        branchPickerRequest = request
+        let initial = target == .local ? "refs/heads/" + model.localBranch : RemoteTrackingSelection.initialReference(remote: model.remote, branch: model.remoteBranch)
         let child = ReferenceBrowserWindowController(repository: model.repository, access: model.access, initial: initial,
             preferences: model.preferences, scope: target == .local ? .heads : .remotes) { [weak self] reference in
-                guard let self else { return }
-                self.branchPicker = nil; self.model.choosingBranch = false
-                if let reference { self.model.applyBranchSelection(reference, target: target) }
+                guard let self, !self.model.closed, self.branchPickerRequest == request else { return }
+                self.branchPicker = nil
+                self.branchPickerCompletion = { [weak self] in
+                    guard let self, !self.model.closed,
+                          [self.model.localBranch, self.model.remote, self.model.remoteBranch].map({ GitReferenceName($0) }) == values,
+                          let reference else { return }
+                    self.model.applyBranchSelection(reference, target: target)
+                }
+                self.branchPickerSheetEnded()
             }
         branchPicker = child; model.choosingBranch = true; configureBranchPicker(child.model)
-        child.onClosed = { [weak self, weak child] in
-            guard let self, let child, self.branchPicker === child else { return }
-            self.branchPicker = nil; self.model.choosingBranch = false
-        }
-        guard let window = child.window else { child.abandonPresentation(); branchPicker = nil; model.choosingBranch = false; return }
-        window.alphaValue = owner.alphaValue; owner.beginSheet(window); child.model.load()
+        guard let window = child.window else { branchPicker = nil; branchPickerRequest = nil; model.choosingBranch = false; child.abandonPresentation(); return }
+        window.alphaValue = owner.alphaValue; window.appearance = owner.appearance; owner.beginSheet(window); child.model.load()
     }
     func showRemoteSettings() {
         guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
@@ -770,6 +784,7 @@ enum SynchronizationHistoryOperation: Equatable {
         owner.beginSheet(window); start()
     }
     func windowWillClose(_ notification: Notification) {
+        NotificationCenter.default.removeObserver(self); branchPickerRequest = nil; branchPickerCompletion = nil; branchPickerFocus = nil
         model.invalidate()
         let answer = historyDeletionAnswer; historyDeletionAnswer = nil
         if let alert = historyDeletionAlert { window?.endSheet(alert.window, returnCode: .abort) }
@@ -1459,10 +1474,9 @@ enum SynchronizationHistoryDiff {
             guard let branch = GitReferenceName.removingPrefix("refs/heads/", from: reference), !branch.isEmpty else { return }
             localBranch = branch; reload(selectTracking: true)
         case .remote:
-            guard let name = GitReferenceName.removingPrefix("refs/remotes/", from: reference),
-                  let slash = name.firstIndex(of: "/"), slash != name.startIndex else { return }
-            let branch = String(name[name.index(after: slash)...]); guard !branch.isEmpty else { return }
-            remote = String(name[..<slash]); remoteWasSelected = true; remoteBranch = branch
+            guard let selection = RemoteTrackingSelection(reference: reference, remotes: remotes) else { return }
+            let branch = selection.branch
+            remote = selection.remote; remoteWasSelected = true; remoteBranch = branch
             branchHistory = FetchDialogHistory.inserting(branch, into: branchHistory, atFront: false, caseSensitive: false)
             reload()
         }

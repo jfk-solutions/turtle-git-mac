@@ -9,6 +9,9 @@ import TurtleGitCore
     private(set) var remoteReferenceController: RemoteReferenceWindowController?
     var configureRemoteReferences: (RemoteReferenceWindowController) -> Void = { _ in }
     var presentRemoteReferences: (NSWindow,NSWindow) -> Bool = { owner,child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
+    private var remotePickerRequest: UUID?
+    private var remotePickerCompletion: (() -> Void)?
+    private weak var remotePickerFocus: NSResponder?
     private var closingPreparation = false
     private(set) var progressController: PullProgressWindowController?
     var presentFetchProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
@@ -61,20 +64,41 @@ import TurtleGitCore
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
 
+        NotificationCenter.default.addObserver(self, selector: #selector(remotePickerSheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         DialogGeometry.attach(window, identifier: "FetchWindowController")
     }
+    @objc private func remotePickerSheetEnded() {
+        guard let window, window.attachedSheet == nil, !model.closed, let completion = remotePickerCompletion else { return }
+        remotePickerCompletion = nil; remotePickerRequest = nil; model.browsing = false
+        if let focus = remotePickerFocus { window.makeFirstResponder(focus) }; remotePickerFocus = nil
+        completion()
+    }
     func showRemoteReferences(_ remote: String) {
-        guard !model.closed, remoteReferenceController == nil, let owner = window, owner.attachedSheet == nil else { model.browsing = false; return }
-        let child = RemoteReferenceWindowController(repository: model.repository,access: model.repositoryAccess,remote: remote) { [weak self] branch in
-            guard let self else { return }; self.remoteReferenceController = nil
-            let live = !self.model.closed; self.model.browsing = false
-            if live, self.model.currentRemoteDestination.utf8.elementsEqual(remote.utf8), let branch { self.model.selectBranch(branch) }
+        guard !model.closed, remoteReferenceController == nil, remotePickerRequest == nil, let owner = window, owner.attachedSheet == nil else {
+            if remotePickerRequest == nil { model.browsing = false }; return
+        }
+        let request = UUID(), branch = model.options.branch, arbitrary = model.options.arbitraryURL, allRemotes = model.options.allRemotes
+        remotePickerRequest = request; model.browsing = true
+        remotePickerFocus = (owner.firstResponder as? NSTextView).flatMap { $0.isFieldEditor ? $0.delegate as? NSResponder : $0 } ?? owner.firstResponder
+        let child = RemoteReferenceWindowController(repository: model.repository, access: model.repositoryAccess, remote: remote, preferences: model.settingsPreferences) { [weak self] choice in
+            guard let self, self.remotePickerRequest == request, !self.model.closed else { return }
+            self.remoteReferenceController = nil
+            self.remotePickerCompletion = { [weak self] in
+                guard let self, !self.model.closed, self.model.currentRemoteDestination.utf8.elementsEqual(remote.utf8),
+                      self.model.options.branch.utf8.elementsEqual(branch.utf8), self.model.options.arbitraryURL == arbitrary,
+                      self.model.options.allRemotes == allRemotes, let choice else { return }
+                self.model.selectBranch(choice)
+            }
+            self.remotePickerSheetEnded()
         }
         child.makeSSH = model.sshSettings.capture(); configureRemoteReferences(child); remoteReferenceController = child
-        guard let window = child.window, presentRemoteReferences(owner,window) else { child.close(); return }
+        guard let window = child.window else { child.close(); return }
+        window.alphaValue = owner.alphaValue; window.appearance = owner.appearance
+        guard presentRemoteReferences(owner, window) else { child.close(); return }
         child.model.refresh()
     }
     func windowWillClose(_ notification: Notification) {
+        NotificationCenter.default.removeObserver(self); remotePickerRequest = nil; remotePickerCompletion = nil; remotePickerFocus = nil
         model.invalidate(); remoteReferenceController?.close(); remoteReferenceController = nil
         let fetch = fetchProgressController; fetchProgressController = nil; fetch?.close()
         let pull = progressController; progressController = nil; pull?.close()
@@ -266,6 +290,7 @@ import TurtleGitCore
         }
     }
     func cancelPreparation() { if preparing { preparationNeedsRetry = true }; metadataToken?.cancel(); remoteToken?.cancel() }
+    var settingsPreferences: UserDefaults { preferences }
     var repositoryAccess: RepositoryAccessLease? { access }
     var currentRemoteDestination: String { options.arbitraryURL ? url : options.remote }
     var onBrowseRemote: ((String) -> Void)?

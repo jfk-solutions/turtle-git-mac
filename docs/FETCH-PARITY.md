@@ -405,3 +405,10 @@ Normal close cancels and then closes; forced closure fences late publication.
 See [the shared preparation/ownership scope](PUSH-PARITY.md). The Debug build and six grouped native cases passed after the Core Push
 cancellation repair; see [batch evidence](qa/transport-preparation-2026-10-14.json).
 Physical/source/signed/App Store acceptance remains open.
+
+The October 15 [transport reference selection family](PUSH-PARITY.md) adds owned
+request identity, captured remote/branch/mode validation and post-sheet publication
+to Pull/Fetch's Select Remote Ref window. Child preferences/appearance/visibility
+now follow the options owner; failed or retired presentations cannot retain browse
+state or apply a late branch. Existing source query/typing/F5 semantics are retained.
+Physical authenticated and signed acceptance remains open.

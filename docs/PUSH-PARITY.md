@@ -415,3 +415,48 @@ caller branch/remote presets. See [the actual results and failure history](qa/tr
 keyboard/default focus, live transport servers, signed repository/script grants
 or App Store acceptance. Retained values are guarded publication, not an atomic
 snapshot against every external Git/configuration writer.
+
+## Connected transport reference selection — October 15, 2026
+
+Push now uses the shared native reference tree/list for both source and destination,
+matching PushDlg.cpp's gPickRef_Head|gPickRef_Tag source scope and gPickRef_Remote
+destination scope. The previous reduced flat SwiftUI chooser is removed. Source
+choices keep tags canonical and use the existing local-branch normalization.
+Destination selection updates the configured remote and branch and clears arbitrary
+URL/all-remotes mode, as in the source handoff. The transport lookup recognizes
+slash-containing remote names with the longest configured prefix and preserves
+branch slashes and byte-distinct names. This does not change the general reference
+browser's configured-order remote lookup policy.
+
+Browse References, Log and RefLog now share one owned Push selection request.
+The children inherit private preferences and hidden-owner visibility; Log starts
+at the current source with working-tree rows disabled. Root consumers configure
+its existing repository-bound revision commands through the shared selectable-Log
+helper. The source parent remains blocked from submission while a child owns its
+draft. A response is applied only after sheet closure, with original input focus
+restored when still available. Changed source/destination/remote/mode drafts,
+replaced requests and retired owners reject late results. Cancel preserves the
+source. Forced parent closure dismisses children and cancels their readers while
+independent process/grant/Quit ownership remains until settlement.
+
+Pull/Fetch remote selection and Sync branch browsing now use the same post-sheet
+publication rule and captured-input checks. Pull/Fetch selectors inherit parent
+preferences, appearance and visibility, including owned SSH child prompts. A
+rejected presentation clears its browse state without disturbing another active
+request. Sync initially selects the fully qualified remote/branch; its selected
+remote uses the configured-prefix resolver instead of splitting at the first
+slash. Source RefLog and remote selectors retain their existing first-choice,
+editable branch and F5 semantics.
+
+This ports the connected selection family. It does not submit a Push/Pull/Fetch
+merely by choosing a reference and does not certify transport progress, physical
+menus/typing/VoiceOver, authenticated servers or signed sandbox/App Store behavior.
+
+The Debug build, 22 affected Core reference-browser checks and four grouped native
+cases passed on system and bundled Git. New native assertions exercise actual
+shared source/destination acceptance, private Log/RefLog children, stale draft
+rejection in all four consumers, a real paused reference-reader process and forced
+owner closure with process reaping. The selection-only scenarios retain HEAD,
+index and configuration bytes and submit no transport. Existing metadata retry,
+source replacement, normal/forced Close/Quit and post-cancel hook ownership also
+passed. All four receivers were reaped. See [transport picker evidence](qa/transport-pickers-2026-10-15.json).

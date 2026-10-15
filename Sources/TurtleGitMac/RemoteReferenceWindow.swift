@@ -18,11 +18,11 @@ import TurtleGitCore
     private var accepted: String?
     private var closed = false
     var makeSSH: SSHTransportFactory?
-    init(repository: GitRepository, access: RepositoryAccessLease?, remote: String, completion: @escaping (String?) -> Void) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, remote: String, preferences: UserDefaults = .standard, completion: @escaping (String?) -> Void) {
         model = RemoteReferenceWindowModel(repository: repository, access: access, remote: remote); self.completion = completion
         let window = RemoteReferenceNativeWindow(contentRect: .init(x: 0,y: 0,width: 640,height: 155), styleMask: [.titled,.closable,.resizable], backing: .buffered, defer: false)
         window.title = "Select remote ref – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 480,height: 155)
-        window.contentViewController = NSHostingController(rootView: RemoteReferenceDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: RemoteReferenceDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.model = model
         model.close = { [weak self] in self?.dismiss(nil) }
         model.accept = { [weak self] value in self?.dismiss(value) }
@@ -30,7 +30,7 @@ import TurtleGitCore
             let coordinator = self?.makeSSH?(); defer { coordinator?.close() }
             if let coordinator { coordinator.present = { [weak self] prompt in
                 guard let owner = self?.window, owner.attachedSheet == nil, let child = prompt.window else { return false }
-                owner.beginSheet(child); return true
+                child.alphaValue = owner.alphaValue; child.appearance = owner.appearance; owner.beginSheet(child); return true
             } }
             return try await repository.remoteReferenceChoices(remote: remote, cancellation: token, prepareTransport: coordinator?.preparation)
         }

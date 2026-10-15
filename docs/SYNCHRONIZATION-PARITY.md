@@ -1614,3 +1614,13 @@ The Debug build, eight focused Stash Core checks and six grouped Sync/hooks/repl
 native receivers passed with system and bundled Git. All receivers were reaped.
 See [results and limits](qa/sync-replay-hooks-2026-10-14.json). Physical approval/failure/kill sheets, signed script/security scopes,
 transport servers and complete Synchronization/Rebase parity remain open.
+
+### Transport branch selection — October 15, 2026
+
+The shared [transport reference family](PUSH-PARITY.md) now initializes remote
+browsing with the complete refs/remotes/<remote>/<branch> name. Selection identifies
+the longest configured remote prefix, so a remote such as team/nested can select
+branch topic/one correctly. Local/remote/source draft changes reject a stale result.
+Request ownership and the choosing-branch gate last until the picker sheet ends;
+then focus and the selected branch are applied once. Forced retirement clears the
+request before abandoning its child. Physical/signed acceptance remains open.

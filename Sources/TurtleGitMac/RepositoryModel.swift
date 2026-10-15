@@ -1485,24 +1485,25 @@ import UniformTypeIdentifiers
         }
         revisionGraphWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func configureSelectableLog(_ log: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        configureLogMenus(log, repository: repository, access: access)
+        configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
+        log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+        log.onHistoryPush = { [weak self] revision, all in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: all) }
+        log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
+        log.onCreateReference = { [weak self] tag, revision in self?.showReference(repository: repository, access: access, isTag: tag, revision: revision) }
+        log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+        log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
+        log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
+        log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
+        log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
+        log.onCherryPick = { [weak self] revisions in self?.showRebase(repository: repository, access: access, cherryPick: revisions) }
+        log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
+        log.onRevertRevisions = { [weak self, weak log] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: log?.window) }
+    }
     private func configureRevisionComparisonInteractions(_ model: RevisionComparisonWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
         model.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
-        model.configureLogPicker = { [weak self] log in
-            self?.configureLogMenus(log, repository: repository, access: access)
-            self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
-            log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
-            log.onHistoryPush = { [weak self] revision, all in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: all) }
-            log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-            log.onCreateReference = { [weak self] tag, revision in self?.showReference(repository: repository, access: access, isTag: tag, revision: revision) }
-            log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
-            log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
-            log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
-            log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
-            log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
-            log.onCherryPick = { [weak self] revisions in self?.showRebase(repository: repository, access: access, cherryPick: revisions) }
-            log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
-            log.onRevertRevisions = { [weak self, weak log] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: log?.window) }
-        }
+        model.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         model.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
         model.onSubmoduleLog={ [weak self] checkout,revision in self?.showLog(repository:GitRepository(root:checkout,executable:repository.executable),access:access,paths:[],endRevision:revision,selectedRevision:revision) }
         model.onFilesChanged={ [weak self] in
@@ -2477,6 +2478,8 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configurePushInteractions(_ controller: PushWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
+        controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
+        controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         let root = repository.root
         controller.model.onTransportResult = { [weak self] output, _ in
             self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()

@@ -1,7 +1,27 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
-public enum ReferenceBrowserScope: Sendable { case all, heads, remotes }
+public enum ReferenceBrowserScope: Sendable { case all, heads, headsAndTags, remotes }
+/// Remote names may themselves contain slashes. Resolve the longest configured
+/// prefix, preserving the branch and remote as literal Git names.
+public struct RemoteTrackingSelection: Equatable, Sendable {
+    public let remote: String
+    public let branch: String
+    public init?(reference: String, remotes: [String]) {
+        guard let name = GitReferenceName.removingPrefix("refs/remotes/", from: reference) else { return nil }
+        for remote in remotes.sorted(by: { $0.utf8.count > $1.utf8.count }) {
+            if let branch = GitReferenceName.removingPrefix(remote + "/", from: name), !branch.isEmpty {
+                self.remote = remote; self.branch = branch; return
+            }
+        }
+        return nil
+    }
+    public static func initialReference(remote: String, branch: String) -> String {
+        if branch.utf8.starts(with: "refs/remotes/".utf8) { return branch }
+        let name = GitReferenceName.removingPrefix("refs/heads/", from: branch) ?? branch
+        return "refs/remotes/" + remote + "/" + name
+    }
+}
 public enum ReferenceBrowserMergeFilter: String, CaseIterable, Sendable { case all = "All", merged = "Only merged", unmerged = "Only unmerged" }
 public struct BrowserReference: Sendable {
     public let name: GitReferenceName
@@ -94,6 +114,7 @@ extension GitRepository {
         if filter != .all { arguments += [filter == .merged ? "--merged=HEAD" : "--no-merged=HEAD"] }
         if scope == .remotes { arguments.append("refs/remotes/") }
         else if scope == .heads { arguments.append("refs/heads/") }
+        else if scope == .headsAndTags { arguments += ["refs/heads/", "refs/tags/"] }
         let bytes = try run(arguments, cancellation: cancellation).stdout
         let values = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\0")
         var records: [[String]] = []

@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected transport selection family now uses the shared source/destination
+reference browser in Push, private owned Log/RefLog selectors and repository-bound
+commands, plus captured-draft and post-sheet handling across Push/Pull/Fetch/Sync.
+Remote and branch names containing slashes retain their configured namespaces.
+See [Push parity](PUSH-PARITY.md). Physical, authenticated-server and signed/App
+Store acceptance remain open.
+
 The connected file-history comparison family now reconstructs renamed endpoint
 paths for Follow renames, shares direct native comparison preparation across
 primary/picker Logs, preserves numbered-parent and live working content, and

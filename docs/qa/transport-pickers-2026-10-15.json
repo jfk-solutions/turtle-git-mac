@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-15",
+  "scope": "Connected Push, Pull/Fetch and Synchronization reference-selection workflows",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/PushDlg.cpp: OnBnClickedButtonBrowseSourceBranch and OnBnClickedButtonBrowseDestBranch",
+      "src/TortoiseProc/SelectRemoteRefDlg.cpp: Refresh, editable remote branch, F5 and OK",
+      "src/TortoiseProc/SyncDlg.cpp: local/remote branch browsing",
+      "src/Resources/TortoiseProcENG.rc: IDD_PUSH, IDD_PULLFETCH, IDD_SYNC, IDD_SELECTREMOTEREF"
+    ]
+  },
+  "implementation": [
+    "Push source/destination now use full shared native reference browser, scoped to heads+tags or remote refs; original native menus/icons/context commands retained",
+    "Canonical tag/local-source normalization; byte-aware longest configured remote prefix for Push/Sync transport selection, preserving slash-containing remote and branch names",
+    "Single captured Push draft/request shared by reference, source Log and source RefLog pickers; inherited private preferences/hidden-owner alpha, source-revision Log start with working rows disabled",
+    "Shared repository-bound selectable-Log command configuration reused by Push and Changed Files; source RefLog uses existing selection-only behavior",
+    "Picker state and submission blocking last until sheet completion; input focus restored and result applied once only if captured source/destination/remote/mode still matches",
+    "Pull/Fetch remote selector inherits preferences/appearance/alpha, including SSH prompt ownership; request/draft identity rejects late or changed branch selection; rejected presentation drains browse state",
+    "Sync branch picker uses qualified initial remote ref, post-sheet application and captured source/remote/branch input checks",
+    "Forced parent retirement clears callbacks before abandoning children; reference-reader cancellation retains process/grant/Quit accounting until actual settlement"
+  ],
+  "validation": {
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/transport-pickers-build-2026-10-15.log"
+    },
+    "core": {
+      "filter": "ReferenceBrowserTests",
+      "tests": 22,
+      "failures": 0,
+      "log": "build/qa/transport-pickers-core-2026-10-15.log",
+      "coverage": [
+        "Heads-and-tags scope excludes remote/custom refs",
+        "Nested and byte-distinct configured remote/branch names, invalid namespaces and initial canonical refs",
+        "Existing all-namespace metadata, configured-order general browser lookup, cancellation, exact Unicode names, branch/tag and tracking regressions"
+      ]
+    },
+    "native": {
+      "cases": [
+        "remote-dialogs",
+        "transport-preparation"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "Debug TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+      ],
+      "unique_case_engine_pairs": 4,
+      "exit_code": 0,
+      "log": "build/qa/transport-pickers-native-2026-10-15.log",
+      "receivers_reaped": [
+        17178,
+        17398,
+        17618,
+        17831
+      ],
+      "coverage": [
+        "Actual Push scoped source tag and remote branch acceptance, slash remote resolution and blocked submission",
+        "Private source-scoped Log old-commit acceptance, selection-only RefLog Cancel and inherited child alpha",
+        "Changed Push, Pull/Fetch and Sync draft rejection, post-sheet owner state and Sync selected namespace",
+        "Real started reference reader, forced Push parent retirement, reader process absent after cancellation and operation count drained",
+        "Private selection-only HEAD/index/config invariants, existing local Add/collision, remote editable choice/refresh and presentation rejection",
+        "Existing transport preparation snapshot/retry/source replacement, normal/forced Close/Quit and Push post-cancel hook ownership"
+      ]
+    },
+    "site": {
+      "status": "passed",
+      "log": "build/qa/transport-pickers-site-final-2026-10-15.log",
+      "exit_code": 0,
+      "documents": 216,
+      "unresolved_fragments": []
+    },
+    "visual": "Existing shared browser and transport dialog layouts reused. No new screenshot or complete physical menu/focus/VoiceOver claim."
+  },
+  "remaining": [
+    "Physical typing/focus/menu/default-button/VoiceOver acceptance across the transport dialogs",
+    "Actual authenticated remote/SSH prompt gestures, real transport throughput/progress behavior",
+    "Signed sandbox/script/repository grants, Finder and App Store acceptance",
+    "Full upstream dialog/control/command parity remains incomplete"
+  ],
+  "hosted_snapshot": {
+    "head": "883d19c4f",
+    "macos_run": 38688088886,
+    "macos_status": "in_progress",
+    "started": "2026-10-15T05:40:52Z",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38688088886"
+  },
+  "preserved_unrelated_wip": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}
