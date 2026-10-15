@@ -5,7 +5,7 @@ public enum DiffToolFailure: LocalizedError {
     case application, arguments, association
     public var errorDescription: String? {
         switch self {
-        case .application: return "Choose a diff application using its full .app path."
+        case .application: return "Choose an application bundle or executable file using its full path."
         case .arguments: return "The arguments contain an unfinished quote, escape or NUL character."
         case .association: return "Use a unique file extension (such as .swift) or filename without folder separators."
         }
@@ -17,8 +17,12 @@ public struct DiffToolProgram: Codable, Equatable, Sendable {
     public var arguments = "%base %mine"
     public var bookmark: Data?
     public init() {}
+    public var isApplicationBundle: Bool { (applicationPath as NSString).pathExtension.lowercased() == "app" }
     public var valid: Bool {
-        !enabled || (applicationPath.hasPrefix("/") && !applicationPath.contains("\0") && (applicationPath as NSString).pathExtension.lowercased() == "app" && (try? Self.argumentTokens(arguments)) != nil)
+        !enabled || (applicationPath.hasPrefix("/") && !applicationPath.contains("\0") &&
+            (isApplicationBundle || bookmark != nil || FileManager.default.isExecutableFile(atPath: applicationPath) &&
+                (try? URL(fileURLWithPath: applicationPath).resolvingSymlinksInPath().resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true) &&
+            (try? Self.argumentTokens(arguments)) != nil)
     }
     /// Parse before substitution: filenames and titles always remain one argument.
     /// No shell expansion, command substitution or environment evaluation occurs.
@@ -102,6 +106,9 @@ public struct MergeToolPreferences: Codable, Equatable, Sendable {
     public var blockWhileMerging = false
     public var trustExitCode = false
     public init() { var value = DiffToolProgram(); value.arguments = "%base %theirs %mine %merged"; program = value }
+    public var supportsTrustedExit: Bool {
+        (program.enabled && !program.isApplicationBundle) || associations.contains { $0.program.enabled && !$0.program.isApplicationBundle }
+    }
     public var valid: Bool { program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.normalizedPattern)).count == associations.count }
     public static func load(from defaults: UserDefaults = .standard) -> Self {
         guard let data = defaults.data(forKey: "TurtleGit.MergeTools"), let value = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }

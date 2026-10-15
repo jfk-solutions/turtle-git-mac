@@ -2,6 +2,10 @@ import AppKit
 import TurtleGitCore
 
 @main struct ExternalMergeLifecycleVerification {
+    struct Failure: Error, CustomStringConvertible { let description:String }
+    static func require(_ value:Bool,_ message:String) throws { if !value { throw Failure(description:message) } }
+    @MainActor static func wait(line:Int = #line,_ ready:()->Bool) async throws { for _ in 0..<1500 { if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(description:"Executable tools did not settle at \(line)") }
+    @MainActor static func owner()->NSWindow { let w=NSWindow(contentRect:NSRect(x:0,y:0,width:500,height:250),styleMask:[.titled,.closable],backing:.buffered,defer:false);w.isReleasedWhenClosed=false;w.orderFront(nil);return w }
     @MainActor static func main() async {do {try await verify()}catch{fputs("FAIL: \(error)\n",stderr);exit(1)}}
     @MainActor static func verify() async throws {
         func require(_ value:Bool,_ message:String)throws{if !value{throw NSError(domain:"ExternalMergeNative",code:1,userInfo:[NSLocalizedDescriptionKey:message])}}
@@ -48,6 +52,95 @@ import TurtleGitCore
         let stable=try Data(contentsOf:index);var staleRejected=false
         do{try await resolution.resolveIfConfirmed(repository:repo,entry:input.entry,path:path)}catch{staleRejected=true}
         try require(staleRejected && (try Data(contentsOf:index))==stable,"Stale captured stages accepted")
-        print("External merge: synchronous/asynchronous wait cleanup, caller-close and task cancellation, late termination and confirmation fencing, No default/no index change, exact working-byte Mark Resolved and stale-stage refusal passed. Mock tool completion; no external app killed or launched. Owned windows closed.")
+        try await executableTools(repo:repo,root:root,path:path)
+        print("External merge: synchronous/asynchronous wait cleanup, caller-close and task cancellation, late termination and confirmation fencing, No default/no index change, exact working-byte Mark Resolved and stale-stage refusal passed. Original observation checks use mock completion; the added executable family launches owned private CLI helpers. Owned windows closed.")
     }
+    @MainActor static func executableTools(repo:GitRepository,root:URL,path:String) async throws {
+        let script=root.appendingPathComponent(".git/qa-merge-tool"),marker=root.appendingPathComponent(".git/qa-tool-started"),release=root.appendingPathComponent(".git/qa-tool-release")
+        let suite="TurtleGit.CLITools.Native."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
+        defer { prefs.removePersistentDomain(forName:suite) }
+        var windows:[NSWindow]=[], reapedPIDs:[Int32]=[]
+        defer { if ExternalToolProcesses.activeRequests == 0 { DiffToolApplication.discardAll(); MergeToolApplication.discardAll() } }
+        defer { windows.forEach{$0.close()};try? FileManager.default.removeItem(at:script);try? FileManager.default.removeItem(at:marker);try? FileManager.default.removeItem(at:release) }
+        func program(_ body:String) throws {
+            try Data(("#!/bin/sh\n"+body+"\n").utf8).write(to:script)
+            try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:script.path)
+        }
+        func conflict() async throws -> ExternalMergeInputs {
+            _=try await repo.run(["reset","--hard","HEAD"])
+            _=try await repo.run(["merge","--no-edit","side"],successfulExitCodes:0...1)
+            return try await repo.externalMergeInputs(path:path)
+        }
+        func descendants(_ view:NSView)->[NSView] { [view]+view.subviews.flatMap(descendants) }
+        var settings=MergeToolPreferences();settings.program.enabled=true;settings.program.applicationPath=script.path;settings.blockWhileMerging=true;settings.trustExitCode=true
+        let w=owner();windows.append(w)
+        do {
+            let first=try await conflict()
+            try program(#"/bin/cat "$2" > "$4"; exit 0"#)
+            let launched=try await MergeToolApplication.open(repository:repo,access:nil,path:path,alternate:false,owner:w,preferences:settings,expectedEntry:first.entry)
+            let remaining=try await repo.conflicts(),staged=try await repo.run(["show",":"+path]).stdout
+            try require(launched && remaining.isEmpty && staged==first.theirs,"Trusted zero CLI did not resolve exact result")
+            let second=try await conflict(),unmerged=try await repo.run(["ls-files","--unmerged","-z"]).stdout
+            try program(#"/bin/cat "$2" > "$4"; exit 7"#)
+            _=try await MergeToolApplication.open(repository:repo,access:nil,path:path,alternate:false,owner:w,preferences:settings,expectedEntry:second.entry)
+            let failedStages=try await repo.run(["ls-files","--unmerged","-z"]).stdout
+            try require(failedStages==unmerged && !failedStages.isEmpty,"Nonzero CLI resolved conflicts")
+            settings.trustExitCode=false
+            try program(#"/bin/cat "$2" > "$4"; exit 0"#)
+            let question=Task { try await MergeToolApplication.open(repository:repo,access:nil,path:path,alternate:false,owner:w,preferences:settings) }
+            try await wait { w.attachedSheet != nil }
+            try await wait { w.attachedSheet?.contentView.map { descendants($0).compactMap{$0 as? NSButton}.contains{$0.title=="No"} } == true }
+            let buttons=descendants(w.attachedSheet!.contentView!).compactMap{$0 as? NSButton}
+            let defaultCell=w.attachedSheet?.defaultButtonCell
+            try require(defaultCell === buttons.first{$0.title=="No"}?.cell,"Untrusted CLI default cell is \(defaultCell?.title ?? "missing")")
+            // AppKit clears displayed keyEquivalent strings; invoke the actual
+            // default control, then verify No leaves all conflict stages intact.
+            (defaultCell?.controlView as? NSButton)?.performClick(nil)
+            _=try await question.value
+            let noStages=try await repo.run(["ls-files","--unmerged","-z"]).stdout
+            try require(noStages==unmerged,"Default No resolved CLI conflict")
+            let accepted=Task { try await MergeToolApplication.open(repository:repo,access:nil,path:path,alternate:false,owner:w,preferences:settings) }
+            try await wait { w.attachedSheet?.contentView.map { descendants($0).compactMap{$0 as? NSButton}.contains{$0.title=="Mark Resolved"} } == true }
+            descendants(w.attachedSheet!.contentView!).compactMap{$0 as? NSButton}.first{$0.title=="Mark Resolved"}!.performClick(nil)
+            _=try await accepted.value
+            let marked=try await repo.conflicts();try require(marked.isEmpty,"Untrusted CLI confirmation failed")
+            // Diff uses the same shell-free executable route and can edit live working bytes.
+            let snapshot=try await repo.revisionFileComparison(from:.revision("HEAD"),to:.workingTree,paths:[path])
+            let document=try await repo.comparisonFile(snapshot,path:path),index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+            try program(#"printf 'edited by CLI\n' > "$2"; exit 0"#)
+            var diff=DiffToolPreferences();diff.program=settings.program;diff.program.arguments="%base %mine";try diff.save(to:prefs)
+            let diffLaunched=try await DiffToolApplication.open(document,root:root,permissions:[],alternate:false,preferences:prefs)
+            try await wait { ExternalToolProcesses.activeRequests==0 }
+            try require(diffLaunched && (try Data(contentsOf:root.appendingPathComponent(path)))==Data("edited by CLI\n".utf8) && (try Data(contentsOf:root.appendingPathComponent(".git/index")))==index,"CLI Diff did not edit original working file safely")
+            // A nonblocking tool outlives its caller; grants and quit lifetime stay owned.
+            _=try await conflict();settings.blockWhileMerging=false
+            try program(#"printf '%s' "$$" > "$5.tmp"; /bin/mv "$5.tmp" "$5"; while [ ! -f "$6" ]; do /bin/sleep 0.05; done; exit 0"#)
+            settings.program.arguments="%base %theirs %mine %merged \"%wtroot/.git/qa-tool-started\" \"%wtroot/.git/qa-tool-release\""
+            let nonblocking=owner();windows.append(nonblocking)
+            _=try await MergeToolApplication.open(repository:repo,access:nil,path:path,alternate:false,owner:nonblocking,preferences:settings)
+            try await wait { FileManager.default.fileExists(atPath:marker.path) }
+            let runningPID=Int32(try String(contentsOf:marker))!
+            nonblocking.close()
+            try require(ExternalToolProcesses.activeRequests>0 && kill(runningPID,0)==0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel,"Nonblocking CLI lifetime lost after caller close")
+            try Data().write(to:release);try await wait { ExternalToolProcesses.activeRequests==0 }
+            try require(kill(runningPID,0) != 0,"Nonblocking CLI was not reaped");reapedPIDs.append(runningPID)
+            try FileManager.default.removeItem(at:marker);try FileManager.default.removeItem(at:release)
+            // Blocking cancellation owns only this tool's process group.
+            settings.blockWhileMerging=true
+            try program(#"/bin/sleep 30 & child=$!; trap 'kill "$child" 2>/dev/null; wait "$child" 2>/dev/null; exit 143' TERM INT; printf '%s %s' "$$" "$child" > "$5.tmp"; /bin/mv "$5.tmp" "$5"; wait "$child""#)
+            let closing=owner();windows.append(closing)
+            let waiting=Task { try await MergeToolApplication.open(repository:repo,access:nil,path:path,alternate:false,owner:closing,preferences:settings) }
+            try await wait { FileManager.default.fileExists(atPath:marker.path) }
+            let pids=try String(contentsOf:marker).split(separator:" ").compactMap{Int32($0)}
+            closing.close()
+            do { _=try await waiting.value;throw Failure(description:"Closed blocking CLI was accepted") } catch is OperationCancellationFailure {}
+            try await wait { ExternalToolProcesses.activeRequests==0 }
+            try require(pids.count==2 && pids.allSatisfy{kill($0,0) != 0},"Blocking CLI group survived cancellation");reapedPIDs += pids
+        } catch {
+            windows.forEach{$0.close()};ExternalToolProcesses.cancelAll();try? await wait { ExternalToolProcesses.activeRequests==0 };throw error
+        }
+        print("Owned executable tool PIDs absent: \(reapedPIDs)")
+        print("Executable tools: trusted zero/nonzero resolution, actual No-default confirmation, editable working Diff, nonblocking caller/quit/grant lifetime, blocking close cancellation and owned process reaping passed.")
+    }
+
 }

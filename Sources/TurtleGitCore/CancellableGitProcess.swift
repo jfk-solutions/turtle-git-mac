@@ -107,3 +107,60 @@ public struct GitCommandCancellationFailure: LocalizedError, Sendable {
     public let result: GitResult
     public var errorDescription: String? { "Operation cancelled." }
 }
+
+/// Shell-free external comparison tool. Start reports a successful spawn; completion
+/// reports the real status after reaping the owned child. Cancellation stops its group.
+public final class ExternalToolExecution: @unchecked Sendable {
+    public let cancellation: OperationCancellation
+    public let completion: Task<Int32, Error>
+    private let gate: ExternalToolLaunchGate
+    private let state: ExternalToolCompletionState
+    private init(executable: URL, arguments: [String], directory: URL, cancellation: OperationCancellation) {
+        self.cancellation = cancellation
+        let gate = ExternalToolLaunchGate(); self.gate = gate
+        let state = ExternalToolCompletionState(); self.state = state
+        completion = Task.detached {
+            defer { state.finish() }
+            do {
+                let output = try FileHandle(forWritingTo: URL(fileURLWithPath: "/dev/null"))
+                defer { try? output.close() }
+                let status = try CancellableGitProcess.run(executable: executable, arguments: arguments,
+                    environment: ProcessInfo.processInfo.environment, output: output.fileDescriptor, error: output.fileDescriptor,
+                    cancellation: cancellation, workingDirectory: directory, didStart: { gate.complete(.success(())) })
+                try cancellation.check()
+                return status
+            } catch { gate.complete(.failure(error)); throw error }
+        }
+    }
+    public static func start(executable: URL, arguments: [String], directory: URL, cancellation: OperationCancellation = OperationCancellation()) async throws -> ExternalToolExecution {
+        let execution = ExternalToolExecution(executable: executable, arguments: arguments, directory: directory, cancellation: cancellation)
+        do { try await execution.gate.wait(); return execution }
+        catch { execution.cancel(); _ = try? await execution.completion.value; throw error }
+    }
+    public func cancel() { if !state.isFinished { cancellation.cancel() } }
+    deinit { cancel() }
+}
+private final class ExternalToolLaunchGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var result: Result<Void, Error>?
+    private var waiter: CheckedContinuation<Void, Error>?
+    func complete(_ value: Result<Void, Error>) {
+        lock.lock()
+        guard result == nil else { lock.unlock(); return }
+        result = value; let waiter = waiter; self.waiter = nil; lock.unlock()
+        waiter?.resume(with: value)
+    }
+    func wait() async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            lock.lock()
+            if let result { lock.unlock(); continuation.resume(with: result) }
+            else { waiter = continuation; lock.unlock() }
+        }
+    }
+}
+private final class ExternalToolCompletionState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var finished = false
+    func finish() { lock.lock(); finished = true; lock.unlock() }
+    var isFinished: Bool { lock.lock(); defer { lock.unlock() }; return finished }
+}

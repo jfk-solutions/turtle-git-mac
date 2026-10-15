@@ -8,11 +8,11 @@ import TurtleGitCore
     weak var window: NSWindow?
     private var panel: NSOpenPanel?
     func cancel() { if let panel { (panel.sheetParent ?? window)?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil }
-    func choose(_ completion: @escaping (URL, Data) -> Void, failure: @escaping (String) -> Void) {
+    func choose(_ completion: @escaping (URL, Data) -> Void, failure: @escaping (String) -> Void, allowExecutables: Bool = false) {
         guard let window, panel == nil, window.attachedSheet == nil else { return }
-        let chooser = NSOpenPanel(); chooser.allowedContentTypes = [.applicationBundle]
+        let chooser = NSOpenPanel(); chooser.allowedContentTypes = allowExecutables ? [] : [.applicationBundle]; chooser.allowsOtherFileTypes = allowExecutables
         chooser.canChooseDirectories = false; chooser.allowsMultipleSelection = false
-        chooser.title = "Select tool application"; chooser.prompt = "Select"; chooser.directoryURL = URL(fileURLWithPath: "/Applications")
+        chooser.title = allowExecutables ? "Select tool application or executable" : "Select tool application"; chooser.prompt = "Select"; chooser.directoryURL = URL(fileURLWithPath: "/Applications")
         panel = chooser
         chooser.beginSheetModal(for: window) { [weak self] response in
             guard let self, self.panel === chooser else { return }; self.panel = nil
@@ -40,8 +40,8 @@ struct DiffProgramForm: View {
         VStack(alignment: .leading, spacing: 10) {
             Picker(tool == "merge" ? "Merge tool" : "Diff tool", selection: $program.enabled) { Text("TurtleGitMerge").tag(false); Text("External").tag(true) }.pickerStyle(.radioGroup).labelsHidden()
             HStack {
-                TextField("Application", text: Binding(get: { program.applicationPath }, set: { guard program.applicationPath != $0 else { return }; program.applicationPath = $0; program.bookmark = nil }))
-                Button("Browse…") { chooser.choose({ application, bookmark in program.applicationPath = application.path; program.bookmark = bookmark }, failure: { error = $0 }) }
+                TextField("Application or executable", text: Binding(get: { program.applicationPath }, set: { guard program.applicationPath != $0 else { return }; program.applicationPath = $0; program.bookmark = nil }))
+                Button("Browse…") { chooser.choose({ application, bookmark in program.applicationPath = application.path; program.bookmark = bookmark }, failure: { error = $0 }, allowExecutables: true) }
             }.disabled(!program.enabled)
             TextField("Arguments", text: $program.arguments).disabled(!program.enabled)
             if !program.valid { Text(DiffToolFailure.application.localizedDescription).foregroundStyle(.red) }
@@ -230,6 +230,21 @@ private struct DiffToolAssociationEditor: View {
     }
 }
 
+@MainActor enum ExternalToolProcesses {
+    private static var executions: [UUID: ExternalToolExecution] = [:]
+    static var activeRequests: Int { executions.count }
+    static func cancelAll() { for execution in executions.values { execution.cancel() } }
+    static func start(_ executable: URL, arguments: [String], root: URL, permissions: [RepositoryAccessLease], cancellation: OperationCancellation? = nil) async throws -> ExternalToolExecution {
+        let execution = try await ExternalToolExecution.start(executable: executable, arguments: arguments, directory: root, cancellation: cancellation ?? OperationCancellation())
+        let id = UUID(); executions[id] = execution
+        Task {
+            defer { executions.removeValue(forKey: id); withExtendedLifetime(permissions) {} }
+            _ = try? await execution.completion.value
+        }
+        return execution
+    }
+}
+
 @MainActor enum DiffToolApplication {
     private static var previews: [URL] = []
     private(set) static var activeRequests = 0
@@ -266,7 +281,9 @@ private struct DiffToolAssociationEditor: View {
             activeRequests += 1
             defer { activeRequests -= 1; withExtendedLifetime(grant) {}; withExtendedLifetime(permissions) {} }
             try cancellation?.check()
-            if let launch { try await launch(application, configuration) }
+            if !program.isApplicationBundle {
+                _ = try await ExternalToolProcesses.start(application, arguments: arguments, root: root, permissions: permissions + [grant])
+            } else if let launch { try await launch(application, configuration) }
             else {
                 try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                     NSWorkspace.shared.openApplication(at: application, configuration: configuration) { _, error in
@@ -291,9 +308,9 @@ struct MergeToolSettings: View {
             GroupBox("Configure the program used for merging different revisions of files") {
                 VStack(alignment: .leading, spacing: 12) {
                     DiffProgramForm(program: $model.value.program, tool: "merge")
-                    Toggle("Block while merging", isOn: $model.value.blockWhileMerging).disabled(!model.value.program.enabled)
-                    Toggle("Trust the exit code", isOn: $model.value.trustExitCode).disabled(!model.value.trustExitCode)
-                    Text("App bundles do not report an exit code. When blocking, TurtleGit asks whether to mark the result resolved after the application quits.").font(.caption).foregroundStyle(.secondary)
+                    Toggle("Block while merging", isOn: $model.value.blockWhileMerging).disabled(!model.value.program.enabled).onChange(of: model.value.blockWhileMerging) { if !$0 { model.value.trustExitCode = false } }
+                    Toggle("Trust the exit code", isOn: $model.value.trustExitCode).disabled(!model.value.trustExitCode && (!model.value.blockWhileMerging || !model.value.supportsTrustedExit))
+                    Text("Executable tools report an exit code. Trust resolves only exit code zero; otherwise blocking mode asks whether to mark the result resolved. App bundles use that question.").font(.caption).foregroundStyle(.secondary)
                     HStack { Spacer(); Button("Advanced…") { advanced = true } }
                 }.padding(8)
             }
@@ -306,7 +323,8 @@ struct MergeToolSettings: View {
     }
 }
 
-/// Owns only TurtleGit's wait and confirmation, never the external application.
+/// Owns wait and confirmation. App bundles are observed; a blocking CLI tool
+/// shares this cancellation token with its separately owned process group.
 @MainActor final class ExternalMergeSession {
     private(set) var retired = false
     let cancellation: OperationCancellation
@@ -373,7 +391,9 @@ struct MergeToolSettings: View {
         guard !retired, !cancellation.isCancelled, !Task.isCancelled, answer == nil, let owner, owner.isVisible, owner.attachedSheet == nil else { return false }
         let question = NSAlert(); question.messageText = "Was the merge of “" + path + "” successful?"
         question.addButton(withTitle: "Mark Resolved"); question.addButton(withTitle: "No")
-        question.buttons[0].keyEquivalent = ""; question.buttons[1].keyEquivalent = "\r"; alert = question
+        question.buttons[0].keyEquivalent = ""; question.buttons[1].keyEquivalent = "\r"
+        question.window.defaultButtonCell = question.buttons[1].cell as? NSButtonCell
+        alert = question
         return await withTaskCancellationHandler(operation: {
             await withCheckedContinuation { continuation in
                 var finished = false
@@ -404,7 +424,7 @@ struct MergeToolSettings: View {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let settings = preferences ?? MergeToolPreferences.load()
         guard let program = try settings.selected(path: path, alternate: alternate) else { return false }
-        guard !settings.trustExitCode else { throw NSError(domain: "TurtleGit.MergeTools", code: 1, userInfo: [NSLocalizedDescriptionKey: "This application does not expose an exit code. Turn off Trust the exit code in Merge Tool settings."]) }
+        guard !settings.blockWhileMerging || !settings.trustExitCode || !program.isApplicationBundle else { throw NSError(domain: "TurtleGit.MergeTools", code: 1, userInfo: [NSLocalizedDescriptionKey: "This application does not expose an exit code. Turn off Trust the exit code in Merge Tool settings."]) }
         guard !GitRuntime.isAppStoreBuild || (access?.hasSecurityScope == true && access?.contains(repository.root) == true) else { throw RepositoryAccessFailure.securityScopeUnavailable }
         activeRequests += 1
         defer { activeRequests -= 1; withExtendedLifetime(access) {} }
@@ -444,6 +464,19 @@ struct MergeToolSettings: View {
             try await repository.validateExternalMergeInputs(input, cancellation: token)
             try token.check(); guard !session.retired else { throw OperationCancellationFailure.cancelled }
             onPrepared()
+            if !program.isApplicationBundle {
+                let execution = try await ExternalToolProcesses.start(target, arguments: configuration.arguments, root: repository.root,
+                    permissions: [grant] + (access.map { [$0] } ?? []), cancellation: settings.blockWhileMerging ? token : nil)
+                previews.append(folder)
+                if settings.blockWhileMerging {
+                    let status = try await execution.completion.value
+                    try token.check(); guard !session.retired else { return true }
+                    if settings.trustExitCode {
+                        if status == 0 { _ = try await repository.resolveConflicts([input.entry], using: .current, cancellation: token) }
+                    } else { try await session.resolveIfConfirmed(repository: repository, entry: input.entry, path: path) }
+                }
+                return true
+            }
             let app: NSRunningApplication
             if let launch { app = try await launch(target, configuration) }
             else { app = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<NSRunningApplication, Error>) in

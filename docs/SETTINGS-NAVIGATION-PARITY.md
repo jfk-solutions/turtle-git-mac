@@ -364,3 +364,11 @@ diagnostic receivers were reaped before the actual transaction repair.
 
 Full scope/control/layout and signed credential/Finder publication equivalence
 remains open. See [integration-family evidence](qa/integration-settings-family-2026-10-13.json).
+
+
+The October 15 executable-tool family adds CLI Diff/Merge defaults and associations
+and implements trusted merge exit status. The native source Trust control becomes
+usable for executable tools, and disabling blocking clears Trust as upstream does.
+App bundles retain their success question. See
+[tool parity and grouped evidence](DIFF-TOOLS-PARITY.md#executable-tool-family-and-trusted-merge-status--october-15-2026).
+Physical Browse, complete keyboard/VoiceOver and signed sandbox launches remain open.

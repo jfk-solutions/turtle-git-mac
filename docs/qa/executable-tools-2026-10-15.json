@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-15",
+  "scope": "Executable Diff/Merge tool defaults, associations, trusted status and owned process lifecycle",
+  "implementation": [
+    "Accept CLI executables and symlinks alongside existing .app records without a persistence migration",
+    "Browse permits executables for Diff/Merge forms; application-only consumers retain their filters",
+    "Literal argument expansion and repository working directory; separate successful spawn and actual exit status; owned child reaping",
+    "Settings clears Trust when blocking is disabled and exposes Trust for executable programs/associations",
+    "Blocking trusted zero resolves captured stages with current working bytes; nonzero leaves conflicts; untrusted uses owned No-default question",
+    "Nonblocking CLI executions retain grants across caller close and participate in quit guard; blocking close cancels owned process group",
+    "Explicit No defaultButtonCell for the actual native merge question"
+  ],
+  "validation": {
+    "core": {
+      "checks_verified": 7,
+      "initial_passed": 6,
+      "focused_recheck_passed": 1,
+      "initial_log": "build/qa/executable-tools-core-2026-10-15.log",
+      "recheck_log": "build/qa/executable-tools-core-recheck-2026-10-15.log",
+      "initial_fixture_failure": "Cwd string differed between /var and /private/var; compare filesystem directory identity and retain exact argument-array assertions",
+      "scope": "DiffToolPreferencesTests including executable validity/symlink/persistence/association and Shift selection, literal shell-looking arguments, actual cwd, exit17, launch failure and process-group cancellation"
+    },
+    "build": {
+      "initial_exit_code": 0,
+      "initial_log": "build/qa/executable-tools-build-2026-10-15.log",
+      "default_button_exit_code": 0,
+      "default_button_log": "build/qa/executable-tools-default-build-2026-10-15.log"
+    },
+    "native_settings_system": {
+      "result": "passed",
+      "log": "build/qa/executable-tools-native-2026-10-15.log",
+      "receiver": 64566
+    },
+    "native_settings_bundled": {
+      "result": "passed",
+      "log": "build/qa/executable-tools-settings-bundled-2026-10-15.log",
+      "receiver": 65537
+    },
+    "native_lifecycle": {
+      "result": "passed with system and bundled Git",
+      "log": "build/qa/executable-tools-lifecycle-controls-2026-10-15.log",
+      "receivers": [
+        64984,
+        65253
+      ],
+      "scope": "Existing merge observation/confirmation/stale-stage checks plus real CLI zero/nonzero, default No and Mark Resolved button actions, live working Diff edit with unchanged index, nonblocking caller/quit lifetime and blocking process-group cancellation",
+      "owned_tool_pids_asserted_absent": [
+        65227,
+        65250,
+        65251,
+        65498,
+        65519,
+        65520
+      ]
+    },
+    "native_initial_failures": {
+      "logs": [
+        "build/qa/executable-tools-native-2026-10-15.log",
+        "build/qa/executable-tools-lifecycle-final-2026-10-15.log"
+      ],
+      "receivers_reaped": [
+        64568,
+        64806
+      ],
+      "description": "Displayed NSAlert buttons have empty keyEquivalent strings. Set the intended default cell explicitly; repaired native assertion to check the actual default cell and invoke it, proving No leaves stages unchanged, then separately invoked Mark Resolved. No behavioral assertion was removed."
+    },
+    "cleanup": "All receivers reaped by runner. CLI child/group absence asserted in native/Core cases; native temporary input caches discarded after process settlement. Subsequent process inspection found the checked receiver/tool PIDs absent.",
+    "post_validation_edits": "Only explanatory comment and fixture log wording changed after lifecycle success.",
+    "documentation": "Coverage ledger regenerated with no changes; site built 215 documents with no unresolved fragments."
+  },
+  "limits": [
+    "Signed App Store execution/security-scope inheritance, third-party tool conventions and stale receiving-app bookmarks remain unverified",
+    "CLI wrappers must remain running for blocking wait semantics; daemonizing wrappers and interactive terminal tools are not certified",
+    "Physical Browse, complete accessibility/keyboard and full light/dark visual parity remain open",
+    "No hosted CI or whole-port completion claim"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

@@ -22,13 +22,16 @@ available. Image Shift's source switch between IDiff and Merge still needs exact
 comparison; this implementation preserves the native image path when there is
 no explicit association.
 
-A macOS .app plus an argument template replaces the Windows executable command.
+A macOS .app or command-line executable plus an argument template replaces the
+Windows executable command. The October 15 continuation below adds executable
+launch and trusted merge exit status.
 The source placeholders `%base`, `%mine`, `%bname`, `%yname`, `%bpath`, `%ypath`,
 `%brev`, `%yrev`, `%wtroot` are supported. Absent both file placeholders, the two
 file arguments are appended. Quote/escape parsing happens before single-pass
 substitution, keeping paths with spaces or placeholder-looking text intact. No
-shell interprets the template. NSWorkspace launches a new tool instance with
-arguments, because an existing app instance may ignore launch arguments.
+shell interprets the template. NSWorkspace launches a new app-bundle instance with
+arguments, because an existing app instance may ignore launch arguments. Executable
+tools use a directly spawned process with the same expanded argument array.
 
 The shared comparison window routes its first read through the selected program,
 covering callers that use FileComparisonWindowController (including revision,
@@ -83,9 +86,8 @@ launches block quitting. Successful external dispatch refreshes repository panes
 
 NSWorkspace app launches do not expose a process exit status. Trust exit-code
 selection is unavailable for .app programs; an existing enabled value may be
-cleared in Settings and produces an explicit launch error until cleared. This
-source mode still requires an implementation for a compatible command-line tool;
-it is not certified or silently treated as successful. Other direct conflict
+cleared in Settings and produces an explicit launch error until cleared. The October 15 continuation implements this
+source mode for command-line tools. App-bundle exit status remains unavailable. Other direct conflict
 helper launch paths, wait cancellation, tool process failures, stale app bookmark
 renewal, exact source filename-key usability and signed sandbox receiving-app
 behavior remain open.
@@ -205,3 +207,42 @@ presentation/SDK launch/wait replies. This is partial editor and tool parity:
 all actual receiving apps, every binary/mixed/symlink/encoding case, physical
 progress/prompt/Shift gestures, complete specialized editor behavior and signed
 Finder/App Store grants still require acceptance.
+
+## Executable tool family and trusted merge status — October 15, 2026
+
+Diff and Merge defaults and Advanced associations now accept executable files as
+well as `.app` bundles. Browse can select either kind; the other application-only
+choosers keep their existing filtering. Existing saved program/argument/bookmark
+records need no migration. An unbookmarked executable must be a regular executable
+file (including a symlink to one). Bookmarked paths are validated after acquiring
+the grant, so sandboxed Settings does not reject a selected executable merely
+because its scope is not active during form validation.
+
+Arguments retain source placeholder precedence, quote/escape parsing and literal
+single-pass substitution. No shell expands the command template. A selected script
+runs through its own shebang. The child starts in the repository root with null
+standard input. Its launch completion and real process exit status are separate;
+spawn failures are reported and the child is reaped. A command-line tool that
+launches a GUI should use that tool's wait option for blocking merge behavior.
+
+`SettingsProgsMerge::OnBnClickedMergeblock` clears Trust when blocking is disabled;
+the native control now does the same. Trust becomes available for executable
+programs/associations. App bundles retain their owned success question and cannot
+supply a trusted exit code. At dispatch, the selected association's kind governs.
+As pinned `AppUtils::StartExtMerge` does, blocking trusted exit zero resolves the
+captured conflict with current working bytes; nonzero leaves it unresolved.
+Blocking untrusted tools show the existing **Mark Resolved / No** question, with
+No as default. Resolve still checks the captured conflict stages.
+
+Nonblocking tools survive caller closure and retain executable/repository grants
+until their child exits. The application retains private source files until its
+normal termination. Live executable tools participate in the existing quit guard,
+so normal termination cannot remove those files while a tool is using them.
+Blocking caller retirement/cancellation stops and reaps that owned executable's
+process group, including helper children. App-bundle instances retain the previous
+observation-only behavior and are never killed by this process path.
+
+[Grouped executable-tool evidence](qa/executable-tools-2026-10-15.json) records
+focused Core and native settings/lifecycle checks. It does not certify third-party
+tool argument conventions, daemonizing wrappers, physical Browse/VoiceOver, signed
+sandbox execution or full source visual parity.
