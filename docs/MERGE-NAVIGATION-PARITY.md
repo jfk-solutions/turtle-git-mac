@@ -40,9 +40,24 @@ selection. Busy, preparation, export, Quit and attached-sheet gates apply to the
 new navigation and choice routes. Mark as resolved also treats ignored conflicts
 as unresolved, even when no literal markers are present.
 
-Remaining source parity includes wrapped screen-row traversal, separate block
-highlight and insertion caret, automatic inline advancement, centered peer
-scrolling, the complete aligned result view including removed/empty rows, and
+The native block highlight now follows DrawBlockLine: two horizontal boundaries
+retain source-state colors and remain separate from the insertion caret. Forward
+navigation places the caret at the entry row; reverse navigation places it at the
+bottom entry row. Native text selection stays empty. Peer highlights use the
+engine mapping, and the entry row is centered where the scroll limits permit.
+Explicit inline navigation in Compare preserves the block while moving its caret.
+
+Copy reads the exact highlighted display block, including a neutral combined row
+without accidentally copying its adjacent alias. Block-only Cut copies without
+deleting; Paste and typing insert at the caret. Ordinary text selection retains
+normal Copy/Cut/replace behavior. Caret moves, mouse selection, source generation
+changes and edits invalidate stale block highlights in all panes. Merge result
+Undo/Redo restores the independent block and caret alongside its presentation.
+Compare text Undo remains supported but does not restore its retired block.
+
+Remaining source parity includes wrapped screen-row traversal, automatic inline
+advancement, Compare block-selection history, the complete aligned result view
+including removed/empty rows, and
 editable source-pane block application beyond unresolved marker/ignored conflicts.
 A changed group can map several distinct source-state blocks to one result
 payload. Missing mappings after edits require engine recomputation or a future
@@ -52,3 +67,7 @@ signed Finder integration and App Store acceptance remain unverified.
 [Grouped evidence](qa/merge-three-pane-navigation-2026-10-15.json) records the
 build, 41 focused Core checks, five native receivers and cleanup, retained
 workflow coverage, fixture semantics and the unresolved hosted CI state.
+
+[Independent block-selection evidence](qa/merge-block-selection-2026-10-15.json)
+records the native-only continuation, initial helper-visibility compile failure,
+repaired build, four grouped native receivers and remaining history/visual limits.

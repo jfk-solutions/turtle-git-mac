@@ -109,9 +109,10 @@ Control-Up/Down use the same search and availability gates.
 focused Core results, initial fixture failure and final grouped native pass.
 This selection is
 also the existing transfer/Copy block selection. [Three-pane navigation](MERGE-NAVIGATION-PARITY.md) now shares the search with
-explicit engine peer mappings. Wrapped screen-row grouping, source separate
-block/caret and automatic inline
-advance/centering still require a further port. In-place Edited row retention,
+explicit engine peer mappings. Independent boundary highlights and insertion carets now preserve block-only
+Copy/Cut/Paste semantics; neutral-row Copy uses exact combined display coordinates.
+Wrapped screen-row grouping, automatic inline advance and Compare block history
+still require a further port. In-place Edited row retention,
 all whitespace aliases/legacy overrides,
 physical/VoiceOver/large-file and signed App Store acceptance also remain open.
 This does not certify the complete Merge/editor family.

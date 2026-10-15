@@ -475,3 +475,73 @@ struct MergeLineStatisticsView: View {
         }.font(.caption).accessibilityElement(children:.combine)
     }
 }
+
+/// Source DrawBlockLine/GetViewSelection is independent of text selection.
+/// Exposing the range also lets native accessibility/QA inspect that distinction.
+@MainActor protocol MergeBlockSelecting: AnyObject {
+    var mergeSelectedBlockRange: NSRange? { get }
+    var mergeBlockBoundaryRects: [NSRect] { get }
+}
+
+@MainActor final class MergeBlockSelection {
+    private var savedRange: NSRange?
+    private var savedText = ""
+    private var caret = 0
+    func range(in view: NSTextView) -> NSRange? {
+        guard let range = savedRange else { return nil }
+        guard view.selectedRange() == NSRange(location:caret,length:0),
+              savedText.utf8.elementsEqual(view.string.utf8) else { clear(in:view); return nil }
+        return range
+    }
+    func install(_ range: NSRange, caret: Int, in view: NSTextView) {
+        guard range.location >= 0, range.length >= 0, NSMaxRange(range) <= view.string.utf16.count,
+              caret >= 0, caret <= view.string.utf16.count else { clear(in:view); return }
+        savedRange = range; savedText = view.string; self.caret = caret
+        view.setSelectedRange(NSRange(location:caret,length:0)); view.needsDisplay = true
+    }
+    func moveCaret(_ offset: Int, in view: NSTextView) {
+        guard let range = range(in:view) else { view.setSelectedRange(NSRange(location:offset,length:0)); return }
+        install(range,caret:offset,in:view)
+    }
+    func clear(in view: NSTextView) {
+        guard savedRange != nil else { return }
+        savedRange = nil; savedText = ""; view.needsDisplay = true
+    }
+    static func rows(_ range: NSRange, cells: [MergeSourceCell]) -> Range<Int>? {
+        let lines = MergeFindLine.displayCells(cells)
+        guard let first = lines.lastIndex(where: { $0.offset <= range.location }),
+              let last = lines.lastIndex(where: { $0.offset <= NSMaxRange(range) }) else { return nil }
+        return first..<(last + 1)
+    }
+    func boundaryRects(in view: NSTextView) -> [NSRect] {
+        guard let range = range(in:view), let layout = view.layoutManager, let container = view.textContainer else { return [] }
+        layout.ensureLayout(for:container)
+        func fragment(_ offset: Int) -> NSRect? {
+            if offset == view.string.utf16.count, layout.extraLineFragmentTextContainer === container { return layout.extraLineFragmentRect }
+            guard layout.numberOfGlyphs > 0 else { return nil }
+            let glyph = layout.glyphIndexForCharacter(at:min(offset,max(0,view.string.utf16.count - 1)))
+            return layout.lineFragmentRect(forGlyphAt:glyph,effectiveRange:nil)
+        }
+        guard let first = fragment(range.location), let last = fragment(NSMaxRange(range)) else { return [] }
+        let visible = view.visibleRect, origin = view.textContainerOrigin
+        return [NSRect(x:visible.minX,y:first.minY + origin.y,width:visible.width,height:2),
+                NSRect(x:visible.minX,y:max(first.minY,last.maxY - 2) + origin.y,width:visible.width,height:2)]
+    }
+    func draw(in view: NSTextView, dirtyRect: NSRect) {
+        (view.window?.firstResponder === view ? NSColor.labelColor : NSColor.secondaryLabelColor).setFill()
+        for rect in boundaryRects(in:view) where rect.intersects(dirtyRect) { NSBezierPath(rect:rect).fill() }
+    }
+    func centerCaret(in view: NSTextView) {
+        guard let scroll = view.enclosingScrollView, let layout = view.layoutManager, let container = view.textContainer else { return }
+        layout.ensureLayout(for:container)
+        let offset = min(view.selectedRange().location,max(0,view.string.utf16.count - 1))
+        guard layout.numberOfGlyphs > 0 else { return }
+        let glyph = layout.glyphIndexForCharacter(at:offset)
+        let rect = layout.lineFragmentRect(forGlyphAt:glyph,effectiveRange:nil)
+        let clip = scroll.contentView
+        var point = clip.bounds.origin
+        point.y = rect.midY + view.textContainerOrigin.y - clip.bounds.height / 2
+        clip.scroll(to:clip.constrainBoundsRect(NSRect(origin:point,size:clip.bounds.size)).origin)
+        scroll.reflectScrolledClipView(clip)
+    }
+}

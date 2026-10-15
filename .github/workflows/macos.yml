@@ -411,7 +411,7 @@ jobs:
         run: python3 scripts/test-log-filters.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Compare and Merge AppKit toolbar workflows
         run: python3 scripts/test-merge-toolbar.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
-      - name: Source block navigation, whitespace states and combined editor payloads
+      - name: Native block selection/navigation, whitespace states and editor payloads
         run: python3 scripts/test-merge-whitespace-states.py
       - name: Three-pane navigation, ignored conflict choices, history and staging guard
         run: python3 scripts/test-merge-ignored.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"

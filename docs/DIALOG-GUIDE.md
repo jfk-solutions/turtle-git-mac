@@ -148,7 +148,10 @@ In two-pane and one-pane comparison, Previous/Next difference searches from the
 active pane's caret and selects the whole source-state block. Control-Up and
 Control-Down and the corresponding context-menu actions use the same navigation.
 Neutral Base and Mine rows are separate stops; filtered common rows are skipped.
-Collapsed sections remain collapsed, and navigation stops at the first/last block.
+Collapsed sections remain collapsed, and navigation stops at the first/last block. The highlighted block has top/bottom boundary lines;
+the insertion caret stays separate. Copy copies that block. Cut copies it without
+deleting when no text is selected, and Paste inserts at the caret. Drag or use
+Shift with navigation keys to select text for normal Cut/replace behavior.
 
 In three-pane Merge, navigation follows the focused source or result pane.
 Control-Up/Down or F7/Shift-F7 moves between differences; F8/Shift-F8 moves between

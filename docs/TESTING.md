@@ -2154,3 +2154,10 @@ common-line stale-choice prevention and Quit gating. `MergeNavigationMapTests`
 and real-engine `SubversionMergePresentationTests` cover mapping ownership,
 UTF-16 offsets, replacements, boundary insertions, crossed-group invalidation
 and ignored conflicts. See [navigation limitations](MERGE-NAVIGATION-PARITY.md).
+
+`test-merge-whitespace-states.py` now includes the native independent-block
+receiver: empty text selection plus source boundary rectangles in both themes,
+peer/transfer ranges, private-pasteboard Copy, block-only Cut no-op, Paste at the
+caret, edit invalidation and result block/caret Undo/Redo. Retained Compare and
+three-pane navigation fixtures inspect `MergeBlockSelecting` ranges separately
+from insertion carets. This native-only batch does not change Core behavior.

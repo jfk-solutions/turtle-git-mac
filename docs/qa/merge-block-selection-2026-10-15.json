@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "cc8c78b4",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "BaseView.cpp DrawBlockLine: independent top/bottom two-pixel boundaries, focused versus inactive colors",
+    "SetupAllViewSelection/GetViewSelection separate from text-selection endpoints",
+    "GetSelectedText prefers ordinary text selection, otherwise copies block endpoints",
+    "RemoveSelectedText/OnEditCut: block-only selection does not delete text",
+    "SelectNextBlock: entry-row caret independent of block range"
+  ],
+  "scope": [
+    "Native shared independent block state with source-style horizontal boundaries; existing line colors retained",
+    "Compare/Merge forward/reverse caret placement, mapped peer blocks, source/result range normalization and centering",
+    "Exact combined display block Copy instead of alignment-range alias expansion",
+    "Block-only Copy/Cut/Paste semantics; ordinary text selection retains native operations",
+    "Caret/mouse/edit/generation invalidation and peer stale-highlight clearing",
+    "Existing Compare inline navigation preserves its independent block",
+    "Merge result block/caret snapshots carried with presentation through Undo/Redo"
+  ],
+  "build": {
+    "initial_log": "build/qa/merge-block-selection-build.log",
+    "initial_exit": 65,
+    "initial_failure": "Native call used internal Core droppingFinalEnding helper",
+    "repair": "Use existing public MergeSourceComparison.navigationRanges to normalize the final ending; no Core API change",
+    "final_log": "build/qa/merge-block-selection-build-repair.log",
+    "final_exit": 0
+  },
+  "core": {
+    "changed": false,
+    "tests_repeated": false,
+    "reason": "Native-only editor state, rendering, clipboard and history changes; validation used affected native workflows"
+  },
+  "native": [
+    {
+      "log": "build/qa/merge-block-selection-native.log",
+      "exit": 0,
+      "pid": 59657,
+      "cases": [
+        "New independent block/clipboard/history fixture",
+        "Retained active-pane Compare state navigation",
+        "Whitespace states, palette, filtering, folding, Find and explicit export",
+        "Combined native editing, Undo/Redo, Save and pane-switch workflows"
+      ]
+    },
+    {
+      "log": "build/qa/merge-block-selection-three-pane.log",
+      "exit": 0,
+      "pid": 59735,
+      "cases": [
+        "Three-pane source/result navigation and native mapped choice",
+        "Real Subversion engine, ignored conflicts, reload/save/close lifecycle",
+        "Result state colors/history and retained two-pane annotations"
+      ]
+    },
+    {
+      "log": "build/qa/merge-block-selection-toolbar.log",
+      "exit": 0,
+      "pids": [
+        60044,
+        60052
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "cases": [
+        "Real AppKit toolbar order/artwork/live state and busy refusal",
+        "Caret-relative difference dispatch, Save and conflict choice/Undo",
+        "Replacement rebinding, image suppression and retired command refusal"
+      ]
+    }
+  ],
+  "ownership": {
+    "all_four_receivers_reaped": true,
+    "owned_windows_closed": true,
+    "unrelated_worktree_changes_preserved": true,
+    "public_screenshots_added": false
+  },
+  "visual_scope": "Production boundary rectangle geometry inspected by native assertions in Aqua and Dark Aqua. No new pixel capture or physical accessibility acceptance is claimed.",
+  "open": [
+    "Compare Undo restores text but does not restore retired block highlights",
+    "Merge result Undo restores its block, not every peer highlight",
+    "Wrapped screen-row traversal and source automatic inline advancement remain incomplete",
+    "Fully aligned result and per-line source/result mappings within changed groups remain incomplete",
+    "Physical input/accessibility, large-file and signed installed Finder/App Store acceptance",
+    "Hosted macOS confirmation remains outstanding"
+  ],
+  "certifies_complete_dialog": false
+}

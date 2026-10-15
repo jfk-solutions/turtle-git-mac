@@ -618,7 +618,13 @@ import TurtleGitCore
     }
     func updateSelection(_ range: NSRange, cells: [MergeSourceCell]) {
         guard let alignment else { return }
-        selectedRows = try? FileComparisonEditing.selectedRows(range, cells: cells)
+        let active = scrolls[activeBase]?.documentView as? FileComparisonTextView
+        let block = active?.mergeSelectedBlockRange
+        selectedRows = block.flatMap { MergeBlockSelection.rows($0,cells:cells) }
+            ?? (try? FileComparisonEditing.selectedRows(range,cells:cells))
+        if !selectingDifferenceBlock, block == nil {
+            for scroll in scrolls.values { if let view = scroll.documentView as? FileComparisonTextView { view.blockSelection.clear(in:view) } }
+        }
         if onePaneActive, let selection = selectedRows, let combined {
             let mapped = selection.compactMap { combined.rows.indices.contains($0) ? combined.rows[$0].alignmentRow : nil }
             selectedRows = mapped.min().flatMap { start in mapped.max().map { start..<($0 + 1) } }
@@ -1183,12 +1189,10 @@ import TurtleGitCore
             target.reflectScrolledClipView(target.contentView)
         }
     }
-    private struct BlockCaret {
-        let generation: Int
-        let selection: NSRange
-        let row: Int
+    func clearNavigationBlockSelection() {
+        for scroll in scrolls.values { if let view = scroll.documentView as? FileComparisonTextView { view.blockSelection.clear(in:view) } }
+        selectedRows = nil
     }
-    private var blockCarets: [Bool: BlockCaret] = [:]
     private(set) var selectingDifferenceBlock = false
     private func differenceTarget(_ step: Int) -> (MergeBlockNavigation.Target, Bool)? {
         guard contextCommandsAllowed, !filtering, alignment != nil,
@@ -1196,16 +1200,10 @@ import TurtleGitCore
         let base = onePaneActive ? false : scrolls[true]?.documentView === view
         let cells = displayCells(base: base)
         let selection = view.selectedRange()
-        let row: Int
-        if let saved = blockCarets[base], saved.generation == alignmentGeneration, saved.selection == selection {
-            row = saved.row
-        } else {
-            var offset = 0, found = max(0, cells.count - 1)
-            for (index, cell) in cells.enumerated() {
-                offset += cell.displayText.utf16.count + 1
-                if selection.location < offset { found = index; break }
-            }
-            row = found
+        var offset = 0, row = max(0,cells.count - 1)
+        for (index,cell) in cells.enumerated() {
+            offset += cell.displayText.utf16.count + 1
+            if selection.location < offset { row = index; break }
         }
         let visible = folding.projection.rows.map(\.sourceRow)
         return MergeBlockNavigation.target(states: cells.map(\.state), visibleRows: visible,
@@ -1226,11 +1224,11 @@ import TurtleGitCore
             let length = cells[target.rows].reduce(0) { $0 + $1.displayText.utf16.count + 1 } - 1
             let range = NSRange(location: start, length: max(0, length))
             guard NSMaxRange(range) <= text.string.utf16.count else { continue }
-            text.setSelectedRange(range)
-            blockCarets[side] = BlockCaret(generation: alignmentGeneration, selection: range, row: target.caret)
             let caret = cells.prefix(target.caret).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
-            // Scroll the entry row rather than the end of a potentially long block.
-            text.scrollRangeToVisible(NSRange(location: caret, length: 0))
+            if let view = text as? FileComparisonTextView {
+                view.blockSelection.install(range,caret:caret,in:view)
+                view.blockSelection.centerCaret(in:view)
+            }
         }
         if let text = scrolls[base]?.documentView as? NSTextView {
             updateSelection(text.selectedRange(), cells: displayCells(base: base))
@@ -1434,6 +1432,9 @@ struct FileComparisonEditor: NSViewRepresentable {
         let sourceSelection = try? FileComparisonEditing.sourceRange(view.selectedRange(), cells: previousCells)
         let cells = model.alignment == nil ? self.cells : model.displayCells(base: base)
         context.coordinator.cells = cells; context.coordinator.base = base
+        if let target = view as? FileComparisonTextView, target.blockGeneration != model.alignmentGeneration {
+            target.blockSelection.clear(in:target); target.blockGeneration = model.alignmentGeneration
+        }
         (view as? FileComparisonTextView)?.sourceCells = cells
         if let renderer = (view as? MergeWhitespaceDisplaying)?.whitespaceRenderer {
             renderer.update(text: cells.map(\.displayText).joined(separator: "\n") + (cells.isEmpty ? "" : "\n"), cells: cells,
@@ -1607,7 +1608,7 @@ struct FileComparisonEditor: NSViewRepresentable {
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding {
+private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     var navigationCells: [MergeSourceCell]? { sourceCells }
@@ -1632,7 +1633,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     func navigateInline(forward: Bool) {
         guard let target = inlineTarget(forward: forward) else { return }
         model?.selectionRequest = nil
-        setSelectedRange(NSRange(location: target, length: 0)); scrollRangeToVisible(selectedRange())
+        blockSelection.moveCaret(target,in:self); scrollRangeToVisible(selectedRange())
     }
     @objc private func nextInlineDifference(_ sender: Any?) { navigateInline(forward: true) }
     @objc private func previousInlineDifference(_ sender: Any?) { navigateInline(forward: false) }
@@ -1657,6 +1658,10 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     weak var model: FileComparisonWindowModel?
     var baseSide = false
     var sourceCells: [MergeSourceCell] = []
+    var blockGeneration = -1
+    let blockSelection = MergeBlockSelection()
+    var mergeSelectedBlockRange: NSRange? { blockSelection.range(in:self) }
+    var mergeBlockBoundaryRects: [NSRect] { blockSelection.boundaryRects(in:self) }
     let foldLayout = MergeFoldTextLayout()
     override func scrollRangeToVisible(_ range: NSRange) {
         if model?.selectingDifferenceBlock != true { foldLayout.reveal(selection: range, in: self, includeMarker: true) }
@@ -1709,6 +1714,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         setAccessibilityFocused(true)
     }
     override func mouseDown(with event: NSEvent) {
+        model?.clearNavigationBlockSelection()
         model?.activatePane(base: baseSide)
         if MergeMarkedWordInterface.mouse(event, in: self) { window?.makeFirstResponder(self); return }
         if model?.contextCommandsAllowed == true, foldLayout.expand(at: event, in: self) { return }
@@ -1734,6 +1740,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect)
         MergeInlineTicks.draw(in: self, offsets: missingOffsets, dirtyRect: dirtyRect)
         foldLayout.draw(in: self, dirtyRect: dirtyRect)
+        blockSelection.draw(in:self,dirtyRect:dirtyRect)
     }
 
     override var undoManager: UndoManager? { history ?? super.undoManager }
@@ -1754,9 +1761,10 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     }
     fileprivate var clipboardText: String? {
         guard let model, model.copyCommandsAllowed, window != nil else { return nil }
-        model.updateSelection(selectedRange(), cells: sourceCells)
-        var rows = model.transferRows
-        if model.onePaneActive, let selected = rows, let combined = model.combined {
+        let explicit = mergeSelectedBlockRange.flatMap { MergeBlockSelection.rows($0,cells:sourceCells) }
+        if explicit == nil { model.updateSelection(selectedRange(), cells:sourceCells) }
+        var rows = explicit ?? model.transferRows
+        if explicit == nil, model.onePaneActive, let selected = rows, let combined = model.combined {
             let indices = combined.rows.indices.filter { selected.contains(combined.rows[$0].alignmentRow) }
             rows = indices.first.flatMap { first in indices.last.map { first..<($0 + 1) } }
         }

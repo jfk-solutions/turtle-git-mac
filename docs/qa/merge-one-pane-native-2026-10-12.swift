@@ -28,7 +28,7 @@ struct MergeOnePaneNativeVerification {
         try check(model.locatorMap.lineCount == 5 && model.locatorMap.columns[2].isEmpty, "Combined locator differs")
         // Next now searches from the actual caret; establish the unchanged header.
         view.setSelectedRange(NSRange(location:0,length:0));await Task.yield()
-        model.navigate(1); try check(view.selectedRange().location == 5 && (view.string as NSString).substring(with:view.selectedRange()) == "old 🦎 words\nremoved", "Next difference did not select first removal block from header")
+        model.navigate(1); try check(view.selectedRange().location == 5 && (view.string as NSString).substring(with:(view as! MergeBlockSelecting).mergeSelectedBlockRange!) == "old 🦎 words\nremoved", "Next difference did not select first removal block from header")
         let selected = (view.string as NSString).range(of: "old 🦎 words"); view.setSelectedRange(selected)
         model.showInlineDiff = false; owner.window?.contentView?.layoutSubtreeIfNeeded()
         try await Task.sleep(nanoseconds: 30_000_000)

@@ -439,6 +439,7 @@ private enum MergeSourceSide {
     enum ReloadDecision { case save, discard, cancel }
     var chooseReload: (() -> ReloadDecision)?
     private var loadGeneration = 0
+    var navigationGeneration: Int { loadGeneration }
     private(set) var retired = false
     private var loadCancellation: OperationCancellation?
     private var regexList: MergeRegexFilterListController?
@@ -680,7 +681,7 @@ private enum MergeSourceSide {
         commentProfiles = profiles
         comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
-        navigationCarets = [:]; navigationOwnsChoice = false; navigationChoiceRange = nil
+        navigationOwnsChoice = false; navigationChoiceRange = nil
         selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         generalPreferences = .load(from: comparisonDefaults)
@@ -691,13 +692,6 @@ private enum MergeSourceSide {
         selectionRequest = generalPreferences.initialTarget(difference: difference, conflict: blocks.first?.range)
         reloadEditorConfig()
     }
-    private struct NavigationCaret {
-        let selection: NSRange
-        let text: String
-        let states: [MergeSourceState]
-        let row: Int
-    }
-    private var navigationCarets: [ObjectIdentifier: NavigationCaret] = [:]
     private weak var lastNavigationView: MergeTextView?
     private(set) var selectingNavigationBlock = false
     private var navigationOwnsChoice = false
@@ -706,6 +700,10 @@ private enum MergeSourceSide {
         var views = sourceScrolls.values.compactMap { $0.view?.documentView as? MergeTextView }.filter { $0.sourceSide != nil }
         if let result = locatorResultScroll?.documentView as? MergeTextView { views.append(result) }
         return views
+    }
+    func clearNavigationBlockSelection() {
+        for view in navigationViews { view.blockSelection.clear(in:view) }
+        navigationOwnsChoice = true; navigationChoiceRange = nil
     }
     private var activeNavigationView: MergeTextView? {
         if let view = window?.firstResponder as? MergeTextView {
@@ -734,10 +732,7 @@ private enum MergeSourceSide {
         return MergeSourceComparison.navigationRanges(text:view.string)
     }
     private func navigationRow(_ view: MergeTextView, ranges: [NSRange]) -> Int {
-        let selection = view.selectedRange(), states = navigationStates(view)
-        if let saved = navigationCarets[ObjectIdentifier(view)], saved.selection == selection,
-           saved.text.utf8.elementsEqual(view.string.utf8), saved.states == states { return saved.row }
-        return ranges.lastIndex(where: { $0.location <= selection.location }) ?? 0
+        return ranges.lastIndex(where: { $0.location <= view.selectedRange().location }) ?? 0
     }
     private func navigationTarget(_ direction: Int, conflictsOnly: Bool) -> (MergeTextView, MergeBlockNavigation.Target)? {
         guard sourceToolsAllowed, let view = activeNavigationView else { return nil }
@@ -756,10 +751,14 @@ private enum MergeSourceSide {
     fileprivate func navigationSelectionChanged(_ view: MergeTextView) {
         guard !retired, !selectingNavigationBlock, window?.firstResponder === view else { return }
         if view.mergeEditable { caret = view.selectedRange() }
+        let selected = view.mergeSelectedBlockRange ?? view.selectedRange()
+        if view.mergeSelectedBlockRange == nil {
+            for peer in navigationViews { peer.blockSelection.clear(in:peer) }
+        }
         let mapped: NSRange?
-        if view.mergeEditable { mapped = view.selectedRange() }
+        if view.mergeEditable { mapped = selected }
         else if view.sourceSide != nil {
-            let ranges = navigationRanges(view), selection = view.selectedRange()
+            let ranges = navigationRanges(view), selection = selected
             let start = ranges.lastIndex(where: { $0.location <= selection.location }) ?? 0
             let end = ranges.lastIndex(where: { $0.location <= NSMaxRange(selection) }) ?? start
             mapped = resultPresentation.navigationMap.resultRange(sourceRows:start..<(end + 1))
@@ -787,13 +786,14 @@ private enum MergeSourceSide {
             else { range = sourceRows.flatMap { navigationRange(rows:$0,in:view) } }
             guard let range, NSMaxRange(range) <= view.string.utf16.count else {
                 view.setSelectedRange(NSRange(location:min(view.selectedRange().location,view.string.utf16.count),length:0))
-                navigationCarets.removeValue(forKey:ObjectIdentifier(view)); continue
+                view.blockSelection.clear(in:view); continue
             }
-            view.setSelectedRange(range)
             let ranges = navigationRanges(view)
             let row = view === active ? target.caret : ranges.lastIndex(where: { $0.location <= range.location }) ?? 0
-            navigationCarets[ObjectIdentifier(view)] = NavigationCaret(selection:range,text:view.string,states:navigationStates(view),row:row)
-            if ranges.indices.contains(row) { view.scrollRangeToVisible(NSRange(location:ranges[row].location,length:0)) }
+            if ranges.indices.contains(row) {
+                view.installBlock(range,caret:ranges[row].location,trimFinalEnding:view.mergeEditable && view !== active)
+                view.blockSelection.centerCaret(in:view)
+            }
         }
         navigationOwnsChoice = true; navigationChoiceRange = resultRange
         if let index = conflictIndex(in:resultRange) { selectedConflict = index }
@@ -805,7 +805,10 @@ private enum MergeSourceSide {
         selectConflict(0)
         if let view = locatorResultScroll?.documentView as? NSTextView {
             window?.makeFirstResponder(view)
-            if NSMaxRange(block.range) <= (view.string as NSString).length { view.setSelectedRange(block.range); view.scrollRangeToVisible(block.range) }
+            if let view = view as? MergeTextView, NSMaxRange(block.range) <= view.string.utf16.count {
+                view.installBlock(block.range,caret:block.range.location,trimFinalEnding:true)
+                view.blockSelection.centerCaret(in:view)
+            }
         }
     }
     func selectConflict(_ index: Int) {
@@ -1103,6 +1106,9 @@ private struct MergeEditor: NSViewRepresentable {
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
         view.isEditable = editable && !model.busy && !model.confirmingQuit; view.model = model
         view.mergeFindController?.updateGates()
+        if view.blockGeneration != model.navigationGeneration {
+            view.blockSelection.clear(in:view); view.blockGeneration = model.navigationGeneration
+        }
         let range = view.selectedRange()
         if !view.string.utf8.elementsEqual(text.utf8) { view.string = text; view.setSelectedRange(NSRange(location: min(range.location, (text as NSString).length), length: 0)) }
         view.foldLayout.prepare(view)
@@ -1115,7 +1121,8 @@ private struct MergeEditor: NSViewRepresentable {
                 view.textStorage?.addAttributes([.backgroundColor: MergePalette.color(states[index]), .foregroundColor: MergePalette.foreground(states[index])], range: range)
             }
             if let requested = model.selectionRequest, NSMaxRange(requested) <= entire.length {
-                view.setSelectedRange(requested); view.scrollRangeToVisible(requested)
+                view.installBlock(requested,caret:requested.location,trimFinalEnding:true)
+                view.blockSelection.centerCaret(in:view)
                 DispatchQueue.main.async { if model.selectionRequest == requested { model.selectionRequest = nil } }
             }
         } else if let sourceCells {
@@ -1195,7 +1202,7 @@ private struct MergeEditor: NSViewRepresentable {
 @MainActor protocol MergeContextMenuProviding {
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding {
+private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     @objc private func expandFoldedSection(_ sender: Any?) { _ = foldLayout.expandSelection(in: self) }
@@ -1251,12 +1258,24 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         scrollRangeToVisible(selectedRange())
         return true
     }
+    var blockGeneration = -1
+    let blockSelection = MergeBlockSelection()
+    var mergeSelectedBlockRange: NSRange? { blockSelection.range(in:self) }
+    var mergeBlockBoundaryRects: [NSRect] { blockSelection.boundaryRects(in:self) }
+    func installBlock(_ range: NSRange, caret: Int, trimFinalEnding: Bool = false) {
+        var payload = range
+        if trimFinalEnding, NSMaxRange(range) <= string.utf16.count {
+            payload.length = MergeSourceComparison.navigationRanges(text:(string as NSString).substring(with:range)).last.map(NSMaxRange) ?? 0
+        }
+        blockSelection.install(payload,caret:caret,in:self)
+    }
     let foldLayout = MergeFoldTextLayout()
     override func scrollRangeToVisible(_ range: NSRange) {
         if model?.selectingNavigationBlock != true { foldLayout.reveal(selection: range, in: self, includeMarker: true) }
         super.scrollRangeToVisible(range)
     }
     override func mouseDown(with event: NSEvent) {
+        model?.clearNavigationBlockSelection()
         if MergeMarkedWordInterface.mouse(event, in: self) { window?.makeFirstResponder(self); return }
         if model?.busy == false, model?.confirmingQuit == false, foldLayout.expand(at: event, in: self) { return }
         super.mouseDown(with: event)
@@ -1267,15 +1286,22 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         super.draw(dirtyRect); whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect)
         MergeInlineTicks.draw(in: self, offsets: inlineMissingOffsets, dirtyRect: dirtyRect)
         foldLayout.draw(in: self, dirtyRect: dirtyRect)
+        blockSelection.draw(in:self,dirtyRect:dirtyRect)
     }
     fileprivate var clipboardText: String? {
         guard window != nil, let model, !model.retired else { return nil }
         if let cells = sourceCells {
             return try? MergeClipboard.sourceText(selection: selectedRange(), cells: cells,
-                blockRows: MergeClipboard.changedBlock(selection: selectedRange(), cells: cells))
+                blockRows: mergeSelectedBlockRange.flatMap { MergeBlockSelection.rows($0,cells:cells) }
+                    ?? MergeClipboard.changedBlock(selection:selectedRange(),cells:cells))
+        }
+        if let block = mergeSelectedBlockRange {
+            // Native blocks already exclude the final row's ending; a trailing
+            // LF can instead represent a selected empty final row.
+            return try? MergeClipboard.documentText(selection:block,document:string)
         }
         let block = sourceSide == nil && selectedRange().length == 0 ? model.blocks.first { NSLocationInRange(selectedRange().location, $0.range) }?.range : nil
-        return try? MergeClipboard.documentText(selection: selectedRange(), document: string, block: block)
+        return try? MergeClipboard.documentText(selection:selectedRange(),document:string,block:block)
     }
     fileprivate var clipboardWritable: Bool {
         window != nil && model?.retired == false && mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && window?.attachedSheet == nil
@@ -1334,21 +1360,23 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     func resetMergeHistory() { mergeUndoManager.removeAllActions(); updateUndoState() }
     func replaceMergeBlock(_ range: NSRange, with replacement: String, actionName: String = "Use text block", state: MergeSourceState = .edited) {
         guard isEditable, model?.busy == false, model?.confirmingQuit == false, NSMaxRange(range) <= (string as NSString).length else { return }
-        let previous = string, selection = selectedRange(), presentation = model?.resultPresentation
+        let previous = string, selection = selectedRange(), presentation = model?.resultPresentation, block = mergeSelectedBlockRange
         mergeUndoManager.beginUndoGrouping(); defer { mergeUndoManager.endUndoGrouping() }
-        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection: selection, presentation: presentation) }
+        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection: selection, presentation: presentation, block:block) }
         if let next = model?.resultPresentation.replacing(range, with: replacement, state: state) { model?.updateResultPresentation(next) }
         mergeUndoManager.setActionName(actionName)
         textStorage?.replaceCharacters(in: range, with: replacement)
         setSelectedRange(NSRange(location: range.location, length: (replacement as NSString).length))
         didChangeText()
     }
-    private func restoreMergeText(_ text: String, selection: NSRange, presentation: MergeResultPresentation? = nil) {
-        let previous = string, previousSelection = selectedRange(), previousPresentation = model?.resultPresentation
-        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection: previousSelection, presentation: previousPresentation) }
+    private func restoreMergeText(_ text: String, selection: NSRange, presentation: MergeResultPresentation? = nil, block: NSRange? = nil) {
+        let previous = string, previousSelection = selectedRange(), previousPresentation = model?.resultPresentation, previousBlock = mergeSelectedBlockRange
+        mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection: previousSelection, presentation: previousPresentation, block:previousBlock) }
         if let presentation { model?.updateResultPresentation(presentation) }
         textStorage?.replaceCharacters(in: NSRange(location: 0, length: (string as NSString).length), with: text)
-        setSelectedRange(selection); didChangeText()
+        if let block { installBlock(block,caret:selection.location) }
+        else { blockSelection.clear(in:self); setSelectedRange(selection) }
+        didChangeText()
     }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -1407,7 +1435,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         for (index, choice) in MergeBlockChoice.allCases.enumerated() {
             let item = NSMenuItem(title: choice.rawValue, action: #selector(useBlock(_:)), keyEquivalent: "")
             item.tag = index; item.target = self; item.image = choice.icon.contextImage(defaults: defaults)
-            item.isEnabled = writable && model.blocks.contains { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }
+            item.isEnabled = writable && model.blocks.contains { NSIntersectionRange($0.range, mergeSelectedBlockRange ?? selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }
             menu.addItem(item)
         }
         menu.addItem(.separator())
@@ -1464,7 +1492,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         if menuItem.action == #selector(useBlock(_:)) {
             guard mergeEditable, isEditable, let model, !model.busy, !model.confirmingQuit,
                   MergeBlockChoice.allCases.indices.contains(menuItem.tag) else { return false }
-            let selection = selectedRange()
+            let selection = mergeSelectedBlockRange ?? selectedRange()
             return model.blocks.contains { NSIntersectionRange($0.range, selection).length > 0 || NSLocationInRange(selection.location, $0.range) }
         }
         return super.validateMenuItem(menuItem)
@@ -1497,7 +1525,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     }
     private var sourceConflictAvailable: Bool {
         guard sourceSide != nil, let model, let cells = sourceCells else { return false }
-        let lines = MergeFindLine.displayCells(cells), selection = selectedRange()
+        let lines = MergeFindLine.displayCells(cells), selection = mergeSelectedBlockRange ?? selectedRange()
         guard let start = lines.lastIndex(where: { $0.offset <= selection.location }) else { return false }
         let end = lines.lastIndex(where: { $0.offset <= NSMaxRange(selection) }) ?? start
         guard let range = model.resultPresentation.navigationMap.resultRange(sourceRows:start..<(end + 1)) else { return false }
@@ -1509,7 +1537,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         model?.choose(MergeBlockChoice.allCases[sender.tag])
     }
     @objc private func useBlock(_ sender: NSMenuItem) {
-        guard mergeEditable, isEditable, MergeBlockChoice.allCases.indices.contains(sender.tag), let model, !model.busy, !model.confirmingQuit, let block = model.blocks.first(where: { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }) else { return }
+        guard mergeEditable, isEditable, MergeBlockChoice.allCases.indices.contains(sender.tag), let model, !model.busy, !model.confirmingQuit, let block = model.blocks.first(where: { NSIntersectionRange($0.range, mergeSelectedBlockRange ?? selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }) else { return }
         let text = block.replacement(MergeBlockChoice.allCases[sender.tag])
         replaceMergeBlock(block.range, with: text, state: .resolved)
     }

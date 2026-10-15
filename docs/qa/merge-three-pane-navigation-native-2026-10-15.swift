@@ -24,13 +24,14 @@ struct MergeThreePaneNavigationVerification {
         try await ThreePaneEngineVerification.wait{result.string == model.result && !model.folding.projection.rows.isEmpty && !model.resultFolding.projection.rows.isEmpty}
         owner.window!.makeFirstResponder(right);right.setSelectedRange(NSRange(location:0,length:0));await Task.yield()
         model.navigateBlock(1,conflictsOnly:true)
-        try require((right.string as NSString).substring(with:right.selectedRange()) == "mine1a\nmine1b","Source conflict grouping/padding")
-        try require((left.string as NSString).substring(with:left.selectedRange()).hasPrefix("theirs1"),"Source peer selection")
-        try require(result.selectedRange() == model.blocks[0].range && model.selectedConflict == 0 && model.canChooseConflict,"Source-to-marker mapping")
+        try require((right.string as NSString).substring(with:(right as! MergeBlockSelecting).mergeSelectedBlockRange!) == "mine1a\nmine1b","Source conflict grouping/padding")
+        try require(right.selectedRange().length == 0 && result.selectedRange().length == 0,"Navigation installed ordinary text selection")
+        try require((left.string as NSString).substring(with:(left as! MergeBlockSelecting).mergeSelectedBlockRange!).hasPrefix("theirs1"),"Source peer selection")
+        try require((result as! MergeBlockSelecting).mergeSelectedBlockRange == NSRange(location:model.blocks[0].range.location,length:(MergeSourceComparison.navigationRanges(text:(result.string as NSString).substring(with:model.blocks[0].range)).last.map(NSMaxRange) ?? 0)) && model.selectedConflict == 0 && model.canChooseConflict,"Source-to-marker mapping")
         try require(owner.window!.firstResponder === right,"Navigation moved active source focus")
         let f8=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:"\u{f70b}",charactersIgnoringModifiers:"\u{f70b}",isARepeat:false,keyCode:100)!
         try require(right.performKeyEquivalent(with:f8),"F8 not handled")
-        try require((right.string as NSString).substring(with:right.selectedRange()) == "mine2" && result.selectedRange() == model.blocks[1].range && model.selectedConflict == 1,"Next source conflict mapped wrong result")
+        try require((right.string as NSString).substring(with:(right as! MergeBlockSelecting).mergeSelectedBlockRange!) == "mine2" && (result as! MergeBlockSelecting).mergeSelectedBlockRange == NSRange(location:model.blocks[1].range.location,length:(MergeSourceComparison.navigationRanges(text:(result.string as NSString).substring(with:model.blocks[1].range)).last.map(NSMaxRange) ?? 0)) && model.selectedConflict == 1,"Next source conflict mapped wrong result")
         try require(!model.canNavigateBlock(1,conflictsOnly:true),"Source conflict boundary wrapped")
         let before=model.result,beforeMap=model.resultPresentation.navigationMap
         let board=NSPasteboard.withUniqueName();defer{board.releaseGlobally()}
@@ -46,13 +47,13 @@ struct MergeThreePaneNavigationVerification {
         model.redo();try await ThreePaneEngineVerification.wait{model.result == expected && model.blocks.count == 1}
         model.undo();try await ThreePaneEngineVerification.wait{model.result == before && model.blocks.count == 2}
         owner.window!.makeFirstResponder(result);result.setSelectedRange(NSRange(location:0,length:0));await Task.yield()
-        model.navigateBlock(1,conflictsOnly:true);try require(model.selectedConflict == 0 && result.selectedRange().length > 0,"Result next conflict")
+        model.navigateBlock(1,conflictsOnly:true);try require(model.selectedConflict == 0 && result.selectedRange().length == 0 && (result as! MergeBlockSelecting).mergeSelectedBlockRange != nil,"Result next conflict")
         model.navigateBlock(1,conflictsOnly:true);try require(model.selectedConflict == 1,"Result conflict search ignored caret")
         model.navigateBlock(-1,conflictsOnly:true);try require(model.selectedConflict == 0,"Result reverse conflict search")
         let selection=result.selectedRange();model.navigateBlock(-1,conflictsOnly:true);try require(result.selectedRange() == selection,"Result previous wrapped")
         owner.window!.makeFirstResponder(right);right.setSelectedRange(NSRange(location:0,length:0));await Task.yield()
         model.navigateBlock(1,conflictsOnly:false)
-        try require((right.string as NSString).substring(with:right.selectedRange()) == "base1","Difference search skipped removed Base state")
+        try require((right.string as NSString).substring(with:(right as! MergeBlockSelecting).mergeSelectedBlockRange!) == "base1","Difference search skipped removed Base state")
         owner.window!.makeFirstResponder(result);result.setSelectedRange(NSRange(location:0,length:0));await Task.yield()
         // Manual common-line selection must not resolve the previous conflict.
         try await ThreePaneEngineVerification.wait{!model.canChooseConflict}

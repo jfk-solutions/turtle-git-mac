@@ -62,7 +62,7 @@ import TurtleGitCore
         let next = item(.nextDifference, in: toolbar), oldDifference = model.difference
         model.busy = true; toolbar.refresh(); toolbar.toolbar.validateVisibleItems(); try require(!next.isEnabled)
         try send(next); try require(model.difference == oldDifference)
-        model.busy = false; toolbar.refresh(); try send(next); try require(model.difference != oldDifference && (comparisonText.string as NSString).substring(with:comparisonText.selectedRange()) == "new2")
+        model.busy = false; toolbar.refresh(); try send(next); try require(model.difference != oldDifference && (comparisonText.string as NSString).substring(with:(comparisonText as! MergeBlockSelecting).mergeSelectedBlockRange!) == "new2")
         let wrapping = item(.wrap, in: toolbar).view as! NSButton, oldWrap = model.wrapLines
         wrapping.performClick(nil); try require(model.wrapLines != oldWrap && wrapping.state == (model.wrapLines ? .on : .off))
         toolbar.toolbar.insertItem(withItemIdentifier: MergeToolbarCommand.whitespace.identifier, at: toolbar.toolbar.items.count)
