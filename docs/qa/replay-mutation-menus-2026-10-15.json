@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-15",
+  "scope": "Replay Add, Ignore and Delete workflow family",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RebaseDlg.cpp Init replay status-list mask and ListConflictFile filter",
+    "GitStatusListCtrl.cpp Add modes, Ignore selection and DeleteSelectedFiles"
+  ],
+  "implementation": [
+    "Preserve source replay filter; deleted rows with unversioned copies can Add",
+    "Owned existing Add progress, executable/symlink modes, no Commit post-action",
+    "Owned existing Ignore options and literal-name/extension/parent-folder choices",
+    "Fresh stopped replay/HEAD/row/index-flag validation before Add/rules/Delete and later mode/removal operations",
+    "Delete native No-default question, Shift permanent deletion, exact missing index removal and recoverable macOS Trash reporting",
+    "Keyboard Delete retains actual mark and full captured selection",
+    "Parent cancellation, forced child retirement, retained lease, grouped refresh/change publication",
+    "Shared Ignore ownership compares canonical paths instead of URL directory hints"
+  ],
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/replay-mutation-menus-build-2026-10-15.log",
+      "followup_exit_code": 0,
+      "followup_log": "build/qa/replay-mutation-menus-ignore-build-2026-10-15.log"
+    },
+    "core": {
+      "checks": 8,
+      "failures": 0,
+      "log": "build/qa/replay-mutation-menus-ignore-core-2026-10-15.log",
+      "scope": "All IgnoreTests, including URL-hint regression, nested/outside ownership rejection, destinations and cancellation/index preservation"
+    },
+    "native": {
+      "log": "build/qa/replay-mutation-menus-native-focused-2026-10-15.log",
+      "cases": [
+        "rebase-conflict-menus",
+        "add-dialog",
+        "ignore-workflow"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "earlier_failures": [
+        {
+          "pid_reaped": 75353,
+          "log": "build/qa/replay-mutation-menus-native-2026-10-15.log",
+          "reason": "New valid Ignore scenario timed out; added direct model error diagnostic."
+        },
+        {
+          "pid_reaped": 77915,
+          "log": "build/qa/replay-mutation-menus-native-recheck-2026-10-15.log",
+          "reason": "Shared Ignore owner check incorrectly rejected a valid repository root with a non-directory URL hint. Fixed canonical path comparison and added Core regression."
+        },
+        {
+          "pid_reaped": 80676,
+          "log": "build/qa/replay-mutation-menus-native-pathfix-2026-10-15.log",
+          "reason": "Fixture searched for an unescaped space in the generated ignore rule. Replaced that assertion with Git check-ignore --no-index plus destination-byte change, verifying actual literal Git behavior."
+        },
+        {
+          "pid_reaped": 83206,
+          "log": "build/qa/replay-mutation-menus-native-rulecheck-2026-10-15.log",
+          "reason": "Fixture inherited literal-pathspec mode for check-ignore, which does not support pathspec magic. Use literalPathspecs:false, matching the existing Ignore Core semantic checks."
+        }
+      ],
+      "scope": "TURTLEGIT_REPLAY_MUTATION_ONLY=1 limits replay recheck to the new Add/Ignore/Delete family. Earlier full replay attempts passed pre-existing comparison/column/key/flag/Revert assertions before entering the new family. Ordinary Add and Ignore workflow cases run normally.",
+      "coverage": [
+        "Actual stopped replay, deleted local-copy Add and executable 100755 index mode with original bytes",
+        "Owned Add progress sheet suppresses Commit and closes before parent refresh",
+        "Real owned Ignore options: stale Apply refuses destination writes; valid exclude rule verified by Git check-ignore --no-index",
+        "Native Delete question defaults No and refusal preserves raw index",
+        "Changed-status late Yes refuses deletion; missing path removes exact index entry",
+        "Actual recoverable Trash copy retains bytes; only that owned Trash item cleaned",
+        "Unrelated unmerged stages, HEAD and active replay retained",
+        "Forced owner close during suspended Add validation cannot stage or publish success",
+        "Existing ordinary Add dialog and Ignore workflow receiver cases"
+      ],
+      "result": "6 grouped cases passed",
+      "owned_receiver_pids_reaped": [
+        85744,
+        86830,
+        87195,
+        87273,
+        88354,
+        88802
+      ],
+      "owned_receivers_absent_after_check": true
+    },
+    "documentation": {
+      "reconciled": true,
+      "site_exit_code": 0,
+      "unresolved_fragments": []
+    }
+  },
+  "hosted_ci": {
+    "observed_run": 38649492168,
+    "sha": "24af83b3",
+    "job": 116146207099,
+    "core_checks": 1377,
+    "core_skipped": 1,
+    "core_failures": 0,
+    "failure": "Grouped LFS/mail receiver compilation exceeded 300 seconds on hosted Intel runner before runtime checks.",
+    "repair": "Give the existing owned compiler 900 seconds, retaining process-group cleanup and independent runtime limits.",
+    "repair_validation": "Python syntax compiled; future hosted acceptance remains unproven.",
+    "latest_pages_run": 38657335363,
+    "latest_pages_sha": "e58b1129",
+    "latest_pages_result": "success"
+  },
+  "limits": [
+    "No complete physical menu/keyboard/VoiceOver or full visual parity claim",
+    "Source versioned replay list intentionally does not expose standalone untracked rows",
+    "Actual signed Finder/security-scope/App Store acceptance remains open",
+    "Complete replay/application parity remains open"
+  ]
+}

@@ -11,6 +11,10 @@ import TurtleGitCore
     private(set) var conflictRevertWindow:RevertProgressWindowController?
     private(set) var conflictUnifiedWindows:[UUID:PatchWindowController]=[:]
     var openConflictUnifiedExternal:(Data,Bool,UserDefaults) async throws -> Bool = {try await UnifiedDiffApplication.openExternal($0,alternate:$1,preferences:$2)}
+    private(set) var conflictAddWindow: AddProgressWindowController?
+    private(set) var conflictIgnoreWindow: IgnoreWindowController?
+    var configureConflictAdd: (AddProgressWindowModel) -> Void = { _ in }
+    var configureConflictIgnore: (IgnoreWindowModel) -> Void = { _ in }
     var configureConflictRevert:(RevertProgressWindowModel)->Void = {_ in}
     var configureConflictBaseViewer: (FileComparisonWindowModel) -> Void = { _ in }
     private var conflictPanel: (UUID, NSOpenPanel, (URL?) -> Void)?
@@ -106,6 +110,48 @@ import TurtleGitCore
                 }
                 self.conflictRevertWindow=child;self.configureConflictRevert(child.model)
                 if let sheet=child.window {window.beginSheet(sheet);child.model.start()} else {child.close()}
+            }
+        }
+        model.confirmConflictDeletion={ [weak self] paths,permanently in
+            await self?.askReplay(permanently ? "Permanently delete the selected paths?":"Move the selected paths to Trash?",detail:"\(paths.count) selected item(s). Their index entries will also be removed."+(permanently ? " This cannot be undone.":" Files moved to Trash can be recovered in Finder."),buttons:["No","Yes"],defaultIndex:0) == 1
+        }
+        model.cancelConflictFileDialog={ [weak self] in
+            self?.conflictAddWindow?.model.cancel();self?.conflictIgnoreWindow?.model.cancel()
+        }
+        model.presentConflictAdd={ [weak self] paths,mode,validate in
+            guard let self,!self.model.retired,self.conflictAddWindow == nil,let owner=self.window,owner.attachedSheet == nil else {return}
+            await withCheckedContinuation { continuation in
+                let child=AddProgressWindowController(repository:repository,access:access,paths:paths,mode:mode)
+                child.model.allowsCommit=false;child.model.validateMutation=validate
+                child.model.onFinished={ [weak model=self.model] text,_ in if let model,!model.retired {model.output += text+"\n"} }
+                child.model.close={ [weak child] in
+                    guard let child,!child.model.busy,!child.model.confirmingQuit,let sheet=child.window else {return}
+                    sheet.sheetParent?.endSheet(sheet);sheet.orderOut(nil);child.close()
+                }
+                child.onClosed={ [weak self,weak child] in
+                    if let sheet=child?.window {sheet.sheetParent?.endSheet(sheet);sheet.orderOut(nil)}
+                    if self?.conflictAddWindow === child {self?.conflictAddWindow=nil};continuation.resume()
+                }
+                self.conflictAddWindow=child;self.configureConflictAdd(child.model)
+                if let sheet=child.window {owner.beginSheet(sheet);child.model.start()} else {child.close()}
+            }
+        }
+        model.presentConflictIgnore={ [weak self] action,paths,validate in
+            guard let self,!self.model.retired,self.conflictIgnoreWindow == nil,let owner=self.window,owner.attachedSheet == nil else {return}
+            let child=try IgnoreWindowController(repository:repository,access:access,paths:paths,mask:action.ignoresByExtension,delete:action.removesWhenIgnoring)
+            await withCheckedContinuation { continuation in
+                child.model.validateMutation=validate
+                child.model.close={ [weak child] in
+                    guard let child,let sheet=child.window else {return}
+                    sheet.sheetParent?.endSheet(sheet);sheet.orderOut(nil);child.close()
+                }
+                child.onChanged={ [weak model=self.model] text in if let model,!model.retired {model.output += text+"\n"} }
+                child.onClosed={ [weak self,weak child] in
+                    if let sheet=child?.window {sheet.sheetParent?.endSheet(sheet);sheet.orderOut(nil)}
+                    if self?.conflictIgnoreWindow === child {self?.conflictIgnoreWindow=nil};continuation.resume()
+                }
+                self.conflictIgnoreWindow=child;self.configureConflictIgnore(child.model)
+                if let sheet=child.window {owner.beginSheet(sheet)} else {child.close()}
             }
         }
         model.pickReference = { [weak self] target in self?.showReferencePicker(target) }
@@ -234,7 +280,7 @@ import TurtleGitCore
         if !model.active && model.hasReplayStash { model.finishReplay(); return false }
         return true
     }
-    func windowWillClose(_ notification: Notification) { retireReferencePicker(); model.retire();Array(conflictUnifiedWindows.values).forEach {$0.close()};conflictUnifiedWindows=[:]; if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictRevertWindow?.close();conflictRevertWindow=nil; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) { retireReferencePicker(); model.retire();conflictAddWindow?.close();conflictAddWindow=nil;conflictIgnoreWindow?.close();conflictIgnoreWindow=nil;Array(conflictUnifiedWindows.values).forEach {$0.close()};conflictUnifiedWindows=[:]; if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictRevertWindow?.close();conflictRevertWindow=nil; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 enum RebaseReferenceTarget: Equatable { case upstream, onto }
@@ -288,6 +334,12 @@ struct RebaseReferenceRequest {
     var confirmConflictMutation:(String,Bool) async -> Bool = {_,_ in false}
     var presentConflictRevert:([StatusEntry],@escaping (OperationCancellation,Bool) async throws -> Void) async -> Void = {_,_ in}
     var cancelConflictRevert:()->Void = {}
+    private var presentingConflictFileDialog=false
+    var cancelConflictFileDialog:()->Void = {}
+    private(set) var conflictDeletionResult:WorkingFileDeleteResult?
+    var confirmConflictDeletion:([String],Bool) async -> Bool = {_,_ in false}
+    var presentConflictAdd:([String],WorkingFileAddMode,@escaping (OperationCancellation,Bool) async throws -> Void) async -> Void = {_,_,_ in}
+    var presentConflictIgnore:(RepositoryAction,[String],@escaping (OperationCancellation,Bool) async throws -> Void) async throws -> Void = {_,_,_ in}
     var onConflictRevertSubmodules:(String,[String])->Void = {_,_ in}
     @Published var conflictFileColumns:StatusListColumnSettings
     @Published private(set) var conflictSortOrder:[RebaseConflictSort]
@@ -409,6 +461,7 @@ struct RebaseReferenceRequest {
     var hasCancellablePreparation: Bool { conflictFileCancellation != nil || sessionCancellation != nil || conflictDiffCancellation != nil || planCancellation != nil || referenceCancellation != nil || initialCancellation != nil || detailCancellation != nil }
     @discardableResult func cancelPreparation() -> Bool {
         if revertingConflictFiles {cancelConflictRevert();return true}
+        if presentingConflictFileDialog {cancelConflictFileDialog();return true}
         guard hasCancellablePreparation else { return false }
         cancellingPreparation = true;pendingSessionRefresh=false;sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); return true
     }
@@ -575,9 +628,9 @@ struct RebaseReferenceRequest {
         let amendToParent:Bool
         var paths: [String] { rows.map(\.path) }
     }
-    func conflictFileMenu(_ ids: Set<String>) -> ConflictFileMenu {
+    func conflictFileMenu(_ ids: Set<String>,markedPath:String?=nil) -> ConflictFileMenu {
         let rows = conflictTableRows.map(\.entry).filter { ids.contains($0.id) }
-        return ConflictFileMenu(generation: conflictMenuGeneration, identity: conflictIdentity, head: conflictHead, rows: rows, conflicts: conflicts.filter { ids.contains($0.id) }, statistics: conflictStatistics,columns:visibleConflictColumns,indexFlags:conflictIndexFlags,mark:focusedConflictPath.flatMap {id in rows.contains(where:{$0.id==id}) ? id:nil} ?? rows.first?.id ?? "",comparisonMark:conflictComparisonMark,amendToParent:state?.stoppedAction == .squash)
+        return ConflictFileMenu(generation: conflictMenuGeneration, identity: conflictIdentity, head: conflictHead, rows: rows, conflicts: conflicts.filter { ids.contains($0.id) }, statistics: conflictStatistics,columns:visibleConflictColumns,indexFlags:conflictIndexFlags,mark:(markedPath ?? focusedConflictPath).flatMap {id in rows.contains(where:{$0.id==id}) ? id:nil} ?? rows.first?.id ?? "",comparisonMark:conflictComparisonMark,amendToParent:state?.stoppedAction == .squash)
     }
     private func acceptsConflictFileMenu(_ menu: ConflictFileMenu, duringRequest: Bool = false) -> Bool {
         !retired && (duringRequest || !busy) && !viewingConflictBase && !selectingSplit && fileRecovery &&
@@ -596,7 +649,7 @@ struct RebaseReferenceRequest {
         case .reveal: return menu.rows.count == 1 && menu.rows[0].state != .deleted
         case .compareTwo: return menu.rows.count == 2 && ordinary && menu.rows.allSatisfy { $0.state != .deleted }
         case .submoduleLog:return menu.rows.count == 1 && !ordinary
-        case .delete: return false
+        case .delete: return menu.rows.first(where:{$0.id==menu.mark})?.canDeleteFromStatusList == true
         }
     }
     private func validateConflictFileMenu(_ menu: ConflictFileMenu, token: OperationCancellation,validateRows:Bool=true) async throws {
@@ -629,6 +682,7 @@ struct RebaseReferenceRequest {
         }
     }
     func conflictFileCommand(_ command: StatusFileCommand, menu: ConflictFileMenu) {
+        if command == .delete {deleteConflictFiles(menu,permanently:NSEvent.modifierFlags.contains(.shift));return}
         guard canConflictFileCommand(command, menu: menu) else { return }
         runConflictFileMenu(menu) { [self] token in
             switch command {
@@ -702,6 +756,54 @@ struct RebaseReferenceRequest {
             }
             try await validateConflictFileMenu(menu,token:token)
             try await onConflictUnified?(bytes,alternate,"Changes in \(menu.rows.count) replay file(s)",token)
+        }
+    }
+    func canAddConflictFiles(_ menu:ConflictFileMenu,mode:WorkingFileAddMode = .normal)->Bool {
+        guard acceptsConflictFileMenu(menu),let mark=menu.rows.first(where:{$0.id==menu.mark}) else {return false}
+        guard mark.state == .untracked || mark.state == .ignored || mark.hasUnversionedCopy else {return false}
+        if mode != .normal {
+            guard let location=try? conflictLocation(mark.path),let attributes=try? FileManager.default.attributesOfItem(atPath:location.path),attributes[.type] as? FileAttributeType != .typeDirectory else {return false}
+        }
+        return true
+    }
+    func addConflictFiles(_ menu:ConflictFileMenu,mode:WorkingFileAddMode) {
+        guard canAddConflictFiles(menu,mode:mode) else {return}
+        runConflictFileMenu(menu) { [self] token in
+            try token.check();presentingConflictFileDialog=true
+            defer {presentingConflictFileDialog=false;if !retired {pendingSessionRefresh=true;onChanged()}}
+            await presentConflictAdd(menu.paths,mode) { [self] request,initial in
+                try await validateConflictFileMenu(menu,token:request,validateRows:initial)
+            }
+        }
+    }
+    func canIgnoreConflictFiles(_ menu:ConflictFileMenu)->Bool {
+        guard acceptsConflictFileMenu(menu),let mark=menu.rows.first(where:{$0.id==menu.mark}) else {return false}
+        return mark.state == .untracked || mark.state == .deleted || mark.hasUnversionedCopy
+    }
+    func ignoreConflictFiles(_ menu:ConflictFileMenu,action:RepositoryAction,paths:[String]) {
+        guard canIgnoreConflictFiles(menu),action.isIgnore else {return}
+        let folders=menu.paths.map {($0 as NSString).deletingLastPathComponent}.filter {!$0.isEmpty}
+        guard paths == menu.paths || paths.count==1 && folders.contains(paths[0]) else {return}
+        runConflictFileMenu(menu) { [self] token in
+            try token.check();presentingConflictFileDialog=true
+            defer {presentingConflictFileDialog=false;if !retired {pendingSessionRefresh=true;onChanged()}}
+            try await presentConflictIgnore(action,paths) { [self] request,initial in
+                try await validateConflictFileMenu(menu,token:request,validateRows:initial)
+            }
+        }
+    }
+    func deleteConflictFiles(_ menu:ConflictFileMenu,permanently:Bool) {
+        guard canConflictFileCommand(.delete,menu:menu) else {return}
+        runConflictFileMenu(menu) { [self] token in
+            guard await confirmConflictDeletion(menu.paths,permanently) else {return}
+            try await validateConflictFileMenu(menu,token:token)
+            defer {if !retired {pendingSessionRefresh=true;onChanged()}}
+            let result=try await repository.deleteWorkingFiles(menu.rows,selectionMark:menu.rows.first {$0.id==menu.mark},permanently:permanently,cancellation:token)
+            guard !retired,!token.isCancelled else {return}
+            conflictDeletionResult=result
+            output += "Deleted \(result.removedPaths.count) working file(s); removed \(result.removedIndexPaths.count) index entries.\n"
+            if !result.trashedFiles.isEmpty {output += "Recoverable in Trash:\n"+result.trashedFiles.map(\.path).joined(separator:"\n")+"\n"}
+            checkedConflicts.subtract(menu.paths);selectedConflicts.subtract(menu.paths)
         }
     }
     func canRevertConflictFiles(_ menu:ConflictFileMenu)->Bool {
@@ -1593,6 +1695,15 @@ struct RebaseConflictFiles: View {
         }.fileListFont().contextMenu(forSelectionType: String.self) { ids in
             let menu = model.conflictFileMenu(ids)
             TurtleGitContextMenu {
+                if model.canAddConflictFiles(menu) {
+                    Button {model.addConflictFiles(menu,mode:.normal)} label:{CommandLabel(title:WorkingFileAddMode.normal.rawValue,icon:.add)}
+                    if NSEvent.modifierFlags.contains(.shift),menu.statistics[menu.mark]?.isSubmodule != true {
+                        ForEach([WorkingFileAddMode.executable,.symlink],id:\.self) {mode in
+                            if model.canAddConflictFiles(menu,mode:mode) {Button {model.addConflictFiles(menu,mode:mode)} label:{CommandLabel(title:mode.rawValue,icon:.add)}}
+                        }
+                    }
+                    Divider()
+                }
                 Button {model.compareConflictMenu(menu)} label:{CommandLabel(title:"Compare with base",icon:.compare)}
                     .disabled(model.busy || menu.rows.first(where:{$0.id==menu.mark})?.canCompareWithBaseFromStatusList != true)
                 if model.canShowConflictUnified(menu) {Button {model.showConflictUnified(menu)} label:{CommandLabel(title:"Show changes as unified diff",icon:.unifiedDiff)}}
@@ -1619,6 +1730,12 @@ struct RebaseConflictFiles: View {
                         Button {model.compareConflictWithMarked(menu)} label:{CommandLabel(title:"Compare with “"+mark.label(for:menu.mark)+"”",icon:.compare)}
                     }
                 }
+                if model.canConflictFileCommand(.delete,menu:menu) {
+                    Button {model.deleteConflictFiles(menu,permanently:NSEvent.modifierFlags.contains(.shift))} label:{CommandLabel(title:"Delete",icon:.remove)}
+                }
+                if model.canIgnoreConflictFiles(menu) {
+                    IgnoreSelectionMenu(paths:menu.paths) {action,paths in model.ignoreConflictFiles(menu,action:action,paths:paths)}
+                }
                 Menu {
                     Button { model.copyConflictFiles(menu, copy: .all) } label: { CommandLabel(title: "Copy all information to clipboard", icon: .copy) }
                     Button { model.copyConflictFiles(menu, copy: .fullPaths) } label: { CommandLabel(title: "Full paths", icon: .copy) }
@@ -1636,7 +1753,7 @@ struct RebaseConflictFiles: View {
             savedOrder:model.conflictFileColumns.order,savedWidths:model.conflictFileColumns.widths,
             saveLayout:{model.saveConflictColumnLayout(order:$0,widths:$1)},setColumnVisible:{model.setConflictColumn($0,visible:$1)},
             resetColumns:{model.resetConflictColumns(choose:$0,onAccepted:$1)},focusedPath:$model.focusedConflictPath,enabled:model.conflictColumnsAvailable,
-            delete:{_,_,_ in},copy:{entries,status in model.copyConflictFiles(model.conflictFileMenu(Set(entries.map(\.id))),copy:status ? .pathsAndStatus:.relativePaths)},
+            delete:{entries,mark,permanently in model.deleteConflictFiles(model.conflictFileMenu(Set(entries.map(\.id)),markedPath:mark.id),permanently:permanently)},copy:{entries,status in model.copyConflictFiles(model.conflictFileMenu(Set(entries.map(\.id))),copy:status ? .pathsAndStatus:.relativePaths)},
             copyColumn:{entries,column in model.copyConflictFiles(model.conflictFileMenu(Set(entries.map(\.id))),copy:.column(column))},
             toggleCheck:{entries,mark in model.toggleConflictChecks(Set(entries.map(\.id)),mark:mark.id)}))
         .background(RebaseConflictFileKeys(model: model))

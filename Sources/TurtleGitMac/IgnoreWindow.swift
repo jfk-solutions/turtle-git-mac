@@ -86,6 +86,8 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, options: IgnoreOptions, delete: Bool = false) {
         self.repository = repository; self.access = access; self.options = options; self.delete = delete
     }
+    var validateMutation: (OperationCancellation, Bool) async throws -> Void = { _, _ in }
+    func cancel() { cancellation?.cancel() }
     func invalidate() { retired = true; cancellation?.cancel(); busy = false }
     private func isCurrent(_ token: OperationCancellation) -> Bool { !retired && cancellation === token && !token.isCancelled }
     func apply() {
@@ -101,6 +103,8 @@ import TurtleGitCore
                     guard access?.hasSecurityScope == true, access?.contains(repository.root) == true,
                           destinations.allSatisfy({ access?.contains($0) == true }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 }
+                try await validateMutation(token, true); try token.check()
+                guard isCurrent(token) else { return }
                 let files: [URL]
                 if let writeRules { files = try await writeRules(selected, token) }
                 else { files = try await repository.addIgnoreRules(selected, cancellation: token) }
@@ -108,9 +112,11 @@ import TurtleGitCore
                 guard isCurrent(token) else { return }
                 if delete {
                     guard let keepLocal = await chooseKeepLocal(), isCurrent(token) else { if isCurrent(token) { submitted = true; close() }; return }
+                    try await validateMutation(token, false); try token.check()
                     for path in selected.paths {
                         guard isCurrent(token) else { return }
                         do {
+                            try await validateMutation(token, false); try token.check()
                             if let removePath { try await removePath(path, keepLocal, token) }
                             else { _ = try await repository.removeVersionedPath(path, keepLocal: keepLocal, cancellation: token) }
                             guard isCurrent(token) else { return }; removed += 1

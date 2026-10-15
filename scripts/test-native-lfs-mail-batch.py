@@ -151,7 +151,10 @@ struct NativeBatch {
                         '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products),
                         *map(str, fixtures), str(main), *map(str, objects), '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(products), '-Xlinker', '-e', '-Xlinker', '_turtlegit_lfs_mail_batch_main', '-o', str(staging)], cwd=root, start_new_session=True)
         try:
-            code = compiler.wait(timeout=300)
+            # Hosted Intel runners can need more than five minutes to type-check
+            # the grouped receiver module. Bound compilation separately from
+            # each runtime phase; always reap its process group below.
+            code = compiler.wait(timeout=900)
             if code: raise subprocess.CalledProcessError(code, compiler.args)
         finally:
             close_receiver(compiler)

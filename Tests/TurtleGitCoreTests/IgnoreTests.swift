@@ -2,6 +2,20 @@ import XCTest
 @testable import TurtleGitCore
 
 final class IgnoreTests: XCTestCase {
+    func testRepositoryURLDirectoryHintDoesNotRejectValidIgnoreDestination() async throws {
+        let (root, original, tracked) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repository = GitRepository(root: URL(fileURLWithPath: root.path, isDirectory: false), executable: original.executable)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let bytes = try Data(contentsOf: root.appendingPathComponent(tracked))
+        var options = try IgnoreOptions(paths: ["valid-directory-hint.txt"])
+        options.destination = .exclude
+        let changed = try await repository.addIgnoreRules(options)
+        XCTAssertEqual(changed.map(\.lastPathComponent), ["exclude"])
+        XCTAssertTrue(try String(contentsOf: root.appendingPathComponent(".git/info/exclude")).contains("valid-directory-hint.txt"))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(tracked)), bytes)
+    }
     func testPrecancelledRulesAndRemovalPreserveFilesAndIndex() async throws {
         let (root, repo, tracked) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

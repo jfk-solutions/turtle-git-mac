@@ -17,7 +17,7 @@ import TurtleGitCore
         DialogGeometry.attach(window, identifier: "AddProgress", legacyName: "AddProgress")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { model.retire(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class AddProgressWindowModel: ObservableObject {
@@ -27,6 +27,9 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?
     private var cancellation = OperationCancellation()
     private var started = false
+    private var retired = false
+    var allowsCommit = true
+    var validateMutation: (OperationCancellation, Bool) async throws -> Void = { _, _ in }
     @Published var busy = true
     @Published var confirmingQuit = false
     @Published var success = false
@@ -36,27 +39,33 @@ import TurtleGitCore
     var onFinished: (String, Bool) -> Void = { _, _ in }
     var onCommit: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal) { self.repository = repository; self.access = access; self.paths = paths; self.mode = mode; information = mode.rawValue + "…" }
+    func retire() { retired = true; cancellation.cancel() }
     func cancel() { guard busy else { return }; cancellation.cancel(); information = "Cancelling…" }
     func run() async {
-        guard !started else { return }; started = true
+        guard !started, !retired else { return }; started = true
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+            try await validateMutation(cancellation, true); try cancellation.check()
+            guard !retired else { return }
             let output = try await repository.addReviewedPaths(paths, mode: mode, cancellation: cancellation)
+            guard !retired else { return }
             success = true; information = "\(paths.count) item(s) added." + (output.isEmpty ? "" : "\n" + output)
         } catch { cancelled = cancellation.isCancelled; information = cancelled ? "Cancelled. The index was not replaced." : error.localizedDescription }
-        busy = false; onFinished(information, success)
+        busy = false; if !retired { onFinished(information, success) }
     }
     func changeMode(_ mode: WorkingFileAddMode) async {
-        guard success, !busy, !confirmingQuit, mode != .normal else { return }
+        guard !retired, success, !busy, !confirmingQuit, mode != .normal else { return }
         cancellation = OperationCancellation(); busy = true; information = mode.rawValue + "…"
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+            try await validateMutation(cancellation, false); try cancellation.check()
+            guard !retired else { return }
             try await repository.setAddedFileMode(paths: paths, mode: mode, cancellation: cancellation)
             information = mode.rawValue + ": staged file modes updated."
         } catch {
             information = cancellation.isCancelled ? "Mode change cancelled. The index was not replaced." : error.localizedDescription
         }
-        busy = false; onFinished(information, success)
+        busy = false; if !retired { onFinished(information, success) }
     }
     func start() { Task { await run() } }
 }
@@ -67,11 +76,11 @@ struct AddProgressView: View {
             AddProgressTable(model: model).frame(minHeight: 220)
             HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.information).textSelection(.enabled); Spacer() }
             HStack {
-                if model.success {
+                if model.success && (model.allowsCommit || model.mode == .normal) {
                     HStack(spacing: 2) {
-                        Button { model.onCommit() } label: { CommandLabel(title: "Commit…", icon: .commit) }
+                        if model.allowsCommit { Button { model.onCommit() } label: { CommandLabel(title: "Commit…", icon: .commit) } }
                         Menu {
-                        Button { model.onCommit() } label: { CommandLabel(title: "Commit…", icon: .commit) }
+                        if model.allowsCommit { Button { model.onCommit() } label: { CommandLabel(title: "Commit…", icon: .commit) } }
                         if model.mode == .normal {
                             Button { Task { await model.changeMode(.executable) } } label: { CommandLabel(title: WorkingFileAddMode.executable.rawValue, icon: .add) }
                             Button { Task { await model.changeMode(.symlink) } } label: { CommandLabel(title: WorkingFileAddMode.symlink.rawValue, icon: .add) }

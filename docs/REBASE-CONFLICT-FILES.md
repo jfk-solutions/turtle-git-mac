@@ -116,7 +116,7 @@ working comparisons; unresolved single rows retain Edit conflict.
 [Grouped native evidence](qa/rebase-conflict-menus-2026-10-14.json) records actual
 private clipboard/export/owned picker and comparison behavior separately from
 injected Open/Editor/Log/Blame/Reveal callbacks. Core is unchanged in this batch.
-The remaining source status-list menus (including Add/Ignore/Delete and broader
+The remaining source status-list behavior (including broader
 gitlink prepared-comparison combinations), drag/drop, all conditional layouts, physical keyboard/VoiceOver,
 broader editor-dispatch conditional/physical cases and signed Finder/sandbox acceptance remain
 open. This does not certify full Rebase, Cherry Pick or app parity.
@@ -247,3 +247,44 @@ now read raw Git modes so added, changed and deleted gitlinks retain their
 submodule classification. Physical
 menu/tool activation, Finder/security-scope grants, full gitlink comparisons,
 remaining mutation menus and complete replay/application parity remain open.
+
+
+## Add, Ignore and Delete — October 15, 2026
+
+The replay file tab now offers source-gated Add, Ignore and Delete actions with
+original command icons. The source replay filter still excludes standalone
+untracked/ignored rows. A versioned deletion with a local unversioned copy can
+be re-added; Shift exposes executable/symlink Add only for a non-directory mark.
+Add uses the native progress sheet and existing transactional index preparation.
+The replay progress sheet suppresses the Commit post-action, as upstream's
+replay menu mask does. Mode post-actions retain the same replay identity and HEAD.
+
+Ignore uses the existing native Ignore Type and Ignore File dialog as an owned
+sheet, including literal-name/extension/containing-folder menu choices. The
+selected popup and replay state are validated again when Apply starts, before
+writing rules, and before any later removal phase. Changes while the options
+sheet is open refuse the stale request. Closing or cancelling retires owned work.
+
+Delete uses the marked row's missing/unversioned eligibility and captured full
+selection. The native question defaults to No; Shift requests permanent deletion.
+After Yes, fresh replay/HEAD/row/index-flag validation runs before the shared
+working-file backend. Normal deletion uses macOS Trash and reports recoverable
+paths; failure never falls back to permanent deletion. Missing selected files
+remove only their exact index entries. Partial failures retain backend recovery
+information. Parent refresh and repository change publication occur after the
+owned operation/dialog settles, including failures, without advancing replay.
+Keyboard Delete uses the same captured selection mark and confirmation route.
+
+Owned Add and Ignore sheets keep the parent busy and its access lease alive.
+Parent cancellation routes to the active child; forced closure cancels/retires
+it and releases the waiting parent operation. A late Add validation reply cannot
+stage files or publish completion. These changes reuse existing Core mutation operations. The shared Ignore
+ownership check now compares canonical repository paths, so a valid root with
+a different URL directory hint is accepted while nested/outside repositories
+remain rejected.
+
+[Grouped evidence](qa/replay-mutation-menus-2026-10-15.json) records actual Add
+modes, Ignore rule writes/refusals, Delete refusal/stale replies/index effects,
+recoverable Trash bytes and unrelated unmerged-stage/HEAD preservation. Full
+physical input, signed Finder/App Store acceptance and complete replay parity
+remain open.

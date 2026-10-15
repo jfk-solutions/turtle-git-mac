@@ -96,7 +96,8 @@ extension GitRepository {
             let existing = try CloneOptions.workingDirectory(for: parent)
             var bytes = try run(["-C", existing.path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
             if bytes.last == 10 { bytes.removeLast() }
-            guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL == root else { throw IgnoreFailure.outsideWorkingTree }
+            let discovered = URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).resolvingSymlinksInPath().standardizedFileURL
+            guard discovered.path == root.resolvingSymlinksInPath().standardizedFileURL.path else { throw IgnoreFailure.outsideWorkingTree }
         }
     }
     private func ignorePlans(_ options: IgnoreOptions, cancellation: OperationCancellation?) throws -> [(url: URL, patterns: [String])] {
