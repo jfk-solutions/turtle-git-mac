@@ -60,10 +60,18 @@ The migration checkpoint compiled all 82 retained fixture groups against the
 pre-repair Debug app, with a 1.5-second median fixture compilation time. Four
 existing workflow groups passed with system and prepared bundled Git. A later
 focused Import Patch check covers actual clipboard dispatch and its busy/Quit/
-retired gates after an app repair. The full Import Patch fixture still fails its
-later Save As option-lock assertion; the old hosted reference-family compilation
-also exceeded its 300-second limit. Neither is claimed resolved by this migration.
-See [the migration evidence and open failures](qa/native-receiver-migration-2026-10-15.json).
+retired gates after an app repair. At that checkpoint the full Import Patch
+fixture failed later Save As/Undo checks; the old hosted reference-family compile
+also exceeded its 300-second limit. See [the migration evidence](qa/native-receiver-migration-2026-10-15.json).
+
+The subsequent [Review output ownership batch](qa/comparison-output-ownership-2026-10-15.json)
+tracks the related native fixes: cancelable pane/unified-patch output, held format
+choices, stable editor/Undo lifetime, inline errors, clean saved previews and
+explicit continuation to another file. Its full native fixture retains normal
+Import Patch, actual Git mutations, line-ending, close/Quit and late-reply checks;
+new ownership cases also hold choices and a real generator process. The dated
+record separates accepted checks, repaired setup assumptions and remaining gaps.
+The hosted reference compilation timeout remains separate and unresolved.
 
 ## Native LFS transition checkpoints
 

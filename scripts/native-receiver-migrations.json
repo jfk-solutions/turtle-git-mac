@@ -209,7 +209,8 @@
       "script": "scripts/test-import-patch.py",
       "fixtures": [
         "docs/qa/import-patch-native-2026-10-08.swift",
-        "docs/qa/import-patch-lifecycle-native-2026-10-11.swift"
+        "docs/qa/import-patch-lifecycle-native-2026-10-11.swift",
+        "docs/qa/comparison-output-ownership-native-2026-10-15.swift"
       ]
     },
     {

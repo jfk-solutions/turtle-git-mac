@@ -496,6 +496,7 @@ extension GitRepository {
 
 
 public struct WorkingTreePatchSaveResult: Sendable {
+    public let document: FileComparisonDocument
     public let output: String
     /// Saving succeeded even if the optional subsequent Add failed.
     public let addError: String?
@@ -548,7 +549,7 @@ extension GitRepository {
         }
         var outputs = comparison.outputs
         // PatchSave removes zero-line results, including proposed new files.
-        outputs[destination.path] = ComparisonFileContent(path: destination.path, revision: .workingTree, bytes: text.isEmpty ? Data() : bytes, mode: text.isEmpty ? nil : destination.mode, permissions: destination.permissions)
+        outputs[destination.path] = ComparisonFileContent(path: destination.path, revision: .workingTree, bytes: text.isEmpty ? Data() : bytes, mode: text.isEmpty ? nil : destination.mode, permissions: text.isEmpty ? nil : destination.permissions, encoding: encoding ?? destination.encoding, isDeleted: text.isEmpty)
         let before = try tree(comparison.inputs), after = try tree(outputs)
         let patch = try run(location + ["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", before, after], environmentOverrides: environment, cancellation: cancellation).stdout
         try validateInputs()
@@ -568,6 +569,7 @@ extension GitRepository {
             do { _ = try stage([destination.path], cancellation: cancellation); output += "Added \(destination.path) to Git.\n" }
             catch { addError = error.localizedDescription }
         }
-        return WorkingTreePatchSaveResult(output: output, addError: addError)
+        let savedDocument = FileComparisonDocument(base: comparison.editingDocument.base, destination: outputs[destination.path]!)
+        return WorkingTreePatchSaveResult(document: savedDocument, output: output, addError: addError)
     }
 }

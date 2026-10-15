@@ -36,6 +36,13 @@ import TurtleGitCore
         if conflict { try Data("ours\n".utf8).write(to: directory.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "ours") }
         return (repo, patches)
     }
+    @MainActor static func settleComparisons() async throws {
+        for _ in 0..<2000 {
+            if MergeRegexOperations.activeRequests == 0 { return }
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        preconditionFailure("Comparison helpers must settle before testing dirty-window Quit prompts")
+    }
     @MainActor static func nativeTable(_ view: NSView) -> NSTableView? {
         if let table = view as? NSTableView { return table }
         return view.subviews.compactMap { nativeTable($0) }.first
@@ -43,6 +50,7 @@ import TurtleGitCore
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
+        if ProcessInfo.processInfo.environment["TURTLEGIT_OUTPUT_OWNERSHIP_ONLY"] == "1" { try await ComparisonOutputOwnershipVerification.run(root: root, git: git); return }
         if ProcessInfo.processInfo.environment["TURTLEGIT_IMPORT_LIFECYCLE_ONLY"] == "1" { try await ImportPatchLifecycleVerification.run(root: root, git: git); return }
         let (repo, patches) = try await fixture(root.appendingPathComponent("batch"), git)
         let suite = "TurtleGit.ImportPatch.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
@@ -173,13 +181,13 @@ import TurtleGitCore
         let editController = WorkingTreePatchWindowController(repository: editRepo, access: nil, fileAccess: nil, bytes: editBytes, title: "edit.patch", preferences: prefs)
         defer { editController.close() }
         let edit = editController.model
-        func waitEdit(_ condition: () -> Bool) async throws {
+        func waitEdit(_ condition: () -> Bool, line: UInt = #line) async throws {
             for _ in 0..<1000 {
                 editController.window?.contentView?.layoutSubtreeIfNeeded()
                 if condition() { return }
                 try await Task.sleep(nanoseconds: 10_000_000)
             }
-            fatalError("Edited review did not settle")
+            fatalError("Edited review did not settle at \(line): busy=\(edit.busy), editable=\(edit.editable), editing=\(edit.editingEnabled), dirty=\(edit.dirty), filtering=\(String(describing: edit.editor?.filtering)), pending=\(String(describing: edit.editor?.hasPendingEditorChoice)), error=\(String(describing: edit.editor?.error)), notice=\(edit.notice)")
         }
         try await waitEdit { !edit.busy && edit.afterScroll != nil }
         let editIndex = try Data(contentsOf: editRepo.root.appendingPathComponent(".git/index")), editHead = try await editRepo.run(["rev-parse", "HEAD"]).stdout
@@ -187,7 +195,7 @@ import TurtleGitCore
         mergePreferences.autoAdd = false; mergePreferences.save(to: prefs)
         precondition(!MergeEditorPreferences.load(from: prefs).autoAdd)
         edit.setEditing(true)
-        try await waitEdit { (edit.afterScroll?.documentView as? NSTextView)?.isEditable == true }
+        try await waitEdit { edit.editor?.canTransfer(toBase: false) == true && (edit.afterScroll?.documentView as? NSTextView)?.isEditable == true }
         let editedView = edit.afterScroll!.documentView as! NSTextView
         precondition((edit.beforeScroll!.documentView as! NSTextView).isEditable == false)
         let menuClipboard = NSPasteboard.withUniqueName()
@@ -251,12 +259,20 @@ import TurtleGitCore
         }
         precondition(edit.editor!.window === editController.window)
         let exportEditor = edit.editor!
+        let beforeExportEncoding = exportEditor.encoding(base: false)!
+        let beforeExportText = exportEditor.draftText(base: false)
         let exportDraft = "exported edit\nno final newline"
         editedView.undoManager!.groupsByEvent = false; editedView.undoManager!.beginUndoGrouping()
         editedView.insertText(exportDraft, replacementRange: NSRange(location: 0, length: (editedView.string as NSString).length))
         editedView.undoManager!.endUndoGrouping()
         precondition(exportEditor.draftText(base: false) == exportDraft)
-        exportEditor.changeEncoding(.utf16LEBOM, base: false); precondition(edit.dirty)
+        // The authoritative comparison engine finishes asynchronously after
+        // insertText. Change Encoding is correctly refused while filtering.
+        try await waitEdit { exportEditor.canTransfer(toBase: false) }
+        precondition((edit.afterScroll?.documentView as? NSTextView) === editedView && exportEditor.canUndo,
+                     "Authoritative comparison must retain the native editor and its Undo history")
+        exportEditor.changeEncoding(.utf16LEBOM, base: false)
+        precondition(edit.dirty && exportEditor.encoding(base: false) == .utf16LEBOM)
         var exportPending: CheckedContinuation<URL?, Never>?, exportChoices = 0
         exportEditor.chooseExportLocation = { window, name, directory in
             exportChoices += 1
@@ -265,7 +281,8 @@ import TurtleGitCore
             let focus = edit.focusedFile, reverse = edit.reversed, strip = edit.stripCount
             edit.refresh(); edit.focusFile(nil); edit.setReversed(!reverse); edit.setStripCount(strip + 1); edit.apply()
             exportEditor.export(base: true); exportEditor.changeEncoding(.utf8, base: false)
-            precondition(edit.focusedFile == focus && edit.reversed == reverse && edit.stripCount == strip && exportEditor.encoding(base: false) == .utf16LEBOM)
+            precondition(edit.focusedFile == focus && edit.reversed == reverse && edit.stripCount == strip && exportEditor.encoding(base: false) == .utf16LEBOM,
+                         "Export lock: focus=\(String(describing: edit.focusedFile))/\(String(describing: focus)), reverse=\(edit.reversed)/\(reverse), strip=\(edit.stripCount)/\(strip), encoding=\(String(describing: exportEditor.encoding(base: false)))")
             precondition(!editController.windowShouldClose(editController.window!))
             precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(.shared) == .terminateCancel)
             return await withCheckedContinuation { exportPending = $0 }
@@ -286,8 +303,11 @@ import TurtleGitCore
         let unchangedExportHead = try await editRepo.run(["rev-parse", "HEAD"]).stdout
         let unchangedExportWork = try Data(contentsOf: editRepo.root.appendingPathComponent("file"))
         precondition(unchangedExportIndex == editIndex && unchangedExportHead == editHead && unchangedExportWork == Data("base\n".utf8))
-        exportEditor.error = nil; exportEditor.changeEncoding(.utf8, base: false)
-        exportEditor.undo(); precondition(!edit.dirty && exportEditor.draftText(base: false) == "feature\n"); exportEditor.resetHistory()
+        exportEditor.error = nil; exportEditor.changeEncoding(beforeExportEncoding, base: false)
+        exportEditor.undo()
+        precondition(exportEditor.draftText(base: false) == beforeExportText, "Export Undo: text=\(String(reflecting: exportEditor.draftText(base: false))) original=\(String(reflecting: beforeExportText)), canUndo=\(exportEditor.canUndo), busy=\(exportEditor.busy), quit=\(exportEditor.confirmingQuit)")
+        precondition(!edit.dirty, "Export Undo: encoding=\(String(describing: exportEditor.encoding(base: false))) original=\(beforeExportEncoding), filtering=\(exportEditor.filtering)")
+        exportEditor.resetHistory()
         try await waitEdit { editedView.isEditable }
         print("PASS: prepared editor Save As owns review window; injected Cancel/success/write-failure unlocks controls, exact UTF16 BOM export retains dirty draft and repository HEAD/index/worktree/applied paths, pending export blocks refresh/options/reentry/Close/Quit. No physical save panel or signed access.")
         editedView.undoManager!.groupsByEvent = false
@@ -306,15 +326,24 @@ import TurtleGitCore
         precondition(edit.dirty && edit.editor!.draftText(base: false) == "custom\nno final newline")
         let quitEdit = TurtleGitApplicationDelegate(); var editReply: Bool?
         quitEdit.replyToTermination = { _, value in editReply = value }
+        try await settleComparisons()
         precondition(quitEdit.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
         try await waitEdit { editReply != nil }
         precondition(editReply == false && edit.dirty && !edit.confirmingQuit)
         edit.chooseDraft = { choices += 1; return .save }; editReply = nil
+        try await settleComparisons()
         precondition(quitEdit.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
         try await waitEdit { editReply != nil }
         let editedDisk = try Data(contentsOf: editRepo.root.appendingPathComponent("file")), afterEditedIndex = try Data(contentsOf: editRepo.root.appendingPathComponent(".git/index"))
         precondition(editReply == true && editedDisk == Data("custom\nno final newline".utf8) && editIndex == afterEditedIndex && !edit.dirty)
         // The receiver captures the reply; it never terminates NSApplication.
+        try await waitEdit { !edit.busy && !edit.editor!.filtering && edit.afterScroll != nil }
+        precondition(edit.editor === exportEditor && edit.editor!.draftText(base: false) == "custom\nno final newline" && !edit.dirty && !edit.canSaveDraft)
+        precondition(edit.editor!.document!.destination.bytes == editedDisk && edit.editor!.document!.base.bytes == Data("base\n".utf8))
+        precondition(edit.focusedFile == pendingID && edit.appliedPaths.contains(Data("file".utf8)))
+        precondition((edit.afterScroll?.documentView as? NSTextView) === editedView, "Save must retain the completed native preview")
+        let nextFile = edit.review!.files.first { $0.path == "other" }!
+        edit.focusFile(nextFile.id)
         try await waitEdit { !edit.busy && edit.afterScroll != nil && edit.comparison?.document.destination.path == "other" }
         mergePreferences.autoAdd = true; mergePreferences.save(to: prefs)
         edit.setEditing(true); try await waitEdit { (edit.afterScroll?.documentView as? NSTextView)?.isEditable == true }
@@ -328,16 +357,23 @@ import TurtleGitCore
         precondition(stagedNew == Data("new edited file\n".utf8) && stagedOriginal == Data("base\n".utf8) && finalEditHead == editHead && !edit.dirty)
         _ = try await editRepo.run(["reset", "--hard", "HEAD"])
         edit.refresh(); try await waitEdit { !edit.busy && edit.afterScroll != nil }
+        // Refresh preserves the explicitly viewed file. Select the file whose
+        // bytes this stale-save case changes, rather than assuming a redirect.
+        let staleFile = edit.review!.files.first { $0.path == "file" }!
+        edit.focusFile(staleFile.id)
+        try await waitEdit { !edit.busy && edit.focusedFile == staleFile.id && edit.afterScroll != nil }
         edit.setEditing(true); try await waitEdit { (edit.afterScroll?.documentView as? NSTextView)?.isEditable == true }
         let staleEditor = edit.afterScroll!.documentView as! NSTextView
         staleEditor.insertText("retained draft\n", replacementRange: NSRange(location: 0, length: (staleEditor.string as NSString).length))
         try Data("external change\n".utf8).write(to: editRepo.root.appendingPathComponent("file"))
         editReply = nil
+        try await settleComparisons()
         precondition(quitEdit.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
         try await waitEdit { editReply != nil }
         precondition(editReply == false && edit.dirty && edit.editor!.draftText(base: false) == "retained draft\n")
         let externalFile = try Data(contentsOf: editRepo.root.appendingPathComponent("file")); precondition(externalFile == Data("external change\n".utf8))
         edit.chooseDraft = { choices += 1; return .discard }; editReply = nil
+        try await settleComparisons()
         precondition(quitEdit.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
         try await waitEdit { editReply != nil }
         precondition(editReply == true && edit.dirty) // Don’t Save retains draft if another document cancels Quit.
@@ -393,6 +429,8 @@ import TurtleGitCore
             for _ in 0..<1000 { if endingSaved != nil { break }; try await Task.sleep(nanoseconds: 10_000_000) }
             let endingBytes = try Data(contentsOf: markMine)
             precondition(endingSaved == true && endingBytes == Data(("typed" + eol + "mine" + eol + "tail").utf8))
+            try await settleComparisons()
+            precondition(endingModel.canTransfer(toBase: false))
             endingModel.selectedRows = 0..<1
             endingHistory.beginUndoGrouping(); endingModel.useOtherBlock(targetBase: false); endingHistory.endUndoGrouping()
             precondition(endingModel.draftText(base: false) == "base" + eol + "mine" + eol + "tail")
@@ -648,16 +686,20 @@ import TurtleGitCore
             quitModel.add([quitFiles[0]]); quitModel.remove(); quitModel.apply(); quitModel.requestClose()
             return .cancel
         }
+        try await settleComparisons()
         precondition(application.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
+        try await settleComparisons()
         precondition(application.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
         try await waitReply(1)
         let quitRetained = try await quitRepo.mailPatchSession(), cancelQuitHead = try await quitRepo.run(["rev-parse", "HEAD"]).stdout
         precondition(replies == [false] && quitPrompts == 1 && quitCloses == 0 && quitModel.editable && quitModel.items.count == 2 && quitRetained == .applying && cancelQuitHead == quitHead)
         quitModel.chooseClose = { quitPrompts += 1; return .keep }
+        try await settleComparisons()
         precondition(application.applicationShouldTerminate(NSApplication.shared) == .terminateLater); try await waitReply(2)
         let keepQuitSession = try await quitRepo.mailPatchSession()
         precondition(replies == [false, true] && quitCloses == 0 && keepQuitSession == .applying && quitModel.editable)
         quitModel.chooseClose = { quitPrompts += 1; return .abort }
+        try await settleComparisons()
         precondition(application.applicationShouldTerminate(NSApplication.shared) == .terminateLater); try await waitReply(3)
         let abortQuitSession = try await quitRepo.mailPatchSession()
         precondition(replies == [false, true, true] && quitPrompts == 3 && quitCloses == 0 && abortQuitSession == .none && quitModel.editable)
@@ -738,6 +780,7 @@ import TurtleGitCore
         print("PASS: source 250 MiB preview guard using sparse file; UTF-16 BOM preview decoded with original bytes retained; multiple-selection clear.")
         verifyRetiredCopy(exportEditor)
         try await ImportPatchLifecycleVerification.run(root: root, git: git)
+        try await ComparisonOutputOwnershipVerification.run(root: root, git: git)
         precondition(RepositoryAction.importPatch.icon == .patch && RepositoryAction.importPatch.requiresWorkingTree)
         print("PASS: hidden native patch table/preview; order, check, fixed batch options and mutation guards; two real mail commits/signoff; retained conflict cursor Abort/Skip/Resolved; close Cancel/Keep/Abort; real hook stop finishes current command without closing; original patch icon; no main app")
     }

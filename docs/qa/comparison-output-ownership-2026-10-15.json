@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "fc6824602c2eefe2397caeadbe9257013e9b2117",
+  "scope": "Connected Review Patch output, format-choice, Undo and completed-save ownership; full Import Patch native regression",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseMerge/MainFrm.cpp: FileSaveAs, SaveFile and PatchSave",
+      "src/TortoiseMerge/FilePatchesDlg.cpp: SetFileStatusAsPatched, OnNMDblclkFilelist"
+    ]
+  },
+  "implementation": [
+    "Owned pane-copy/unified-patch requests capture bytes/document, encoding, filename, folder, chooser, Git and source permissions; separate request locks survive shared busy flag changes",
+    "Review exposes output Cancel; only the owned native save panel is ended; canceled or retired destinations cannot write; cancellable generator reaps before request ownership ends",
+    "Held format requests fence mutations/output/reentry/Close and global Quit; source permissions survive until reply and stale replies cannot apply",
+    "Pending choices fence review file highlights, draft resolution and replacement; regenerated editors retain repository and patch-file grants",
+    "Keep native editor/coordinator mounted with a comparison progress overlay, preserving text-view identity, selection and Undo across authoritative engine refinement",
+    "Inline embedded-editor error and Dismiss retain a usable draft/preview on destination failure",
+    "Core save returns exact saved document/encoding/deletion even after optional Add error; same native preview adopts a clean baseline and saved metadata, completed files stay protected, next file is explicitly selected"
+  ],
+  "validation": {
+    "core": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'WorkingTreePatchReviewTests|WorkingPatchCancellationTests|DirectoryPatchTests'",
+      "tests": 21,
+      "failures": 0,
+      "seconds": 22.43,
+      "exit_code": 0,
+      "log": "build/qa/comparison-output-core-2026-10-15.log",
+      "coverage": [
+        "renamed/executable saved result, exact bytes and clean draft",
+        "zero-line removal returns deleted immutable result",
+        "successful saved document despite optional Add error",
+        "UTF16 BOM and exact trailing/no-final-newline preservation",
+        "existing directory, stale-input, safety and cancellation checks"
+      ]
+    },
+    "app": {
+      "exit_code": 0,
+      "log": "build/qa/comparison-output-build-completed-2026-10-15.log",
+      "scope": "Unsigned Debug arm64; existing warnings/exit-code-zero SwiftCompile diagnostics remain"
+    },
+    "native": {
+      "command": "python3 scripts/test-import-patch.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "accepted_full_receiver_git_pairs": 2,
+      "exit_code": 0,
+      "log": "build/qa/comparison-output-native-transfer-settle-2026-10-15.log",
+      "engines": [
+        "Apple Git 2.54.0",
+        "prepared bundled Git 2.55.0"
+      ],
+      "coverage": [
+        "full existing Import Patch order/check/options/identity/signoff/am recovery and native table/preview",
+        "prepared Review Save As Cancel/success/write failure; exact UTF16 BOM/no-final-newline copy; actual window, locks, unchanged HEAD/index/worktree/applied paths",
+        "stable editor identity and Undo/Redo after authoritative comparison; source-pinned completed preview and saved metadata; explicit remaining-file choice",
+        "draft Close/Quit Save/Discard/Cancel, stale-save refusal, Auto Add stages only new result",
+        "all nine line endings, actual native insertText, Save/Undo/Redo/other-block transfer and marked-save choices",
+        "drops, splitter restoration, light/dark styled preview, whitespace/find and exact-byte patch/viewer handoffs",
+        "completed-import accepted/cancelled Close once; forced identity/apply/recovery/close-read processes and late viewer suppression",
+        "pane/unified output held choice, duplicate and command refusal despite busy overwrite, Cancel/retry and forced-close late replies",
+        "actual active generator cancellation verifies exact PID/process group death and destination preservation",
+        "format Cancel/apply and held request: exact encoding/endings, command fences, close/Quit ownership, late retirement refusal"
+      ]
+    },
+    "cleanup": {
+      "observed_receiver_pids": [
+        53156
+      ],
+      "observed_still_present": [],
+      "all_shared_receiver_processes_present_after_completion": [],
+      "source": "Python runner wait/finally group cleanup retained; generator/lifecycle fixtures additionally assert their owned Git PID/group disappearance"
+    },
+    "scope_note": "The final full native pair includes all new ownership cases. Earlier focused ownership pairs are diagnostic evidence and are not counted again. No full Core suite, physical panels, installed Finder or signed execution claimed."
+  },
+  "failed_checks_and_repairs": [
+    {
+      "finding": "Initial encoding choice attempted while authoritative comparison was filtering",
+      "repair": "Wait for real canTransfer gate, assert selected encoding; restore captured original encoding rather than assuming UTF8"
+    },
+    {
+      "finding": "Native editor swap during filtering destroyed coordinator/Undo history",
+      "repair": "Keep editor mounted; progress overlay; assert editor identity and Undo availability"
+    },
+    {
+      "finding": "New ownership directory URL assertion differed only in trailing directory slash",
+      "repair": "Compare standardized paths while retaining actual owner-window identity assertion"
+    },
+    {
+      "finding": "Quit test ran during live comparison helper",
+      "repair": "Wait for actual MergeRegexOperations idle before testing separate dirty-window Quit prompts; busy Quit refusal remains covered"
+    },
+    {
+      "finding": "Save cleared completed comparison; old fixture expected an automatic next-file redirect absent from pinned source",
+      "repair": "Return/adopt saved content and retain clean completed preview; explicit next-file selection; verify bytes/index/HEAD and preview identity"
+    },
+    {
+      "finding": "Stale-save fixture changed file while viewing retained other file",
+      "repair": "Explicitly select actual target before editing/external-change check; retain stale-save refusal assertion"
+    },
+    {
+      "finding": "Other-block transfer attempted immediately after Save before comparison helper finished",
+      "repair": "Wait for actual helper idle and assert canTransfer; retain all nine ending/byte checks"
+    }
+  ],
+  "diagnostic_logs": [
+    "build/qa/comparison-output-native-2026-10-15.log",
+    "build/qa/comparison-output-native-repair-2026-10-15.log",
+    "build/qa/comparison-output-native-diagnostic-2026-10-15.log",
+    "build/qa/comparison-output-native-final-2026-10-15.log",
+    "build/qa/comparison-output-native-mounted-2026-10-15.log",
+    "build/qa/comparison-output-native-quit-settle-2026-10-15.log",
+    "build/qa/comparison-output-native-settle-diagnostic-2026-10-15.log",
+    "build/qa/comparison-output-native-completed-2026-10-15.log",
+    "build/qa/comparison-output-native-stale-target-2026-10-15.log"
+  ],
+  "remaining": [
+    "Hosted reference-family receiver compile timeout in run 38688088886 is separate and unresolved",
+    "Source FileSaveAs retargeting and complete editable history after Save remain unverified/incomplete; current pane export is a copy",
+    "Physical save/format panels, all layout/keyboard/VoiceOver paths and signed sandbox/App Store/Finder acceptance",
+    "Full application/upstream dialog parity is not certified"
+  ],
+  "hashes": {
+    "Sources/TurtleGitCore/GitPatch.swift": "597a302ded85773b8485550bc7743357252c86f410cb1f2cc0eabbeb81fbaa76",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "106064a0e0c805787e94e9e8f9f45ea032d56f631dc634edc4b7334da7c53a6b",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "f34647f49391d4a103f01ed70df5adc7771424be4939c6141eb84e5104e36b08",
+    "Tests/TurtleGitCoreTests/WorkingTreePatchReviewTests.swift": "c9a35c660923e1ccd191ae183741cd3d43aa895d6ab4fa1c3f925d2315d670da",
+    "docs/qa/import-patch-native-2026-10-08.swift": "06a7d7040b0390f47a00001705453bacd31c0a675f290c0477c20c686d4c9702",
+    "docs/qa/comparison-output-ownership-native-2026-10-15.swift": "423de4a8b8923c4110b18718f6b48af9be05ceb96122f84e14728bdbbb968d33",
+    "scripts/test-import-patch.py": "667addd85d6655f091487360b1b098a08a69dc5102e25e38598f639fe3fbe4b5"
+  }
+}

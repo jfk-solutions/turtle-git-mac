@@ -119,7 +119,7 @@ import TurtleGitCore
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !preparingReplacement, editorOpenWorkflow == nil else { return false }
         if model.cancelLoadForClose() { return false }
-        guard sender.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return false }
+        guard sender.attachedSheet == nil, !model.busy, !model.hasPendingEditorChoice, !model.confirmingQuit else { return false }
         guard model.dirty else { return true }
         let alert = NSAlert(); alert.messageText = "Save changes to “\(model.unsavedFilesDescription)” before closing?"
         alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
@@ -154,6 +154,10 @@ import TurtleGitCore
         sourceSnapshotRoot = root
     }
     var openPermissions: [RepositoryAccessLease] { workingPermissions + [access].compactMap { $0 } }
+    func retainPermissions(_ permissions: [RepositoryAccessLease]) {
+        guard !retired else { return }
+        for permission in permissions where !workingPermissions.contains(where: { $0 === permission }) { workingPermissions.append(permission) }
+    }
     private let access: RepositoryAccessLease?
     let snapshot: RevisionComparisonSnapshot
     let path: String
@@ -422,16 +426,16 @@ import TurtleGitCore
     @Published private var drafts: FileComparisonDrafts?
     @Published private(set) var activeBase = false
     var editingEnabled: Bool {
-        get { sourceSnapshotRoot == nil && drafts?.editingEnabled(base: activeBase) == true }
-        set { guard sourceSnapshotRoot == nil else { return }; drafts?.setEditing(newValue, base: activeBase) }
+        get { sourceSnapshotRoot == nil && !retired && drafts?.editingEnabled(base: activeBase) == true }
+        set { guard sourceSnapshotRoot == nil, !retired, !busy, !hasPendingEditorChoice, !confirmingQuit else { return }; drafts?.setEditing(newValue, base: activeBase) }
     }
     func canEdit(base: Bool) -> Bool { sourceSnapshotRoot == nil && !retired && drafts?.canEdit(base: base) == true }
     func draftText(base: Bool) -> String { drafts?.text(base: base) ?? "" }
     func updateDraft(_ text: String, base: Bool) {
-        guard sourceSnapshotRoot == nil else { return }
+        guard sourceSnapshotRoot == nil, !retired, !hasPendingEditorChoice else { return }
         do { try drafts?.update(text: text, base: base) } catch { self.error = error.localizedDescription }
     }
-    func updateAnnotations(_ value: FileComparisonEditing.Annotations, base: Bool) { drafts?.update(annotations: value, base: base) }
+    func updateAnnotations(_ value: FileComparisonEditing.Annotations, base: Bool) { guard !retired, !hasPendingEditorChoice else { return }; drafts?.update(annotations: value, base: base) }
     @Published var canUndo = false
     @Published var canRedo = false
     @Published var selectedRows: Range<Int>?
@@ -471,9 +475,9 @@ import TurtleGitCore
     var undo: () -> Void = {}
     var redo: () -> Void = {}
     var canTransfer: Bool { canTransfer(toBase: activeBase) }
-    func canTransfer(toBase base: Bool) -> Bool { sourceSnapshotRoot == nil && drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !confirmingQuit && !filtering }
+    func canTransfer(toBase base: Bool) -> Bool { sourceSnapshotRoot == nil && drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !hasPendingEditorChoice && !confirmingQuit && !filtering }
     var copyCommandsAllowed: Bool { !retired }
-    var contextCommandsAllowed: Bool { !retired && !busy && !confirmingQuit && window?.attachedSheet == nil }
+    var contextCommandsAllowed: Bool { !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
     var oppositeViewCommandsAllowed: Bool { !onePaneActive && contextCommandsAllowed }
     var transferRows: Range<Int>? { selectedRows ?? alignment.flatMap { $0.differences.indices.contains(difference) ? $0.differences[difference] : nil } }
     func useOtherBlock(_ choice: FileComparisonEditing.BlockChoice = .other, targetBase: Bool? = nil) {
@@ -504,19 +508,30 @@ import TurtleGitCore
     }
     func encoding(base: Bool) -> ComparisonTextEncoding? { drafts?.encoding(base: base) }
     private var formatRequest: UUID?
+    var hasPendingEditorChoice: Bool { exporting || formatRequest != nil }
     var chooseFormat: (NSWindow, String, MergeFormatSelection) async -> MergeFormatSelection? = MergeFormatPrompt.choose
     func showFormatDialog(base: Bool) {
-        guard formatRequest == nil, canTransfer(toBase:base), let window, window.attachedSheet == nil, let originalEncoding = encoding(base:base) else { return }
-        let original = draftText(base:base), request = UUID(), generation = alignmentGeneration
-        formatRequest = request
+        guard canTransfer(toBase: base), let window, window.attachedSheet == nil,
+              let originalEncoding = encoding(base: base) else { return }
+        let original = draftText(base: base), request = UUID(), generation = alignmentGeneration
+        let permissions = openPermissions
+        formatRequest = request; Self.activePaneExports += 1; onExportStateChanged()
         Task {
-            defer { if formatRequest == request { formatRequest = nil } }
-            guard let choice = await chooseFormat(window,base ? "Base" : "Mine",.initial(encoding:originalEncoding,text:original)),
-                  formatRequest == request, alignmentGeneration == generation, canTransfer(toBase:base), draftText(base:base).utf8.elementsEqual(original.utf8), encoding(base:base) == originalEncoding else { return }
+            defer {
+                withExtendedLifetime(permissions) {}
+                Self.activePaneExports -= 1
+                if formatRequest == request { formatRequest = nil; onExportStateChanged() }
+            }
+            guard let choice = await chooseFormat(window, base ? "Base" : "Mine", .initial(encoding: originalEncoding, text: original)),
+                  !retired, formatRequest == request, alignmentGeneration == generation,
+                  draftText(base: base).utf8.elementsEqual(original.utf8), encoding(base: base) == originalEncoding else { return }
+            // Release this chooser's lock before applying its captured result.
+            formatRequest = nil; onExportStateChanged()
+            guard canTransfer(toBase: base) else { return }
             do {
-                let converted = try choice.applying(to:original)
-                if !converted.utf8.elementsEqual(original.utf8) { editorActions[base]?.replace(converted,0,nil) }
-                try drafts?.setEncoding(choice.encoding,base:base)
+                let converted = try choice.applying(to: original)
+                if !converted.utf8.elementsEqual(original.utf8) { editorActions[base]?.replace(converted, 0, nil) }
+                try drafts?.setEncoding(choice.encoding, base: base)
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -570,80 +585,110 @@ import TurtleGitCore
         if difference != index { difference = index }
     }
     @Published private(set) var exporting = false { didSet { onExportStateChanged() } }
+    // Includes held output/format choices after their owner has retired.
     static private(set) var activePaneExports = 0
     var onExportStateChanged: () -> Void = {}
-    var chooseExportLocation: (NSWindow, String, URL) async -> URL? = { window, name, directory in
+    private final class OutputRequest {
+        let cancellation = OperationCancellation()
+        let permissions: [RepositoryAccessLease]
+        weak var panel: NSSavePanel?
+        init(permissions: [RepositoryAccessLease]) { self.permissions = permissions }
+    }
+    private var outputRequest: OutputRequest?
+    private var canBeginOutput: Bool { !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
+    private func beginOutput() -> OutputRequest? {
+        guard canBeginOutput else { return nil }
+        let request = OutputRequest(permissions: openPermissions)
+        outputRequest = request; Self.activePaneExports += 1
+        error = nil; exporting = true; busy = true
+        return request
+    }
+    private func acceptsOutput(_ request: OutputRequest) -> Bool {
+        !retired && outputRequest === request && !request.cancellation.isCancelled
+    }
+    private func finishOutput(_ request: OutputRequest) {
+        Self.activePaneExports -= 1
+        guard outputRequest === request else { return }
+        outputRequest = nil; busy = false; exporting = false
+        withExtendedLifetime(request.permissions) {}
+    }
+    func cancelOutput() {
+        guard let request = outputRequest else { return }
+        request.cancellation.cancel()
+        if let panel = request.panel {
+            panel.sheetParent?.endSheet(panel, returnCode: .cancel)
+            panel.orderOut(nil)
+        }
+    }
+    private func chooseOutput(_ window: NSWindow, name: String, directory: URL, patch: Bool) async -> URL? {
+        guard let request = outputRequest, acceptsOutput(request), window.attachedSheet == nil else { return nil }
         let panel = NSSavePanel(); panel.nameFieldStringValue = name
         panel.canCreateDirectories = true; panel.directoryURL = directory
+        if patch {
+            panel.title = "Create unified diff file"; panel.prompt = "Save"
+            panel.allowedContentTypes = [UTType(filenameExtension: "diff") ?? .plainText, UTType(filenameExtension: "patch") ?? .plainText]
+        }
+        request.panel = panel
+        defer { request.panel = nil }
         let response = await withCheckedContinuation { continuation in
             panel.beginSheetModal(for: window) { continuation.resume(returning: $0) }
         }
-        return response == .OK ? panel.url : nil
+        return response == .OK && acceptsOutput(request) ? panel.url : nil
+    }
+    lazy var chooseExportLocation: (NSWindow, String, URL) async -> URL? = { [weak self] window, name, directory in
+        await self?.chooseOutput(window, name: name, directory: directory, patch: false)
     }
     func export(base: Bool) {
-        guard !retired, !busy, !exporting, !confirmingQuit, let window, window.attachedSheet == nil, let document else { return }
+        guard canBeginOutput, let window, let document else { return }
         let content = base ? document.base : document.destination
         do {
             let bytes = try drafts?.exported(base: base) ?? content.bytes
-            exporting = true; busy = true; Self.activePaneExports += 1
+            let directory = snapshot.root, name = (content.path as NSString).lastPathComponent
+            let chooser = chooseExportLocation
+            guard let request = beginOutput() else { return }
             Task {
-                defer { busy = false; exporting = false; Self.activePaneExports -= 1 }
-                guard !retired else { return }
-                guard let url = await chooseExportLocation(window, (content.path as NSString).lastPathComponent, snapshot.root), !retired else { return }
-                let scoped = url.startAccessingSecurityScopedResource()
-                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                do { try bytes.write(to: url, options: .atomic) } catch { self.error = error.localizedDescription }
+                defer { finishOutput(request) }
+                guard acceptsOutput(request), let url = await chooser(window, name, directory), acceptsOutput(request) else { return }
+                let permission = RepositoryAccessLease(url: url)
+                do {
+                    guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    try withExtendedLifetime(permission) { try bytes.write(to: url, options: .atomic) }
+                } catch { if acceptsOutput(request) { self.error = error.localizedDescription } }
             }
         } catch { self.error = error.localizedDescription }
     }
-    private var patchRequest: UUID?
-    private var patchCancellation: OperationCancellation?
     var patchExecutable: URL?
-    var choosePatchLocation: (NSWindow, String, URL) async -> URL? = { window, name, directory in
-        let panel = NSSavePanel(); panel.title = "Create unified diff file"; panel.prompt = "Save"
-        panel.nameFieldStringValue = name; panel.directoryURL = directory; panel.canCreateDirectories = true
-        panel.allowedContentTypes = [UTType(filenameExtension: "diff") ?? .plainText, UTType(filenameExtension: "patch") ?? .plainText]
-        let response = await withCheckedContinuation { continuation in
-            panel.beginSheetModal(for: window) { continuation.resume(returning: $0) }
-        }
-        return response == .OK ? panel.url : nil
+    lazy var choosePatchLocation: (NSWindow, String, URL) async -> URL? = { [weak self] window, name, directory in
+        await self?.chooseOutput(window, name: name, directory: directory, patch: true)
     }
-    var canCreateUnifiedPatch: Bool { !retired && !singleFileMode && !onePaneActive && !busy && !exporting && !confirmingQuit && document != nil && window?.attachedSheet == nil }
+    var canCreateUnifiedPatch: Bool { canBeginOutput && !singleFileMode && !onePaneActive && document != nil }
     func createUnifiedPatch() {
-        guard canCreateUnifiedPatch, let document, let window else { return }
-        let request = UUID(), cancellation = OperationCancellation()
-        patchRequest = request; patchCancellation = cancellation; exporting = true; busy = true
+        guard canCreateUnifiedPatch, let document, let window, let request = beginOutput() else { return }
         let context = MergeUnifiedPatch.contextLines(from: comparisonDefaults)
-        let generator = patchExecutable
+        let generator = patchExecutable, directory = snapshot.root, chooser = choosePatchLocation
         func label(_ content: ComparisonFileContent) -> String {
             content.path.hasPrefix("/") ? (content.path as NSString).lastPathComponent : content.path
         }
         Task {
-            defer {
-                if patchRequest == request { patchRequest = nil; patchCancellation = nil }
-                busy = false; exporting = false
-            }
+            defer { finishOutput(request) }
             do {
-                guard let target = await choosePatchLocation(window, label(document.destination) + ".diff", snapshot.root),
-                      !retired, patchRequest == request else { return }
+                guard acceptsOutput(request), let target = await chooser(window, label(document.destination) + ".diff", directory), acceptsOutput(request) else { return }
                 let permission = RepositoryAccessLease(url: target)
                 guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let executable = try generator ?? GitRuntime.executable()
                 func savedContent(_ content: ComparisonFileContent) throws -> ComparisonFileContent {
                     guard content.revision == .workingTree, !content.isDeleted else { return content }
-                    let file = content.path.hasPrefix("/") ? URL(fileURLWithPath: content.path) : snapshot.root.appendingPathComponent(content.path)
+                    let file = content.path.hasPrefix("/") ? URL(fileURLWithPath: content.path) : directory.appendingPathComponent(content.path)
                     return try WorkingFileComparison.workingContent(at: file)
                 }
                 let savedBase = try savedContent(document.base), savedDestination = try savedContent(document.destination)
                 let bytes = try await MergeUnifiedPatch.create(base: savedBase, destination: savedDestination,
                     baseLabel: label(document.base), destinationLabel: label(document.destination), contextLines: context,
-                    executable: executable, cancellation: cancellation)
-                guard !cancellation.isCancelled else { return }
-                guard !retired, patchRequest == request else { return }
-                // Save-panel permission is retained until the atomic write finishes.
+                    executable: executable, cancellation: request.cancellation)
+                guard acceptsOutput(request) else { return }
                 try withExtendedLifetime(permission) { try bytes.write(to: target, options: .atomic) }
             } catch {
-                if !retired, patchRequest == request, !cancellation.isCancelled { self.error = error.localizedDescription }
+                if acceptsOutput(request) { self.error = error.localizedDescription }
             }
         }
     }
@@ -674,7 +719,7 @@ import TurtleGitCore
         undo = actions.undo; redo = actions.redo; actions.refresh()
     }
     func activatePane(base: Bool) {
-        guard !busy, !confirmingQuit, (!onePaneActive || !base), activeBase != base else { return }
+        guard !busy, !hasPendingEditorChoice, !confirmingQuit, (!onePaneActive || !base), activeBase != base else { return }
         activeBase = base; selectedRows = nil; selectionRequest = nil; selectEditorActions()
     }
     func resetHistory() { for actions in editorActions.values { actions.reset() }; selectEditorActions() }
@@ -687,8 +732,14 @@ import TurtleGitCore
     var onRegisterScroll: (NSScrollView, Bool) -> Void = { _, _ in }
     var patchEditingEnabled: Bool { drafts?.editingEnabled(base: false) == true }
     func setPatchEditing(_ enabled: Bool) {
-        guard !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !hasPendingEditorChoice, !confirmingQuit else { return }
         drafts?.setEditing(enabled, base: false); activeBase = false; selectEditorActions()
+    }
+    func acceptPatchSave(_ saved: FileComparisonDocument) throws {
+        guard !retired, let document, document.destination.path == saved.destination.path else { throw FileComparisonEditFailure.changed }
+        try drafts?.didSave(saved.destination, base: false)
+        drafts?.setEditing(false, base: false)
+        self.document = saved; resetHistory(); rebuildAlignment()
     }
     init(patchComparison: WorkingTreePatchFileComparison, access: RepositoryAccessLease?, preferences: UserDefaults) {
         repository = nil; self.access = access; snapshot = patchComparison.snapshot; path = patchComparison.document.destination.path
@@ -710,8 +761,9 @@ import TurtleGitCore
         folding.retire()
         loadSession?.cancel(); closeAfterLoad = false
         lineWrapping.retire(); viewportNavigation.removeAll()
-        patchCancellation?.cancel(); patchCancellation = nil; patchRequest = nil
+        cancelOutput()
         formatRequest = nil; previewRow = nil
+        onExportStateChanged = {}
         retired = true; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
         imageLoader?.retire(); imageLoader = nil
     }
@@ -762,7 +814,7 @@ import TurtleGitCore
         closeAfterLoad = true; loadSession.cancel(); return true
     }
     func load() {
-        guard !retired, !busy, !confirmingQuit, window?.attachedSheet == nil else { return }
+        guard !retired, !busy, !hasPendingEditorChoice, !confirmingQuit, window?.attachedSheet == nil else { return }
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
         if !loadedPaneMode { onePaneMode = OnePaneFileComparison.defaultEnabled(from: comparisonDefaults); loadedPaneMode = true }
@@ -938,7 +990,7 @@ import TurtleGitCore
         }
     }
     private func save(sides: [Bool], completion: ((Bool) -> Void)?) {
-        guard !busy, !confirmingQuit, !retired, window?.attachedSheet == nil, document != nil else { completion?(false); return }
+        guard !busy, !hasPendingEditorChoice, !confirmingQuit, !retired, window?.attachedSheet == nil, document != nil else { completion?(false); return }
         busy = true
         Task {
             var saved = false

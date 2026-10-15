@@ -626,7 +626,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var onClosed: () -> Void = {}
     private var approvedClose = false
     private var retired = false
-    var activeOperation: Bool { editorOpenWorkflow != nil || model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.exporting == true || window?.attachedSheet != nil }
+    var activeOperation: Bool { editorOpenWorkflow != nil || model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.hasPendingEditorChoice == true || window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1, automaticallyRefresh: Bool = true) {
         model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, initialStripCount: initialStripCount)
         let window = TextConflictNSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -687,7 +687,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private var comparisonRead = false
     var canPatchFiles: Bool { canReplaceComparison && !requiresRefresh && review?.files.contains(where: { !appliedPaths.contains($0.pathBytes) }) == true }
     func highlightFiles(_ ids: Set<Int>) {
-        guard !retired, (!busy || comparisonRead), !dirty, !editingEnabled, !confirmingQuit, !draftDecisionPending, !requiresRefresh, let review else { return }
+        guard !retired, editor?.hasPendingEditorChoice != true, (!busy || comparisonRead), !dirty, !editingEnabled, !confirmingQuit, !draftDecisionPending, !requiresRefresh, let review else { return }
         highlightedFiles = ids.intersection(Set(review.files.map(\.id)))
         if highlightedFiles.count == 1 { focusFile(review.files.first(where: { highlightedFiles.contains($0.id) })?.id) }
     }
@@ -739,7 +739,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var dirty: Bool { editor?.dirty == true }
     var editingEnabled: Bool { editor?.patchEditingEnabled == true }
     var canReplaceComparison: Bool { editable && !dirty && !editingEnabled }
-    var canEditResult: Bool { editable && !requiresRefresh && alignment != nil && editor?.canEdit(base: false) == true }
+    var canEditResult: Bool { editable && !requiresRefresh && comparison.map({ !appliedPaths.contains(Data($0.document.destination.path.utf8)) }) == true && alignment != nil && editor?.canEdit(base: false) == true }
     var canSaveDraft: Bool { canEditResult && editingEnabled }
     @Published private(set) var focusedFile: Int?
     @Published private(set) var comparisonNotice = ""
@@ -757,7 +757,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var onMutationStopped: () -> Void = {}
     var onBusyChanged: () -> Void = {}
     var parentActive: () -> Bool = { false }
-    var editable: Bool { !retired && !busy && editor?.exporting != true && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
+    var editable: Bool { !retired && !busy && editor?.hasPendingEditorChoice != true && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
     private func begin() -> OperationCancellation? {
         guard !retired, !busy else { return nil }
         let token = OperationCancellation(); operation = token; busy = true; Self.activeOperations += 1
@@ -780,7 +780,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private func ensure(_ token: OperationCancellation) throws {
         guard !retired, operation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
     }
-    func cancelOperation() { operation?.cancel() }
+    func cancelOperation() { operation?.cancel(); editor?.cancelOutput() }
     func retire() {
         guard !retired else { return }; retired = true; operation?.cancel()
         fileListGeneration = UUID()
@@ -816,7 +816,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             catch { if !retired && !token.isCancelled { review = nil; selected = []; notice = error.localizedDescription } }
         }
     }
-    private func load(reverse: Bool, strip: Int, token: OperationCancellation) async throws {
+    private func load(reverse: Bool, strip: Int, token: OperationCancellation, retainingSavedComparison: Bool = false) async throws {
         try ensure(token)
         let next = try await repository.reviewWorkingTreePatch(bytes, reversed: reverse, stripCount: strip, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, cancellation: token)
         try ensure(token)
@@ -824,7 +824,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         highlightedFiles.formIntersection(Set(next.files.map(\.id)))
         selected = Set(next.files.filter { !appliedPaths.contains($0.pathBytes) }.map(\.id))
         try await validateSelection(token)
-        await loadComparison(token)
+        if !retainingSavedComparison { await loadComparison(token) }
     }
     private func validateSelection(_ token: OperationCancellation) async throws {
         try ensure(token)
@@ -865,7 +865,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             try ensure(token)
             comparison = value
             let nextEditor = FileComparisonWindowModel(patchComparison: value, access: access, preferences: preferences)
-            nextEditor.window = window
+            nextEditor.window = window; nextEditor.retainPermissions(openPermissions)
             nextEditor.onExportStateChanged = { [weak self] in self?.updateParentState(); self?.onBusyChanged() }
             nextEditor.onRegisterScroll = { [weak self] scroll, base in if base { self?.beforeScroll = scroll } else { self?.afterScroll = scroll } }
             editorChanges = nextEditor.objectWillChange.sink { [weak self] in self?.objectWillChange.send(); self?.onBusyChanged() }
@@ -927,7 +927,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         guard let comparison else { return }
         editor?.resetHistory(); editor?.retireImageLoader(); beforeScroll = nil; afterScroll = nil
         let next = FileComparisonWindowModel(patchComparison: comparison, access: access, preferences: preferences)
-        next.window = window
+        next.window = window; next.retainPermissions(openPermissions)
         next.onExportStateChanged = { [weak self] in self?.updateParentState(); self?.onBusyChanged() }
         next.onRegisterScroll = { [weak self] scroll, base in if base { self?.beforeScroll = scroll } else { self?.afterScroll = scroll } }
         editorChanges = next.objectWillChange.sink { [weak self] in self?.objectWillChange.send(); self?.onBusyChanged() }
@@ -948,8 +948,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             onChanged(saved.output); reported = true
             try ensure(token)
             appliedPaths.insert(Data(comparison.document.destination.path.utf8)); output += saved.output
-            editor.resetHistory(); editor.retireImageLoader(); self.editor = nil
-            try await load(reverse: reversed, strip: stripCount, token: token)
+            try editor.acceptPatchSave(saved.document)
+            try await load(reverse: reversed, strip: stripCount, token: token, retainingSavedComparison: true)
             if let failure = saved.addError { notice = "Saved patched result, but Add failed: " + failure; output += notice + "\n"; return false }
             return true
         } catch {
@@ -959,7 +959,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         }
     }
     func resolveDraft(discardImmediately: Bool = true) async -> Bool {
-        guard !retired else { return false }
+        guard !retired, editor?.hasPendingEditorChoice != true else { return false }
         guard dirty else { return true }
         guard !busy, !draftDecisionPending else { return false }
         draftDecisionPending = true; Self.activeOperations += 1
@@ -1073,7 +1073,7 @@ struct WorkingTreePatchDialog: View {
             Text(model.notice).foregroundStyle(model.canApply ? Color.secondary : Color.orange).textSelection(.enabled)
             if !model.output.isEmpty { DisclosureGroup("Output") { OutputView(text: model.output, usesLogFont: true).frame(height: 100) } }
             HStack {
-                if model.busy { ProgressView().controlSize(.small); Text("Processing patch…"); Button("Cancel operation", action: model.cancelOperation) }
+                if model.busy || model.editor?.exporting == true { ProgressView().controlSize(.small); Text(model.editor?.exporting == true ? "Saving copy…" : "Processing patch…"); Button("Cancel operation", action: model.cancelOperation) }
                 Spacer()
                 Button("Close") { model.requestClose() }.disabled(!model.editable)
             }
@@ -1084,17 +1084,22 @@ struct WorkingTreePatchDialog: View {
 struct WorkingTreePatchComparisonView: View {
     @ObservedObject var model: WorkingTreePatchWindowModel
     private func pane(base: Bool) -> some View {
-        let content = base ? model.comparison?.document.base : model.comparison?.document.destination
+        let content = base ? (model.editor?.document?.base ?? model.comparison?.document.base) : (model.editor?.document?.destination ?? model.comparison?.document.destination)
         return VStack(alignment: .leading, spacing: 5) {
             Text(base ? "Before patch" : "After patch").font(.headline)
             if let content {
                 Text(content.path).font(.caption).lineLimit(1).help(content.path)
-                if case .failure(let error) = model.comparisonPresentation {
+                if let alignment = model.alignment {
+                    // Keep the coordinator, native editor and Undo manager alive
+                    // while the authoritative engine refines the provisional rows.
+                    WorkingTreePatchComparisonEditor(model: model, cells: alignment.rows.map { base ? $0.base : $0.destination }, base: base)
+                        .overlay(alignment: .topTrailing) {
+                            if model.comparisonPresentation == .processing { ProgressView("Comparing…").controlSize(.small).padding(6).allowsHitTesting(false) }
+                        }
+                } else if case .failure(let error) = model.comparisonPresentation {
                     Text(error).foregroundStyle(.orange).textSelection(.enabled).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 } else if model.comparisonPresentation == .processing {
                     ProgressView("Comparing…").frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let alignment = model.alignment {
-                    WorkingTreePatchComparisonEditor(model: model, cells: alignment.rows.map { base ? $0.base : $0.destination }, base: base)
                 } else {
                     ScrollView {
                         Text("Binary or unsupported text encoding · \(content.bytes.count) bytes\n" + content.bytes.prefix(4096).enumerated().map { ($0.offset % 16 == 0 ? "\n" : " ") + String(format: "%02X", $0.element) }.joined())
@@ -1117,6 +1122,14 @@ struct WorkingTreePatchComparisonView: View {
                 Toggle("Edit patched result", isOn: Binding(get: { model.editingEnabled }, set: { model.setEditing($0) })).disabled(!model.canEditResult || model.dirty)
             }.disabled(!model.editable)
             HSplitView { pane(base: true); pane(base: false) }
+            if let error = model.editor?.error, model.alignment != nil {
+                HStack(alignment: .top) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text(error).foregroundStyle(.red).textSelection(.enabled)
+                    Spacer()
+                    Button("Dismiss") { model.editor?.error = nil }
+                }.accessibilityElement(children: .contain).accessibilityLabel("Comparison error")
+            }
             if model.requiresRefresh { Text("Refresh to compare the changed options.").foregroundStyle(.orange) }
             else if !model.comparisonNotice.isEmpty { Text(model.comparisonNotice).foregroundStyle(.orange).textSelection(.enabled) }
             else if model.comparison == nil { Text("Select a file to compare.").foregroundStyle(.secondary) }

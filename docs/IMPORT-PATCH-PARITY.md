@@ -545,3 +545,58 @@ gallery. See [batch evidence](qa/preview-viewport-2026-10-14.json). These change
 address the preceding placement and initial-viewport gaps, but do not certify all
 physical side-by-side placement, keyboard,
 VoiceOver, all monitor/fullscreen layouts, signed grants or complete dialog parity.
+
+
+## Review output ownership — 15 October 2026
+
+Review now treats pane Save As, unified-diff creation and format choices as
+owned editor operations independently of the shared busy flag. File selection,
+reverse/strip, refresh, draft Save/discard and replacement remain fenced while a
+choice is pending. The Review progress row exposes Cancel operation during pane
+or patch output. Cancel suppresses subsequent destination writes; it does not
+roll back a write that already completed. Retry creates a new captured request.
+
+Pane output captures its bytes, encoding, filename, folder, chooser and source
+permissions before presentation. Unified-diff output captures its input document,
+context and Git executable and forwards the owned cancellation token to the
+existing generator. Both retain Quit ownership through forced closure until the
+choice/generator settles; stale replies cannot write or publish errors. Only the
+request's own save panel is canceled. Native save-panel destination grants and
+source grants remain alive through the atomic write or generator cleanup.
+
+Format choices share the same reentry/Close/Quit fence and retain permissions
+until the reply settles. A choice applies only to its original live generation,
+draft and encoding; retirement suppresses it. Review's recreated editors retain
+both source-patch and repository access leases.
+
+The older full fixture attempted Change Encoding immediately after insertText,
+while the authoritative comparison engine was still filtering and correctly
+refused that command. It now waits for the actual command gate and verifies the
+chosen encoding before testing export locks. This repairs the setup rather than
+removing its pending-option or byte-preservation assertions.
+
+This remains copy export. Upstream FileSaveAs target retargeting, complete
+physical sheet/layout comparison and signed sandbox/App Store acceptance remain
+open. The existing defaults and normal import/patch behavior remain covered by
+the full native fixture, with separate ownership cases for held choices,
+Cancel/retry, active generator cancellation and forced-close late replies.
+
+The prepared native editor now stays mounted while the authoritative engine
+refines provisional rows; a progress overlay replaces the former view swap.
+This preserves the actual text view/coordinator, selection and Undo manager
+across typing and engine completion. The fixture checks editor identity and
+Undo availability, then restores both the original draft and captured encoding.
+
+Prepared comparison errors now appear inline with a Dismiss action, including
+copy/patch destination failures while a usable alignment remains. This avoids
+silently retaining an error on the embedded editor model or replacing the editor
+with a modal error prompt that would interrupt draft recovery.
+
+Successful Save patched result now retains the same native completed preview,
+matching `FilePatchesDlg::SetFileStatusAsPatched` and `CMainFrame::SaveFile` rather
+than clearing it or jumping to a different file. Core returns the exact saved
+content, encoding and deletion state, including successful writes followed by
+optional Add failure. The existing editor adopts that clean baseline, clears its
+completed-file edit history, and displays saved byte counts/mode. Completed rows
+remain protected against another patch/save; the user selects another file to
+continue. Full upstream editable history after saving remains unverified.
