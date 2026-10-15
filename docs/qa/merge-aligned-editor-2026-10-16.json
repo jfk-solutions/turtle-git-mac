@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "396182b5",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "BaseView.cpp OnChar, PasteText, SaveFile, all-pane insertion and state transitions",
+    "BottomView.cpp UseBlock and UseBothBlocks; both-order full source mutations remain open"
+  ],
+  "scope": [
+    "Native aligned result records, removed Base display, blank conflict slots, logical line numbers and state colors",
+    "Shared source/result wrapping, scrolling, folding, locator/navigation/context and source-line coordinates",
+    "In-place typing, partial conflict resolution, restoration of removed text, multiline insertion and source gaps, deletion without rewriting source coordinates",
+    "Immutable all-pane layout/provenance Undo/Redo, exact serialized Save separate from display-only records",
+    "Find replacement through record edits, grouped Undo and actual displayed caret movement across CRLF/UTF-16 input"
+  ],
+  "core": {
+    "log": "build/qa/merge-aligned-editor-core.log",
+    "tests": 60,
+    "failures": 0,
+    "suites": [
+      "SubversionMergePresentationTests",
+      "MergeSourceBlockEditTests",
+      "MergeNavigationMapTests",
+      "MergeResultPresentationTests",
+      "FileComparisonInPlaceTests"
+    ],
+    "repeated_for_native_only_changes": false
+  },
+  "builds": [
+    {
+      "log": "build/qa/merge-aligned-editor-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/merge-aligned-editor-coordinates-build.log",
+      "exit": 0,
+      "reason": "Native line-number and Find-caret coordinate corrections"
+    }
+  ],
+  "native": [
+    {
+      "log": "build/qa/merge-aligned-editor-native.log",
+      "passed": [
+        "System Git ignored conflicts",
+        "Bundled Git ignored conflicts",
+        "Retained three-pane navigation, engine, colors and history",
+        "Ordinary source/result block menus and choices"
+      ],
+      "failed": "New Save fixture inserted an emoji into Windows-1252 output; lossless encoding guard correctly rejected it",
+      "receivers_reaped": [
+        75559,
+        75627,
+        75688,
+        75987,
+        75990
+      ]
+    },
+    {
+      "log": "build/qa/merge-aligned-editor-native-repair.log",
+      "result": "Diagnostic confirmed lossless output encoding rejection and no output file; no serialization defect",
+      "receivers_reaped": [
+        76040
+      ]
+    },
+    {
+      "log": "build/qa/merge-aligned-editor-native-repair-2.log",
+      "result": "PASS aligned case after explicit UTF-8 output selection",
+      "receivers_reaped": [
+        76061
+      ]
+    },
+    {
+      "log": "build/qa/merge-aligned-editor-coordinates-native.log",
+      "result": "PASS aligned case with line-number and multi-match Find caret assertions",
+      "receivers_reaped": [
+        76140
+      ],
+      "verified": [
+        "Actual marker-free aligned native result display with retained removed records",
+        "Locator scrolling, per-row source/result alternatives and footer choices",
+        "Typing one blank conflict slot retains adjacent unresolved source payloads",
+        "UTF-8 Save writes exact edited payload/remaining markers and omits untouched removed rows",
+        "Typing in removed Base record turns only that record into Edited",
+        "Multiline paste inserts source gaps and all-pane Undo/Redo restores geometry",
+        "Logical line number on second blank conflict row",
+        "Two-match Find with CRLF emoji replacement retains source alignment, correct displayed caret and single grouped Undo",
+        "Unchanged Base/Mine/Theirs bytes and closed owner/no active regex request"
+      ],
+      "compilation_note": "Dispatched after all native object freshness guards passed while Xcode was still finishing its build; final post-build input fingerprint was checked against this receiver generation.",
+      "final_build_fingerprint": "ddaf92dfb4c08a26474dd3a1d66014970327f7d810fbf98b22ff3e499ea438c3"
+    }
+  ],
+  "cleanup": {
+    "all_eight_owned_receiver_pids_absent": true,
+    "windows_closed_on_success_and_failure": true
+  },
+  "ci": {
+    "macos": {
+      "run": 38825796244,
+      "sha": "396182b5",
+      "last_observed": "pending"
+    },
+    "pages": {
+      "run": 38825796264,
+      "sha": "396182b5",
+      "conclusion": "success"
+    },
+    "full_current_macos_pass": false
+  },
+  "limitations": [
+    "Both-order choices and arbitrary serialized whole-file transforms can invalidate aligned projection and use existing raw result fallback",
+    "Complete UseBothBlocks source mutations, ConflictResolvedEmpty state aliases and cleanup of rows empty in all three panes remain open",
+    "Physical visual parity, IME/complex input and large-file complete acceptance remain unverified",
+    "Local focused/grouped checks do not certify all dialogs, hosted CI, signed Finder integration or App Store readiness"
+  ],
+  "documentation": {
+    "bundled_help": {
+      "documents": 26,
+      "topics": 47,
+      "files": 32,
+      "bytes": 195977
+    },
+    "site": {
+      "documents": 235,
+      "unresolved_fragments": 0
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 974,
+      "pending_control_reviews": 685
+    }
+  }
+}

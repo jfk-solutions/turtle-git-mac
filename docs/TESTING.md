@@ -7,8 +7,9 @@ metadata and unchanged inputs. The grouped default retains ignored-conflict,
 engine/save/history/color and ordinary-source workflows. Core presentation tests
 verify removed records, logical numbers, blank conflict slots versus serialized
 markers, precise post-resolution row maps, Unicode offsets, edited provenance and
-refusal to invent unknown or multi-copy coordinates. Full aligned result editing
-is not covered or implemented by this checkpoint.
+refusal to invent unknown or multi-copy coordinates. The current aligned case
+also exercises native row editing, source gaps, Save, logical line numbers and
+multiline Find/Undo; remaining gaps are recorded below.
 
 `scripts/test-merge-whitespace-states.py --only savepoints` checks real native
 saved/branched same-byte edits, global cross-pane Undo/Redo, inserted-line deletion
@@ -2233,3 +2234,10 @@ retired owner checks with the retained table and lifecycle workflows. Core
 names, verifies blob reads and index-preserving Revert refusal, and checks
 recursive export against the actual volume's alias behavior. This is not physical
 Finder acceptance or a full invalid-path policy for the complete app.
+
+The aligned case now checks the native result record renderer, typing in an
+individual conflict slot and removed Base row, multiline source-gap insertion,
+all-pane Undo/Redo and exact saved bytes. Retained navigation/colors and ordinary
+block workflows compare their native strings with the model's display projection;
+serialized result assertions remain independent. Whole-file/both-order fallback,
+IME, resolved-empty aliases and full large-file acceptance remain open.

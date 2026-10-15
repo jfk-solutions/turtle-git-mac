@@ -233,7 +233,8 @@ public struct MergeAlignedResultProjection: Sendable {
             } else if entry.resultRange.length == 0 {
                 for row in entry.sourceRows {
                     let original = initial[row]
-                    append(original.state.isRemoval ? original.text : "",state:original.state.isRemoval ? original.state : .empty,range:entry.resultRange)
+                    let retained = original.state.isRemoval || [MergeSourceState.normal,.filtered,.edited,.resolved].contains(original.state) && original.lineNumber != nil && original.text.isEmpty
+                    append(retained ? original.text : "",state:retained ? original.state : .empty,range:entry.resultRange)
                 }
             } else {
                 // A multi-row/multi-copy group needs a complete view mutation
@@ -268,5 +269,130 @@ public struct MergeAlignedResultProjection: Sendable {
         return serializedRows.reduce(into:Set<Int>()) { result,row in
             if lines.indices.contains(row) { result.formUnion(sourceRows(intersecting:lines[row])) }
         }
+    }
+}
+
+extension MergeAlignedResultProjection {
+    public var displayText: String { cells.map { $0.displayText + "\n" }.joined() }
+    public var displayRanges: [NSRange] {
+        var offset = 0
+        return cells.map { cell in
+            defer { offset += cell.displayText.utf16.count + 1 }
+            return NSRange(location:offset,length:cell.displayText.utf16.count + 1)
+        }
+    }
+    /// Navigation/choice coordinates only; typing edits view records directly.
+    public func serializedRange(displayRange range: NSRange) -> NSRange? {
+        let display = displayRanges
+        guard let first = display.lastIndex(where: { $0.location <= range.location }),
+              NSMaxRange(range) <= displayText.utf16.count else { return nil }
+        let end = range.length == 0 ? range.location : NSMaxRange(range) - 1
+        let last = display.lastIndex(where: { $0.location <= end }) ?? first
+        let a = serializedRanges[first], b = serializedRanges[last]
+        func offset(_ row:Int,_ location:Int) -> Int {
+            let raw = serializedRanges[row]
+            if cells[row].state == .conflicted { return raw.location }
+            return raw.location + min(raw.length,min(cells[row].displayText.utf16.count,max(0,location - display[row].location)))
+        }
+        if range.length == 0 { return NSRange(location:offset(first,range.location),length:0) }
+        let start = cells[first].state == .conflicted ? a.location : offset(first,range.location)
+        let finish = cells[last].state == .conflicted ? NSMaxRange(b) : NSMaxRange(range) >= NSMaxRange(display[last]) ? NSMaxRange(b) : offset(last,NSMaxRange(range))
+        return NSRange(location:start,length:max(0,finish - start))
+    }
+    public func displayRange(serializedRange range: NSRange) -> NSRange? {
+        let display = displayRanges
+        let rows = sourceRows(intersecting:range)
+        guard let first = rows.min(), let last = rows.max() else {
+            guard let row = serializedRanges.lastIndex(where: { $0.location <= range.location }) else { return nil }
+            return NSRange(location:display[row].location + min(cells[row].displayText.utf16.count,max(0,range.location - serializedRanges[row].location)),length:0)
+        }
+        if cells[first].state == .conflicted || cells[last].state == .conflicted {
+            return NSRange(location:display[first].location,length:NSMaxRange(display[last]) - display[first].location)
+        }
+        let start = display[first].location + min(cells[first].displayText.utf16.count,max(0,range.location - serializedRanges[first].location))
+        let end = display[last].location + min(cells[last].displayText.utf16.count,max(0,NSMaxRange(range) - serializedRanges[last].location))
+        return NSRange(location:start,length:max(0,end - start))
+    }
+}
+
+/// Immutable all-pane edit, following BaseView's in-place view data editing.
+/// Removed records stay visible, new result lines insert source gaps, and marker
+/// serialization is independent of displayed blank conflict slots.
+public struct MergeAlignedResultEdit: Sendable {
+    public let comparison: MergeSourceComparison
+    public let presentation: MergeResultPresentation
+    public let displayCaret: Int
+    public init(comparison:MergeSourceComparison,presentation:MergeResultPresentation,range:NSRange,replacement:String) throws {
+        guard let projection = MergeAlignedResultProjection(comparison:comparison,presentation:presentation) else { throw FileComparisonEditFailure.range }
+        // A nonempty peer retains every existing source coordinate. Cleanup of
+        // rows empty in all three panes is a separate view operation.
+        let peer = MergeSourceCell(text:"",lineNumber:1,state:.normal)
+        let alignment = FileComparisonAlignment(rows:projection.cells.map { .init(base:peer,destination:$0) },differences:[])
+        let edit = try FileComparisonInPlaceEdit(alignment:alignment,base:false,range:range,replacement:replacement)
+        let cells = edit.alignment.rows.map(\.destination)
+        let gap = MergeSourceCell(text:"",lineNumber:nil,state:.empty)
+        var sources = comparison.rows
+        if sources.isEmpty { sources = [.init(mine:gap,theirs:gap)] }
+        let extra = cells.count - sources.count
+        if extra > 0 { sources.insert(contentsOf:Array(repeating:.init(mine:gap,theirs:gap),count:extra),at:edit.replacedRows.upperBound) }
+        guard sources.count == cells.count else { throw FileComparisonEditFailure.range }
+        func originalRow(_ row:Int) -> Int? {
+            if row < edit.replacedRows.upperBound { return row }
+            if row < edit.replacedRows.upperBound + max(0,extra) { return nil }
+            return row - max(0,extra)
+        }
+        let originalConflicts = presentation.conflicts().filter { !$0.isIgnored }
+        let raw = presentation.text as NSString
+        var text = "", entries:[MergeNavigationMap.Entry] = [], runs:[MergeResultPresentation.Run] = [], ignored:[IgnoredMergeConflict] = [], row = 0
+        func append(_ value:String,state:MergeSourceState) {
+            let start = text.utf16.count
+            text += value
+            if !value.isEmpty { runs.append(.init(range:start..<text.utf16.count,state:state)) }
+        }
+        while row < cells.count {
+            let cell = cells[row], start = text.utf16.count
+            if cell.state == .conflicted {
+                let first = row
+                while row < cells.count && cells[row].state == .conflicted { row += 1 }
+                let oldRows = (first..<row).compactMap(originalRow)
+                let retained = originalConflicts.first { block in
+                    let original = projection.sourceRows(intersecting:block.range).sorted()
+                    return original == oldRows && original.count == row - first
+                }
+                let value:String
+                if let retained { value = raw.substring(with:retained.range) }
+                else {
+                    func payload(_ mine:Bool) -> String {
+                        (first..<row).map { mine ? sources[$0].mine : sources[$0].theirs }.filter { !$0.state.isRemoval && $0.state != .empty && $0.state != .conflictEmpty }.map(\.text).joined()
+                    }
+                    func separated(_ value:String) -> String { value.isEmpty || MergeLineEndings.hasFinalEnding(value) ? value : value + "\n" }
+                    value = "<<<<<<< Mine\n" + separated(payload(true)) + "=======\n" + separated(payload(false)) + ">>>>>>> Theirs\n"
+                }
+                let location = text.utf16.count
+                if !text.isEmpty && !MergeLineEndings.hasFinalEnding(text) { append("\n",state:.edited) }
+                append(value,state:.conflicted)
+                entries.append(.init(sourceRows:first..<row,resultRange:NSRange(location:location,length:text.utf16.count - location)))
+            } else {
+                let included = !cell.state.isRemoval && cell.state != .empty && cell.state != .conflictEmpty
+                let payload = included ? cell.text : ""
+                append(payload,state:cell.state)
+                let target = NSRange(location:start,length:payload.utf16.count)
+                entries.append(.init(sourceRows:row..<(row + 1),resultRange:target))
+                if cell.state == .conflictedIgnored, let old = originalRow(row), projection.serializedRanges.indices.contains(old),
+                   let metadata = presentation.ignoredConflicts.first(where: { $0.range == projection.serializedRanges[old] }) {
+                    ignored.append(.init(range:target,mine:metadata.mine,base:metadata.base,theirs:metadata.theirs))
+                }
+                row += 1
+            }
+        }
+        let map = MergeNavigationMap(entries:entries)
+        self.presentation = presentation.installingAlignedText(text,runs:runs,ignored:ignored,map:map)
+        self.comparison = .init(rows:sources,navigationMap:map,alignedResultRows:cells)
+        displayCaret = edit.displayCaret
+    }
+}
+extension MergeResultPresentation {
+    fileprivate func installingAlignedText(_ text:String,runs:[Run],ignored:[IgnoredMergeConflict],map:MergeNavigationMap) -> Self {
+        Self(text:text,runs:runs,foldAnchors:.init(),ignoredConflicts:ignored,navigationMap:map,sourceChoiceRevision:sourceChoiceRevision &+ 1)
     }
 }

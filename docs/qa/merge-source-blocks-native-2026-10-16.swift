@@ -21,7 +21,7 @@ struct MergeSourceBlocksVerification {
         }
         try await wait { !model.busy && !model.preparing && model.document != nil && ThreePaneEngineVerification.textViews(owner.window?.contentView).filter { !$0.isFieldEditor }.count >= 3 }
         let views = ThreePaneEngineVerification.textViews(owner.window?.contentView), result = views.first { $0.isEditable }!, right = views.first { !$0.isEditable && $0.string.contains("new1") }!, left = views.first { !$0.isEditable && !$0.string.contains("new1") }!
-        try await wait { result.string == model.result && right.string.contains("new1") }
+        try await wait { result.string == model.resultDisplayText && right.string.contains("new1") }
         try require(model.error == nil && model.blocks.isEmpty && model.result == modified,"Nonconflicting merge load")
         let initial = model.resultPresentation
         let board = NSPasteboard.withUniqueName(); defer { board.releaseGlobally() }
@@ -37,7 +37,7 @@ struct MergeSourceBlocksVerification {
             guard let item = menu.item(withTitle:choice.rawValue), item.isEnabled, item.image != nil else { throw Failure(description:"Missing enabled source choice " + choice.rawValue) }; return item
         }
         func invoke(_ item: NSMenuItem) throws { try require(NSApplication.shared.sendAction(item.action!,to:item.target,from:item),"Native block dispatch") }
-        func undoInitial() async throws { model.undo(); try await wait { model.resultPresentation == initial && result.string == initial.text } }
+        func undoInitial() async throws { model.undo(); try await wait { model.resultPresentation == initial && result.string == model.resultDisplayText } }
         // Selecting one addition must leave its adjacent addition intact.
         for choice in MergeBlockChoice.allCases {
             try select("new1",in:right); let item = try entry(choice,in:right)

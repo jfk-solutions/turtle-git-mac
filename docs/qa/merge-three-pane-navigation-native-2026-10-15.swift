@@ -21,17 +21,22 @@ struct MergeThreePaneNavigationVerification {
         try await ThreePaneEngineVerification.wait{ThreePaneEngineVerification.textViews(owner.window?.contentView).filter{!$0.isFieldEditor}.count >= 3}
         let views=ThreePaneEngineVerification.textViews(owner.window?.contentView)
         let result=views.first{$0.isEditable}!,left=views.first{!$0.isEditable && $0.string.contains("theirs1")}!,right=views.first{!$0.isEditable && $0.string.contains("mine1a")}!
-        try await ThreePaneEngineVerification.wait{result.string == model.result && !model.folding.projection.rows.isEmpty && !model.resultFolding.projection.rows.isEmpty}
+        try await ThreePaneEngineVerification.wait{result.string == model.resultDisplayText && !model.folding.projection.rows.isEmpty && !model.resultFolding.projection.rows.isEmpty}
+        func resultBlockRange(_ block:MergeConflictBlock) -> NSRange {
+            let range = model.alignedResultProjection?.displayRange(serializedRange:block.range) ?? block.range
+            let payload = (result.string as NSString).substring(with:range)
+            return NSRange(location:range.location,length:MergeSourceComparison.navigationRanges(text:payload).last.map(NSMaxRange) ?? 0)
+        }
         owner.window!.makeFirstResponder(right);right.setSelectedRange(NSRange(location:0,length:0));await Task.yield()
         model.navigateBlock(1,conflictsOnly:true)
         try require((right.string as NSString).substring(with:(right as! MergeBlockSelecting).mergeSelectedBlockRange!) == "mine1a\nmine1b","Source conflict grouping/padding")
         try require(right.selectedRange().length == 0 && result.selectedRange().length == 0,"Navigation installed ordinary text selection")
         try require((left.string as NSString).substring(with:(left as! MergeBlockSelecting).mergeSelectedBlockRange!).hasPrefix("theirs1"),"Source peer selection")
-        try require((result as! MergeBlockSelecting).mergeSelectedBlockRange == NSRange(location:model.blocks[0].range.location,length:(MergeSourceComparison.navigationRanges(text:(result.string as NSString).substring(with:model.blocks[0].range)).last.map(NSMaxRange) ?? 0)) && model.selectedConflict == 0 && model.canChooseConflict,"Source-to-marker mapping")
+        try require((result as! MergeBlockSelecting).mergeSelectedBlockRange == resultBlockRange(model.blocks[0]) && model.selectedConflict == 0 && model.canChooseConflict,"Source-to-marker mapping")
         try require(owner.window!.firstResponder === right,"Navigation moved active source focus")
         let f8=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:"\u{f70b}",charactersIgnoringModifiers:"\u{f70b}",isARepeat:false,keyCode:100)!
         try require(right.performKeyEquivalent(with:f8),"F8 not handled")
-        try require((right.string as NSString).substring(with:(right as! MergeBlockSelecting).mergeSelectedBlockRange!) == "mine2" && (result as! MergeBlockSelecting).mergeSelectedBlockRange == NSRange(location:model.blocks[1].range.location,length:(MergeSourceComparison.navigationRanges(text:(result.string as NSString).substring(with:model.blocks[1].range)).last.map(NSMaxRange) ?? 0)) && model.selectedConflict == 1,"Next source conflict mapped wrong result")
+        try require((right.string as NSString).substring(with:(right as! MergeBlockSelecting).mergeSelectedBlockRange!) == "mine2" && (result as! MergeBlockSelecting).mergeSelectedBlockRange == resultBlockRange(model.blocks[1]) && model.selectedConflict == 1,"Next source conflict mapped wrong result")
         try require(!model.canNavigateBlock(1,conflictsOnly:true),"Source conflict boundary wrapped")
         let before=model.result,beforeMap=model.resultPresentation.navigationMap
         let board=NSPasteboard.withUniqueName();defer{board.releaseGlobally()}

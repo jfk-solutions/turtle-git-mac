@@ -299,3 +299,9 @@ badges. Open a repository in TurtleGit and authorize the necessary folders.
 Finder actions use the selected paths; status badges depend on the watched
 repository and published status. Signed installed-app acceptance is still pending.
 See [repository folder access](REPOSITORY-FOLDER-ACCESS.md).
+
+The three-pane merge result displays removed Base records and blank conflict slots
+in alignment with Mine and Theirs. Typing in a blank conflict slot resolves that
+line while leaving neighboring conflict lines unresolved. Multiline paste inserts
+matching source gaps, and Undo/Redo restores all three layouts. Saving writes file
+content and remaining conflict markers; it omits untouched removed rows and gaps.

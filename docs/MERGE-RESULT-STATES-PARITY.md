@@ -1,5 +1,40 @@
 # Merge resolved and edited presentation
 
+## Native aligned result editor — October 16, 2026
+
+The result pane now renders aligned result records with removed Base text,
+blank conflict slots, state colors and logical line numbers. Conflict markers
+remain in the serializable result, not the displayed rows. Result and source
+panes share wrapping heights and synchronized scrolling. Navigation, context
+choices, Go to Line, clipboard, Find, locator and folding use view coordinates;
+raw-file ranges are converted only at the model boundary. Edited common rows
+stay visible in all three panes when unchanged sections are collapsed.
+
+Typing in a removed record makes its displayed content an Edited result line.
+Typing in one blank conflict slot resolves only that slot; remaining slots stay
+unresolved and serialize their corresponding Mine/Theirs payloads. An unchanged
+conflict keeps its original marker bytes. After a partial manual resolution,
+remaining conflict runs use two-way markers, following BaseView::SaveFile's
+Mine/Theirs serialization. Untouched removed records and source gaps are never
+written as result bytes. Ignored conflicts retain their separate metadata until
+the corresponding row is edited or resolved.
+
+Multiline typing and paste add matching gap records to both source views.
+Deletions preserve the read-only source coordinates and gap the unused result
+rows. Immutable Undo/Redo snapshots include result provenance and all three pane
+layouts. Format transforms operate on serialized file contents, and Find replaces
+actual displayed matches through record edits. Display-only final line breaks do
+not become extra saved file content.
+
+The grouped receiver exercises actual native conflict-slot/removed-row typing,
+multiline source gaps, per-row alternatives, locator clicks, marker-free display,
+Save bytes, unchanged inputs and Undo/Redo. Core checks cover CRLF/UTF-16 offsets,
+empty documents and final empty edited records. Both-order choices and arbitrary
+whole-file transforms can still invalidate the precise row projection and use
+the existing serialized editor fallback. Full both-order source mutation,
+resolved-empty aliases, all-pane empty-row cleanup, IME and complete large-file
+acceptance remain open. No complete upstream dialog parity is claimed.
+
 ## Aligned result records and precise resolution — October 16, 2026
 
 The Subversion presentation now retains the pinned DiffData result records in
@@ -26,10 +61,9 @@ Undo/Redo retains each precise map. Both ordering choices retain a whole-group m
 until their duplicated source-row geometry is implemented. Ignored and unusual
 leading-separator conflicts keep their existing atomic resolution path.
 
-This is the row-model and coordinate phase of full three-pane alignment. The
-editable result still displays serialized text. Rendering removed/empty/conflict
-records in that editor, edits directly in those records, resolved-empty aliases,
-multi-copy source mutations and complete wrapped three-pane geometry remain open.
+This earlier phase supplied the row model and coordinates used by the native
+aligned editor above. Resolved-empty aliases, multi-copy source mutations and
+complete wrapped/large-file acceptance remain open.
 No full aligned-window, dialog or application certification is claimed.
 
 Baseline: `7338078f8ddd924b8cddee35f512f2286072136d`,
@@ -160,3 +194,5 @@ engine source/result mappings, retaining the mappings through block choices and
 Undo/Redo. This remains a partial port of the fully aligned upstream result view.
 
 Aligned row-model evidence: [October 16 grouped verification](qa/merge-aligned-rows-2026-10-16.json).
+
+Native aligned editor evidence: [October 16 grouped verification](qa/merge-aligned-editor-2026-10-16.json).

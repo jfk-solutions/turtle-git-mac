@@ -49,8 +49,8 @@ public struct MergeSourceRow: Sendable {
     public let theirs: MergeSourceCell
 }
 
-/// Aligned, read-only source views. Display-only base rows and gaps never become
-/// part of the editable result, and filtering numbered cells recovers each source.
+/// Aligned, read-only source views. Numbered cells recover each source; removed
+/// Base records and gaps retain view coordinates without adding source bytes.
 public struct MergeSourceComparison: Sendable {
     public let rows: [MergeSourceRow]
     public let resultLocator: MergeLocatorResult?

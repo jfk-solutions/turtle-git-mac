@@ -10,6 +10,80 @@ final class SubversionMergePresentationTests: XCTestCase {
     private func presentation(_ base: String, _ mine: String, _ theirs: String, filter: MergeRegexFilter? = nil) throws -> SubversionMergePresentation {
         try .init(plan: configuration(filter).plan(base: base, mine: mine, theirs: theirs))
     }
+    private func resultPresentation(_ value:SubversionMergePresentation) -> MergeResultPresentation {
+        .init(text:value.result,states:value.sources.resultLocator!.states,ignoredConflicts:value.sources.ignoredConflicts,navigationMap:value.sources.navigationMap)
+    }
+    func testAlignedEditCommonKeepsRemovedRowsAndExactMarkerBytes() throws {
+        let value = try presentation("head\nold1\nold2\ntail\n","head\nmine1\nmine2\ntail\n","head\ntheirs1\ntheirs2\ntail\n")
+        let initial = resultPresentation(value)
+        let edited = try MergeAlignedResultEdit(comparison:value.sources,presentation:initial,range:NSRange(location:0,length:4),replacement:"HEAD 🐢")
+        XCTAssertEqual(edited.presentation.text,"HEAD 🐢" + initial.text.dropFirst(4))
+        let projected = try XCTUnwrap(MergeAlignedResultProjection(comparison:edited.comparison,presentation:edited.presentation))
+        XCTAssertEqual(projected.cells.map(\.displayText),["HEAD 🐢","old1","old2","","","tail"])
+        XCTAssertEqual(projected.cells.map(\.state),[.edited,.identicalRemoved,.identicalRemoved,.conflicted,.conflicted,.normal])
+        XCTAssertEqual(edited.comparison.rows.map { $0.mine.text },value.sources.rows.map { $0.mine.text })
+        XCTAssertEqual(edited.displayCaret,"HEAD 🐢".utf16.count)
+    }
+    func testTypingOneConflictSlotRetainsOtherUnresolvedSlot() throws {
+        let value = try presentation("head\nold1\nold2\ntail\n","head\nmine1\nmine2\ntail\n","head\ntheirs1\ntheirs2\ntail\n")
+        let initial = resultPresentation(value), projection = try XCTUnwrap(MergeAlignedResultProjection(comparison:value.sources,presentation:initial))
+        let row = try XCTUnwrap(projection.cells.firstIndex { $0.state == .conflicted })
+        let edit = try MergeAlignedResultEdit(comparison:value.sources,presentation:initial,range:NSRange(location:projection.displayRanges[row].location,length:0),replacement:"manual 🐢")
+        let after = try XCTUnwrap(MergeAlignedResultProjection(comparison:edit.comparison,presentation:edit.presentation))
+        XCTAssertEqual(after.cells[row].state,.edited)
+        XCTAssertEqual(after.cells[row].displayText,"manual 🐢")
+        XCTAssertEqual(after.cells[row + 1].state,.conflicted)
+        XCTAssertEqual(edit.presentation.conflicts().count,1)
+        XCTAssertEqual(edit.presentation.conflicts()[0].mine,"mine2\n")
+        XCTAssertEqual(edit.presentation.conflicts()[0].theirs,"theirs2\n")
+        XCTAssertTrue(edit.presentation.text.hasPrefix("head\nmanual 🐢\n<<<<<<< Mine\n"))
+        XCTAssertEqual(edit.comparison.rows.map { $0.mine.text },value.sources.rows.map { $0.mine.text })
+    }
+    func testTypingRemovedRecordRestoresItWithoutSavingOtherRemovedRows() throws {
+        let value = try presentation("head\nold\ntail\n","head\nnew\ntail\n","head\nold\ntail\n"), initial = resultPresentation(value)
+        let projected = try XCTUnwrap(MergeAlignedResultProjection(comparison:value.sources,presentation:initial))
+        let row = try XCTUnwrap(projected.cells.firstIndex { $0.state.isRemoval })
+        let edit = try MergeAlignedResultEdit(comparison:value.sources,presentation:initial,range:NSRange(location:projected.displayRanges[row].location + 3,length:0),replacement:"!")
+        XCTAssertEqual(edit.presentation.text,"head\nold!\nnew\ntail\n")
+        XCTAssertEqual(try XCTUnwrap(MergeAlignedResultProjection(comparison:edit.comparison,presentation:edit.presentation)).cells[row].state,.edited)
+        XCTAssertEqual(value.result,"head\nnew\ntail\n")
+    }
+    func testMultilineAlignedPasteAndDeletionKeepAllSourceCoordinates() throws {
+        let value = try presentation("a\r\nb\r\nc", "a\r\nb\r\nc", "a\r\nb\r\nc"), initial = resultPresentation(value)
+        let paste = try MergeAlignedResultEdit(comparison:value.sources,presentation:initial,range:NSRange(location:1,length:0),replacement:"🐢\nnew\nlast")
+        XCTAssertEqual(paste.presentation.text,"a🐢\r\nnew\r\nlast\r\nb\r\nc")
+        XCTAssertEqual(paste.comparison.rows.count,5)
+        XCTAssertEqual(paste.comparison.rows.map { $0.mine.lineNumber },[1,nil,nil,2,3])
+        let projected = try XCTUnwrap(MergeAlignedResultProjection(comparison:paste.comparison,presentation:paste.presentation))
+        XCTAssertEqual(projected.cells.map(\.lineNumber),[1,2,3,4,5])
+        let start = projected.displayRanges[0].location + 1, end = projected.displayRanges[3].location + 1
+        let deletion = try MergeAlignedResultEdit(comparison:paste.comparison,presentation:paste.presentation,range:NSRange(location:start,length:end - start),replacement:"")
+        XCTAssertEqual(deletion.presentation.text,"a\r\nc")
+        XCTAssertEqual(deletion.comparison.rows.filter { $0.mine.lineNumber != nil }.map { $0.mine.text }.joined(),"a\r\nb\r\nc")
+        XCTAssertNotNil(MergeAlignedResultProjection(comparison:deletion.comparison,presentation:deletion.presentation))
+    }
+    func testFinalEmptyEditedRecordAndEmptyDocumentStayAligned() throws {
+        let value = try presentation("a", "a", "a"), initial = resultPresentation(value)
+        let edit = try MergeAlignedResultEdit(comparison:value.sources,presentation:initial,range:NSRange(location:1,length:0),replacement:"\n")
+        let projection = try XCTUnwrap(MergeAlignedResultProjection(comparison:edit.comparison,presentation:edit.presentation))
+        XCTAssertEqual(edit.presentation.text,"a\n")
+        XCTAssertEqual(projection.cells.map(\.state),[.edited,.edited])
+        XCTAssertEqual(projection.cells.map(\.lineNumber),[1,2])
+        XCTAssertEqual(edit.displayCaret,2)
+        let empty = try presentation("", "", "")
+        let typed = try MergeAlignedResultEdit(comparison:empty.sources,presentation:resultPresentation(empty),range:NSRange(location:0,length:0),replacement:"🐢")
+        XCTAssertEqual(typed.presentation.text,"🐢")
+        XCTAssertEqual(typed.comparison.rows.count,1)
+        XCTAssertNotNil(MergeAlignedResultProjection(comparison:typed.comparison,presentation:typed.presentation))
+    }
+    func testAlignedDisplayCoordinatesKeepCRLFAndUTF16Separate() throws {
+        let value = try presentation("🐢\r\nold\r\ntail", "🐢\r\nnew\r\ntail", "🐢\r\nold\r\ntail")
+        let projection = try XCTUnwrap(MergeAlignedResultProjection(comparison:value.sources,presentation:resultPresentation(value)))
+        XCTAssertEqual(projection.displayText,"🐢\nold\nnew\ntail\n")
+        XCTAssertEqual(projection.serializedRange(displayRange:NSRange(location:7,length:3)),NSRange(location:4,length:3))
+        XCTAssertEqual(projection.displayRange(serializedRange:NSRange(location:4,length:3)),NSRange(location:7,length:3))
+        XCTAssertEqual(projection.serializedRange(displayRange:NSRange(location:3,length:3)),NSRange(location:4,length:0))
+    }
     func testAlignedResultRetainsRemovedRecordsAndLogicalNumbers() throws {
         let value = try presentation("head\nold\ntail\n","head\nold\ntail\n","head\nnew\ntail\n")
         let rows = try XCTUnwrap(value.sources.alignedResultRows)

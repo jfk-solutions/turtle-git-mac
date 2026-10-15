@@ -4,7 +4,9 @@ The October 16 [aligned result-record continuation](MERGE-RESULT-STATES-PARITY.m
 adds logical result counts/locator coordinates and exact per-row mappings after
 single-side marker resolution. Later source/result one-row choices can reuse
 those mappings. Whole-group mappings remain for both-order copies and fallback
-conflicts; the fully aligned editable result view remains in progress.
+conflicts. The result now renders aligned records and uses the same row space
+for active-pane navigation, source peers, context choices and locator scrolling;
+both-order/unknown mappings still use serialized fallback.
 
 ## Ordinary block choices — October 16, 2026
 
@@ -170,3 +172,5 @@ Bottom/result is writable. Two-pane Base/Mine editing is separate and now retain
 Edited records through input, history and Save; see [in-place editing](MERGE-ONE-PANE-PARITY.md).
 
 Aligned row-model evidence: [October 16 grouped verification](qa/merge-aligned-rows-2026-10-16.json).
+
+Native aligned editor evidence: [October 16 grouped verification](qa/merge-aligned-editor-2026-10-16.json).

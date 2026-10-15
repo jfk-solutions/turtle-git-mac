@@ -17,7 +17,7 @@ import TurtleGitCore
         let owner=TextConflictWindowController(repository:GitRepository(root:root,executable:git),access:nil,path:"mine.txt",workingMerge:try WorkingTextMerge(base:base,theirs:theirs,mine:mine),preferences:prefs),model=owner.model;defer{owner.close()}
         model.load();try await wait{!model.busy && !model.preparing && model.blocks.count==1};owner.window?.contentView?.layoutSubtreeIfNeeded();try await wait{editors(owner.window?.contentView).contains{$0.isEditable}}
         let view=editors(owner.window?.contentView).first{$0.isEditable}!
-        model.choose(.mine);try await wait{model.result==mineText && model.resultStates.contains(.resolved) && view.string==mineText}
+        model.choose(.mine);try await wait{model.result==mineText && model.resultStates.contains(.resolved) && view.string==model.resultDisplayText}
         let resolved=model.resultPresentation
         try require(model.resultStates==[.normal,.resolved,.normal,.normal] && model.locatorMap.columns[1].contains{$0.state == .resolved},"Resolved choice did not color actual result/locator")
         for (name,expected) in [(NSAppearance.Name.aqua,UInt32(0x123456)),(.darkAqua,0x234567)]{let appearance=NSAppearance(named:name)!;owner.window?.appearance=appearance;owner.window?.contentView?.layoutSubtreeIfNeeded();let offset=(view.string as NSString).range(of:"mine").location;let color=view.textStorage?.attribute(.backgroundColor,at:offset,effectiveRange:nil) as? NSColor;try require(color.flatMap{rgb($0,appearance)}==expected,"Resolved custom palette not painted")}
@@ -25,7 +25,7 @@ import TurtleGitCore
         try require(model.resultStates==[.edited,.resolved,.normal,.normal],"Manual typing lost unaffected resolved/middle states")
         let typed=model.resultPresentation;model.undo();try await wait{model.result==mineText};try require(model.resultPresentation==resolved,"Typing Undo did not restore provenance")
         model.redo();try await wait{model.result.hasPrefix("PREFIX")};try require(model.resultPresentation==typed,"Typing Redo did not restore provenance")
-        let appearance=NSAppearance(named:.darkAqua)!;owner.window?.appearance=appearance;owner.window?.contentView?.layoutSubtreeIfNeeded();try await wait{view.string==model.result}
+        let appearance=NSAppearance(named:.darkAqua)!;owner.window?.appearance=appearance;owner.window?.contentView?.layoutSubtreeIfNeeded();try await wait{view.string==model.resultDisplayText}
         let background=view.textStorage?.attribute(.backgroundColor,at:0,effectiveRange:nil) as? NSColor,foreground=view.textStorage?.attribute(.foregroundColor,at:0,effectiveRange:nil) as? NSColor
         try require(background.flatMap{rgb($0,appearance)}==0x456789 && foreground.flatMap{rgb($0,appearance)}==0x998877,"Edited source channels not consumed")
         model.chooseStandaloneOutput={_,_ in output};model.save(markResolved:false);try await wait{!model.busy};try require(model.error==nil && String(contentsOf:output)==model.result && model.resultPresentation==typed,"Save changed provenance or bytes")
