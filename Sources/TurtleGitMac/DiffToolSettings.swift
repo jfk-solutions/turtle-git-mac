@@ -446,7 +446,18 @@ struct MergeToolSettings: View {
         try manager.createDirectory(at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { withExtendedLifetime(grant) {} }
         do {
-            var values = ["merged": input.result.path, "bname": path + " : " + (input.conflictTitles?.base ?? "Base"), "tname": path + " : " + (input.conflictTitles?.theirs.title ?? "Theirs"), "yname": path + " : " + (input.conflictTitles?.mine.title ?? "Mine"), "mname": path, "wtroot": repository.root.path]
+            // Keep title expansion outside the heterogeneous dictionary expression:
+            // Swift 6.1 otherwise times out while inferring the cancellation body.
+            let baseTitle: String = input.conflictTitles?.base ?? "Base"
+            let theirsTitle: String = input.conflictTitles?.theirs.title ?? "Theirs"
+            let mineTitle: String = input.conflictTitles?.mine.title ?? "Mine"
+            var values: [String: String] = [:]
+            values["merged"] = input.result.path
+            values["bname"] = "\(path) : \(baseTitle)"
+            values["tname"] = "\(path) : \(theirsTitle)"
+            values["yname"] = "\(path) : \(mineTitle)"
+            values["mname"] = path
+            values["wtroot"] = repository.root.path
             let privateFiles = try await Task.detached(priority: .userInitiated) { () throws -> [String: String] in
                 var files: [String: String] = [:]
                 for (side, bytes) in [("base", input.base), ("theirs", input.theirs), ("mine", input.mine)] {

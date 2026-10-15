@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "c4bf9b38",
+  "scope": "Reduce external Merge launcher expression inference complexity without changing title arguments or cancellation scope",
+  "hosted_evidence": {
+    "run": 38734598158,
+    "job": 116421147282,
+    "toolchain": "Xcode 16.4 / Swift 6.1.2",
+    "failure": "DiffToolSettings.swift:433 compiler unable to type-check cancellation expression in reasonable time"
+  },
+  "change": "Resolve the three optional conflict titles as explicit Strings; fill an explicitly typed String dictionary in separate assignments, preserving every argument key and value.",
+  "validation": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/merge-launch-compiler-build.log",
+      "toolchain_limit": "Current local Xcode, not hosted Xcode 16.4"
+    },
+    "native": {
+      "exit": 0,
+      "log": "build/qa/merge-launch-compiler-native.log",
+      "command": "python3 scripts/test-conflict-identities.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "engines": 2,
+      "coverage": "Actual external merge title arguments and shared text/image/delete/submodule identity preferences; unchanged HEAD/index/workfiles; fixture also retains wrapping checks",
+      "owned_receiver_pids_checked_absent": [
+        99550,
+        99826
+      ]
+    },
+    "core": "Not rerun; no Core changes"
+  },
+  "limits": [
+    "Hosted compiler repair remains unproven until the new revision runs in GitHub Actions",
+    "No full CI green or signed/Finder/App Store acceptance claim",
+    "Full application port remains incomplete"
+  ]
+}
