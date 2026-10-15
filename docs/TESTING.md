@@ -1623,3 +1623,33 @@ candidate is expected to be rejected by `export-distribution.py` before export;
 that refusal does not prove real certificate/profile export or signed runtime
 behavior. No installed application or Finder service is launched by archive
 preparation. See [distribution](DISTRIBUTION.md).
+
+
+## Bounded reference-family compilation
+
+CI uses `scripts/test-native-reference-groups.py` to invoke the existing reference
+driver in groups of twelve runtime cases. The case order, default exclusions,
+fixture paths and parent/worker dependencies come from that driver. Every default
+case still runs once per chosen Git executable, with the original environment,
+CLI, assertions, 300-second receiver limit and owned process-group cleanup.
+Compile-only groups also retain the old monolith's typechecking of excluded
+capture/helper fixtures. Helpers required by a group compile with it without
+being executed as extra test cases. The per-compilation limit stays 300 seconds.
+
+Use `--list` to inspect the entire plan without compiling or launching anything,
+or `--compile-only` to validate/cache every group. `--only CASE` and repeated
+`--git PATH` retain explicit case and Git ordering. The original driver remains
+available for focused checks; `--include CASE` adds a compile dependency without
+running it. Group-contract checks ensure complete default execution/typecheck
+coverage, worker linkage and failure propagation. This addresses the oversized
+compile input that timed out in hosted run 38688088886; only a later hosted run
+can establish that its full workflow passes.
+
+
+The reference cache now keys app source text as well as actual Debug objects,
+fixtures, app/Core/SMTP modules and binaries, the driver/shared compiler-owner
+implementation, compiler, SDK and fixed flags/architecture. Stale/missing app
+objects require a Debug rebuild. Compiler and native receiver process groups are
+owned and cleaned on success/failure/timeout; no test case is dropped to avoid a
+slow compilation. See [the grouped checkpoint](qa/reference-groups-2026-10-15.json)
+for exact local scope and the separate hosted result.

@@ -128,8 +128,20 @@ import TurtleGitCore
             } catch { if !invalidated, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func changedBase() { guard active, !busy, !progress else { return }; applyBase() }
+    private var suggestedBaseDraft: [GitReferenceName]?
+    func changedBase() { guard active, !busy, !progress, chooser.pickerTarget == nil else { return }; applyBase() }
     private func applyBase() {
+        let reference = chooser.references.first(where: { GitReferenceName.equal($0.name, chooser.branchRevision) })
+        let values: [String]
+        if useHead { values = ["HEAD", directory] }
+        else if chooser.options.target == .branch { values = ["branch", chooser.revision, reference?.suggestedBranch ?? "", String(reference?.remote ?? false)] }
+        else if chooser.options.target == .tag { values = ["tag", chooser.revision, chooser.tags.first(where: { GitReferenceName.equal($0.name, chooser.tagRevision) })?.label ?? chooser.revision] }
+        else { values = ["commit", chooser.revision, String(shortHashLength)] }
+        let draft = values.map { GitReferenceName($0) }
+        // Deferred SwiftUI notifications must not rewrite a captured picker
+        // context or reset custom options for an unchanged base after Cancel.
+        guard suggestedBaseDraft != draft else { return }
+        suggestedBaseDraft = draft
         if useHead {
             branchName = URL(fileURLWithPath: directory).lastPathComponent; createBranch = false
         } else if chooser.options.target == .branch, let reference = chooser.references.first(where: { GitReferenceName.equal($0.name, chooser.branchRevision) }) {
@@ -257,6 +269,7 @@ private struct WorktreeCreateDialog: View {
             }
         }.padding(16)
         .disabled(!model.progress && (model.busy || chooser.busy || chooser.pickerTarget != nil))
+        .onChange(of: chooser.pickerTarget) { value in if value == nil { model.changedBase() } }
         .onChange(of: chooser.branchRevision) { _ in if !model.useHead && chooser.options.target == .branch { model.changedBase() } }
         .onChange(of: chooser.tagRevision) { _ in if !model.useHead && chooser.options.target == .tag { model.changedBase() } }
         .onChange(of: chooser.commitRevision) { _ in if !model.useHead && chooser.options.target == .commit { model.changedBase() } }

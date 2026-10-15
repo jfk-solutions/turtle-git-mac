@@ -81,6 +81,8 @@ jobs:
           echo "fingerprint=$turtlegit_toolchain_fingerprint" >> "$GITHUB_OUTPUT"
       - name: Pinned inventory regression
         run: python3 scripts/check-inventory-pin.py
+      - name: Native reference group coverage contracts
+        run: python3 scripts/test-native-reference-groups-contracts.py
       - name: Native receiver cache and process ownership contracts
         run: python3 scripts/test-native-receiver.py
       - name: Runtime cache invalidation contracts
@@ -338,7 +340,7 @@ jobs:
       - name: Native submodule progress output controls
         run: python3 scripts/test-submodule-progress-output.py
       - name: Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle
-        run: python3 scripts/test-native-reference-batch.py
+        run: python3 scripts/test-native-reference-groups.py
       - name: Native Pull forced cleanup
         run: python3 scripts/test-pull-cleanup.py
       - name: Native Merge forced cleanup

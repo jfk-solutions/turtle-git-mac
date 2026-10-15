@@ -384,3 +384,21 @@ adoption cancellation token; a failed or cancelled adoption restores the prior
 workspace. See [folder-access workflow](REPOSITORY-FOLDER-ACCESS.md) and
 [grouped evidence](qa/workspace-metadata-access-2026-10-15.json). This is workspace
 opening support, not certification of all signed worktree mutations or Finder drops.
+
+## Deferred base suggestions and owned pickers — October 15, 2026
+
+New Worktree now holds derived branch suggestions steady while a reference/Log
+picker owns the parent draft. Previously a queued SwiftUI revision notification
+could rewrite the suggested branch after the picker captured its context, making
+a valid selection look stale. Suggestions update after the picker finishes and
+only when the underlying base/directory/reference metadata actually changed.
+Cancel on an unchanged base retains custom branch/create/detach options; accepted
+new bases still produce the source branch/tag/short-hash suggestions. Explicit
+parent draft changes and retired/duplicate replies retain their existing fences.
+
+The creation-picker fixture uses the current initial-revision factory and tests
+this queued-notification path alongside native focus, graph/single selection,
+reference commands, stale/rejected/forced-close replies and real private
+branch/tag/worktree creation. The [grouped CI repair record](qa/reference-groups-2026-10-15.json)
+separates compilation, native and hosted evidence. Complete source picker/layout
+and signed worktree acceptance remain open.

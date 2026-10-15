@@ -1,0 +1,180 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "c8a2cee43de105a85875d8b894b3ff104c9e8c1a",
+  "scope": "Bound hosted reference compilation while preserving full default coverage; repair delayed Worktree suggestion/picker draft race",
+  "hosted_failure": {
+    "run_id": 38688088886,
+    "job_id": 116270555472,
+    "source_sha_prefix": "883d19c4",
+    "step": 82,
+    "reason": "Whole reference receiver swiftc compile exceeded 300 seconds before executing its checks"
+  },
+  "implementation": [
+    "Dispatcher derives case order/default exclusions/fixture paths/worker dependencies from the existing driver",
+    "Twelve-case primary compilation groups; compile-only extras preserve excluded capture/helper typechecks; included helpers do not execute as extra top-level cases",
+    "Git-outer/runtime-case-inner order and existing native runtime AST/environment/argv/timeout/cleanup unchanged",
+    "Baseline protects original 134 compiled and 124 executed cases from silent removal/reclassification",
+    "Cache includes app sources/Debug objects, fixture sources, app/Core/SMTP binary/modules, runner/compiler-owner, compiler/SDK/architecture/flags; stale app objects refused",
+    "Shared bounded compiler process ownership cleans the exact compiler group on success/failure/timeout",
+    "Worktree holds derived suggestions during owned pickers; recompute after completion only for changed relevant base inputs; unchanged-base Cancel retains custom branch/create/detach options"
+  ],
+  "coverage": {
+    "canonical_compiled_cases": 134,
+    "canonical_executed_cases": 124,
+    "groups": 12,
+    "local_compiled_cases_including_existing_WIP_capture": 135,
+    "local_runtime_cases": 124,
+    "largest_primary_plus_helper_count": 14,
+    "native_runtime_loop_AST_matches_original": true,
+    "unrelated_WIP": "Existing uncommitted RefLog capture case remains local. Canonical committed driver has 134 cases; local typechecking additionally covered that existing capture. Runtime defaults are identical."
+  },
+  "validation": {
+    "contracts": {
+      "tests": 5,
+      "failures": 0,
+      "exit_code": 0,
+      "log": "build/qa/reference-groups-contracts-final.log"
+    },
+    "compilation": {
+      "accepted_groups": 12,
+      "initial_accepted_groups": [
+        1,
+        2,
+        3
+      ],
+      "initial_log": "build/qa/reference-groups-compile.log",
+      "remaining_groups": [
+        {
+          "group": 4,
+          "exit_code": 0,
+          "seconds": 23.45
+        },
+        {
+          "group": 5,
+          "exit_code": 0,
+          "seconds": 6.33
+        },
+        {
+          "group": 6,
+          "exit_code": 0,
+          "seconds": 6.18
+        },
+        {
+          "group": 7,
+          "exit_code": 0,
+          "seconds": 7.99
+        },
+        {
+          "group": 8,
+          "exit_code": 0,
+          "seconds": 35.62
+        },
+        {
+          "group": 9,
+          "exit_code": 0,
+          "seconds": 10.24
+        },
+        {
+          "group": 10,
+          "exit_code": 0,
+          "seconds": 10.93
+        },
+        {
+          "group": 11,
+          "exit_code": 0,
+          "seconds": 8.08
+        },
+        {
+          "group": 12,
+          "exit_code": 0,
+          "seconds": 2.88
+        }
+      ],
+      "remaining_log": "build/qa/reference-groups-compile-final.log",
+      "scope": "Cumulative twelve-group compilation; initial group 4 failed stale fixture factories and was repaired. No complete second compile sweep. Typechecks preceded the later private Worktree suggestion-state fix; the affected representative receiver was rebuilt against final Debug objects."
+    },
+    "app": {
+      "exit_code": 0,
+      "log": "build/qa/reference-groups-worktree-build-final.log",
+      "scope": "Unsigned Debug arm64; existing warning/exit-zero diagnostics remain"
+    },
+    "native": {
+      "exit_code": 0,
+      "cases": [
+        "creation-pickers",
+        "folders",
+        "finder-publication",
+        "svn-workflow",
+        "merge-clipboard"
+      ],
+      "git_engines": [
+        "Apple Git 2.54.0",
+        "prepared bundled Git 2.55.0"
+      ],
+      "accepted_case_git_pairs": 10,
+      "log": "build/qa/reference-groups-native-final.log",
+      "group_seconds": [
+        35.44,
+        29.5
+      ],
+      "cache_reuse_on_second_engine": true,
+      "scope": "Hidden native receivers, real private branch/tag/worktree/ref/clipboard effects and Finder publication worker IPC. SVN transport is injected by GitSVNFixture; not a public server/TLS test."
+    },
+    "cleanup": {
+      "logged_owned_compiler_and_receiver_pids": [
+        56418,
+        56429,
+        56952,
+        56965,
+        57571,
+        57594,
+        58163,
+        58171,
+        58800,
+        58971,
+        59056,
+        59226,
+        59274,
+        59908,
+        60084,
+        60169,
+        60338
+      ],
+      "still_present": [],
+      "reference_receiver_processes_present_after_completion": []
+    },
+    "core": "No Core changes; no Core suite rerun"
+  },
+  "failed_checks_and_repairs": [
+    {
+      "check": "initial group 4 compilation",
+      "reason": "Three Creation picker factories retained older four-argument signature",
+      "repair": "Pass initial revision through current five-argument factory; retain all assertions and private geometry"
+    },
+    {
+      "check": "Creation picker native Worktree Log acceptance",
+      "reason": "Queued SwiftUI suggestion update changed captured context and rejected valid selection",
+      "repair": "Fence derived updates during picker ownership, key suggestions by relevant base inputs and refresh after close"
+    },
+    {
+      "check": "new custom-options Cancel case",
+      "reason": "Fixture tried opening Commit picker while Branch radio remained selected",
+      "repair": "Select Commit before capturing custom options; preserve real picker availability and Cancel assertions"
+    }
+  ],
+  "remaining": [
+    "Hosted full macOS success for this change remains unverified; an earlier fc682460 run was observed live in Git integration tests",
+    "Full default 124-case runtime execution is retained in CI but only five cases were executed locally in this batch",
+    "Physical panels/input/Finder rendering, complete source dialog parity and signed sandbox/App Store acceptance remain open"
+  ],
+  "hashes": {
+    "scripts/test-native-reference-groups.py": "91737fc3f6ab95ba3f816ac3bb745c3c597953bbd3dd8ee63c02dd812faa4dc6",
+    "scripts/native_reference_groups.py": "7a9d1fa741a0ff92cffc9061096afcb0195a2fa3fbc220ca7ddb92248370e9ca",
+    "scripts/native-reference-baseline.json": "c05da17d81758ef196b3207b0b173eb82ab491f37e7c460ae0a9d5c14f5e01e5",
+    "scripts/test-native-reference-groups-contracts.py": "6d54a7e10d9fa5fd268982d840a582a2fbd35b5daff3f93588416e68a8ee78c8",
+    "Sources/TurtleGitMac/WorktreeCreateWindow.swift": "233b94172f480bd6373ea2d45bc31f1b54cb8d42b9d1f9588ccbe206815a4110",
+    "docs/qa/creation-pickers-native-2026-10-09.swift": "1eca5b77358455f312648d29f5d7351218601f1fbadef876de719d00c18de1b9"
+  },
+  "canonical_driver_sha256": "d0348fa7319e206975c9ef6597c88f76d0b79ee5d2a1ef5f64a8f53b45992255",
+  "unrelated_WIP_preserved_exact_changed_lines": true
+}

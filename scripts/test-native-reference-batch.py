@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Link reference-family QA once against the built app; run owned bounded receivers."""
 import argparse
+from native_receiver import run_receiver as run_compiler
 import ast
 from contextlib import ExitStack
 import hashlib
@@ -151,8 +152,11 @@ CASES = {
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 parser.add_argument('--only', choices=CASES, action='append')
+parser.add_argument('--include', choices=CASES, action='append', help='Compile a dependent fixture without executing its case.')
+parser.add_argument('--compile-only', action='store_true', help='Build/cache selected receivers without launching them.')
 args = parser.parse_args()
 compiled_cases = dict(CASES) if not args.only else {case: CASES[case] for case in CASES if case in args.only}
+for case in args.include or []: compiled_cases[case] = CASES[case]
 for parent, worker in [('finder-service-grants', 'finder-service-grant-worker'), ('finder-publication', 'finder-publication-worker')]:
     if parent in compiled_cases: compiled_cases[worker] = CASES[worker]
 root = Path(__file__).resolve().parent.parent
@@ -160,6 +164,10 @@ products = root / 'build/Build/Products/Debug'
 objects = sorted((root / 'build/Build/Intermediates.noindex/TurtleGitMac.build/Debug/TurtleGitMac.build/Objects-normal' / platform.machine()).glob('*.o'))
 if not objects or not (products / 'TurtleGitMac.swiftmodule').exists():
     raise SystemExit('Build TurtleGitMac Debug before running reference QA.')
+app_sources = sorted((root / 'Sources/TurtleGitMac').glob('*.swift'))
+objects_by_name = {path.stem: path for path in objects}
+stale = [path.name for path in app_sources if path.stem not in objects_by_name or path.stat().st_mtime_ns > objects_by_name[path.stem].stat().st_mtime_ns]
+if stale: raise SystemExit('Rebuild Debug before reference QA; stale/missing objects: ' + ', '.join(stale))
 driver = ast.parse((root / 'scripts/test-synchronization-dialog.py').read_text())
 helper = next(n for n in driver.body if isinstance(n, ast.FunctionDef) and n.name == 'close_receiver')
 cleanup = {'os': os, 'signal': signal, 'time': time, 'subprocess': subprocess}
@@ -215,10 +223,12 @@ with ExitStack() as fixture_lifetimes, tempfile.TemporaryDirectory(prefix='Turtl
 }
 ''')
     digest = hashlib.sha256()
-    digest.update((platform.machine() + '/macos13/swift5/WMO-Onone/reference-objects-v1').encode())
+    digest.update((platform.machine() + '/macos13/swift5/WMO-Onone/reference-objects-v2').encode())
     digest.update(subprocess.check_output(['xcrun', 'swiftc', '--version']))
-    imports = [products / 'TurtleGitMac.swiftmodule', products / 'TurtleGitCore.framework']
-    inputs = [*objects, *sources, main]
+    digest.update(subprocess.check_output(['xcrun', '--show-sdk-build-version']))
+    digest.update(subprocess.check_output(['xcrun', '--show-sdk-path']))
+    imports = [products / 'TurtleGitMac.swiftmodule', products / 'TurtleGitCore.framework', products / 'TurtleGitSMTP.framework']
+    inputs = [*objects, *app_sources, *sources, main, Path(__file__), root / 'scripts/native_receiver.py']
     for imported in imports:
         inputs += sorted(p for p in imported.rglob('*') if p.is_file() and not p.is_symlink())
     for source in inputs:
@@ -227,7 +237,7 @@ with ExitStack() as fixture_lifetimes, tempfile.TemporaryDirectory(prefix='Turtl
     executable = cache / ('reference-' + digest.hexdigest())
     if not executable.exists():
         staging = directory / 'reference-receiver'
-        subprocess.run(['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library', '-swift-version', '5',
+        run_compiler(['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library', '-swift-version', '5',
                         '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products),
                         *map(str, sources), str(main), *map(str, objects), '-framework', 'TurtleGitCore',
                         '-Xlinker', '-rpath', '-Xlinker', str(products), '-Xlinker', '-e', '-Xlinker', '_turtlegit_reference_batch_main',
@@ -236,6 +246,9 @@ with ExitStack() as fixture_lifetimes, tempfile.TemporaryDirectory(prefix='Turtl
         print('Reference receivers linked once to the current Debug app objects.', flush=True)
     else:
         print('Reusing reference receiver for unchanged objects/modules/fixtures/toolchain.', flush=True)
+    if args.compile_only:
+        print('Reference compile-only complete: ' + ', '.join(compiled_cases), flush=True)
+        raise SystemExit(0)
     environment = os.environ.copy()
     environment.update(DYLD_FRAMEWORK_PATH=str(products), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1')
     for key in ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL']:

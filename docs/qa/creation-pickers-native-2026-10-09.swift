@@ -9,8 +9,8 @@ import TurtleGitCore
         if let result=view as? T,label==nil || result.accessibilityLabel()==label { return result }
         for child in view.subviews { if let result=find(type,child,label:label) { return result } }; return nil
     }
-    @MainActor static func wait(_ windows:[NSWindow],_ ready:()->Bool) async throws {
-        for _ in 0..<3000 { windows.forEach{$0.contentView?.layoutSubtreeIfNeeded()}; if ready(){return}; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(description:"Timed out")
+    @MainActor static func wait(_ windows:[NSWindow],_ ready:()->Bool,line:UInt = #line) async throws {
+        for _ in 0..<3000 { windows.forEach{$0.contentView?.layoutSubtreeIfNeeded()}; if ready(){return}; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(description:"Timed out at line \(line)")
     }
     static func phase(_ message:String) { print("PHASE: "+message); fflush(stdout) }
     @MainActor static func main() async { do { try await verify() } catch { print("FAIL: \(error)"); exit(1) } }
@@ -42,7 +42,7 @@ import TurtleGitCore
             var presentations=0,logCallbacks:[(LogEntry?)->Void]=[],commands:[String]=[],created=false
             let presenter:(NSWindow,NSWindow)->Bool={parent,child in presentations+=1; parent.makeFirstResponder(nil); return !parent.isVisible && !child.isVisible }
             let configure:(ReferenceBrowserWindowModel)->Void={model in model.onLog={commands.append($0)}; model.onBrowse={commands.append($0)}; model.onCompare={commands.append($0)} }
-            let logFactory:(GitRepository,RepositoryAccessLease?,@escaping(LogEntry?)->Void,UserDefaults)->LogWindowController={repo,access,choose,prefs in logCallbacks.append(choose); return LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false) }
+            let logFactory:(GitRepository,RepositoryAccessLease?,@escaping(LogEntry?)->Void,UserDefaults,String?)->LogWindowController={repo,access,choose,prefs,revision in logCallbacks.append(choose); return LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false,savesGeometry:false,initialRevision:revision) }
             if let branch { branch.presentPicker=presenter; branch.configureReferencePicker=configure; branch.makeCommitPicker=logFactory; branch.model.options.name="made-\(kind)"; branch.model.options.message="creation message"; branch.model.options.force=true; branch.model.switchAfterCreation=false; branch.model.pushAfterCreation=false; branch.model.onCreated={_ in created=true} }
             if let worktree { worktree.presentPicker=presenter; worktree.configureReferencePicker=configure; worktree.makeCommitPicker=logFactory; worktree.model.directory=root.appendingPathComponent("made-worktree").path; worktree.model.force=true; worktree.model.checkout=false; worktree.model.onCreated={_ in created=true} }
             func ref()->ReferenceBrowserWindowController? { branch?.referencePicker ?? worktree?.referencePicker }
@@ -93,6 +93,20 @@ import TurtleGitCore
             chooser.browse(.commit); try require(log()==nil && chooser.pickerTarget==nil,"Rejected Log retained child")
             chooser.options.target = .branch; chooser.browse(.branch); try require(ref()==nil && chooser.pickerTarget==nil && !chooser.busy,"Rejected browser retained child")
             if let branch { branch.presentPicker=presenter } else { worktree!.presentPicker=presenter }
+            if let worktree {
+                // A no-change Cancel must retain user-entered options, even
+                // when SwiftUI delivers its picker-close notification later.
+                chooser.options.target = .commit
+                worktree.model.changedBase()
+                worktree.model.branchName="custom-kept"; worktree.model.createBranch=true; worktree.model.changedBranch()
+                chooser.browse(.commit)
+                guard let cancelled=log() else { throw Failure(description:"Custom-options Log missing") }
+                try await wait([cancelled.window!]) { !cancelled.model.busy }
+                cancelled.model.close()
+                try await wait([window]) { chooser.pickerTarget==nil && log()==nil }
+                await Task.yield(); window.contentView?.layoutSubtreeIfNeeded()
+                try require(worktree.model.branchName=="custom-kept" && worktree.model.createBranch && !worktree.model.detach,"Unchanged-base Cancel reset custom Worktree options")
+            }
             chooser.options.target = .commit; chooser.commitRevision=prior; chooser.browse(.commit)
             guard let finalSelection=log() else { throw Failure(description:"Final selection Log missing") }; try await wait([finalSelection.window!]) { !finalSelection.model.busy && finalSelection.model.entries.count==2 }
             finalSelection.model.select([base]); finalSelection.model.accept(); try await wait([window]) { chooser.pickerTarget==nil && chooser.commitRevision==base }
@@ -111,7 +125,7 @@ import TurtleGitCore
             if forcedKind>=2 {
                 let closing=WorktreeCreateWindowController(repository:repo,access:nil,preferences:prefs); defer { closing.close() }
                 try await wait([closing.window!]) { !closing.model.busy && !closing.model.chooser.busy }; closing.model.useHead=false
-                closing.presentPicker={parent,_ in parent.makeFirstResponder(nil);return true}; closing.makeCommitPicker={repo,access,choose,prefs in LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false) }
+                closing.presentPicker={parent,_ in parent.makeFirstResponder(nil);return true}; closing.makeCommitPicker={repo,access,choose,prefs,revision in LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false,savesGeometry:false,initialRevision:revision) }
                 closing.model.chooser.options.target=commitPicker ? .commit : .branch; closing.model.chooser.commitRevision=prior; closing.model.chooser.browse(commitPicker ? .commit : .branch)
                 if let child=closing.referencePicker { try await wait([child.window!]) { !child.model.busy }; closing.close(); child.model.finish("refs/tags/release") }
                 else if let child=closing.commitPicker { try await wait([child.window!]) { !child.model.busy }; closing.close(); child.model.accept() }
@@ -122,7 +136,7 @@ import TurtleGitCore
             }
             let closing=BranchTagWindowController(repository:repo,access:nil,isTag:false,preferences:prefs); defer { closing.close() }
             closing.model.load(revision:nil); try await wait([closing.window!]) { !closing.model.busy && !closing.model.chooser.busy }; closing.model.useHead=false
-            closing.presentPicker={parent,_ in parent.makeFirstResponder(nil);return true}; closing.makeCommitPicker={repo,access,choose,prefs in LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false) }
+            closing.presentPicker={parent,_ in parent.makeFirstResponder(nil);return true}; closing.makeCommitPicker={repo,access,choose,prefs,revision in LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false,savesGeometry:false,initialRevision:revision) }
             closing.model.chooser.options.target=commitPicker ? .commit : .branch; closing.model.chooser.commitRevision=prior; closing.model.chooser.browse(commitPicker ? .commit : .branch)
             if let child=closing.referencePicker { try await wait([child.window!]) { !child.model.busy }; closing.close(); child.model.finish("refs/tags/release") }
             else if let child=closing.commitPicker { try await wait([child.window!]) { !child.model.busy }; closing.close(); child.model.accept() }
