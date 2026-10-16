@@ -2,6 +2,12 @@
 
 *A macOS fork of TortoiseGit*
 
+Changed Files and Rebase Revision Files now prepare Revert per file so copied/
+missing historical files can use source Ignore/Abort and completed-count results.
+Root comparisons expose empty-tree Revert, and historical export reads only the
+chosen destination. See [connected recovery](SUBMODULE-DIFF-PARITY.md#per-file-recovery-and-empty-tree-revert--october-16-2026).
+Physical, full copy/gitlink/Trash variants and signed acceptance remain open.
+
 Create Branch/Tag now owns creation, cancellation questions, Switch acknowledgement
 and description-only retry independently of the options window. Cancel drains
 metadata/creation workers; forced closure closes its Switch sheet and refuses late

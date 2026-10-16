@@ -422,6 +422,52 @@ final class RevisionComparisonTests: XCTestCase {
         XCTAssertEqual(snapshot.from, .revision(base)); XCTAssertEqual(snapshot.fromDetails?.subject, "base")
     }
 
+    func testComparisonRevertBatchContinuesAfterCopyBasePreparationFailure() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let original = Data((1...32).map { "copy context \($0)\n" }.joined().utf8)
+        try original.write(to: root.appendingPathComponent("source")); try Data("good base\n".utf8).write(to: root.appendingPathComponent("z-good"))
+        try await repo.stage(["source", "z-good"]); _ = try await repo.commit(message: "copy base")
+        let base = String(decoding: try await repo.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+        try original.write(to: root.appendingPathComponent("a-copy")); try (original + Data("source changed\n".utf8)).write(to: root.appendingPathComponent("source")); try Data("good new\n".utf8).write(to: root.appendingPathComponent("z-good"))
+        try await repo.stage(["a-copy", "source", "z-good"]); _ = try await repo.commit(message: "copy changes")
+        let snapshot = try await repo.revisionComparison(from: .revision(base), to: .revision("HEAD"))
+        let copy = try XCTUnwrap(snapshot.files.first { $0.path == "a-copy" }), good = try XCTUnwrap(snapshot.files.first { $0.path == "z-good" })
+        XCTAssertTrue(copy.action.hasPrefix("C"))
+        let batch = try await repo.prepareComparisonRevertBatch(snapshot, files: [copy, good], base: true)
+        do { _ = try await repo.prepareComparisonRevertFile(batch, file: copy); XCTFail("Base has no copied destination") } catch RevisionComparisonFailure.selection {}
+        let target = try await repo.prepareComparisonRevertFile(batch, file: good); _ = try await repo.revertComparisonFile(target, recycle: false)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("z-good")), Data("good base\n".utf8)); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("a-copy")), original)
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.prepareComparisonRevertFile(batch, file: good, cancellation: token); XCTFail("Cancelled preparation") } catch is OperationCancellationFailure {}
+    }
+    func testComparisonRevertEmptyTreeHistoricalAndWorkingSemantics() async throws {
+        let helper = CommitSelectionTests(), (root, repo) = try await helper.fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try helper.write(root, "initial", "initial\n"); try await repo.stage(["initial"]); _ = try await repo.commit(message: "root")
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let historical = try await repo.revisionComparison(from: .emptyTree, to: .revision("HEAD"))
+        let plan = try await repo.prepareComparisonRevert(historical, files: historical.files, base: true)
+        for target in plan { _ = try await repo.revertComparisonFile(target, recycle: false) }
+        let untracked = try await repo.run(["ls-files"]).stdout; XCTAssertTrue(untracked.isEmpty); XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("initial").path))
+        _ = try await repo.run(["reset", "--hard", "HEAD"])
+        let working = try await repo.revisionComparison(from: .emptyTree, to: .workingTree)
+        let livePlan = try await repo.prepareComparisonRevert(working, files: working.files, base: true)
+        for target in livePlan { _ = try await repo.revertComparisonFile(target, recycle: false) }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("initial").path))
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(finalHead, head)
+    }
+    func testComparisonExportDoesNotReadMissingBaseBlob() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let base = String(decoding: try await repo.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+        let object = String(decoding: try await repo.run(["rev-parse", base + ":" + path]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+        let blob = root.appendingPathComponent(".git/objects/" + object.prefix(2) + "/" + object.dropFirst(2)), saved = try Data(contentsOf: blob)
+        let destination = Data([0, 255, 13, 10]); try destination.write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "binary destination")
+        let snapshot = try await repo.revisionComparison(from: .revision(base), to: .revision("HEAD")), file = try XCTUnwrap(snapshot.files.first { $0.path == path })
+        let folder = root.appendingPathComponent("export"); try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try FileManager.default.removeItem(at: blob); defer { try? saved.write(to: blob) }
+        let plan = try await repo.prepareComparisonExport(snapshot, files: [file], to: folder)
+        try await repo.exportComparisonFile(plan, path: path)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: blob.path)); XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(path)), destination)
+    }
     func testComparisonRevertHistoricalRenameAndWorkingAddedRenameMatchSourceWithoutMovingHEAD() async throws {
         let (root,repo,path)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
         let base=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)

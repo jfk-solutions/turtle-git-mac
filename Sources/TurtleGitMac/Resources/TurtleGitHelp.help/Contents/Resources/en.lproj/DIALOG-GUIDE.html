@@ -208,6 +208,12 @@ you intend to abandon the unfinished replay. Closing a window is not a substitut
 for completing or aborting the repository operation. See
 <a href="CHERRY-PICK.html">Cherry Pick</a>, <a href="REBASE-CONFLICT-FILES.html">Conflict Files</a>,
 <a href="REBASE-SPLIT.html">Edit and Split Commit</a> and <a href="REBASE-REFERENCE-RECOVERY.html">recovery</a>.</p>
+<p>Changed Files and Rebase's Revision Files can revert selected files to either
+eligible revision. If one file fails, <strong>Ignore</strong> continues with the next selected
+file; <strong>Abort</strong> stops and retains earlier completed changes. The result reports
+how many files were reverted. Root comparisons offer <strong>Revert to empty tree</strong>,
+which removes selected entries from the index without moving HEAD. Export saves
+the destination revision; it does not need the Base file's contents.</p>
 <a name="topic-stash"></a><a name="topic-reset"></a><a name="topic-clean"></a><h2 id="stash-revert-reset-and-clean">Stash, revert, reset and clean</h2>
 <p>Stash Save records the selected working state using its offered options. Stash
 Apply restores a stash without dropping it; Pop also requests removal after

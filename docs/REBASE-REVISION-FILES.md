@@ -55,3 +55,10 @@ coverage, working-copy-only commands and full Rebase parity remain open.
 
 See [dated results](qa/rebase-revision-files-2026-10-16.json) for the exact grouped
 checks, receiver cleanup and build diagnostics.
+
+
+The shared [per-file recovery continuation](SUBMODULE-DIFF-PARITY.md#per-file-recovery-and-empty-tree-revert--october-16-2026)
+adds source Ignore/Abort preparation handling and eligible empty-tree Revert for
+root revisions. The root still has no parent. Destination export reads only its
+chosen revision, and the shared result/operation ownership remains in effect.
+Physical/signed and complete source-menu acceptance remain open.

@@ -261,6 +261,13 @@ for completing or aborting the repository operation. See
 [Cherry Pick](CHERRY-PICK.md), [Conflict Files](REBASE-CONFLICT-FILES.md),
 [Edit and Split Commit](REBASE-SPLIT.md) and [recovery](REBASE-REFERENCE-RECOVERY.md).
 
+Changed Files and Rebase's Revision Files can revert selected files to either
+eligible revision. If one file fails, **Ignore** continues with the next selected
+file; **Abort** stops and retains earlier completed changes. The result reports
+how many files were reverted. Root comparisons offer **Revert to empty tree**,
+which removes selected entries from the index without moving HEAD. Export saves
+the destination revision; it does not need the Base file's contents.
+
 ## Stash, revert, reset and clean
 
 Stash Save records the selected working state using its offered options. Stash

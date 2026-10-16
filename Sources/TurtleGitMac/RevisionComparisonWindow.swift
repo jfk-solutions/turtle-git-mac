@@ -551,12 +551,13 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         token.cancel();cancelFilePicker();return true
     }
     func canRevertFiles(_ ids:Set<String>,base:Bool)->Bool {
-        guard !closed,!busy,!bare,let snapshot,let first=visibleFiles.first(where:{ids.contains($0.path)}),case .revision = base ? snapshot.from : snapshot.to else { return false }
+        guard !closed,!busy,!bare,let snapshot,let first=visibleFiles.first(where:{ids.contains($0.path)}),(base ? snapshot.from : snapshot.to) != .workingTree else { return false }
         return base || snapshot.from == .workingTree || !first.action.hasPrefix("D")
     }
     func revertTitle(base:Bool)->String {
         guard let snapshot else { return "Revert" }
-        return "Revert to revision "+String((base ? snapshot.from : snapshot.to).label.prefix(8))
+        let side = base ? snapshot.from : snapshot.to
+        return side == .emptyTree ? "Revert to empty tree" : "Revert to revision "+String(side.label.prefix(8))
     }
     func canBlameFiles(_ ids:Set<String>)->Bool {
         guard !closed,!busy,!bare,let snapshot,visibleFiles.first(where:{ids.contains($0.path)})?.isSubmodule==false else {return false}
@@ -602,20 +603,24 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     func revertFiles(_ ids:Set<String>,base:Bool) {
         guard canRevertFiles(ids,base:base) else { return }
         runFileAction(ids,title:revertTitle(base:base)) { [self] snapshot,files,token in
-            let targets=try await repository.prepareComparisonRevert(snapshot,files:files,base:base,cancellation:token)
+            let batch=try await repository.prepareComparisonRevertBatch(snapshot,files:files,base:base,cancellation:token)
             let recycle=preferences.object(forKey:"RevertWithRecycleBin")==nil || preferences.bool(forKey:"RevertWithRecycleBin")
             var count=0,changed=false
-            for target in targets {
+            for file in batch.files {
                 guard !closed,!token.isCancelled else { break }
-                do { actionTrash += try await repository.revertComparisonFile(target,recycle:recycle,cancellation:token);count += 1;changed=true }
+                do {
+                    let target=try await repository.prepareComparisonRevertFile(batch,file:file,cancellation:token)
+                    guard !closed,!token.isCancelled else { break }
+                    actionTrash += try await repository.revertComparisonFile(target,recycle:recycle,cancellation:token);count += 1;changed=true
+                }
                 catch {
                     if let failure=error as? WorkingFileRevertFailure {actionTrash += failure.trashedFiles;changed=true}
                     guard !closed,!token.isCancelled else { break }
-                    if !(await fileActionFailure(target.path+"\n"+error.localizedDescription)) {break}
+                    if !(await fileActionFailure(file.path+"\n"+error.localizedDescription)) {break}
                 }
             }
             if changed {onFilesChanged()}
-            if !closed,!token.isCancelled {await fileActionNotice("\(count) file(s) reverted to \(targets.first?.revision ?? "").")}
+            if !closed,!token.isCancelled {await fileActionNotice("\(count) file(s) reverted to \(batch.revision).")}
         }
     }
     func exportFiles(_ ids:Set<String>) {

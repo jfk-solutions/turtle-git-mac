@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "d9da38903d49cc4c6f68bcfb035ed8c525995ff2",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "FileDiffDlg.cpp RevertSelectedItemToVersion: ordered rows, per-file Ignore/Abort and completed count",
+    "FileDiffDlg.cpp OnContextMenu Revert1/Revert2, ID_EXPORT destination GetOneFile",
+    "Shared Changed Files/Rebase Revision Files controls"
+  ],
+  "implementation": [
+    "Validated batch invocation plus per-file Revert preparation lets copy/missing historical failures reach Ignore/Abort without blocking unrelated selected rows",
+    "Historical snapshots retain pinned objects without a whole-range diff; working comparisons still validate the current selected record",
+    "Protected recycle/remove/checkout and per-file cancellation boundaries remain intact",
+    "Root empty-tree Revert is eligible and uses object-format-aware empty tree; historical/working removal semantics preserve HEAD",
+    "Destination-only historical export does not read missing Base bytes; existing deleted/gitlink skip, folder scope, alias/metadata/containment and atomic publication preserved",
+    "Source Abort default, actual result counts including zero, owned pending question/result/Close and shared consumer refresh preserved",
+    "User guide, offline Help, parity notes and CI runner updated"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/changed-files-recovery-build.log",
+    "anomalous_exit_zero_diagnostics": 4
+  },
+  "core": {
+    "exit": 0,
+    "tests": 24,
+    "failures": 0,
+    "log": "build/qa/changed-files-recovery-core.log",
+    "scope": "RevisionComparisonTests only; not repeated for fixture-only root-action repair",
+    "new_checks": [
+      "Real C100 copy Base preparation failure followed by valid selected restore; pre-cancelled per-file preparation",
+      "Historical and working empty-tree Revert index/working distinctions without HEAD movement",
+      "Raw binary Version 2 export with physically absent Base blob; private object restored in cleanup"
+    ],
+    "retained_checks": "Existing pinned rename/literal/binary paths, comparison metadata/options/statistics, source added/deleted/working rename recipes, export safeguards and cancellation"
+  },
+  "native": {
+    "initial_log": "build/qa/changed-files-recovery-native.log",
+    "remaining_log": "build/qa/changed-files-recovery-native-remaining.log",
+    "exit": 0,
+    "passing_cases": 6,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "receivers_reaped": [
+      29216,
+      29366,
+      29708,
+      30567,
+      30763,
+      30968,
+      31587
+    ],
+    "fixture_failure": {
+      "receiver": 29708,
+      "message": "Root commit fabricated parent",
+      "cause": "Retained Rebase fixture asserted empty-tree Revert was unavailable, the previous product gap now implemented.",
+      "repair": "Retained empty-tree/no-fabricated-parent assertion and additionally require eligible Revert plus the explicit empty-tree title.",
+      "recheck": "Only the affected Rebase cases and the not-yet-run Changed Files cases; already-passing recovery cases and Core/build not repeated."
+    },
+    "checks": [
+      "Actual copied Base failure question with Ignore/Abort and Abort default",
+      "Ignore continues to valid later row; actual result sheet counts 1 and retains busy/Quit ownership",
+      "Abort stops before valid later row and reports zero; existing index/working content retained",
+      "Explicit owner cancelFileAction(closeAfter:true) settles pending error question and closes after drain without late result/mutation; not a physical parent-close gesture behind a modal sheet",
+      "Destination export succeeds while Base blob is physically absent, using captured revision bytes",
+      "Actual root comparison empty-tree Revert clears selected index entry, keeps historical working copy and HEAD, reports count",
+      "Retained Rebase file columns/icons/clipboard/pinned historical actions and root/parent snapshots",
+      "Retained Changed Files Blame/rename/deleted paths, both-version Revert, historical/working export, Ignore/Abort/folder cancellation and protected checkout retirement/ownership"
+    ],
+    "ownership": "All seven attempted receivers reaped and independently absent. Fixtures close owned windows and restore deliberately removed private Git blobs; retained fixtures assert helper-process cleanup."
+  },
+  "limits": [
+    "No complete hosted CI result for this commit",
+    "No new screenshots or complete physical/VoiceOver menu/window certification",
+    "All copy/type/gitlink/Trash variants, external writers, signed grants/Finder and App Store acceptance remain open",
+    "Unsafe invocation/destination preflight still rejects the whole batch before writes",
+    "No complete FileDiffDlg/Rebase/application parity claim"
+  ]
+}

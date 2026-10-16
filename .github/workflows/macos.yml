@@ -386,7 +386,7 @@ jobs:
       - name: Rebase action controls and structural row behavior
         run: python3 scripts/test-rebase-action-controls.py --only controls --only row-drag --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Rebase Revision Files and shared Changed Files workflows
-        run: python3 scripts/test-rebase-revision-files.py --only rebase-files --only changed-files --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+        run: python3 scripts/test-rebase-revision-files.py --only recovery --only rebase-files --only changed-files --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Canonical Log integration and Rebase reference workflows
         run: python3 scripts/test-log-canonical-integration.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Settings navigation and constrained layout

@@ -251,6 +251,15 @@ public struct ComparisonFileRevert: Sendable {
     fileprivate let submodule: Bool
     fileprivate let removals: [(path: String, always: Bool)]
 }
+/// Validated invocation shared by per-file preparation and protected checkout.
+/// A missing file/object must not reject unrelated selected files before the
+/// native source-style Ignore/Abort question can run.
+public struct ComparisonRevertBatch: Sendable {
+    public let files: [CommitFile]
+    public let revision: String
+    fileprivate let snapshot: RevisionComparisonSnapshot
+    fileprivate let base: Bool
+}
 public struct ComparisonFileExport: Sendable {
     public let paths: [String]
     fileprivate let snapshot: RevisionComparisonSnapshot
@@ -268,33 +277,50 @@ extension GitRepository {
         }
         for file in files { _ = try restoreLocation(file.path); if let old=file.oldPath { _ = try restoreLocation(old) } }
     }
-    public func prepareComparisonRevert(_ snapshot: RevisionComparisonSnapshot, files: [CommitFile], base: Bool, cancellation: OperationCancellation? = nil) throws -> [ComparisonFileRevert] {
-        try checkedComparisonSelection(snapshot,files:files,cancellation:cancellation)
-        guard try !isBare(cancellation:cancellation),case .revision(let revision) = base ? snapshot.from : snapshot.to else { throw RevisionComparisonFailure.selection }
-        let fresh=try revisionComparison(from:snapshot.from,to:snapshot.to,options:snapshot.options,cancellation:cancellation,paths:snapshot.scopePaths)
-        guard files.allSatisfy({ file in fresh.files.contains { $0.path==file.path && $0.oldPath==file.oldPath && $0.action==file.action && $0.isSubmodule==file.isSubmodule } }) else { throw WorkingFileRestoreFailure.changed }
-        return try files.map { file in
-            try cancellation?.check()
-            let added=file.action.hasPrefix("A"),deleted=file.action.hasPrefix("D"),renamed=file.action.hasPrefix("R")
-            let unstage=base ? added : deleted
-            let otherWorking=(base ? snapshot.to : snapshot.from) == .workingTree
-            let path=base && renamed ? file.oldPath ?? file.path : file.path
-            var removals:[(String,Bool)]=[]
-            if unstage { removals.append((file.path,otherWorking)) }
-            else {
-                if renamed,otherWorking { removals.append((base ? file.path : file.oldPath ?? file.path,true)) }
-                removals.append((path,false))
-                // Validate the chosen tree entry before deleting or recycling anything.
-                let records=try run(["ls-tree","-z",revision,"--",path],cancellation:cancellation).stdout.split(separator:0)
-                guard records.contains(where: { record in
-                    guard let tab=record.firstIndex(of:9),Data(record[record.index(after:tab)...])==Data(path.utf8) else { return false }
-                    let mode=String(decoding:record[..<tab],as:UTF8.self).split(separator:" ").first
-                    return ["100644","100755","120000","160000"].contains(mode.map(String.init) ?? "")
-                }) else { throw RevisionComparisonFailure.selection }
-            }
-            for removal in removals { _ = try restoreLocation(removal.0) }
-            return ComparisonFileRevert(path:path,revision:revision,root:root,unstage:unstage,ignoreUnmatched:base && added,submodule:file.isSubmodule,removals:removals)
+    public func prepareComparisonRevertBatch(_ snapshot: RevisionComparisonSnapshot, files: [CommitFile], base: Bool, cancellation: OperationCancellation? = nil) throws -> ComparisonRevertBatch {
+        try checkedComparisonSelection(snapshot, files: files, cancellation: cancellation)
+        guard try !isBare(cancellation: cancellation) else { throw RevisionComparisonFailure.selection }
+        let revision: String
+        switch base ? snapshot.from : snapshot.to {
+        case .workingTree: throw RevisionComparisonFailure.selection
+        case .revision(let hash): revision = hash
+        case .emptyTree:
+            revision = String(decoding: try run(["mktree"], cancellation: cancellation).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+            guard [40, 64].contains(revision.count), revision.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else { throw RevisionComparisonFailure.range }
         }
+        return ComparisonRevertBatch(files: files, revision: revision, snapshot: snapshot, base: base)
+    }
+    public func prepareComparisonRevertFile(_ batch: ComparisonRevertBatch, file: CommitFile, cancellation: OperationCancellation? = nil) throws -> ComparisonFileRevert {
+        try cancellation?.check()
+        let snapshot = batch.snapshot, base = batch.base, revision = batch.revision
+        guard snapshot.root == root, batch.files.contains(file) else { throw RevisionComparisonFailure.selection }
+        if snapshot.from == .workingTree || snapshot.to == .workingTree {
+            let fresh = try revisionComparison(from: snapshot.from, to: snapshot.to, options: snapshot.options, cancellation: cancellation, paths: snapshot.scopePaths)
+            guard fresh.files.contains(where: { $0.path == file.path && $0.oldPath == file.oldPath && $0.action == file.action && $0.isSubmodule == file.isSubmodule }) else { throw WorkingFileRestoreFailure.changed }
+        }
+        let added=file.action.hasPrefix("A"),deleted=file.action.hasPrefix("D"),renamed=file.action.hasPrefix("R")
+        let unstage=base ? added : deleted
+        let otherWorking=(base ? snapshot.to : snapshot.from) == .workingTree
+        let path=base && renamed ? file.oldPath ?? file.path : file.path
+        var removals:[(String,Bool)]=[]
+        if unstage { removals.append((file.path,otherWorking)) }
+        else {
+            if renamed,otherWorking { removals.append((base ? file.path : file.oldPath ?? file.path,true)) }
+            removals.append((path,false))
+            // Validate the chosen tree entry before deleting or recycling anything.
+            let records=try run(["ls-tree","-z",revision,"--",path],cancellation:cancellation).stdout.split(separator:0)
+            guard records.contains(where: { record in
+                guard let tab=record.firstIndex(of:9),Data(record[record.index(after:tab)...])==Data(path.utf8) else { return false }
+                let mode=String(decoding:record[..<tab],as:UTF8.self).split(separator:" ").first
+                return ["100644","100755","120000","160000"].contains(mode.map(String.init) ?? "")
+            }) else { throw RevisionComparisonFailure.selection }
+        }
+        for removal in removals { _ = try restoreLocation(removal.0) }
+        return ComparisonFileRevert(path:path,revision:revision,root:root,unstage:unstage,ignoreUnmatched:base && added,submodule:file.isSubmodule,removals:removals)
+    }
+    public func prepareComparisonRevert(_ snapshot: RevisionComparisonSnapshot, files: [CommitFile], base: Bool, cancellation: OperationCancellation? = nil) throws -> [ComparisonFileRevert] {
+        let batch = try prepareComparisonRevertBatch(snapshot, files: files, base: base, cancellation: cancellation)
+        return try files.map { try prepareComparisonRevertFile(batch, file: $0, cancellation: cancellation) }
     }
     /// Recycle/remove + index/working-tree checkout is one protected step. Cancel
     /// is checked before it starts and between files, never halfway through it.
@@ -339,7 +365,9 @@ extension GitRepository {
         guard RepositoryAccessLease.pathIsContained(parent,by:export.folder),!parent.resolvingSymlinksInPath().pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}) else { throw WorkingFileExportFailure.location }
         try FileManager.default.createDirectory(at:parent,withIntermediateDirectories:true)
         if export.snapshot.to == .workingTree { try saveWorkingFile(path:path,to:destination,cancellation:cancellation);return }
-        let content=try comparisonFile(export.snapshot,path:path,cancellation:cancellation).destination
+        guard case .revision(let revision) = export.snapshot.to else { throw RevisionComparisonFailure.selection }
+        // FileDiffDlg exports Version 2 only; a missing Base blob cannot block it.
+        let content=try historicalFile(revision:revision,path:path,cancellation:cancellation)
         let temporary=parent.appendingPathComponent(".TurtleGitExport-"+UUID().uuidString)
         defer{try? FileManager.default.removeItem(at:temporary)}
         try content.bytes.write(to:temporary,options:.withoutOverwriting);try cancellation?.check()

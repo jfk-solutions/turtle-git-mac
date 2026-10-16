@@ -556,9 +556,9 @@ selection through their normal route.
 
 The final Debug build, 20 affected Core tests and both grouped native engine cases
 passed. See [file-action evidence](qa/changed-files-actions-2026-10-15.json) for
-exact mutation/read-only scope, fixture repairs and cleanup. Whole-selection
-Revert preflight errors currently stop before per-file Ignore/Abort; copy-side
-and missing-object variants still need further source matching.
+exact mutation/read-only scope, fixture repairs and cleanup. At that checkpoint, whole-selection Revert preparation still stopped before
+per-file Ignore/Abort. The recovery continuation below replaces that behavior
+for the recorded copy/missing-object and root cases.
 
 ## Submodule action and Update ownership batch — 2026-10-15
 
@@ -597,3 +597,46 @@ Application, Save and export panels share cancellation with the owning file
 operation; original menu icons and snapshot-bound one-use dispatch are retained.
 See [Rebase Revision Files](REBASE-REVISION-FILES.md) for connected scope and
 acceptance limits.
+
+
+## Per-file recovery and empty-tree Revert — October 16, 2026
+
+`FileDiffDlg::RevertSelectedItemToVersion` visits selected rows in order, offers
+Ignore/Abort after a failed file and reports the completed count, including zero.
+The shared native Changed Files/Rebase Revision Files model now separates batch
+validation from each file's preparation. A copy destination absent from Base, a
+missing object or a changed working comparison record can reach that per-file
+question without rejecting every other selected row. Ignore continues; Abort stops
+before the next file and retains the completed count and earlier mutations.
+The source Abort default and owned result acknowledgment are unchanged.
+
+Batch validation still rejects foreign/duplicate selections, malformed revision
+identities, unsafe paths, bare repositories and working-tree target revisions
+before writes. Historical snapshots retain their immutable object IDs and no
+longer require another whole-range diff before checkout. Working comparisons
+revalidate the selected row before its protected step. The existing recycle/remove
+plus Git checkout remains noninterruptible once started; cancellation can stop
+preparation or the next file. A pending error question also settles through the
+owning operation's cancellation/retirement path. Global accounting and grants last
+through the result sheet and worker drain. This is not a filesystem transaction
+against external writers.
+
+Root/empty-tree comparisons now offer **Revert to empty tree** for the eligible
+side, using an empty tree in the repository's object format. It removes the
+selected added index entries. With recycling disabled, a historical comparison
+retains the working copy; a working comparison follows the source's extra working
+file removal. Neither operation moves HEAD. Rebase's root Revision Files retains
+an actual empty-tree Base and does not fabricate a parent commit.
+
+Historical Export now reads Version 2 directly, as FileDiffDlg's `GetOneFile` does.
+It no longer reads Base bytes as an unnecessary part of exporting the destination.
+A missing Base blob can therefore coexist with a successful destination export.
+Deleted/gitlink skipping, owned folder selection, alias/metadata/containment guards,
+per-file I/O Ignore/Abort and atomic temporary-file publication remain unchanged.
+Unsafe invocation/destination preflight still rejects the batch before writes.
+
+The [grouped recovery record](qa/changed-files-recovery-2026-10-16.json) distinguishes
+new Core/native cases from retained Changed Files and Rebase workflows, including
+actual native error/result sheets and the corrected old root-action expectation.
+Physical gestures, all copy/type/gitlink combinations, actual Trash behavior,
+signed grants and full FileDiffDlg/Rebase/App Store parity remain open.

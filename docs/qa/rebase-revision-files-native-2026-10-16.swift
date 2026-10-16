@@ -94,7 +94,7 @@ import TurtleGitCore
         // Same embedded list handles a root commit and an empty Base.
         model.draftEntries=try await repo.cherryPickPlan(revisions:[base.hash]).entries;model.plan=nil;model.selection=Set(model.draftEntries.map(\.id));model.selectCommit()
         try await wait{list.snapshot?.to == .revision(base.hash) && RebaseWindowModel.activePreparationReads==0}
-        try require(list.snapshot?.from == .emptyTree && !list.canRevertFiles(["old.txt"],base:true),"Root commit fabricated parent")
+        try require(list.snapshot?.from == .emptyTree && list.canRevertFiles(["old.txt"],base:true) && list.revertTitle(base:true) == "Revert to empty tree","Root commit fabricated parent or omitted the empty-tree Revert action")
         model.retire();try require(list.closed && !list.claimFileMenu(list.captureFileMenu(["old.txt"])),"Retired owner retained actions")
         print("PASS: native Rebase Revision Files shared table/columns/icons, parent/root snapshots, rename/deletion/binary compare/history/blame/Open/Save/export/clipboard, stale-menu and Cancel/Close/Quit ownership; unchanged HEAD/index/worktree; owned windows closed.")
     }
