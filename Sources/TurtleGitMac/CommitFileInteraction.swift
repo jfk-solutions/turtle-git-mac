@@ -139,6 +139,36 @@ final class FileListWatermark: NSView {
     }
 }
 
+/// One refresh owns one native position restore. The model keeps its read/token
+/// alive while SwiftUI publishes the matching rows; cancellation releases that
+/// wait without allowing an older callback to move a replacement table.
+@MainActor final class FileListRefreshCoordinator {
+    private weak var probe: CommitFileInteraction.Probe?
+    private var current: UUID?
+    private var retired = false
+    var hasPendingPosition:Bool {current != nil}
+    struct Ticket { fileprivate let id: UUID; let remember: Bool }
+    func attach(_ value: CommitFileInteraction.Probe) {
+        guard !retired else { return }
+        if let probe, probe !== value { cancel() }
+        probe = value
+    }
+    func begin(preferences: UserDefaults, reset: Bool = false, selectedIDs: Set<String>? = nil) -> Ticket {
+        cancel()
+        let ticket = Ticket(id: UUID(), remember: !reset && ((preferences.object(forKey: "RememberFileListPosition") as? NSNumber)?.boolValue ?? true))
+        current = ticket.id; probe?.storeListPosition(selectedIDs:selectedIDs); return ticket
+    }
+    func restore(_ ticket: Ticket, ids: [String]) async {
+        guard !retired, current == ticket.id, let probe else { return }
+        await withCheckedContinuation { continuation in
+            probe.restoreListPosition(ids: ids, enabled: ticket.remember) { continuation.resume() }
+        }
+    }
+    func finish(_ ticket: Ticket) { if current == ticket.id { cancel() } }
+    func cancel() { current = nil; probe?.cancelListPosition() }
+    func retire() { retired = true; cancel(); probe = nil }
+}
+
 /// Observe the public AppKit table without replacing its selection, accessibility
 /// or context-menu implementation.
 struct CommitFileInteraction: NSViewRepresentable {
@@ -274,18 +304,26 @@ struct CommitFileInteraction: NSViewRepresentable {
             let origin: NSPoint
             let selectedIndex: Int?
             let focusedIndex: Int?
+            let selectedIDs: Set<String>
+            let focusedID: String?
+            let readingIntent: Int
         }
+        private var readingIntent = 0
         private var listPosition: ListPosition?
         private var positionGeneration = UUID()
         private var positionCompletion: (() -> Void)?
         private func finishListPosition() { let reply = positionCompletion; positionCompletion = nil; reply?() }
 
         func cancelListPosition() { positionGeneration = UUID(); listPosition = nil; finishListPosition() }
-        func storeListPosition() {
+        func storeListPosition(selectedIDs: Set<String>? = nil) {
             positionGeneration = UUID(); finishListPosition()
             guard let table = configuredTable, let scroll = table.enclosingScrollView else { listPosition = nil; return }
-            let mark = focusedPath?.wrappedValue.flatMap { id in itemIDs?.firstIndex(of: id) }
-            listPosition = ListPosition(origin: scroll.contentView.bounds.origin, selectedIndex: table.selectedRowIndexes.first, focusedIndex: mark)
+            let ids = itemIDs ?? rows.map(\.id)
+            guard table.numberOfRows == ids.count else { return }
+            let selected = selectedIDs ?? Set(table.selectedRowIndexes.compactMap { ids.indices.contains($0) ? ids[$0] : nil })
+            let mark = focusedPath?.wrappedValue ?? ids.first {selected.contains($0)}
+            listPosition = ListPosition(origin: scroll.contentView.bounds.origin, selectedIndex: ids.indices.first {selected.contains(ids[$0])} ?? table.selectedRowIndexes.first,
+                focusedIndex: mark.flatMap { ids.firstIndex(of: $0) }, selectedIDs: selected, focusedID: mark, readingIntent: readingIntent)
         }
         func restoreListPosition(ids: [String], enabled: Bool, completion: @escaping () -> Void = {}) {
             finishListPosition()
@@ -301,17 +339,24 @@ struct CommitFileInteraction: NSViewRepresentable {
         }
         private func applyListPosition(_ position: ListPosition?, ids: [String], enabled: Bool, generation: UUID, remaining: Int) {
             guard positionGeneration == generation else { return }
+            if let position, position.readingIntent != readingIntent { finishListPosition(); return }
             guard let table = configuredTable, let scroll = table.enclosingScrollView,
-                  table.numberOfRows == ids.count && itemIDs == ids else {
+                  table.numberOfRows == ids.count && (itemIDs ?? rows.map(\.id)) == ids else {
                 if remaining > 0 && window != nil { DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { [weak self] in
                     self?.applyListPosition(position, ids: ids, enabled: enabled, generation: generation, remaining: remaining - 1)
                 } } else { finishListPosition() }
                 return
             }
-            scroll.layoutSubtreeIfNeeded(); table.layoutSubtreeIfNeeded()
+            configureColumns(); scroll.layoutSubtreeIfNeeded(); table.layoutSubtreeIfNeeded()
             if enabled, let position {
-                if let row = position.selectedIndex, ids.indices.contains(row) { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
-                if let row = position.focusedIndex, ids.indices.contains(row) { focusedPath?.wrappedValue = ids[row] }
+                let fileSlots = ids.indices.filter { rows.count != ids.count || rows[$0].entry != nil }
+                var selected = IndexSet(fileSlots.filter { position.selectedIDs.contains(ids[$0]) })
+                if selected.isEmpty, !position.selectedIDs.isEmpty, let old = position.selectedIndex,
+                   let row = fileSlots.min(by: { abs($0 - old) < abs($1 - old) }) { selected.insert(row) }
+                table.selectRowIndexes(selected, byExtendingSelection: false)
+                if let id = position.focusedID, let row = fileSlots.first(where: { ids[$0] == id }) { focusedPath?.wrappedValue = ids[row] }
+                else if let old = position.focusedIndex, let row = fileSlots.min(by: { abs($0 - old) < abs($1 - old) }) { focusedPath?.wrappedValue = ids[row] }
+                else { focusedPath?.wrappedValue = nil }
                 scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(NSRect(origin: position.origin, size: scroll.contentView.bounds.size)).origin)
             } else {
                 table.deselectAll(nil); focusedPath?.wrappedValue = nil; scroll.contentView.scroll(to: .zero)
@@ -503,7 +548,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             closeObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in
                 MainActor.assumeIsolated {self?.stopObserving()}
             }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .rightMouseDown, .keyDown]) { [weak self] event in
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .rightMouseDown, .scrollWheel, .keyDown]) { [weak self] event in
                 guard let self else { return event }
                 return self.observe(event)
             }
@@ -565,7 +610,18 @@ struct CommitFileInteraction: NSViewRepresentable {
             return area.intersects(table.convert(table.visibleRect, to: nil))
         }
         func observe(_ event: NSEvent) -> NSEvent? {
-            guard let window, event.window === window else { return event }
+            guard integrationActive,let window, event.window === window else { return event }
+            let tableInput = event.type == .keyDown && (window.firstResponder as? NSTableView).map { contains($0) } == true
+            let pointerInput: Bool
+            if [.leftMouseDown, .rightMouseDown, .scrollWheel].contains(event.type), let content = window.contentView {
+                let header = configuredTable?.headerView
+                pointerInput = convert(bounds,to:nil).contains(event.locationInWindow) || table(at: event.locationInWindow, in: content) != nil || header.map { $0.bounds.contains($0.convert(event.locationInWindow, from: nil)) } == true
+            } else { pointerInput = false }
+            if tableInput || pointerInput {
+                readingIntent += 1
+                if positionCompletion != nil { cancelListPosition() }
+            }
+            if event.type == .scrollWheel { return event }
             if event.type == .rightMouseDown { trackingHeader = false; draggingHeader = false }
             if event.type == .leftMouseDown {
                 draggingHeader = false
@@ -620,6 +676,14 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
             guard let table = window.firstResponder as? NSTableView, contains(table) else { return event }
             let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
+            if event.keyCode == 0, flags == .command || flags == .control {
+                guard enabled else { return event }
+                let ids = itemIDs ?? rows.map(\.id)
+                let slots = ids.indices.filter { rows.count != ids.count || rows[$0].entry != nil }
+                table.selectRowIndexes(IndexSet(slots), byExtendingSelection: false)
+                if focusedPath?.wrappedValue == nil, let first = slots.first { focusedPath?.wrappedValue = ids[first] }
+                return nil
+            }
             contextColumn = nil; contextEntries = []; contextIDs = []
             if let itemIDs {
                 let selected = table.selectedRowIndexes.compactMap { index in itemIDs.indices.contains(index) && (rows.count != itemIDs.count || rows[index].entry != nil) ? itemIDs[index]:nil }

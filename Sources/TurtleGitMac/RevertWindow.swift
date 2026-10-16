@@ -140,6 +140,7 @@ private final class RevertNativeWindow:NSWindow {
     private let access:RepositoryAccessLease?
     let preferences:UserDefaults
     let commands:StatusWindowModel
+    let fileListRefresh = FileListRefreshCoordinator()
     weak var window:NSWindow?
     @Published private(set) var entries:[StatusEntry] = []
     @Published private(set) var statistics:[String:CommitFile] = [:]
@@ -241,12 +242,13 @@ private final class RevertNativeWindow:NSWindow {
     private func start(forceChecked:Set<String>,drops:[URL]) {
         guard !retired,!confirmingQuit,!hasChild,!exclusiveAction,!closeAfterRead else {return}
         if commands.busy {refreshRequested = true;queuedForce.formUnion(forceChecked);return}
+        let position = fileListRefresh.begin(preferences:preferences,reset:!hasLoaded,selectedIDs:highlighted)
         refreshRequested = false;request?.cancel();let token = OperationCancellation(),identity = UUID(),scope = paths
         request = token;generation = identity;busy = true;cancelling = false;error = nil
         let forced = queuedForce.union(forceChecked);queuedForce = [];Self.activeOperations += 1
         Task { [self] in
             defer {
-                Self.activeOperations -= 1;withExtendedLifetime(access) {}
+                Self.activeOperations -= 1;fileListRefresh.finish(position);withExtendedLifetime(access) {}
                 if request === token {
                     request = nil;busy = false;cancelling = false
                     if closeAfterRead {closeAfterRead = false;if !retired {close()}} else {resumePendingRefresh()}
@@ -280,14 +282,16 @@ private final class RevertNativeWindow:NSWindow {
                 else {checked.formIntersection(ids);checked.formUnion(selection.initiallyChecked.subtracting(oldPaths))}
                 checked.formUnion(forced.union(dropPaths).intersection(ids));highlighted.formIntersection(ids)
                 commands.installEmbeddedFiles(selectedFiles,statistics:stats,metadata:metadata,submodules:modules,hasHead:hasHead,rebase:rebase,hasLFS:hasLFS)
+                if !position.remember {highlighted = []}
+                await fileListRefresh.restore(position,ids:rows.map(\.id));try token.check()
             } catch {if !retired,request === token,!token.isCancelled {pendingDrops = [];self.error = error.localizedDescription}}
         }
     }
     @discardableResult func cancel(closeAfter:Bool = false)->Bool {
-        if let request {closeAfterRead = closeAfterRead || closeAfter;request.cancel();cancelling = true;return true}
+        if let request {closeAfterRead = closeAfterRead || closeAfter;request.cancel();fileListRefresh.cancel();cancelling = true;return true}
         if commands.cancelOperation() {closeAfterRead = closeAfterRead || closeAfter;return true};return false
     }
-    func invalidate() {guard !retired else {return};retired = true;generation = UUID();request?.cancel();refreshRequested = false;commands.invalidate()}
+    func invalidate() {guard !retired else {return};retired = true;fileListRefresh.retire();generation = UUID();request?.cancel();refreshRequested = false;commands.invalidate()}
     func apply() {
         guard canApply else {return};onAccepted(entries.filter{checked.contains($0.path)});close()
     }
@@ -418,7 +422,7 @@ private struct RevertDialog:View {
                 TableColumn("Modification date",sortUsing:StatusFileSort(column:.lastModified)) {row in Text(row.metadata?.dateText ?? "–")}.width(min:100,ideal:150)
                 TableColumn("File size",sortUsing:StatusFileSort(column:.fileSize)) {row in Text(row.sizeText)}.width(min:70,ideal:100)
             }.fileListFont().disabled(!model.canInteract)
-            .background(CommitFileInteraction(rows:rows.map{.file($0.file.entry)},nativeColumns:StatusListColumn.allCases.filter{$0 != .lfsOwner},captureColumnCopy:{model.captureColumnCopy($0,column:$1)},watermarkIcon:.revertBackdrop,preferences:model.preferences,
+            .background(CommitFileInteraction(rows:rows.map{.file($0.file.entry)},nativeColumns:StatusListColumn.allCases.filter{$0 != .lfsOwner},captureColumnCopy:{model.captureColumnCopy($0,column:$1)},configureRefresh:{model.fileListRefresh.attach($0)},watermarkIcon:.revertBackdrop,preferences:model.preferences,
                 visibleColumns:Set(model.fileColumns.order.filter{model.fileColumns.visible.contains($0)}),availableColumns:model.availableColumns,
                 columnText:{entry,column in byID[entry.path].map{model.commands.columnText($0,column)} ?? ""},savedOrder:model.fileColumns.order,savedWidths:model.fileColumns.widths,
                 saveLayout:{model.saveColumns(order:$0,widths:$1)},setColumnVisible:{model.setColumn($0,visible:$1)},resetColumns:{model.resetColumns(choose:$0,accepted:$1)},focusedPath:$focusedPath,

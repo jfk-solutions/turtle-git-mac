@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "f87ac75ac231a3956c4b56a3283192861d69cddc",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Shared native viewport/multi-selection/selection-mark refresh in Commit full/incremental staging, Working Tree and Revert",
+    "RememberFileListPosition, filter/scope changes, file-only Ctrl/Cmd-A and newer-reading-intent cancellation",
+    "Atomic Working Tree optional LFS snapshot, quiet read cancellation and owning F5/Escape",
+    "Full Commit reload access/Quit lifetime after forced retirement"
+  ],
+  "core": {
+    "repeated": false,
+    "reason": "No Core sources or algorithms changed; grouped actual native and Git receiver checks cover this batch."
+  },
+  "builds": [
+    {
+      "log": "build/qa/file-list-refresh-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3
+    }
+  ],
+  "native": {
+    "engines": [
+      "/usr/bin/git",
+      "build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/file-list-refresh-native-2026-10-16.log",
+        "exit": 1,
+        "receivers_reaped": [
+          72669
+        ],
+        "refresh_passes": 0,
+        "staging_passes": 0,
+        "status_passes": 0,
+        "revert_passes": 0,
+        "appkit_reentrant_warnings": 0
+      },
+      {
+        "log": "build/qa/file-list-refresh-native-diagnose-2026-10-16.log",
+        "exit": 1,
+        "receivers_reaped": [
+          72744
+        ],
+        "refresh_passes": 0,
+        "staging_passes": 0,
+        "status_passes": 0,
+        "revert_passes": 0,
+        "appkit_reentrant_warnings": 0
+      },
+      {
+        "log": "build/qa/file-list-refresh-native-selection-2026-10-16.log",
+        "exit": 1,
+        "receivers_reaped": [
+          72825,
+          73088,
+          73359
+        ],
+        "refresh_passes": 2,
+        "staging_passes": 0,
+        "status_passes": 0,
+        "revert_passes": 0,
+        "appkit_reentrant_warnings": 0
+      },
+      {
+        "log": "build/qa/file-list-refresh-retained-2026-10-16.log",
+        "exit": 0,
+        "receivers_reaped": [
+          73696,
+          73975,
+          74265,
+          74345,
+          74437,
+          74589
+        ],
+        "refresh_passes": 0,
+        "staging_passes": 2,
+        "status_passes": 2,
+        "revert_passes": 2,
+        "appkit_reentrant_warnings": 2
+      }
+    ],
+    "final_case_engine_passes": 8,
+    "owned_receiver_pids": [
+      72669,
+      72744,
+      72825,
+      73088,
+      73359,
+      73696,
+      73975,
+      74265,
+      74345,
+      74437,
+      74589
+    ],
+    "all_owned_receiver_pids_absent": true
+  },
+  "repairs": [
+    "Initial hidden Table fixture set model selection before SwiftUI projected native rows; seed selection through actual NSTableView and wait for its model binding. All restoration/scroll/check assertions retained.",
+    "Retained staging fixture clicked a disabled native checkbox immediately after model loading completed. Wait for the actual button to become enabled before each click; staging assertions and real Git effects retained. No app change was required after the batch build."
+  ],
+  "help": {
+    "source_files": 50,
+    "source_bytes": 1967763,
+    "bundled_mismatches": []
+  },
+  "website": {
+    "documents": 260,
+    "unresolved_fragments": []
+  },
+  "hosted": {
+    "run": 38967919455,
+    "commit": "f87ac75ac231a3956c4b56a3283192861d69cddc",
+    "build_job": 117199386162,
+    "last_observed": "in_progress: Git integration tests; prior Xcode 16.4 compilation failure no longer present",
+    "full_success_confirmed": false
+  },
+  "limits": [
+    "Retained Revert planning receiver emits the previously recorded AppKit reentrant NSTableView delegate warning.",
+    "Full Commit metadata reads still publish incrementally; this change does not make that pipeline atomic.",
+    "Physical gestures, VoiceOver, IME/keyboards, minimum macOS, real authentication, signed Finder sandbox and App Store acceptance remain unproven.",
+    "No dialog or whole-port certification is inferred from these focused passes."
+  ]
+}

@@ -46,6 +46,7 @@ import TurtleGitCore
         let original = model.files.map(\.id), originalBranch = model.branch
         var reply: CheckedContinuation<[WorkingTreeFile], Error>?
         model.readStatus = { _ in try await withCheckedThrowingContinuation { reply = $0 } }
+        controller.commandKeyWindow = { [weak controller] in controller?.window }
         let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: controller.window!.windowNumber, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 96)!
         try require(controller.window!.performKeyEquivalent(with: event), "F5 not routed")
         try await wait { reply != nil }

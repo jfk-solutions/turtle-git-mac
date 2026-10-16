@@ -2494,3 +2494,12 @@ repairs are recorded; the failed ownership expectation did not weaken a guard.
 All eleven owned receivers, including that failed run, were reaped and independently
 absent. Core sources were unchanged and its suite was not repeated. These checks
 do not certify every physical gesture, complete Commit parity or signed deployment.
+
+## Native file-list refresh position — October 16, 2026
+
+Full and incremental staging refreshes now connect the actual table to the shared
+owned position restore. Source preference, native multi-selection/focus, checkbox
+independence, filter changes and user-intent cancellation are covered by the
+[file-list refresh family](FILE-LIST-REFRESH-PARITY.md). Full reloads retain separate
+Quit/access lifetime after forced closure. Eight grouped case/engine runs pass; full
+metadata-pipeline, physical and signed acceptance remain open.

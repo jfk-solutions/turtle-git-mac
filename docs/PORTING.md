@@ -1636,3 +1636,14 @@ cases and six native case/engine runs pass; two affected prepared and two Browse
 presentation runs pass after display/compiler repairs. All owned receivers are
 closed. Light/dark captures are published; exhaustive gitlink/copy cases, physical
 and signed acceptance remain open. [Batch evidence](qa/prepared-submodule-2026-10-16.json). See [Submodule Diff parity](SUBMODULE-DIFF-PARITY.md#prepared-gitlinks-and-renamed-comparison-paths--october-16-2026).
+
+### Native file-list refresh and input family — October 16, 2026
+
+Commit full/incremental staging, Working Tree and Revert now connect successful
+reads to actual native viewport/selection/focus settlement. Source position
+preference, scope reset, filters, file-only Select All and newer reading intent
+share owned cancellation. Working Tree includes LFS in atomic table publication;
+full Commit reloads retain post-retirement Quit/access lifetime. Eight grouped native case/engine runs pass; all eleven owned receivers were reaped
+and absent. Physical, complete metadata-pipeline and signed acceptance remain open.
+See [the evidence](qa/file-list-refresh-2026-10-16.json).
+See [file-list refresh parity](FILE-LIST-REFRESH-PARITY.md).

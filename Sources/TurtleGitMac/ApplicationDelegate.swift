@@ -46,7 +46,7 @@ import AppKit
         if LogMessageView.Coordinator.activeOperations > 0 { return .terminateCancel }
         if AddWindowModel.activeOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeCommitPreflights > 0 { return .terminateCancel }
-        if CommitWindowModel.activeFileOperations > 0 || CommitWindowModel.activePreferenceOperations > 0 { return .terminateCancel }
+        if CommitWindowModel.activeReloads > 0 || CommitWindowModel.activeFileOperations > 0 || CommitWindowModel.activePreferenceOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeFileDrops > 0 { return .terminateCancel }
         if LogWindowModel.activeNoteReads > 0 || LogWindowModel.activeNoteSaves > 0 { return .terminateCancel }
         if MessageEditorStylingSession.activeOperations > 0 { return .terminateCancel }

@@ -248,6 +248,12 @@ file; <strong>Abort</strong> stops and retains earlier completed changes. The re
 how many files were reverted. Root comparisons offer <strong>Revert to empty tree</strong>,
 which removes selected entries from the index without moving HEAD. Export saves
 the destination revision; it does not need the Base file's contents.</p>
+<p>Commit, Working Tree and Revert keep the file-list reading position through
+refresh. <strong>RememberFileListPosition</strong> in Advanced Settings controls restoring
+scroll position, highlighted files and focus; turning it off returns to the top.
+File checkboxes and staging contents remain independent. Ctrl-A or Command-A
+selects file rows without checking them. A newer file-list gesture takes priority
+over an older pending position restore.</p>
 <a name="topic-stash"></a><a name="topic-reset"></a><a name="topic-clean"></a><h2 id="stash-revert-reset-and-clean">Stash, revert, reset and clean</h2>
 <p>Stash Save records the selected working state using its offered options. Stash
 Apply restores a stash without dropping it; Pop also requests removal after

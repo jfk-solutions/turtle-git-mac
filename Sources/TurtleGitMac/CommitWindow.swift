@@ -658,7 +658,10 @@ import UniformTypeIdentifiers
     private let dialogDefaults: UserDefaults
     private var selectFilesAutomatically: Bool
     private let doNotAutoselectMissing: Bool
-    @Published var showWholeProject = true { didSet { updateScopeTitle() } }
+    @Published var showWholeProject = true {
+        willSet {if newValue != showWholeProject,messageFocusAvailable,!busy {filterPosition = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)}}
+        didSet {updateScopeTitle();if let position = filterPosition {filterPosition = nil;restoreVisibleFilePosition(position)}}
+    }
     @Published var scopePaths: [String] = [] { didSet { updateScopeTitle() } }
     @Published var busy = false
     @Published var confirmingQuit = false
@@ -729,8 +732,17 @@ import UniformTypeIdentifiers
     }
     func setShowUnversioned(_ enabled: Bool) {
         guard messageFocusAvailable, !busy, !confirmingQuit else { return }
+        let position = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)
         showUnversioned = enabled
-        unversionedDefaults.set(enabled, forKey: "AddBeforeCommit")
+        unversionedDefaults.set(enabled, forKey: "AddBeforeCommit");restoreVisibleFilePosition(position)
+    }
+    private func restoreVisibleFilePosition(_ position:FileListRefreshCoordinator.Ticket) {
+        if !position.remember {selection = []}
+        Task { [self] in await fileListRefresh.restore(position,ids:visibleFileRowIDs);fileListRefresh.finish(position) }
+    }
+    var visibleFileRowIDs:[String] {
+        let ignored = Set(indexFlagFiles.filter {$0.assumeUnchanged || $0.skipWorktree}.map {$0.entry.path})
+        return StatusListGroups.rows(entries:sortedFiles(visibleEntries,statistics:statistics),changelists:changelists,locallyIgnored:ignored).map(\.id)
     }
     var visibleEntries: [StatusEntry] {
         entries.filter { entry in
@@ -794,13 +806,14 @@ import UniformTypeIdentifiers
     func refreshStagingState(refreshPatch: Bool = true) {
         guard stagingEnabled else { reload(); return }
         guard messageFocusAvailable, !busy, !pendingReloadCancel else { return }
+        let position = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)
         fileMenuGeneration = UUID(); busy = true; stagingStateNeedsRefresh = true
         Self.activeFileOperations += 1
         let token = OperationCancellation(); reloadCancellation = token
         let base = comparisonBase, retainedEntries = entries
         reloadTask = Task {
             defer {
-                Self.activeFileOperations -= 1
+                Self.activeFileOperations -= 1;fileListRefresh.finish(position)
                 if reloadCancellation === token { reloadCancellation = nil; reloadTask = nil; busy = false }
                 withExtendedLifetime(access) {}
             }
@@ -816,11 +829,16 @@ import UniformTypeIdentifiers
                 unstagedStatistics = Dictionary(unstaged.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 stagingStateNeedsRefresh = false
                 if refreshPatch { refreshPartial() }
+                if !position.remember {selection = []}
+                await fileListRefresh.restore(position,ids:visibleFileRowIDs);try token.check()
             } catch {
                 if messageFocusAvailable, reloadCancellation === token, !token.isCancelled { self.error = "Could not refresh staging. Press F5 to reload before committing.\n\n" + error.localizedDescription }
             }
         }
     }
+    private(set) static var activeReloads = 0
+    let fileListRefresh = FileListRefreshCoordinator()
+    private var filterPosition:FileListRefreshCoordinator.Ticket?
     private(set) static var activeFileOperations = 0
     private var fileMenuGeneration = UUID()
     private var activeFileMenu: StatusFileMenuSnapshot?
@@ -1201,12 +1219,14 @@ import UniformTypeIdentifiers
     }
     func reload(paths: [String]? = nil) {
         guard messageFocusAvailable, !issueProviderBusy, !busy, !pendingReloadCancel else { return }; fileMenuGeneration = UUID(); busy = true
-        let token = OperationCancellation(); reloadCancellation = token
+        let position = fileListRefresh.begin(preferences:dialogDefaults,reset:!hasLoaded || paths != nil && (paths!.contains(".") ? []:paths!) != scopePaths,selectedIDs:selection)
+        let token = OperationCancellation(); reloadCancellation = token;Self.activeReloads += 1
         lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
         let resetChecks = paths != nil && (!hasLoaded || (paths!.contains(".") ? [] : paths!) != scopePaths)
         if let paths { scopePaths = paths.contains(".") ? [] : paths; showWholeProject = scopePaths.isEmpty }
         reloadTask = Task {
             defer {
+                Self.activeReloads -= 1;fileListRefresh.finish(position);withExtendedLifetime(access) {}
                 if reloadCancellation === token {reloadCancellation=nil;reloadTask=nil;busy=false;offerStagingHint()}
             }
             do {
@@ -1302,6 +1322,8 @@ import UniformTypeIdentifiers
                     } catch { if messageFocusAvailable, !token.isCancelled { self.error = "Could not get LFS locks: " + error.localizedDescription } }
                 }
 
+                if !position.remember {selection = []}
+                await fileListRefresh.restore(position,ids:visibleFileRowIDs);try token.check()
             } catch { if messageFocusAvailable, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
@@ -1493,7 +1515,7 @@ import UniformTypeIdentifiers
         issueProviderGeneration = UUID(); issueProviderBusy = false
         fileMenuGeneration = UUID(); fileOperationToken?.cancel(); cancelChangelist()
         diffSession?.cancel(); diffSession = nil
-        clientHooks.retire(); submoduleLog.retire()
+        clientHooks.retire(); submoduleLog.retire();fileListRefresh.retire()
         reloadCancellation?.cancel(); reloadTask?.cancel(); lfsOwnerCancellation?.cancel()
         reloadCancellation = nil; reloadTask = nil; lfsOwnerCancellation = nil
         pendingReloadCancel = false; busy = false
@@ -1843,7 +1865,7 @@ import UniformTypeIdentifiers
                 guard let self, self.messageFocusAvailable, self.pendingReloadCancel else { completion?(false); return }
                 if !approved { self.pendingReloadCancel = false; completion?(false); return }
                 self.invalidateMetadataLoads()
-                token.cancel(); task.cancel()
+                token.cancel();fileListRefresh.cancel(); task.cancel()
                 Task { [weak self] in
                     await task.value
                     guard let self, self.messageFocusAvailable else { completion?(false); return }
@@ -2351,7 +2373,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(rows: rows, configureRefresh: { dropTargets.set($0, for: focusKey) }, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
+        .background(CommitFileInteraction(rows: rows, configureRefresh: {dropTargets.set($0,for:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
             String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? model.stagingState(mark) != .on : !model.checked.contains(mark.id)

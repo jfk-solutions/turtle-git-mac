@@ -276,3 +276,11 @@ show the native five-column layout, status colors and original artwork. See
 [batch evidence](qa/revert-file-commands-2026-10-16.json) for scope, repair and the
 retained planning-table warning. Full popup-mask/submodule, physical, minimum-OS
 and signed sandbox acceptance remain open.
+
+## Native file-list refresh position — October 16, 2026
+
+The planning window now restores native viewport, highlighted files and focus
+only after its complete owned snapshot reaches the actual table. Checks retain
+their independent lifetime; new scopes reset position, and cancellation or newer
+reading intent retires older callbacks. Source preference and file-only Ctrl/Cmd-A
+share the [file-list refresh family](FILE-LIST-REFRESH-PARITY.md). Eight grouped case/engine runs pass; physical and signed acceptance remain open.

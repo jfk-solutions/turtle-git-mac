@@ -56,10 +56,10 @@ import TurtleGitCore
             guard let button = views(owner.window?.contentView).compactMap({ $0 as? NSButton }).first(where: { $0.accessibilityLabel() == "Stage " + path }) else { throw Failure(description: "Missing native checkbox " + path) }; return button
         }
         try await wait { views(owner.window?.contentView).compactMap { $0 as? NSButton }.contains { $0.accessibilityLabel() == "Stage new" } }
-        try button("new").performClick(nil); try await ready(model); try unchanged()
-        try require(model.stagingState(try entry("new")) == .on && model.isStaged(try entry("new")) && model.canCommit && reads == 1, "Native checkbox did not update independent staging state")
+        try await wait { (try? button("new").isEnabled) == true }; try button("new").performClick(nil); try await ready(model); try unchanged()
+        try require(model.stagingState(try entry("new")) == .on && model.isStaged(try entry("new")) && model.canCommit && reads == 1, "Native checkbox did not update independent staging state: enabled=\((try? button("new").isEnabled) ?? false), state=\(model.stagingState(try entry("new")).rawValue), staged=\(model.isStaged(try entry("new"))), canCommit=\(model.canCommit), reads=\(reads), error=\(model.error ?? "nil")")
         try await wait { (try? button("new").state) == .on }
-        try button("new").performClick(nil); try await ready(model); try unchanged()
+        try await wait { (try? button("new").isEnabled) == true }; try button("new").performClick(nil); try await ready(model); try unchanged()
         try require(model.stagingState(try entry("new")) == .off && reads == 2, "Native unstage retained checked state")
         model.check { $0.state == .untracked }; try await ready(model); try unchanged()
         try require(model.stagingState(try entry("new")) == .on, "Source Unversioned category stopped selecting retained unversioned row")

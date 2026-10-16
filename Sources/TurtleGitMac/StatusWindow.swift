@@ -78,9 +78,13 @@ struct StatusFileActionFailure: LocalizedError {
 }
 
 final class StatusNativeWindow: NSWindow {
-    var refresh: () -> Void = {}
+    var refresh: () -> Void = {}, cancel: () -> Void = {}
+    var commandKeyWindow: () -> NSWindow? = {NSApp.keyWindow}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.type == .keyDown, event.keyCode == 96 { refresh(); return true }
+        guard event.window === self,commandKeyWindow() === self,attachedSheet == nil else {return super.performKeyEquivalent(with:event)}
+        let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if event.type == .keyDown,event.keyCode == 96,flags.isEmpty {refresh();return true}
+        if event.type == .keyDown,event.keyCode == 53,flags.isEmpty {cancel();return true}
         return super.performKeyEquivalent(with: event)
     }
 }
@@ -88,6 +92,7 @@ final class StatusNativeWindow: NSWindow {
 @MainActor final class StatusWindowController: NSWindowController, NSWindowDelegate {
     let model: StatusWindowModel
     var onClosed: () -> Void = {}
+    var commandKeyWindow: () -> NSWindow? = {NSApp.keyWindow}
     var onPullAfterLFSLock: () -> Void = {}
     private var lfsOperation: LFSFileOperationController?
     private var closingStatus = false
@@ -99,10 +104,12 @@ final class StatusNativeWindow: NSWindow {
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Working Tree", preferences: defaults)
         window.minSize = NSSize(width: 960, height: 540); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: StatusDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: StatusDialog(model: model).defaultAppStorage(defaults))
         super.init(window: window); model.comparisonWindow = window; window.delegate = self
         model.updateTitle = { [weak window] location in RepositoryWindowTitles.set(window, repository: repository.root, location: location, dialog: "Working Tree", preferences: defaults) }
         window.refresh = { [weak model] in model?.reload() }
+        window.cancel = { [weak model] in guard let model else {return};if !model.cancelOperation() {model.close()} }
+        window.commandKeyWindow = { [weak self] in self?.commandKeyWindow() }
         window.setContentSize(NSSize(width: 1100, height: 630)); window.center()
         model.close = { [weak window] in window?.performClose(nil) }
         model.savePatch = { [weak self] text in self?.savePatch(text) }
@@ -179,10 +186,12 @@ final class StatusNativeWindow: NSWindow {
 
 @MainActor final class StatusWindowModel: ObservableObject {
     private(set) static var activeOperations = 0
+    let fileListRefresh = FileListRefreshCoordinator()
     private(set) var retired = false
     private var operationCancellation: OperationCancellation?
     private var refreshRequested = false
     private var pendingScope: [String]?
+    private var resetPositionOnReload = true
     @Published private(set) var invocation = WorkingTreeInvocation()
     @Published private(set) var hasStash = false
     var updateTitle: (URL) -> Void = { _ in }
@@ -370,31 +379,34 @@ final class StatusNativeWindow: NSWindow {
         applyScope(normalized); reload()
     }
     private func applyScope(_ paths: [String]) {
+        resetPositionOnReload = true
         filter.paths = paths
         filter.wholeProject = paths.isEmpty || defaults.bool(forKey: wholeProjectKey)
         selection = []
     }
     func setFilter(_ value: WorkingTreeFilter) {
         guard !retired, !busy, !confirmingQuit else { return }
+        let position = fileListRefresh.begin(preferences:defaults,selectedIDs:selection)
         menuGeneration = UUID(); filter = value
         defaults.set(value.showUnversioned, forKey: "AddBeforeCommit")
         defaults.set(value.showAllStaged, forKey: "ChangedFilesIncludeStaged")
         if !value.paths.isEmpty { defaults.set(value.wholeProject, forKey: wholeProjectKey) }
-        selection.formIntersection(Set(visibleFiles.map(\.id))); updateScopeTitle()
+        selection.formIntersection(Set(visibleFiles.map(\.id)));if !position.remember {selection = []};updateScopeTitle()
+        Task { [self] in await fileListRefresh.restore(position,ids:tableRows.map(\.id));fileListRefresh.finish(position) }
     }
     @discardableResult func cancelOperation() -> Bool {
         guard let token = operationCancellation else { return cancelLFSOwnerQuery() }
-        cancelling = true; token.cancel(); ownerCancellation?.cancel(); submoduleLog.cancel(); return true
+        cancelling = true; token.cancel();fileListRefresh.cancel(); ownerCancellation?.cancel(); submoduleLog.cancel(); return true
     }
     func invalidate() {
-        guard !retired else { return }; retired = true; refreshRequested = false; pendingScope = nil
+        guard !retired else { return }; retired = true;fileListRefresh.retire(); refreshRequested = false; pendingScope = nil
         operationCancellation?.cancel(); ownerCancellation?.cancel(); submoduleLog.retire()
         unifiedWindow?.close(); unifiedWindow = nil
     }
     private func isLive(_ token: OperationCancellation) -> Bool {
         !retired && operationCancellation === token && !token.isCancelled
     }
-    private func runOperation(_ title: String, operation: @escaping (OperationCancellation) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
+    private func runOperation(_ title: String, reportCancellation:Bool = true, operation: @escaping (OperationCancellation) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
         guard !retired, !busy, !confirmingQuit,actionOwnerAvailable() else { return }
         let token = OperationCancellation(); operationCancellation = token
         busy = true; cancelling = false; currentOperation = title; Self.activeOperations += 1
@@ -413,7 +425,8 @@ final class StatusNativeWindow: NSWindow {
             } catch {
                 guard !retired else { return }
                 let diagnostic = token.isCancelled ? "Operation cancelled. Any completed changes are retained; refresh to inspect the working tree." : error.localizedDescription
-                operationCancellation = nil; busy = false; cancelling = false; currentOperation = ""; failed(); self.error = diagnostic
+                operationCancellation = nil; busy = false; cancelling = false; currentOperation = ""; failed()
+                if !token.isCancelled || reportCancellation {self.error = diagnostic}
             }
         }
     }
@@ -421,9 +434,12 @@ final class StatusNativeWindow: NSWindow {
         guard !retired, !busy, !confirmingQuit else { return }
         if let embeddedReload {embeddedReload();return}
         menuGeneration = UUID(); refreshRequested = false
+        let resetPosition = resetPositionOnReload || pendingScope != nil
         if let pendingScope { self.pendingScope = nil; applyScope(pendingScope) }
+        let position = fileListRefresh.begin(preferences:defaults,reset:resetPosition,selectedIDs:selection)
         let scopePaths = filter.paths
-        runOperation("Refreshing working tree…", operation: { [self] token in
+        runOperation("Refreshing working tree…",reportCancellation:false,operation: { [self] token in
+            defer {fileListRefresh.finish(position)}
             // Publish one complete snapshot. A failed/cancelled read retains the prior table.
             let nextInvocation = try await repository.workingTreeInvocation(paths: scopePaths, cancellation: token)
             let nextStash = try await repository.workingTreeHasStash(cancellation: token)
@@ -436,7 +452,10 @@ final class StatusNativeWindow: NSWindow {
             let nextLFS = try await repository.hasLFS(cancellation: token)
             let nextMetadata = await repository.statusListMetadata(paths: nextFiles.map(\.id))
             let nextStatistics = try await repository.workingTreeFiles(cancellation: token)
+            let nextLocks:[LFSLock]
+            if nextLFS && showLFSOwners {nextLocks = try await queryLFSOwners(token)} else {nextLocks = []}
             guard isLive(token) else { return }
+            resetPositionOnReload = false
             invocation = nextInvocation; hasStash = nextStash; hasHead = nextHasHead; updateScopeTitle()
             changelists = nextChangelists; files = nextFiles; branch = nextBranch; conflictRebase = nextRebase; submodules = nextSubmodules
             hasLFS = nextLFS; fileMetadata = nextMetadata
@@ -444,12 +463,11 @@ final class StatusNativeWindow: NSWindow {
             selection.formIntersection(Set(visibleFiles.map(\.id)))
             lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
             if ownersVisible {
-                ownerCancellation = token; defer { if ownerCancellation === token { ownerCancellation = nil } }
-                let locks = try await queryLFSOwners(token)
-                guard isLive(token) else { return }
-                lfsOwners = Dictionary(locks.map { ($0.path, $0.owner) }, uniquingKeysWith: { first, _ in first })
-                lfsLockedPaths = Set(locks.map(\.path)); lfsOwnershipKnown = true
+                lfsOwners = Dictionary(nextLocks.map {($0.path,$0.owner)},uniquingKeysWith:{first,_ in first})
+                lfsLockedPaths = Set(nextLocks.map(\.path));lfsOwnershipKnown = true
             }
+            if !position.remember {selection = []}
+            await fileListRefresh.restore(position,ids:tableRows.map(\.id));try token.check()
         })
     }
     func canLockLFS(_ selected: [WorkingTreeFile]) -> Bool {
@@ -712,7 +730,7 @@ struct StatusDialog: View {
             .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
                 guard !model.busy, !model.confirmingQuit, !model.retired else { return false }; return model.onTransferDrop(providers)
             }
-            .background(CommitFileInteraction(rows: model.tableRows.map(\.row), leadingColumnCount: 0, keyboardDeleteEnabled: true,
+            .background(CommitFileInteraction(rows: model.tableRows.map(\.row), leadingColumnCount: 0, keyboardDeleteEnabled: true,configureRefresh:{model.fileListRefresh.attach($0)},preferences:model.colorPreferences,
                 visibleColumns: Set(model.visibleColumns), availableColumns: model.availableColumns, columnText: { entry, column in
                     rowsByID[entry.path].map { model.columnText($0,column) } ?? ""
                 }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,

@@ -366,3 +366,11 @@ This is source command/dispatch parity; full physical menu layout, signed
 sandbox prompts and every mixed-state mutation remain separately unverified.
 
 See [grouped native evidence](qa/primary-file-menus-2026-10-16.json) for exact checks, the scope-fixture repair and acceptance limits.
+
+## Native file-list refresh position — October 16, 2026
+
+Refresh/filter replacement now restores the owning table after native rows and
+columns settle. Working Tree collects optional LFS metadata before publishing its
+new table, and quiet read cancellation retains the prior snapshot. Source
+preference, multi-selection/focus, file-only Select All and owning F5/Escape are
+connected in the [file-list refresh family](FILE-LIST-REFRESH-PARITY.md). Eight grouped case/engine runs pass; physical and signed acceptance remain open.
