@@ -61,6 +61,7 @@ import TurtleGitCore
     private(set) var retired = false
     private var token: OperationCancellation?
     private var pendingClose = false
+    private var accepted = false
     @Published private(set) var refs: [String] = []
     @Published var branch = ""
     @Published private(set) var busy = false
@@ -69,13 +70,13 @@ import TurtleGitCore
     var query: @MainActor (String,OperationCancellation) async throws -> [String]
     var close: () -> Void = {}
     var accept: (String) -> Void = { _ in }
-    var canAccept: Bool { !retired && !busy && !refs.isEmpty }
+    var canAccept: Bool { !retired && !busy && !pendingClose && !accepted && !refs.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?, remote: String) {
         self.repository = repository; self.access = access; self.remote = remote
         query = { try await repository.remoteReferenceChoices(remote: $0,cancellation: $1) }
     }
     func refresh() {
-        guard !retired, !busy, !pendingClose else { return }
+        guard !retired, !busy, !pendingClose, !accepted else { return }
         let token = OperationCancellation(); self.token = token; busy = true; cancelling = false; refs = []; branch = ""; error = nil
         Self.activeOperations += 1
         let query = query, remote = remote, access = access, repository = repository
@@ -86,12 +87,13 @@ import TurtleGitCore
             }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                try token.check(); guard !retired else { return }
                 let values = try await query(remote,token)
                 guard !retired, !token.isCancelled else { return }; refs = values; branch = values.first ?? ""
             } catch { if !retired, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func choose() { guard canAccept else { return }; accept(branch) }
+    func choose() { guard canAccept else { return }; accepted = true; accept(branch) }
     func requestClose() { guard !retired else { return }; if busy { pendingClose = true; cancelling = true; token?.cancel() } else { close() } }
     func retire() { guard !retired else { return }; retired = true; token?.cancel() }
 }

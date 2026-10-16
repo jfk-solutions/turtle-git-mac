@@ -2,6 +2,12 @@
 
 *A macOS fork of TortoiseGit*
 
+The [remote-management family](REMOTE-TAGS-PARITY.md#remote-management-operation-ownership--october-16-2026)
+now owns tag confirmation, worker drain, ordered error acknowledgement and fresh
+reload independently of its window. Remote-reference selection accepts once;
+Add Remote captures submission and shows saving/cancelling state. Four native
+case/engine pairs pass; physical and signed acceptance remain open.
+
 The shared [path-entry family](PATH-ENTRY-PARITY.md) now connects source filesystem
 completion to Clone, New Worktree, Rename and Export with native full-field
 completion, owned directory reads, access scoping and retired-result guards.

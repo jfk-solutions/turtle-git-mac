@@ -35,40 +35,46 @@ import TurtleGitCore
     @Published var name = ""
     @Published var url = ""
     @Published private(set) var busy = false
+    @Published private(set) var cancelling = false
     @Published var error: String?
     private var token: OperationCancellation?
     private var pendingClose = false
     var close: () -> Void = {}
-    var canSave: Bool { !retired && !busy && !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !url.isEmpty }
-    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    var persist: (RemoteSettings, OperationCancellation) async throws -> Void
+    var canSave: Bool { !retired && !busy && !pendingClose && !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !url.isEmpty }
+    init(repository: GitRepository, access: RepositoryAccessLease?) {
+        self.repository = repository; self.access = access
+        persist = { try await repository.applyRemoteSettings($0, changed: [.name, .url], cancellation: $1) }
+    }
     func save() {
         guard canSave else { return }
         var settings = RemoteSettings(name: name); settings.url = url
         let token = OperationCancellation(); self.token = token; busy = true; error = nil; Self.activeOperations += 1
-        let repository = repository, access = access
+        let repository = repository, access = access, persist = persist
         Task { [self] in
             var success = false
-            defer { Self.activeOperations -= 1; busy = false; self.token = nil; if !retired && (success || pendingClose) { close() }; withExtendedLifetime(access) {} }
+            defer { Self.activeOperations -= 1; busy = false; cancelling = false; self.token = nil; if !retired && (success || pendingClose) { close() }; withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                try await repository.applyRemoteSettings(settings,changed: [.name,.url],cancellation: token)
+                try token.check(); guard !retired else { return }
+                try await persist(settings, token)
                 success = !token.isCancelled
             } catch { if !retired,!token.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func requestClose() { guard !retired else { return }; if busy { pendingClose = true; token?.cancel() } else { close() } }
+    func requestClose() { guard !retired else { return }; if busy { pendingClose = true; cancelling = true; token?.cancel() } else { close() } }
     func retire() { guard !retired else { return }; retired = true; token?.cancel() }
 }
 private struct AddRemoteDialog: View {
     @ObservedObject var model: AddRemoteWindowModel
     var body: some View {
         VStack(alignment: .leading,spacing: 10) {
-            HStack { Text("Name:").frame(width: 65,alignment: .leading); TextField("",text: $model.name).accessibilityLabel("Remote name") }
-            HStack { Text("URL:").frame(width: 65,alignment: .leading); TextField("",text: $model.url).accessibilityLabel("Remote URL") }
+            HStack { Text("Name:").frame(width: 65,alignment: .leading); TextField("",text: $model.name).accessibilityLabel("Remote name") }.disabled(model.busy || model.retired)
+            HStack { Text("URL:").frame(width: 65,alignment: .leading); TextField("",text: $model.url).accessibilityLabel("Remote URL") }.disabled(model.busy || model.retired)
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled).lineLimit(3).help(error) }
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer()
+            HStack { if model.busy { ProgressView().controlSize(.small); Text(model.cancelling ? "Cancelling…" : "Saving…") }; Spacer()
                 Button("OK") { model.save() }.keyboardShortcut(.defaultAction).disabled(!model.canSave)
-                Button("Cancel") { model.requestClose() }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.cancelling)
                 Button("Help") { TurtleGitHelp.show(.settings) }
             }
         }.textFieldStyle(.roundedBorder).padding(14)

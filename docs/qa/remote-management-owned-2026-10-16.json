@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "502ff4428106c228dbc60fb6b1a7d2e37fe61eba",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Remote tag deletion/recovery ownership, Select Remote Ref acceptance and Add Remote submission/cancellation",
+  "source": [
+    "DeleteRemoteTagDlg.cpp Refresh/OnBnClickedOk/Delete-Abort default/F5",
+    "SelectRemoteRefDlg.cpp Refresh/OnBnClickedOk editable value",
+    "Existing native Add Remote and shared ApplicationDelegate Quit gates"
+  ],
+  "implementation": [
+    "Single tag operation spans confirmation, worker, ordered error acknowledgement and fresh post-delete catalog/transport",
+    "Active counter and retained access lease survive forced window retirement until actual worker settlement",
+    "Captured once-only native Delete/Abort and error question replies settle on closure and refuse retained callbacks",
+    "Deletion failure is acknowledged before reload; reload failure has a separate acknowledgement; no SwiftUI error/progress overlap",
+    "Remote reference picker accepts editable branch once and refuses post-accept refresh; retired/cancelled requests do not start another query",
+    "Add Remote disables inputs during save, displays Saving/Cancelling, captures name/URL/persist action and refuses duplicate save and pending-close restart"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/remote-management-owned-debug.log",
+    "anomalous_exit_zero_diagnostics": 2
+  },
+  "native": {
+    "passing_case_engine_pairs": 4,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "logs": [
+      "build/qa/remote-management-owned-native.log",
+      "build/qa/remote-management-owned-native-repaired.log"
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      55546,
+      55648,
+      55783,
+      55810
+    ],
+    "checks": [
+      "Retained source folder menu/icon dispatch, native tag table/selection/tri-state, Abort/Delete/Refresh",
+      "Real local/bare remote deletion isolation and unchanged local HEAD/index/config/worktree",
+      "Live helper/leader termination during ls-remote/check-ref-format/push",
+      "Held deletion and refresh error acknowledgements preserve order and Quit/busy lifetime",
+      "Held successful tag read after forced close retains counter until reply and refuses late publication",
+      "Controller Delete/Abort source defaults and once-only late Yes refusal",
+      "Editable remote-ref selection dispatches once; retired read does not publish",
+      "Add Remote captures inputs, cancels while held, closes once and persists actual new remote configuration",
+      "New receiver preserves HEAD/raw index"
+    ],
+    "fixture_repair": "First new fixture compilation incorrectly treated Git stdout Data as String; decoded UTF8 explicitly and reran only new owned case. Retained tag cases had already passed and were not repeated. No product rebuild was required.",
+    "diagnostics": "Retained hidden Reference Browser hosts emit zero-size NSSplitView warnings."
+  },
+  "core": {
+    "changed": false,
+    "run": false,
+    "reason": "Native dialog/lifetime changes only; real Git paths checked by native receivers"
+  },
+  "store_build": false,
+  "limits": [
+    "No physical sheet/keyboard/VoiceOver, screenshots or signed Finder/AppStore acceptance",
+    "No external network/real encrypted SSH prompt revalidation or third-party transport certification",
+    "No full hosted CI or complete dialog/port parity claim"
+  ],
+  "coverage": "130 dialogs, 120 partial audits, 10 pending, 0 certified; 986 mapped / 673 pending static controls"
+}

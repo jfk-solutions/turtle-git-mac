@@ -3326,6 +3326,7 @@
         "docs/REMOTE-TAGS-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/remote-management-owned-2026-10-16.json",
         "docs/qa/remote-tags-2026-10-09.json"
       ]
     },

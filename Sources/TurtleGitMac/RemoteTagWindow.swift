@@ -22,6 +22,10 @@ private final class RemoteTagNativeWindow: NSWindow {
     let model: RemoteTagWindowModel
     var onClosed: () -> Void = {}
     private var progress: RemoteTagProgressController?
+    private var question: (id: UUID, alert: NSAlert, reply: (Bool) -> Void)?
+    var presentQuestion: (NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Bool = { alert, owner, reply in
+        guard owner.attachedSheet == nil else { return false }; alert.beginSheetModal(for: owner, completionHandler: reply); return true
+    }
     var progressWindow: NSWindow? { progress?.window }
     var presentProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     init(repository: GitRepository, access: RepositoryAccessLease?, remote: String, preferences: UserDefaults = .standard) {
@@ -32,19 +36,38 @@ private final class RemoteTagNativeWindow: NSWindow {
         super.init(window: window); window.delegate = self; window.center()
         model.phaseChanged = { [weak self] in self?.showProgress($0) }; window.refresh = { [weak model] in model?.load() }
         model.close = { [weak self] in guard let self, !self.model.busy, self.window?.attachedSheet == nil else { return }; self.close() }
-        model.confirm = { [weak window] tags in
-            guard let window, window.attachedSheet == nil else { return false }
-            return await withCheckedContinuation { continuation in
-                let alert = NSAlert(); alert.messageText = "TurtleGit"; alert.informativeText = RemoteTagConfirmation.message(tags); alert.alertStyle = .warning
-                let deletion = alert.addButton(withTitle: "Delete"); deletion.keyEquivalent = ""; let abort = alert.addButton(withTitle: "Abort"); abort.keyEquivalent = "\r"; alert.window.defaultButtonCell = abort.cell as? NSButtonCell
-                alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertFirstButtonReturn) }
-            }
+        model.confirm = { [weak self] tags in
+            await self?.ask(RemoteTagConfirmation.message(tags), destructive: true) ?? false
         }
+        model.acknowledge = { [weak self] message in _ = await self?.ask(message, destructive: false) }
         model.sshSettings.present = { [weak self] prompt in
             guard let owner = self?.progressWindow ?? self?.window, owner.attachedSheet == nil, let child = prompt.window else { return false }
             owner.makeFirstResponder(nil); owner.beginSheet(child); return true
         }
         DialogGeometry.attach(window, identifier: "DeleteRemoteTagDlg", legacyName: "DeleteRemoteTagDlg")
+    }
+    private func ask(_ message: String, destructive: Bool) async -> Bool {
+        guard !model.closed, question == nil, let owner = window, owner.attachedSheet == nil else { return false }
+        let alert = NSAlert(); alert.messageText = "TurtleGit"; alert.informativeText = message
+        alert.alertStyle = destructive ? .warning : .critical
+        let first = alert.addButton(withTitle: destructive ? "Delete" : "OK")
+        if destructive {
+            first.keyEquivalent = ""
+            let abort = alert.addButton(withTitle: "Abort"); abort.keyEquivalent = "\r"; alert.window.defaultButtonCell = abort.cell as? NSButtonCell
+        }
+        let id = UUID()
+        return await withCheckedContinuation { continuation in
+            question = (id, alert, { continuation.resume(returning: $0) })
+            if !presentQuestion(alert, owner, { [weak self] response in self?.settleQuestion(id, accepted: response == .alertFirstButtonReturn) }) {
+                settleQuestion(id, accepted: false)
+            }
+        }
+    }
+    private func settleQuestion(_ id: UUID, accepted: Bool) {
+        guard let pending = question, pending.id == id else { return }
+        question = nil
+        if let parent = pending.alert.window.sheetParent { parent.endSheet(pending.alert.window, returnCode: .abort) }
+        pending.alert.window.orderOut(nil); pending.reply(accepted)
     }
     private func showProgress(_ phase: RemoteTagWindowModel.Phase?) {
         if let old = progress { progress = nil; if let child = old.window, child.sheetParent === window { window?.endSheet(child) }; old.close() }
@@ -55,16 +78,16 @@ private final class RemoteTagNativeWindow: NSWindow {
         guard let window = child.window, presentProgress(owner, window) else { progress = nil; child.close(); model.invalidate(); close(); return }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); showProgress(nil); if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }; onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); if let question { settleQuestion(question.id, accepted: false) }; showProgress(nil); if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RemoteTagWindowModel: ObservableObject {
+    private(set) static var activeOperations = 0
     enum Phase: String { case loading = "Loading…", deleting = "Deleting remote refs…" }
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
     let access: RepositoryAccessLease?
     let remote: String
-    private let preferences: UserDefaults
     private var token: OperationCancellation?
     private(set) var closed = false
     @Published private(set) var tags: [RemoteTag] = []
@@ -74,38 +97,74 @@ private final class RemoteTagNativeWindow: NSWindow {
     @Published private(set) var phase: Phase? { didSet { phaseChanged(phase) } }
     var phaseChanged: (Phase?) -> Void = { _ in }
     var confirm: (([GitReferenceName]) async -> Bool)?
+    var acknowledge: (String) async -> Void = { _ in }
+    var query: (OperationCancellation) async throws -> [RemoteTag]
+    var remove: ([GitReferenceName], OperationCancellation) async throws -> Void
     var close: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, remote: String, preferences: UserDefaults) { self.repository = repository; self.access = access; self.remote = remote; self.preferences = preferences; sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available }
+    init(repository: GitRepository, access: RepositoryAccessLease?, remote: String, preferences: UserDefaults) {
+        self.repository = repository; self.access = access; self.remote = remote
+        let settings = SSHTransportSettings(repository: repository); settings.enabled = settings.available; sshSettings = settings
+        query = { token in
+            let coordinator = settings.capture()?(); defer { coordinator?.close() }
+            return try await repository.remoteTags(remote: remote, reversed: preferences.bool(forKey: "SortTagsReversed"), cancellation: token, prepareTransport: coordinator?.preparation)
+        }
+        remove = { tags, token in
+            let coordinator = settings.capture()?(); defer { coordinator?.close() }
+            try await repository.deleteRemoteTags(remote: remote, tags: tags, cancellation: token, prepareTransport: coordinator?.preparation)
+        }
+    }
     var canDelete: Bool { !closed && !busy && !selection.isEmpty && confirm != nil }
     var selectedTags: [GitReferenceName] { tags.filter { selection.contains($0.name) }.map(\.name) }
     var selectAllState: NSControl.StateValue { selection.isEmpty ? .off : selection.count == tags.count ? .on : .mixed }
     func select(_ names: Set<GitReferenceName>) { guard !closed, !busy else { return }; selection = names.intersection(Set(tags.map(\.name))) }
     func selectAll(_ state: NSControl.StateValue) { select(state == .on ? Set(tags.map(\.name)) : []) }
     private func checkAccess() throws { if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable } }
-    func invalidate() { closed = true; token?.cancel(); token = nil; busy = false; phase = nil }
-    func load(preservingError: String? = nil) {
+    private func live(_ request: OperationCancellation) -> Bool { !closed && token === request && !request.isCancelled }
+    func invalidate() { closed = true; token?.cancel(); phase = nil }
+    private func perform(_ body: @escaping (OperationCancellation) async -> Void) {
         guard !closed, !busy else { return }
-        let factory = sshSettings.capture()
-        let request = OperationCancellation(); token = request; busy = true; selection = []; tags = []; error = preservingError; phase = .loading
-        Task {
-            defer { if token === request { token = nil; busy = false; phase = nil } }
-            do { let coordinator = factory?(); defer { coordinator?.close() }; try checkAccess(); let rows = try await repository.remoteTags(remote: remote, reversed: preferences.bool(forKey: "SortTagsReversed"), cancellation: request, prepareTransport: coordinator?.preparation); guard !closed, token === request, !request.isCancelled else { return }; tags = rows }
-            catch { if !closed, token === request, !request.isCancelled { self.error = error.localizedDescription } }
+        let request = OperationCancellation(); token = request; busy = true; error = nil; Self.activeOperations += 1
+        Task { [self, access] in
+            defer {
+                Self.activeOperations -= 1
+                if token === request { token = nil; busy = false; phase = nil }
+                withExtendedLifetime(access) {}
+            }
+            guard live(request) else { return }
+            await body(request)
+        }
+    }
+    private func report(_ failure: Error, request: OperationCancellation) async {
+        guard live(request) else { return }
+        phase = nil; error = failure.localizedDescription
+        await acknowledge(failure.localizedDescription)
+    }
+    private func reload(_ request: OperationCancellation, query: @escaping (OperationCancellation) async throws -> [RemoteTag]) async {
+        guard live(request) else { return }
+        selection = []; tags = []; phase = .loading
+        do { try checkAccess(); let rows = try await query(request); guard live(request) else { return }; tags = rows }
+        catch { await report(error, request: request) }
+        if live(request) { phase = nil }
+    }
+    func load(preservingError: String? = nil) {
+        let query = query
+        perform { [self] request in
+            error = preservingError
+            await reload(request, query: query)
         }
     }
     func delete() {
         guard canDelete, let confirm else { return }
-        let factory = sshSettings.capture()
-        let captured = selectedTags, request = OperationCancellation(); token = request; busy = true; error = nil
-        Task {
+        let captured = selectedTags, remove = remove, query = query
+        perform { [self] request in
             let accepted = await confirm(captured)
-            guard !closed, token === request, !request.isCancelled else { return }
-            guard accepted else { token = nil; busy = false; return }
-            phase = .deleting; var failure: String?
-            do { let coordinator = factory?(); defer { coordinator?.close() }; try checkAccess(); try await repository.deleteRemoteTags(remote: remote, tags: captured, cancellation: request, prepareTransport: coordinator?.preparation) }
-            catch { if !closed, token === request, !request.isCancelled { failure = error.localizedDescription } }
-            guard !closed, token === request, !request.isCancelled else { return }
-            token = nil; busy = false; phase = nil; load(preservingError: failure)
+            guard live(request), accepted else { return }
+            phase = .deleting
+            do { try checkAccess(); try await remove(captured, request) }
+            catch { await report(error, request: request) }
+            guard live(request) else { return }
+            phase = nil
+            await reload(request, query: query)
         }
     }
 }
@@ -117,7 +176,7 @@ private struct RemoteTagDialog: View {
             HStack(alignment: .top) { Text("Tags:").frame(width: 95, alignment: .leading); RemoteTagTable(model: model).frame(maxWidth: .infinity, maxHeight: .infinity).border(Color(nsColor: .separatorColor)) }
             HStack { RemoteTagAllCheckbox(model: model); Spacer(); Button("Delete") { model.delete() }.keyboardShortcut(.defaultAction).disabled(!model.canDelete); Button("Close") { model.close() }.keyboardShortcut(.cancelAction).disabled(model.busy) }
         }.padding(12).disabled(model.busy).onAppear { model.load() }
-        .alert("Delete remote tag failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+
     }
 }
 private struct RemoteTagAllCheckbox: NSViewRepresentable {

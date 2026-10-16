@@ -55,3 +55,33 @@ and confirmation precede destructive transport preparation; no extra checkbox is
 added. This is a macOS extension of the remote-tag workflow: pinned source
 DeleteRemoteTagDlg itself does not call Pageant. See SSH-TRANSPORT-PARITY.md for
 private-agent lifetime, encrypted response, cancellation and runtime limits.
+
+## Remote-management operation ownership — October 16, 2026
+
+Remote tag loading/deletion now owns one lifetime through confirmation, actual
+network work, error acknowledgement and the post-deletion reload. Closing the
+controller cancels its token and removes its presentation, while its worker count
+and access lease remain until the worker actually settles. Application Quit also
+checks this count when the original window no longer exists. Late successful
+lists, errors and deletion answers cannot publish or launch another operation.
+
+Deletion failure is acknowledged before reloading, matching the pinned source's
+sequence. A second reload failure gets its own acknowledgement; it cannot replace
+an unanswered deletion error. Native Delete/Abort and error sheets use captured,
+once-only replies. Forced owner closure settles the pending sheet, and retained
+or duplicate callbacks are inert. The initial error/progress overlap from the
+SwiftUI alert binding is removed. Each actual query/delete still acquires and
+closes its own configured SSH transport coordinator.
+
+The connected Select Remote Ref picker accepts its editable source value once;
+retained callbacks cannot select twice or start another refresh after acceptance.
+Add Remote now disables its inputs while saving, displays Saving/Cancelling,
+preserves the captured name/URL, and refuses duplicate save/cancel completion.
+These native changes do not alter Core remote validation or Git refspecs.
+
+One Debug build and four native case/engine pairs passed. The retained real-Git
+checks were not repeated after the new fixture's stdout decoding correction.
+All four receivers were reaped and independently absent. No Core suite was rerun.
+[The dated evidence](qa/remote-management-owned-2026-10-16.json) records the scope,
+fixture repair, native build/layout diagnostics and remaining physical/signed
+acceptance.

@@ -49,7 +49,7 @@ import AppKit
         if LogWindowModel.activeNoteReads > 0 || LogWindowModel.activeNoteSaves > 0 { return .terminateCancel }
         if MessageEditorStylingSession.activeOperations > 0 { return .terminateCancel }
         if InputWindowController.activeSaves > 0 { return .terminateCancel }
-        if AddRemoteWindowModel.activeOperations > 0 || RemoteReferenceWindowModel.activeOperations > 0 { return .terminateCancel }
+        if AddRemoteWindowModel.activeOperations > 0 || RemoteReferenceWindowModel.activeOperations > 0 || RemoteTagWindowModel.activeOperations > 0 { return .terminateCancel }
         if BisectWindowModel.activeOperations > 0 { return .terminateCancel }
         if GitPropertiesWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? GitPropertiesWindowController }).contains(where:{ $0.model.busy || $0.model.hasSettings || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if RepositoryBrowserWindowModel.activeOperations > 0 { return .terminateCancel }
