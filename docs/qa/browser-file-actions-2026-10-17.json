@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "9f3f51306fff24cf34c655bf4a255991cd16dfd7",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source repository-relative selectable readonly Path with absolute pinned tooltip and all ten partial static mappings",
+    "Captured Save/Open With panels, competing-action gates, retirement and duplicate-reply refusal",
+    "Exact atomic Save off the UI thread, retained destination scope and ignored-writer drain after owner closure",
+    "Off-thread historical preview creation; default Open/Open With use shared document launch; original selected app grant retained before preview work",
+    "Independent Quit lifetime through launch/write settlement, including retired callers; uncertain dispatch inputs retained in existing app-lifetime store"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/browser-file-actions-build-2026-10-17.log",
+      "exit": 65,
+      "exit_zero_no_output_diagnostics": 0
+    },
+    {
+      "log": "build/qa/browser-file-actions-build-repair-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "distinct_case_engine_passes": 4,
+    "runs": [
+      {
+        "log": "build/qa/browser-file-actions-native-2026-10-17.log",
+        "exit": 1,
+        "failure": "Fixture app URL equality rejected the same path reconstructed with a directory flag; callback assertion appeared as a later wait timeout."
+      },
+      {
+        "log": "build/qa/browser-file-actions-native-recheck-2026-10-17.log",
+        "exit": 0,
+        "case_engine_passes": 4
+      }
+    ],
+    "owned_receivers_reaped": [
+      4503,
+      4603,
+      4675,
+      4764,
+      4801
+    ],
+    "independently_absent_owned_receivers": [
+      4503,
+      4603,
+      4675,
+      4764,
+      4801
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "coverage": [
+      "Real Git exact binary Save and unchanged HEAD/index/working-file bytes",
+      "Changed/Cancel/repeated panel replies; closed ignored writer and uncertain launch receipt; pending preview retained until callback",
+      "Production Save/Open With sheet closure; default native document-open argument receipt intercepted",
+      "Retained Browser divider, columns, header Reset, viewport, key ownership and private preference behavior"
+    ]
+  },
+  "core": {
+    "repeated": false,
+    "reason": "No Core parsing, Git operation, preview format or persistence algorithms changed."
+  },
+  "repairs": [
+    "First build required explicit self in the nested Save task; repaired those captures.",
+    "Before native checks, retained and validated the original selected application URL grant ahead of preview preparation; the shared launcher does not substitute a reconstructed path grant for that authorization.",
+    "Changed fixture app URL comparison to exact path comparison and report callback errors directly instead of only timing out. App code was unchanged after the passing build."
+  ],
+  "captures": [
+    {
+      "path": "docs/site/assets/browser-file-actions-light.png",
+      "sha256": "2b3a0edf49e937a797984124123dd5d00ca1176d868bfea030d094be98b4818d",
+      "pixels": [
+        2000,
+        1364
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/browser-file-actions-dark.png",
+      "sha256": "53843613bfde8fcc65f40f1412d8ab194179f11a80c9a842108a930b73b39266",
+      "pixels": [
+        2000,
+        1364
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of the actual production Browser window and a disposable private repository, without activating user focus.",
+  "help": {
+    "files": 50,
+    "bytes": 1968682,
+    "mode": "check",
+    "unchanged": true
+  },
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": []
+  },
+  "hosted_observation": {
+    "head": "9f3f51306fff24cf34c655bf4a255991cd16dfd7",
+    "pages": {
+      "run": 38982434234,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 38982434279,
+      "status": "pending",
+      "conclusion": null
+    }
+  },
+  "limitations": [
+    "Launch API intercepted: no receiving application was launched; live receiving-app and signed chooser/file grants remain open",
+    "Alternative Editor retains its configured existing route; live delivery is not separately exercised here",
+    "Atomic writes already started may finish after cancellation; no rollback claim",
+    "Inputs from attempted dispatch remain through application termination; complete receiving-app shutdown/temp-file acceptance remains open",
+    "Physical keyboard/mouse, VoiceOver and complete source/App Store acceptance remain open"
+  ]
+}

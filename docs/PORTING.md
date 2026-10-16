@@ -1782,3 +1782,12 @@ with independent worker drain, and changed-draft validation before Apply. Cached
 page reactivation and actual owner closure share the lifecycle. See
 [General parity](GENERAL-SETTINGS-PARITY.md#source-inputs-and-owned-engine-validation--october-17-2026).
 Four distinct native case/engine combinations pass with system and bundled Git, with two affected source rechecks after the checkbox layout repair. Both raw light/dark captures were individually reviewed: compact groups, persistent labels and footers fit without clipping. All seven owned receivers were reaped and independently absent; source receivers also assert real child-process cleanup. Core was unchanged and not repeated. See [batch evidence](qa/general-source-family-2026-10-17.json) for the build/capture failures, repairs and remaining acceptance. Localization and Windows Library adaptation remain open.
+
+### Browser historical file actions and source Path — October 17, 2026
+
+Browser now has a relative selectable/read-only native Path field and owned
+historical Save/Open/Open With operations. Atomic writes and preview creation run
+off the UI thread; captured panels reject stale replies, while in-flight writes
+and receiving-app callbacks retain independent Quit, scope and input lifetimes
+after caller closure. See [Browser parity](REPOSITORY-BROWSER-PARITY.md#historical-file-actions-and-source-path--october-17-2026).
+Four grouped native case/engine combinations pass with system and bundled Git after the recorded fixture URL repair. Both raw light/dark captures were individually reviewed: the native relative Path, tree/list and information/footer fit. All five owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/browser-file-actions-2026-10-17.json) for build diagnostics, failed-fixture details, intercepted launch scope and remaining acceptance.

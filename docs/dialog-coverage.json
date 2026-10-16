@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 579,
-    "mapped_controls": 1080,
+    "pending_control_reviews": 570,
+    "mapped_controls": 1089,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -864,16 +864,12 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 10,
-      "mapped_controls": 1,
-      "pending_control_reviews": 9,
+      "mapped_controls": 10,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/RepositoryBrowserWindow.swift",
-          "origin": "recorded-control-mapping"
-        },
-        {
-          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
           "origin": "recorded-control-mapping"
         }
       ],
@@ -883,6 +879,7 @@
         "docs/REPOSITORY-BROWSER-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/browser-file-actions-2026-10-17.json",
         "docs/qa/browser-presentation-2026-10-16.json",
         "docs/qa/browser-revisions-2026-10-16.json",
         "docs/qa/browser-tree-comparisons-2026-10-15.json",

@@ -588,3 +588,36 @@ presentation engine cases pass, including saved width/reopen, clamps, Reset,
 viewport and command ownership. The newer local SDK does not prove the repaired
 hosted build; that confirmation remains pending. See
 [the connected batch record](qa/prepared-submodule-2026-10-16.json).
+
+## Historical file actions and source Path — October 17, 2026
+
+The header now follows `IDC_REPOBROWSER_URL`: a repository-relative path beginning
+with `/`, in a selectable read-only native field. Its tooltip retains the absolute
+macOS path and pinned object. Native field editing shortcuts remain separate from
+contents-table commands. The source tree/list/info and OK/Cancel/Help arrangement
+is retained; all ten static controls now have partial native mappings.
+
+Historical Save, Open, Open With and alternative-editor dispatch now have an
+independent request lifetime. Save/Open With panels capture the browser revision,
+snapshot, folder and operation identity. Competing navigation/file actions are
+blocked; cancelled, changed or retired panel replies cannot write or launch.
+Actual window closure retires the panel immediately. A write or launch already
+started keeps its Quit lifetime until settlement, even when its browser closes.
+
+Save moves its atomic exact-byte write off the UI thread and retains its selected
+destination scope through completion. Cancellation before writing prevents the
+write; an already started atomic write may finish and is not rolled back. An old
+completion cannot publish an error on a retired browser.
+
+Preview creation also moves off the UI thread. Default Open and Open With share
+the existing native document-launch/scope adapter; alternative editor retains its
+own configured route. Repository/application scopes and preview inputs survive
+pending receiving-app callbacks. Closing the browser does not kill a receiving
+application. Before dispatch, failed/cancelled preparation removes its private
+copy. Once dispatch has been attempted, an uncertain receipt conservatively keeps
+the input in the existing application-lifetime preview store. Full receiving-app
+shutdown/temp-file acceptance remains separate from this launch boundary.
+
+Four grouped native case/engine combinations pass with system and bundled Git after the recorded fixture URL repair. Both raw light/dark captures were individually reviewed: the native relative Path, tree/list and information/footer fit. All five owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/browser-file-actions-2026-10-17.json) for build diagnostics, failed-fixture details, intercepted launch scope and remaining acceptance. Physical keyboard and
+panels, VoiceOver, signed destination/application grants and full upstream/App
+Store acceptance remain open.
