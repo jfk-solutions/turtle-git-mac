@@ -1773,3 +1773,12 @@ source group/footer structure and returns focus to its sorted native table after
 editing or removal. Merge draft acceptance rejects Diff-only adapters. See
 [tool parity](DIFF-TOOLS-PARITY.md#source-tool-forms-and-browse-ownership--october-17-2026).
 All three distinct native families pass after the recorded fixture/runner repairs, including actual Settings navigation; the two affected tool families pass again after the presentation-identity repair. Four raw light/dark captures were individually reviewed: the source group/footer and populated Extension/Program/Arguments captions fit without clipping. All eleven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/tool-source-family-2026-10-17.json) for the build diagnostics, fixture failures and physical/signed limits.
+
+### General source inputs and engine validation — October 17, 2026
+
+General now uses native Git path completion and a persistent Extra PATH label,
+captured executable Browse/update-disable questions, cancellable version checks
+with independent worker drain, and changed-draft validation before Apply. Cached
+page reactivation and actual owner closure share the lifecycle. See
+[General parity](GENERAL-SETTINGS-PARITY.md#source-inputs-and-owned-engine-validation--october-17-2026).
+Four distinct native case/engine combinations pass with system and bundled Git, with two affected source rechecks after the checkbox layout repair. Both raw light/dark captures were individually reviewed: compact groups, persistent labels and footers fit without clipping. All seven owned receivers were reaped and independently absent; source receivers also assert real child-process cleanup. Core was unchanged and not repeated. See [batch evidence](qa/general-source-family-2026-10-17.json) for the build/capture failures, repairs and remaining acceptance. Localization and Windows Library adaptation remain open.

@@ -1,0 +1,139 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "b86e6eb71564497fb180f719c2e0ca56734f25b0",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Native literal Git executable completion and permanent Extra PATH caption",
+    "Cancellable version checks, ignored-reader drain/Quit lifetime and captured-draft results/errors",
+    "Apply validates captured engine identity before persistence, including hidden cached pages",
+    "Executable-only Browse validation before bookmarking; captured context, duplicate/retired reply fences and previous-error clearing",
+    "Owned Disable updates/Abort question, lifecycle/window closure and observable cached-page activation",
+    "Bounded native update checkbox row and 15 explicit partial resource mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/general-source-build-2026-10-17.log",
+      "exit": 65,
+      "exit_zero_no_output_diagnostics": 0
+    },
+    {
+      "log": "build/qa/general-source-build-repair-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/general-source-browse-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/general-source-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "distinct_case_engine_passes": 4,
+    "affected_source_layout_rechecks": 2,
+    "runs": [
+      {
+        "log": "build/qa/general-source-native-2026-10-17.log",
+        "exit": 1,
+        "failure": "ScreenCaptureKit SCStreamErrorDomain -3811 after behavior assertions; screen independently verified unlocked."
+      },
+      {
+        "log": "build/qa/general-source-native-recheck-2026-10-17.log",
+        "exit": 0,
+        "distinct_case_engine_passes": 4
+      },
+      {
+        "log": "build/qa/general-source-native-layout-2026-10-17.log",
+        "exit": 0,
+        "affected_source_case_engine_passes": 2
+      }
+    ],
+    "owned_receivers_reaped": [
+      3455,
+      3519,
+      3530,
+      3565,
+      3573,
+      3702,
+      3717
+    ],
+    "independently_absent_owned_receivers": [
+      3455,
+      3519,
+      3530,
+      3565,
+      3573,
+      3702,
+      3717
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "bundled Git"
+    ],
+    "process_cleanup": "Every source receiver checks the real version shell and sleep child are absent after cancellation."
+  },
+  "core": {
+    "repeated": false,
+    "reason": "No Core runtime, persistence or Git operation algorithms changed; native cases exercise built Core."
+  },
+  "repairs": [
+    "Initial build rejected a combined @Published declaration; split it into individual wrapped properties.",
+    "Inspection before native validation added previous Browse-error clearing, so a successful retry cannot retain an obsolete error.",
+    "Initial source capture failed in ScreenCaptureKit. Rechecked the failed source and remaining planned cases without changing assertions or app code; all four case/engine combinations then passed.",
+    "Visual review rejected oversized first-group spacing caused by an unconstrained native checkbox. Kept raw initial captures under build/qa/general-source-initial-captures, bounded the row and asserted native checkbox height. Repeated only affected source cases on both engines."
+  ],
+  "captures": [
+    {
+      "path": "docs/site/assets/general-settings-light.png",
+      "sha256": "698a4272bc3e982739cdafe3b57cfccbd24f6d24f294a864d6029328765cf349",
+      "pixels": [
+        1640,
+        1464
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/general-settings-dark.png",
+      "sha256": "d29c1f24dab877f69bcb7ce42091fb1de4fb427eb939cdcdd0eb49684156e7a9",
+      "pixels": [
+        1640,
+        1464
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of actual General page in a private native host using production SettingsPageViewport, without changing user activation. Synthetic private preferences; environment variables were neither captured nor logged.",
+  "help": {
+    "files": 50,
+    "bytes": 1968682,
+    "mode": "check",
+    "unchanged": true
+  },
+  "hosted_observation": {
+    "head": "b86e6eb71564497fb180f719c2e0ca56734f25b0",
+    "pages": {
+      "run": 38981673288,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 38981673369,
+      "status": "pending",
+      "conclusion": null
+    }
+  },
+  "limitations": [
+    "English-only UI remains; source localization is not implemented",
+    "Windows Create Library remains unmapped without a macOS replacement",
+    "Physical keyboard/sheet acceptance, signed bookmark renewal and App Store acceptance remain open",
+    "Full hosted macOS CI not established by local passes"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": []
+  }
+}

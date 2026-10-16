@@ -75,3 +75,34 @@ in `qa/general-setup-batch-2026-10-11.json`. Native visual/keyboard/ownership, l
 network, bookmark renewal and signed sandbox acceptance remain open. This
 checkpoint supersedes the uncompiled/untested statements above. Inventory is
 unchanged; no dialog is newly certified.
+
+## Source inputs and owned engine validation — October 17, 2026
+
+The Git executable now uses native literal filesystem completion, retaining the
+source's path-entry behavior with macOS security-scope boundaries. A visible Extra
+PATH label remains beside populated values. Cached-page activation is observable,
+so inactive controls re-enable when their page returns. Windows Git folders stay
+adapted to macOS executable selection; no shell interprets either field.
+
+Check now has Cancel check and a cancelling state. Cancellation retains busy/Quit
+ownership until the real worker drains, including workers that ignore their token.
+Page retirement fences late results while preserving independent operation counts.
+A version or error is accepted only for the unchanged captured draft. Apply checks
+the same identity after asynchronous validation and refuses to save an older draft
+over a newer one; hidden cached pages can still participate in property-sheet Apply.
+
+Browse captures the full engine draft, page lifecycle and owner. Duplicate Browse
+and update-disable questions share a single owned dialog. Browse validates a
+regular executable before creating its bookmark, preserves the captured Extra
+PATH, and rejects changed/retired/duplicate replies. The update question retains
+Abort as its default and accepts Disable only once for its captured live page.
+Suspension, view dismantling and actual owner closure cancel both native dialogs;
+Settings close/navigation and application Quit account for their ownership.
+
+Fifteen of sixteen static source controls now have partial mappings. Language is
+still English only; its mapping does not claim source localization support. The
+Windows Create Library control remains pending: no Finder Library equivalent has
+been implemented. The environment viewer is a native read-only sheet rather than
+a temporary file opened in a Windows editor. Physical keyboard/sheets, translation
+assets, signed grants and complete source/App Store acceptance remain open.
+Four distinct native case/engine combinations pass with system and bundled Git, with two affected source rechecks after the checkbox layout repair. Both raw light/dark captures were individually reviewed: compact groups, persistent labels and footers fit without clipping. All seven owned receivers were reaped and independently absent; source receivers also assert real child-process cleanup. Core was unchanged and not repeated. See [batch evidence](qa/general-source-family-2026-10-17.json) for the build/capture failures, repairs and remaining acceptance.
