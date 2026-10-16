@@ -449,6 +449,8 @@ jobs:
         run: python3 scripts/test-save-as-targets.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native conflict identities
         run: python3 scripts/test-conflict-identities.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Native bundled archive comparison
+        run: python3 scripts/test-archive-diff.py
       - name: Native filesystem path completion
         run: python3 scripts/test-path-entry.py --only paths --only interactions --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native application identity and file-open routing

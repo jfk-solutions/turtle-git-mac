@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>ZIP archive comparison</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="zip-archive-comparison">ZIP archive comparison</h1>
+<p>ZIP comparisons can show a read-only list of the archive's top-level names,
+modification dates and uncompressed sizes in TurtleGitMerge. This ports the
+bundled TortoiseGit <code>diff-zip.js</code> workflow to macOS. It compares metadata, not the
+contents of individual archive members. A content change with unchanged name,
+date and size is therefore not detected by this view, matching that script.</p>
+<p>New Diff Viewer settings use the bundled ZIP association. Existing saved
+associations are preserved. To enable or restore it, open Settings → Diff Viewer →
+Advanced → Restore Defaults, then accept Advanced and Apply Settings. Restore
+Defaults replaces only the bundled <code>.zip</code> association, retaining other entries.
+Cancel in either settings owner preserves its prior saved value. An association
+can also select ZIP archive inventory in its program editor. External programs
+and disabled associations keep their usual matching and Shift behavior. Hold
+Shift when opening the comparison to bypass an enabled ZIP inventory association
+and inspect the original archive bytes with the regular internal viewer.</p>
+<p>The native reader uses the ZIP central directory, including ZIP64 sizes, UTF-8,
+CP437 filenames and valid Unicode path extra fields. Implicit folders are grouped
+at the top level; explicit directory metadata takes precedence. Dates use the
+stored ZIP DOS timestamp as <code>yyyy-MM-dd HH:mm:ss</code>, without inventing a time zone.
+Archive order is retained; Windows Shell's locale-specific display and exact
+folder-size presentation are not reproduced. Newlines/tabs in member names are
+escaped for the listing. No archive member is extracted, opened or executed.
+The reader limits metadata/text to 64 MiB and the directory to 100,000 entries.
+Split archives and malformed directories report an error in the initiating
+comparison window. Encrypted members can still contribute visible directory
+metadata; their contents are never decrypted.</p>
+<p>Historical and working-file comparison routes share the same association. The
+inventory viewer receives immutable text with <code>.inventory.txt</code> names and no
+editable file mode. Save/edit operations cannot retarget the original archive.
+Reload reuses that captured inventory; reopen the original comparison to read a
+changed archive. An absent side is represented by an empty absent-file pane.
+Cancellation and initiating-window closure reject a late prepared inventory;
+active preparation participates in the normal application Quit guard.</p>
+<p>The Windows Word/Excel/PowerPoint/OpenDocument/Mathematica and DLL scripts still
+need their own macOS adapters. Restore Defaults currently restores the bundled
+ZIP adapter only. This feature does not establish full document-tool, dialog or
+App Store parity. Physical native interaction, Finder handoff, signed sandbox
+access and large/exotic archive acceptance remain open.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

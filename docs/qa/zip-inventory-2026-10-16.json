@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "435567a7384ae01c2d1ffee91c2c7b12214ca428",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Bundled ZIP diff-script adaptation across Core, Diff Viewer/Advanced settings, dispatch and read-only native comparison",
+  "source": [
+    "contrib/diff-scripts/diff-zip.js: top-level metadata, readonly TortoiseMerge, no member-content comparison",
+    "AppUtils.cpp SetupDiffScripts(force) and PickDiffTool association/Shift precedence",
+    "SetProgsAdvDlg.cpp Restore Defaults and IDD_SETTINGSPROGSADV IDC_RESTOREDEFAULTS"
+  ],
+  "implementation": [
+    "Bounded central-directory metadata inspection with ZIP64 sizes, UTF8, CP437 and CRC-validated Unicode path extra fields; cancellation and malformed/split archive errors",
+    "Top-level explicit/implicit folders, archive order, uncompressed sizes, DOS timestamps; escaped control characters; no extraction/execution",
+    "Optional Codable built-in tool kind preserves legacy external settings; new unsaved defaults install ZIP; existing saved lists preserved",
+    "Advanced Restore Defaults replaces ZIP only, preserving other rows and matching row identity through nested draft and parent Apply/Cancel",
+    "Shared association/Shift dispatch prepares inventory off MainActor with active Quit count and cancellation fencing",
+    "Separate readonly native comparison uses synthetic .inventory.txt paths and no working file modes or Git repository; reload uses captured inventory; original archive bytes unchanged",
+    "Native tool radios/table labels, README/manual/offline Help, CI receiver and partial control mapping"
+  ],
+  "core": {
+    "exit": 0,
+    "log": "build/qa/zip-inventory-core.log",
+    "cases": 14,
+    "groups": [
+      "ZIPInventoryTests (7)",
+      "DiffToolPreferencesTests (7)"
+    ],
+    "checks": [
+      "Top-level metadata/explicit and implicit folders/dates/sizes",
+      "UTF8/CP437/literal control and unsafe spellings remain display data",
+      "ZIP64 member sizes and directory",
+      "Empty archive, EOCD comments, malformed/truncated/multipart/bounds/cancellation",
+      "Read-only document modes and original archive preservation",
+      "Legacy preferences/defaults/Restore identity/Shift inversion and Merge adapter refusal",
+      "Retained external executable/argument/selection/merge lifecycle Core cases"
+    ]
+  },
+  "builds": [
+    {
+      "log": "build/qa/zip-inventory-debug.log",
+      "exit": 65,
+      "reason": "Misplaced inventory-window cleanup also modified separate MergeToolApplication; scoped it back to DiffToolApplication"
+    },
+    {
+      "log": "build/qa/zip-inventory-debug-repaired.log",
+      "exit": 0,
+      "anomalous_exit_zero_diagnostics": 10
+    }
+  ],
+  "native": {
+    "log": "build/qa/zip-inventory-native-repaired.log",
+    "exit": 0,
+    "cases": 1,
+    "owned_receivers_reaped_and_independently_absent": [
+      56897,
+      56952
+    ],
+    "checks": [
+      "Actual shared working-file association dispatch for real Python-generated deflated ZIPs",
+      "Native readonly viewer/document/alignment/reload and no archive edit eligibility",
+      "Raw Shift bypass retains original ZIP bytes",
+      "Advanced Restore model preserves other associations/identity and rejects edits behind a child",
+      "Parent Apply/Cancel and private preference persistence",
+      "Malformed and pre-cancelled archive dispatch leaves no new viewer or active request",
+      "Original archive bytes unchanged"
+    ],
+    "fixture_repair": "First receiver failed its Shift assertion. The fixture now uses the existing deferred-load entry point to set its captured tool choice before starting the native host load; the assertion remains. No app/Core rebuild or full-suite repeat followed the fixture correction.",
+    "initial_failure_log": "build/qa/zip-inventory-native.log",
+    "presentation": "Shipping native controller/view/model with injected hidden presentation; no foreground app or physical window gestures"
+  },
+  "documentation": {
+    "offline_help": "29 guides, 47 topics, 35 files, 221967 bytes",
+    "screenshots": "No new screenshot or visual parity claim"
+  },
+  "store_build": false,
+  "limits": [
+    "Metadata inventory intentionally cannot detect member content changes with unchanged name/date/size",
+    "Windows Shell locale/folder sizes and exact archive ordering interoperability not certified; dates use stored DOS timestamp text",
+    "Other Word/Excel/PowerPoint/OpenDocument/Mathematica/DLL scripts and Merge defaults remain unported",
+    "Only ZIP defaults restored; not complete SetupDiffScripts equivalence",
+    "Split archives, exotic extra/digital-signature records, network/large archive and canonical Unicode edge cases need broader acceptance",
+    "No physical Finder/menu/keyboard/VoiceOver/theme capture or signed sandbox/AppStore acceptance",
+    "No complete hosted CI or all-dialog/port parity claim"
+  ]
+}

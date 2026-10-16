@@ -113,6 +113,10 @@ import TurtleGitCore
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, changeSets: CommitChangeSetComparison) {
         self.init(model: FileComparisonWindowModel(repository: repository, access: access, changeSets: changeSets))
     }
+    convenience init(readOnly document: FileComparisonDocument, root: URL, preferences: UserDefaults = .standard) {
+        let model = FileComparisonWindowModel(readOnly: document, root: root); model.comparisonDefaults = preferences
+        self.init(model: model)
+    }
     private init(model: FileComparisonWindowModel) {
         self.model = model
         let path = model.path
@@ -199,7 +203,7 @@ import TurtleGitCore
     private var externalAttempted = false, retired = false
     lazy var openExternalComparison: (FileComparisonDocument, URL, [RepositoryAccessLease], Bool) async throws -> Bool = { [weak self] document, root, permissions, alternate in
         guard let self, !self.retired else { throw OperationCancellationFailure.cancelled }
-        return try await DiffToolApplication.open(document, root: root, permissions: permissions, alternate: alternate, preferences: self.comparisonDefaults, cancellation: self.loadSession?.cancellation)
+        return try await DiffToolApplication.open(document, root: root, permissions: permissions, alternate: alternate, preferences: self.comparisonDefaults, cancellation: self.loadSession?.cancellation, owner: self.window)
     }
     func captureToolChoice(_ alternate: Bool) { guard !busy, !externalAttempted, !retired else { return }; alternateTool = alternate }
     @Published var document: FileComparisonDocument?
@@ -1003,6 +1007,11 @@ import TurtleGitCore
         conflictBaseEntry = conflict.entry
     }
     private var changeSetDocument: FileComparisonDocument?
+    init(readOnly document: FileComparisonDocument, root: URL) {
+        repository = nil; access = nil
+        snapshot = RevisionComparisonSnapshot(root: root, from: document.base.revision, to: document.destination.revision, fromDetails: nil, toDetails: nil, files: [], options: .init())
+        path = document.destination.path; changeSetDocument = document; externalAttempted = true
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, changeSets: CommitChangeSetComparison) {
         self.repository = repository; self.access = access
         snapshot = changeSets.snapshot; path = changeSets.document.destination.path

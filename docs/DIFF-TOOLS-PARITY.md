@@ -255,3 +255,29 @@ keeps its source single-filename behavior. Their empty-template app choice
 retains native URL opening. See [source scope](UNIFIED-DIFF-VIEWER-PARITY.md#external-viewer-arguments-and-executable-tools--october-15-2026)
 and [dated native/Core evidence](qa/external-documents-2026-10-15.json). Signed
 execution and complete external-program acceptance remain open.
+
+## Bundled ZIP script and default associations — October 16, 2026
+
+`contrib/diff-scripts/diff-zip.js` lists top-level Shell namespace names, dates,
+sizes and item count, then opens a read-only TortoiseMerge comparison. The native
+[ZIP adapter](ZIP-COMPARISON.md) now provides that workflow without WScript/COM.
+ZIP64/Unicode central-directory reads do not extract payloads. A read-only native
+comparison owns the generated inventory independently of the initiating window;
+raw archive bytes remain unchanged. Cancellation fences prepared-window handoff.
+
+Diff programs/associations now encode an optional built-in tool kind. Old JSON
+without that key retains external/internal behavior. New unsaved defaults install
+`.zip`; saved association lists remain authoritative. Advanced Restore Defaults
+replaces bundled `.zip` only, retains row identity and other associations, and
+uses the existing nested/parent drafts. Internal/External/ZIP program choice and
+table labels reflect the selected kind. Shift, disabled associations and filename
+precedence use the shared selection path. Merge rejects diff-only built-in kinds.
+The remaining Windows document scripts are still open; this does not supersede
+those gaps with a claim of full Restore Defaults equivalence.
+
+Fourteen focused Core cases and one real-archive native workflow pass. The native
+fixture uses shipping controller/view/model objects with hidden presentation.
+A scoped build repair and the fixture's deferred-load Shift correction are recorded
+in [dated evidence](qa/zip-inventory-2026-10-16.json). Both native receivers were
+reaped and independently absent. No full Core suite, Store build, new screenshot
+or physical/signed acceptance is claimed.

@@ -38,12 +38,18 @@ struct DiffProgramForm: View {
     @State private var error: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker(tool == "merge" ? "Merge tool" : "Diff tool", selection: $program.enabled) { Text("TurtleGitMerge").tag(false); Text("External").tag(true) }.pickerStyle(.radioGroup).labelsHidden()
+            Picker(tool == "merge" ? "Merge tool" : "Diff tool", selection: Binding(get: { !program.enabled ? "internal" : program.builtIn == .zipInventory ? "zip" : "external" }, set: { value in
+                program.enabled = value != "internal"
+                if value != "internal" { program.builtIn = value == "zip" ? .zipInventory : nil }
+            })) {
+                Text("TurtleGitMerge").tag("internal"); Text("External").tag("external")
+                if tool == "diff" { Text("ZIP archive inventory").tag("zip") }
+            }.pickerStyle(.radioGroup).labelsHidden()
             HStack {
                 TextField("Application or executable", text: Binding(get: { program.applicationPath }, set: { guard program.applicationPath != $0 else { return }; program.applicationPath = $0; program.bookmark = nil }))
                 Button("Browse…") { chooser.choose({ application, bookmark in program.applicationPath = application.path; program.bookmark = bookmark }, failure: { error = $0 }, allowExecutables: true) }
-            }.disabled(!program.enabled)
-            TextField("Arguments", text: $program.arguments).disabled(!program.enabled)
+            }.disabled(!program.enabled || program.builtIn != nil)
+            TextField("Arguments", text: $program.arguments).disabled(!program.enabled || program.builtIn != nil)
             if !program.valid { Text(DiffToolFailure.application.localizedDescription).foregroundStyle(.red) }
             if let error { Text(error).foregroundStyle(.red) }
         }.background(ToolChooserProbe(chooser: chooser).frame(width: 0, height: 0)).onDisappear { chooser.cancel() }
@@ -104,6 +110,11 @@ struct DiffToolSettings: View {
     init(associations: [DiffToolAssociation], tool: String) { draft = associations; self.tool = tool }
     var rows: [DiffToolAssociation] { draft.sorted { $0.normalizedPattern.localizedStandardCompare($1.normalizedPattern) == .orderedAscending } }
     var valid: Bool { draft.allSatisfy(\.valid) && Set(draft.map(\.normalizedPattern)).count == draft.count }
+    func restoreDefaults() {
+        guard tool == "diff", editing == nil else { return }
+        var value = DiffToolPreferences(); value.associations = draft; value.restoreBundledAssociations()
+        draft = value.associations; selected = draft.first { $0.normalizedPattern == ".zip" }?.id
+    }
     func add() {
         guard editing == nil else { return }
         var entry = DiffToolAssociation()
@@ -139,10 +150,12 @@ struct DiffToolAssociations: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Advanced " + model.tool + " settings").font(.headline)
             ToolAssociationsTable(model: model).frame(minHeight: 240)
+            if model.tool == "diff" { Text("Bundled ZIP comparison lists archive names, dates and sizes. Restore Defaults replaces the ZIP association and preserves other associations.").font(.caption).foregroundStyle(.secondary) }
             HStack {
                 Button("Add…", action: model.add)
                 Button("Edit…", action: model.edit).disabled(model.selected == nil)
                 Button("Remove", action: model.remove).disabled(model.selected == nil)
+                if model.tool == "diff" { Button("Restore Defaults", action: model.restoreDefaults) }
                 Spacer(); Button("Cancel") { completed(nil) }.keyboardShortcut(.cancelAction)
                 Button("OK") { completed(model.draft) }.keyboardShortcut(.defaultAction).disabled(!model.valid)
             }.disabled(model.editing != nil)
@@ -193,7 +206,7 @@ struct ToolAssociationsTable: NSViewRepresentable {
             let entry = rows[row], text: String
             if tableColumn?.identifier.rawValue == "extension" { text = entry.pattern }
             else if !entry.program.enabled { text = "TurtleGitMerge (external disabled)" }
-            else { text = entry.program.applicationPath + (entry.program.arguments.isEmpty ? "" : " " + entry.program.arguments) }
+            else { text = entry.program.displayName + (entry.program.builtIn != nil || entry.program.arguments.isEmpty ? "" : " " + entry.program.arguments) }
             let cell = NSTableCellView(), field = NSTextField(labelWithString: text); field.lineBreakMode = .byTruncatingTail; field.toolTip = text
             field.translatesAutoresizingMaskIntoConstraints = false; cell.addSubview(field); cell.textField = field
             NSLayoutConstraint.activate([field.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 5), field.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -5), field.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
@@ -247,11 +260,24 @@ private struct DiffToolAssociationEditor: View {
 
 @MainActor enum DiffToolApplication {
     private static var previews: [URL] = []
+    private static var inventoryWindows: [UUID: FileComparisonWindowController] = [:]
+    static var presentInventory: (FileComparisonWindowController) -> Bool = { controller in controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return true }
     private(set) static var activeRequests = 0
-    static func discardAll() { for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
-    static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool, preferences: UserDefaults = .standard, cancellation: OperationCancellation? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> Void)? = nil) async throws -> Bool {
+    static func discardAll() { let windows = inventoryWindows.values; inventoryWindows = [:]; for window in windows { window.close() }; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
+    static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool, preferences: UserDefaults = .standard, cancellation: OperationCancellation? = nil, owner: NSWindow? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> Void)? = nil) async throws -> Bool {
         try cancellation?.check()
         guard let program = try DiffToolPreferences.load(from: preferences).selected(base: document.base.path, destination: document.destination.path, alternate: alternate) else { return false }
+        if program.builtIn == .zipInventory {
+            activeRequests += 1; defer { activeRequests -= 1 }
+            let inventory = try await Task.detached { try document.zipInventories(cancellation: cancellation) }.value
+            try cancellation?.check()
+            let controller = FileComparisonWindowController(readOnly: inventory, root: root, preferences: preferences)
+            controller.window?.appearance = owner?.appearance
+            let identity = UUID(); inventoryWindows[identity] = controller
+            controller.onClosed = { inventoryWindows.removeValue(forKey: identity) }
+            guard presentInventory(controller) else { inventoryWindows.removeValue(forKey: identity); controller.close(); throw CocoaError(.userCancelled) }
+            return true
+        }
         let provider = SystemRepositoryBookmarkProvider()
         let application: URL
         if let bookmark = program.bookmark { application = try provider.resolve(bookmark).url } else { application = URL(fileURLWithPath: program.applicationPath) }

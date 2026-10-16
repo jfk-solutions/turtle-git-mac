@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C81610000000000000000001 /* ZIPInventory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81610000000000000000002 /* ZIPInventory.swift */; };
 		1BDA0DAE2D744061AA72AE3D /* RepositoryAccessWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11CD90E289AB4107B73987F8 /* RepositoryAccessWindow.swift */; };
 		003A4001BFAED871A45BC255 /* HistoryReferenceDeletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDFF34043A119AA7ED83853 /* HistoryReferenceDeletion.swift */; };
 		00475B7C3E3653BF83DB3E74 /* GitConfigurationPermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46261A3DA9CE7CED16FEC3AD /* GitConfigurationPermissions.swift */; };
@@ -496,6 +497,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C81610000000000000000002 /* ZIPInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZIPInventory.swift; sourceTree = "<group>"; };
 		11CD90E289AB4107B73987F8 /* RepositoryAccessWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccessWindow.swift; sourceTree = "<group>"; };
 		001BF3B476FF7414E244B9A6 /* IssueProviderWindows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueProviderWindows.swift; sourceTree = "<group>"; };
 		0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatistics.swift; sourceTree = "<group>"; };
@@ -1217,6 +1219,7 @@
 				102D31C868ED7CEE8FB72699 /* ConflictResolution.swift */,
 				966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */,
 				36D340EDBB3CC101A00E5910 /* DiffToolPreferences.swift */,
+				C81610000000000000000002 /* ZIPInventory.swift */,
 				181B9FE19CD19EA7DAB1E824 /* Fetch.swift */,
 				7428B46131B5378475891E94 /* FileComparison.swift */,
 				FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */,
@@ -1768,6 +1771,7 @@
 				B37762B44078ECEA7539D02D /* ConflictResolution.swift in Sources */,
 				10817BEE6C73733AEFE13A86 /* DeleteConflict.swift in Sources */,
 				1C8614FEC2CFD890B47268BD /* DiffToolPreferences.swift in Sources */,
+				C81610000000000000000001 /* ZIPInventory.swift in Sources */,
 				96858E5400FE448CEE799A09 /* Fetch.swift in Sources */,
 				4CCA62C8CECAD2B41E2E888A /* FileComparison.swift in Sources */,
 				7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */,

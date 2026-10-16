@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 673,
-    "mapped_controls": 986,
+    "pending_control_reviews": 672,
+    "mapped_controls": 987,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -1109,10 +1109,15 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 8,
-      "mapped_controls": 0,
-      "pending_control_reviews": 8,
+      "mapped_controls": 1,
+      "pending_control_reviews": 7,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/DiffToolSettings.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [],
       "qa_records": []

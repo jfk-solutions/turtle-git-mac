@@ -406,3 +406,7 @@ explicitly. Choose a match with the native completion list; directory matches en
 `/`. Relative paths stay relative, and selecting a `~/` match fills its absolute
 path. Use Browse when a destination needs a macOS access grant. Completion does
 not create, move, clone or export anything until you confirm the dialog.
+
+ZIP archive comparisons can use the bundled read-only names/date/size inventory.
+See [ZIP comparison](ZIP-COMPARISON.md) for Settings → Diff Viewer → Advanced →
+Restore Defaults, raw Shift comparison, and the metadata-only scope.

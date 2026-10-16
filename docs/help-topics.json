@@ -231,6 +231,7 @@
     "SAVE-AS-TARGETS.md",
     "CONFLICT-IDENTITIES.md",
     "GIT-PROPERTIES.md",
-    "ACTION-LOG.md"
+    "ACTION-LOG.md",
+    "ZIP-COMPARISON.md"
   ]
 }

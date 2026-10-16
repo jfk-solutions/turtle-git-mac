@@ -2,6 +2,12 @@
 
 *A macOS fork of TortoiseGit*
 
+The bundled [ZIP comparison](ZIP-COMPARISON.md) now connects default associations,
+Advanced Restore Defaults, bounded ZIP64/Unicode metadata reading and a read-only
+native inventory viewer. Raw Shift comparison and saved custom associations are
+preserved. Fourteen focused Core checks and the real-archive native workflow pass.
+Other Windows document scripts and full physical/signed acceptance remain open.
+
 The [remote-management family](REMOTE-TAGS-PARITY.md#remote-management-operation-ownership--october-16-2026)
 now owns tag confirmation, worker drain, ordered error acknowledgement and fresh
 reload independently of its window. Remote-reference selection accepts once;

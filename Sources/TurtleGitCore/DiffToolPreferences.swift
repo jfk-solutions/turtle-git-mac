@@ -11,15 +11,21 @@ public enum DiffToolFailure: LocalizedError {
         }
     }
 }
+public enum BuiltInDiffTool: String, Codable, Sendable {
+    case zipInventory
+    public var title: String { "ZIP archive inventory" }
+}
 public struct DiffToolProgram: Codable, Equatable, Sendable {
     public var enabled = false
     public var applicationPath = ""
     public var arguments = "%base %mine"
     public var bookmark: Data?
+    public var builtIn: BuiltInDiffTool?
     public init() {}
+    public var displayName: String { builtIn?.title ?? applicationPath }
     public var isApplicationBundle: Bool { (applicationPath as NSString).pathExtension.lowercased() == "app" }
     public var valid: Bool {
-        !enabled || (applicationPath.hasPrefix("/") && !applicationPath.contains("\0") &&
+        !enabled || builtIn != nil || (applicationPath.hasPrefix("/") && !applicationPath.contains("\0") &&
             (isApplicationBundle || bookmark != nil || FileManager.default.isExecutableFile(atPath: applicationPath) &&
                 (try? URL(fileURLWithPath: applicationPath).resolvingSymlinksInPath().resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true) &&
             (try? Self.argumentTokens(arguments)) != nil)
@@ -76,12 +82,20 @@ public struct DiffToolPreferences: Codable, Equatable, Sendable {
     public init() {}
     public var valid: Bool { program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.normalizedPattern)).count == associations.count }
     public static func load(from defaults: UserDefaults = .standard) -> Self {
-        guard let data = defaults.data(forKey: "TurtleGit.DiffTools"), let value = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }
+        guard let data = defaults.data(forKey: "TurtleGit.DiffTools") else { var value = Self(); value.restoreBundledAssociations(); return value }
+        guard let value = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }
         return value
     }
     public func save(to defaults: UserDefaults = .standard) throws {
         guard valid else { throw DiffToolFailure.association }
         defaults.set(try JSONEncoder().encode(self), forKey: "TurtleGit.DiffTools")
+    }
+    /// SetupDiffScripts(force): replace only extensions for shipped adapters;
+    /// retain unrelated user associations and an existing row identity.
+    public mutating func restoreBundledAssociations() {
+        var value = associations.first { $0.normalizedPattern == ".zip" } ?? DiffToolAssociation()
+        value.pattern = ".zip"; value.program = DiffToolProgram(); value.program.enabled = true; value.program.builtIn = .zipInventory
+        associations.removeAll { $0.normalizedPattern == ".zip" }; associations.append(value)
     }
     /// AppUtils::PickDiffTool: destination filename, base filename, destination extension.
     public func selected(base: String, destination: String, alternate: Bool = false) throws -> DiffToolProgram? {
@@ -93,7 +107,7 @@ public struct DiffToolPreferences: Codable, Equatable, Sendable {
         // Source built-in image comparison precedes the default text diff tool.
         if association == nil, ["jpg", "jpeg", "bmp", "gif", "png", "ico", "tif", "tiff", "dib", "emf", "cur", "webp", "svg", "svgz"].contains(ext) { return nil }
         let found = association?.program ?? program
-        guard found.enabled != alternate, !found.applicationPath.isEmpty else { return nil }
+        guard found.enabled != alternate, found.builtIn != nil || !found.applicationPath.isEmpty else { return nil }
         var result = found; result.enabled = true
         guard result.valid else { throw DiffToolFailure.application }
         return result
@@ -109,7 +123,7 @@ public struct MergeToolPreferences: Codable, Equatable, Sendable {
     public var supportsTrustedExit: Bool {
         (program.enabled && !program.isApplicationBundle) || associations.contains { $0.program.enabled && !$0.program.isApplicationBundle }
     }
-    public var valid: Bool { program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.normalizedPattern)).count == associations.count }
+    public var valid: Bool { program.builtIn == nil && associations.allSatisfy { $0.program.builtIn == nil } && program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.normalizedPattern)).count == associations.count }
     public static func load(from defaults: UserDefaults = .standard) -> Self {
         guard let data = defaults.data(forKey: "TurtleGit.MergeTools"), let value = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }
         return value
@@ -122,9 +136,9 @@ public struct MergeToolPreferences: Codable, Equatable, Sendable {
         let name = (path as NSString).lastPathComponent.lowercased(), ext = (path as NSString).pathExtension.lowercased()
         let keys = ["." + name] + (ext.isEmpty ? [] : ["." + ext])
         let found = keys.compactMap { key in associations.first { $0.normalizedPattern == key } }.first?.program ?? program
-        guard found.enabled != alternate, !found.applicationPath.isEmpty else { return nil }
+        guard found.enabled != alternate, found.builtIn != nil || !found.applicationPath.isEmpty else { return nil }
         var result = found; result.enabled = true
-        guard result.valid else { throw DiffToolFailure.application }; return result
+        guard result.valid, result.builtIn == nil else { throw DiffToolFailure.application }; return result
     }
 }
 public struct ExternalMergeInputs: Sendable {
