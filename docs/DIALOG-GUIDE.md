@@ -465,6 +465,11 @@ IDiff. Use **Load Images** to view image content with arbitrary filenames; this
 explicit command does not invoke configured external diff programs. Explicit
 Merge Open/source comparisons stay in the Merge editor.
 
+In image comparison, Ctrl-wheel zooms around the pointer. Drag pans the image;
+Shift-drag leaves a linked peer in place. In overlay mode, Shift-drag moves only
+the first image and Ctrl-drag only the second. Ctrl-Shift-wheel adjusts blend
+alpha. Ordinary trackpad scrolling and Shift-wheel use native scrolling.
+
 ### Image conflict selection
 
 Image conflicts use the filename extension and your Merge Tool association.

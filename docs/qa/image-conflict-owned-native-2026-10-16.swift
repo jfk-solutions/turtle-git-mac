@@ -46,6 +46,8 @@ import TurtleGitCore
             var button:NSButton?
             try await wait{button=descendants(controller.window!.contentView!).compactMap{$0 as? NSButton}.first{$0.accessibilityLabel()=="Select "+side.rawValue};return button?.isEnabled==true}
             button!.performClick(nil);try await wait{controller.window!.attachedSheet != nil}
+            try require(controller.model.panes.values.allSatisfy{!$0.commandsAllowed()},"Conflict question left image input active")
+            try await wait { descendants(controller.window!.contentView!).compactMap{$0 as? ImageComparisonScrollView}.allSatisfy{!$0.inputAllowed()} }
         }
         func reply(_ value:NSApplication.ModalResponse,_ controller:ImageConflictWindowController) async throws {
             guard let sheet=controller.window!.attachedSheet else{throw Failure(description:"Missing production resolution sheet")}

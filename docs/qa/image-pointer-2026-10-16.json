@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "3a380b2fb1a51548d796f865b1efb6bed6b3f975",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "TortoiseIDiff/PicWindow.cpp CPicWindow::OnMouseWheel",
+    "CPicWindow::SetZoom and Zoom",
+    "CPicWindow WM_LBUTTONDOWN/WM_MOUSEMOVE/WM_LBUTTONUP"
+  ],
+  "scope": [
+    "Ctrl-wheel quantized per-picture zoom with pointer pixel anchoring and linked bounded-origin copying",
+    "Existing linked dimensions and overlay-scale propagation; zero-delta and native Shift/ordinary-scroll fallback",
+    "Linked pan, Shift isolation, ten-point unlinked peer border snapping",
+    "Ctrl/Shift independent second/first overlay translations consumed by alpha and tiled XOR drawing",
+    "Independent offsets scale with wheel zoom and reset on overlay transition/input replacement",
+    "Canvas focus/open-hand cursor, captured image/frame/scale/overlay/viewport drag lifetime",
+    "Native dismantle callback retirement and comparison/conflict busy/sheet/closed gates"
+  ],
+  "core": {
+    "run": false,
+    "reason": "Existing Core sizing/zoom/geometry used unchanged; this batch changes native input and rendering integration only"
+  },
+  "debug": {
+    "log": "build/qa/image-pointer-build-2026-10-16.log",
+    "exit": 0,
+    "exit_zero_no_output_diagnostics": 1
+  },
+  "native": {
+    "log": "build/qa/image-pointer-native-2026-10-16.log",
+    "exit": 0,
+    "case_engine_passes": 8,
+    "failed_receivers": 0,
+    "cases": [
+      "pointer",
+      "toolbar",
+      "frames",
+      "conflict-owned"
+    ],
+    "engines": [
+      "system Git",
+      "bundled universal Git arm64 execution"
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      58573,
+      58574,
+      58652,
+      58708,
+      58929,
+      58930,
+      59005,
+      59062
+    ],
+    "new_assertions": [
+      "Actual native scrollWheel and canvas pointer events, exact addressed/peer scale and pointer-origin formulas",
+      "Linked and isolated peer origins; unlinked peer snapping",
+      "Separate overlay offset ownership and changed alpha-render PNG bytes after each independent drag; XOR render with retained offsets",
+      "Ctrl-Shift alpha priority and overlay scale coupling",
+      "Disabled owner, replaced scale and retired scroll reject pointer changes; immutable original PNG input bytes",
+      "Actual conflict selection question leaves every pane command and native input predicate disabled"
+    ],
+    "retained_scope": "Existing toolbar order/artwork, command/menu/key/child gates; GIF/TIFF/ICO frame pixels, playback and retirement; original-byte conflict selection and owned No/close/cancellation lifetime",
+    "activation": "Hidden native windows only; no application activation or global input posting."
+  },
+  "documentation": {
+    "help_log": "build/qa/image-pointer-help-2026-10-16.log",
+    "help_files": 50,
+    "help_bytes": 1964804,
+    "source_built_equal": true,
+    "captures": "No new screenshot in this batch; pixel assertions use native view cache renders. Existing screenshots predate new pointer interactions.",
+    "site_log": "build/qa/image-pointer-site-2026-10-16.log",
+    "site_exit": 0,
+    "site_documents": 259,
+    "unresolved_fragments": 0,
+    "coverage_ledger": "regenerated; counts unchanged"
+  },
+  "limits": [
+    "Physical trackpad/mouse/keyboard-layout/VoiceOver acceptance",
+    "Exact Windows pixel-to-native-point cursor/center/scroll geometry across small and differently sized pictures",
+    "Arbitrary animation/overlay/linked-dimension gesture combinations",
+    "Minimum-OS and signed sandbox/Finder/App Store execution",
+    "Full image viewer/application parity and hosted CI not established"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

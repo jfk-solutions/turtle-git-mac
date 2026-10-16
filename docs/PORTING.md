@@ -1554,3 +1554,14 @@ Source column controls now retain order/width/visibility, owned reset confirmati
 sizing and sort state; native splitter/filter alignment persists across browsers.
 Window-scoped filter/list/F5/F2 behavior uses the existing captured-reference and
 inline-rename paths. See [browser presentation](REFERENCE-BROWSER-PRESENTATION.md).
+
+
+### Image pointer navigation family — October 16, 2026
+
+Ported source Ctrl-wheel scale with pointer anchoring, linked origin handling,
+Shift-drag isolation, unlinked border snapping and independent overlay-image
+panning in alpha/XOR. Native input now shares the owning comparison/conflict
+operation/sheet/retirement gates; replaced frame/scale/layout retires a drag.
+See [image comparison parity](IMAGE-COMPARISON-PARITY.md) and
+[batch evidence](qa/image-pointer-2026-10-16.json). Physical and signed acceptance
+and full application parity remain open.

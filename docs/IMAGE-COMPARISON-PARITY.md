@@ -221,3 +221,38 @@ The retained native image fixtures now use source-recognized image extensions
 for automatic dispatch. Arbitrary-extension image loading remains covered through
 explicit Load Images. This corrects earlier fixtures that relied on content-only
 routing; it does not weaken their frame, pixel, toolbar or repository assertions.
+
+
+## Image pointer navigation — October 16, 2026
+
+`CPicWindow::OnMouseWheel`, `SetZoom` and mouse-drag handling provide the source
+for this connected native batch. Ctrl-wheel now applies the existing quantized
+zoom steps to the addressed image, preserving the pixel under the pointer where
+scroll bounds allow. Linked positions copy the bounded origin; linked dimensions
+and overlay still determine the peer's scale through the existing sizing engine.
+Zero wheel deltas do not zoom. Shift-wheel and ordinary trackpad/momentum scrolling
+retain AppKit's horizontal/vertical behavior; Ctrl-Shift-wheel in overlay keeps
+alpha priority. A precise wheel event advances one source zoom step by direction,
+as upstream does per wheel message.
+
+Ordinary drag pans both linked positions. Shift-drag pans the addressed picture
+without moving its linked peer. Unlinked pictures snap each axis to the peer's
+scroll origin when within the source ten-point threshold, adapted from pixels.
+Overlay Ctrl-drag pans only the second image; Shift-drag pans only the first.
+The independent translations are bounded by that picture's scrollable extent,
+used by alpha and tiled XOR rendering, scaled during wheel zoom, and cleared when
+leaving/re-entering overlay or replacing the input images. Ordinary overlay drag
+retains those relative translations while moving the shared viewport.
+
+The image canvas receives keyboard focus on a permitted click and exposes a
+native open-hand cursor. Drag captures frame identities, scale, overlay and
+viewport geometry; a replacement frame/scale/layout cannot continue its old drag.
+Native teardown clears callbacks and pending drag. Comparison and conflict panes
+reject wheel/drag while their owner has a child sheet, reload/selection operation
+or retired lifetime. Conflict panes now share the actual conflict-owner gate;
+previously their default predicate remained enabled during selection work.
+
+See [pointer batch evidence](qa/image-pointer-2026-10-16.json) for native scope,
+retained frame/toolbar/conflict checks and validation outcomes. No complete
+physical trackpad/mouse/VoiceOver, Windows cursor geometry, minimum-OS or signed
+Finder/App Store acceptance is established by constructed receiver events.

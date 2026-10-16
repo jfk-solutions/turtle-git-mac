@@ -13,7 +13,7 @@ import TurtleGitCore
     @Published var nativeToolbarInstalled = false
     var commandsAllowed: () -> Bool = { true }
     var reloadImages: () -> Void = {}
-    @Published var overlay = false { didSet { if overlay { stopAllPlayback(); linked = true; alpha = 0.5 } } }
+    @Published var overlay = false { didSet { if oldValue != overlay { imageOffsets = [:] }; if overlay { stopAllPlayback(); linked = true; alpha = 0.5 } } }
     @Published var blendAlpha = true
     @Published var vertical = false
     @Published var linked = true
@@ -24,13 +24,14 @@ import TurtleGitCore
     @Published private var currentImages: [Bool: ComparisonImage] = [:]
     @Published private(set) var playing: Set<Bool> = []
     @Published private(set) var frameErrors: [Bool: String] = [:]
+    @Published private(set) var imageOffsets: [Bool: CGPoint] = [:]
     private var sources: [Bool: ComparisonImage] = [:]
     private var playback: [Bool: Task<Void,Never>] = [:]
     private var playbackGeneration: [Bool: UUID] = [:]
     func currentImage(base: Bool) -> ComparisonImage? { currentImages[base] }
     func configureImages(base: ComparisonImage?, destination: ComparisonImage?) {
         guard sources[true]?.id != base?.id || sources[false]?.id != destination?.id else { return }
-        stopAllPlayback(); frameErrors = [:]
+        stopAllPlayback(); frameErrors = [:]; imageOffsets = [:]
         sources = [:]; sources[true] = base; sources[false] = destination; currentImages = sources
         configure(base: base?.size ?? .zero, destination: destination?.size ?? .zero)
     }
@@ -122,6 +123,71 @@ import TurtleGitCore
         let delta = event.scrollingDeltaY != 0 ? event.scrollingDeltaY : event.scrollingDeltaX
         let steps = event.hasPreciseScrollingDeltas ? delta / 120 : delta
         alpha = ImageComparisonBlend.wheel(alpha, steps: Double(steps)); return true
+    }
+    /// CPicWindow::OnMouseWheel: alpha, horizontal scrolling, then scale.
+    /// Ordinary scrolling keeps AppKit's trackpad/momentum behavior.
+    func pointerWheel(_ event: NSEvent, scroll: ImageComparisonScrollView, base: Bool) -> Bool {
+        guard commandsAllowed(), scroll.window?.attachedSheet == nil else { return true }
+        if alphaWheel(event) { return true }
+        let flags = event.modifierFlags.intersection([.control,.shift,.option,.command])
+        guard flags == .control else { return false }
+        let delta = event.scrollingDeltaY != 0 ? event.scrollingDeltaY : event.scrollingDeltaX
+        guard delta != 0, currentImages[base] != nil else { return true }
+        let before = displaySizing, viewport = scroll.contentView.bounds
+        let windowPoint = event.window == nil ? scroll.window?.convertPoint(fromScreen:event.locationInWindow) ?? event.locationInWindow:event.locationInWindow
+        let point = scroll.contentView.convert(windowPoint, from: nil)
+        let anchor = CGPoint(x: min(viewport.width,max(0,point.x - viewport.minX)),
+                             y: min(viewport.height,max(0,point.y - viewport.minY)))
+        freezeFit()
+        let percent = CGFloat(sizing.pane(base:base).percent) / 100
+        sizing.setZoom(Int((ImageComparisonGeometry.nextZoom(percent,zoomIn:delta > 0) * 100).rounded()),base:base)
+        let after = displaySizing
+        if overlay {
+            for side in [true,false] {
+                let old = before.displayed(base:side),new = after.displayed(base:side),offset = imageOffsets[side] ?? .zero
+                imageOffsets[side] = CGPoint(x:old.width > 0 ? offset.x * new.width / old.width:0,
+                                            y:old.height > 0 ? offset.y * new.height / old.height:0)
+            }
+        }
+        // A scale command updates native extents before restoring the pixel anchor.
+        for view in scrolls.values { (view as? ImageComparisonScrollView)?.updateCanvas() }
+        let oldSize = before.displayed(base:base),newSize = after.displayed(base:base)
+        func coordinate(_ origin:CGFloat,_ pixel:CGFloat,_ viewport:CGFloat,_ old:CGFloat,_ new:CGFloat) -> CGFloat {
+            guard old > 0 else { return origin }
+            return (origin + pixel - max(0,(viewport - old) / 2)) * new / old + max(0,(viewport - new) / 2) - pixel
+        }
+        let proposed = CGPoint(x:coordinate(viewport.minX,anchor.x,viewport.width,oldSize.width,newSize.width),
+                               y:coordinate(viewport.minY,anchor.y,viewport.height,oldSize.height,newSize.height))
+        move(scroll,to:proposed,synchronize:linked || overlay)
+        return true
+    }
+    private func move(_ scroll:NSScrollView,to origin:CGPoint,synchronize:Bool) {
+        guard let content = scroll.documentView else { return }
+        synchronizing = true
+        scroll.contentView.scroll(to:ImageComparisonGeometry.linkedOrigin(origin,content:content.frame.size,viewport:scroll.contentView.bounds.size))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        synchronizing = false
+        if synchronize { didScroll(scroll,base:scrolls[true] === scroll) }
+    }
+    func pan(_ scroll:ImageComparisonScrollView,base:Bool,translation:CGPoint,start:CGPoint,
+             offsets:[Bool:CGPoint],modifiers:NSEvent.ModifierFlags) {
+        guard commandsAllowed(),scroll.window?.attachedSheet == nil else { return }
+        if overlay,modifiers.contains(.control) || modifiers.contains(.shift) {
+            let side = !modifiers.contains(.control)
+            let initial = offsets[side] ?? .zero
+            let size = displaySizing.displayed(base:side)
+            let proposed = CGPoint(x:start.x - initial.x - translation.x,y:start.y - initial.y - translation.y)
+            let bounded = ImageComparisonGeometry.linkedOrigin(proposed,content:size,viewport:scroll.contentView.bounds.size)
+            imageOffsets[side] = CGPoint(x:start.x - bounded.x,y:start.y - bounded.y)
+            scroll.updateCanvas(); return
+        }
+        var proposed = CGPoint(x:start.x - translation.x,y:start.y - translation.y)
+        if !linked,modifiers.intersection([.control,.shift]).isEmpty,let peer = scrolls[!base] {
+            let other = peer.contentView.bounds.origin
+            if abs(proposed.x - other.x) < 10 { proposed.x = other.x }
+            if abs(proposed.y - other.y) < 10 { proposed.y = other.y }
+        }
+        move(scroll,to:proposed,synchronize:linked && !modifiers.contains(.shift))
     }
     func commandState(_ command: ImageEditorCommand) -> ImageEditorCommandState {
         let allowed = commandsAllowed()
@@ -313,7 +379,14 @@ struct ImageComparisonScroll: NSViewRepresentable {
         scroll.image = image; scroll.second = second; scroll.alpha = model.alpha; scroll.overlay = model.overlay; scroll.blendAlpha = model.blendAlpha
         let side = base
         scroll.recordViewport = { [weak model] size in model?.recordViewport(size, base: side) }
-        scroll.alphaWheel = { [weak model] event in model?.alphaWheel(event) ?? false }
+        scroll.alphaWheel = { [weak model,weak scroll] event in
+            guard let model,let scroll else { return true };return model.pointerWheel(event,scroll:scroll,base:side)
+        }
+        scroll.inputAllowed = { [weak model,weak scroll] in model?.commandsAllowed() == true && scroll?.window?.attachedSheet == nil }
+        scroll.offsets = { [weak model] in model?.imageOffsets ?? [:] }
+        scroll.pan = { [weak model,weak scroll] translation,start,offsets,modifiers in
+            guard let model,let scroll else { return };model.pan(scroll,base:side,translation:translation,start:start,offsets:offsets,modifiers:modifiers)
+        }
         scroll.displayedSizes = { [weak model] in
             guard let model else { return (.zero, .zero) }
             let state = model.displaySizing
@@ -323,7 +396,7 @@ struct ImageComparisonScroll: NSViewRepresentable {
     }
     static func dismantleNSView(_ scroll: ImageComparisonScrollView, coordinator: Coordinator) {
         if let observer = coordinator.observer { NotificationCenter.default.removeObserver(observer) }
-        coordinator.model.unregister(scroll, base: coordinator.base)
+        scroll.retireInput();coordinator.model.unregister(scroll, base: coordinator.base)
     }
     final class Coordinator {
         let model: ImageComparisonViewModel; let base: Bool
@@ -340,18 +413,28 @@ final class ImageComparisonScrollView: NSScrollView {
     var overlay = false
     var blendAlpha = true
     var alphaWheel: ((NSEvent) -> Bool)?
+    var inputAllowed: () -> Bool = { true }
+    var offsets: () -> [Bool:CGPoint] = { [:] }
+    var pan: ((CGPoint,CGPoint,[Bool:CGPoint],NSEvent.ModifierFlags) -> Void)?
+    func retireInput() {
+        (documentView as? ImageComparisonCanvas)?.cancelDrag()
+        inputAllowed = { false };alphaWheel = { _ in true };pan = nil;offsets = { [:] }
+        recordViewport = nil;displayedSizes = nil
+    }
     override func scrollWheel(with event: NSEvent) { if alphaWheel?(event) != true { super.scrollWheel(with: event) } }
     var recordViewport: ((CGSize) -> Void)?
     var displayedSizes: (() -> (CGSize, CGSize))?
     override func layout() { super.layout(); updateCanvas() }
     func updateCanvas() {
         guard let canvas = documentView as? ImageComparisonCanvas else { return }
+        if !inputAllowed() {canvas.cancelDrag()}
         let viewport = contentView.bounds.size
         recordViewport?(viewport)
         let (firstSize, secondSize) = displayedSizes?() ?? (.zero, .zero)
         let extent = NSSize(width: max(viewport.width, firstSize.width, secondSize.width), height: max(viewport.height, firstSize.height, secondSize.height))
         canvas.transparentColor = transparentColor
         backgroundColor = ImageWindowPresentation.background(transparentColor, appearance: effectiveAppearance)
+        canvas.firstOffset = offsets()[true] ?? .zero;canvas.secondOffset = offsets()[false] ?? .zero
         canvas.image = image; canvas.second = second; canvas.imageSize = firstSize; canvas.secondSize = secondSize; canvas.alpha = alpha; canvas.overlay = overlay; canvas.blendAlpha = blendAlpha
         if canvas.frame.size != extent { canvas.setFrameSize(extent) }
         canvas.needsDisplay = true
@@ -367,17 +450,25 @@ private final class ImageComparisonCanvas: NSView {
     var alpha: Double = 0.5
     var overlay = false
     var blendAlpha = true
+    var firstOffset = CGPoint.zero,secondOffset = CGPoint.zero
     private var dragPoint: NSPoint?
+    private var dragOffsets: [Bool:CGPoint] = [:]
+    private var dragStamp = ""
+    private var inputStamp:String { "\(image?.id.uuidString ?? "")/\(image?.frameIndex ?? -1)/\(second?.id.uuidString ?? "")/\(second?.frameIndex ?? -1)/\(imageSize)/\(secondSize)/\(overlay)/\(enclosingScrollView?.contentView.bounds.size ?? .zero)" }
+    func cancelDrag() { dragPoint = nil;dragOffsets = [:] }
+    override var acceptsFirstResponder:Bool { true }
+    override func resetCursorRects() { if (enclosingScrollView as? ImageComparisonScrollView)?.inputAllowed() == true { addCursorRect(visibleRect,cursor:.openHand) } }
+    override func viewWillMove(toWindow newWindow:NSWindow?) { if window !== newWindow {cancelDrag()};super.viewWillMove(toWindow:newWindow) }
     private var dragOrigin = NSPoint.zero
     override var isFlipped: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
         imageBackground.setFill(); dirtyRect.fill()
         let combined = CGSize(width: max(imageSize.width, secondSize.width), height: max(imageSize.height, secondSize.height))
         let origin = CGPoint(x: (bounds.width - combined.width) / 2, y: (bounds.height - combined.height) / 2)
-        func paint(_ source: ComparisonImage?, size: CGSize, fraction: Double) {
+        func paint(_ source: ComparisonImage?, size: CGSize, fraction: Double,offset:CGPoint) {
             guard let source else { return }
             let native = NSImage(cgImage: source.pixels, size: source.size)
-            native.draw(in: NSRect(origin: origin, size: size), from: .zero, operation: .sourceOver, fraction: fraction, respectFlipped: true, hints: [.interpolation: NSImageInterpolation.none])
+            native.draw(in: NSRect(origin:CGPoint(x:origin.x + offset.x,y:origin.y + offset.y), size: size), from: .zero, operation: .sourceOver, fraction: fraction, respectFlipped: true, hints: [.interpolation: NSImageInterpolation.none])
         }
         if overlay && !blendAlpha {
             // Render only the visible tile at backing resolution, after zoom and
@@ -386,14 +477,14 @@ private final class ImageComparisonCanvas: NSView {
             guard !tile.isEmpty else { return }
             let backing = window?.backingScaleFactor ?? 1
             let width = Int(ceil(tile.width * backing)), height = Int(ceil(tile.height * backing))
-            func rect(_ size: CGSize) -> CGRect {
-                CGRect(x: (origin.x - tile.minX) * backing, y: (origin.y - tile.minY) * backing,
+            func rect(_ size: CGSize,_ offset:CGPoint) -> CGRect {
+                CGRect(x: (origin.x + offset.x - tile.minX) * backing, y: (origin.y + offset.y - tile.minY) * backing,
                        width: size.width * backing,
                        height: size.height * backing)
             }
             if let result = ImageComparisonXOR.render(base: image?.pixels, destination: second?.pixels,
-                                                     width: width, height: height, baseRect: rect(imageSize),
-                                                     destinationRect: rect(secondSize), background: imageBackground.cgColor) {
+                                                     width: width, height: height, baseRect: rect(imageSize,firstOffset),
+                                                     destinationRect: rect(secondSize,secondOffset), background: imageBackground.cgColor) {
                 NSImage(cgImage: result, size: tile.size).draw(in: tile, from: .zero, operation: .copy,
                     fraction: 1, respectFlipped: true, hints: [.interpolation: NSImageInterpolation.none])
             } else {
@@ -401,27 +492,28 @@ private final class ImageComparisonCanvas: NSView {
             }
             return
         }
-        paint(image, size: imageSize, fraction: 1)
+        paint(image, size: imageSize, fraction: 1,offset:firstOffset)
         if overlay, alpha > 0 {
             let layer = NSImage(size: bounds.size, flipped: true) { [self] rect in
                 imageBackground.setFill(); rect.fill()
-                paint(second, size: secondSize, fraction: 1)
+                paint(second, size: secondSize, fraction: 1,offset:secondOffset)
                 return true
             }
             layer.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: alpha, respectFlipped: true, hints: nil)
         }
     }
     override func mouseDown(with event: NSEvent) {
-        dragPoint = event.locationInWindow; dragOrigin = enclosingScrollView?.contentView.bounds.origin ?? .zero
+        guard let scroll = enclosingScrollView as? ImageComparisonScrollView,scroll.inputAllowed() else {cancelDrag();return}
+        window?.makeFirstResponder(self)
+        dragPoint = event.locationInWindow;dragOrigin = scroll.contentView.bounds.origin;dragOffsets = scroll.offsets();dragStamp = inputStamp
     }
     override func mouseDragged(with event: NSEvent) {
-        guard let start = dragPoint, let scroll = enclosingScrollView else { return }
+        guard let start = dragPoint,let scroll = enclosingScrollView as? ImageComparisonScrollView,
+              scroll.inputAllowed(),dragStamp == inputStamp else {cancelDrag();return}
         let point = event.locationInWindow
-        let proposed = CGPoint(x: dragOrigin.x - (point.x - start.x), y: dragOrigin.y + (point.y - start.y))
-        scroll.contentView.scroll(to: ImageComparisonGeometry.linkedOrigin(proposed, content: frame.size, viewport: scroll.contentView.bounds.size))
-        scroll.reflectScrolledClipView(scroll.contentView)
+        scroll.pan?(CGPoint(x:point.x - start.x,y:start.y - point.y),dragOrigin,dragOffsets,event.modifierFlags)
     }
-    override func mouseUp(with event: NSEvent) { dragPoint = nil }
+    override func mouseUp(with event: NSEvent) { cancelDrag() }
 }
 
 @MainActor protocol ImageComparisonKeyRouting: AnyObject {

@@ -66,6 +66,9 @@ import TurtleGitCore
             let pane = ImageComparisonViewModel(presentation: presentation); pane.configureImages(base: decoded[side], destination: nil)
             return (side,pane)
         })
+        for pane in panes.values { pane.commandsAllowed = { [weak self] in
+            guard let self else {return false};return !self.busy && !self.retired && self.windowForCommands?.attachedSheet == nil
+        } }
     }
     func commandState(_ command: ImageEditorCommand) -> ImageEditorCommandState? {
         let ready = !busy && !retired && windowForCommands?.attachedSheet == nil
