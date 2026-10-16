@@ -39,6 +39,11 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
 @MainActor final class NetworkSettingsModel: ObservableObject {
     let settingsRegistration = UUID()
     static var activeSaves = 0
+    private(set) static var activeReads=0
+    private(set) static var activeSSHChoosers=0
+    @Published private(set) var checkingSSH=false
+    @Published private(set) var cancellingCheck=false
+    @Published private(set) var selectingSSH=false
     @Published var proxy = GitProxySettings()
     @Published var ssh = SSHClientPreferences.load()
     @Published private(set) var busy = false
@@ -57,11 +62,18 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
     private let access: RepositoryAccessLease?
     private let localAvailable: Bool
     private var files: GitConfigurationFiles?
-    private var active = false
+    @Published private var active = false
     private var saving = false
     private var generation = UUID()
     private var token: OperationCancellation?
-    private var panel: NSOpenPanel?
+    private(set) var panel: NSOpenPanel?
+    private var sshChoiceID:UUID?
+    var presentSSHPanel:(NSOpenPanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void = {panel,window,reply in panel.beginSheetModal(for:window,completionHandler:reply)}
+    var selectedSSHURL:(NSOpenPanel)->URL? = {$0.url}
+    var bookmarkSSH:(URL)throws->Data = {try $0.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil)}
+    var fieldPreferences:UserDefaults {preferences}
+    var pathBase:URL {repository.root}
+    var canEditSSH:Bool {active && loaded && !busy && !selectingSSH && !GitRuntime.isAppStoreBuild}
     private var permissionReply: ((Bool) -> Void)?
     weak var window: NSWindow?
     init(repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool, preferences: UserDefaults = .standard, passwords: (any ProxyPasswordStoring)? = nil) {
@@ -73,7 +85,9 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
     func activate() { active = true; if !loaded { load() } }
     func deactivate() {
         active = false; generation = UUID(); token?.cancel(); token = nil
-        if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
+        checkingSSH=false;cancellingCheck=false
+        if sshChoiceID != nil {sshChoiceID=nil;selectingSSH=false;Self.activeSSHChoosers -= 1}
+        if let panel {panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil);panel.close()};panel=nil
         let reply = permissionReply; permissionReply = nil; reply?(false)
         if !saving { busy = false }
     }
@@ -98,10 +112,11 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
         }
     }
     private func load() {
-        guard active, !busy else { return }
+        guard active, !busy, !selectingSSH else { return }
         let request = UUID(), token = OperationCancellation(); generation = request; self.token = token; busy = true; error = nil
-        Task {
-            defer { if generation == request { busy = false; self.token = nil } }
+        Self.activeReads += 1
+        Task { [self,access] in
+            defer {Self.activeReads -= 1;withExtendedLifetime(access) {};if generation == request {busy=false;self.token=nil}}
             do {
                 try checkAccess()
                 let files = try await repository.gitConfigurationFiles(hasRepository: localAvailable, cancellation: token)
@@ -129,6 +144,7 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
         }
     }
     func validate() -> String? {
+        guard !selectingSSH else {return "Finish selecting the SSH client first."}
         guard loaded, !busy else { return "Finish loading or checking Network settings first." }
         do { _ = try proxy.value(); if !GitRuntime.isAppStoreBuild { _ = try ssh.executable() }; return nil }
         catch { return error.localizedDescription }
@@ -159,55 +175,85 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
             return true
         } catch { if active { self.error = error.localizedDescription }; return false }
     }
-    func cancelDraft() { guard !saving else { return }; proxy = savedProxy; ssh = savedSSH; error = nil }
+    func cancelDraft() { guard !saving,!selectingSSH else { return }; proxy = savedProxy; ssh = savedSSH; error = nil }
+    func cancelSSHCheck() {
+        guard checkingSSH,!cancellingCheck else {return}
+        cancellingCheck=true;token?.cancel()
+    }
     func checkSSH() {
-        guard active, !busy else { return }
-        let ssh = ssh, token = OperationCancellation(), request = UUID(); generation = request; self.token = token; busy = true; error = nil
-        Task {
-            defer { if generation == request { busy = false; self.token = nil } }
-            do { let version: String
-                if let sshVersion { version = try await sshVersion(ssh, token) } else { version = try await Task.detached { try ssh.version(cancellation: token) }.value }
-                if active, generation == request, !token.isCancelled { self.version = version } }
-            catch { if active, generation == request, !token.isCancelled { self.error = error.localizedDescription } }
+        guard active,loaded,!busy,!selectingSSH,!GitRuntime.isAppStoreBuild else {return}
+        let ssh=ssh,token=OperationCancellation(),request=UUID();generation=request;self.token=token
+        busy=true;checkingSSH=true;cancellingCheck=false;error=nil;Self.activeReads += 1
+        Task { [self,access] in
+            defer {
+                Self.activeReads -= 1;withExtendedLifetime(access) {}
+                if generation==request {busy=false;checkingSSH=false;cancellingCheck=false;self.token=nil}
+            }
+            do {
+                let version:String
+                if let sshVersion {version=try await sshVersion(ssh,token)}
+                else {version=try await Task.detached {try ssh.version(cancellation:token)}.value}
+                if active,generation==request,!token.isCancelled,self.ssh==ssh {self.version=version}
+            } catch {if active,generation==request,!token.isCancelled,self.ssh==ssh {self.error=error.localizedDescription}}
         }
     }
     func browseSSH() {
-        guard active, !busy, !GitRuntime.isAppStoreBuild, let window, window.attachedSheet == nil else { return }
-        let chooser = NSOpenPanel(); chooser.canChooseFiles = true; chooser.canChooseDirectories = false; chooser.title = "Choose OpenSSH client"; chooser.prompt = "Select SSH"
-        chooser.directoryURL = URL(fileURLWithPath: ssh.path.isEmpty ? "/usr/bin" : (ssh.path as NSString).deletingLastPathComponent); panel = chooser
-        chooser.beginSheetModal(for: window) { [weak self] response in
-            guard let self, self.panel === chooser else { return }; self.panel = nil
-            guard self.active, response == .OK, let file = chooser.url else { return }
-            do { self.ssh.bookmark = try file.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil); self.ssh.path = file.path; self.version = "" }
-            catch { self.error = error.localizedDescription }
+        guard canEditSSH,panel==nil,let window,window.attachedSheet==nil else {return}
+        let chooser=NSOpenPanel();chooser.canChooseFiles=true;chooser.canChooseDirectories=false;chooser.title="Choose OpenSSH client";chooser.prompt="Select SSH"
+        chooser.directoryURL=URL(fileURLWithPath:ssh.path.isEmpty ? "/usr/bin" : (ssh.path as NSString).deletingLastPathComponent)
+        panel=chooser;let choice=UUID(),request=generation,captured=ssh;sshChoiceID=choice;selectingSSH=true;Self.activeSSHChoosers += 1
+        presentSSHPanel(chooser,window) { [weak self,weak chooser] response in
+            guard let self,let chooser,self.panel === chooser,self.sshChoiceID==choice else {return}
+            self.panel=nil;self.sshChoiceID=nil;self.selectingSSH=false;Self.activeSSHChoosers -= 1
+            guard self.active,self.generation==request,self.ssh==captured,response == .OK,let file=self.selectedSSHURL(chooser) else {return}
+            do {
+                var isDirectory:ObjCBool=false
+                guard file.isFileURL,FileManager.default.fileExists(atPath:file.path,isDirectory:&isDirectory),!isDirectory.boolValue,FileManager.default.isExecutableFile(atPath:file.path) else {throw NetworkSettingsFailure.ssh}
+                var selected=captured;selected.bookmark=try self.bookmarkSSH(file);selected.path=file.path
+                self.ssh=selected;self.version=""
+            } catch {self.error=error.localizedDescription}
         }
     }
-    func retry() { guard !busy else { return }; loaded = false; load() }
+    func retry() { guard !busy,!selectingSSH else { return }; loaded = false; load() }
 }
 struct NetworkSettingsPage: View {
     @ObservedObject var model: NetworkSettingsModel
     @Environment(\.settingsTransaction) private var transaction
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Toggle("Enable Proxy Server", isOn: $model.proxy.enabled).disabled(!model.loaded || model.busy)
+            Toggle("Enable Proxy Server", isOn: $model.proxy.enabled).disabled(!model.loaded || model.busy || model.selectingSSH)
             GroupBox("Proxy Settings") {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack { TextField("Server address:", text: $model.proxy.server); TextField("Port:", text: $model.proxy.port).frame(width: 100) }
-                    TextField("Username:", text: $model.proxy.username)
-                    SecureField("Password:", text: $model.proxy.password)
-                    Text("Saves http.proxy globally. Repository and URL-specific overrides retain Git precedence. Proxy credentials are part of Git’s configured proxy URL.").font(.caption).foregroundStyle(.secondary)
-                }.padding(10).disabled(!model.proxy.enabled || !model.loaded || model.busy)
+                VStack(alignment:.leading,spacing:12) {
+                    HStack(spacing:10) {
+                        Text("Server address:").frame(width:112,alignment:.leading)
+                        TextField("",text:$model.proxy.server).accessibilityLabel("Server address").help("Address of the proxy server used for HTTP and HTTPS Git operations.")
+                        Text("Port:")
+                        TextField("",text:$model.proxy.port).frame(width:85).multilineTextAlignment(.trailing).accessibilityLabel("Proxy port")
+                    }
+                    HStack(spacing:10) {Text("Username:").frame(width:112,alignment:.leading);TextField("",text:$model.proxy.username).frame(maxWidth:340).accessibilityLabel("Proxy username");Spacer(minLength:0)}
+                    HStack(spacing:10) {Text("Password:").frame(width:112,alignment:.leading);SecureField("",text:$model.proxy.password).frame(maxWidth:340).accessibilityLabel("Proxy password");Spacer(minLength:0)}
+                    Text("Saves http.proxy globally. Repository and URL-specific overrides retain Git precedence. Proxy credentials are part of Git’s configured proxy URL.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+                    Spacer(minLength:12)
+                }.padding(10).frame(height:225,alignment:.topLeading).disabled(!model.proxy.enabled || !model.loaded || model.busy || model.selectingSSH)
             }
-            Spacer().frame(minHeight: 30, maxHeight: 70)
             GroupBox("SSH") {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment:.leading,spacing:10) {
                     Text("SSH client:")
                     HStack {
-                        TextField("Automatic OpenSSH", text: Binding(get: { GitRuntime.isAppStoreBuild ? "Bundled OpenSSH" : model.ssh.path }, set: { model.ssh.path = $0; model.ssh.bookmark = nil; model.version = "" }))
-                        Button("Browse…", action: model.browseSSH)
-                    }.disabled(GitRuntime.isAppStoreBuild || model.busy)
-                    HStack { Button("Use automatic OpenSSH") { model.ssh = SSHClientPreferences(); model.version = "" }.disabled(GitRuntime.isAppStoreBuild || model.busy); Button("Check now", action: model.checkSSH).disabled(GitRuntime.isAppStoreBuild || model.busy); Text(model.version).font(.caption).textSelection(.enabled) }
-                    Text(GitRuntime.isAppStoreBuild ? "App Store builds use bundled OpenSSH. Existing Git SSH command overrides still apply." : "Custom clients must be OpenSSH. Git’s SSH environment and repository command overrides retain precedence.").font(.caption).foregroundStyle(.secondary)
+                        if GitRuntime.isAppStoreBuild {TextField("",text:.constant("Bundled OpenSSH")).disabled(true)}
+                        else {
+                            PathEntryField(text:Binding(get:{model.ssh.path},set:{model.ssh.path=$0;model.ssh.bookmark=nil;model.version=""}),label:"SSH client",base:model.pathBase,preferences:model.fieldPreferences,mayEdit:{model.canEditSSH})
+                                .frame(height:24).disabled(!model.canEditSSH)
+                        }
+                        Button("Browse…",action:model.browseSSH).disabled(!model.canEditSSH)
+                    }
+                    HStack {
+                        Button("Use automatic OpenSSH") {model.ssh=SSHClientPreferences();model.version=""}.disabled(!model.canEditSSH)
+                        Button(model.cancellingCheck ? "Cancelling…" : model.checkingSSH ? "Cancel check" : "Check now") {if model.checkingSSH {model.cancelSSHCheck()} else {model.checkSSH()}}
+                            .disabled(GitRuntime.isAppStoreBuild || !model.loaded || model.selectingSSH || model.cancellingCheck || model.busy && !model.checkingSSH)
+                        Text(model.version).font(.caption).textSelection(.enabled)
+                    }
+                    Text(GitRuntime.isAppStoreBuild ? "App Store builds use bundled OpenSSH. Existing Git SSH command overrides still apply." : "Custom clients must be OpenSSH. Git’s SSH environment and repository command overrides retain precedence.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                 }.padding(10)
             }.disabled(!model.loaded)
             if model.busy { ProgressView().controlSize(.small) }
@@ -223,6 +269,7 @@ struct NetworkSettingsPage: View {
         .onChange(of: model.proxy) { _ in transaction?.notify() }
         .onChange(of: model.ssh) { _ in transaction?.notify() }
         .onChange(of: model.busy) { _ in transaction?.notify() }
+        .onChange(of: model.selectingSSH) { _ in transaction?.notify() }
         .onDisappear { model.deactivate() }
     }
 }

@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "16460d3b89904ee9f087d7fb6c44968d2f54563b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Visible source proxy labels, bounded group proportions and SSH label/path/Browse",
+    "Shared native path completion and existing absolute executable/OpenSSH validation",
+    "Captured, duplicate, cancelled, wrong-file, changed-context and retired picker handling",
+    "Independent read/chooser Quit ownership and actual drain after retirement/cancellation",
+    "Cancel check, captured version identity, cached page reactivation and fourteen explicit partial resource-control mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/network-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/network-source-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/network-source-reactivation-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "distinct_case_engine_passes": 4,
+    "affected_source_rechecks": 4,
+    "runs": [
+      {
+        "log": "build/qa/network-source-native-2026-10-17.log",
+        "exit": 0,
+        "owned_receivers_reaped": [
+          99728,
+          99747,
+          99782,
+          99800
+        ]
+      },
+      {
+        "log": "build/qa/network-source-layout-native-2026-10-17.log",
+        "exit": 0,
+        "owned_receivers_reaped": [
+          99898,
+          99917
+        ]
+      },
+      {
+        "log": "build/qa/network-source-reactivation-native-2026-10-17.log",
+        "exit": 0,
+        "owned_receivers_reaped": [
+          151,
+          170
+        ]
+      }
+    ],
+    "independently_absent_owned_receivers": [
+      99728,
+      99747,
+      99782,
+      99800,
+      99898,
+      99917,
+      151,
+      170
+    ],
+    "helper_cleanup": "Each source receiver asserts that the real version-check shell and sleep child are absent after cancellation."
+  },
+  "repairs": [
+    "Initial behavior checks passed, but the first captures showed an oversized proxy group and window. Bounded the group height and repeated only the affected source cases. Raw rejected captures are retained under build/qa/network-source-initial-captures.",
+    "A bare NSHostingView capture host still resized its window to the root Spacer ideal height after orderFront. Replaced it with the production SettingsPageViewport and asserted actual rendered host/window size, including after display. Earlier captures are retained under build/qa/network-source-pre-viewport-captures.",
+    "Inspection of cached-page reactivation found that canEditSSH depends on active but active was not observable. Published that state and added a deactivate/disabled/reactivate/enabled assertion to the affected source fixture. Repeated only that family on both engines."
+  ],
+  "core": {
+    "repeated": false,
+    "reason": "No Core Git/parser/SMTP/persistence algorithms changed; native checks exercise built Core proxy/SSH APIs."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/network-settings-light.png",
+      "sha256": "742b26bb93ff7ff32989f771f0104fa54575ba301651d29f8a1e35b710904ab9",
+      "pixels": [
+        1520,
+        1364
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/network-settings-dark.png",
+      "sha256": "94b3ce7d1a69c7fcf4949a5104945de4fce060d4c9a8762236f485d823354d9e",
+      "pixels": [
+        1520,
+        1364
+      ],
+      "reviewed": true
+    }
+  ],
+  "help": {
+    "files": 50,
+    "bytes": 1968682,
+    "bundled_bytes_equal": true
+  },
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": 0
+  },
+  "hosted_at_observation": {
+    "head": "16460d3b89904ee9f087d7fb6c44968d2f54563b",
+    "pages_run": 38978112033,
+    "pages": "success",
+    "macos_run": 38978111998,
+    "macos": "pending"
+  },
+  "limits": [
+    "The captured window is a private page host using the production Settings viewport, not a claim of full Settings-window/Finder physical acceptance.",
+    "Custom non-OpenSSH source clients remain outside this macOS adaptation; Store builds retain bundled OpenSSH.",
+    "Live Keychain, signed bookmarks/sandbox, minimum-OS keyboard/IME/VoiceOver and full App Store acceptance remain unverified.",
+    "Prior Pages success and pending macOS status do not prove acceptance of this unpushed batch."
+  ]
+}

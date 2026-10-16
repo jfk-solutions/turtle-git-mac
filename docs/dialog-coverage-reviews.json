@@ -685,6 +685,22 @@
           "anchor": "class SMTPCredentialWindowController"
         }
       ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSPROXY",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/NETWORK-SETTINGS-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/NetworkSettings.swift",
+          "anchor": "class NetworkSettingsModel"
+        },
+        {
+          "path": "Sources/TurtleGitMac/NetworkSettings.swift",
+          "anchor": "struct NetworkSettingsPage"
+        }
+      ]
     }
   ]
 }

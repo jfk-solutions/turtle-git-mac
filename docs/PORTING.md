@@ -1741,3 +1741,16 @@ checks actual owner attachment. A deterministic late-registration regression,
 wrapped navigation and view switching pass locally; all owned receivers are
 closed. Hosted verification remains pending. See
 [the repair record](qa/ci-hidden-pane-restore-2026-10-17.json).
+
+### Network source layout and SSH owners — October 17, 2026
+
+Network now retains source proxy labels/group order and uses native SSH path
+completion. Captured Browse requests reject changed/retired replies, while
+independent read/chooser counts guard Quit and retain cancellation until drain.
+Check now includes Cancel check and associates results with its captured client.
+Source-ordered proxy/SSH Apply behavior remains. See
+[Network parity](NETWORK-SETTINGS-PARITY.md#source-layout-and-ssh-readpicker-family--october-17-2026).
+Four distinct native case/engine combinations pass; affected source rechecks
+cover the recorded layout and cached-page repairs. Two reviewed passive page
+captures are published, and all eight owned receivers are closed. Core was
+unchanged and not repeated. See [batch evidence](qa/network-source-family-2026-10-17.json).

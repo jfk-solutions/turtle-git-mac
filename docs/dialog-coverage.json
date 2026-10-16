@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 656,
-    "mapped_controls": 1003,
+    "pending_control_reviews": 642,
+    "mapped_controls": 1017,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -990,17 +990,27 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 14,
-      "mapped_controls": 0,
-      "pending_control_reviews": 14,
+      "mapped_controls": 14,
+      "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/NetworkSettings.swift",
+          "anchor": "class NetworkSettingsModel"
+        },
+        {
+          "path": "Sources/TurtleGitMac/NetworkSettings.swift",
+          "anchor": "struct NetworkSettingsPage"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/NETWORK-SETTINGS-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/network-finder-settings-batch-2026-10-11.json",
-        "docs/qa/network-settings-native-2026-10-12.json"
+        "docs/qa/network-settings-native-2026-10-12.json",
+        "docs/qa/network-source-family-2026-10-17.json"
       ]
     },
     {

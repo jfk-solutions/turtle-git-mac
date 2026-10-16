@@ -109,3 +109,57 @@ All owned windows/processes were closed/reaped. See
 [the native record](qa/network-settings-native-2026-10-12.json).
 The complete ten-family reference group was not rerun locally; hosted/signed
 acceptance remains unproven.
+
+## Source layout and SSH read/picker family — October 17, 2026
+
+Network now retains visible Server address, Port, Username and Password labels
+when values are entered, following `IDD_SETTINGSPROXY` rather than using labels
+only as placeholders. Proxy Settings retains its larger source group and SSH
+follows beneath it. Enable Proxy controls the entire proxy field group. The SSH
+client label, path and Browse remain independent of that proxy checkbox.
+
+The SSH path uses the shared native path-entry control with completion, ordinary
+file URL input, source-path editing and private preference injection. Its typed
+path remains subject to the existing absolute executable/OpenSSH validation;
+completion does not authorize a custom Store client. Store builds retain bundled
+OpenSSH and disable custom client controls. Automatic reset and version checks
+remain explicit macOS additions to the source page.
+
+Browse owns one captured request. Duplicate invocation, changed SSH draft,
+deactivation/closure and late duplicate replies cannot overwrite another client
+or save a bookmark. Accepted files must be existing executable files; directories
+are refused before bookmarking. Cancel keeps the prior client. A pending chooser
+blocks Settings Apply/close/page selection and application Quit independently of
+a real attached sheet, including injected presenters.
+
+Loading and Check now have independent read/drain accounting, keeping their
+repository access and application Quit ownership after forced page retirement.
+Cancel check requests the current version-process cancellation and retains the
+busy state until actual drain. Old/cancelled replies and replies describing a
+changed client cannot publish a version/error. Hiding or closing the page cancels
+its read and dismisses its owned picker; already-authorized Apply saves keep the
+existing source-ordered completion policy. This supersedes the previous lack of
+independent read/chooser accounting; actual signed Keychain/scopes and physical
+controls/keyboard/minimum-OS acceptance remain open.
+
+All fourteen `IDD_SETTINGSPROXY` controls have explicit partial native mappings:
+Enable; server/port/username/password labels and fields; SSH label/path/Browse;
+and Proxy Settings/SSH group boxes. No full-dialog certification is implied.
+
+[Grouped evidence](qa/network-source-family-2026-10-17.json) records four distinct
+passing case/engine combinations: source owners/layout and retained private Git
+configuration/Apply behavior, each with system and bundled Git. The source group
+was repeated after the recorded layout/host and cached-page reactivation repairs;
+unaffected configuration checks and Core were not repeated. All eight owned
+receivers were reaped and independently absent; actual SSH version helpers are
+asserted absent inside each source case.
+
+The final private page host uses the same bounded Settings viewport as production.
+Both passive captures were individually reviewed: permanent labels, complete
+proxy/SSH groups, masked sample password and all SSH buttons fit without clipping.
+Inactive titles preserve user focus. These are page-host captures, not a new
+standalone production Network window or signed/physical acceptance.
+
+![Network Settings page, light](site/assets/network-settings-light.png)
+
+[Network Settings page, dark](site/assets/network-settings-dark.png).
