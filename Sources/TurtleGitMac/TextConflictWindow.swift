@@ -1847,17 +1847,31 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
 final class MergeLineRuler: NSRulerView {
     var sourceNumbers: [Int?]?
     var markedRows = Set<Int>()
+    var showNumbers = true
+    var movedRows: [Int:String] = [:]
+    var followMovedRow: (Int) -> Void = { _ in }
+    private var visibleMovedRows: [(NSRect,Int)] = []
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow,from:nil)
+        if event.clickCount == 2,let row = visibleMovedRows.first(where:{$0.0.contains(point)})?.1 { followMovedRow(row);return }
+        super.mouseDown(with:event)
+    }
+    @objc func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData data: UnsafeMutableRawPointer?) -> String {
+        guard let row = visibleMovedRows.first(where:{$0.0.contains(point)})?.1 else { return "" }
+        return movedRows[row] ?? ""
+    }
     func updateMetrics(for view: NSTextView) {
         let count = sourceNumbers?.compactMap { $0 }.max() ?? MergeLineEndings.lineRanges(in: view.string).count
         let font = NSFont.monospacedDigitSystemFont(ofSize: view.font?.pointSize ?? 10, weight: .regular)
         let width = (String(max(1, count)) as NSString).size(withAttributes: [.font: font]).width + 22
-        let next = max(45, ceil(width))
+        let next = showNumbers ? max(45, ceil(width)) : 20
         if ruleThickness != next { ruleThickness = next }
     }
     override init(scrollView: NSScrollView?, orientation: NSRulerView.Orientation) { super.init(scrollView: scrollView, orientation: orientation); ruleThickness = 45 }
     required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func drawHashMarksAndLabels(in rect: NSRect) {
         guard let view = clientView as? NSTextView ?? scrollView?.documentView as? NSTextView, let manager = view.layoutManager, let container = view.textContainer else { return }
+        removeAllToolTips();visibleMovedRows = []
         NSColor.controlBackgroundColor.setFill(); bounds.fill()
         let text = view.string as NSString, visible = view.visibleRect
         let visibleInRuler = convert(visible, from: view)
@@ -1871,11 +1885,19 @@ final class MergeLineRuler: NSRulerView {
             let glyph = manager.glyphRange(forCharacterRange: NSRange(location: location, length: 1), actualCharacterRange: nil)
             let frame = manager.boundingRect(forGlyphRange: glyph, in: container).offsetBy(dx: view.textContainerInset.width, dy: view.textContainerInset.height)
             let folded = view.textStorage?.attribute(.mergeFoldHidden, at: location, effectiveRange: nil) != nil || view.textStorage?.attribute(.mergeFoldMarker, at: location, effectiveRange: nil) != nil
+            if !folded, movedRows[line - 1] != nil {
+                let paragraph = manager.boundingRect(forGlyphRange:manager.glyphRange(forCharacterRange:range,actualCharacterRange:nil),in:container).offsetBy(dx:view.textContainerOrigin.x,dy:view.textContainerOrigin.y)
+                let area = NSRect(x:bounds.minX,y:convert(paragraph.origin,from:view).y,width:ruleThickness,height:max(14,paragraph.height)).intersection(bounds)
+                if !area.isEmpty { visibleMovedRows.append((area,line - 1));addToolTip(area,owner:self,userData:nil) }
+            }
             if !folded && frame.maxY >= visible.minY && frame.minY <= visible.maxY {
                 let number = sourceNumbers == nil ? line : (sourceNumbers!.indices.contains(line - 1) ? sourceNumbers![line - 1] : nil)
                 let value = number.map(String.init) as NSString? ?? ""
-                value.draw(at: NSPoint(x: ruleThickness - value.size(withAttributes: attrs).width - 6, y: convert(frame.origin, from: view).y), withAttributes: attrs)
-                if markedRows.contains(line - 1) { MenuIcon.mergeMarked.image(size: 12)?.draw(in: NSRect(x: 2, y: convert(frame.origin, from: view).y, width: 12, height: 12)) }
+                if showNumbers { value.draw(at: NSPoint(x: ruleThickness - value.size(withAttributes: attrs).width - 6, y: convert(frame.origin, from: view).y), withAttributes: attrs) }
+                if movedRows[line - 1] != nil {
+                    MenuIcon.mergeMoved.image(size:14)?.draw(in:NSRect(x:2,y:convert(frame.origin,from:view).y,width:14,height:14))
+                }
+                if movedRows[line - 1] == nil && markedRows.contains(line - 1) { MenuIcon.mergeMarked.image(size: 12)?.draw(in: NSRect(x: 2, y: convert(frame.origin, from: view).y, width: 12, height: 12)) }
             }
             if frame.minY > visible.maxY { break }
             location = NSMaxRange(range); line += 1

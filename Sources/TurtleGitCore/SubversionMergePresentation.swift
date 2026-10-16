@@ -25,7 +25,8 @@ public struct SubversionMergeConfiguration: Sendable {
 }
 public struct SubversionComparisonPresentation: Sendable {
     public let alignment: FileComparisonAlignment
-    public init(plan: SubversionDiffPlan) throws {
+    public let movedBlocks: [MergeMovedBlock]
+    public init(plan: SubversionDiffPlan, detectMovedBlocks: Bool = false, whitespace: MergeWhitespaceComparison = .compare, cancellation: OperationCancellation? = nil) throws {
         guard plan.theirs == nil else { throw SubversionMergeDiffFailure.invalidOutput }
         var rows: [FileComparisonRow] = [], differences: [Range<Int>] = []
         func cell(_ lines: [String], _ index: Int, _ state: MergeSourceState, hidden: Bool? = nil) -> MergeSourceCell {
@@ -52,6 +53,7 @@ public struct SubversionComparisonPresentation: Sendable {
             }
         }
         alignment = FileComparisonAlignment(rows: rows, differences: differences)
+        movedBlocks = detectMovedBlocks ? try MergeMovedBlock.detect(plan:plan,whitespace:whitespace,cancellation:cancellation) : []
     }
 }
 /// Follows DiffData.cpp's common, identical-change, one-side-change and conflict
@@ -175,5 +177,160 @@ public struct SubversionMergePresentation: Sendable {
             }
         }
         sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans), resultAnchors: anchors, ignoredConflicts: ignoredConflicts, navigationMap:.init(entries:navigation),alignedResultRows:resultRows); result = output
+    }
+}
+
+
+// Moved-block algorithm adapted from TortoiseGit (2023) and TortoiseSVN
+// (2010-2013, 2020), GPL-2.0-or-later; pinned source recorded in the parity guide.
+/// Source MovedBlocks.cpp's two-pass unique-line seed/extension algorithm.
+/// Coordinates refer to original source records, never to display padding.
+public struct MergeMovedBlock: Equatable, Sendable {
+    public let base: Range<Int>
+    public let mine: Range<Int>
+    public init(base: Range<Int>, mine: Range<Int>) { self.base = base; self.mine = mine }
+    private final class Group {
+        var left = Set<Int>(), right = Set<Int>()
+        var perfect: Bool { left.count == 1 && right.count == 1 }
+    }
+    private final class Chunk {
+        var base: Range<Int>, mine: Range<Int>
+        init(_ base: Range<Int>, _ mine: Range<Int>) { self.base = base; self.mine = mine }
+    }
+    private final class Extension {
+        var base: Chunk, next: Extension?
+        var to: Int?, from: Int?
+        init(_ base: Chunk) { self.base = base }
+    }
+    public static func enabled(defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey:"TurtleGitMerge.ViewMovedBlocks") == nil || defaults.bool(forKey:"TurtleGitMerge.ViewMovedBlocks")
+    }
+    public static func detect(plan: SubversionDiffPlan, whitespace: MergeWhitespaceComparison = .compare,
+                              cancellation: OperationCancellation? = nil) throws -> [Self] {
+        try cancellation?.check()
+        guard plan.theirs == nil else { return [] }
+        // FileTextLines strips EOL before the source move detector. Its own WS
+        // normalization deliberately differs from svn's comparison keys.
+        func key(_ line: String) -> Data {
+            var value = Array(MergeLineEndings.droppingFinalEnding(line).utf8)
+            if whitespace == .ignoreAll { value.removeAll { $0 == 32 || $0 == 9 } }
+            else if whitespace == .ignoreChanges {
+                let first = value.firstIndex { $0 != 32 && $0 != 9 } ?? value.count
+                value.removeFirst(first)
+            }
+            return Data(value)
+        }
+        func sourceKeys(_ lines: [String]) -> [Data] {
+            var result = lines.map(key)
+            if lines.isEmpty || lines.last.map({ !MergeLineEndings.styles(in:$0).isEmpty }) == true { result.append(Data()) }
+            return result
+        }
+        let a = sourceKeys(plan.base), b = sourceKeys(plan.mine)
+        var groups: [Data:Group] = [:], chunks: [Chunk] = []
+        for segment in plan.segments where segment.kind == .modified {
+            try cancellation?.check()
+            guard segment.base.lowerBound >= 0,segment.base.upperBound <= plan.base.count,
+                  segment.mine.lowerBound >= 0,segment.mine.upperBound <= plan.mine.count else { throw SubversionMergeDiffFailure.invalidOutput }
+            // Source refuses detection when a changed interval consumes its
+            // final NoEnding record. Ended files have a synthetic empty record.
+            guard segment.base.upperBound < a.count,segment.mine.upperBound < b.count else { return [] }
+            chunks.append(Chunk(segment.base,segment.mine))
+            for i in segment.base { let group = groups[a[i]] ?? Group();group.left.insert(i);groups[a[i]] = group }
+            for j in segment.mine { let group = groups[b[j]] ?? Group();group.right.insert(j);groups[b[j]] = group }
+        }
+        // Extension can include repeated lines surrounding a unique seed. Remove
+        // those occurrences, but retain the seed as in the pinned implementation.
+        func consume(_ i: Int, _ j: Int) -> Bool {
+            guard a.indices.contains(i),b.indices.contains(j),let left = groups[a[i]],let right = groups[b[j]],left === right else { return false }
+            left.left.remove(i);right.right.remove(j);return true
+        }
+        var head: Extension?, tail: Extension?
+        var index = 0
+        while index < chunks.count {
+            try cancellation?.check()
+            var chunk = chunks[index]
+            guard let seed = chunk.base.first(where:{groups[a[$0]]?.perfect == true}),let j = groups[a[seed]]?.right.first else { index += 1;continue }
+            var i1 = seed - 1,j1 = j - 1
+            while i1 >= chunk.base.lowerBound && j1 >= 0 && consume(i1,j1) { i1 -= 1;j1 -= 1 }
+            i1 += 1;j1 += 1
+            var i2 = seed + 1,j2 = j + 1
+            while i2 < chunk.base.upperBound && consume(i2,j2) { i2 += 1;j2 += 1 }
+            let added = Extension(chunk)
+            if head == nil { head = added } else { tail?.next = added }
+            tail = added
+            if i1 > chunk.base.lowerBound {
+                let rest = Chunk(i1..<chunk.base.upperBound,chunk.mine.upperBound..<chunk.mine.upperBound)
+                chunk.base = chunk.base.lowerBound..<i1;chunks.insert(rest,at:index + 1);index += 1;chunk = rest
+                added.base = rest
+            }
+            added.to = j1
+            if i2 < chunk.base.upperBound {
+                let suffix = Chunk(i2..<chunk.base.upperBound,chunk.mine)
+                chunk.base = chunk.base.lowerBound..<i2;chunk.mine = chunk.mine.lowerBound..<chunk.mine.lowerBound
+                chunks.insert(suffix,at:index + 1)
+            }
+            index += 1
+        }
+        var existing = head
+        tail = nil
+        func adjust(_ chunk: Chunk) {
+            if let current = existing,current.base === chunk {
+                if let tail,tail !== current { tail.next = current }
+                tail = current;existing = current.next
+            }
+        }
+        index = 0
+        while index < chunks.count {
+            try cancellation?.check()
+            var chunk = chunks[index]
+            guard let seed = chunk.mine.first(where:{groups[b[$0]]?.perfect == true}),let i = groups[b[seed]]?.left.first else { adjust(chunk);index += 1;continue }
+            if i == 0 { index += 1;continue }
+            var i1 = i - 1,j1 = seed - 1
+            while j1 >= chunk.mine.lowerBound && i1 >= 0 && consume(i1,j1) { i1 -= 1;j1 -= 1 }
+            i1 += 1;j1 += 1
+            var i2 = i + 1,j2 = seed + 1
+            while j2 < chunk.mine.upperBound && consume(i2,j2) { i2 += 1;j2 += 1 }
+            let added: Extension
+            if let current = existing,current.base === chunk { added = current }
+            else {
+                added = Extension(chunk)
+                if head == nil { head = added }
+                else if let tail { added.next = tail.next;tail.next = added }
+            }
+            tail = added
+            if j1 > chunk.mine.lowerBound {
+                let rest = Chunk(chunk.base.upperBound..<chunk.base.upperBound,j1..<chunk.mine.upperBound)
+                if existing === added {
+                    let split = Extension(rest);split.next = tail?.next;tail?.next = split;tail = split
+                }
+                tail?.base = rest
+                chunk.mine = chunk.mine.lowerBound..<j1;chunks.insert(rest,at:index + 1);index += 1;chunk = rest
+            }
+            tail?.from = i1
+            if j2 < chunk.mine.upperBound {
+                let suffix = Chunk(chunk.base,j2..<chunk.mine.upperBound)
+                let split = Extension(suffix);split.to = tail?.to;tail?.to = nil
+                chunk.mine = chunk.mine.lowerBound..<j2;chunk.base = chunk.base.lowerBound..<chunk.base.lowerBound
+                chunks.insert(suffix,at:index + 1)
+                split.next = tail?.next;tail?.next = split;existing = split;tail = split
+            }
+            adjust(chunk);index += 1
+        }
+        var links: [Int:Int] = [:], current = head
+        while let entry = current {
+            try cancellation?.check()
+            let chunk = entry.base
+            if let to = entry.to { for (offset,i) in chunk.base.enumerated() where plan.mine.indices.contains(to + offset) && plan.base.indices.contains(i) { links[i] = to + offset } }
+            if let from = entry.from { for (offset,j) in chunk.mine.enumerated() where plan.base.indices.contains(from + offset) && plan.mine.indices.contains(j) { links[from + offset] = j } }
+            current = entry.next
+        }
+        var result: [Self] = []
+        for i in links.keys.sorted() {
+            let j = links[i]!
+            if let previous = result.last,previous.base.upperBound == i,previous.mine.upperBound == j {
+                result[result.count - 1] = Self(base:previous.base.lowerBound..<(i + 1),mine:previous.mine.lowerBound..<(j + 1))
+            } else { result.append(Self(base:i..<(i + 1),mine:j..<(j + 1))) }
+        }
+        return result
     }
 }

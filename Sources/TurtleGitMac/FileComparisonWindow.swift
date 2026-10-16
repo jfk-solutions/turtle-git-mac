@@ -227,15 +227,17 @@ import TurtleGitCore
         let combined: OnePaneFileComparison?
         let annotations: [Bool: FileComparisonEditing.Annotations]
         let revisions: [Bool: UUID]
+        let moves: [MergeMovedBlock]
+        let moveLinks: [Bool:[Int:MovedRowLink]]?
     }
     func captureEditingPresentation() -> EditingPresentation? {
-        alignment.map { .init(alignment:$0,combined:onePaneActive ? combined : nil,annotations:[true:annotations(base:true),false:annotations(base:false)],revisions:editRevisions) }
+        alignment.map { .init(alignment:$0,combined:onePaneActive ? combined : nil,annotations:[true:annotations(base:true),false:annotations(base:false)],revisions:editRevisions,moves:movedBlockRecords,moveLinks:retainedMoveLinks) }
     }
     private var editRevisions: [Bool:UUID] { Dictionary(uniqueKeysWithValues:[true,false].compactMap { side in drafts?.editRevision(base:side).map { (side,$0) } }) }
     func installEditingPresentation(_ presentation: EditingPresentation) {
         regexCancellation?.cancel(); regexCancellation = nil; filtering = false
         cancelDeferredNavigation(); alignmentGeneration += 1
-        alignment = presentation.alignment; combinedCache = presentation.combined
+        alignment = presentation.alignment; combinedCache = presentation.combined; movedBlockRecords = presentation.moves; retainedMoveLinks = presentation.moveLinks
         retainingViewEdits = true
         for (side,value) in presentation.annotations { updateAnnotations(value,base:side) }
         for side in [true,false] { drafts?.setEditRevision(presentation.revisions[side],base:side) }
@@ -250,7 +252,7 @@ import TurtleGitCore
             values[side] = value
         }
         var revisions = editRevisions; revisions[base] = UUID()
-        return .init(alignment:edit.alignment,combined:edit.combined,annotations:values,revisions:revisions)
+        return .init(alignment:edit.alignment,combined:edit.combined,annotations:values,revisions:revisions,moves:movedBlockRecords,moveLinks:remappedMoves(for:edit,base:base))
     }
     var onePaneActive: Bool { onePaneMode && !singleFileMode && document?.base.text != nil && document?.destination.text != nil }
     var combined: OnePaneFileComparison? {
@@ -310,7 +312,7 @@ import TurtleGitCore
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard {
-        didSet { if document == nil { comparisonOptions = .load(from:comparisonDefaults) } }
+        didSet { if document == nil { comparisonOptions = .load(from:comparisonDefaults); showMovedBlocks = MergeMovedBlock.enabled(defaults:comparisonDefaults) } }
     }
     @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
     private var pendingLoadNavigation = false
@@ -363,6 +365,102 @@ import TurtleGitCore
         document.flatMap { commentProfiles.tokens(paths: [$0.base.path, $0.destination.path]) }
     }
     var supportsComments: Bool { commentTokens != nil }
+    @Published private(set) var showMovedBlocks = MergeMovedBlock.enabled()
+    @Published private(set) var movedBlockRecords: [MergeMovedBlock] = []
+    var canChangeMovedBlocks: Bool { !retired && !busy && !filtering && !confirmingQuit && !singleFileMode && imageComparison == nil && alignment != nil }
+    func setMovedBlocks(_ enabled: Bool) {
+        guard canChangeMovedBlocks, enabled != showMovedBlocks else { return }
+        requestProjectionChange { [self] in
+            showMovedBlocks = enabled; comparisonDefaults.set(enabled,forKey:"TurtleGitMerge.ViewMovedBlocks")
+        }
+    }
+    struct MovedRowLink {
+        let targetBase: Bool, targetRow: Int, rows: Range<Int>, tooltip: String
+    }
+    private var retainedMoveLinks: [Bool:[Int:MovedRowLink]]?
+    /// In-place edits keep view-record identities, as BaseView does. New records
+    /// have no move marker; deleted records retire their links. History captures
+    /// both directions with the exact matching display projection.
+    private func remappedMoves(for edit: FileComparisonInPlaceEdit, base: Bool) -> [Bool:[Int:MovedRowLink]] {
+        let oldCount = onePaneActive ? combined?.rows.count ?? 0 : alignment?.rows.count ?? 0
+        let newCount = onePaneActive ? edit.combined?.rows.count ?? 0 : edit.alignment.rows.count
+        let delta = newCount + edit.removedEmptyRows.count - oldCount
+        let removed = Set(edit.removedEmptyRows)
+        func map(_ row: Int, side: Bool) -> Int? {
+            var next = row
+            if onePaneActive || side == base {
+                if edit.replacedRows.contains(row),row != edit.replacedRows.lowerBound { return nil }
+                if row >= edit.replacedRows.upperBound { next += delta }
+            } else if row >= edit.replacedRows.upperBound { next += max(0,delta) }
+            guard !removed.contains(next) else { return nil }
+            next -= edit.removedEmptyRows.filter { $0 < next }.count
+            return (0..<newCount).contains(next) ? next : nil
+        }
+        var result: [Bool:[Int:MovedRowLink]] = [:]
+        for side in onePaneActive ? [false] : [true,false] {
+            for (row,link) in movedRowLinks(base:side) {
+                guard let origin = map(row,side:side),let target = map(link.targetRow,side:link.targetBase) else { continue }
+                result[side,default:[:]][origin] = .init(targetBase:link.targetBase,targetRow:target,rows:target..<(target + 1),tooltip:link.tooltip)
+            }
+        }
+        // Rebuild the destination's contiguous marked run after insertion or
+        // deletion. An inserted unmarked row divides that selection, as source.
+        for side in Array(result.keys) {
+            for (row,link) in result[side] ?? [:] {
+                let peers = result[link.targetBase] ?? [:]
+                var first = link.targetRow,last = first
+                while peers[first - 1] != nil { first -= 1 }
+                while peers[last + 1] != nil { last += 1 }
+                result[side]?[row] = .init(targetBase:link.targetBase,targetRow:link.targetRow,rows:first..<(last + 1),tooltip:link.tooltip)
+            }
+        }
+        return result
+    }
+    func movedRowLinks(base: Bool) -> [Int:MovedRowLink] {
+        guard !retired, !filtering, showMovedBlocks, let alignment, !movedBlockRecords.isEmpty else { return [:] }
+        if let retainedMoveLinks { return retainedMoveLinks[base] ?? [:] }
+        var left: [Int:Int] = [:], right: [Int:Int] = [:]
+        if onePaneActive {
+            for (index,row) in (combined?.rows ?? []).enumerated() {
+                let cell = row.base ? alignment.rows[row.alignmentRow].base : alignment.rows[row.alignmentRow].destination
+                if let number = cell.lineNumber { if row.base { left[number - 1] = index } else { right[number - 1] = index } }
+            }
+        } else {
+            for (index,row) in alignment.rows.enumerated() {
+                if let number = row.base.lineNumber { left[number - 1] = index }
+                if let number = row.destination.lineNumber { right[number - 1] = index }
+            }
+        }
+        var result: [Int:MovedRowLink] = [:]
+        for block in movedBlockRecords {
+            let a = block.base.compactMap { left[$0] }, b = block.mine.compactMap { right[$0] }
+            guard let af = a.min(),let al = a.max(),let bf = b.min(),let bl = b.max() else { continue }
+            if base || onePaneActive {
+                for (offset,i) in block.base.enumerated() { if let row = left[i] { result[row] = .init(targetBase:false,targetRow:right[block.mine.lowerBound + offset] ?? bf,rows:bf..<(bl + 1),tooltip:"Moved to line \(block.mine.lowerBound + offset + 1)") } }
+            }
+            if !base || onePaneActive {
+                for (offset,j) in block.mine.enumerated() { if let row = right[j] { result[row] = .init(targetBase:!onePaneActive,targetRow:left[block.base.lowerBound + offset] ?? af,rows:af..<(al + 1),tooltip:"Moved from line \(block.base.lowerBound + offset + 1)") } }
+            }
+        }
+        return result
+    }
+    func followMovedBlock(row: Int, base: Bool, generation: Int) {
+        guard generation == alignmentGeneration, contextCommandsAllowed, !filtering,
+              let link = movedRowLinks(base:base)[row],let view = scrolls[link.targetBase]?.documentView as? FileComparisonTextView else { return }
+        let cells = displayCells(base:link.targetBase)
+        guard link.rows.lowerBound >= 0, link.rows.upperBound <= cells.count else { return }
+        view.beginUserNavigation();clearNavigationBlockSelection(clearTextSelections:true)
+        let start = cells.prefix(link.rows.lowerBound).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
+        let length = cells[link.rows].reduce(0) { $0 + $1.displayText.utf16.count + 1 } - 1
+        let range = NSRange(location:start,length:max(0,length))
+        guard NSMaxRange(range) <= view.string.utf16.count else { return }
+        selectingDifferenceBlock = true
+        defer { selectingDifferenceBlock = false; lineWrapping.recordViewportIntent() }
+        view.foldLayout.reveal(selection:range,in:view,includeMarker:true)
+        activatePane(base:link.targetBase);view.window?.makeFirstResponder(view)
+        view.blockSelection.install(range,caret:start,in:view);view.blockSelection.centerCaret(in:view)
+        updateSelection(view.selectedRange(),cells:cells)
+    }
     func setComparisonOptions(_ value: MergeComparisonOptions) {
         guard value != comparisonOptions else { return }
         requestProjectionChange { [self] in comparisonOptions = value; value.save(to:comparisonDefaults) }
@@ -985,7 +1083,7 @@ import TurtleGitCore
         cancelOutput(); cancelPaneSave()
         formatRequest = nil; previewRow = nil
         onExportStateChanged = {}
-        retired = true; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
+        retired = true; movedBlockRecords = []; retainedMoveLinks = nil; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
         imageLoader?.retire(); imageLoader = nil
         retainedImageModel?.stopAllPlayback(); retainedImageModel?.presentation.retire()
     }
@@ -1148,7 +1246,7 @@ import TurtleGitCore
         regexCancellation?.cancel(); regexCancellation = nil; filtering = false
         historyCaretRequests = [:]; initialBlockGeneration = nil
         alignmentSelections = [:]
-        alignmentGeneration += 1; selectedRows = nil; previewRow = nil
+        alignmentGeneration += 1; selectedRows = nil; previewRow = nil; movedBlockRecords = []; retainedMoveLinks = nil
         let a = drafts?.text(base: true) ?? document.base.text
         let b = drafts?.text(base: false) ?? document.destination.text
         // Immediate projection supports native text/Undo coordinate updates.
@@ -1157,7 +1255,7 @@ import TurtleGitCore
         alignment = a.flatMap { old in b.map { FileComparisonAlignment(base: old, destination: $0) } }
         guard let a, let b, imageComparison == nil, !retired else { return }
         let filter = regexFilters.first(where: { $0.name == regexFilterName })
-        let current = alignmentGeneration, token = OperationCancellation()
+        let current = alignmentGeneration, token = OperationCancellation(), detectMoves = showMovedBlocks
         let configuration = Result { () throws -> SubversionMergeConfiguration in
             if reloadCommentProfiles {
                 commentProfiles = try MergeCommentProfileFile.load(at: commentProfileURL)
@@ -1176,11 +1274,13 @@ import TurtleGitCore
             // for every intermediate keystroke; stale requests never publish.
             try? await Task.sleep(nanoseconds: 60_000_000)
             guard !retired, alignmentGeneration == current, !token.isCancelled else { return }
-            let result = await Task.detached { Result { try SubversionComparisonPresentation(plan: configuration.get().plan(base: a, mine: b, cancellation: token)).alignment } }.value
+            let result = await Task.detached { Result { try SubversionComparisonPresentation(plan: configuration.get().plan(base: a, mine: b, cancellation: token), detectMovedBlocks:detectMoves, whitespace:configuration.get().options.whitespace, cancellation:token) } }.value
             guard !retired, alignmentGeneration == current else { return }
             filtering = false; regexCancellation = nil
             switch result {
-            case .success(let value):
+            case .success(let presentation):
+                let value = presentation.alignment
+                movedBlockRecords = presentation.movedBlocks
                 var selections: [Bool: AlignmentSelection] = [:]
                 for (side, scroll) in scrolls {
                     if let text = scroll.documentView as? FileComparisonTextView,
@@ -1544,7 +1644,7 @@ private struct FileComparisonDialog: View {
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
             }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
-                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed).disabled(model.busy || model.confirmingQuit)
+                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed, movedBlocks:model.showMovedBlocks, canChangeMovedBlocks:model.canChangeMovedBlocks, applyMovedBlocks:model.setMovedBlocks).disabled(model.busy || model.confirmingQuit)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments).disabled(model.busy || model.confirmingQuit)
                 Menu {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -1672,7 +1772,13 @@ struct FileComparisonEditor: NSViewRepresentable {
         (view as? FileComparisonTextView)?.foldLayout.apply(to: view, controller: model.folding)
         model.lineWrapping.geometryChanged = { [weak model] in DispatchQueue.main.async { model?.applyViewportNavigation(); model?.refreshLocatorViewport() } }
         model.lineWrapping.update(scroll, key: base ? "Base" : "Mine", aligned: !model.onePaneActive && !model.singleFileMode, enabled: model.wrapLines)
-        scroll.rulersVisible = model.showLineNumbers
+        let moved = model.movedRowLinks(base:base), generation = model.alignmentGeneration
+        scroll.rulersVisible = model.showLineNumbers || !moved.isEmpty
+        if let ruler = scroll.verticalRulerView as? MergeLineRuler {
+            ruler.showNumbers = model.showLineNumbers
+            ruler.movedRows = moved.mapValues(\.tooltip)
+            ruler.followMovedRow = { [weak model] row in model?.followMovedBlock(row:row,base:base,generation:generation) }
+        }
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
         (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.onePaneActive ? Set((model.combined?.rows ?? []).enumerated().compactMap { model.annotations(base: false).marked.contains($0.element.alignmentRow) ? $0.offset : nil }) : model.annotations(base: base).marked
@@ -2030,6 +2136,13 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         func add(_ title: String, _ action: Selector, _ icon: NSImage?, _ enabled: Bool) {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? icon : nil; item.isEnabled = enabled; menu.addItem(item)
         }
+        let caretRow = MergeLineEndings.lineRanges(in:string).lastIndex { $0.location <= selectedRange().location }
+        if let caretRow, let link = model.movedRowLinks(base:baseSide)[caretRow] {
+            add("Go to moved block", #selector(goToMovedBlock(_:)), MenuIcon.mergeMoved.image(), model.contextCommandsAllowed && !model.filtering)
+            menu.items.last?.representedObject = [caretRow,model.alignmentGeneration]
+            menu.items.last?.toolTip = link.tooltip
+            menu.addItem(.separator())
+        }
         if model.folding.collapsed {
             add("Expand unchanged section", #selector(expandFoldedSection(_:)), NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "Expand"), model.contextCommandsAllowed && foldLayout.canExpandSelection(in: self))
             menu.addItem(.separator())
@@ -2113,6 +2226,10 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         add("Redo", #selector(redoEdit), MenuIcon.mergeRedo.image(), model.canRedo && !model.busy && !model.confirmingQuit)
         if !model.onePaneActive { clipboardItems() }
         return menu
+    }
+    @objc private func goToMovedBlock(_ sender: NSMenuItem) {
+        guard let target = sender.representedObject as? [Int],target.count == 2 else { return }
+        model?.followMovedBlock(row:target[0],base:baseSide,generation:target[1])
     }
     @objc private func useBlock() { model?.useOtherBlock(targetBase: false) }
     @objc private func useThisFirst() { model?.useOtherBlock(baseSide ? .otherThenCurrent : .currentThenOther, targetBase: false) }

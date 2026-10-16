@@ -196,3 +196,9 @@ wrapped-row gaps above are superseded within that scope. The logical source
 state search, hidden-row projection, independent block range and two-pane inline
 entry advance remain in place. Exact virtual-padding caret geometry and full
 Windows/TextKit equivalence remain open.
+
+
+The [moved-block continuation](MERGE-MOVED-BLOCKS-PARITY.md) adds source detection,
+original margin icons, double-click and native context navigation, two/combined
+peer selection and editing/history ownership. Its source oracle and grouped native
+evidence are separate from ordinary difference/conflict navigation above.

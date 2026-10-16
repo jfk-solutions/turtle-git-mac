@@ -69,7 +69,7 @@ public enum MenuIcon: String, CaseIterable {
     case refresh = "refresh"
     case mergeReload = "Refresh"
     case mergeEndingCR = "LineEndingCR", mergeEndingLF = "LineEndingLF", mergeEndingCRLF = "LineEndingCRLF"
-    case mergeMarked = "linemarked"
+    case mergeMarked = "linemarked", mergeMoved = "moved"
     case mergePaste = "Paste"
     case mergeUndo = "Undo", mergeRedo = "Redo", mergeFind = "Search"
     case mergePreviousConflict = "UpRed", mergeNextConflict = "DownRed"

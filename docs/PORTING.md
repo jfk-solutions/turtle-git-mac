@@ -2,6 +2,16 @@
 
 *A macOS fork of TortoiseGit*
 
+The [moved-block family](MERGE-MOVED-BLOCKS-PARITY.md) now adds the source detector,
+saved View toggle, original colored margin icons/tooltips, bidirectional whole-block
+navigation and combined-view routing. Surviving view-record links move with edits
+and return with Undo/Redo; accepted toggle reloads share owned Save/Cancel handling.
+The Swift detector matches 1,265 cases from the compiled pinned implementation;
+45 focused Core cases and eight native editor cases pass within the recorded
+repair scope. Actual light/dark captures and ownership evidence are included in
+[the batch record](qa/merge-moved-blocks-2026-10-16.json). Full row-pairing, edit
+boundaries/tooltips, physical and signed acceptance remain open.
+
 The [wrapped editor navigation family](MERGE-WRAPPING-PARITY.md#wrapped-navigation-and-viewport-reflow--october-16-2026)
 now enters actual first/last wrapped fragments, retains context-click sublines and
 restores shared reading positions through width/font/wrap changes. Explicit input

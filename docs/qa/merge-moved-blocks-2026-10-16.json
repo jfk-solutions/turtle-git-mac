@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "57a5be5ae7e4a39cb317f7b4fa612d6d76fc3da5",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Moved-block detection and native two/combined-pane markers, tooltips, block navigation, editing/history, saved View toggle/reload ownership, original artwork, Help and CI",
+  "source": [
+    "MovedBlocks.cpp unique groups, left/right extension and mutable interval/extension-list bookkeeping; special whitespace keys, seed-zero and final NoEnding boundaries retained.",
+    "MainFrm::OnViewMovedBlocks saved true default and bottom-pane exclusion.",
+    "DiffData::TieMovedBlocks and BaseView margin tooltip/double-click whole counterpart selection."
+  ],
+  "implementation": [
+    "Detector runs off UI thread on the authoritative Subversion plan with cancellation; original source records and alignment remain unchanged.",
+    "Byte-exact upstream moved.ico with provenance, colored margin icons, row tooltip regions including wrapped fragments and move margin when numbers are hidden.",
+    "Two-pane bidirectional focus/whole-block linked centering and combined original/added occurrence mapping; keyboard-accessible native context command with captured generation.",
+    "In-place edits retain surviving move records, remap peers across inserted rows, omit new/deleted records and split target selection at unmarked rows. Matching history snapshot owns links and Undo/Redo.",
+    "Saved View toggle uses owned Save/Don\u2019t Save/Cancel and fresh reload; transient/retired/stale navigation refuses. Three-pane toggle is disabled."
+  ],
+  "core": {
+    "initial_log": "build/qa/merge-moved-core.log",
+    "initial_exit": 1,
+    "initial_cases": 45,
+    "initial_failures": 127,
+    "reason": "Swift annotations initially enumerated all split chunks, while the pinned right pass preserves a distinct linked extension list and can drop detached annotations. Ported exact list identity and next/tail adjustments.",
+    "unaffected_passes": "38 SubversionMergePresentationTests and 3 MenuIconTests passed initially and were not repeated.",
+    "repair_log": "build/qa/merge-moved-core-repair.log",
+    "repair_exit": 0,
+    "repair_cases": 4,
+    "oracle_cases": 1265,
+    "oracle": "Compiled hash-verified pinned MovedBlocks.cpp with CString/allocator/platform types adapted; algorithm body retained. Emitted expected raw source links across disjoint/adjacent modified intervals, repeats, crossed seeds, Unicode, whitespace and final-record cases. Swift pairs match all 1265.",
+    "source_log": "build/qa/merge-moved-source.log",
+    "source_blob": "93b7b68d2fecc84063f355a226d00fb30d5d5348",
+    "other_cases": [
+      "Real bundled engine cut/paste and unchanged alignment/difference groups",
+      "Ambiguous repeats, invalid mapping and cancellation",
+      "Source true default and private persistence"
+    ]
+  },
+  "debug": [
+    {
+      "log": "build/qa/merge-moved-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 12
+    },
+    {
+      "log": "build/qa/merge-moved-final-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/merge-moved-history-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3
+    }
+  ],
+  "native": {
+    "successful_distinct_cases": 8,
+    "new_move_case": "build/qa/merge-moved-native-aligned-fixture.log",
+    "retained_seven_cases": "build/qa/merge-moved-native-retained.log",
+    "new_checks": [
+      "Real bundled Subversion move coordinates and bidirectional native margin links",
+      "Original colored icon decode and tooltip labels; owned direct native double-click event, no global posting",
+      "Whole-peer block selection/focus with unchanged text/history",
+      "Same-line and multiline edit record retention/remapping, stale pre-edit action refusal, exact Undo restoration",
+      "Combined projection and native context command icon",
+      "Saved toggle off/on, dirty Cancel preserving draft/preference and accepted discard/reload clearing old Undo",
+      "Retired callback refusal, all input bytes unchanged"
+    ],
+    "failures": [
+      {
+        "log": "build/qa/merge-moved-native.log",
+        "reason": "Fixture assumed the old source display-row key survived a multiline insertion. Shared alignment inserts a padding row in the opposite pane too. Fixture now checks both source/target keys shift, then verifies actual counterpart bytes and Undo."
+      },
+      {
+        "log": "build/qa/merge-moved-native-aligned-fixture.log",
+        "reason": "New move case and its two captures passed. Retained wrapped geometry checks passed, then optional screencapture reported could not create image from window. Continued affected wrapped case and six not-yet-run retained cases without optional captures; all seven passed."
+      }
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      94267,
+      94332,
+      94360,
+      94393,
+      94406,
+      94410,
+      94420,
+      94422,
+      94428,
+      94432
+    ],
+    "capture_helpers": "Successful synchronous move screencapture processes exited 0 and were waited; failed wrapped capture was also waited. No unrelated apps terminated."
+  },
+  "documentation": {
+    "help": "50 source files, 1953840 bytes; all built counterparts byte-equal, additional generated Help index expected.",
+    "captures": [
+      "docs/site/assets/merge-moved-blocks-light.png",
+      "docs/site/assets/merge-moved-blocks-dark.png"
+    ],
+    "visual_review": "Actual compositor captures inspected in both appearances. Original green margin arrows on source and destination, orange/yellow changes and gray alignment gaps are visible. Native splitter currently retains an asymmetric width after combined/two-pane transition; complete visual layout acceptance remains open.",
+    "site": "250 documents, zero unresolved fragments; build/qa/merge-moved-site.log",
+    "ledger": "130 dialogs, 120 partial family audits, 10 pending, zero certified; 987 mapped/672 pending static controls, unchanged."
+  },
+  "limits": [
+    "The source oracle adapts platform containers/string storage; it does not prove full Windows dialog/rendering equivalence.",
+    "Native existing authoritative row pairing is retained; complete DiffData sticking/pairing remains a separate parity concern.",
+    "Tooltips use original source line coordinates, which differ from source display-row indices when padding precedes a target; retained edit tooltips keep their captured source labels.",
+    "Complex deletion/combined cross-origin edit boundaries, physical gestures/VoiceOver/trackpad, large files and minimum OS need further acceptance.",
+    "No whole hosted CI pass, signed Finder/grants, App Store or complete port certification."
+  ]
+}

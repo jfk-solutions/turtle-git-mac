@@ -1561,6 +1561,11 @@
       "asset": "UnlockBackground.ico",
       "source": "src/Resources/UnlockBackground.ico",
       "sha256": "3653249efce1f39c076e6b804e822bc703f2b5514e2cace97475cae9b59a025a"
+    },
+    {
+      "asset": "moved.ico",
+      "source": "src/Resources/moved.ico",
+      "sha256": "36e9b14fd1ee640186d9b5ffa296c8e44b001dc0596113097e7b3b0919dd77f6"
     }
   ]
 }

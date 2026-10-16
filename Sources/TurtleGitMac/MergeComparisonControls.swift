@@ -77,8 +77,12 @@ struct MergeViewControls: View {
     var applyWrap: (Bool) -> Void = { _ in }
     var collapsed = false
     var applyCollapsed: (Bool) -> Void = { _ in }
+    var movedBlocks = true
+    var canChangeMovedBlocks = false
+    var applyMovedBlocks: (Bool) -> Void = { _ in }
     var body: some View {
         Menu("View") {
+            Toggle("Moved blocks", isOn:Binding(get:{movedBlocks},set:applyMovedBlocks)).disabled(!canChangeMovedBlocks)
             Toggle("Wrap long lines", isOn: Binding(get: { wrapLines }, set: applyWrap))
             Toggle("Collapsed", isOn: Binding(get: { collapsed }, set: applyCollapsed))
             Divider()

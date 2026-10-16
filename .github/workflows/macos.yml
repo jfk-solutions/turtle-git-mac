@@ -273,6 +273,8 @@ jobs:
           xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac
           -configuration Debug -destination 'platform=macOS'
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - name: Pinned moved-block detector oracle
+        run: python3 scripts/test-moved-block-source.py
       - name: Git integration tests
         env:
           # Rebase tests invoke the real app's headless editor entry point.
@@ -307,7 +309,7 @@ jobs:
         run: python3 scripts/test-image-command-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: LibreOffice comparison and tracked-change merge owners
         run: python3 scripts/test-libreoffice-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
-      - name: Wrapped editor geometry and navigation family
+      - name: Moved blocks and wrapped editor navigation family
         run: python3 scripts/test-merge-wrapped-family.py
       - name: Inline engine native consumers
         run: python3 scripts/test-inline-native.py

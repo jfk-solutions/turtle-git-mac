@@ -476,3 +476,10 @@ Previous difference/conflict enters the last wrapped screen row; Next enters the
 first. A context block retains the clicked wrapped subline. Resizing, font changes
 and wrapping retain the visible source row and reading position, while linked
 panes keep their common row heights.
+
+
+In two-file text comparison, **View → Moved blocks** marks relocated lines in
+the margins. Hover a move icon for its destination/source line; double-click
+the margin or use **Go to moved block** in the text context menu to select the
+counterpart. It also works in combined view. Changing this comparison option
+asks about unsaved edits before reloading the files.
