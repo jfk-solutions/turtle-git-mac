@@ -58,3 +58,16 @@ passing evidence. Ten grouped native cases passed across system/bundled Git.
 An accepted-reference cache correction then passed its two affected native checks
 without repeating Core or the other native families. All twelve receivers were
 reaped. See [actual results and repairs](qa/rebase-references-2026-10-14.json).
+
+
+## Canonical Log presets and warning-safe IDs — October 16, 2026
+
+Log's local-branch preference now retains its canonical identity through all
+repository-configured Log-to-Rebase callbacks, including child picker Logs.
+A same-named tag cannot change the native Upstream preset or captured plan hash.
+Switching between canonical branch and tag choices rebuilds the corresponding
+plan. Unlabelled Log commits retain their exact object ID. Git stdout supplies
+commit identities and symbolic branch names; stderr remains diagnostic output.
+The existing cancellation, stale-plan execution checks and Git's typed-revision
+resolution are retained. See [connected evidence](qa/log-canonical-integration-2026-10-16.json).
+Full physical/signed and complete dialog parity remain open.

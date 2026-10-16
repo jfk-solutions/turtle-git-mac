@@ -2,6 +2,15 @@
 
 *A macOS fork of TortoiseGit*
 
+
+Log-to-Rebase now carries the selected canonical branch/tag identity into native
+options, including configured child Logs. Same-named tags cannot replace a
+preferred local branch. Core commit-ID reads separate successful stdout from
+warning diagnostics, retaining Git's typed-revision resolution. See
+[Log parity](LOG-PARITY.md) and
+[Rebase reference preparation](REBASE-REFERENCE-PREPARATION-PARITY.md).
+Full dialog, physical Finder and signed distribution acceptance remain open.
+
 The shared status-text family now preserves raw source colors and conversion
 while adapting low-contrast dark text against composited native table backgrounds.
 Working Tree and Commit count columns use their owning stores. The final Debug

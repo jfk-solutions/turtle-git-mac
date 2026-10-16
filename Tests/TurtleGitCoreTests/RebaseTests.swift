@@ -2,6 +2,38 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RebaseTests: XCTestCase {
+    func testSuccessfulRevisionWarningsCannotBecomeCommitIdentity() async throws {
+        let (root,repo,_) = try await fixture()
+        defer { try? FileManager.default.removeItem(at:root) }
+        _ = try await repo.run(["config","core.warnAmbiguousRefs","true"])
+        _ = try await repo.run(["tag","upstream","refs/heads/main"])
+        let result = try await repo.run(["rev-parse","--verify","--end-of-options","upstream^{commit}"])
+        XCTAssertFalse(result.stderr.isEmpty,"Fixture must exercise a successful Git warning")
+        let expected = String(decoding:result.stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
+        let actual = try await repo.rebaseCommit("upstream")
+        XCTAssertEqual(actual.hash,expected)
+        XCTAssertTrue([40,64].contains(actual.hash.utf8.count))
+    }
+    func testCanonicalRebasePlansKeepSameNamedBranchAndTagDistinct() async throws {
+        let (root,repo,_) = try await fixture()
+        defer { try? FileManager.default.removeItem(at:root) }
+        for name in ["topic","upstream"] { _ = try await repo.run(["tag",name,"refs/heads/main"]) }
+        var branchOptions = RebaseOptions(); branchOptions.branch = "refs/heads/topic"; branchOptions.upstream = "refs/heads/upstream"
+        let branchPlan = try await repo.rebasePlan(branchOptions)
+        var tagOptions = branchOptions; tagOptions.upstream = "refs/tags/upstream"
+        let tagPlan = try await repo.rebasePlan(tagOptions)
+        let branch = try await repo.rebaseCommit("refs/heads/topic"), upstream = try await repo.rebaseCommit("refs/heads/upstream"), tag = try await repo.rebaseCommit("refs/tags/upstream")
+        XCTAssertEqual(branchPlan.branchHash,branch.hash); XCTAssertEqual(branchPlan.branchReference,"refs/heads/topic")
+        XCTAssertEqual(branchPlan.upstreamHash,upstream.hash); XCTAssertEqual(tagPlan.upstreamHash,tag.hash)
+        XCTAssertNotEqual(branchPlan.upstreamHash,tagPlan.upstreamHash)
+        let headBefore = try await repo.run(["rev-parse","HEAD"]).stdout
+        let indexBefore = try await repo.run(["write-tree"]).stdout
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { _ = try await repo.rebasePlan(branchOptions,cancellation:cancelled); XCTFail("Cancelled reference plan accepted") } catch is OperationCancellationFailure {}
+        let headAfter = try await repo.run(["rev-parse","HEAD"]).stdout, indexAfter = try await repo.run(["write-tree"]).stdout
+        XCTAssertEqual(headAfter,headBefore); XCTAssertEqual(indexAfter,indexBefore)
+    }
+
     func testOntoSelectionClearsEquivalentReferencesAndKeepsDistinctIdentity() async throws {
         let (root, repo, _) = try await fixture()
         defer { try? FileManager.default.removeItem(at: root) }

@@ -337,7 +337,11 @@ extension GitRepository {
         guard !name.isEmpty, !name.contains("\0") else { throw RebaseFailure.revision }
         guard let result = try? run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"], cancellation: cancellation) else { try cancellation?.check(); throw RebaseFailure.revision }
         try cancellation?.check()
-        return result.text.trimmingCharacters(in: .newlines)
+        // Successful rev-parse can still warn (for example, ambiguous short
+        // names). Diagnostics are not part of the object identity.
+        let hash = String(decoding:result.stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
+        guard [40,64].contains(hash.utf8.count), hash.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else { throw RebaseFailure.revision }
+        return hash
     }
     private func rebasePath(_ name: String, cancellation: OperationCancellation? = nil) throws -> URL {
         var bytes = try run(["rev-parse", "--git-path", name], cancellation: cancellation).stdout
@@ -455,7 +459,8 @@ extension GitRepository {
         guard !(try rebaseState(cancellation: cancellation).active) else { throw RebaseFailure.active }
         let branchHash = try rebaseRevision(options.branch, cancellation: cancellation), upstreamHash = try rebaseRevision(options.upstream, cancellation: cancellation)
         let ontoHash = options.onto.isEmpty ? upstreamHash : try rebaseRevision(options.onto, cancellation: cancellation)
-        let symbolic = ((try? run(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", options.branch], cancellation: cancellation).text) ?? "").trimmingCharacters(in: .newlines)
+        let symbolicBytes = (try? run(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", options.branch], cancellation:cancellation).stdout) ?? Data()
+        let symbolic = String(decoding:symbolicBytes,as:UTF8.self).trimmingCharacters(in:.newlines)
         try cancellation?.check()
         let branchReference = symbolic.hasPrefix("refs/heads/") ? symbolic : ""
         var args = ["log", "--encoding=UTF-8", "--reverse", "--topo-order", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00"]

@@ -1522,8 +1522,7 @@ import UniformTypeIdentifiers
         log.onCreateReference = { [weak self] tag, revision in self?.showReference(repository: repository, access: access, isTag: tag, revision: revision) }
         log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
         log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
-        log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
-        log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
+        configureLogIntegration(log,repository:repository,access:access)
         log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         log.onCherryPick = { [weak self] revisions in self?.showRebase(repository: repository, access: access, cherryPick: revisions) }
         log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
@@ -2084,8 +2083,7 @@ import UniformTypeIdentifiers
         configureLogMenus(controller.model, repository: repository, access: access)
         controller.model.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
         controller.model.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision, paths: paths) }
-        controller.model.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
-        controller.model.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
+        configureLogIntegration(controller.model,repository:repository,access:access)
         configureLogBisect(controller.model, repository: repository, access: access)
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         controller.model.onContainingLog = { [weak self] name, select, range in
@@ -2267,6 +2265,12 @@ import UniformTypeIdentifiers
             }
         }
     }
+    func configureLogIntegration(_ log:LogWindowModel,repository:GitRepository,access:RepositoryAccessLease?) {
+        log.onMergeRevision = { [weak self] revision in self?.showMerge(repository:repository,access:access,revision:revision) }
+        log.onPreparedRebase = { [weak self] prepared in
+            self?.showRebase(repository:repository,access:access,upstream:prepared.canonicalRevision,fromLog:true)
+        }
+    }
     private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false) {
         let key = repository.root.path + "\0" + UUID().uuidString
         let controller = MergeWindowController(repository: repository, access: access)
@@ -2336,8 +2340,7 @@ import UniformTypeIdentifiers
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
             self?.configureLogMenus(log, repository: repository, access: access)
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
-            log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
-            log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
+            self?.configureLogIntegration(log,repository:repository,access:access)
             log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
             log.onRevertRevisions = { [weak self, weak log] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: log?.window) }
             self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
@@ -2417,8 +2420,7 @@ import UniformTypeIdentifiers
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
             self?.configureLogMenus(log, repository: repository, access: access)
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
-            log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
-            log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
+            self?.configureLogIntegration(log,repository:repository,access:access)
             log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
             log.onRevertRevisions = { [weak self, weak log] entries, mainline in self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: log?.window) }
             self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)

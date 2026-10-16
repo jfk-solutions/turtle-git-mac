@@ -2668,8 +2668,9 @@ The current connected checks and capture settings are recorded in [dated native 
 
 Merge preparation now captures the pointed canonical ref, otherwise the first
 reference on the selected revision, otherwise its hash. Rebase captures the first
-local branch in that source list and passes its short branch name; absent a local
-branch it uses the first reference, then the hash. It no longer searches for a
+local branch in that source list, retaining its short display name and canonical
+identity for the options handoff; absent a local branch it uses the first
+reference, then the hash. It no longer searches for a
 later resolving ref when the source-preferred reference moves. The captured ref
 is validated against the selected commit before opening options. A moved/missing
 preferred ref reports a stale-selection diagnostic instead of silently changing
@@ -2687,3 +2688,21 @@ operation's state. Source icons and the existing native Merge/Rebase dialogs are
 retained. Broader modal/physical/signed acceptance remains open.
 
 The [grouped native evidence](qa/log-integration-preparation-2026-10-16.json) records the actual two-engine pass, fixture repairs and remaining acceptance.
+
+
+## Canonical native options handoff — October 16, 2026
+
+The primary and configured picker Logs now share one repository-bound adapter.
+Rebase receives the prepared canonical reference rather than resolving a local
+branch's short display name again. With a branch and tag both named `topic`,
+Log's preferred local branch remains `refs/heads/topic` in the native options and
+plan. Tag-only and unlabelled selections retain their exact tag or commit.
+The prepared callback takes precedence over the legacy short-name callback and
+runs once after the existing owned validation. This intentionally disambiguates
+the native handoff while preserving the upstream local-branch preference.
+
+Core revision capture now consumes only successful Git stdout and validates its
+object ID. Successful ambiguity warnings on stderr cannot become part of a
+commit hash. Manually entered short revisions retain Git's own resolution rules;
+canonical choices do not invent a global branch-over-tag lookup policy.
+See [connected evidence](qa/log-canonical-integration-2026-10-16.json).

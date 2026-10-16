@@ -524,6 +524,7 @@ struct LogIntegrationPreparation {
     let hash:String
     let reference:String?
     let revision:String
+    var canonicalRevision:String { reference ?? revision }
     init(command:LogIntegrationCommand,entry:LogEntry,pointed:RevisionReference? = nil) {
         hash = entry.hash
         let chosen:RevisionReference?
@@ -776,6 +777,7 @@ struct LogCommandRequest: Identifiable {
     }
     var onMergeRevision: ((String) -> Void)?
     var onRebaseRevision: ((String) -> Void)?
+    var onPreparedRebase: ((LogIntegrationPreparation) -> Void)?
     var onCombineRevisions: (([LogEntry], Int, String) -> Void)?
     var onRevertRevisions: (([LogEntry], Int?) -> Void)?
     func revertCaptured(_ entries: [LogEntry], mainline: Int?) {
@@ -1153,7 +1155,7 @@ struct LogCommandRequest: Identifiable {
     }
     var integrationAvailable: Bool { !isInvalidated && revision != nil && revision?.isHead == false && !bare && !mergeActive && !selectedIsStash }
     func canIntegrate(_ command: LogIntegrationCommand) -> Bool {
-        integrationAvailable && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && !referencePickerBlocked && !orderingBlocked && !findBlocked && (command == .merge ? onMergeRevision != nil : onRebaseRevision != nil)
+        integrationAvailable && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && !referencePickerBlocked && !orderingBlocked && !findBlocked && (command == .merge ? onMergeRevision != nil : onRebaseRevision != nil || onPreparedRebase != nil)
     }
     func integrationTitle(_ command: LogIntegrationCommand) -> String {
         let branch = currentBranch.isEmpty ? "HEAD" : currentBranch
@@ -1194,7 +1196,9 @@ struct LogCommandRequest: Identifiable {
                 // Release this read before a child callback starts another owned
                 // load; the old defer must not clear that newer busy state.
                 integrationCancellation = nil; busy = false
-                if command == .merge { onMergeRevision?(destination) } else { onRebaseRevision?(destination) }
+                if command == .merge { onMergeRevision?(destination) }
+                else if let onPreparedRebase { onPreparedRebase(preparation) }
+                else { onRebaseRevision?(destination) }
             } catch {
                 if !isInvalidated, request == generation, integrationCancellation === token, !token.isCancelled { self.error = error.localizedDescription }
             }

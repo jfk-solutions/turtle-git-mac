@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "96faa9497481846588916006c8680dff16852ab8",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/GitLogListAction.cpp ID_REBASE_TO_VERSION local-branch preference, first-ref/hash fallback",
+    "src/TortoiseProc/RebaseDlg.cpp LoadBranchInfo branch/upstream selectors",
+    "src/Git/Git.cpp CGit::GetHash CLI stdout/error separation"
+  ],
+  "scope": [
+    "Canonical typed Log integration preparation retained through all four repository-configured Log routes",
+    "Same-named branch/tag choices stay distinct through native Upstream selection and plan capture",
+    "Legacy short-name callback retained; prepared callback takes precedence",
+    "Successful rev-parse stdout alone supplies validated SHA-1/SHA-256 commit identity; symbolic branch lookup also separates diagnostics",
+    "No change to manually typed Git revision precedence, sequencer or stale-plan execution validation"
+  ],
+  "build": {
+    "command": "xcodebuild Debug arm64 CODE_SIGNING_ALLOWED=NO",
+    "log": "build/qa/log-canonical-integration-build.log",
+    "exit": 0,
+    "notes": "Existing compiler warnings and five anomalous command-failed-with-exit-code-0/no-output diagnostics emitted; terminal status zero; native cache object freshness checks passed."
+  },
+  "core": {
+    "log": "build/qa/log-canonical-integration-core.log",
+    "exit": 0,
+    "tests": 4,
+    "failures": 0,
+    "cases": [
+      "testSuccessfulRevisionWarningsCannotBecomeCommitIdentity",
+      "testCanonicalRebasePlansKeepSameNamedBranchAndTagDistinct",
+      "testOntoSelectionClearsEquivalentReferencesAndKeepsDistinctIdentity",
+      "testStartedPlanCancellationPreservesHeadIndexAndWorkingFiles"
+    ]
+  },
+  "native": {
+    "runner": "scripts/test-log-canonical-integration.py",
+    "log": "build/qa/log-canonical-integration-native.log",
+    "exit": 0,
+    "cases": 6,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "fixtures": [
+      "log-canonical-integration-native-2026-10-16.swift",
+      "log-integration-preparation-native-2026-10-16.swift",
+      "rebase-references-native-2026-10-14.swift"
+    ],
+    "receivers_reaped": [
+      87176,
+      87370,
+      87579,
+      87765,
+      87955,
+      88220
+    ],
+    "notes": "First checkpoint passed all cases. Retained Rebase reference fixture emitted headless zero-size NSSplitView warnings; full visual acceptance is not claimed. Private preferences/repositories and native window cleanup retained."
+  },
+  "limits": [
+    "No new visual control or screenshot claim",
+    "Physical popup/keyboard/VoiceOver and full whole-window comparison remain open",
+    "Signed sandbox, physical Finder, authenticated remote and App Store acceptance remain open",
+    "Focused local evidence does not establish a full hosted macOS CI pass"
+  ]
+}
