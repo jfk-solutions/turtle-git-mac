@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "1b34b02eea9901b29000c535c17f3fcf06ed9b64",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Focused hosted Log reference-checkbox timing repair; no product behavior change",
+  "failure": {
+    "run": 38880822315,
+    "job": 116911012311,
+    "message": "Mixed checkbox did not return to current scope",
+    "diagnosis": "Old fixture did not await enabled representable; historical enabled state was not logged. Eliminates a concrete readiness race without claiming a uniquely proven historical cause."
+  },
+  "source": "LogDlg.cpp OnBnClickedAllBranch explicitly treats any nonzero all-branch state as current/off. Native Coordinator already matches.",
+  "diagnostic": {
+    "log": "build/qa/log-reference-ci-diagnosis.log",
+    "exit": 0,
+    "before_click": "state=-1, enabled=true, modelCanChange=true, scope=basic",
+    "product_unchanged": true
+  },
+  "change": [
+    "Await expected model scope, model action availability and actual native button state plus enabled flag.",
+    "Require synchronous native action result immediately after performClick, then await Git settlement.",
+    "Exercise current/off to all/on, all/on to current/off and basic/local mixed to current/off.",
+    "Retain exact ref membership, multi-tip/range, fresh FETCH_HEAD, recents, owned picker acceptance/retirement, cancelled browser process and Quit accounting."
+  ],
+  "native": {
+    "exit": 0,
+    "log": "build/qa/log-reference-ci-ready-native.log",
+    "case_engine_pairs": 2,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "first_attempt_after_repair_pass": true,
+    "owned_processes_reaped_and_independently_absent": [
+      83028,
+      83042,
+      83698,
+      83702,
+      84354
+    ],
+    "warnings": "Existing hidden-window NSSplitView zero-bounds warnings; assertions passed."
+  },
+  "validation_policy": "Fixture-only change uses current Debug app objects and cached receiver linker; no app rebuild or Core rerun.",
+  "hosted": {
+    "pages_run": 38897565822,
+    "pages_conclusion": "success",
+    "observed_live_run": 38891002651,
+    "observed_live_job": 116943475096,
+    "observed_step": "Git integration tests",
+    "latest_macos_run": 38897565343,
+    "latest_observed_status": "pending",
+    "scope": "No full hosted pass or hosted proof of this fixture repair claimed."
+  },
+  "limits": [
+    "Minimum-OS/hosted rerun acceptance remains open.",
+    "Physical gestures, signed Finder/App Store and whole application parity remain open."
+  ]
+}

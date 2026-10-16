@@ -30,17 +30,33 @@ import TurtleGitCore
         defer { controller.close() }
         model.reload(); try await wait { !model.busy && LogWindowModel.activeHistoryLoads == 0 }
         try require(model.startReferenceTitle == "main" && model.fetchHeadRevision == base, "Initial reference label/metadata missing")
+        // Model settlement precedes SwiftUI's representable update on some SDKs.
+        // Wait for the actual enabled control, then assert its synchronous action;
+        // waiting only on !busy can accidentally click the previous disabled view.
+        @MainActor func clickScope(from scope: HistoryReferenceScope, to expected: HistoryReferenceScope) async throws {
+            let state: NSControl.StateValue = scope == .current ? .off : scope == .all ? .on : .mixed
+            controller.window?.contentView?.layoutSubtreeIfNeeded()
+            try await wait {
+                model.effectiveReferenceScope == scope && model.canChangeStartReference &&
+                descendants(controller.window!.contentView!).compactMap { $0 as? NSButton }
+                    .contains { $0.title == "All Branches" && $0.state == state && $0.isEnabled }
+            }
+            let checkbox = descendants(controller.window!.contentView!).compactMap { $0 as? NSButton }
+                .first { $0.title == "All Branches" && $0.state == state && $0.isEnabled }!
+            checkbox.performClick(nil)
+            try require(model.effectiveReferenceScope == expected && model.referenceExpression == "HEAD",
+                        "Reference checkbox \(scope) -> \(expected) failed: scope=\(model.effectiveReferenceScope), enabled=\(checkbox.isEnabled), state=\(checkbox.state.rawValue)")
+            try await wait { !model.busy && LogWindowModel.activeHistoryLoads == 0 }
+        }
         model.chooseReferenceScope(.local); try await wait { !model.busy && LogWindowModel.activeHistoryLoads == 0 }
         try require(Set(model.entries.filter { !$0.hash.isEmpty }.map(\.hash)) == [base, tips["topic"]!], "Local scope includes non-local refs")
+        try await clickScope(from: .local, to: .current)
+        try await clickScope(from: .current, to: .all)
+        try require(model.entries.contains { $0.hash == tips["other"] }, "All scope omitted non-basic ref")
+        try await clickScope(from: .all, to: .current)
         model.chooseReferenceScope(.basic); try await wait { !model.busy && LogWindowModel.activeHistoryLoads == 0 }
         try require(!model.entries.contains { $0.hash == tips["other"] } && model.entries.contains { $0.hash == tips["tag"] }, "Basic scope incorrect")
-        controller.window?.contentView?.layoutSubtreeIfNeeded()
-        try await wait { descendants(controller.window!.contentView!).compactMap { $0 as? NSButton }.contains { $0.title == "All Branches" && $0.state == .mixed } }
-        let checkbox = descendants(controller.window!.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "All Branches" }!
-        checkbox.performClick(nil); try await wait { !model.busy && LogWindowModel.activeHistoryLoads == 0 }
-        try require(model.effectiveReferenceScope == .current && model.referenceExpression == "HEAD", "Mixed checkbox did not return to current scope")
-        model.chooseReferenceScope(.all); try await wait { !model.busy && LogWindowModel.activeHistoryLoads == 0 }
-        try require(model.entries.contains { $0.hash == tips["other"] }, "All scope omitted non-basic ref")
+        try await clickScope(from: .basic, to: .current)
         model.chooseStartReference("refs/heads/main refs/heads/topic", remember: true)
         try await wait { !model.busy && LogWindowModel.activeHistoryLoads == 0 }
         try require(model.startRevisions == ["refs/heads/main", "refs/heads/topic"] && model.revisionRange == nil, "Multi-reference choice became a single token")
@@ -95,6 +111,6 @@ import TurtleGitCore
         try require(ReferenceBrowserWindowModel.activeReads > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Retired browser read lost Quit guard")
         try await wait { ReferenceBrowserWindowModel.activeReads == 0 }
         try require(slow.snapshot == nil && slow.error == nil, "Cancelled retired browser published data/error")
-        print("Log reference navigation: source all/basic/local scopes, real mixed checkbox, multi-tip/range/FETCH_HEAD freshness, exact recent persistence, owned two-ref picker acceptance/retirement, cancelled browser process/Quit accounting passed. Owned windows closed.")
+        print("Log reference navigation: source all/basic/local scopes, enabled native off/on/basic-mixed/local-mixed checkbox transitions, multi-tip/range/FETCH_HEAD freshness, exact recent persistence, owned two-ref picker acceptance/retirement, cancelled browser process/Quit accounting passed. Owned windows closed.")
     }
 }

@@ -2727,3 +2727,30 @@ the source continuity rule to Compare, Format Patch and Combine. Popup and late
 Combine validation targets also expire when the display projection changes.
 Ordinary picker Logs keep the ordinary source menu mask. Physical/signed and full
 consumer-mask certification remain open.
+
+
+## Hosted reference-checkbox readiness — October 16, 2026
+
+The native All Branches action already follows `LogDlg::OnBnClickedAllBranch`:
+current/off becomes all/on, while all/on and basic/local mixed states become
+current/off. The source handles the transition explicitly rather than accepting
+the platform's automatic three-state cycle; the native coordinator does likewise.
+
+The hosted reference-navigation case failed its mixed-to-current assertion in
+[run 38880822315](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38880822315).
+That fixture waited for the model's read to settle and for a mixed checkbox,
+but did not wait for the representable to become enabled. SwiftUI can update
+that native control after model settlement; clicking a disabled NSButton does
+not invoke its action. The previous log did not report the enabled state, so
+this is an eliminated timing hazard rather than a proven unique diagnosis of
+that historical failure. A diagnostic local run found the control enabled and
+passed without a product change.
+
+The fixture now waits for the actual enabled native button in the expected
+state, checks the model's synchronous action immediately, then awaits its
+history reload. It covers current-to-all, all-to-current and both local/basic
+mixed-to-current transitions, retaining exact revision membership, HEAD,
+multi-tip/range, fresh FETCH_HEAD, picker and cancellation/Quit assertions.
+No product behavior or assertion was removed to accommodate the hosted failure.
+See [focused evidence](qa/log-reference-checkbox-ready-2026-10-16.json) for local
+results and hosted/minimum-OS acceptance limits.
