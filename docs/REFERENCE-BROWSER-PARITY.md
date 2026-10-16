@@ -44,7 +44,9 @@ opens its containing directory and selects its row. The list has Branch Name,
 Tracked branch, Last Author Date, Last Commit, Last Author, Date Last Commit,
 Last Committer, SHA-1 and Description columns. Tracking and description columns
 are visible in the local-branch namespace. The split starts with a 190-point
-namespace pane; resizing preserves a user's adjusted divider within that window.
+namespace pane; resizing preserves a user's adjusted divider, now also across windows. See
+[Presentation and keyboard](REFERENCE-BROWSER-PRESENTATION.md) for saved columns,
+sorting, header menus, sizing and source shortcuts.
 
 Metadata includes symbolic targets, mailmapped author/committer names, separate
 dates, branch descriptions and gone upstream names. Annotated tags retain their

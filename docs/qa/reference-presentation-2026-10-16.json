@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "3b5e7e8bd036a2d6945d5e6fc7a98268c7cb2e9d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "dialog": "IDD_BROWSE_REFS",
+  "scope": [
+    "Nine-column order/visibility/width normalization and persistence, mandatory Name and source header order",
+    "Native header menu, resize/reorder, double-click fit, divider persistence and stable vertical reading position",
+    "Namespace-dependent Upstream/Description visibility and owned Yes/No reset lifetime",
+    "Source numeric sort preferences and reopening direction restoration",
+    "Owned F5, Ctrl/Cmd-E, Escape, Ctrl/Cmd-A and multi-selected first-branch F2",
+    "Stale menu, background/child, retired reset and single-select picker gates"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/reference-presentation-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 4
+    },
+    {
+      "log": "build/qa/reference-presentation-build-repair-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "core": {
+    "run": false,
+    "reason": "Native presentation/model changes; Core unchanged"
+  },
+  "native": {
+    "runs": [
+      {
+        "log": "build/qa/reference-presentation-native-2026-10-16.log",
+        "receivers_reaped": [
+          56493
+        ],
+        "final_case_pass_markers": 0
+      },
+      {
+        "log": "build/qa/reference-presentation-native-recheck-2026-10-16.log",
+        "receivers_reaped": [
+          56886
+        ],
+        "final_case_pass_markers": 0
+      },
+      {
+        "log": "build/qa/reference-presentation-restore-2026-10-16.log",
+        "receivers_reaped": [
+          56970
+        ],
+        "final_case_pass_markers": 0
+      },
+      {
+        "log": "build/qa/reference-presentation-native-final-2026-10-16.log",
+        "receivers_reaped": [
+          57080,
+          57121,
+          57222,
+          57396,
+          57475,
+          57514,
+          57616,
+          57804
+        ],
+        "final_case_pass_markers": 8
+      }
+    ],
+    "final_exit": 0,
+    "distinct_case_engine_runs": 8,
+    "cases": [
+      "presentation",
+      "targets",
+      "folders",
+      "rename"
+    ],
+    "engines": [
+      "system Git",
+      "bundled universal Git arm64 execution"
+    ],
+    "failures": [
+      "Initial Select All assertion ran before native table rows reflected cleared filter; wait now checks actual table count as well as model rows, asserts focus, consumption and exact selected count.",
+      "Two subsequent receivers exposed and diagnosed a real reopened descending-sort failure: property observer saved default direction before it was read. Capture stored direction before assigning either sort setting. Both-engine final presentation cases pass."
+    ],
+    "owned_receivers_independently_absent": [
+      56493,
+      56886,
+      56970,
+      57080,
+      57121,
+      57222,
+      57396,
+      57475,
+      57514,
+      57616,
+      57804
+    ],
+    "warnings": "AppKit reports transient zero-size split-view frames during initial hidden window construction; no assertion failure in final run.",
+    "repository_invariants": "Presentation case proves unchanged HEAD, raw index and working-file bytes; retained targets/folder/rename cases exercise their existing real Git effects."
+  },
+  "documentation": {
+    "help_files": 50,
+    "help_bytes": 1964486,
+    "source_built_equal": true,
+    "captures": "No new captures in this batch; physical header/keyboard and visual acceptance remain open.",
+    "site_log": "build/qa/reference-presentation-site-2026-10-16.log",
+    "site_exit": 0,
+    "site_documents": 259,
+    "unresolved_fragments": 0,
+    "coverage_ledger": "regenerated"
+  },
+  "hosted_observation": {
+    "macos_run": 38953644814,
+    "head": "3b5e7e8b",
+    "status": "in_progress",
+    "pages_run": 38953644788,
+    "pages_conclusion": "success"
+  },
+  "limits": [
+    "Physical header drag/resize, keyboard layouts and VoiceOver",
+    "Exact Windows locale sorting and geometry",
+    "Minimum macOS, signed Finder/sandbox and App Store acceptance",
+    "Full application parity and hosted CI not established"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

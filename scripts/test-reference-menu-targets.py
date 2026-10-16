@@ -7,6 +7,7 @@ import tempfile
 from native_receiver import build_receiver, run_receiver
 
 CASES = {
+    'presentation': ('reference-presentation-native-2026-10-16.swift', 'ReferencePresentationVerification'),
     'targets': ('reference-menu-targets-native-2026-10-16.swift', 'ReferenceMenuTargetsVerification'),
     'folders': ('reference-folders-native-2026-10-09.swift', 'ReferenceFolderVerification'),
     'comparison': ('reference-comparison-native-2026-10-09.swift', 'ReferenceComparisonVerification'),

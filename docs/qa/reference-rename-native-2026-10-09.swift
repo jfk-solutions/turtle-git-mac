@@ -29,7 +29,7 @@ import TurtleGitCore
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), file = try Data(contentsOf: root.appendingPathComponent("file"))
         let browser = ReferenceBrowserWindowController(repository: repo, access: nil, initial: "refs/heads/nested/topic", preferences: prefs, onChoose: { _ in })
         defer { browser.close() }
-        let window = browser.window!; browser.model.load()
+        let window = browser.window!; browser.commandKeyWindow = { window }; browser.model.load()
         try await wait(window) { !browser.model.busy && browser.model.snapshot != nil }
         guard let table = find(NSTableView.self, window.contentView!, label: "References"), let menu = table.menu else { throw Failure(description: "Native table absent") }
         func choose(_ name: GitReferenceName, folder: GitReferenceName) async throws {
@@ -68,7 +68,7 @@ import TurtleGitCore
         try await choose("refs/heads/other/renamed", folder: "refs/heads")
         // F2 runs the same native inline route.
         let f2 = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 120)!
-        table.keyDown(with: f2)
+        window.makeFirstResponder(table);table.keyDown(with: f2)
         guard let failed = find(NSTextField.self, window.contentView!, label: "Rename branch") else { throw Failure(description: "F2 field absent") }
         failed.stringValue = "existing"; try command(failed, "insertNewline:")
         try await wait(window) { !browser.model.busy && browser.model.renameReference == nil }

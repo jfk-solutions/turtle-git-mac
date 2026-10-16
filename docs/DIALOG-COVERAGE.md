@@ -108,7 +108,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_DIFFSUBMODULE` | partial-native-replacement | 17/17 mapped; 0 pending | [SUBMODULE-DIFF-PARITY](SUBMODULE-DIFF-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_IGNORE` | partial-native-replacement | 10/10 mapped; 0 pending | [IGNORE-PARITY](IGNORE-PARITY.md), [UI-PARITY](UI-PARITY.md); 7 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SUBMODULE_UPDATE` | partial | 15/15 mapped; 0 pending | [SUBMODULE-UPDATE-PARITY](SUBMODULE-UPDATE-PARITY.md), [UI-PARITY](UI-PARITY.md); 10 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_BROWSE_REFS` | partial-native-replacement | 1/11 mapped; 10 pending | [HELP-PARITY](HELP-PARITY.md), [REFERENCE-BROWSER-PARITY](REFERENCE-BROWSER-PARITY.md); 21 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_BROWSE_REFS` | partial-native-replacement | 1/11 mapped; 10 pending | [HELP-PARITY](HELP-PARITY.md), [REFERENCE-BROWSER-PARITY](REFERENCE-BROWSER-PARITY.md), [REFERENCE-BROWSER-PRESENTATION](REFERENCE-BROWSER-PRESENTATION.md); 22 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_ADD_REMOTE` | partial-native-replacement | 7/7 mapped; 0 pending | [REMOTE-DIALOGS-PARITY](REMOTE-DIALOGS-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_DELETEREMOTETAG` | partial-native-replacement | 0/7 mapped; 7 pending | [REMOTE-TAGS-PARITY](REMOTE-TAGS-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REVISIONGRAPH` | partial | 0/0 mapped; 0 pending | [UI-PARITY](UI-PARITY.md); 6 QA records |

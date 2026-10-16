@@ -2,11 +2,38 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+struct ReferenceBrowserColumnLayout: Codable, Equatable {
+    static let key = "TurtleGit.BrowseRefs.Columns.v7"
+    static let definitions: [(String,String,Double)] = [("name","Branch Name",210),("upstream","Tracked branch",150),("authorDate","Last Author Date",140),("subject","Last Commit",280),("author","Last Author",130),("committerDate","Date Last Commit",140),("committer","Last Committer",130),("hash","SHA-1",170),("description","Description",180)]
+    static var ids: [String] { definitions.map { $0.0 } }
+    var order = ids
+    var visible = Set(ids)
+    var widths: [String:Double] = [:]
+    var divider = 190.0
+    func normalized() -> Self {
+        var next = self, used = Set<String>()
+        next.order = (order + Self.ids).filter { Self.ids.contains($0) && used.insert($0).inserted }
+        next.visible = visible.intersection(Self.ids);next.visible.insert("name")
+        next.widths = widths.filter { Self.ids.contains($0.key) && $0.value.isFinite && (40...10000).contains($0.value) }
+        if !divider.isFinite || !(120...2000).contains(divider) { next.divider = 190 }
+        return next
+    }
+    static func load(_ preferences:UserDefaults) -> Self {
+        guard let data = preferences.data(forKey:key),let value = try? JSONDecoder().decode(Self.self,from:data) else { return .init() }
+        return value.normalized()
+    }
+}
+
 private final class ReferenceBrowserNativeWindow: NSWindow {
-    var refresh: () -> Void = {}
-    override func performKeyEquivalent(with event: NSEvent) -> Bool { if event.keyCode == 96 { refresh(); return true }; return super.performKeyEquivalent(with: event) }
+    var handleCommand: (NSEvent) -> Bool = { _ in false }
+    var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if commandKeyWindow() === self, event.window === self, handleCommand(event) { return true }
+        return super.performKeyEquivalent(with:event)
+    }
 }
 @MainActor final class ReferenceBrowserWindowController: NSWindowController, NSWindowDelegate {
+    var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
     let model: ReferenceBrowserWindowModel
     var onClosed: () -> Void = {}
     private(set) var remoteSettingsDialog: RemoteSettingsWindowController?
@@ -44,7 +71,9 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Browse references", preferences: preferences); window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 940, height: 450)
         window.contentViewController = NSHostingController(rootView: ReferenceBrowserDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.center()
-        window.refresh = { [weak model] in model?.load() }
+        window.commandKeyWindow = { [weak self] in self?.commandKeyWindow() }
+        window.handleCommand = { [weak self] event in self?.handleCommand(event) ?? false }
+        model.confirmResetColumns = { [weak self] in await self?.ask(message:"Reset column order?",detail:"Restore the default column order, widths and visibility?",warning:false) ?? false }
         model.confirmDeletion = { [weak self] confirmation in
             await self?.ask(message: "TurtleGit", detail: confirmation.message, warning: confirmation.warning) ?? false
         }
@@ -86,6 +115,28 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     private func finishQuestion(_ id: UUID, accepted: Bool) {
         guard let pending = question, pending.0 == id else { return }; question = nil
         if pending.1.window.sheetParent === window { window?.endSheet(pending.1.window) }; pending.1.window.orderOut(nil); pending.2(accepted)
+    }
+    private func handleCommand(_ event:NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        let modified = modifiers == .command || modifiers == .control
+        func find<T:NSView>(_ type:T.Type,_ id:String,in root:NSView?) -> T? {
+            guard let root else { return nil }
+            if let view = root as? T,view.identifier?.rawValue == id { return view }
+            return root.subviews.compactMap { find(type,id,in:$0) }.first
+        }
+        if event.keyCode == 96, modifiers.isEmpty { if model.canEditPresentation,window?.attachedSheet == nil { model.load() };return true }
+        if event.keyCode == 14, modified {
+            if model.canEditPresentation,window?.attachedSheet == nil,let field = find(NSSearchField.self,"BrowseRefs.Filter",in:window?.contentView),field.isEnabled { window?.makeFirstResponder(field);field.currentEditor()?.selectAll(nil) }
+            return true
+        }
+        if event.keyCode == 0, modified,let table = window?.firstResponder as? NSTableView,table.identifier?.rawValue == "BrowseRefs.References" {
+            if model.canEditPresentation,window?.attachedSheet == nil,table.allowsMultipleSelection { table.selectAll(nil) };return true
+        }
+        if event.keyCode == 53,modifiers.isEmpty,!model.query.isEmpty,
+           let field = find(NSSearchField.self,"BrowseRefs.Filter",in:window?.contentView),field.currentEditor() === window?.firstResponder {
+            if model.canEditPresentation,window?.attachedSheet == nil { field.stringValue = "";model.query = "";model.refilter() };return true
+        }
+        return false
     }
     func showComparison(_ pair: ReferenceBrowserComparison) {
         guard let owner = window, owner.attachedSheet == nil, model.canComparePair else { return }
@@ -319,7 +370,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     @Published private(set) var snapshot: ReferenceBrowserSnapshot?
     @Published private(set) var busy = false { didSet { if oldValue != busy { menuEpoch &+= 1 } } }
     @Published var error: String?
-    @Published var folder: GitReferenceName = "refs" { didSet { if oldValue != folder { menuEpoch &+= 1 } } }
+    @Published var folder: GitReferenceName = "refs" { didSet { if oldValue != folder { menuEpoch &+= 1;refreshNamespaceColumns() } } }
     @Published private(set) var selection: Set<GitReferenceName> = []
     @Published private(set) var lastSelected: GitReferenceName?
     var selected: GitReferenceName? {
@@ -369,8 +420,41 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     @Published var fields: HistorySearchFields = allFields { didSet { if oldValue != fields { menuEpoch &+= 1 } } }
     @Published var mergeFilter = ReferenceBrowserMergeFilter.all { didSet { if oldValue != mergeFilter { menuEpoch &+= 1 } } }
     @Published var nested: Bool { didSet { if oldValue != nested { menuEpoch &+= 1 } } }
-    @Published var sortColumn = "name" { didSet { if oldValue != sortColumn { menuEpoch &+= 1 } } }
-    @Published var descending = false { didSet { if oldValue != descending { menuEpoch &+= 1 } } }
+    @Published var sortColumn = "name" { didSet { if oldValue != sortColumn { menuEpoch &+= 1;saveSort() } } }
+    @Published var descending = false { didSet { if oldValue != descending { menuEpoch &+= 1;saveSort() } } }
+    @Published private(set) var columnLayout = ReferenceBrowserColumnLayout()
+    @Published var displayedDivider = 190.0
+    private(set) var layoutRevision = 0
+    var confirmResetColumns: () async -> Bool = { false }
+    var canEditPresentation: Bool { !invalidated && !busy && !hasChild && !confirmingCancellation && !awaitingConfirmation && renameReference == nil }
+    var isLocalNamespace: Bool { folder == "refs/heads" || GitReferenceName.removingPrefix("refs/heads/",from:folder.rawValue) != nil }
+    private func saveSort() {
+        guard !invalidated,let index = ReferenceBrowserColumnLayout.ids.firstIndex(of:sortColumn) else { return }
+        preferences.set(index,forKey:"RefBrowserSortCol");preferences.set(descending,forKey:"RefBrowserSortDesc")
+    }
+    private func installColumns(_ value: ReferenceBrowserColumnLayout) {
+        let value = value.normalized();guard !invalidated,value != columnLayout else { return }
+        columnLayout = value;layoutRevision &+= 1;menuEpoch &+= 1
+        if let data = try? JSONEncoder().encode(value) { preferences.set(data,forKey:ReferenceBrowserColumnLayout.key) }
+    }
+    func saveColumns(_ value:ReferenceBrowserColumnLayout) { guard canEditPresentation else { return };installColumns(value) }
+    private func refreshNamespaceColumns() {
+        var value = columnLayout
+        for id in ["upstream","description"] { if isLocalNamespace { value.visible.insert(id) } else { value.visible.remove(id) } }
+        installColumns(value)
+    }
+    func resetColumns() {
+        guard canEditPresentation else { return }
+        let revision = layoutRevision,folder = self.folder,divider = columnLayout.divider
+        hasChild = true;Self.activeMutations += 1
+        Task {
+            defer {Self.activeMutations -= 1;if !invalidated {hasChild = false}}
+            guard await confirmResetColumns(),!invalidated,layoutRevision == revision,self.folder == folder else { return }
+            var value = ReferenceBrowserColumnLayout();value.divider = divider
+            if !isLocalNamespace {value.visible.subtract(["upstream","description"])}
+            installColumns(value)
+        }
+    }
     var finish: (String?) -> Void = { _ in }
     var confirmDeletion: ((ReferenceBrowserDeletionConfirmation) async -> Bool)?
     var deletionKind: ReferenceBrowserDeletionKind? {
@@ -504,6 +588,11 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         self.picking = picking; self.pickMultiple = pickMultiple; self.allowsRangeSelection = allowsRangeSelection; sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
         self.repository = repository; self.access = access; self.initial = initial; self.preferences = preferences; self.scope = scope
         nested = preferences.object(forKey: "RefBrowserIncludeNestedRefs") as? Bool ?? true
+        columnLayout = .load(preferences)
+        let sort = (preferences.object(forKey:"RefBrowserSortCol") as? NSNumber)?.intValue ?? 0
+        let savedDescending = (preferences.object(forKey:"RefBrowserSortDesc") as? NSNumber)?.uint32Value == 1
+        descending = savedDescending
+        sortColumn = ReferenceBrowserColumnLayout.ids.indices.contains(sort) ? ReferenceBrowserColumnLayout.ids[sort]:"name"
     }
     var rows: [ReferenceBrowserRow] {
         (snapshot?.rows(folder: folder, nested: nested, query: query, fields: fields) ?? []).sorted { lhs, rhs in
@@ -522,8 +611,10 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var canAccept: Bool { !confirmingCancellation && !awaitingConfirmation && !busy && !hasChild && !invalidated && renameReference == nil && (pickMultiple ? !selectedRows.isEmpty && selectedRows.count == (dispatchingMenu?.selectedRows.count ?? selection.count) : chosen != nil) }
     var canFinish: Bool { picking ? canAccept : !busy && !hasChild && !invalidated && renameReference == nil }
     var canRename: Bool { canAccept && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
-    func beginRename() -> String? {
-        guard canRename, let chosen, let row = rows.first(where: { $0.reference.name == chosen.name }) else { return nil }
+    func beginRename(keyboard:Bool = false) -> String? {
+        guard canEditPresentation,keyboard || canRename,let chosen = keyboard ? selectedRows.first?.reference:self.chosen,
+              GitReferenceName.removingPrefix("refs/heads/",from:chosen.name.rawValue) != nil,
+              let row = rows.first(where: { $0.reference.name == chosen.name }) else { return nil }
         renameFolder = folder; renameHash = chosen.hash; renameReference = chosen.name; initialFocusPending = false; error = nil
         return row.name
     }
@@ -594,6 +685,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     func invalidate() { if mutationActive { mutationCancelled = true }; saveActionLog(); invalidated = true; confirmingCancellation = false; awaitingConfirmation = false; generatingUnified = false; deletingReference = false; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
     func setFolder(_ folder: GitReferenceName) { guard !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
     func refilter() {
+        refreshNamespaceColumns()
         selection.formIntersection(Set(rows.map { $0.reference.name }))
         if let lastSelected, !selection.contains(lastSelected) { self.lastSelected = selectedRows.last?.reference.name }
     }
@@ -646,7 +738,7 @@ struct ReferenceBrowserDialog: View {
     var body: some View {
         VStack(spacing: 8) {
             HStack {
-                Color.clear.frame(width: 190)
+                Color.clear.frame(width:model.displayedDivider)
                 Text("Filter:")
                 ReferenceBrowserSearchField(text: $model.query).onChange(of: model.query) { _ in model.refilter() }
                 Menu { ForEach([(HistorySearchFields.referenceNames, "Refname"), (.subject, "Subject"), (.authors, "Authors"), (.revisions, "SHA-1")], id: \.0.rawValue) { field, title in
@@ -685,7 +777,7 @@ struct ReferenceBrowserSearchField: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSSearchField {
-        let field = NSSearchField(); field.placeholderString = "Filter references"; field.setAccessibilityLabel("Filter references")
+        let field = NSSearchField();field.identifier = .init("BrowseRefs.Filter"); field.placeholderString = "Filter references"; field.setAccessibilityLabel("Filter references")
         field.sendsSearchStringImmediately = true; field.sendsWholeSearchString = false
         field.target = context.coordinator; field.action = #selector(Coordinator.changed(_:)); return field
     }
@@ -703,36 +795,90 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         let split = NSSplitView(); split.delegate = context.coordinator; split.isVertical = true; split.dividerStyle = .thin
         let tree = NSOutlineView(); tree.headerView = nil; tree.setAccessibilityLabel("Reference namespaces")
         let folder = NSTableColumn(identifier: .init("folder")); folder.width = 185; tree.addTableColumn(folder); tree.outlineTableColumn = folder; tree.rowHeight = 22
-        let table = ReferenceBrowserRenameTable(); table.rename = { [weak coordinator = context.coordinator] in coordinator?.beginRename() }; table.rowHeight = 23; table.allowsMultipleSelection = !model.picking || model.pickMultiple; table.setAccessibilityLabel("References")
-        for (id, title, width) in [("name", "Branch Name", 210.0), ("upstream", "Tracked branch", 150), ("authorDate", "Last Author Date", 140), ("subject", "Last Commit", 280), ("author", "Last Author", 130), ("committerDate", "Date Last Commit", 140), ("committer", "Last Committer", 130), ("hash", "SHA-1", 170), ("description", "Description", 180)] {
-            let column = NSTableColumn(identifier: .init(id)); column.title = title; column.width = width; column.minWidth = 70; table.addTableColumn(column)
+        let table = ReferenceBrowserRenameTable(); table.rename = { [weak coordinator = context.coordinator] in coordinator?.beginRename(keyboard:true) }; table.rowHeight = 23; table.allowsMultipleSelection = !model.picking || model.pickMultiple; table.setAccessibilityLabel("References");table.identifier = .init("BrowseRefs.References")
+        table.columnAutoresizingStyle = .noColumnAutoresizing;table.allowsColumnResizing = true;table.allowsColumnReordering = true
+        for (id, title, width) in ReferenceBrowserColumnLayout.definitions {
+            let column = NSTableColumn(identifier: .init(id)); column.title = title; column.width = width; column.minWidth = 40;column.maxWidth = 10000; table.addTableColumn(column)
         }
+        let header = RepositoryBrowserColumnHeader(frame:.init(x:0,y:0,width:0,height:24))
+        header.buildMenu = { [weak coordinator = context.coordinator] in coordinator?.columnMenu() }
+        header.fit = { [weak coordinator = context.coordinator] index,includeHeader in coordinator?.fit(index,includeHeader:includeHeader) };table.headerView = header
         tree.delegate = context.coordinator; tree.dataSource = context.coordinator; table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.activateSelection)
         let menu = NSMenu(); menu.delegate = context.coordinator; table.menu = menu
         let folderMenu = NSMenu(); folderMenu.delegate = context.coordinator; tree.menu = folderMenu
         for view in [tree, table] { let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder; scroll.documentView = view; split.addArrangedSubview(scroll) }
         context.coordinator.tree = tree; context.coordinator.table = table
-        split.setPosition(190, ofDividerAt: 0)
+        split.setPosition(model.columnLayout.divider, ofDividerAt: 0)
         return split
     }
     func updateNSView(_ split: NSSplitView, context: Context) {
         let coordinator = context.coordinator; coordinator.model = model; coordinator.update()
-        DispatchQueue.main.async { [weak coordinator, weak table = coordinator.table, weak split] in guard let coordinator, let table else { return }; if let split, !coordinator.positioned, split.bounds.width > 0 { split.setPosition(190, ofDividerAt: 0); coordinator.positioned = true }; coordinator.model.focusIfReady(table) }
+        DispatchQueue.main.async { [weak coordinator, weak table = coordinator.table, weak split] in guard let coordinator,!coordinator.retired, let table else { return }; if let split, !coordinator.positioned, split.bounds.width > 0 { coordinator.updating = true;split.setPosition(min(coordinator.model.columnLayout.divider,max(120,split.bounds.width - 320)), ofDividerAt: 0);coordinator.updating = false; coordinator.positioned = true }; coordinator.model.focusIfReady(table) }
     }
-    static func dismantleNSView(_ split: NSSplitView, coordinator: Coordinator) { split.delegate = nil; coordinator.tree?.delegate = nil; coordinator.tree?.dataSource = nil; coordinator.tree?.menu?.delegate = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.menu?.delegate = nil }
+    static func dismantleNSView(_ split: NSSplitView, coordinator: Coordinator) { coordinator.retired = true;split.delegate = nil; coordinator.tree?.delegate = nil; coordinator.tree?.dataSource = nil; coordinator.tree?.menu?.delegate = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.menu?.delegate = nil;(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.buildMenu = { nil };(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.fit = {_,_ in} }
     @MainActor final class Folder: NSObject { let key: GitReferenceName; var children: [Folder] = []; weak var parent: Folder?; init(_ key: GitReferenceName) { self.key = key } }
     @MainActor final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate, NSMenuDelegate, NSSplitViewDelegate {
         var model: ReferenceBrowserWindowModel
         weak var tree: NSOutlineView?; weak var table: NSTableView?
         private var paths: [GitReferenceName] = [], folders: [GitReferenceName: Folder] = [:], visible: [ReferenceBrowserRow] = []
-        var positioned = false
-        private var updating = false
+        var positioned = false,retired = false
+        private var appliedLayout: ReferenceBrowserColumnLayout?
+        private var rowSignature: [String] = []
+        var updating = false
         private weak var renameField: NSTextField?
         init(model: ReferenceBrowserWindowModel) { self.model = model }
         func splitView(_ splitView: NSSplitView, shouldAdjustSizeOfSubview view: NSView) -> Bool { view === splitView.subviews.last }
+        var presentationAvailable: Bool { !retired && model.canEditPresentation && table?.window?.attachedSheet == nil }
+        func splitView(_ splitView:NSSplitView,constrainMinCoordinate proposedMinimumPosition:CGFloat,ofSubviewAt dividerIndex:Int) -> CGFloat { 120 }
+        func splitView(_ splitView:NSSplitView,constrainMaxCoordinate proposedMaximumPosition:CGFloat,ofSubviewAt dividerIndex:Int) -> CGFloat { max(120,splitView.bounds.width - 320) }
+        func splitViewDidResizeSubviews(_ notification:Notification) {
+            guard !retired,let split = notification.object as? NSSplitView,let first = split.arrangedSubviews.first,first.frame.width >= 120 else { return }
+            let width = first.frame.width
+            DispatchQueue.main.async { [weak self] in
+                guard let self,!self.retired,!self.model.closed,abs(self.model.displayedDivider - width)>0.25 else { return }
+                self.model.displayedDivider = width
+            }
+            guard positioned,!updating,presentationAvailable else { return }
+            var value = model.columnLayout;value.divider = first.frame.width;model.saveColumns(value)
+        }
+        func tableViewColumnDidResize(_ notification:Notification) {saveColumns()}
+        func tableViewColumnDidMove(_ notification:Notification) {saveColumns()}
+        private func saveColumns() {
+            guard !updating,presentationAvailable,let table else { return }
+            var value = model.columnLayout
+            value.order = table.tableColumns.map { $0.identifier.rawValue }
+            value.widths = Dictionary(uniqueKeysWithValues:table.tableColumns.map { ($0.identifier.rawValue,Double($0.width)) })
+            value.visible = Set(table.tableColumns.filter { !$0.isHidden }.map { $0.identifier.rawValue })
+            model.saveColumns(value)
+        }
+        func fit(_ index:Int,includeHeader:Bool) {
+            guard presentationAvailable,let table,table.tableColumns.indices.contains(index) else { return }
+            let column = table.tableColumns[index],font = NSFont.systemFont(ofSize:NSFont.systemFontSize)
+            var width = visible.map { (model.text($0,column:column.identifier.rawValue) as NSString).size(withAttributes:[.font:font]).width + 18 }.max() ?? 40
+            if includeHeader { width = max(width,(column.title as NSString).size(withAttributes:[.font:font]).width + 24) }
+            updating = true;column.width = min(10000,max(40,width));updating = false;saveColumns()
+        }
+        func columnMenu() -> NSMenu {
+            let menu = NSMenu();menu.autoenablesItems = false
+            let revision = model.layoutRevision
+            func add(_ title:String,enabled:Bool,state:NSControl.StateValue = .off,action:@escaping (Coordinator)->Void) {
+                let command = ReferenceBrowserMenuCommand { [weak self] in guard let self,self.presentationAvailable,self.model.layoutRevision == revision else { return };action(self) }
+                let item = NSMenuItem(title:title,action:#selector(ReferenceBrowserMenuCommand.invoke(_:)),keyEquivalent:"")
+                item.target = command;item.representedObject = command;item.isEnabled = enabled && presentationAvailable;item.state = state;menu.addItem(item)
+            }
+            add("Reset column order",enabled:true) { $0.model.resetColumns() };menu.addItem(.separator())
+            for (id,title,_) in ReferenceBrowserColumnLayout.definitions where id != "name" {
+                add(title,enabled:true,state:model.columnLayout.visible.contains(id) ? .on:.off) { coordinator in
+                    var value = coordinator.model.columnLayout
+                    if value.visible.contains(id) {value.visible.remove(id)} else {value.visible.insert(id)}
+                    coordinator.model.saveColumns(value)
+                }
+            }
+            return menu
+        }
         func update() {
-            guard let tree, let table else { return }
+            guard !retired,let tree, let table else { return }
             if model.renameReference != nil { tree.isEnabled = false; renameField?.isEditable = !model.busy; return }
             if renameField != nil { renameField?.delegate = nil; table.window?.makeFirstResponder(table); renameField = nil }
             updating = true; defer { updating = false }
@@ -752,13 +898,27 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                 for ancestor in ancestors.reversed() { tree.expandItem(ancestor) }
                 let row = tree.row(forItem: chosen); if row >= 0 { tree.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
             }
-            visible = model.rows; table.reloadData()
+            visible = model.rows
+            let signature = visible.flatMap { row in
+                [row.reference.name.rawValue,row.reference.hash,row.reference.objectType,row.reference.name == model.snapshot?.currentBranch ? "current":""] + ReferenceBrowserColumnLayout.ids.map { model.text(row,column:$0) }
+            }
+            let changed = signature.count != rowSignature.count || !zip(signature,rowSignature).allSatisfy { $0.utf8.elementsEqual($1.utf8) }
+            if changed {rowSignature = signature;table.reloadData()}
             let selected = IndexSet(visible.indices.filter { model.selection.contains(visible[$0].reference.name) })
-            table.selectRowIndexes(selected, byExtendingSelection: false)
-            if let row = selected.first { table.scrollRowToVisible(row) }
-            let heads = model.folder == "refs/heads" || GitReferenceName.removingPrefix("refs/heads/", from: model.folder.rawValue) != nil
-            for id in ["upstream", "description"] { table.tableColumn(withIdentifier: .init(id))?.isHidden = !heads }
+            let selectionChanged = table.selectedRowIndexes != selected
+            if selectionChanged {table.selectRowIndexes(selected, byExtendingSelection: false)}
+            if changed || selectionChanged,let row = selected.first { table.scrollRowToVisible(row) }
+            if appliedLayout != model.columnLayout {
+                let value = model.columnLayout
+                for (index,id) in value.order.enumerated() { let current = table.column(withIdentifier:.init(id));if current >= 0,current != index {table.moveColumn(current,toColumn:index)} }
+                for column in table.tableColumns {
+                    let id = column.identifier.rawValue;column.isHidden = !value.visible.contains(id)
+                    column.width = value.widths[id] ?? ReferenceBrowserColumnLayout.definitions.first { $0.0 == id }!.2
+                }
+                appliedLayout = value
+            }
             tree.isEnabled = !model.busy && !model.hasChild; table.isEnabled = !model.busy && !model.hasChild
+            table.allowsColumnResizing = model.canEditPresentation;table.allowsColumnReordering = model.canEditPresentation
             for column in table.tableColumns { table.setIndicatorImage(nil, in: column) }
             if let column = table.tableColumn(withIdentifier: .init(model.sortColumn)) {
                 table.highlightedTableColumn = column
@@ -785,10 +945,11 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             }
             return text
         }
-        func beginRename() {
-            guard let table, let label = model.beginRename(), let reference = model.renameReference,
-                  let row = visible.firstIndex(where: { $0.reference.name == reference }),
-                  let cell = table.view(atColumn: table.column(withIdentifier: .init("name")), row: row, makeIfNecessary: true) as? NSTableCellView,
+        func beginRename(keyboard:Bool = false) {
+            guard let table, let label = model.beginRename(keyboard:keyboard), let reference = model.renameReference,
+                  let row = visible.firstIndex(where: { $0.reference.name == reference }) else { return }
+            table.scrollRowToVisible(row);table.scrollColumnToVisible(table.column(withIdentifier:.init("name")))
+            guard let cell = table.view(atColumn: table.column(withIdentifier: .init("name")), row: row, makeIfNecessary: true) as? NSTableCellView,
                   let field = cell.textField else { model.cancelRename(); return }
             renameField = field; field.stringValue = label; field.isEditable = true; field.isSelectable = true; field.isBordered = true; field.drawsBackground = true; field.backgroundColor = .textBackgroundColor; field.delegate = self
             field.setAccessibilityLabel("Rename branch")
@@ -813,7 +974,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         func tableViewSelectionDidChange(_ notification: Notification) { guard !updating, model.renameReference == nil, let table else { return }; let names = Set(table.selectedRowIndexes.compactMap { visible.indices.contains($0) ? visible[$0].reference.name : nil })
             let added = table.selectedRowIndexes.last(where: { visible.indices.contains($0) && !model.selection.contains(visible[$0].reference.name) }).map { visible[$0].reference.name }
             model.select(names, last: added ?? model.lastSelected) }
-        func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) { guard model.renameReference == nil, !model.busy else { return }; let id = tableColumn.identifier.rawValue; if model.sortColumn == id { model.descending.toggle() } else { model.sortColumn = id; model.descending = false } }
+        func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) { guard presentationAvailable else { return }; let id = tableColumn.identifier.rawValue; if model.sortColumn == id { model.descending.toggle() } else { model.sortColumn = id; model.descending = false } }
         @objc func activateSelection() { model.activateSelection() }
         @objc func accept() { model.accept() }
         func menuNeedsUpdate(_ menu: NSMenu) {
@@ -931,7 +1092,9 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
 private final class ReferenceBrowserRenameTable: NSTableView {
     var rename: () -> Void = {}
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 120 { rename(); return }
+        if event.keyCode == 120,event.modifierFlags.intersection([.command,.control,.option,.shift]).isEmpty {
+            if isEnabled,window?.firstResponder === self,let owner = window as? ReferenceBrowserNativeWindow,owner.commandKeyWindow() === owner { rename() };return
+        }
         super.keyDown(with: event)
     }
 }

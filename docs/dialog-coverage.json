@@ -3270,7 +3270,8 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/HELP-PARITY.md",
-        "docs/REFERENCE-BROWSER-PARITY.md"
+        "docs/REFERENCE-BROWSER-PARITY.md",
+        "docs/REFERENCE-BROWSER-PRESENTATION.md"
       ],
       "qa_records": [
         "docs/qa/help-book-2026-10-15.json",
@@ -3286,6 +3287,7 @@
         "docs/qa/reference-menu-targets-2026-10-16.json",
         "docs/qa/reference-merge-2026-10-09.json",
         "docs/qa/reference-pid-publication-ci-2026-10-12.json",
+        "docs/qa/reference-presentation-2026-10-16.json",
         "docs/qa/reference-rename-2026-10-09.json",
         "docs/qa/reference-standalone-2026-10-09.json",
         "docs/qa/reference-switch-2026-10-09.json",

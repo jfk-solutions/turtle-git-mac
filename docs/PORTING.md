@@ -1546,3 +1546,11 @@ files, including Added/Removed and first-trailing-gap placement. Combined view
 excludes the source’s two-pane-only record. Original line coordinates, encoded
 output, input/history and block-transfer ending repair share the existing owners.
 See [EOF records](MERGE-EOF-PARITY.md) for source rules and remaining acceptance.
+
+
+## Reference browser presentation family — October 16, 2026
+
+Source column controls now retain order/width/visibility, owned reset confirmation,
+sizing and sort state; native splitter/filter alignment persists across browsers.
+Window-scoped filter/list/F5/F2 behavior uses the existing captured-reference and
+inline-rename paths. See [browser presentation](REFERENCE-BROWSER-PRESENTATION.md).

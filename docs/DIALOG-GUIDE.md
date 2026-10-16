@@ -601,3 +601,12 @@ Click a Check category to check its matching files; Shift-click unchecks them.
 Shift-None checks all eligible files, and Shift-All unchecks all. In staging mode
 these actions stage or unstage the corresponding files. Signed-off-by reads the
 configured identity as an owned operation and keeps your draft on cancellation.
+
+
+In **Browse References**, right-click the column header to show/hide metadata
+columns or reset their order, widths and visibility. Resize/reorder columns and
+the namespace divider to keep that layout for later browsers and pickers.
+Double-click a column boundary to fit contents; hold Shift to include the title.
+F5 refreshes, Ctrl-E/Cmd-E focuses Filter, and Escape clears its current text.
+Ctrl-A/Cmd-A selects every row in a multi-select list. F2 renames the first
+selected local branch; Return accepts and Escape cancels the inline edit.
