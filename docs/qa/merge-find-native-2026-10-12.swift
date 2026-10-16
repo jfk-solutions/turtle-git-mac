@@ -7,9 +7,9 @@ struct MergeFindNativeVerification {
         if !condition() { throw MergeFindVerificationFailure(description: "Merge Find assertion failed at line \(line)") }
     }
     @MainActor static func descendants(_ view: NSView?) -> [NSView] { guard let view else { return [] }; return [view] + view.subviews.flatMap { descendants($0) } }
-    @MainActor static func wait(_ condition: () -> Bool) async throws {
+    @MainActor static func wait(_ condition: () -> Bool, line:Int = #line) async throws {
         for _ in 0..<1000 { if condition() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw MergeFindVerificationFailure(description: "Merge Find native transition did not settle")
+        throw MergeFindVerificationFailure(description: "Merge Find native transition did not settle at fixture line \(line)")
     }
     @MainActor static func capture(_ window: NSWindow, in directory: URL) throws {
         guard let view = window.contentView else { return }
@@ -161,6 +161,14 @@ struct MergeFindNativeVerification {
         let word = (result.string as NSString).range(of: "foo")
         MergeMarkedWordInterface.select(at: word.location + 1, local: false, in: result)
         try require(conflictViews.allSatisfy { ($0 as! MergeFindProviding).mergeFindHighlights.markedWord == "foo" })
+        // Unresolved result cells display an aligned placeholder; serialized
+        // conflict markers are not searchable painted result rows. Check that
+        // state, then create the actual three-match result through a source action.
+        try await wait { conflictModel.locatorHighlights.map { $0.marked.count } == [2, 1, 2] }
+        try require(result.string == conflictModel.resultDisplayText && MergeText.hasMarkers(conflictModel.result))
+        conflictModel.choose(.mineThenTheirs)
+        try await wait { result.string == conflictModel.resultDisplayText && (result as? MergeContextMenuProviding)?.mergeSourceRowsReady == true }
+        try require(conflictModel.result.contains("mine foo") && conflictModel.result.contains("theirs foo") && !MergeText.hasMarkers(conflictModel.result))
         try await wait { conflictModel.locatorHighlights.map { $0.marked.count } == [2, 3, 2] }
         result.turtleClearMarkedWord(nil)
         try await wait { conflictModel.locatorHighlights.allSatisfy { $0.marked.isEmpty } }

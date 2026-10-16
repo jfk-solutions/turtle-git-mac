@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "10132c18",
+  "hosted_failure": {
+    "sha": "583a6534",
+    "run": 38841070778,
+    "job": 116787936888,
+    "step": "Grouped native LFS and Send Mail receivers with one compilation",
+    "phase": "MergeFindNativeVerification",
+    "message": "Merge Find native transition did not settle"
+  },
+  "cause": "Fixture expected three marked result rows from serialized conflict-marker text. The current aligned unresolved result pane displays a Base placeholder with one marked row; native source panes each correctly show two. Actual local state was [2,1,2] while raw model result still had conflict markers.",
+  "repair": [
+    "Wait failures now identify the fixture source line",
+    "Verify initial locator marks [2,1,2], actual result display identity and unresolved serialized markers",
+    "Choose Mine then Theirs through the real native model action, wait for displayed aligned source-row readiness, and assert both source payloads with no remaining markers",
+    "Retain original [2,3,2] locator, mark clearing, source/result Find/Count, Unicode Replace All, Undo/Redo and unchanged disk/index assertions"
+  ],
+  "scope": "Fixture-only repair; app/Core implementation unchanged. No repeated app build or full Core/LFS/mail batch.",
+  "validation": {
+    "initial_log": "build/qa/merge-find-isolated-2026-10-16.log",
+    "initial_exit": 1,
+    "initial_reaped": 2450,
+    "diagnostic_log": "build/qa/merge-find-isolated-diagnostic-2026-10-16.log",
+    "diagnostic_exit": 1,
+    "diagnostic_reaped": 2560,
+    "final_log": "build/qa/merge-find-isolated-repair-2026-10-16.log",
+    "final_exit": 0,
+    "final_reaped": 2744,
+    "entry": "build/qa/merge-find-isolated-entry.swift calls MergeFindNativeVerification.verify() using current Debug app objects through scripts/native_receiver.py; isolated NSApplication runloop and owned receiver group",
+    "result": "Actual two/three-pane Find/Count, modified-line restriction, wrap status, readonly/async gates, pane-local ownership, source-gap exclusion, Unicode Replace All and single Undo/Redo passed. Original working file/index unchanged. All native windows/helpers closed."
+  },
+  "limits": [
+    "Full hosted macOS rerun remains pending",
+    "Local reproduction/repair targets the observed phase, not later unexecuted workflow steps",
+    "Physical gestures, signed Finder and App Store acceptance remain open"
+  ]
+}

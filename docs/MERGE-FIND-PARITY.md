@@ -88,3 +88,17 @@ was unchanged and no Core suite was repeated.
 
 The connected [marked-word and locator continuation](MERGE-LOCATOR-PARITY.md#find-bands-and-shared-marked-words--october-15-2026) adds independent word marking,
 layered source paint and Find/marked-row bands, with its own grouped evidence.
+
+
+## Aligned-result hosted fixture repair — October 16, 2026
+
+The hosted `MergeFindNativeVerification` timeout was reproduced locally at its
+result locator assertion. The fixture counted serialized conflict-marker bodies,
+while the native aligned unresolved result correctly displayed a Base placeholder.
+It now checks that initial `[2,1,2]` marked-row state, chooses Mine then Theirs
+through the real merge action, waits for the aligned displayed result and retains
+the original `[2,3,2]` locator and Find/Replace/Undo assertions. Wait diagnostics
+identify the fixture line. The isolated repaired phase passed without app/Core
+changes or repeating the full LFS/mail suite. See
+[actual attempts and limits](qa/merge-find-ci-repair-2026-10-16.json).
+Full hosted rerun and signed/physical acceptance remain pending.

@@ -1193,3 +1193,10 @@ See [SSH identities](SSH-IDENTITY-PARITY.md). Core CI also skips the duplicate
 SwiftPM UI-executable build through an opt-in manifest mode; full Xcode app/native
 checks remain in the workflow. The package graphs retain identical Core tests,
 resources, SMTP and revision utility targets. Hosted execution is still pending.
+
+
+The hosted Merge Find timeout in `583a6534` was reproduced and repaired in its
+fixture: unresolved aligned placeholder rows are now checked before selecting
+both sides and exercising the original three-match Find/Replace/Undo assertions.
+The isolated native phase passed; this is not a full hosted CI pass. See
+[the repair record](qa/merge-find-ci-repair-2026-10-16.json).
