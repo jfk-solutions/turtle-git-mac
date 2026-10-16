@@ -38,7 +38,7 @@ actor RefLogCombineGate {
         let menu=native.owner!.menu(),combine=menu.item(withTitle:"Combine to one commit")!,start=menu.item(withTitle:LogBisectCommand.start.title)!
         try require(combine.image != nil && start.image != nil,"Advanced source icons missing")
         try invoke(combine);try require(combined.map(\.hash)==[head,middle] && offset==0 && combinedHead==head,"Combine lost source span")
-        try invoke(start);try await wait { !model.busy && bisect != nil }
+        try invoke(native.owner!.menu().item(withTitle:LogBisectCommand.start.title)!);try await wait { !model.busy && bisect != nil }
         try require(bisect?.good=="refs/heads/middle" && bisect?.bad=="refs/heads/main" && bisect?.operation==nil,"Bisect Start presets changed")
         let after=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
         try require(after==head && (try Data(contentsOf:root.appendingPathComponent(".git/index")))==index,"Review handoff mutated Git")

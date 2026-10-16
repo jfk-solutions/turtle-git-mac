@@ -1658,3 +1658,15 @@ See [source rules and acceptance limits](MERGE-COMMON-RECORDS-PARITY.md).
 
 Seventy focused Core checks and all four grouped native workflows pass. The four
 owned receivers were reaped and independently absent. See [batch evidence](qa/merge-common-records-2026-10-16.json) for scope and limits.
+
+### RefLog native command and header family — October 16, 2026
+
+Scoped source/native shortcuts and keyboard/accessibility row popups now share
+the owning RefLog command gates. Popup sessions consume once, expire across model
+refresh/replacement and capture tool modifiers. Header Reset owns its Yes/No
+question and lifetime, keeps Hash visible, restores defaults and preserves native
+selection/reading position. See [source mapping and limits](REFLOG-COMMAND-FAMILY-PARITY.md).
+
+Twelve native case/engine combinations pass after the recorded fixture repairs.
+All sixteen owned receivers, including failed attempts, were reaped and absent.
+Core sources were unchanged and its suite was not repeated. See [batch evidence](qa/reflog-command-family-2026-10-16.json).

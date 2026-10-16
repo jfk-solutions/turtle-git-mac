@@ -10,6 +10,7 @@ import TurtleGitCore
     private var notePresenter: CommitNotePresenter?
     var noteEditor: InputWindowController? { notePresenter?.editor }
     private(set) var findController: ReferenceLogFindController?
+    var commandKeyWindow: () -> NSWindow? = {NSApp.keyWindow}
     private var ownedAlert:NSAlert?
     private var ownedAlertAnswer:((NSApplication.ModalResponse)->Void)?
     private func askOwned(_ alert:NSAlert) async -> NSApplication.ModalResponse {
@@ -69,8 +70,16 @@ import TurtleGitCore
             }
         }
         model.openFind = { [weak self] in self?.openFind() }
-        window.functionKey = { [weak self] code in
+        model.confirmColumnReset = { [weak self] in
             guard let self else {return false}
+            let alert=NSAlert();alert.alertStyle = .informational;alert.messageText="Are you sure to reset columns?"
+            alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No")
+            return await self.askOwned(alert) == .alertFirstButtonReturn
+        }
+        window.commandKeyWindow = { [weak self] in self?.commandKeyWindow() }
+        window.cancel = { [weak model] in model?.close() }
+        window.functionKey = { [weak self] code in
+            guard let self,!self.model.unifiedViewerBusy,self.window?.attachedSheet == nil else {return false}
             if code == 99,!self.model.commandSurfaceAvailable {return false}
             if code == 96,!self.model.canRefresh {return false}
             if code == 99 { self.model.openFind(); return true } // F3
@@ -100,6 +109,7 @@ import TurtleGitCore
         }
         model.find = ""; model.matchCase = false
         let finder = ReferenceLogFindController(model: model)
+        finder.window?.appearance=window?.appearance
         findController = finder
         finder.onClosed = { [weak self] in self?.findController = nil }
         if visible { finder.showWindow(nil); finder.window?.makeKeyAndOrderFront(nil) }
@@ -129,7 +139,7 @@ import TurtleGitCore
     let preferences: UserDefaults
     let noteLog: LogWindowModel
     private var noteChanges: AnyCancellable?
-    var commandSurfaceAvailable: Bool { !invalidated && !busy && !confirmingDelete && !noteLog.loadingNote && !noteLog.savingNote && noteLog.noteRequest == nil }
+    var commandSurfaceAvailable: Bool { !invalidated && !busy && !confirmingDelete && !confirmingColumns && !noteLog.loadingNote && !noteLog.savingNote && noteLog.noteRequest == nil }
     private let access: RepositoryAccessLease?
     @Published var reference: String
     @Published var names: [String]
@@ -145,6 +155,19 @@ import TurtleGitCore
     private var invalidated = false
     var isInvalidated:Bool {invalidated}
     @Published private(set) var mutating=false
+    @Published private(set) var confirmingColumns=false
+    var confirmColumnReset: () async -> Bool = {false}
+    func requestColumnReset(accepted:@escaping () -> Void) {
+        guard commandSurfaceAvailable else {return}
+        confirmingColumns=true
+        let identity=generation,(operation,token)=startOwned()
+        Task { [self] in
+            defer {if !invalidated {confirmingColumns=false};finishOwned(operation);withExtendedLifetime(access){}}
+            let answer=await confirmColumnReset()
+            guard !invalidated,!token.isCancelled,generation==identity,answer else {return}
+            confirmingColumns=false;accepted()
+        }
+    }
     @Published private(set) var confirmingDelete=false
     private var deleteQuestion:UUID?
     private var loadToken:OperationCancellation?
@@ -157,8 +180,8 @@ import TurtleGitCore
         if ownedTokens.removeValue(forKey:id) != nil {Self.activeOwnedOperations -= 1}
     }
     private func cancelOwned() {ownedTokens.values.forEach{$0.cancel()}}
-    var canRefresh:Bool {!invalidated && !mutating && !confirmingDelete && !noteLog.savingNote && noteLog.noteRequest==nil}
-    var canClose:Bool {!mutating && !noteLog.savingNote}
+    var canRefresh:Bool {!invalidated && !mutating && !confirmingDelete && !confirmingColumns && !noteLog.savingNote && noteLog.noteRequest==nil}
+    var canClose:Bool {!mutating && !confirmingColumns && !noteLog.savingNote}
     var askDelete:((String,Bool) async -> Bool)?
 
     var unifiedWindow: PatchWindowController?
@@ -172,7 +195,7 @@ import TurtleGitCore
     private var finding = false
     @Published var find = "" { didSet { searchWrapped = false } }
     @Published var matchCase = false { didSet { searchWrapped = false } }
-    private var generation = 0
+    private(set) var generation = 0
     var onChoose: (ReferenceLogEntry) -> Void = { _ in }
     func accept() { if selecting { if commandSurfaceAvailable, let entry = selectedEntry { onChoose(entry) } } else { close() } }
     var onApply: (String) -> Void = { _ in }
@@ -795,9 +818,16 @@ private struct ReferenceLogPicker: NSViewRepresentable {
 /// Function keys are handled by the owning RefLog window, without a global event monitor.
 @MainActor final class ReferenceLogNativeWindow: NSWindow {
     var functionKey: (UInt16) -> Bool = { _ in false }
+    var commandKeyWindow: () -> NSWindow? = {NSApp.keyWindow}
+    var cancel: () -> Void = {}
     func handleFunctionKey(_ event: NSEvent) -> Bool {
-        guard event.type == .keyDown, event.keyCode == 99 || event.keyCode == 96 else { return false }
-        return functionKey(event.keyCode)
+        guard event.type == .keyDown,event.window === self,commandKeyWindow() === self,attachedSheet == nil else {return false}
+        let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if flags.isEmpty,event.keyCode == 99 || event.keyCode == 96 {return functionKey(event.keyCode)}
+        if flags.isEmpty,event.keyCode == 53 {cancel();return true}
+        let editing=(firstResponder as? NSTextView).map {$0.isEditable} == true || firstResponder is NSTextField
+        if !editing,event.keyCode == 3,flags == .control || flags == .command {return functionKey(99)}
+        return false
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         handleFunctionKey(event) || super.performKeyEquivalent(with: event)

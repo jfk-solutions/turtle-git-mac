@@ -1,0 +1,190 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "3b6763410346318cf390698b41dff8913e8d2b58",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RefLogDlg::PreTranslateMessage/OnFind active dialog Find and Refresh; existing F5 superseding reads retained",
+    "CRefLogList::InsertRefLogColumn five columns and ColumnManager::AddMenuItem omission of logical zero",
+    "ColumnManager::OnContextMenuHeader/ResetColumns Yes/No reset, order/width/default visibility"
+  ],
+  "scope": [
+    "Scoped owning key/event window F3/F5/Ctrl-F/Cmd-F/Escape and editable-field preservation",
+    "Focused native table Ctrl/Cmd-A/C, keypad Enter and selected-row Shift-F10/accessibility Show Menu",
+    "Single-use popup sessions; replacement/model-generation/retirement invalidation and disabled direct-action refusal",
+    "Captured Shift/alternate unified viewer selection",
+    "Mandatory Hash on restore/header, owned No/Yes Reset with selection/scroll/private persistence and forced-close/Quit lifetime"
+  ],
+  "core": {
+    "repeated": false,
+    "reason": "Native UI/fixtures only; no Core algorithms or sources changed."
+  },
+  "builds": [
+    {
+      "log": "build/qa/reflog-command-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    }
+  ],
+  "native": {
+    "engines": [
+      "/usr/bin/git",
+      "build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/reflog-command-native-2026-10-16.log",
+        "exit": 1,
+        "receivers_reaped": [
+          76711
+        ],
+        "passes": {
+          "commands": 0,
+          "table": 0,
+          "search": 0,
+          "operations": 0,
+          "advanced": 0,
+          "lifecycle": 0
+        }
+      },
+      {
+        "log": "build/qa/reflog-command-native-corrected-2026-10-16.log",
+        "exit": 1,
+        "receivers_reaped": [
+          76885
+        ],
+        "passes": {
+          "commands": 0,
+          "table": 0,
+          "search": 0,
+          "operations": 0,
+          "advanced": 0,
+          "lifecycle": 0
+        }
+      },
+      {
+        "log": "build/qa/reflog-command-native-menu-2026-10-16.log",
+        "exit": 1,
+        "receivers_reaped": [],
+        "passes": {
+          "commands": 0,
+          "table": 0,
+          "search": 0,
+          "operations": 0,
+          "advanced": 0,
+          "lifecycle": 0
+        }
+      },
+      {
+        "log": "build/qa/reflog-command-native-final-2026-10-16.log",
+        "exit": 1,
+        "receivers_reaped": [
+          77031,
+          77177,
+          77329
+        ],
+        "passes": {
+          "commands": 2,
+          "table": 0,
+          "search": 0,
+          "operations": 0,
+          "advanced": 0,
+          "lifecycle": 0
+        }
+      },
+      {
+        "log": "build/qa/reflog-command-retained-2026-10-16.log",
+        "exit": 1,
+        "receivers_reaped": [
+          77426,
+          77520,
+          77621
+        ],
+        "passes": {
+          "commands": 0,
+          "table": 2,
+          "search": 0,
+          "operations": 0,
+          "advanced": 0,
+          "lifecycle": 0
+        }
+      },
+      {
+        "log": "build/qa/reflog-command-search-2026-10-16.log",
+        "exit": 0,
+        "receivers_reaped": [
+          77700,
+          77774,
+          77859,
+          77948,
+          78039,
+          78164,
+          78298,
+          78939
+        ],
+        "passes": {
+          "commands": 0,
+          "table": 0,
+          "search": 2,
+          "operations": 2,
+          "advanced": 2,
+          "lifecycle": 2
+        }
+      }
+    ],
+    "final_case_engine_passes": 12,
+    "owned_receiver_pids": [
+      76711,
+      76885,
+      77031,
+      77177,
+      77329,
+      77426,
+      77520,
+      77621,
+      77700,
+      77774,
+      77859,
+      77948,
+      78039,
+      78164,
+      78298,
+      78939
+    ],
+    "all_owned_receiver_pids_absent": true,
+    "actual_reset_sheet_forced_close": true,
+    "actual_application_quit_guard": true,
+    "captures": false
+  },
+  "repairs": [
+    "New fixture incorrectly expected message text from default Copy, whose existing format is hashes. Require exact ordered hashes on the private clipboard.",
+    "New fixture installed Show Log callback after popup construction, leaving its captured item disabled. Register callback first; disabled direct-dispatch guard retained.",
+    "Fixture added Quit assertion using nonexistent AppDelegate class; compile failed before launching a receiver. Use actual TurtleGitApplicationDelegate.",
+    "Retained table/operation/advanced fixtures invoked several commands from one popup. Construct fresh popups for separate user actions; retain unconsumed targets for busy, replacement and closure rejection checks.",
+    "Older Find fixture expected F5 refusal during busy reads despite canRefresh and the existing lifecycle fixture supporting supersession. Require Find refusal plus actual successful F5 read replacement and settlement; existing mutation blocking is retained."
+  ],
+  "help": {
+    "source_files": 50,
+    "source_bytes": 1967763,
+    "bundled_mismatches": [],
+    "regenerated": false
+  },
+  "website": {
+    "log": "build/qa/reflog-command-site-2026-10-16.log",
+    "documents": 262,
+    "unresolved_fragments": []
+  },
+  "hosted": {
+    "run": 38967919455,
+    "commit": "f87ac75ac231a3956c4b56a3283192861d69cddc",
+    "job": 117199386162,
+    "last_observed_utc": "2026-10-16 21:53:40 UTC",
+    "status": "in_progress: Git integration tests; compile passed",
+    "full_success_confirmed": false
+  },
+  "limits": [
+    "Synthetic direct keyboard callbacks and injected menu presenters establish native routing; physical keyboard/menu tracking and external VoiceOver acceptance remain open.",
+    "Production Reset sheet is exercised for default Yes and forced-close settlement; injected Yes/No replies cover accepted layout changes and refusal.",
+    "No new screenshot or entire dialog/control/menu-mask parity certification.",
+    "Minimum macOS, signed sandbox/Finder, live authentication and App Store deployment remain open."
+  ]
+}

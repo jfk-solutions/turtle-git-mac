@@ -50,8 +50,8 @@ actor RefLogOperationGate {
         let mergeItem = menu.items.first { $0.title.hasPrefix("Merge into") }!, rebaseItem = menu.items.first { $0.title.hasPrefix("Rebase ") }!, pickItem = menu.items.first { $0.title.hasPrefix("Cherry pick") }!
         try require([mergeItem,rebaseItem,pickItem].allSatisfy { $0.image != nil }, "Source operation icons missing")
         try invoke(mergeItem); try require(merge == middle, "Merge target changed")
-        try invoke(rebaseItem); try require(rebase == "refs/heads/alias", "Rebase did not prefer a local reference")
-        try invoke(pickItem); try await wait { !model.busy && !picks.isEmpty }
+        try invoke(native.owner!.menu().items.first {$0.title.hasPrefix("Rebase ")}!); try require(rebase == "refs/heads/alias", "Rebase did not prefer a local reference")
+        try invoke(native.owner!.menu().items.first {$0.title.hasPrefix("Cherry pick")}!); try await wait { !model.busy && !picks.isEmpty }
         try require(picks == [middle], "Cherry Pick target changed")
         let headIDs = try select(head); model.requestDiffParents(model.entries.first { headIDs.contains($0.id) }!)
         try await wait { model.diffParents[head]?.count == 2 }

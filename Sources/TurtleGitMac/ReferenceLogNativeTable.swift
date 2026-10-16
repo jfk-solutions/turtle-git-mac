@@ -34,17 +34,19 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
         return scroll
     }
     func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.update(model: model, dates: dates, font: configuredFont) }
-    static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) { coordinator.retired = true; coordinator.table?.owner = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil }
+    static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) { coordinator.retire(); coordinator.table?.owner = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil }
 
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         var model: ReferenceLogWindowModel
         var dates: HistoryDateSettings
         weak var table: ReferenceLogTableView?
         var retired = false, synchronizing = false
+        private var popupEpoch=UUID(),layoutRevision=0
+        func retire() {retired=true;popupEpoch=UUID()}
         private var font: NSFont?
         private var entries: [ReferenceLogEntry] = []
         init(model: ReferenceLogWindowModel, dates: HistoryDateSettings) { self.model = model; self.dates = dates }
-        var available: Bool { !retired && model.commandSurfaceAvailable && table?.window != nil && table?.window?.attachedSheet == nil }
+        var available: Bool { !retired && model.commandSurfaceAvailable && !model.unifiedViewerBusy && table?.window != nil && table?.window?.attachedSheet == nil }
         var selectedIDs: Set<String> { Set(table?.selectedRowIndexes.compactMap { entries.indices.contains($0) ? entries[$0].id : nil } ?? []) }
         func update(model: ReferenceLogWindowModel, dates: HistoryDateSettings, font: NSFont? = nil) {
             guard !retired, let table else { return }
@@ -89,7 +91,8 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
         func tableViewColumnDidResize(_ notification: Notification) { saveColumns() }
         func tableViewColumnDidMove(_ notification: Notification) { saveColumns() }
         func saveColumns() {
-            guard !retired, !synchronizing, let table else { return }
+            guard available, !synchronizing, let table else { return }
+            layoutRevision &+= 1
             model.preferences.set(table.tableColumns.map { $0.identifier.rawValue }, forKey: "RefLog.Columns.Order")
             model.preferences.set(Dictionary(uniqueKeysWithValues: table.tableColumns.map { ($0.identifier.rawValue, Double($0.width)) }), forKey: "RefLog.Columns.Widths")
             model.preferences.set(table.tableColumns.filter(\.isHidden).map { $0.identifier.rawValue }, forKey: "RefLog.Columns.Hidden")
@@ -104,34 +107,60 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
             let widths = model.preferences.dictionary(forKey: "RefLog.Columns.Widths") ?? [:], hidden = Set(model.preferences.stringArray(forKey: "RefLog.Columns.Hidden") ?? [])
             for column in table.tableColumns {
                 if let width = widths[column.identifier.rawValue] as? NSNumber, width.doubleValue.isFinite, (40...10000).contains(width.doubleValue) { column.width = CGFloat(width.doubleValue) }
-                column.isHidden = hidden.contains(column.identifier.rawValue)
+                column.isHidden = column.identifier.rawValue != "Hash" && hidden.contains(column.identifier.rawValue)
             }
             if table.tableColumns.allSatisfy(\.isHidden) { table.tableColumns.first?.isHidden = false }
             synchronizing = false
         }
         func headerMenu() -> NSMenu {
-            let menu = NSMenu(); menu.autoenablesItems = false
-            guard let table else { return menu }
-            for column in table.tableColumns {
-                let target = ReferenceLogTableCommand(allowed: { [weak self, weak column] in self?.available == true && column != nil }) { [weak self, weak column] in
-                    guard let self, let column, let table = self.table else { return }
-                    if !column.isHidden && table.tableColumns.filter({ !$0.isHidden }).count == 1 { return }
-                    column.isHidden.toggle(); self.saveColumns()
+            popupEpoch=UUID();let epoch=popupEpoch,revision=layoutRevision,generation=model.generation
+            let menu=NSMenu();menu.autoenablesItems=false
+            guard let table else {return menu}
+            var consumed=false
+            let live:() -> Bool = { [weak self] in
+                guard let self else {return false}
+                return !consumed && self.available && self.popupEpoch==epoch && self.layoutRevision==revision && self.model.generation==generation
+            }
+            func add(_ title:String,state:NSControl.StateValue = .off,action:@escaping () -> Void) {
+                let target=ReferenceLogTableCommand(allowed:live) {consumed=true;action()}
+                let item=NSMenuItem(title:title,action:#selector(ReferenceLogTableCommand.invokeCommand(_:)),keyEquivalent:"")
+                item.target=target;item.representedObject=target;item.state=state;item.isEnabled=live();menu.addItem(item)
+            }
+            add("Reset column order") { [weak self] in
+                guard let self else {return}
+                self.model.requestColumnReset { [weak self] in
+                    guard let self,!self.retired,self.layoutRevision==revision,let table=self.table,table.window != nil else {return}
+                    let origin=table.enclosingScrollView?.contentView.bounds.origin,selection=table.selectedRowIndexes
+                    self.synchronizing=true
+                    for (index,name) in ["Hash","Ref","Action","Message","Date"].enumerated() {
+                        if let source=table.tableColumns.firstIndex(where:{$0.identifier.rawValue==name}) {table.moveColumn(source,toColumn:index)}
+                    }
+                    for (column,width) in zip(table.tableColumns,[CGFloat(120),145,100,360,175]) {column.isHidden=false;column.width=width}
+                    table.selectRowIndexes(selection,byExtendingSelection:false);table.layoutSubtreeIfNeeded()
+                    if let origin,let scroll=table.enclosingScrollView {scroll.contentView.scroll(to:scroll.contentView.constrainBoundsRect(NSRect(origin:origin,size:scroll.contentView.bounds.size)).origin);scroll.reflectScrolledClipView(scroll.contentView)}
+                    self.synchronizing=false;self.saveColumns()
                 }
-                let item = NSMenuItem(title: column.title, action: #selector(ReferenceLogTableCommand.invokeCommand(_:)), keyEquivalent: "")
-                item.target = target; item.representedObject = target; item.state = column.isHidden ? .off : .on; item.isEnabled = available && (column.isHidden || table.tableColumns.filter { !$0.isHidden }.count > 1); menu.addItem(item)
+            }
+            menu.addItem(.separator())
+            // ColumnManager excludes logical column zero (Hash) from hiding.
+            for name in ["Ref","Action","Message","Date"] {
+                guard let column=table.tableColumn(withIdentifier:.init(name)) else {continue}
+                add(column.title,state:column.isHidden ? .off:.on) { [weak self,weak column] in
+                    guard let self,let column else {return};column.isHidden.toggle();self.saveColumns()
+                }
             }
             return menu
         }
         func menu(pasteboard: NSPasteboard = .general, extended: Bool = false) -> NSMenu {
             let menu = NSMenu(); menu.autoenablesItems = false
+            popupEpoch=UUID();let epoch=popupEpoch,generation=model.generation;var consumed=false
             let ids = selectedIDs, reference = model.reference, snapshot = entries.filter { ids.contains($0.id) }
             let live: () -> Bool = { [weak self] in
-                guard let self, self.available, self.model.reference == reference else { return false }
+                guard let self,!consumed,self.popupEpoch==epoch,self.model.generation==generation,self.available,self.model.reference == reference else { return false }
                 return self.model.entries.filter { ids.contains($0.id) } == snapshot
             }
             func add(_ title: String, _ icon: MenuIcon, to parent: NSMenu? = nil, enabled: Bool = true, action: @escaping () -> Void) {
-                let target = ReferenceLogTableCommand(allowed: live, action: action)
+                let target = ReferenceLogTableCommand(allowed: {live() && enabled}) {consumed=true;action()}
                 let item = NSMenuItem(title: title, action: #selector(ReferenceLogTableCommand.invokeCommand(_:)), keyEquivalent: "")
                 item.target = target; item.representedObject = target; item.image = icon.contextImage(defaults: model.preferences)
                 item.isEnabled = live() && enabled; (parent ?? menu).addItem(item)
@@ -147,11 +176,11 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                     if model.hasWorkingTree, parents.count > 1 {
                         let child = submenu("Unified diff with", .unifiedDiff)
                         for (title, mode) in [("All Parents", ReferenceLogDiffMode.allParents), ("Only Merged Files", .onlyMergedFiles), ("Show extra changes after merge", .extraChanges)] {
-                            add(title, .unifiedDiff, to: child, enabled: model.canInspect(ids, mode: mode)) { model.inspect(ids, mode: mode, alternate: NSEvent.modifierFlags.contains(.shift)) }
+                            add(title, .unifiedDiff, to: child, enabled: model.canInspect(ids, mode: mode)) { model.inspect(ids, mode: mode, alternate: extended) }
                         }
-                        for parent in parents { add(parent.title, .unifiedDiff, to: child, enabled: model.canInspect(ids, mode: .parent(parent.number))) { model.inspect(ids, mode: .parent(parent.number), alternate: NSEvent.modifierFlags.contains(.shift)) } }
+                        for parent in parents { add(parent.title, .unifiedDiff, to: child, enabled: model.canInspect(ids, mode: .parent(parent.number))) { model.inspect(ids, mode: .parent(parent.number), alternate: extended) } }
                     } else if model.hasWorkingTree, parents.count == 1 {
-                        add("Show changes as unified diff", .unifiedDiff, enabled: model.canInspect(ids)) { model.inspect(ids, alternate: NSEvent.modifierFlags.contains(.shift)) }
+                        add("Show changes as unified diff", .unifiedDiff, enabled: model.canInspect(ids)) { model.inspect(ids, alternate: extended) }
                     }
                     if parents.count > 1 {
                         let child = submenu("Compare with previous revision", .compare)
@@ -203,7 +232,7 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 add(ReferenceLogComparisonCommand.revisions.title, .compare, enabled: model.canCompare(.revisions, ids: ids)) { model.compare(.revisions, ids: ids) }
                 if model.combineAvailable(ids) { add("Combine to one commit", .combine) { model.combine(ids) } }
                 if ids.count == 2 {
-                    if model.hasWorkingTree { add("Show changes as unified diff", .unifiedDiff, enabled: model.canInspect(ids)) { model.inspect(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } }
+                    if model.hasWorkingTree { add("Show changes as unified diff", .unifiedDiff, enabled: model.canInspect(ids)) { model.inspect(ids, alternate: extended) } }
                     for command in ReferenceLogRangeCommand.allCases {
                         if let range = model.logRange(command, ids: ids) { add("Show log of " + range.from.prefix(7) + range.separator + range.to.prefix(7), .log, enabled: model.onLogRange != nil) { model.showLogRange(command, ids: ids) } }
                     }
@@ -252,14 +281,33 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
         guard owner?.available == true else { return nil }
         let row = self.row(at: convert(event.locationInWindow, from: nil))
         if row >= 0 && !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
-        return owner?.menu(extended: event.modifierFlags.contains(.shift))
+        return owner?.menu(pasteboard:pasteboard,extended: event.modifierFlags.contains(.shift))
     }
-    @objc func copy(_ sender: Any?) { owner?.copy() }
-    override func selectAll(_ sender: Any?) { guard owner?.available == true else { return }; super.selectAll(sender) }
-    override func keyDown(with event: NSEvent) {
-        if event.modifierFlags.intersection([.command,.option,.control]).isEmpty, event.keyCode == 36 { owner?.accept(); return }
-        super.keyDown(with: event)
+    var presentContextMenu:((NSMenu,NSPoint,NSView)->Void)?
+    var pasteboard:NSPasteboard = .general
+    func showSelectedContextMenu(extended:Bool = false)->Bool {
+        guard owner?.available==true,let window,window.isVisible,selectedRow>=0,selectedRow<numberOfRows else {return false}
+        scrollRowToVisible(selectedRow);layoutSubtreeIfNeeded()
+        let rect=rect(ofRow:selectedRow),point=NSPoint(x:visibleRect.minX + min(40,visibleRect.width / 2),y:rect.midY)
+        guard let menu=owner?.menu(pasteboard:pasteboard,extended:extended),!menu.items.isEmpty else {return false}
+        if let presentContextMenu {presentContextMenu(menu,point,self)} else {menu.popUp(positioning:nil,at:point,in:self)}
+        return true
     }
+    override func accessibilityPerformShowMenu()->Bool {showSelectedContextMenu()}
+    func handleTableKey(_ event:NSEvent)->Bool {
+        guard let window,event.window === window,(window as? ReferenceLogNativeWindow)?.commandKeyWindow() === window,
+              window.firstResponder === self,owner?.available==true else {return false}
+        let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if event.keyCode==109,flags == .shift {return showSelectedContextMenu()}
+        if event.keyCode==0,flags == .command || flags == .control {owner?.selectAll();return true}
+        if event.keyCode==8,flags == .command || flags == .control {owner?.copy(to:pasteboard);return true}
+        if flags.isEmpty,event.keyCode==36 || event.keyCode==76 {owner?.accept();return true}
+        return false
+    }
+    @objc func copy(_ sender: Any?) {owner?.copy(to:pasteboard)}
+    override func selectAll(_ sender: Any?) {guard owner?.available == true else {return};super.selectAll(sender)}
+    override func performKeyEquivalent(with event:NSEvent)->Bool {handleTableKey(event) || super.performKeyEquivalent(with:event)}
+    override func keyDown(with event:NSEvent) {if !handleTableKey(event) {super.keyDown(with:event)}}
     func validateMenuItem(_ item: NSMenuItem) -> Bool { owner?.available == true && (item.action != NSSelectorFromString("copy:") || !selectedRowIndexes.isEmpty) }
 }
 @MainActor private final class ReferenceLogTableHeader: NSTableHeaderView {

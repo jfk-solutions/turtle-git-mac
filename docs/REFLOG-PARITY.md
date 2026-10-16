@@ -580,3 +580,8 @@ remain in use; cancelled/retired workers do not reopen the closed view.
 two-engine native scope, failures/repairs and receiver cleanup. No new screenshot,
 physical keyboard/pointer/VoiceOver, signed Finder or App Store acceptance is
 claimed. Complete menu/layout/caller parity and signed acceptance remain open.
+
+The [native command/header continuation](REFLOG-COMMAND-FAMILY-PARITY.md) connects
+scoped F3/F5/Find/Escape, focused table shortcuts, keyboard/accessibility popups,
+single-use action snapshots and owned column reset. The full port and physical/
+signed acceptance remain incomplete.

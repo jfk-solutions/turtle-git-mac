@@ -25,6 +25,7 @@ import TurtleGitCore
         let model = controller.model
         try await wait(model); precondition(model.entries.count == 3)
         guard let window = controller.window as? ReferenceLogNativeWindow else { preconditionFailure("Wrong native window") }
+        controller.commandKeyWindow = { [weak window] in window }
         // Construct direct key-handler inputs; events are never sent to an application.
         func key(_ code: UInt16) -> NSEvent {
             NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: code)!
@@ -47,7 +48,8 @@ import TurtleGitCore
         model.find = "not present"; let selected = model.selection; model.findNext()
         precondition(model.error == "\"not present\" was not found." && model.selection == selected); model.error = nil
         model.busy = true; model.find = "Needle"; model.findNext(); precondition(model.selection == selected)
-        precondition(!window.handleFunctionKey(key(99)) && !window.handleFunctionKey(key(96))); model.busy = false
+        precondition(!window.handleFunctionKey(key(99)))
+        precondition(window.handleFunctionKey(key(96))); try await wait(model) // F5 supersedes a read, as source Refresh does.
         precondition(!window.handleFunctionKey(key(0)))
         precondition(window.handleFunctionKey(key(96))); try await wait(model)
         precondition(controller.findController === finder && !model.searchWrapped)

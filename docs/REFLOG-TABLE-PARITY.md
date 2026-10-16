@@ -69,3 +69,11 @@ grows with font metrics and returns to 22 points when disabled. Native QA checks
 large-font cell assignment and row height; physical appearance, live Settings
 interaction and all-script rendering remain open. Transport menu ordering and
 its validation scope are recorded in [operation handoffs](REFLOG-OPERATIONS-PARITY.md).
+
+## Connected command/header family — October 16, 2026
+
+The [native command family](REFLOG-COMMAND-FAMILY-PARITY.md) now adds source-style
+owned Reset, mandatory Hash, keyboard/AX row menus, captured modifiers and
+single-use popup sessions. These supersede the earlier at-least-one-visible
+header rule and reusable action-target behavior. Layout still uses native points
+and private preferences; physical and signed acceptance remain open.
