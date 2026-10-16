@@ -290,7 +290,8 @@ submission/routing remains incomplete; see [Send Patch parity](SEND-PATCH-PARITY
 Mail-client delivery now has a compose-only Apple Mail adapter. AppStore.entitlements
 requests `com.apple.mail.compose` through scripting-targets, plus the automation
 permission; App-Info.plist explains that TurtleGit prepares drafts for review.
-There is no temporary Apple Events exception or inbox access group. Signed TCC
+Mail requests no temporary Apple Events exception or inbox access group; the
+separate Word comparison target is documented below. Signed TCC
 permission, attachment access/import, account selection and Mac App Store review
 remain required acceptance work. Unsigned packaging/audit results prove only the
 configured metadata, not these runtime or distribution requirements. See
@@ -447,3 +448,15 @@ locally only after these checks. Existing output is never overwritten. The
 script does not install, launch, register services, notarize, upload or submit.
 This is a local preview path; signed runtime/Finder and App Store acceptance
 remain governed by the [release blocker list](RELEASE-BLOCKERS.md).
+
+## Microsoft Word comparison Automation target
+
+The Word document-diff adapter adds a `com.microsoft.Word` Apple-event temporary
+exception to AppStore preparation. The inspected Word scripting dictionary has no
+access groups; Apple's target-specific temporary-exception mechanism is used
+instead. Apple Mail retains its compose-only scripting target. The package audit
+allows only this Word exception and refuses unexpected/suffixed Apple-event keys.
+The usage description covers both operations. Provide the exception's comparison
+use case with the eventual App Store submission; no Apple acceptance is claimed.
+See [Word comparison](WORD-COMPARISON.md) for failure/permission/worker ownership
+and remaining actual Word and signed sandbox acceptance.

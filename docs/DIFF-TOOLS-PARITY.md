@@ -312,3 +312,29 @@ and independently absent. [Dated evidence](qa/bundled-comparisons-2026-10-16.jso
 separates actual framework-byte/version/native-window checks from intercepted
 notebook launch callbacks. No real notebook application was launched, and no
 Store/signed or complete source acceptance is claimed.
+
+## Modern Word comparison family — October 16, 2026
+
+The modern `diff-doc.js` branch now has a native [Word adapter](WORD-COMPARISON.md)
+for document/template/ODT associations. It retains formatting and tracked changes:
+open the base, compare against the new file into a new Word result, use Comparison
+as author, mark the result saved, and close only its private opened input.
+Literal Apple-event arguments replace COM/WScript/string interpolation. Exact
+private read-only snapshots protect repository and unrelated Word documents.
+
+An operation holds scope/Quit ownership through preparation and the serialized
+AppleScript worker. Closure cancels before dispatch and fences late publication;
+Word is never killed. Confirmed unopened/denied failures clean their copies;
+success or uncertain opening retains inputs beyond normal app cleanup. New
+associations and Restore Defaults share existing Settings/Shift behavior. Word
+merge remains unavailable through the diff-only kind. AppStore's narrowly targeted
+Word exception and usage description are source configuration, not signed/App
+Review acceptance. Grouped evidence records actual validation scope separately.
+
+Twenty-three focused Core cases, one Debug build/package audit and all three
+native comparison cases passed on the first attempt. The fixed handler compiled
+against the installed Word dictionary without executing a comparison or launching
+Word. All receivers were reaped and independently absent. The
+[dated evidence](qa/word-comparison-2026-10-16.json) records the dictionary hash,
+actual checks, build diagnostics and intercepted executor boundary. Real Word
+results, live TCC/file permissions and signed sandbox/App Review remain open.

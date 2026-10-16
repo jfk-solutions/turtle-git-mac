@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "0f93db7032276b812e5fdb68d0b4bcd07fe8df29",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Modern Word document comparison adapter: associations, exact private files, fixed AppleScript/literal event arguments, permission and worker lifetime",
+  "source": [
+    "contrib/diff-scripts/diff-doc.js modern >=2007 base/new swap, Compare targetNew/formatting/author/Saved/close input",
+    "Installed Microsoft Word scripting dictionary open/compare/document saved/close terms",
+    "Apple temporary Apple-event exception and App Store Connect sandbox documentation (linked in manual)"
+  ],
+  "word_dictionary": {
+    "version": "16.114",
+    "bundle_id": "com.microsoft.Word",
+    "sha256": "7cb51b924cab566320cc3019e92c1516302ae11220a81ae6279f1930c26320e7",
+    "scripting_access_groups_present": false,
+    "terminology_compiled": true,
+    "comparison_executed": false,
+    "word_pids_before": [],
+    "word_pids_after": []
+  },
+  "implementation": [
+    "Modern Word opens captured base and compares captured new document in a new formatting-aware result; marks result saved and closes only its input",
+    "Exact readonly private copies keep original filenames under separate folders; fixed script gets Apple-event descriptor arguments, never path interpolation/shell",
+    "Missing app, denied/known-unopened failure removes copies; uncertain opening/success retain inputs through normal app cleanup",
+    "Preparation/serialized AppleScript worker keeps independent active Quit count and lease lifetime through late result after owner closure; Word never terminated",
+    "Six DOC/DOCX/DOCM/DOT/DOTX/ODT defaults plus shared Settings Restore/Shift; saved custom settings authoritative; diff-only type rejected by Merge",
+    "Usage description extended; AppStore Word-only temporary exception, compose-only Mail preserved, strict target allowlist audit",
+    "README/NOTICE/manual/offline Help/source parity/CI grouped native cases"
+  ],
+  "core": {
+    "exit": 0,
+    "log": "build/qa/word-comparison-core.log",
+    "cases": 23,
+    "first_attempt_pass": true,
+    "groups": [
+      "WordComparisonTests (4)",
+      "BundledComparisonToolsTests (5)",
+      "ZIPInventoryTests (7)",
+      "DiffToolPreferencesTests (7)"
+    ]
+  },
+  "build": {
+    "exit": 0,
+    "log": "build/qa/word-comparison-debug.log",
+    "first_attempt_pass": true,
+    "anomalous_exit_zero_diagnostics": 3
+  },
+  "native": {
+    "exit": 0,
+    "log": "build/qa/word-comparison-native.log",
+    "cases": 3,
+    "first_attempt_pass": true,
+    "receivers_reaped_and_independently_absent": [
+      61725,
+      61854,
+      61919
+    ],
+    "checks": [
+      "Retained ZIP and binary/notebook workflows with expanded defaults",
+      "Actual shipping working-file comparison dispatch for private DOCX byte inputs",
+      "Literal Apple-event handler/argument descriptors preserve filenames/paths and exact input bytes",
+      "Word Shift raw bypass and confirmed permission-denial recovery hint/cleanup",
+      "Uncertain timeout keeps possibly opened input files",
+      "Held worker after forced owner closure retains Quit guard until successful reply, preserves accepted input and refuses stale error",
+      "Pre-cancelled dispatch refuses launch; original files unchanged",
+      "Fixed handler compiles against locally installed Word terminology without executing a comparison"
+    ],
+    "presentation": "Word executor intercepted; no Automation permission granted/requested by comparison execution. No new captures this batch."
+  },
+  "package_audit": {
+    "exit": 0,
+    "log": "build/qa/word-comparison-bundle-audit.log",
+    "scope": "Debug app, Finder/helper/runtime layout, 311 icons, app/doc identity, licenses, configured Automation usage and strict source entitlement allowlist. Built NOTICE and Word guide byte-equal source."
+  },
+  "help": "31 guides, 47 topics, 39 files, 402969 bytes",
+  "limits": [
+    "No live Word comparison output/orientation/formats/converters/protected or macro document acceptance",
+    "No real TCC denial/enable-and-retry or Word file-access UI acceptance; native fixture checks injected denial and source recovery hint",
+    "Targeted Word temporary exception is preparation only; signed AppStore execution and App Review acceptance unverified",
+    "Word merge, Excel/PowerPoint and LibreOffice/OpenDocument fallback remain open; .ods is not claimed as a Word format",
+    "No new Store build, physical Finder/menu/keyboard/VoiceOver/theme or whole-port/hosted CI certification"
+  ]
+}

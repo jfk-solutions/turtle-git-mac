@@ -12,12 +12,13 @@ public enum DiffToolFailure: LocalizedError {
     }
 }
 public enum BuiltInDiffTool: String, Codable, CaseIterable, Sendable {
-    case zipInventory, binaryReport, mathematicaNotebook
+    case zipInventory, binaryReport, mathematicaNotebook, wordDocument
     public var title: String {
         switch self {
         case .zipInventory: return "ZIP archive inventory"
         case .binaryReport: return "Binary file comparison"
         case .mathematicaNotebook: return "Mathematica notebook comparison"
+        case .wordDocument: return "Microsoft Word document comparison"
         }
     }
     public var extensions: [String] {
@@ -25,6 +26,7 @@ public enum BuiltInDiffTool: String, Codable, CaseIterable, Sendable {
         case .zipInventory: return [".zip"]
         case .binaryReport: return [".dll", ".exe", ".dylib"]
         case .mathematicaNotebook: return [".nb"]
+        case .wordDocument: return [".doc", ".docx", ".docm", ".dot", ".dotx", ".odt"]
         }
     }
 }

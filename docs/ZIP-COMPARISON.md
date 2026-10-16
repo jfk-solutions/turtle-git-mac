@@ -9,7 +9,7 @@ date and size is therefore not detected by this view, matching that script.
 New Diff Viewer settings use the bundled ZIP association. Existing saved
 associations are preserved. To enable or restore it, open Settings → Diff Viewer →
 Advanced → Restore Defaults, then accept Advanced and Apply Settings. Restore
-Defaults restores the bundled `.zip`, `.dll`, `.exe`, `.dylib` and `.nb`
+Defaults restores the bundled archive, binary, notebook and Word document
 associations, retaining other entries. See [bundled comparisons](BUNDLED-COMPARISONS.md).
 Cancel in either settings owner preserves its prior saved value. An association
 can also select ZIP archive inventory in its program editor. External programs
@@ -37,7 +37,7 @@ changed archive. An absent side is represented by an empty absent-file pane.
 Cancellation and initiating-window closure reject a late prepared inventory;
 active preparation participates in the normal application Quit guard.
 
-The Windows Word/Excel/PowerPoint/OpenDocument scripts still need their own macOS
-adapters. Binary and Mathematica adaptations are documented separately. This feature does not establish full document-tool, dialog or
+The remaining Windows Office/OpenDocument comparison/merge scripts still need
+macOS adapters; see [Word comparison](WORD-COMPARISON.md) for its new native route. Binary and Mathematica adaptations are documented separately. This feature does not establish full document-tool, dialog or
 App Store parity. Physical native interaction, Finder handoff, signed sandbox
 access and large/exotic archive acceptance remain open.

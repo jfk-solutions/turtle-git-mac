@@ -150,7 +150,7 @@ struct DiffToolAssociations: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Advanced " + model.tool + " settings").font(.headline)
             ToolAssociationsTable(model: model).frame(minHeight: 240)
-            if model.tool == "diff" { Text("Restore Defaults restores ZIP, binary (.dll/.exe/.dylib) and Mathematica (.nb) comparisons, preserving other associations. Notebook comparison requires Mathematica.").font(.caption).foregroundStyle(.secondary) }
+            if model.tool == "diff" { Text("Restore Defaults restores bundled archive, binary, Mathematica and Word document comparisons, preserving other associations. Word and Mathematica comparisons require those applications.").font(.caption).foregroundStyle(.secondary) }
             HStack {
                 Button("Add…", action: model.add)
                 Button("Edit…", action: model.edit).disabled(model.selected == nil)
@@ -272,6 +272,7 @@ private struct DiffToolAssociationEditor: View {
         }
     }
     static var presentInventory: (FileComparisonWindowController) -> Bool = { controller in controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return true }
+    static var compareWord: (WordComparisonPreview, OperationCancellation) async throws -> Void = { try await WordComparisonAutomation.compare($0,cancellation:$1) }
     private(set) static var activeRequests = 0
     static func discardAll() { let windows = Array(inventoryWindows.values); inventoryWindows = [:]; for window in windows { window.close() }; let reports = Array(binaryWindows.values); binaryWindows = [:]; for report in reports { report.close() }; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
     static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool, preferences: UserDefaults = .standard, cancellation: OperationCancellation? = nil, owner: NSWindow? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> Void)? = nil) async throws -> Bool {
@@ -309,6 +310,24 @@ private struct DiffToolAssociationEditor: View {
                 // Saved Data cleanup (or the OS temporary-directory cleanup).
                 return true
             } catch { preview.discard(); throw error }
+        }
+        if program.builtIn == .wordDocument {
+            let token = cancellation ?? OperationCancellation()
+            activeRequests += 1
+            defer { activeRequests -= 1; withExtendedLifetime(permissions) {} }
+            let root = try TurtleGitTemporaryStorage.root
+            let preview = try await Task.detached { try WordComparisonPreview.prepare(document,in:root,cancellation:token) }.value
+            var dispatched = false
+            do {
+                try token.check(); dispatched = true
+                try await compareWord(preview,token)
+                // Word may keep result/source references beyond this callback.
+                // Successful or uncertain handoffs survive normal app cleanup.
+                return true
+            } catch {
+                if !dispatched || (error as? WordComparisonFailure)?.possiblyOpened == false { preview.discard() }
+                throw error
+            }
         }
         let provider = SystemRepositoryBookmarkProvider()
         let application: URL

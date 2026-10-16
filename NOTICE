@@ -1507,3 +1507,10 @@ Chris Rodgers and Sven Strickroth. The macOS binary/PE/Mach-O reader, native
 result window, private notebook snapshots and literal-path escaping replace
 Windows WScript, fc.exe and FileSystemObject integration. Mathematica and its
 AuthorTools functionality are separately installed software, not redistributed.
+
+WordComparison.swift and WordComparisonAutomation.swift adapt the modern Word
+branch of contrib/diff-scripts/diff-doc.js: copyright (C) 2004-2008, 2011, 2013,
+2019 the TortoiseSVN team, distributed under the same GPL license as TortoiseSVN.
+Native Apple-event argument handling, private snapshots and cancellation replace
+Windows COM/WScript automation. Microsoft Word is separately installed software;
+this project does not redistribute Word or its scripting dictionary.

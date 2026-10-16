@@ -3,7 +3,7 @@
 import argparse, os, tempfile, zipfile
 from pathlib import Path
 from native_receiver import build_receiver, run_receiver
-parser=argparse.ArgumentParser(description=__doc__); parser.add_argument('--only',choices=['archive','scripts'],action='append'); args=parser.parse_args()
+parser=argparse.ArgumentParser(description=__doc__); parser.add_argument('--only',choices=['archive','scripts','word'],action='append'); args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 with tempfile.TemporaryDirectory(prefix='TurtleGitArchiveDiff-') as temporary:
     directory=Path(temporary)
@@ -12,10 +12,14 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitArchiveDiff-') as temporary:
             for path,data in entries:
                 entry=zipfile.ZipInfo(path,date_time=(2024,1,2,3,4,6)); entry.compress_type=zipfile.ZIP_DEFLATED
                 archive.writestr(entry,data)
+    for name,text in [('old " 雪.docx','old'),('new.docx','new')]:
+        with zipfile.ZipFile(directory/name,'w',compression=zipfile.ZIP_DEFLATED) as document:
+            document.writestr('[Content_Types].xml','<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
+            document.writestr('word/document.xml','<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>'+text+'</w:t></w:r></w:p></w:body></w:document>')
     library=root/'build/Build/Products/Debug/TurtleGitCore.framework/TurtleGitCore'
     binary=library.read_bytes(); (directory/'old.dylib').write_bytes(binary)
     changed=bytearray(binary); changed[-1] ^= 1; (directory/'new.dylib').write_bytes(changed)
-    for case,source,marker in [('archive','zip-inventory-native-2026-10-16.swift','PASS: actual ZIP association routing'),('scripts','bundled-comparison-native-2026-10-16.swift','PASS: real Mach-O binary native reports')]:
+    for case,source,marker in [('archive','zip-inventory-native-2026-10-16.swift','PASS: actual ZIP association routing'),('scripts','bundled-comparison-native-2026-10-16.swift','PASS: real Mach-O binary native reports'),('word','word-comparison-native-2026-10-16.swift','PASS: shipping Word comparison route')]:
         if args.only and case not in args.only: continue
         executable=build_receiver(root,[root/'docs/qa'/source],directory)
         env=os.environ.copy(); env['DYLD_FRAMEWORK_PATH']=str(root/'build/Build/Products/Debug')

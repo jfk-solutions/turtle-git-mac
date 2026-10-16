@@ -18,6 +18,10 @@
 	</array>
 	<key>com.apple.security.automation.apple-events</key>
 	<true/>
+	<key>com.apple.security.temporary-exception.apple-events</key>
+	<array>
+		<string>com.microsoft.Word</string>
+	</array>
 	<key>com.apple.security.scripting-targets</key>
 	<dict>
 		<key>com.apple.mail</key>

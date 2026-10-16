@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The [Word comparison family](WORD-COMPARISON.md) now connects six document-format
+associations, exact private snapshots, a fixed native Apple-event handler and
+retired-worker/permission ownership. Twenty-three focused Core cases, the Debug
+build/package audit and all three grouped native comparison cases pass. The
+handler compiles against installed Word terminology; actual Word execution and
+signed AppStore acceptance remain open.
+
 The [bundled comparison family](BUNDLED-COMPARISONS.md) now adds native binary
 byte/version reports (PE and Mach-O), source Mathematica notebook preparation/
 handoff, shared default associations and retained/failed launch ownership.

@@ -414,3 +414,7 @@ Restore Defaults, raw Shift comparison, and the metadata-only scope.
 Bundled [binary and Mathematica comparisons](BUNDLED-COMPARISONS.md) also use the
 Diff Viewer associations. Binary results are read-only; notebook comparison opens
 a generated Compare Notebooks button in the associated notebook application.
+
+[Microsoft Word comparison](WORD-COMPARISON.md) creates a new result with tracked
+formatting changes. It needs Word and your macOS Automation permission. Shift
+keeps the ordinary internal comparison; the originals remain unchanged.

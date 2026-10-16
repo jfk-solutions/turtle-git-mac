@@ -1,7 +1,7 @@
 # Bundled binary and Mathematica comparisons
 
 Settings → Diff Viewer → Advanced → Restore Defaults installs the bundled
-`.zip`, `.dll`, `.exe`, `.dylib` and `.nb` comparisons. Accept Advanced and Apply
+`.zip`, `.dll`, `.exe`, `.dylib`, `.nb` and Word document comparisons. Accept Advanced and Apply
 Settings to save the changes. Other associations are retained; existing rows keep
 their identity. Existing saved configurations remain authoritative until changed.
 Each association or the general Diff Viewer program can choose an internal,
@@ -58,8 +58,8 @@ retained for the receiver; no obsolete error or replacement native window opens.
 Core and native checks distinguish local binary parsing and generated notebook
 handoff from actually executing Mathematica. The latter, physical popup/keyboard/
 VoiceOver, all PE resource languages, exotic Mach-O slices, real receiver grants,
-signed Finder/App Store access and full source dialog parity remain open. Windows
-Office/OpenDocument comparison/merge scripts still need macOS implementations.
+signed Finder/App Store access and full source dialog parity remain open. Word comparison is documented in [its native adapter guide](WORD-COMPARISON.md).
+Word merge, Excel, PowerPoint and LibreOffice/OpenDocument automation remain open.
 
 ## Native captures
 
