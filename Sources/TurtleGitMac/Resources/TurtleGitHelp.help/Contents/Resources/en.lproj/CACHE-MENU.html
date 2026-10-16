@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Status-cache menu bar interface</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="status-cache-menu-bar-interface">Status-cache menu bar interface</h1>
+<p>The independent Finder cache helper can show a menu-bar icon, following
+TortoiseGit's optional <code>CacheTrayIcon</code> interface. Enable the background service in
+Finder Integration, then set <strong>Advanced → CacheTrayIcon</strong> to <strong>true</strong> and Apply.
+Setting it to false hides the icon and activity window. This preference does not
+register a service or grant repository access by itself.</p>
+<p>Open the icon's menu for <strong>Show Cache Activity</strong>, <strong>Enable/Disable Status Cache</strong>
+and <strong>Exit</strong>. Show/Hide Cache Activity replaces the Windows tray double-click
+with a discoverable native menu command. The icon reuses upstream turtle artwork;
+menu icons follow ShowAppContextMenuIcons. The tooltip shows cached directories
+and watched paths. Counts reflect this helper's published folder paths and actual
+FSEvents registrations, rather than the number of files in the repository.</p>
+<p>The native activity window displays the latest fifteen crawl/update/error lines
+in chronological order. Text is selectable and scrollable, with native light/dark
+appearance. Closing this window leaves the service running; it can be reopened
+from the menu. The helper remains independent of the main app's windows.</p>
+<p>Enable/Disable Status Cache shares the existing Finder overlay cache-mode
+preference. None uses normal folder badges; Enable restores the default status
+projection. Other icon, volume and include/exclude choices remain unchanged. This
+changes badge presentation; the existing background collector can continue
+watching and publishing repository metadata for Finder context menus. The app
+honors the accepted shared setting when it next opens instead of overwriting it
+with older local defaults. A later explicit Settings Apply can replace that
+snapshot. A damaged settings record is reported and retained, allowing retry.</p>
+<p>Exit stops this helper instance after its readers and watchers settle. The icon
+shows stopping state and refuses repeated commands during cleanup. It does not
+quit the main app, revoke saved grants or unregister the login service. A later
+app/launchd request can start the registered helper again. Normal system Quit and
+termination signals use the same awaited shutdown path.</p>
+<p>This ports TGITCache.cpp's tray tooltip/menu/window and FolderCrawler.cpp's
+15-line activity ring at pinned commit
+<code>7338078f8ddd924b8cddee35f512f2286072136d</code>. Local activity paths remain in the
+helper's memory and window, not in its authenticated status reply or the shared
+Finder snapshot. Counts and messages describe the native collector's work rather
+than claiming a Windows directory-cache implementation.</p>
+<p>Signed login-item registration, App Group transfer, physical menu-bar interaction,
+accessibility clients and Finder rendering remain separate acceptance work. Local
+checks use private settings and a native activity window without installing a real
+menu-bar item or registering a user's launch job. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FINDER-SERVICE-DEPLOYMENT.html">background service</a> for deployment prerequisites.</p>
+<h2 id="native-activity-appearance">Native activity appearance</h2>
+<p>These unaltered compositor captures show the shipping activity window with private
+fixture counts and paths. They verify window presentation, not a signed installed
+service or a real menu-bar item.</p>
+<p><img src="images/7e6deba0f4c3-cache-activity-light.png" alt="Cache activity in light appearance" /></p>
+<p><img src="images/f49a195c8c35-cache-activity-dark.png" alt="Cache activity in dark appearance" /></p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

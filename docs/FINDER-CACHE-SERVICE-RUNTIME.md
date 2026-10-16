@@ -53,3 +53,21 @@ website build passed. Owned parent receiver PIDs were independently checked abse
 child workers were waited/reaped by their parent fixture. The initial actor-isolation
 and test-closure compilation failures were fixed before the successful run. Detailed
 scope and source hashes are in `qa/finder-service-runtime-2026-10-13.json`.
+
+## Optional cache menu and local activity — October 16, 2026
+
+The independent helper now owns [the cache menu](CACHE-MENU.md), with source
+counts, bounded activity, cache-mode changes and awaited Exit. Startup collection,
+accepted publication and failures feed its local activity ring; watched-path and
+cached-folder counts come from current sessions. These private paths are not added
+to the authenticated report or shared snapshot. Exit, signals and system Quit
+share one shutdown task before process exit. Signed/physical acceptance remains
+open; this does not weaken the helper's identity or bookmark requirements.
+
+Twelve focused Core cases, the repaired Debug build, native cache-menu/window
+receiver and embedded helper audit pass. The initial native selector-dispatch
+failure, owned-process sampling/termination, repair scope and exact boundaries are
+recorded in [the batch evidence](qa/cache-tray-2026-10-16.json). Only the affected
+native case was repeated; Core was not rerun for that repair. The activity window
+captures are published in the guide; no real system menu-bar item or signed user
+service was installed by the native check.

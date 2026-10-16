@@ -2,6 +2,12 @@
 
 *A macOS fork of TortoiseGit*
 
+The independent helper now has the [optional cache menu](CACHE-MENU.md): source
+counts, a bounded activity window, shared cache-mode controls and awaited Exit.
+CacheTrayIcon has an effective consumer; accepted shared overlay settings remain
+authoritative when the app next opens. Signed service/Finder and physical menu-bar
+acceptance remain open; [batch evidence](qa/cache-tray-2026-10-16.json).
+
 The [image conflict family](IMAGE-CONFLICT-PARITY.md) now uses source extension
 routing, keeps undecodable sides selectable by their captured bytes, and supports
 empty Base selection in add/add conflicts. Rebase-state checks, workspace-owned

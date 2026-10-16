@@ -315,6 +315,8 @@ jobs:
         run: TURTLEGIT_CORE_ONLY=1 swift test --skip-build --filter GitSVNTests
       - name: Native historical file and folder item-provider receivers
         run: scripts/verify-browser-item-provider.sh
+      - name: Independent cache menu and activity ownership
+        run: python3 scripts/test-cache-tray.py
       - name: Verify app, extension and original icon resources
         run: |
           python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app

@@ -275,7 +275,9 @@ import UniformTypeIdentifiers
         catch { finderStatus="Watched repositories unavailable: "+error.localizedDescription }
         do { _ = try FinderMenuSettings.from().write() }
         catch { finderStatus = "Finder menu preferences unavailable: " + error.localizedDescription }
-        do { _ = try FinderOverlaySettings.from().write() }
+        do { _ = try FinderCacheTrayPreferences.from().write() }
+        catch { finderStatus = "Finder cache menu preferences unavailable: " + error.localizedDescription }
+        do { _ = try FinderOverlaySettings.effective().write() }
         catch { finderStatus = "Finder overlay preferences unavailable: " + error.localizedDescription }
         do { workingComparisonMark = try comparisonMarkStore.snapshot() } catch { self.error = error.localizedDescription }
         do {

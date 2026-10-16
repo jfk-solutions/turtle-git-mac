@@ -16,7 +16,7 @@ import TurtleGitCore
          publish: @escaping (FinderOverlaySettings) throws -> Bool = { try $0.write() },
          notify: @escaping () -> Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil) }) {
         self.preferences = preferences; self.publish = publish; self.notify = notify
-        let initial = FinderOverlaySettings.from(defaults: preferences); draft = initial; saved = initial
+        let initial = FinderOverlaySettings.effective(defaults: preferences); draft = initial; saved = initial
     }
     var modified: Bool { draft != saved }
     var validationError: String? { draft.pathPolicy.issue?.message }

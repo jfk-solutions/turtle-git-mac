@@ -196,3 +196,12 @@ Full workflow, physical and signed acceptance remain partial.
 Core cases, the Debug build and four native groups on both Git engines, including
 the argument-recorder setup repair. Complete hosted/physical/signed parity is
 not established.
+
+## Independent cache menu — October 16, 2026
+
+CacheTrayIcon now publishes an optional helper-owned menu-bar interface, source
+counts and a fifteen-line activity window. Apply/Cancel and application-menu icon
+preferences share the existing settings transaction. The helper observes accepted
+configuration changes; disabling the icon retires its visible activity and stale
+menu actions. See [cache menu](CACHE-MENU.md) for native adaptations and deployment
+limits. Other dormant Advanced entries are not implied to have new consumers.

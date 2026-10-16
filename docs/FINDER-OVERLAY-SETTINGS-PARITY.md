@@ -180,3 +180,9 @@ lazy metadata-lookup continuation. Both native shared Settings cases passed with
 private preferences/publication and their receivers were reaped. Thirty current
 controls now have explicit partial source mappings; alternate Windows engines and
 unmapped platform controls remain pending. See [path-policy evidence](qa/overlay-path-policy-2026-10-15.json).
+
+The helper's [optional cache menu](CACHE-MENU.md) now changes only cache mode in
+the latest valid shared overlay record. App startup and new overlay Settings
+owners honor that accepted shared record; private preference stores stay isolated.
+Corrupt records are not overwritten by menu actions. Existing Settings drafts
+retain their explicit Apply/Cancel semantics.

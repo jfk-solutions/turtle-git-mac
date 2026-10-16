@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "db357fb8ef975fcc0ef9de760abecbaa9dcc2511",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Independent optional cache menu, counts, fifteen-line activity, Advanced preferences, shared overlay cache-mode control and awaited helper Exit",
+  "source": [
+    "TGITCache.cpp AddSystrayIcon, TRAY_CALLBACK tooltip/window/menu, TRAYPOP_ENABLE/EXIT, stopping icon and process cleanup.",
+    "TGITCache.h MAX_CRAWLEDPATHS 15 and MAX_CRAWLEDPATHSLEN MAX_PATH*2; FolderCrawler.cpp crawl/update activity."
+  ],
+  "implementation": [
+    "CacheTrayIcon Apply/Cancel and startup publication use a separate App Group preference record; helper observes changes and owns NSStatusItem independently of app windows.",
+    "Source turtle/menu artwork, app-context icon preference, local counts and source-bounded selectable native activity. Show/Hide Cache Activity adapts Windows double-click to native menu navigation.",
+    "Cache-mode action captures its destination mode, edits only the latest complete shared overlay record, preserves unrelated preferences, rejects corrupt records and allows retry. App startup/new Settings owners honor accepted shared settings.",
+    "Runtime derives cached-folder/watch counts from successful current publications and registered FSEvents paths; activity remains in process memory, not the IPC report or shared status snapshot.",
+    "Exit disables commands and shows stopping; Exit/system Quit/signals share one awaited host shutdown task before process exit. No grant revocation or login-service unregister.",
+    "New CI native case and user guide/offline Help."
+  ],
+  "core": {
+    "exit": 0,
+    "cases": 12,
+    "first_attempt_pass": true,
+    "log": "build/qa/cache-tray-core.log",
+    "scope": "Tray defaults/codec, exact source boolean, 15-line/520 UTF-16 ring, cache-mode preservation/corrupt record, actual runtime publications/watches and permission replacement/shutdown."
+  },
+  "builds": [
+    {
+      "exit": 0,
+      "log": "build/qa/cache-tray-debug.log",
+      "anomalous_exit_zero_diagnostics": 7
+    },
+    {
+      "exit": 0,
+      "log": "build/qa/cache-tray-selector-debug.log",
+      "anomalous_exit_zero_diagnostics": 1
+    }
+  ],
+  "native": {
+    "final_exit": 0,
+    "logs": [
+      "build/qa/cache-tray-native.log",
+      "build/qa/cache-tray-selector-native.log"
+    ],
+    "receivers_reaped_and_independently_absent": [
+      75235,
+      75382
+    ],
+    "initial_failure": "First receiver remained in AppKit event loop after an NSForwarding selector-dispatch warning. Sampled that same live PID; stopped only the owned PID with SIGTERM and reaped it. Renamed the action method from perform to activateCacheMenuItem to avoid inherited NSObject selector ambiguity.",
+    "diagnostic_sample": "build/qa/cache-tray-native-sample.txt",
+    "repair_scope": "Native Objective-C action naming only; Debug rebuild and affected receiver repeated. Passing Core data checks not rerun.",
+    "checks": [
+      "Actual Advanced Apply/Cancel and icon preference bridge against private settings.",
+      "Native NSMenu action dispatch, stale menu rejection, once-only cache-mode changes, preservation of intervening unrelated settings and failed-write recovery.",
+      "Actual selectable activity text, live counts, close/reopen, disabled tray hides activity and fences retained action.",
+      "Exit held callback keeps stopping state and refuses duplicate actions, then retires window/menu only after callback settles.",
+      "Unaltered light/dark compositor captures reviewed for readable counts/activity."
+    ],
+    "boundary": "No real system menu-bar item installed; helper runtime/Exit callback supplied to UI. No user login job registered."
+  },
+  "agent_audit": {
+    "exit": 0,
+    "log": "build/qa/cache-tray-agent-audit.log",
+    "scope": "Actual embedded helper identity, agent plist and framework paths; unsigned helper refused startup with exit 1 and was waited/reaped. Does not prove signed deployment."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/cache-activity-light.png",
+      "sha256": "3b5158b2c6fd510474dad408afa365a1e810a467abc86eabcf4bb87f93997d80",
+      "scope": "Shipping native activity window with injected private fixture counts/paths; no signed installed cache/menu-bar capture."
+    },
+    {
+      "path": "docs/site/assets/cache-activity-dark.png",
+      "sha256": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
+      "scope": "Shipping native activity window with injected private fixture counts/paths; no signed installed cache/menu-bar capture."
+    }
+  ],
+  "documentation": {
+    "help": "34 guides, 47 topics, 48 files, 1940936 bytes",
+    "site": "247 documents; zero unresolved fragments",
+    "resource_copy": {
+      "exit": 0,
+      "log": "build/qa/cache-tray-resources-debug.log",
+      "scope": "Resource-only Debug build; final Help HTML/PNG/JSON byte-equal to source. No behavior tests repeated."
+    }
+  },
+  "limits": [
+    "Physical status-item/menu tracking, accessibility clients, signed independent service/App Group and Finder acceptance remain open.",
+    "Cache None uses existing native normal-folder badge projection; background metadata publication may continue. Windows per-directory cache internals are not claimed.",
+    "No new Store build, complete hosted CI result or whole-port/dialog certification."
+  ]
+}

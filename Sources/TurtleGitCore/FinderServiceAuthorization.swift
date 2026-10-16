@@ -268,10 +268,19 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         var active=true
         var watchFailure:String?
         var lastPublication:Date?
+        var cachedDirectories:Set<String>=[]
         init(_ access:FinderServicePersistentAccess,repository:GitRepository) { self.access=access;self.repository=repository }
         func retire() { active=false;monitor?.stop();monitor=nil;refresh?.retire();refresh=nil;token?.cancel();task?.cancel() }
         deinit { monitor?.stop();token?.cancel();task?.cancel() }
     }
+    private var activity=FinderCacheActivityLog()
+    public var activitySnapshot: FinderCacheActivitySnapshot {
+        FinderCacheActivitySnapshot(running:running,
+            cachedDirectories:Set(sessions.values.flatMap { $0.cachedDirectories }).count,
+            watchedPaths:Set(sessions.values.flatMap { $0.directories.map(\.path) }).count,
+            lines:activity.lines)
+    }
+    private func recordActivity(_ message:String) {activity.append(message);changed()}
     public var report: FinderCacheServiceReport {
         FinderCacheServiceReport(running: running, roots: permissions.grants.map { grant in
             let session = sessions[grant.id]
@@ -301,6 +310,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         guard !running,!transitioning else { throw FinderCacheServiceFailure.transitioning }
         let restored=try permissions.restore(requireSecurityScope:requireSecurityScope)
         running=true;generation += 1;rootFailures=restored.failures
+        recordActivity("Status cache started")
         attach(restored.accesses);changed()
     }
     /// Durable installation is atomic. Cache cleanup is a separate operation:
@@ -329,6 +339,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         for (key,session) in sessions where id==nil || id==key { session.refresh?.invalidate() }
     }
     public func shutdown() async {
+        recordActivity("Stopping status cache…")
         running=false;generation += 1;transitioning=true
         let old=Array(sessions.values)+retiring;sessions.removeAll()
         for session in old { session.retire() }
@@ -352,6 +363,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         }
     }
     private func collect(_ session:Session,token:OperationCancellation) async {
+        recordActivity("Crawling folder: " + session.access.root.path)
         do {
             let ticket=try cache.begin(root:session.access.root,cancellation:token)
             let collection=try await session.repository.collectFinderRepository(authorizedRoot:session.access.lease.url,additionalAuthorizedRoots:session.access.additionalLeases.map(\.url),cancellation:token,watchReady:{ [weak self,weak session] paths in
@@ -365,13 +377,24 @@ public struct FinderCacheServiceReport: Codable, Sendable {
             let publication=try cache.publish(ticket,snapshots:collection.snapshots,cancellation:token)
             if publication.published {
                 session.lastPublication = Date()
+                var directories=Set(collection.snapshots.flatMap(\.roots))
+                for snapshot in collection.snapshots {
+                    for path in snapshot.states.keys {
+                        var parent=URL(fileURLWithPath:path).deletingLastPathComponent()
+                        while snapshot.roots.contains(where: { parent.path == $0 || parent.path.hasPrefix($0+"/") }) {
+                            directories.insert(parent.path);let next=parent.deletingLastPathComponent();if next==parent {break};parent=next
+                        }
+                    }
+                }
+                session.cachedDirectories=directories
+                recordActivity("Updated path: " + session.access.root.path)
                 rootFailures.removeValue(forKey:session.access.id)
                 if !collection.failures.isEmpty { rootFailures[session.access.id]=collection.failures.values.sorted().joined(separator:"\n") }
                 notify();changed()
             } else { session.refresh?.invalidate() }
         } catch {
             guard running,session.active,!token.isCancelled else { return }
-            rootFailures[session.access.id]=error.localizedDescription;changed()
+            rootFailures[session.access.id]=error.localizedDescription;recordActivity("Error: " + session.access.root.path + " — " + error.localizedDescription)
         }
     }
     private func watch(_ session:Session?,paths:[URL]) {

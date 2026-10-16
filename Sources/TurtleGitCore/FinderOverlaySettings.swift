@@ -80,6 +80,21 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
     public static func read(from url: URL? = sharedURL) -> Self {
         guard let url, let data = try? Data(contentsOf: url), let settings = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }; return settings
     }
+    /// The helper's cache menu can update shared presentation while the app is
+    /// closed. Production reads honor that accepted state before local defaults.
+    public static func effective(defaults: UserDefaults = .standard, shared: URL? = nil) -> Self {
+        let url = shared ?? (defaults === UserDefaults.standard ? sharedURL : nil)
+        if let url, let data = try? Data(contentsOf: url), let value = try? JSONDecoder().decode(Self.self, from: data), value.valid { return value }
+        return from(defaults: defaults)
+    }
+    /// Read the latest complete record before changing this one field. A corrupt
+    /// record fails without replacing unrelated overlay preferences.
+    public static func updateCacheMode(_ mode: FinderOverlayCacheMode, at url: URL) throws {
+        var value = Self()
+        if FileManager.default.fileExists(atPath: url.path) { value = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url)) }
+        guard value.valid else { throw GitConfigurationFailure.invalidValue }
+        value.cacheMode = mode; _ = try value.write(to: url)
+    }
     public var pathPolicy: FinderOverlayPathPolicy { FinderOverlayPathPolicy(exclude: excludePaths, include: includePaths) }
     public var valid: Bool { pathPolicy.issue == nil }
     @discardableResult public func write(to url: URL? = sharedURL) throws -> Bool {

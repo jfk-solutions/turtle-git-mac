@@ -1,11 +1,13 @@
 import AppKit
 import TurtleGitCore
 
-@MainActor final class CacheServiceHost:NSObject,NSXPCListenerDelegate {
+@MainActor final class CacheServiceHost:NSObject,NSXPCListenerDelegate,NSApplicationDelegate {
     let runtime:FinderCacheServiceRuntime
     private let requirement:String
     private let listener:NSXPCListener
     private var signals:[DispatchSourceSignal]=[]
+    private var tray:FinderCacheTrayController?
+    private var stopTask:Task<Void,Never>?
     init(configuration:Void) throws {
         // Both peers require an Apple-signed identity from the same team. Unsigned
         // development bundles fail closed rather than weakening production IPC.
@@ -17,22 +19,30 @@ import TurtleGitCore
         let appURL=Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         guard let app=Bundle(url:appURL),app.bundleIdentifier==FinderCacheServiceIdentity.appIdentifier else { throw FinderServiceAuthorizationFailure.invalidRequest }
         let git=try GitRuntime.executable(bundle:app)
-        runtime=FinderCacheServiceRuntime(permissions:store,cache:FinderSnapshotStore(url:shared),repository:{ GitRepository(root:$0,executable:git) },notify:{ DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification),object:nil) })
+        var changed:()->Void = {}
+        runtime=FinderCacheServiceRuntime(permissions:store,cache:FinderSnapshotStore(url:shared),repository:{ GitRepository(root:$0,executable:git) },notify:{ DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification),object:nil) },changed:{changed()})
         listener=NSXPCListener(machServiceName:FinderCacheServiceIdentity.machService)
         super.init();listener.delegate=self
+        changed = { [weak self] in self?.tray?.refresh() }
     }
     func start() throws {
-        try runtime.start();listener.resume()
+        try runtime.start();listener.resume();NSApp.delegate=self
+        tray=FinderCacheTrayController(snapshot:{ [weak self] in self?.runtime.activitySnapshot ?? .init(running:false) },exitService:{ [weak self] in await self?.stopAndExit() })
         for number in [SIGTERM,SIGINT] {
             signal(number,SIG_IGN)
             let source=DispatchSource.makeSignalSource(signal:number,queue:.main)
-            source.setEventHandler { [weak self] in
-                Task { @MainActor in
-                    guard let self else { return };self.listener.invalidate()
-                    await self.runtime.shutdown();exit(0)
-                }
+            source.setEventHandler { [weak self] in self?.requestStop()
             };source.resume();signals.append(source)
         }
+    }
+    func applicationShouldTerminate(_ sender:NSApplication)->NSApplication.TerminateReply {requestStop();return .terminateLater}
+    private func requestStop() { Task { [self] in await stopAndExit() } }
+    private func stopAndExit() async {
+        if let stopTask { await stopTask.value; return }
+        let operation=Task { [self] in
+            tray?.beginStopping();listener.invalidate();await runtime.shutdown();tray?.retire();exit(0)
+        }
+        stopTask=operation;await operation.value
     }
     nonisolated func listener(_ listener:NSXPCListener,shouldAcceptNewConnection connection:NSXPCConnection) -> Bool {
         // Configure before resuming. Authentication is enforced by NSXPCConnection
@@ -66,7 +76,7 @@ final class CacheServiceEndpoint:NSObject,FinderCacheServiceProtocol {
 @main struct CacheServiceMain {
     @MainActor static func main() {
         do {
-            let app=NSApplication.shared;app.setActivationPolicy(.prohibited)
+            let app=NSApplication.shared;app.setActivationPolicy(.accessory)
             let service=try CacheServiceHost(configuration:());try service.start()
             withExtendedLifetime(service) { app.run() }
         } catch { fputs("TurtleGit cache service: \(error.localizedDescription)\n",stderr);exit(1) }

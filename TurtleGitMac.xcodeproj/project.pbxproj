@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        C81650000000000000000001 /* FinderCacheTray.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81650000000000000000002 /* FinderCacheTray.swift */; };
 		C81640000000000000000001 /* ExcelComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81640000000000000000002 /* ExcelComparison.swift */; };
 		C81640000000000000000003 /* ExcelComparisonAutomation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81640000000000000000004 /* ExcelComparisonAutomation.swift */; };
 		C81630000000000000000001 /* WordComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81630000000000000000002 /* WordComparison.swift */; };
@@ -503,6 +504,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+        C81650000000000000000002 /* FinderCacheTray.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderCacheTray.swift; sourceTree = "<group>"; };
 		C81640000000000000000002 /* ExcelComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcelComparison.swift; sourceTree = "<group>"; };
 		C81640000000000000000004 /* ExcelComparisonAutomation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcelComparisonAutomation.swift; sourceTree = "<group>"; };
 		C81630000000000000000002 /* WordComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordComparison.swift; sourceTree = "<group>"; };
@@ -1238,6 +1240,7 @@
 				C81620000000000000000002 /* BundledComparisonTools.swift */,
 				C81630000000000000000002 /* WordComparison.swift */,
 				C81640000000000000000002 /* ExcelComparison.swift */,
+                C81650000000000000000002 /* FinderCacheTray.swift */,
 				181B9FE19CD19EA7DAB1E824 /* Fetch.swift */,
 				7428B46131B5378475891E94 /* FileComparison.swift */,
 				FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */,
@@ -1793,6 +1796,7 @@
 				C81620000000000000000001 /* BundledComparisonTools.swift in Sources */,
 				C81630000000000000000001 /* WordComparison.swift in Sources */,
 				C81640000000000000000001 /* ExcelComparison.swift in Sources */,
+                C81650000000000000000001 /* FinderCacheTray.swift in Sources */,
 				96858E5400FE448CEE799A09 /* Fetch.swift in Sources */,
 				4CCA62C8CECAD2B41E2E888A /* FileComparison.swift in Sources */,
 				7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */,

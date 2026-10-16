@@ -6,14 +6,16 @@ import TurtleGitCore
     let store: AdvancedSettingsStore
     private let defaults: UserDefaults
     private let publishFinderMenu: (FinderMenuSettings) throws -> Void
+    private let publishCacheTray: (FinderCacheTrayPreferences) throws -> Void
     @Published var values: [String: String]
     @Published var error: String?
     @Published private var original: [String: String]
     var onApplied: () -> Void = {}
     var modified: Bool { values != original }
     init(defaults: UserDefaults = .standard,
-         publishFinderMenu: @escaping (FinderMenuSettings) throws -> Void = { _ = try $0.write() }) {
-        self.defaults = defaults; self.publishFinderMenu = publishFinderMenu
+         publishFinderMenu: @escaping (FinderMenuSettings) throws -> Void = { _ = try $0.write() },
+         publishCacheTray: @escaping (FinderCacheTrayPreferences) throws -> Void = { if try $0.write() { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCacheTrayPreferences.notification),object:nil) } }) {
+        self.defaults = defaults; self.publishFinderMenu = publishFinderMenu; self.publishCacheTray = publishCacheTray
         store = AdvancedSettingsStore(defaults: defaults); let initial = store.values(); original = initial; values = initial
     }
     func edit(_ name: String, text: String) -> Bool {
@@ -24,6 +26,10 @@ import TurtleGitCore
         do {
             let changes = values.filter { original[$0.key] != $0.value }
             try store.apply(changes); original = values; error = nil; RepositoryWindowTitles.refreshAll(); onApplied()
+            if changes["CacheTrayIcon"] != nil || changes["ShowAppContextMenuIcons"] != nil {
+                do { try publishCacheTray(FinderCacheTrayPreferences.from(defaults:defaults)) }
+                catch { self.error = "Settings saved, but cache menu preferences could not be updated: " + error.localizedDescription }
+            }
             if changes["ShowContextMenuIcons"] != nil {
                 do { try publishFinderMenu(FinderMenuSettings.from(defaults: defaults)) }
                 catch { self.error = "Settings saved, but Finder menu preferences could not be updated: " + error.localizedDescription }
@@ -97,7 +103,7 @@ struct AdvancedSettingsTable: NSViewRepresentable {
         func tableView(_ tableView: NSTableView, toolTipFor cell: NSCell, rect: NSRectPointer, tableColumn: NSTableColumn?, row: Int, mouseLocation: NSPoint) -> String {
             guard AdvancedSettingDefinition.all.indices.contains(row) else { return "" }
             let setting = AdvancedSettingDefinition.all[row]
-            let effective: Set<String> = ["DialogTitles", "ShowListFullPathTooltip", "ShortHashLengthForHyperLinkInLogMessage", "DownloadAnimation", "FetchVerbose", "ConflictDontGuessBranchNames", "MaxRefHistoryItems", "DiffSimilarityIndexThreshold", "AutoCompleteMinChars", "AutocompleteParseMaxSize", "AutocompleteParseUnversioned", "AutocompleteRemovesExtensions", "StyleCommitMessages", "ShowListBackgroundImage", "ShowAppContextMenuIcons", "ShowContextMenuIcons", "LogIncludeBoundaryCommits", "LogIncludeWorkingTreeChanges", "LogFontForLogCtrl", "LogFontForFileListCtrl", "NoSortLocalBranchesFirst", "LogTooManyItemsThreshold", "NumDiffWarning", "LogShowSuperProjectSubmodulePointer", "NamedRemoteFetchAll", "RememberFileListPosition", "SanitizeCommitMsg", "SquashDate", "StyleGitOutput", "VersionCheck", "VersionCheckPreview"]
+            let effective: Set<String> = ["CacheTrayIcon", "DialogTitles", "ShowListFullPathTooltip", "ShortHashLengthForHyperLinkInLogMessage", "DownloadAnimation", "FetchVerbose", "ConflictDontGuessBranchNames", "MaxRefHistoryItems", "DiffSimilarityIndexThreshold", "AutoCompleteMinChars", "AutocompleteParseMaxSize", "AutocompleteParseUnversioned", "AutocompleteRemovesExtensions", "StyleCommitMessages", "ShowListBackgroundImage", "ShowAppContextMenuIcons", "ShowContextMenuIcons", "LogIncludeBoundaryCommits", "LogIncludeWorkingTreeChanges", "LogFontForLogCtrl", "LogFontForFileListCtrl", "NoSortLocalBranchesFirst", "LogTooManyItemsThreshold", "NumDiffWarning", "LogShowSuperProjectSubmodulePointer", "NamedRemoteFetchAll", "RememberFileListPosition", "SanitizeCommitMsg", "SquashDate", "StyleGitOutput", "VersionCheck", "VersionCheckPreview"]
             return effective.contains(setting.name) ? setting.name : "This preference has no effect on TurtleGit yet."
         }
         @objc func beginEdit() {
