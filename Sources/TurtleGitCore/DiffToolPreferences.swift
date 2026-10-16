@@ -95,6 +95,12 @@ public struct DiffToolAssociation: Codable, Equatable, Identifiable, Sendable {
     public var normalizedPattern: String { Self.normalized(pattern) }
     public var valid: Bool { !normalizedPattern.isEmpty && !normalizedPattern.contains("/") && !normalizedPattern.contains("\0") && program.valid }
 }
+/// PickDiffTool followed by StartExtDiff's alternate-tool inversion. Image is
+/// an explicit viewer choice; content sniffing must not undo a Merge selection.
+public enum DiffToolSelection: Equatable, Sendable {
+    case merge, image, program(DiffToolProgram)
+    public static let imageExtensions = ["jpg", "jpeg", "bmp", "gif", "png", "ico", "tif", "tiff", "dib", "emf", "cur", "webp", "svg", "svgz"]
+}
 public struct DiffToolPreferences: Codable, Equatable, Sendable {
     public var program = DiffToolProgram()
     public var associations: [DiffToolAssociation] = []
@@ -121,19 +127,22 @@ public struct DiffToolPreferences: Codable, Equatable, Sendable {
         }
     }
     /// AppUtils::PickDiffTool: destination filename, base filename, destination extension.
-    public func selected(base: String, destination: String, alternate: Bool = false) throws -> DiffToolProgram? {
+    public func selection(base: String, destination: String, alternate: Bool = false) throws -> DiffToolSelection {
         let filename = (destination as NSString).lastPathComponent.lowercased()
         let baseName = (base as NSString).lastPathComponent.lowercased()
         let ext = (filename as NSString).pathExtension
         let candidates = [filename, baseName] + (ext.isEmpty ? [] : ["." + ext])
         let association = candidates.compactMap { name in associations.first { $0.normalizedPattern == name } }.first
         // Source built-in image comparison precedes the default text diff tool.
-        if association == nil, ["jpg", "jpeg", "bmp", "gif", "png", "ico", "tif", "tiff", "dib", "emf", "cur", "webp", "svg", "svgz"].contains(ext) { return nil }
+        if association == nil, DiffToolSelection.imageExtensions.contains(ext) { return alternate ? .merge : .image }
         let found = association?.program ?? program
-        guard found.enabled != alternate, found.builtIn != nil || !found.applicationPath.isEmpty else { return nil }
+        guard found.enabled != alternate, found.builtIn != nil || !found.applicationPath.isEmpty else { return .merge }
         var result = found; result.enabled = true
         guard result.valid else { throw DiffToolFailure.application }
-        return result
+        return .program(result)
+    }
+    public func selected(base: String, destination: String, alternate: Bool = false) throws -> DiffToolProgram? {
+        if case .program(let program) = try selection(base: base, destination: destination, alternate: alternate) { return program }; return nil
     }
 }
 

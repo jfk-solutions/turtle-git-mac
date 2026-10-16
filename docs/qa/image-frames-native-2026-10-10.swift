@@ -48,10 +48,10 @@ import Darwin
         _ = try await repo.run(["config","user.name","Image Frame Tests"])
         _ = try await repo.run(["config","user.email","image-frames@example.invalid"])
         _ = try await repo.run(["config","commit.gpgsign","false"])
-        let left = root.appendingPathComponent("first.dat"), right = root.appendingPathComponent("second.dat")
+        let left = root.appendingPathComponent("first.gif"), right = root.appendingPathComponent("second.gif")
         let a = try sequence(type: "com.compuserve.gif" as CFString,colors: [.red,.green,.blue])
         let b = try sequence(type: "com.compuserve.gif" as CFString,colors: [.blue,.red])
-        try a.write(to: left); try b.write(to: right); try await repo.stage(["first.dat","second.dat"]); _ = try await repo.commit(message: "frames")
+        try a.write(to: left); try b.write(to: right); try await repo.stage(["first.gif","second.gif"]); _ = try await repo.commit(message: "frames")
         let head = try await repo.run(["rev-parse","HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: left,destination: right),permissions: [])
         let window = controller.window!
@@ -120,7 +120,7 @@ import Darwin
         replacement.togglePlayback(base: true); try require(!replacement.playing.isEmpty)
         window.close(); try require(replacement.playing.isEmpty)
         // TIFF pages and ICO variants share navigation; ICO has no Play button.
-        let pages = root.appendingPathComponent("pages.dat"), icon = root.appendingPathComponent("icon.dat")
+        let pages = root.appendingPathComponent("pages.tiff"), icon = root.appendingPathComponent("icon.ico")
         try sequence(type: "public.tiff" as CFString,colors: [.red,.blue],sizes: [CGSize(width: 80,height: 60),CGSize(width: 20,height: 90)]).write(to: pages)
         let sourceRelative = "Sources/TurtleGitCore/Resources/Icons/fitinwindow.ico"
         let sourceCandidate = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(sourceRelative)
@@ -168,14 +168,14 @@ import Darwin
         // A real multi-frame conflict: selecting a later visible frame must
         // copy the original full GIF and retain unmerged stages on No.
         _ = try await repo.run(["switch","-c","frame-side"])
-        try b.write(to: left); try await repo.stage(["first.dat"]); _ = try await repo.commit(message: "theirs frames")
+        try b.write(to: left); try await repo.stage(["first.gif"]); _ = try await repo.commit(message: "theirs frames")
         _ = try await repo.run(["switch","main"])
         let mine = try sequence(type: "com.compuserve.gif" as CFString,colors: [.green,.red,.blue])
-        try mine.write(to: left); try await repo.stage(["first.dat"]); _ = try await repo.commit(message: "mine frames")
+        try mine.write(to: left); try await repo.stage(["first.gif"]); _ = try await repo.commit(message: "mine frames")
         do { _ = try await repo.run(["merge","frame-side"]); throw Failure(line: #line) } catch is GitFailure {}
         let conflictHead = try await repo.run(["rev-parse","HEAD"]).stdout
         let conflictIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
-        guard let document = try await repo.imageConflictDocument(path: "first.dat") else { throw Failure(line: #line) }
+        guard let document = try await repo.imageConflictDocument(path: "first.gif") else { throw Failure(line: #line) }
         let conflict = ImageConflictWindowController(repository: repo,access: nil,document: document)
         let conflictWindow = conflict.window!, conflictHost = conflictWindow.contentView!
         conflictWindow.alphaValue = 0; conflictWindow.setFrameOrigin(NSPoint(x: -10000,y: -10000))

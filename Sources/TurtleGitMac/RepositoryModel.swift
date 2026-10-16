@@ -41,7 +41,7 @@ import UniformTypeIdentifiers
             case .compare(let base, let mine, let single):
                 let key = "open-" + UUID().uuidString
                 let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: permissions)
-                controller.model.singleFileMode = single
+                controller.model.singleFileMode = single; controller.model.useInternalMergeViewer()
                 controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
                 self.fileComparisonWindows[key] = controller; controller.showWindow(nil)
             case .merge(let base, let theirs, let mine):

@@ -2,6 +2,15 @@
 
 *A macOS fork of TortoiseGit*
 
+The [connected image/tool routing family](DIFF-TOOLS-PARITY.md#connected-imagetool-dispatch--october-16-2026)
+now separates source Merge, IDiff and configured-program selection. Captured Shift
+and Settings determine dispatch before image decoding. Reload preserves that
+choice; explicit Load Images and Merge Open/source views retain their own viewer.
+Unsupported image sides keep IDiff diagnostics, and retired launches cannot
+publish late viewers. Validation scope is recorded in
+[the batch evidence](qa/image-tool-routing-2026-10-16.json); complete image format,
+physical and signed acceptance remain open.
+
 The [Excel comparison family](EXCEL-COMPARISON.md) now connects full/fast workbook
 comparison, source-style value highlighting and worksheet handling, protected-sheet
 warnings, private copies, Settings associations and serialized Automation ownership.

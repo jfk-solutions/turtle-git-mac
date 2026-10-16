@@ -18,9 +18,8 @@ Selection follows destination filename → base filename → destination extensi
 An explicit disabled association selects the internal tool. Default image
 extensions retain the image viewer before the general text program. Shift
 inverts enabled/disabled external programs; a disabled saved application remains
-available. Image Shift's source switch between IDiff and Merge still needs exact
-comparison; this implementation preserves the native image path when there is
-no explicit association.
+available. The October 16 image routing continuation below implements the source switch
+between IDiff and Merge, including disabled explicit image associations.
 
 A macOS .app or command-line executable plus an argument template replaces the
 Windows executable command. The October 15 continuation below adds executable
@@ -386,3 +385,40 @@ retired/cancelled owners. Five source workbook extensions use full mode by defau
 fast mode is explicit. Saved settings/other associations stay authoritative.
 Excel is added to the narrowly targeted AppStore exception allowlist and usage
 description; signed/runtime/review acceptance is not inferred from that declaration.
+
+## Connected image/tool dispatch — October 16, 2026
+
+`DiffToolSelection` now represents Merge, IDiff and an enabled configured program
+separately. Source destination-name → base-name → destination-extension precedence
+runs before the default image extension check and generic program. The fourteen
+source image extensions select IDiff before the generic program; Shift selects
+Merge. An explicit enabled image association selects its program, with Shift
+selecting Merge; a disabled association selects Merge, with Shift activating the
+saved program. Content decoding cannot reverse that selected Merge route.
+
+The native owner captures the complete selection before asynchronous dispatch;
+the shipping launcher consumes that same snapshot. Successful internal selection
+persists across reloads and later Settings changes. Failed dispatch leaves the
+selection retryable and never silently opens another viewer. Retired operations
+keep their existing worker/scope/Quit lifetime and reject late viewer publication.
+
+IDiff decodes each side independently: invalid/unsupported or empty images remain
+in IDiff with existing missing/decode messages and image commands. The original
+bytes remain intact. PNG content with an unregistered destination extension uses
+Merge unless an explicit association selected another program. Native Load Images
+is an explicit IDiff operation and bypasses external associations, including its
+replacement inputs. Explicit Merge Open, editor replacement and captured Merge
+source comparisons retain Merge and also bypass external associations.
+
+This separates the two-file StartExtDiff behavior from StartExtMerge's image
+conflict policy. The conflict route and external-merge settings are unchanged;
+complete conflict/source masks, all image codecs and signed/physical acceptance
+remain open. PowerPoint's inspected Mac scripting dictionary does not expose the
+presentation Merge command used by `diff-ppt.js`; that adapter is still open.
+
+Ten focused Core cases, the Debug build and all five native cases with both Git
+engines pass. The initial Load Images fixture staging-name failure was repaired
+without repeating passing checks. All eleven owned receiver processes (ten passes
+and one failed fixture) were reaped and independently absent. See
+[the dated record](qa/image-tool-routing-2026-10-16.json) for diagnostics, cached
+compilation, native behavior scope and remaining physical/signed acceptance.

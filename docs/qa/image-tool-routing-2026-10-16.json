@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "66f1c4dbe8a99b3b40460ff7c5e8f91b947b42ef",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected two-file Merge/IDiff/configured-tool selection, captured Settings and Shift, explicit viewer isolation and native image workflow regression group",
+  "source": [
+    "AppUtils.cpp PickDiffTool destination/base filename then destination extension; fourteen image defaults precede generic tool.",
+    "AppUtils.cpp StartExtDiff alternate inversion selects TortoiseGitMerge when ordinary image route is bypassed.",
+    "TortoiseIDiff MainWindow.cpp ID_FILE_OPEN retains explicit image viewer; Merge explicit Open/source commands retain Merge."
+  ],
+  "implementation": [
+    "Core selection distinguishes Merge, image and enabled program; selected program compatibility API retained.",
+    "Native owner captures route before awaiting launch and passes identical selection into shipping launcher.",
+    "Merge selection no longer reversed by image-content sniffing; invalid/empty image sides remain IDiff.",
+    "Reload retains internal route; failure remains retryable; late closed/cancelled operations refuse viewer publication.",
+    "Explicit Load Images and replacements bypass associations; explicit Merge Open/replacement/source views bypass associations and retain Merge.",
+    "Automatic image fixtures now use source extensions; explicit chooser still covers arbitrary extensions."
+  ],
+  "core": {
+    "exit": 0,
+    "cases": 10,
+    "log": "build/qa/image-tool-routing-core.log",
+    "first_attempt_pass": true
+  },
+  "debug_build": {
+    "exit": 0,
+    "log": "build/qa/image-tool-routing-debug.log",
+    "first_attempt_pass": true,
+    "anomalous_exit_zero_diagnostics": 7
+  },
+  "native": {
+    "case_engine_pairs": 10,
+    "families": [
+      "toolbar",
+      "open",
+      "conflict",
+      "frames",
+      "routing"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "logs": [
+      "build/qa/image-tool-routing-native.log",
+      "build/qa/image-tool-routing-native-repaired.log",
+      "build/qa/image-tool-routing-toolbar-bundled.log"
+    ],
+    "initial_failure": "Load Images fixture input filenames changed to source .png extensions, but its stage list still named .dat files. Fixed fixture only and resumed remaining cases; passing system toolbar not repeated.",
+    "remaining_run_exit": 0,
+    "bundled_toolbar_exit": 0,
+    "cached_receiver_reused_for_final_toolbar": true,
+    "receivers_reaped_and_independently_absent": [
+      69548,
+      69627,
+      69664,
+      69696,
+      69791,
+      69858,
+      69871,
+      69890,
+      69992,
+      70064,
+      70131
+    ],
+    "checks": [
+      "All fourteen source extensions and association/filename/default/Shift precedence in focused Core.",
+      "Actual native image and Merge models/title/bytes; recognizable bytes in .dat use Merge; malformed/empty image sides retain IDiff.",
+      "Enabled/disabled association dispatch through shipping binary adapter; actual captured selection survives preferences mutation inside asynchronous seam.",
+      "Reload choice, explicit image isolation, forced Merge route, failure/retry and held retired callback operation lifetime.",
+      "Retained native toolbar artwork/gates, owned Load Images acceptance/cancellation/grants, conflict selection/resolve questions, frame pixels/pages/variants/playback retirement.",
+      "Unchanged input bytes, HEAD and index for routing; retained conflict checks explicitly cover their intended file/index writes."
+    ]
+  },
+  "documentation": {
+    "help": "33 guides, 47 topics, 43 files, 599132 bytes; built guide byte-equal to source",
+    "captures": "No new captures; selection/ownership change, existing layout retained.",
+    "site": "246 documents; initially three incorrect heading anchors, corrected to generated slug; final zero unresolved fragments"
+  },
+  "ci_observation": {
+    "excel_pages_run": 38890017868,
+    "excel_pages_conclusion": "success",
+    "excel_macos_run": 38890018056,
+    "excel_macos_status": "pending",
+    "older_active_run": 38880822315,
+    "older_active_step": "Rebase action controls and structural row behavior",
+    "scope": "Observed during this batch; no complete hosted CI result inferred."
+  },
+  "limits": [
+    "Physical Finder, keyboard/VoiceOver, all image codecs, full conflict tool masks and signed AppStore acceptance remain open.",
+    "Live third-party application launching not exercised by new routing case; shipping built-in binary dispatch used.",
+    "PowerPoint presentation Merge absent from inspected Mac dictionary; PowerPoint adapter remains open.",
+    "No new Store build or complete hosted CI/full port certification."
+  ]
+}

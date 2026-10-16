@@ -207,3 +207,17 @@ controller-hosted content tool rows with source-ordered AppKit toolbars and
 native menu/overflow actions, common keyboard gates, full header tooltips and
 stable model ownership across image replacement. See its dated evidence for
 validation and remaining acceptance limits.
+
+## Source viewer selection — October 16, 2026
+
+Two-file dispatch now selects the viewer by the pinned source tool/extension
+policy before decoding. Default image extensions use IDiff; Shift uses Merge.
+Explicit enabled or disabled associations preserve their own alternate-tool
+inversion. Invalid image sides remain in IDiff; recognizable image bytes do not
+switch a selected Merge view into IDiff. Explicit Load Images remains independent
+of external tool settings. See [the connected routing family](DIFF-TOOLS-PARITY.md#connected-imagetool-dispatch--october-16-2026).
+
+The retained native image fixtures now use source-recognized image extensions
+for automatic dispatch. Arbitrary-extension image loading remains covered through
+explicit Load Images. This corrects earlier fixtures that relied on content-only
+routing; it does not weaken their frame, pixel, toolbar or repository assertions.

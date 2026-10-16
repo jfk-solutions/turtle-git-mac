@@ -42,16 +42,16 @@ import Darwin
         _ = try await repo.run(["config", "user.name", "Image Tests"])
         _ = try await repo.run(["config", "user.email", "image@example.invalid"])
         _ = try await repo.run(["config", "commit.gpgsign", "false"])
-        let file = root.appendingPathComponent("image.dat")
+        let file = root.appendingPathComponent("image.png")
         try png(.red, width: 80, height: 60).write(to: file)
-        try await repo.stage(["image.dat"]); _ = try await repo.commit(message: "red")
+        try await repo.stage(["image.png"]); _ = try await repo.commit(message: "red")
         try png(.blue, width: 80, height: 60).write(to: file)
         _ = try await repo.status()
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let bytes = try Data(contentsOf: file)
         let snapshot = try await repo.revisionComparison(from: .revision("HEAD"), to: .workingTree)
-        let controller = FileComparisonWindowController(repository: repo, access: nil, snapshot: snapshot, path: "image.dat")
+        let controller = FileComparisonWindowController(repository: repo, access: nil, snapshot: snapshot, path: "image.png")
         defer { controller.window?.close() }
         controller.model.load()
         try await wait { !controller.model.busy }

@@ -138,3 +138,39 @@ final class DiffToolPreferencesTests: XCTestCase {
         XCTAssertEqual(value.result, root.appendingPathComponent(path))
     }
 }
+
+final class DiffToolViewerSelectionTests: XCTestCase {
+    private func tool(enabled: Bool = true) -> DiffToolProgram {
+        var result = DiffToolProgram(); result.enabled = enabled; result.applicationPath = "/Applications/Literal.app"; return result
+    }
+    private func association(_ pattern: String, enabled: Bool = true) -> DiffToolAssociation {
+        var result = DiffToolAssociation(); result.pattern = pattern; result.program = tool(enabled: enabled); return result
+    }
+    func testEverySourceImageExtensionPrecedesGenericToolAndShiftSelectsMerge() throws {
+        var value = DiffToolPreferences(); value.program = tool()
+        for ext in DiffToolSelection.imageExtensions {
+            XCTAssertEqual(try value.selection(base: "old.txt", destination: "NEW." + ext.uppercased()), .image)
+            XCTAssertEqual(try value.selection(base: "old.txt", destination: "NEW." + ext.uppercased(), alternate: true), .merge)
+        }
+        XCTAssertEqual(try value.selection(base: "a.png", destination: "b.txt"), .program(tool()))
+        XCTAssertEqual(try value.selection(base: "a.png", destination: "extensionless"), .program(tool()))
+    }
+    func testExplicitAssociationOverridesImageInBothDirections() throws {
+        var value = DiffToolPreferences(); value.program = tool()
+        value.associations = [association("*.PNG", enabled: false)]
+        XCTAssertEqual(try value.selection(base: "a.png", destination: "b.png"), .merge)
+        XCTAssertEqual(try value.selection(base: "a.png", destination: "b.png", alternate: true), .program(tool()))
+        value.associations[0].program.enabled = true
+        XCTAssertEqual(try value.selection(base: "a.png", destination: "b.png"), .program(tool()))
+        XCTAssertEqual(try value.selection(base: "a.png", destination: "b.png", alternate: true), .merge)
+    }
+    func testFilenamePrecedenceAndGenericInternalNeverImplyImage() throws {
+        var value = DiffToolPreferences()
+        value.associations = [association(".png"), association("old.jpg", enabled: false), association("new.png")]
+        XCTAssertEqual(try value.selection(base: "old.jpg", destination: "new.png"), .program(tool()))
+        XCTAssertEqual(try value.selection(base: "old.jpg", destination: "other.png"), .merge)
+        value.associations = []
+        XCTAssertEqual(try value.selection(base: "a.png", destination: "b.dat"), .merge)
+        XCTAssertEqual(try value.selection(base: "a.png", destination: "b.dat", alternate: true), .merge)
+    }
+}

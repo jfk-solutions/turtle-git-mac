@@ -8,14 +8,14 @@ from native_receiver import build_receiver, run_receiver
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git',type=Path,action='append')
 parser.add_argument('--captures',type=Path)
-parser.add_argument('--only',choices=['toolbar','open','conflict','frames'],action='append')
+parser.add_argument('--only',choices=['toolbar','open','conflict','frames','routing'],action='append')
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
-cases={'toolbar':'ImageToolbarVerification','open':'ImageOpenVerification','conflict':'ImageConflictVerification','frames':'ImageFramesVerification'}
+cases={'toolbar':'ImageToolbarVerification','open':'ImageOpenVerification','conflict':'ImageConflictVerification','frames':'ImageFramesVerification','routing':'ImageToolRoutingVerification'}
 with tempfile.TemporaryDirectory(prefix='turtlegit-image-commands-') as temporary:
     folder=Path(temporary); fixtures=[]
     inputs=root/'build/qa/image-command-fixtures';inputs.mkdir(parents=True,exist_ok=True)
-    for name in ['image-open-native-2026-10-10.swift','image-conflict-native-2026-10-10.swift','image-frames-native-2026-10-10.swift','image-toolbar-native-2026-10-15.swift']:
+    for name in ['image-open-native-2026-10-10.swift','image-conflict-native-2026-10-10.swift','image-frames-native-2026-10-10.swift','image-toolbar-native-2026-10-15.swift','image-tool-routing-native-2026-10-16.swift']:
         source=root/'docs/qa'/name; helper=inputs/name
         helper.write_text(source.read_text().replace('@main ', '',1)); fixtures.append(helper)
     main=inputs/'ImageCommandMain.swift'

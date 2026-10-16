@@ -18,7 +18,7 @@ import TurtleGitCore
             // captured from the already authorized document, not reread outside it.
             let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: left, destination: right), permissions: grants, preferences: preferences)
             try controller.model.retainSourceSnapshotDirectory(folder)
-            controller.model.openExternalComparison = { _, _, _, _ in false }
+            controller.model.useInternalMergeViewer()
             let id = UUID(); windows[id] = (controller, folder)
             controller.onClosed = { windows.removeValue(forKey: id); try? FileManager.default.removeItem(at: folder) }
             controller.showWindow(nil); controller.model.load()

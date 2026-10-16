@@ -201,9 +201,17 @@ import TurtleGitCore
     var externalDidOpen: () -> Void = {}
     private(set) var alternateTool = ComparisonToolInvocation.capture
     private var externalAttempted = false, retired = false
+    private(set) var viewerSelection: DiffToolSelection = .merge
+    private var pendingToolSelection: DiffToolSelection?
+    /// Explicit Merge Open/source comparisons never re-enter configured tools or
+    /// silently switch to IDiff because their bytes happen to decode as an image.
+    func useInternalMergeViewer() {
+        guard !busy, !retired else { return }
+        externalAttempted = true; viewerSelection = .merge; pendingToolSelection = nil
+    }
     lazy var openExternalComparison: (FileComparisonDocument, URL, [RepositoryAccessLease], Bool) async throws -> Bool = { [weak self] document, root, permissions, alternate in
         guard let self, !self.retired else { throw OperationCancellationFailure.cancelled }
-        return try await DiffToolApplication.open(document, root: root, permissions: permissions, alternate: alternate, preferences: self.comparisonDefaults, cancellation: self.loadSession?.cancellation, owner: self.window)
+        return try await DiffToolApplication.open(document, root: root, permissions: permissions, alternate: alternate, preferences: self.comparisonDefaults, cancellation: self.loadSession?.cancellation, owner: self.window, selection: self.pendingToolSelection)
     }
     func captureToolChoice(_ alternate: Bool) { guard !busy, !externalAttempted, !retired else { return }; alternateTool = alternate }
     @Published var document: FileComparisonDocument?
@@ -965,6 +973,7 @@ import TurtleGitCore
     init(images: ImageFileComparison, permissions: [RepositoryAccessLease]) {
         repository = nil; access = nil; standaloneImages = images; workingPermissions = permissions
         snapshot = images.snapshot; path = images.destination?.path ?? images.base?.path ?? "Images"
+        externalAttempted = true; viewerSelection = .image
     }
     func retireImageLoader() {
         if let request = projectionChange { finishProjectionChange(request) }
@@ -995,6 +1004,7 @@ import TurtleGitCore
             accepted = nil
             self.imageViewerModel.fit = true
             self.standaloneImages = request.0; self.workingPermissions = request.1
+            self.externalAttempted = true; self.viewerSelection = .image
             // The chooser must end its sheet before the ordinary reload guards
             // can admit this captured replacement. Cancel never supplies input.
             self.load()
@@ -1104,15 +1114,21 @@ import TurtleGitCore
                     originalPaneDocument = original
                     guard !retired, !token.isCancelled else { return }
                     if !externalAttempted {
+                        let chosen = try DiffToolPreferences.load(from: comparisonDefaults).selection(base: value.base.path, destination: value.destination.path, alternate: alternateTool)
+                        pendingToolSelection = chosen
+                        defer { pendingToolSelection = nil }
                         externalOpened = try await openExternalComparison(value, snapshot.root, workingPermissions + [access].compactMap { $0 }, alternateTool)
                         externalAttempted = true
+                        viewerSelection = chosen == .image ? .image : .merge
                         guard !externalOpened, !retired, !token.isCancelled else { return }
                 }
                 let adapted = value.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults))
                 document = adapted
                 for (base, target) in paneTargets { paneTargets[base] = try target.recording(base ? adapted.base : adapted.destination) }
                 imagePresentation.openImages = { [weak self] in self?.chooseImageFiles() }
-                imageComparison = standaloneImages == nil ? ImageComparisonDocument(adapted) : ImageComparisonDocument(base: ComparisonImage(bytes: adapted.base.bytes), destination: ComparisonImage(bytes: adapted.destination.bytes))
+                // Source dispatch chooses the viewer before decoding. Failed/empty
+                // image sides stay in IDiff; Merge stays Merge even for PNG bytes.
+                imageComparison = viewerSelection == .image ? ImageComparisonDocument(base: ComparisonImage(bytes: adapted.base.bytes), destination: ComparisonImage(bytes: adapted.destination.bytes)) : nil
                 window?.title = "\(standaloneImages == nil ? path : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
                 drafts = imageComparison == nil ? FileComparisonDrafts(adapted) : nil
                 activeBase = drafts?.preferredBase ?? false

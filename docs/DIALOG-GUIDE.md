@@ -426,3 +426,14 @@ Mark Resolved/No question; Word has no trusted exit status.
 [Excel comparison](EXCEL-COMPARISON.md) uses full or fast workbook modes with red
 changed-value highlighting, reference/hidden-sheet colors and protection warnings.
 It requires Excel; original workbook bytes remain unchanged.
+
+### Image versus text comparison
+
+Normal two-file comparisons choose IDiff for the source image extensions unless
+an explicit filename/extension association overrides them. Hold Shift when
+starting the comparison to use Merge instead. Disabled image associations also
+use Merge; Shift activates their saved tool. A selected viewer stays selected on
+Reload even if Settings changes. Invalid image data shows its decode message in
+IDiff. Use **Load Images** to view image content with arbitrary filenames; this
+explicit command does not invoke configured external diff programs. Explicit
+Merge Open/source comparisons stay in the Merge editor.

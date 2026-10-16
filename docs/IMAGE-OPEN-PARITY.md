@@ -71,3 +71,9 @@ controller-hosted content tool rows with source-ordered AppKit toolbars and
 native menu/overflow actions, common keyboard gates, full header tooltips and
 stable model ownership across image replacement. See its dated evidence for
 validation and remaining acceptance limits.
+
+The October 16 connected tool-routing family makes explicit Load Images bypass
+all external associations, both on initial opening and replacement. Automatic
+comparison now uses the source image extension/tool policy; arbitrary-extension
+image inputs belong to this explicit chooser. Explicit Merge Open and editor
+replacement similarly retain the Merge route. See [tool dispatch](DIFF-TOOLS-PARITY.md#connected-imagetool-dispatch--october-16-2026).

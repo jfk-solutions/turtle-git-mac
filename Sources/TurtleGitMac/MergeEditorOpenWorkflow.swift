@@ -82,7 +82,7 @@ import TurtleGitCore
         switch request {
         case .compare(let base, let mine, let single):
             let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: permissions, preferences: preferences, deferInitialLoad: true)
-            controller.model.singleFileMode = single; next = controller
+            controller.model.singleFileMode = single; controller.model.useInternalMergeViewer(); next = controller
         case .merge(let base, let theirs, let mine):
             let merge = try WorkingTextMerge(base: base, theirs: theirs, mine: mine)
             next = TextConflictWindowController(repository: GitRepository(root: mine.deletingLastPathComponent(), executable: try GitRuntime.executable()), access: nil, path: mine.lastPathComponent, workingMerge: merge, permissions: permissions, preferences: preferences, deferInitialLoad: true)
