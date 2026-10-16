@@ -2326,3 +2326,15 @@ unchanged. See [primary presentation](PRIMARY-DIALOG-VISUAL-REVIEW.md) for curre
 checks and remaining physical/signed acceptance.
 
 The current connected checks and capture settings are recorded in [dated native evidence](qa/primary-live-presentation-2026-10-16.json).
+
+## Shared marked-row file commands — October 16, 2026
+
+Add, Compare with base, Revert, Resolve and Ignore now follow the captured focused
+row rather than requiring every highlighted row to have the same status.
+Extended Add modes follow the focused row's actual directory metadata, including
+submodules. Conflict actions appear first, as in GitStatusListCtrl. The command
+still targets the captured complete selection and keeps the existing owner,
+generation and cancellation fences. See [Working Tree command family](STATUS-PARITY.md)
+for the companion context Commit/Add progress/index-flag changes and limits.
+
+See [grouped native evidence](qa/primary-file-menus-2026-10-16.json) for exact checks, the scope-fixture repair and acceptance limits.

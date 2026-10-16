@@ -769,7 +769,7 @@ import UniformTypeIdentifiers
         if let entry = selected.first, selected.count == 1, entry.state != .deleted, entry.worktree != "D", !directory(entry) { commands += [.editor, .open, .openWith] }
         if let entry = selected.first, selected.count == 1, entry.index != "D" { commands.append(.reveal) }
         if focused?.canDeleteFromStatusList == true { commands.append(.delete) }
-        return StatusFileMenuSnapshot(generation: fileMenuGeneration, entries: selected, mark: focused, commands: commands)
+        return StatusFileMenuSnapshot(generation: fileMenuGeneration, entries: selected, mark: focused, commands: commands, markIsDirectory: focused.map(directory) ?? false)
     }
     private func acceptsFileMenu(_ snapshot: StatusFileMenuSnapshot, duringOperation: Bool = false) -> Bool {
         guard messageFocusAvailable, !confirmingQuit, !pendingReloadCancel, duringOperation || !busy,
@@ -2076,16 +2076,17 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     let selected = entries.filter { ids.contains($0.id) }
                     let flagFiles = model.indexFlagFiles.filter { ids.contains($0.id) }
                     let selectionMark = menuSnapshot.mark
-                    if !selected.isEmpty && selected.allSatisfy({ [.untracked, .ignored].contains($0.state) }) {
-                        Button { model.withFileMenu(menuSnapshot) { model.addFiles(selected, mode: .normal) } } label: { CommandLabel(title: WorkingFileAddMode.normal.rawValue, icon: .add) }.disabled(model.busy || model.confirmingQuit)
-                        if NSEvent.modifierFlags.contains(.shift), selected.allSatisfy({ !model.submodules.contains($0.path) }) {
-                            ForEach([WorkingFileAddMode.executable, .symlink], id: \.self) { mode in
-                                Button { model.withFileMenu(menuSnapshot) { model.addFiles(selected, mode: mode) } } label: { CommandLabel(title: mode.rawValue, icon: .add) }.disabled(model.busy || model.confirmingQuit)
-                            }
+                    if menuSnapshot.offersResolve {
+                        ResolveSelectionMenu(paths:selected.map(\.path), rebase:model.conflictRebase, canEdit:selected.count == 1, action: { action, paths in model.withFileMenu(menuSnapshot) { model.onResolve(action, paths) } })
+                        Divider()
+                    }
+                    if menuSnapshot.offersAdd {
+                        ForEach(menuSnapshot.addModes(extended:NSEvent.modifierFlags.contains(.shift)), id: \.self) { mode in
+                            Button { model.withFileMenu(menuSnapshot) { model.addFiles(selected, mode:mode) } } label: { CommandLabel(title:mode.rawValue, icon:.add) }.disabled(model.busy || model.confirmingQuit)
                         }
                         Divider()
                     }
-                    if !selected.isEmpty, selectionMark?.canCompareWithBaseFromStatusList == true {
+                    if menuSnapshot.offersCompare {
                         Button { model.withFileMenu(menuSnapshot) { model.compare(paths: ids) } } label: { CommandLabel(title: "Compare with base", icon: .compare) }
                         if model.hasHead {
                             Button { model.withFileMenu(menuSnapshot) { model.diff(paths: ids, staged: staged, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(model.busy || model.confirmingQuit)
@@ -2097,7 +2098,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                             .disabled(model.busy || model.confirmingQuit)
                         Divider()
                     }
-                    if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) }) {
+                    if menuSnapshot.offersRevert {
                         Button { model.withFileMenu(menuSnapshot) { model.revertFiles(selected) } } label: { CommandLabel(title: "Revert", icon: .revert) }
                     }
                     if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) && !model.submodules.contains($0.path) }) {
@@ -2112,10 +2113,6 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     }
                     if !selected.isEmpty, let mark = model.indexFlagFiles.first(where: { $0.id == selectionMark?.id }) {
                         IndexFlagsMenu(files: flagFiles, selectionMark: mark) { action in model.withFileMenu(menuSnapshot) { model.setFlags(action, files: flagFiles, selectionMark: mark) } }
-                    }
-                    if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
-                        Divider()
-                        ResolveSelectionMenu(paths: selected.map(\.path), rebase: model.conflictRebase, canEdit: selected.count == 1, action: { action, paths in model.withFileMenu(menuSnapshot) { model.onResolve(action, paths) } })
                     }
                     if !selected.isEmpty, selected.allSatisfy({ $0.state != .deleted }) {
                         Button { model.withFileMenu(menuSnapshot) { FileTransferClipboard.copy(selected.map { model.repository.root.appendingPathComponent($0.path) }) } } label: { CommandLabel(title: "Copy files", icon: .copy) }
@@ -2158,7 +2155,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     if !selected.isEmpty && selectionMark?.canDeleteFromStatusList == true {
                         Button { model.fileAction(.delete, snapshot: menuSnapshot, permanently: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(model.busy || model.confirmingQuit)
                     }
-                    if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
+                    if menuSnapshot.offersIgnore {
                         Divider()
                         IgnoreSelectionMenu(paths: selected.map(\.path), action: { action, paths in model.withFileMenu(menuSnapshot) { model.onIgnore(action, paths) } })
                     }

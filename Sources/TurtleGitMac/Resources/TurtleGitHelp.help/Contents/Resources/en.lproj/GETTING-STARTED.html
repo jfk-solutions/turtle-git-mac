@@ -243,6 +243,11 @@ for existing tracked files, including a missing file’s committed history. Sele
 two files for <strong>Compare two files</strong>. <strong>Open</strong>, <strong>Open With…</strong> and the configured
 alternative editor use working contents. <strong>Export…</strong> preserves the relative
 paths and current working contents in the chosen folder.</p>
+<p>Context <strong>Commit…</strong> opens Commit for the selected files. With an unversioned or
+ignored focused row, <strong>Add</strong> opens native progress; hold Shift on a file for
+<strong>Add as Executable (+x)</strong> or <strong>Add as Symlink</strong>. Those choices change the staged
+Git mode, leaving the disk file intact. In a mixed selection, the focused row
+controls which source commands appear; actions retain the selected targets.</p>
 <p>Context <strong>Delete</strong> asks before moving paths to Trash and removes any corresponding
 index entries. Hold Shift for permanent deletion. The Delete key applies when
 the focus mark has an unversioned or ignored working copy; context Delete also applies to missing

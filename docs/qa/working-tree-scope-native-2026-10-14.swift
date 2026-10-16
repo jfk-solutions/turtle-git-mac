@@ -22,11 +22,12 @@ import TurtleGitCore
         for path in ["folder/one", "folder/two", "outside"] { try Data("changed \(path)\n".utf8).write(to: root.appendingPathComponent(path)) }
         let suite = "TurtleGit.WorkingTreeScope." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(1,forKey:"DialogTitles")
         let controller = StatusWindowController(repository: repo, access: nil, defaults: defaults), model = controller.model
         defer { model.invalidate(); controller.close() }
         model.setScope(["folder"])
         try await wait { !model.busy && StatusWindowModel.activeOperations == 0 }
-        try require(model.folderFiltersEnabled && controller.window!.title.contains(root.appendingPathComponent("folder").path), "Directory filters/title missing")
+        try require(model.folderFiltersEnabled && controller.window!.title == "\(root.lastPathComponent)/folder – Working Tree – TurtleGit", "Directory filters/title missing")
         try require(model.stashActions == [.stash], "Absent stash exposes restore/list")
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
@@ -45,7 +46,7 @@ import TurtleGitCore
         try await wait { !model.busy && StatusWindowModel.activeOperations == 0 }
         try require(!model.folderFiltersEnabled && model.commitPaths() == ["folder/one"], "Explicit file invocation gates/Commit scope differ")
         var filter = model.filter; filter.wholeProject = true; model.setFilter(filter)
-        try require(controller.window!.title == "\(root.path) – Working Tree – TurtleGit" && model.commitPaths().isEmpty, "Whole Project title/Commit not updated")
+        try require(controller.window!.title == "\(root.lastPathComponent) – Working Tree – TurtleGit" && model.commitPaths().isEmpty, "Whole Project title/Commit not updated")
         model.scopeUnifiedDiff(alternate: false)
         try await wait { !model.busy && StatusWindowModel.activeOperations == 0 }
         try require(captured.last?.0 == expectedFile, "Source single-file aggregate precedence lost with Whole Project")

@@ -24,6 +24,13 @@ Show unversioned, ignored, unmodified and staged files as needed. F5 refreshes;
 double-click a file to compare it. Select rows for context-menu actions. Checking
 files and selecting rows are separate operations.
 
+Context **Commit…** passes the selected rows; the footer Commit follows the
+invoked scope and Whole Project. For an unversioned or ignored focused row,
+choose **Add**, or hold Shift for **Add as Executable (+x)** / **Add as Symlink**
+on a file. These open Add progress; mode choices change the index mode, leaving
+the working file intact. Mixed-selection commands follow the focused row and
+act on the captured selected paths.
+
 Add lists files eligible for the chosen Add operation. Check the paths to add,
 then choose OK. Header menus control optional columns. Adding records content in
 Git's index; it does not create a commit. Use Commit to finish the change.

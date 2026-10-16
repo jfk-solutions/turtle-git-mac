@@ -282,6 +282,12 @@ two files for **Compare two files**. **Open**, **Open With…** and the configur
 alternative editor use working contents. **Export…** preserves the relative
 paths and current working contents in the chosen folder.
 
+Context **Commit…** opens Commit for the selected files. With an unversioned or
+ignored focused row, **Add** opens native progress; hold Shift on a file for
+**Add as Executable (+x)** or **Add as Symlink**. Those choices change the staged
+Git mode, leaving the disk file intact. In a mixed selection, the focused row
+controls which source commands appear; actions retain the selected targets.
+
 Context **Delete** asks before moving paths to Trash and removes any corresponding
 index entries. Hold Shift for permanent deletion. The Delete key applies when
 the focus mark has an unversioned or ignored working copy; context Delete also applies to missing

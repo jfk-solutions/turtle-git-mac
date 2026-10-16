@@ -1,0 +1,110 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "c59868c4",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/Git/GitStatusListCtrl.cpp OnContextMenuList: selection-mark gates, conflict-first order, Shift Add and selected-path Commit",
+    "src/TortoiseProc/ChangedDlg.cpp: status-list command mask",
+    "src/TortoiseProc/CommitDlg.cpp: excludes context Commit/SaveAs/PrepareDiff"
+  ],
+  "scope": [
+    "Shared captured mark gates Add/base comparison/Revert/Resolve/Ignore in Commit and Working Tree",
+    "Working Tree captured-selection Commit distinct from footer invocation scope, flag-aware gate",
+    "Shift non-directory Add modes routed to native Add progress with owning repository/access",
+    "Add progress completion refreshes primary windows",
+    "Working Tree index flag enablement/mutation uses mark and refreshes partial successes",
+    "Refresh retains HEAD availability for unborn context unified-diff gate"
+  ],
+  "build": {
+    "log": "build/qa/primary-file-menus-build.log",
+    "exit": 0,
+    "notes": "Overall xcodebuild exited 0; existing warnings and anomalous command-failed-with-exit-code-0/no-output diagnostics were emitted. Native receiver guards accepted current Debug objects."
+  },
+  "core": "No Core implementation changed; no Core suite rerun. Native workflows exercised existing real Git Add/index-flag operations.",
+  "native": {
+    "runner": "scripts/test-primary-file-menus.py",
+    "logs": [
+      "build/qa/primary-file-menus-native.log",
+      "build/qa/primary-file-menus-scope-repair.log"
+    ],
+    "cases": [
+      {
+        "name": "Primary marked-row menus / native Add progress / index flags",
+        "engines": [
+          "system Git",
+          "bundled Git"
+        ],
+        "result": "passed",
+        "receivers_reaped": [
+          81602,
+          81761
+        ]
+      },
+      {
+        "name": "Working Tree file actions",
+        "engines": [
+          "system Git",
+          "bundled Git"
+        ],
+        "result": "passed",
+        "receivers_reaped": [
+          81931,
+          81993
+        ]
+      },
+      {
+        "name": "Working Tree scope / aggregate and selected diff / deferred lifetime",
+        "engines": [
+          "system Git",
+          "bundled Git"
+        ],
+        "result": "passed after fixture repair",
+        "receivers_reaped": [
+          82146,
+          82284
+        ]
+      }
+    ],
+    "failure": {
+      "receiver_reaped": 82062,
+      "reason": "Older scope fixture expected full temporary path in title, exceeding the shared formatter UTF-16 budget. Set a private compact-title preference and assert the exact scoped/root titles. Only affected scope cases rerun.",
+      "product_failure": false
+    },
+    "invariants": [
+      "HEAD preserved",
+      "unrelated staged entry preserved",
+      "Add modes 100644/100755/120000 verified against Git index",
+      "Add did not change working file contents",
+      "mixed index flags update eligible stage-zero entries and report unavailable selected path",
+      "stale/retired context commands refused",
+      "owned windows closed and all seven receivers reaped; process absence checked"
+    ],
+    "injection": "RepositoryModel handoff closure replaced in the new fixture to instantiate actual AddProgressWindowController and refresh the actual StatusWindowModel; native Add operations run real Git. Confirmations and non-Git launch/panel answers injected in existing file-action regression. Synthetic conflicted row checks gate policy without changing an index."
+  },
+  "ci": "New primary workflow added explicitly for both Git engines. No complete hosted pass claimed.",
+  "limitations": [
+    "No new compositor captures or physical pointer/context-menu interaction acceptance",
+    "Full mixed-state Revert/Resolve/Ignore mutation variants remain unverified",
+    "Signed Finder/App Store distribution and complete dialog parity remain open"
+  ],
+  "documentation": {
+    "bundled_help": {
+      "documents": 26,
+      "topics": 47,
+      "files": 32,
+      "bytes": 197767
+    },
+    "site": {
+      "documents": 235,
+      "unresolved_fragments": 0
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 974,
+      "pending_control_reviews": 685
+    }
+  }
+}

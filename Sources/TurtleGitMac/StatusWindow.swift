@@ -59,6 +59,18 @@ struct StatusFileMenuSnapshot {
     let entries: [StatusEntry]
     let mark: StatusEntry?
     let commands: [StatusFileCommand]
+    var markIsDirectory = false
+    // GitStatusListCtrl gates these commands by the selection mark, then
+    // dispatches to the complete captured selection, including mixed states.
+    var offersAdd: Bool { !entries.isEmpty && mark.map { [FileState.untracked, .ignored].contains($0.state) } == true }
+    var offersCompare: Bool { !entries.isEmpty && mark?.canCompareWithBaseFromStatusList == true }
+    var offersRevert: Bool { !entries.isEmpty && mark.map { ![FileState.untracked, .ignored].contains($0.state) } == true }
+    var offersResolve: Bool { !entries.isEmpty && mark?.state == .conflicted }
+    var offersIgnore: Bool { !entries.isEmpty && mark.map { [FileState.untracked, .deleted].contains($0.state) } == true }
+    func addModes(extended: Bool) -> [WorkingFileAddMode] {
+        guard offersAdd else { return [] }
+        return extended && !markIsDirectory ? [.normal, .executable, .symlink] : [.normal]
+    }
 }
 struct StatusFileActionFailure: LocalizedError {
     let message: String
@@ -208,6 +220,7 @@ final class StatusNativeWindow: NSWindow {
     @Published var sortOrder = [StatusFileSort(column: .path)]
     @Published var filter = WorkingTreeFilter()
     @Published var branch = ""
+    @Published private(set) var hasHead = false
     @Published var busy = false
     @Published var confirmingQuit = false { didSet { if oldValue && !confirmingQuit && refreshRequested && !busy && !retired { reload() } } }
     @Published var error: String?
@@ -221,6 +234,8 @@ final class StatusNativeWindow: NSWindow {
     var onSubmoduleLog: (GitRepository) -> Void = { _ in }
     var onBlame: (String) -> Void = { _ in }
     var onCompareTwoFiles: ([String]) -> Void = { _ in }
+    var onAddFiles: ([String], WorkingFileAddMode) -> Void = { _, _ in }
+    var confirmFlags: (IndexFlagAction) -> Bool = confirmIndexFlags
     var chooseApplication: () async -> URL? = { nil }
     var chooseExportFolder: () async -> URL? = { nil }
     var confirmDeletion: ([String], Bool) async -> Bool = { _, _ in false }
@@ -403,13 +418,14 @@ final class StatusNativeWindow: NSWindow {
             let nextFiles = try await readStatus(token)
             let nextChangelists = try await repository.changelists(cancellation: token)
             let nextBranch = try await repository.branch(cancellation: token)
+            let nextHasHead = try await repository.run(["rev-parse", "--verify", "--quiet", "HEAD"], successfulExitCodes:0...1, cancellation:token).exitCode == 0
             let nextRebase = try await repository.conflictIsRebase(cancellation: token)
             let nextSubmodules = try await repository.submodulePaths(cancellation: token)
             let nextLFS = try await repository.hasLFS(cancellation: token)
             let nextMetadata = await repository.statusListMetadata(paths: nextFiles.map(\.id))
             let nextStatistics = try await repository.workingTreeFiles(cancellation: token)
             guard isLive(token) else { return }
-            invocation = nextInvocation; hasStash = nextStash; updateScopeTitle()
+            invocation = nextInvocation; hasStash = nextStash; hasHead = nextHasHead; updateScopeTitle()
             changelists = nextChangelists; files = nextFiles; branch = nextBranch; conflictRebase = nextRebase; submodules = nextSubmodules
             hasLFS = nextLFS; fileMetadata = nextMetadata
             statistics = Dictionary(nextStatistics.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
@@ -446,11 +462,11 @@ final class StatusNativeWindow: NSWindow {
             else { try await repository.unstage(paths, cancellation: token) }
         }, completed: { [self] in reload(); onChanged() })
     }
-    func setFlags(_ action: IndexFlagAction, files: [WorkingTreeFile]) {
-        guard !retired, !busy, !confirmingQuit, action.isAvailable(for: files), confirmIndexFlags(action), !retired else { return }
+    func setFlags(_ action: IndexFlagAction, files: [WorkingTreeFile], selectionMark: WorkingTreeFile? = nil) {
+        guard !retired, !busy, !confirmingQuit, !files.isEmpty, action.isAvailable(for: selectionMark.map { [$0] } ?? files), confirmFlags(action), !retired else { return }
         runOperation("Updating index flags…", operation: { [self] token in
-            try await repository.setIndexFlags(action, paths: files.map(\.id), cancellation: token)
-        }, completed: { [self] in reload(); onChanged() })
+            try await repository.setIndexFlags(action, paths: files.map(\.id), markedPath: selectionMark?.id, cancellation: token)
+        }, completed: { [self] in reload(); onChanged() }, failed: { [self] in reload(); onChanged() })
     }
     func diff(_ ids: Set<String>, saving: Bool = false) {
         guard !retired, !busy, !confirmingQuit else { return }
@@ -510,7 +526,21 @@ final class StatusNativeWindow: NSWindow {
         }
         if let row = rows.first, rows.count == 1, row.file.entry.index != "D" { commands.append(.reveal) }
         if focused?.canDeleteFromStatusList == true { commands.append(.delete) }
-        return StatusFileMenuSnapshot(generation: menuGeneration, entries: entries, mark: focused, commands: commands)
+        return StatusFileMenuSnapshot(generation: menuGeneration, entries: entries, mark: focused, commands: commands, markIsDirectory: focused.map { submodules.contains($0.path) || fileMetadata[$0.path]?.isDirectory == true } ?? false)
+    }
+    func canCommit(_ snapshot: StatusFileMenuSnapshot) -> Bool {
+        guard !snapshot.entries.isEmpty, let mark = snapshot.mark else { return false }
+        if snapshot.offersAdd { return true }
+        guard let file = files.first(where: { $0.id == mark.path }) else { return false }
+        return !file.assumeUnchanged && !file.skipWorktree
+    }
+    func commitSelection(_ snapshot: StatusFileMenuSnapshot) {
+        guard accepts(snapshot), canCommit(snapshot) else { return }
+        onAction(.commit, snapshot.entries.map(\.path))
+    }
+    func addSelection(_ snapshot: StatusFileMenuSnapshot, mode: WorkingFileAddMode) {
+        guard accepts(snapshot), snapshot.addModes(extended:true).contains(mode) else { return }
+        onAddFiles(snapshot.entries.map(\.path), mode)
     }
     private func accepts(_ snapshot: StatusFileMenuSnapshot, duringOperation: Bool = false) -> Bool {
         guard !retired, !confirmingQuit, (duringOperation || !busy), snapshot.generation == menuGeneration,
@@ -690,10 +720,28 @@ struct StatusDialog: View {
                         Button("Select group") { model.selectGroup(group, snapshot: groupedSelection) }.disabled(model.busy || model.confirmingQuit)
                     }
                     if !snapshot.entries.isEmpty {
-                    Button { model.withFileMenu(snapshot) { model.diff(ids) } } label: { CommandLabel(title: "Diff", icon: .compare) }.disabled(ids.isEmpty)
-                    Button { model.withFileMenu(snapshot) { model.unifiedDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy)
-                    Button { model.withFileMenu(snapshot) { model.stage(ids, staged: true) } } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(ids.isEmpty)
-                    Button { model.withFileMenu(snapshot) { model.stage(ids, staged: false) } } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(ids.isEmpty)
+                    if snapshot.offersResolve {
+                        ResolveSelectionMenu(paths: snapshot.entries.map(\.path), rebase: model.conflictRebase, canEdit: snapshot.entries.count == 1, action: { action, paths in model.withFileMenu(snapshot) { model.onAction(action, paths) } })
+                        Divider()
+                    }
+                    ForEach(snapshot.addModes(extended:NSEvent.modifierFlags.contains(.shift)), id: \.self) { mode in
+                        Button { model.addSelection(snapshot, mode:mode) } label: { CommandLabel(title:mode.rawValue, icon:.add) }
+                    }
+                    if snapshot.offersCompare {
+                        Button { model.withFileMenu(snapshot) { model.diff(ids) } } label: { CommandLabel(title: "Compare with base", icon: .compare) }
+                        if model.hasHead {
+                            Button { model.withFileMenu(snapshot) { model.unifiedDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }
+                        }
+                    }
+                    if model.canCommit(snapshot) {
+                        Button { model.commitSelection(snapshot) } label: { CommandLabel(title:"Commit…", icon:.commit) }
+                    }
+                    if !snapshot.offersAdd {
+                        Button { model.withFileMenu(snapshot) { model.stage(ids, staged:true) } } label: { CommandLabel(title:"Stage", icon:.add) }
+                    }
+                    if snapshot.entries.contains(where: \.staged) {
+                        Button { model.withFileMenu(snapshot) { model.stage(ids, staged:false) } } label: { CommandLabel(title:"Unstage", icon:.revert) }
+                    }
                     if ids.count == 1, let path = ids.first, let row = model.files.first(where: { $0.id == path }), ![FileState.untracked, .ignored, .deleted].contains(row.state) {
                         Button { model.withFileMenu(snapshot) { model.onAction(.rename, [path]) } } label: { CommandLabel(title: "Rename…", icon: .rename) }
                     }
@@ -707,17 +755,16 @@ struct StatusDialog: View {
                     if !selected.isEmpty, selected.allSatisfy({ ![FileState.untracked, .ignored, .deleted].contains($0.state) }) {
                         Button { model.withFileMenu(snapshot) { model.onAction(.move, selected.map(\.id)) } } label: { CommandLabel(title: "Move…", icon: .rename) }
                     }
-                    if !selected.isEmpty && selected.allSatisfy({ ![FileState.normal, .untracked, .ignored].contains($0.state) }) {
+                    if snapshot.offersRevert {
                         Button { model.withFileMenu(snapshot) { model.onAction(.revert, selected.map(\.id)) } } label: { CommandLabel(title: "Revert…", icon: .revert) }
                     }
                     ForEach(model.lfsActions(selected), id: \.self) { action in
                         Button { model.withFileMenu(snapshot) { model.setLFSLocked(ids, locked: action == .lock) } } label: { CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock) }.disabled(model.busy || model.confirmingQuit)
                     }
-                    IndexFlagsMenu(files: selected) { action in model.withFileMenu(snapshot) { model.setFlags(action, files: selected) } }
-                    if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
-                        ResolveSelectionMenu(paths: selected.map(\.id), rebase: model.conflictRebase, canEdit: selected.count == 1, action: { action, paths in model.withFileMenu(snapshot) { model.onAction(action, paths) } })
+                    if let mark = model.files.first(where: { $0.id == snapshot.mark?.path }) {
+                        IndexFlagsMenu(files:selected, selectionMark:mark) { action in model.withFileMenu(snapshot) { model.setFlags(action, files:selected, selectionMark:mark) } }
                     }
-                    if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
+                    if snapshot.offersIgnore {
                         IgnoreSelectionMenu(paths: selected.map(\.id), action: { action, paths in model.withFileMenu(snapshot) { model.onAction(action, paths) } })
                     }
                     if model.canAssignChangelist(snapshot) {

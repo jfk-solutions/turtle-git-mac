@@ -1418,6 +1418,8 @@ import UniformTypeIdentifiers
         controller.onClosed = { [weak self] in self?.addProgressWindows.removeValue(forKey: id) }
         controller.model.onFinished = { [weak self] text, _ in
             self?.refreshRepositoryLogs(repository.root)
+            self?.statusWindows[repository.root.path]?.model.requestReload()
+            self?.commitWindows[repository.root.path]?.model.reload()
             self?.output = text
             if self?.root?.path == repository.root.path { Task { await self?.refresh() } }
         }
@@ -1787,6 +1789,7 @@ import UniformTypeIdentifiers
             self.activate(action, paths: paths)
             if action != .clean && action != .add && action != .diff && action != .submoduleSync && action != .submoduleAdd && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .mergeAbort && action != .export && action != .bisect && action != .bisectStart && action.bisectOperation == nil && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
+        controller.model.onAddFiles = { [weak self] paths, mode in self?.showAddProgress(repository:repository, access:access, paths:paths, mode:mode) }
         controller.model.onSubmoduleLog = { [weak self] child in self?.showLog(repository: child, access: access, paths: []) }
         controller.model.onBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
         controller.model.onCompareTwoFiles = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }

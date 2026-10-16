@@ -337,3 +337,32 @@ menus, LFS network behavior or native/signed acceptance.
 Shared repository titles and path-cell tooltips now consume the source Advanced
 preferences; see [repository presentation](REPOSITORY-PRESENTATION-PARITY.md)
 and its [grouped evidence](qa/repository-presentation-2026-10-15.json).
+
+## Primary file-list command family — October 16, 2026
+
+Working Tree now offers **Commit…** for the captured selected paths, independently
+of the footer Commit's invocation/Whole Project scope. An unversioned/ignored
+mark permits it; a tracked assume-unchanged/skip-worktree mark suppresses it, as
+in GitStatusListCtrl. The original Commit icon is retained.
+
+Add is enabled by the selection mark. Shift exposes **Add as Executable (+x)**
+and **Add as Symlink** only for a non-directory mark. These commands open the
+existing native Add progress window with the captured paths and requested mode,
+using the Working Tree's repository/access lease. Add completion refreshes both
+open primary file lists, even when another repository is active in the workspace.
+Staging/unstaging remain available as native index actions; force Add is distinct
+from ordinary tracked-file staging.
+
+Both Commit and Working Tree use one captured marked-row policy for Add,
+base comparison, Revert, Resolve and Ignore. Mixed selections retain the source
+marked-row enablement; commands keep the complete captured selection. Resolve
+precedes the other command groups. Working Tree's index-flag menu and mutation
+now use the same mark, including the existing Core partial-success report when
+another selected path has no stage-zero index entry. A partial result refreshes
+the list as well as displaying its diagnostic. A refresh snapshot retains HEAD
+availability so unborn repositories omit the context unified comparison.
+
+This is source command/dispatch parity; full physical menu layout, signed
+sandbox prompts and every mixed-state mutation remain separately unverified.
+
+See [grouped native evidence](qa/primary-file-menus-2026-10-16.json) for exact checks, the scope-fixture repair and acceptance limits.

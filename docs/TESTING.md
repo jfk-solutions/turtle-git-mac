@@ -2266,3 +2266,10 @@ rows/graph/selection, font updates, private copied-detail date settings and time
 retirement. `--capture-dir PATH` captures the first engine's owned windows in both
 appearances. Subsequent engine cases run without compositor capture. No Commit or
 Git write action is invoked, and HEAD/index tree/status are checked unchanged.
+
+`python3 scripts/test-primary-file-menus.py --git /usr/bin/git --git PATH_TO_BUNDLED_GIT`
+runs the connected marked-row Commit/Working Tree context commands, actual Add
+progress modes, captured Commit scope and partial index-flag updates, followed by
+the affected Working Tree file-action and scope regressions. It uses private Git
+fixtures/preferences and current cached Debug objects, closes owned windows and
+reaps each helper. No Core implementation changed in this native command batch.
