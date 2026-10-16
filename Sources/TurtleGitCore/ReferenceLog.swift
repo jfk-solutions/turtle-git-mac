@@ -23,6 +23,13 @@ public struct ReferenceLogDeleteBatchFailure: LocalizedError, Sendable {
         failures.map { $0.selector + ": " + $0.details }.joined(separator: "\n")
     }
 }
+/// One cancellable refresh of the RefLog's rows and command metadata.
+public struct ReferenceLogState:Sendable {
+    public let reference:String,names:[String],entries:[ReferenceLogEntry]
+    public let bare:Bool,mergeActive:Bool,bisectActive:Bool,hasGitSVN:Bool
+    public let head:String?,branch:String,referenceNames:[String:[String]]
+    public let stashHash:String?,stashIndexParent:String?
+}
 public enum ReferenceLogFailure: LocalizedError {
     case reference, stale, selection
     public var errorDescription: String? {
@@ -36,18 +43,45 @@ public enum ReferenceLogFailure: LocalizedError {
 extension GitRepository {
     /// Upstream's hash-to-friendly-name map, including peeled annotated tags.
     /// RefLog has no clicked ref label, so Switch guesses the first remote name.
-    public func referenceLogReferenceNamesByHash() throws -> [String: [String]] {
-        let result = try run(["show-ref", "-d"], successfulExitCodes: 0...1)
+    public func referenceLogReferenceNamesByHash(cancellation:OperationCancellation? = nil) throws -> [String: [String]] {
+        let result = try run(["show-ref", "-d"], successfulExitCodes: 0...1,cancellation:cancellation)
         var names: [String: [String]] = [:]
-        for line in result.text.split(separator: "\n") {
+        for line in String(decoding:result.stdout,as:UTF8.self).split(separator: "\n") {
+            try cancellation?.check()
             let fields = line.split(separator: " ", maxSplits: 1)
             guard fields.count == 2 else { continue }
             names[String(fields[0]), default: []].append(String(fields[1]))
         }
         return names.mapValues { $0.sorted() }
     }
-    public func referenceLogNames() throws -> [String] {
-        ["HEAD"] + (try run(["for-each-ref", "--format=%(refname)"])).text.split(separator: "\n").map(String.init)
+    public func referenceLogNames(cancellation:OperationCancellation? = nil) throws -> [String] {
+        ["HEAD"] + String(decoding:try run(["for-each-ref","--format=%(refname)"],cancellation:cancellation).stdout,as:UTF8.self).split(separator:"\n").map(String.init)
+    }
+    public func referenceLogState(_ requested:String,fallbackToHead:Bool = true,cancellation:OperationCancellation? = nil) throws -> ReferenceLogState {
+        try cancellation?.check()
+        func text(_ result:GitResult) -> String {String(decoding:result.stdout,as:UTF8.self).trimmingCharacters(in:.newlines)}
+        let names=try referenceLogNames(cancellation:cancellation)
+        // RefLogDlg::Refresh falls back to HEAD when the selected ref vanished.
+        let reference=fallbackToHead ? (names.first {GitReferenceName.equal($0,requested)} ?? "HEAD"):requested
+        let entries=try referenceLog(reference,cancellation:cancellation),bare=try isBare(cancellation:cancellation)
+        let merging=try logMergeActive(cancellation:cancellation),bisect=try bisectState(cancellation:cancellation).active
+        let svn=try referenceLogHasGitSVN(cancellation:cancellation)
+        let head=try text(run(["rev-parse","--verify","--quiet","--end-of-options","HEAD"],successfulExitCodes:0...1,cancellation:cancellation))
+        let branch=try text(run(["branch","--show-current"],cancellation:cancellation))
+        let references=try referenceLogReferenceNamesByHash(cancellation:cancellation)
+        var stash:String?,indexParent:String?
+        if names.contains("refs/stash") {
+            let hash=try text(run(["rev-parse","--verify","--quiet","--end-of-options","refs/stash"],successfulExitCodes:0...1,cancellation:cancellation))
+            if !hash.isEmpty {
+                stash=hash
+                do {
+                    let parents=try text(run(["rev-list","--parents","-n","1",hash,"--"],cancellation:cancellation)).split(whereSeparator:\.isWhitespace)
+                    if parents.count==3 {indexParent=String(parents[2])}
+                } catch {try cancellation?.check()}
+            }
+        }
+        try cancellation?.check()
+        return ReferenceLogState(reference:reference,names:names,entries:entries,bare:bare,mergeActive:merging,bisectActive:bisect,hasGitSVN:svn,head:head.isEmpty ? nil:head,branch:branch,referenceNames:references,stashHash:stash,stashIndexParent:indexParent)
     }
     public func referenceLog(_ reference: String, cancellation: OperationCancellation? = nil) throws -> [ReferenceLogEntry] {
         let token = cancellation ?? OperationCancellation(); try token.check()

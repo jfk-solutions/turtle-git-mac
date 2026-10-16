@@ -2,6 +2,45 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ReferenceLogTests: XCTestCase {
+    func testRefreshSnapshotFallsBackFromDeletedReferenceAndHandlesUnbornAndBare() async throws {
+        let (root,repo,path)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
+        _ = try await repo.run(["branch","topic"])
+        let before=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index")),bytes=try Data(contentsOf:root.appendingPathComponent(path))
+        let topic=try await repo.referenceLogState("refs/heads/topic")
+        XCTAssertEqual(topic.reference,"refs/heads/topic");XCTAssertEqual(topic.names.first,"HEAD");XCTAssertFalse(topic.bare);XCTAssertEqual(topic.branch,"main")
+        _ = try await repo.run(["branch","-D","topic"])
+        let fallback=try await repo.referenceLogState("refs/heads/topic"),headRows=try await repo.referenceLog("HEAD")
+        XCTAssertEqual(fallback.reference,"HEAD");XCTAssertEqual(fallback.entries,headRows);XCTAssertFalse(fallback.names.contains("refs/heads/topic"))
+        let retained=try await repo.referenceLogState("refs/heads/topic",fallbackToHead:false)
+        XCTAssertEqual(retained.reference,"refs/heads/topic");XCTAssertTrue(retained.entries.isEmpty)
+        XCTAssertFalse(fallback.mergeActive);XCTAssertFalse(fallback.bisectActive);XCTAssertFalse(fallback.hasGitSVN)
+        let bareURL=root.appendingPathComponent("bare.git")
+        _ = try await repo.run(["clone","--bare",root.path,bareURL.path])
+        let bare=try await GitRepository(root:bareURL).referenceLogState("HEAD");XCTAssertTrue(bare.bare);XCTAssertEqual(bare.head,fallback.head)
+        let unbornURL=root.appendingPathComponent("unborn");try FileManager.default.createDirectory(at:unbornURL,withIntermediateDirectories:true)
+        let unborn=GitRepository(root:unbornURL);_ = try await unborn.run(["init","-b","new"])
+        let empty=try await unborn.referenceLogState("refs/heads/missing")
+        XCTAssertEqual(empty.reference,"HEAD");XCTAssertEqual(empty.names,["HEAD"]);XCTAssertNil(empty.head);XCTAssertEqual(empty.branch,"new");XCTAssertTrue(empty.entries.isEmpty)
+        let after=try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(after,before);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(path)),bytes)
+    }
+    func testRefreshAndDiffReadsSeparateWarningsAndHonorCancellation() async throws {
+        let (root,repo,path)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
+        try Data("next\n".utf8).write(to:root.appendingPathComponent(path));try await repo.stage([path]);_ = try await repo.commit(message:"next subject")
+        let hash=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let helper=root.appendingPathComponent("warning-reflog-git"),quoted="'"+repo.executable.path.replacingOccurrences(of:"'",with:"'\\''")+"'"
+        try Data(("#!/bin/sh\ncase \"$4\" in for-each-ref|show-ref|rev-list|show) printf 'warning: metadata diagnostic\\n' >&2;; esac\nexec "+quoted+" \"$@\"\n").utf8).write(to:helper)
+        try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
+        let wrapped=GitRepository(root:root,executable:helper),state=try await wrapped.referenceLogState("HEAD")
+        XCTAssertEqual(state.names,["HEAD","refs/heads/main"]);XCTAssertEqual(state.referenceNames[hash],["refs/heads/main"])
+        let parents=try await wrapped.referenceLogDiffParents(hash)
+        XCTAssertEqual(parents.count,1);XCTAssertFalse(parents[0].hash.contains("warning"));XCTAssertFalse(parents[0].subject?.contains("warning") == true)
+        let diff=try await wrapped.referenceLogUnifiedDiff(hash,mode:.parent(1));XCTAssertTrue(String(decoding:diff.bytes,as:UTF8.self).contains("+next"))
+        let token=OperationCancellation();token.cancel()
+        do {_ = try await wrapped.referenceLogState("HEAD",cancellation:token);XCTFail("Cancelled refresh accepted")} catch is OperationCancellationFailure {}
+        do {_ = try await wrapped.referenceLogDiffParents(hash,cancellation:token);XCTFail("Cancelled parent read accepted")} catch is OperationCancellationFailure {}
+        do {_ = try await wrapped.referenceLogUnifiedDiff(hash,mode:.parent(1),cancellation:token);XCTFail("Cancelled diff accepted")} catch is OperationCancellationFailure {}
+        do {_ = try await wrapped.referenceLogUnifiedDiff(from:parents[0].hash,to:hash,cancellation:token);XCTFail("Cancelled pair diff accepted")} catch is OperationCancellationFailure {}
+    }
     func testFriendlyReferenceMapIncludesLocalRemoteSymbolicAndPeeledTag() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)

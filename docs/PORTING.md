@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+RefLog now distinguishes full Refresh's missing-reference fallback to HEAD from
+post-deletion row reload, and owns cancellable refresh/parent/unified reads through
+actual worker drain. Delete/Clear confirmations, per-error sheets and exclusive
+mutations retain their source defaults and closed-window/ Quit lifetimes. See
+[RefLog lifecycle](REFLOG-PARITY.md#refresh-read-cancellation-and-deletion-ownership--october-16-2026).
+Full physical, visual, menu/caller and signed acceptance remain open.
+
 Repository Browser's revision picker now inherits its owner preferences/theme,
 connects the shared selectable-Log actions and owns one modal selection lifetime.
 The header shows source-style friendly reference labels while preserving pinned

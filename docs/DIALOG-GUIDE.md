@@ -70,6 +70,12 @@ and select an entry for its context actions. Reflog entries are local recovery
 information. A selected commit can still require a separate confirmation before
 a history-changing operation runs.
 
+Refresh (F5) reloads references and their entries. If the selected reference was
+deleted, the view returns to HEAD. Clearing or deleting the last stash instead
+leaves the empty stash view until a full Refresh. You can refresh again or close
+the window while history or diff data is loading. An active deletion must finish
+before normal closure; **Abort** in its confirmation leaves the entries unchanged.
+
 ## Repository Browser and references
 
 Repository Browser reads the tree at a pinned revision. Navigate folders, inspect

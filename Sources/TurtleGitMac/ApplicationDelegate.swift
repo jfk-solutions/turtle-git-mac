@@ -26,7 +26,7 @@ import AppKit
         if RebaseWindowModel.activeStashRestorations > 0 { return .terminateCancel }
         if SynchronizationWindowModel.activePushWorkflows > 0 { return .terminateCancel }
         if LogWindowModel.activeActionReads > 0 || LogWindowModel.activeWorkingCommandReads > 0 { return .terminateCancel }
-        if ReferenceLogWindowModel.activeRevisionReads > 0 { return .terminateCancel }
+        if ReferenceLogWindowModel.activeRevisionReads > 0 || ReferenceLogWindowModel.activeOwnedOperations > 0 { return .terminateCancel }
         if WorktreeListWindowModel.activeOperations > 0 || WorktreeCreateWindowModel.activeOperations > 0 { return .terminateCancel }
         if PushWindowModel.activePreparationReads > 0 || PushWindowModel.activePushWorkflows > 0 || FetchWindowModel.activePreparationReads > 0 { return .terminateCancel }
         if StatisticsWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? StatisticsWindowController }).contains(where: { $0.model.hasSheet }) { return .terminateCancel }

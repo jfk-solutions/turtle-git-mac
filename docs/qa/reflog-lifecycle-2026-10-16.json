@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "0870f13f662bd325be36200852193d2e80dd60e9",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RefLogDlg.cpp Refresh: reference inventory and missing-ref HEAD fallback",
+    "RefLogDlg.cpp OnCbnSelchangeRef, OnRefLogChanged and Clear Stash: current-row reload and search reset",
+    "GitLogListAction.cpp selected reflog deletion, per-error acknowledgement and MSG_REFLOG_CHANGED",
+    "Existing numbered-parent, combined and pair unified diff workflows retained"
+  ],
+  "implementation": [
+    "Cancellable Core RefLog state snapshot with source full-refresh versus post-deletion current-row behavior",
+    "Reference names/metadata/parent subjects separate stdout from warnings; native picker uses exact-name indices",
+    "Owned refresh, parent, unified and deletion tokens retain Quit accounting/security scope until worker drain",
+    "F5 supersedes live reads; normal close can retire reads; mutation and confirmation gates preserved",
+    "Failed refresh clears old rows/selection; superseded or retired readers cannot publish metadata/errors/viewers",
+    "Owned async Delete/Clear and per-error continuations settle once on forced closure; approval generation and snapshot fences",
+    "Exclusive cancellable deletion retains existing positional/partial-failure semantics and empty stash view",
+    "User guide, offline Help and hosted lifecycle gate updated"
+  ],
+  "build": {
+    "attempts": [
+      {"exit": 0, "log": "build/qa/reflog-lifecycle-build.log", "anomalous_exit_zero_diagnostics": 9},
+      {"exit": 0, "log": "build/qa/reflog-lifecycle-build-final.log", "anomalous_exit_zero_diagnostics": 2},
+      {"exit": 0, "log": "build/qa/reflog-lifecycle-build-error-state.log", "anomalous_exit_zero_diagnostics": 1}
+    ],
+    "notes": "Source review during validation added the full-refresh/current-row distinction, then failed-refresh row clearing. All three builds exited zero; no actual compile failure is claimed."
+  },
+  "core": {
+    "exit": 0,
+    "tests": 13,
+    "failures": 0,
+    "log": "build/qa/reflog-lifecycle-core.log",
+    "scope": "ReferenceLogTests and ReferenceLogDiffTests; no full Core suite rerun. Later native-only failed-refresh publication change did not rerun Core.",
+    "checks": [
+      "Missing-ref HEAD fallback and explicit current-row retention; unborn/bare metadata",
+      "Warning-safe reference/parent metadata and cancelled state/parent/single/pair reads",
+      "Retained exact reflog rows, stash/drop/clear and stale snapshots, partial failure and merge diff bytes",
+      "Read-only HEAD/index/working preservation"
+    ]
+  },
+  "native": {
+    "exit": 0,
+    "log": "build/qa/reflog-lifecycle-native.log",
+    "runner": "scripts/test-reflog-lifecycle.py",
+    "engines": ["system Git", "bundled Git"],
+    "passing_cases": 8,
+    "receivers_reaped": [12598, 13238, 13880, 13974, 14076, 14260, 14460, 14648],
+    "result": "All eight engine/family cases passed on their first grouped execution; no fixture repair or receiver rerun.",
+    "checks": [
+      "Superseded actual F5 refresh, missing-ref fallback in native popup, failed-refresh clear/error/OK/recovery",
+      "Blocked parent read retirement and normal close during blocked unified diff; no late cache/error/viewer",
+      "Actual native Delete/Abort default Delete and Clear Stash default Abort; unchanged stash after Abort",
+      "Forced pending-confirmation and per-error-sheet settlement",
+      "Exclusive live deletion rejects Refresh/duplicate/normal close; forced close cancels before Git mutation",
+      "Four helper/sleep process pairs per engine asserted absent after cancellation; Quit blocked until actual drain",
+      "Retained table columns, selection, range menus/icons, private clipboard/date settings, Find, layout and stale/closed actions",
+      "Retained successful deletion/stale prompt/source defaults, stash Clear and chooser guards",
+      "Retained actual HEAD/stash partial failures, per-error order, partial/all-failed refresh and retry reset",
+      "Unchanged ordinary HEAD/log/index/working contents where no mutation was approved/completed"
+    ],
+    "ownership": "All eight receivers reaped; independent final process scan found no matching receiver/helper. Private repositories/preferences/pasteboards cleaned up and owned native windows closed."
+  },
+  "hosted_observed": {
+    "sha": "0870f13f662bd325be36200852193d2e80dd60e9",
+    "macos_run": 38854904852,
+    "macos_status": "pending",
+    "pages_run": 38854904903,
+    "pages_conclusion": "success",
+    "prior_macos_run": 38854136506,
+    "prior_macos_conclusion": "cancelled"
+  },
+  "limits": [
+    "No new screenshot or physical keyboard/pointer/VoiceOver acceptance",
+    "Full RefLog menu/layout/caller parity remains open",
+    "Signed Finder/security scopes/App Store and complete hosted CI acceptance remain unverified"
+  ]
+}

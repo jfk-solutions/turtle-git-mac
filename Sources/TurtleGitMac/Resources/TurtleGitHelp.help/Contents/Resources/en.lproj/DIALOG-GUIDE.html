@@ -53,6 +53,11 @@ and history operations. <a href="LOG-FIND.html">Finding revisions</a> explains L
 and select an entry for its context actions. Reflog entries are local recovery
 information. A selected commit can still require a separate confirmation before
 a history-changing operation runs.</p>
+<p>Refresh (F5) reloads references and their entries. If the selected reference was
+deleted, the view returns to HEAD. Clearing or deleting the last stash instead
+leaves the empty stash view until a full Refresh. You can refresh again or close
+the window while history or diff data is loading. An active deletion must finish
+before normal closure; <strong>Abort</strong> in its confirmation leaves the entries unchanged.</p>
 <a name="topic-browser"></a><a name="topic-references"></a><h2 id="repository-browser-and-references">Repository Browser and references</h2>
 <p>Repository Browser reads the tree at a pinned revision. Navigate folders, inspect
 files, and use Open or Save to work with a historical copy. A historical file is

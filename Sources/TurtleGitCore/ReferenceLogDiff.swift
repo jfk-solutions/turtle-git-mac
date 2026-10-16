@@ -8,21 +8,23 @@ public struct ReferenceLogDiffResult: Sendable {
     public let noExtraChanges: Bool
 }
 extension GitRepository {
-    private func referenceLogCommit(_ revision: String) throws -> String {
-        try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+    private func referenceLogCommit(_ revision:String,cancellation:OperationCancellation?) throws -> String {
+        String(decoding:try run(["rev-parse","--verify","--end-of-options",revision + "^{commit}"],cancellation:cancellation).stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
     }
-    public func referenceLogDiffParents(_ revision: String) throws -> [LogParentChoice] {
-        let hash = try referenceLogCommit(revision)
-        let parents = try run(["rev-list", "--parents", "-n", "1", hash, "--"]).text.split(whereSeparator: \.isWhitespace).dropFirst().map(String.init)
-        return parents.enumerated().map { index, parent in
-            var subject = (try? run(["show", "--encoding=UTF-8", "-s", "--no-notes", "--format=%s", parent, "--"]).text)
+    public func referenceLogDiffParents(_ revision:String,cancellation:OperationCancellation? = nil) throws -> [LogParentChoice] {
+        let hash = try referenceLogCommit(revision,cancellation:cancellation)
+        let parents=String(decoding:try run(["rev-list","--parents","-n","1",hash,"--"],cancellation:cancellation).stdout,as:UTF8.self).split(whereSeparator:\.isWhitespace).dropFirst().map(String.init)
+        return try parents.enumerated().map { index, parent in
+            try cancellation?.check()
+            var subject=(try? run(["show","--encoding=UTF-8","-s","--no-notes","--format=%s",parent,"--"],cancellation:cancellation).stdout).map{String(decoding:$0,as:UTF8.self)}
             if subject?.hasSuffix("\n") == true { subject?.removeLast() }
+            try cancellation?.check()
             return LogParentChoice(number: index + 1, hash: parent, subject: subject)
         }
     }
-    public func referenceLogUnifiedDiff(_ revision: String, mode: ReferenceLogDiffMode) throws -> ReferenceLogDiffResult {
-        let hash = try referenceLogCommit(revision)
-        let parents = try run(["rev-list", "--parents", "-n", "1", hash, "--"]).text.split(whereSeparator: \.isWhitespace).dropFirst().map(String.init)
+    public func referenceLogUnifiedDiff(_ revision:String,mode:ReferenceLogDiffMode,cancellation:OperationCancellation? = nil) throws -> ReferenceLogDiffResult {
+        let hash = try referenceLogCommit(revision,cancellation:cancellation)
+        let parents=String(decoding:try run(["rev-list","--parents","-n","1",hash,"--"],cancellation:cancellation).stdout,as:UTF8.self).split(whereSeparator:\.isWhitespace).dropFirst().map(String.init)
         let flags = ["--no-ext-diff", "--no-textconv", "--no-color"]
         let arguments: [String]
         switch mode {
@@ -36,13 +38,13 @@ extension GitRepository {
             guard parents.count > 1 else { throw RevisionComparisonFailure.range }
             arguments = ["diff-tree", "--cc"] + flags + [hash, "--"]
         }
-        let bytes = try run(arguments).stdout
+        let bytes = try run(arguments,cancellation:cancellation).stdout
         let lines = bytes.split(separator: 10, omittingEmptySubsequences: false)
         let noExtra = mode == .extraChanges && (lines.count < 2 || lines[0] != Data(hash.utf8) || lines[1].isEmpty)
         return ReferenceLogDiffResult(bytes: bytes, noExtraChanges: noExtra)
     }
-    public func referenceLogUnifiedDiff(from: String, to: String) throws -> Data {
-        let old = try referenceLogCommit(from), new = try referenceLogCommit(to)
-        return try run(["diff-tree", "-r", "-p", "--stat", "--no-ext-diff", "--no-textconv", "--no-color", old, new, "--"]).stdout
+    public func referenceLogUnifiedDiff(from:String,to:String,cancellation:OperationCancellation? = nil) throws -> Data {
+        let old = try referenceLogCommit(from,cancellation:cancellation), new = try referenceLogCommit(to,cancellation:cancellation)
+        return try run(["diff-tree", "-r", "-p", "--stat", "--no-ext-diff", "--no-textconv", "--no-color", old, new, "--"],cancellation:cancellation).stdout
     }
 }

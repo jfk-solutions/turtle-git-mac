@@ -540,3 +540,43 @@ The original RefLog unborn-history assertion is retained with a useful diagnosti
 Core repair, exact system/bundled phase coverage, cache reuse and process cleanup.
 Local grouped passes do not prove hosted CI completion, physical RefLog behavior,
 full dialog parity or signed App Store acceptance.
+
+## Refresh, read cancellation and deletion ownership — October 16, 2026
+
+`RefLogDlg::Refresh` rebuilds the reference list and selects HEAD when the current
+reference no longer exists. `OnCbnSelchangeRef` and `MSG_REFLOG_CHANGED` reload
+the current rows without that fallback; Clear Stash also uses the latter path.
+The native refresh now distinguishes these behaviors, so deleting the final stash
+leaves an empty stash view while an explicit F5 can return to HEAD. Reference
+selection uses byte-exact names and one explicit reload, avoiding a second reload
+when a fallback updates the picker. Find position/wrap state resets with the rows.
+
+One cancellable Core snapshot gathers reference names, exact reflog entries,
+working/bare/HEAD/branch state, merge/Bisect/SVN flags, friendly refs and current
+stash/index-parent metadata. Metadata reads consume stdout separately from Git
+warnings. Refresh, numbered parent subjects and unified parent/merge/pair reads
+now propagate cancellation into their actual Git processes. Superseded and closed
+requests cannot publish rows, cached parents, errors or viewer handoffs. Owned
+read counters and security-scope leases survive the window until workers drain.
+A failed current refresh clears its rows/selection before reporting the error,
+so entries from the prior reference cannot reappear under the new reference name.
+
+F5 can supersede a live reader. Cancel/normal window closure can retire a read;
+table actions remain disabled during it. Mutation and note-save closure gates are
+retained. Find and direct model actions reject retired or confirming owners.
+Native selectors use actual popup indices, preserving exact Unicode reference
+names rather than relying on canonical String title matching.
+
+Delete and Clear Stash retain source prompts/defaults and per-error acknowledgement.
+Their native confirmations and failures are owned continuations, settled once on
+forced closure. Approval checks the captured generation/reference/complete rows
+before mutation; a stale prompt cannot delete replacement entries. Actual deletion
+is exclusive, cancellable on forced retirement and counted for Quit until Git and
+pending failure acknowledgements return. Earlier successful deletions are not
+rolled back. Existing Core positional snapshot checks and partial-failure reports
+remain in use; cancelled/retired workers do not reopen the closed view.
+
+[Grouped evidence](qa/reflog-lifecycle-2026-10-16.json) records focused Core and
+two-engine native scope, failures/repairs and receiver cleanup. No new screenshot,
+physical keyboard/pointer/VoiceOver, signed Finder or App Store acceptance is
+claimed. Complete menu/layout/caller parity and signed acceptance remain open.

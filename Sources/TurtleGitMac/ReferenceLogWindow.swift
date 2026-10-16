@@ -10,6 +10,26 @@ import TurtleGitCore
     private var notePresenter: CommitNotePresenter?
     var noteEditor: InputWindowController? { notePresenter?.editor }
     private(set) var findController: ReferenceLogFindController?
+    private var ownedAlert:NSAlert?
+    private var ownedAlertAnswer:((NSApplication.ModalResponse)->Void)?
+    private func askOwned(_ alert:NSAlert) async -> NSApplication.ModalResponse {
+        guard !model.isInvalidated,let window,window.attachedSheet==nil else {return .abort}
+        ownedAlert=alert
+        return await withCheckedContinuation { continuation in
+            var answered=false
+            let answer:(NSApplication.ModalResponse)->Void = {response in guard !answered else {return};answered=true;continuation.resume(returning:response)}
+            ownedAlertAnswer=answer
+            alert.beginSheetModal(for:window) { [weak self] response in
+                if self?.ownedAlert === alert {self?.ownedAlert=nil;self?.ownedAlertAnswer=nil}
+                answer(response)
+            }
+        }
+    }
+    private func retireAlert() {
+        let alert=ownedAlert,answer=ownedAlertAnswer;ownedAlert=nil;ownedAlertAnswer=nil
+        if let child=alert?.window {child.sheetParent?.endSheet(child,returnCode:.abort);child.orderOut(nil)}
+        answer?(.abort)
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, onChoose: ((ReferenceLogEntry?) -> Void)? = nil, preferences: UserDefaults = .standard) {
         model = ReferenceLogWindowModel(repository: repository, access: access, reference: reference, selecting: onChoose != nil, preferences: preferences)
         selectionCompletion = onChoose
@@ -23,14 +43,13 @@ import TurtleGitCore
         window.setContentSize(NSSize(width: 1000, height: 530)); window.center()
         model.close = { [weak self] in
             guard let self else { return }
-            guard self.model.commandSurfaceAvailable, !self.model.unifiedViewerBusy, self.window?.attachedSheet == nil else { return }
+            guard self.model.canClose, !self.model.unifiedViewerBusy, self.window?.attachedSheet == nil else { return }
             if self.model.selecting { self.finishSelection(nil) } else { self.window?.close() }
         }
         model.onChoose = { [weak self] entry in self?.finishSelection(entry) }
-        model.confirmDelete = { [weak window] message, clear, proceed in
-            guard let window, window.attachedSheet == nil else { return }
-            let alert = Self.deletionAlert(message: message, clear: clear)
-            alert.beginSheetModal(for: window) { response in if response == .alertFirstButtonReturn { proceed() } }
+        model.askDelete={ [weak self] message,clear in
+            guard let self else {return false}
+            return await self.askOwned(Self.deletionAlert(message:message,clear:clear)) == .alertFirstButtonReturn
         }
         model.presentDeletionFailure = { [weak self] issue in await self?.showDeletionFailure(issue) }
         model.confirmReferenceDeletion = { [weak window] request in
@@ -51,7 +70,9 @@ import TurtleGitCore
         }
         model.openFind = { [weak self] in self?.openFind() }
         window.functionKey = { [weak self] code in
-            guard let self, !self.model.busy else { return false }
+            guard let self else {return false}
+            if code == 99,!self.model.commandSurfaceAvailable {return false}
+            if code == 96,!self.model.canRefresh {return false}
             if code == 99 { self.model.openFind(); return true } // F3
             if code == 96 { self.model.reload(); return true } // F5
             return false
@@ -60,14 +81,9 @@ import TurtleGitCore
 
         DialogGeometry.attach(window, identifier: "ReferenceLogWindowController")
     }
-    private func showDeletionFailure(_ issue: ReferenceLogDeleteIssue) async {
-        guard let window, window.attachedSheet == nil else { return }
-        await withCheckedContinuation { continuation in
-            let alert = NSAlert(); alert.alertStyle = .critical
-            alert.messageText = issue.details; alert.informativeText = issue.selector
-            alert.addButton(withTitle: "OK")
-            alert.beginSheetModal(for: window) { _ in continuation.resume() }
-        }
+    private func showDeletionFailure(_ issue:ReferenceLogDeleteIssue) async {
+        let alert=NSAlert();alert.alertStyle = .critical;alert.messageText=issue.details;alert.informativeText=issue.selector
+        alert.addButton(withTitle:"OK");_ = await askOwned(alert)
     }
     static func deletionAlert(message: String, clear: Bool) -> NSAlert {
         let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = message
@@ -77,7 +93,7 @@ import TurtleGitCore
         return alert
     }
     func openFind(visible: Bool = true) {
-        guard !model.busy else { return }
+        guard model.commandSurfaceAvailable else {return}
         if let findController {
             if visible { findController.showWindow(nil); findController.window?.makeKeyAndOrderFront(nil) }
             return
@@ -95,12 +111,13 @@ import TurtleGitCore
         completion(entry)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard model.commandSurfaceAvailable, !model.unifiedViewerBusy, sender.attachedSheet == nil else { return false }
+        guard model.canClose,!model.unifiedViewerBusy,sender.attachedSheet==nil else {return false}
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
         findController?.close(); findController = nil
-        model.invalidate(); notePresenter?.close()
+        model.invalidate();retireAlert();notePresenter?.close()
+        if let child=window?.attachedSheet {window?.endSheet(child,returnCode:.abort);child.close()}
         model.unifiedWindow?.close(); model.unifiedWindow = nil
         let completion = selectionCompletion; selectionCompletion = nil; completion?(nil); onClosed()
     }
@@ -112,7 +129,7 @@ import TurtleGitCore
     let preferences: UserDefaults
     let noteLog: LogWindowModel
     private var noteChanges: AnyCancellable?
-    var commandSurfaceAvailable: Bool { !invalidated && !busy && !noteLog.loadingNote && !noteLog.savingNote && noteLog.noteRequest == nil }
+    var commandSurfaceAvailable: Bool { !invalidated && !busy && !confirmingDelete && !noteLog.loadingNote && !noteLog.savingNote && noteLog.noteRequest == nil }
     private let access: RepositoryAccessLease?
     @Published var reference: String
     @Published var names: [String]
@@ -126,6 +143,24 @@ import TurtleGitCore
     @Published private(set) var diffParents: [String: [LogParentChoice]] = [:]
     private var requestedDiffParents = Set<String>()
     private var invalidated = false
+    var isInvalidated:Bool {invalidated}
+    @Published private(set) var mutating=false
+    @Published private(set) var confirmingDelete=false
+    private var deleteQuestion:UUID?
+    private var loadToken:OperationCancellation?
+    private var ownedTokens:[UUID:OperationCancellation]=[:]
+    private(set) static var activeOwnedOperations=0
+    private func startOwned() -> (UUID,OperationCancellation) {
+        let id=UUID(),token=OperationCancellation();ownedTokens[id]=token;Self.activeOwnedOperations += 1;return(id,token)
+    }
+    private func finishOwned(_ id:UUID) {
+        if ownedTokens.removeValue(forKey:id) != nil {Self.activeOwnedOperations -= 1}
+    }
+    private func cancelOwned() {ownedTokens.values.forEach{$0.cancel()}}
+    var canRefresh:Bool {!invalidated && !mutating && !confirmingDelete && !noteLog.savingNote && noteLog.noteRequest==nil}
+    var canClose:Bool {!mutating && !noteLog.savingNote}
+    var askDelete:((String,Bool) async -> Bool)?
+
     var unifiedWindow: PatchWindowController?
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.model.confirmingQuit == true || unifiedWindow?.window?.attachedSheet != nil }
     var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
@@ -139,7 +174,7 @@ import TurtleGitCore
     @Published var matchCase = false { didSet { searchWrapped = false } }
     private var generation = 0
     var onChoose: (ReferenceLogEntry) -> Void = { _ in }
-    func accept() { if selecting { if !busy, let entry = selectedEntry { onChoose(entry) } } else { close() } }
+    func accept() { if selecting { if commandSurfaceAvailable, let entry = selectedEntry { onChoose(entry) } } else { close() } }
     var onApply: (String) -> Void = { _ in }
     var onLog: ((String) -> Void)?
     var onLogRange: ((HistoryRevisionRange) -> Void)?
@@ -194,79 +229,90 @@ import TurtleGitCore
         noteLog.onRevisionChanged = { [weak self] in self?.onChanged($0) }
         acknowledgeReferenceDeletionFailure = { [weak self] in self?.error = $0 }
     }
-    func reload() {
-        guard !invalidated else { return }
-        combineToken?.cancel(); combineToken = nil; combineCandidate = nil
-        if noteLog.loadingNote { noteLog.cancelPendingNoteRead() }
-        revisionReadToken?.cancel(); revisionReadToken = nil
-        generation += 1; let request = generation, reference = reference; busy = true
-        requestedDiffParents = Set(diffParents.keys)
-        Task {
+    func selectReference(_ value:String) {
+        guard canRefresh, !GitReferenceName.equal(reference,value) else {return}
+        reference=value;selection=[];reload()
+    }
+    func reload(refreshReferences:Bool = true,preservingError:Bool = false) {
+        guard canRefresh else {return}
+        cancelOwned();loadToken=nil
+        combineToken?.cancel();combineToken=nil;combineCandidate=nil
+        if noteLog.loadingNote {noteLog.cancelPendingNoteRead()}
+        revisionReadToken?.cancel();revisionReadToken=nil
+        generation += 1
+        let request=generation,requested=reference,(operation,token)=startOwned()
+        loadToken=token;busy=true;if !preservingError {error=nil};information=nil
+        requestedDiffParents=Set(diffParents.keys)
+        Task { [self,repository,access] in
+            defer {
+                finishOwned(operation);withExtendedLifetime(access){}
+                if loadToken === token {loadToken=nil;if !invalidated {busy=false;refreshCombineCandidate()}}
+            }
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let refs = try await repository.referenceLogNames(), result = try await repository.referenceLog(reference)
-                let bare = try await repository.isBare()
-                let mergeActive = try await repository.logMergeActive()
-                let bisectActive = try await repository.bisectState().active
-                let hasGitSVN = try await repository.referenceLogHasGitSVN()
-                let head = try await repository.run(["rev-parse", "--verify", "--quiet", "--end-of-options", "HEAD"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
-                let branch = try await repository.branch()
-                let referenceNames = try await repository.referenceLogReferenceNamesByHash()
-                var stashHash: String?, indexParent: String?
-                if refs.contains("refs/stash") {
-                    let hash = try await repository.run(["rev-parse", "--verify", "--quiet", "--end-of-options", "refs/stash"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
-                    if !hash.isEmpty {
-                        stashHash = hash
-                        let parents = ((try? await repository.run(["rev-list", "--parents", "-n", "1", hash, "--"]).text) ?? "").split(whereSeparator: \.isWhitespace)
-                        if parents.count == 3 { indexParent = String(parents[2]) }
-                    }
-                }
-                guard request == generation else { return }
-                referenceNamesByHash = referenceNames
-                currentStashHash = stashHash; currentStashIndexParent = indexParent
-                hasWorkingTree = !bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.hasGitSVN = hasGitSVN
-                currentHeadHash = head.isEmpty ? nil : head; currentBranch = branch
-                names = Array(Set(refs + [reference])).sorted(); entries = result
-                let hashes = Set(result.map(\.hash)); diffParents = diffParents.filter { hashes.contains($0.key) }
-                selection.formIntersection(Set(result.map(\.id))); searchIndex = 0; searchWrapped = false; busy = false; refreshCombineCandidate()
-            } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                let state=try await repository.referenceLogState(requested,fallbackToHead:refreshReferences,cancellation:token)
+                guard !invalidated,!token.isCancelled,request==generation,GitReferenceName.equal(reference,requested) else {return}
+                referenceNamesByHash=state.referenceNames
+                currentStashHash=state.stashHash;currentStashIndexParent=state.stashIndexParent
+                hasWorkingTree = !state.bare;mergeActive=state.mergeActive;bisectActive=state.bisectActive;hasGitSVN=state.hasGitSVN
+                currentHeadHash=state.head;currentBranch=state.branch
+                reference=state.reference;if refreshReferences {names=state.names};entries=state.entries
+                let hashes=Set(state.entries.map(\.hash));diffParents=diffParents.filter{hashes.contains($0.key)}
+                selection.formIntersection(Set(state.entries.map(\.id)));searchIndex=0;searchWrapped=false
+            } catch {if !invalidated,request==generation,!token.isCancelled {
+                entries=[];selection=[];diffParents=[:];requestedDiffParents=[];self.error=error.localizedDescription
+            }}
         }
     }
     func apply(_ ids: Set<String>) {
-        guard !selecting, !busy, reference == "refs/stash", ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return }
+        guard !selecting,commandSurfaceAvailable, reference == "refs/stash", ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return }
         // Hash pins the selected entry even if another process changes stash indices.
         onApply(entry.hash)
     }
-    func delete(_ ids: Set<String>, clear: Bool = false) {
-        guard !selecting, !busy, !entries.isEmpty,
-              clear ? reference == "refs/stash" : (!ids.isEmpty && ids.isSubset(of: Set(entries.map(\.id)))) else { return }
-        let expected = entries, reference = reference
-        let message: String
-        if clear { message = "Do you really want to delete ALL \(entries.count) stash?" }
-        else if ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) {
-            message = "\"\(entry.selector)\" will be permanently deleted. It can NOT be recovered!\n\nDo you really want to continue?"
-        } else { message = "Do you really want to permanently delete the \(ids.count) selected refs? It can NOT be recovered!" }
-        confirmDelete(message, clear) { [weak self] in
-            guard let self, !self.busy else { return }
-            guard self.reference == reference, self.entries == expected else { self.error = ReferenceLogFailure.stale.localizedDescription; return }
-            self.busy = true; self.error = nil; self.deletionReport = nil
-            Task {
-                do {
-                    let output = clear ? try await self.repository.deleteStashEntries([], expected: expected, clear: true) : try await self.repository.deleteReferenceLogEntries(ids, reference: reference, expected: expected, onFailure: self.presentDeletionFailure)
-                    self.onChanged(output)
-                }
-                catch let failure as ReferenceLogDeleteBatchFailure {
-                    self.deletionReport = failure.localizedDescription
-                    self.onChanged(failure.output + failure.localizedDescription)
-                    if self.presentDeletionFailure == nil { self.error = failure.localizedDescription }
-                }
-                catch { self.error = error.localizedDescription }
-                self.reload()
-            }
+    func delete(_ ids:Set<String>,clear:Bool = false) {
+        guard commandSurfaceAvailable,!selecting,!entries.isEmpty,
+              clear ? reference=="refs/stash":(!ids.isEmpty && ids.isSubset(of:Set(entries.map(\.id)))) else {return}
+        let expected=entries,reference=reference,request=generation
+        let message:String
+        if clear {message="Do you really want to delete ALL \(entries.count) stash?"}
+        else if ids.count==1,let entry=entries.first(where:{ids.contains($0.id)}) {
+            message="\"\(entry.selector)\" will be permanently deleted. It can NOT be recovered!\n\nDo you really want to continue?"
+        } else {message="Do you really want to permanently delete the \(ids.count) selected refs? It can NOT be recovered!"}
+        let proceed:()->Void = { [weak self] in
+            guard let self,self.commandSurfaceAvailable,self.generation==request else {return}
+            guard GitReferenceName.equal(self.reference,reference),self.entries==expected else {self.error=ReferenceLogFailure.stale.localizedDescription;return}
+            self.deleteConfirmed(ids,reference:reference,expected:expected,clear:clear)
+        }
+        guard let askDelete else {confirmDelete(message,clear,proceed);return}
+        let question=UUID(),(operation,token)=startOwned();deleteQuestion=question;confirmingDelete=true
+        Task { [self,access] in
+            defer {finishOwned(operation);withExtendedLifetime(access){}}
+            let accepted=await askDelete(message,clear)
+            guard deleteQuestion==question else {return}
+            deleteQuestion=nil;confirmingDelete=false
+            guard !invalidated,!token.isCancelled,generation==request,accepted else {return}
+            proceed()
+        }
+    }
+    private func deleteConfirmed(_ ids:Set<String>,reference:String,expected:[ReferenceLogEntry],clear:Bool) {
+        let (operation,token)=startOwned(),request=generation
+        busy=true;mutating=true;error=nil;deletionReport=nil
+        Task { [self,repository,access] in
+            defer {finishOwned(operation);withExtendedLifetime(access){}}
+            var changedOutput:String?
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                changedOutput = clear ? try await repository.deleteStashEntries([],expected:expected,clear:true,cancellation:token):try await repository.deleteReferenceLogEntries(ids,reference:reference,expected:expected,onFailure:presentDeletionFailure,cancellation:token)
+            } catch let failure as ReferenceLogDeleteBatchFailure {
+                if !invalidated,!token.isCancelled {deletionReport=failure.localizedDescription;changedOutput=failure.output+failure.localizedDescription;if presentDeletionFailure==nil {error=failure.localizedDescription}}
+            } catch {if !invalidated,!token.isCancelled {self.error=error.localizedDescription}}
+            mutating=false
+            guard !invalidated,!token.isCancelled,generation==request else {return}
+            busy=false;if let changedOutput {onChanged(changedOutput)};reload(refreshReferences:false,preservingError:true)
         }
     }
     func findNext() {
-        guard !busy, !entries.isEmpty, !find.isEmpty else { return }
+        guard commandSurfaceAvailable, !entries.isEmpty, !find.isEmpty else { return }
         searchWrapped = searchIndex >= entries.count
         let start = searchWrapped ? 0 : searchIndex
         for offset in 0..<entries.count {
@@ -287,7 +333,7 @@ import TurtleGitCore
         return entries[index - 1].hash == currentStashHash && entry.hash == currentStashIndexParent
     }
     func canPerform(_ command: ReferenceLogRevisionCommand, ids: Set<String>) -> Bool {
-        guard !busy, ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return false }
+        guard commandSurfaceAvailable, ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return false }
         switch command {
         case .browseRepository: return onBrowseRepository != nil
         case .export: return onExport != nil
@@ -304,12 +350,12 @@ import TurtleGitCore
         }
     }
     func activateRows(_ ids: Set<String>) {
-        guard !busy else { return }
+        guard commandSurfaceAvailable else { return }
         if selecting { selection = ids; accept() }
         else if let entry = entries.first(where: { ids.contains($0.id) }) { onLog?(entry.hash) }
     }
     func canPerformHistory(_ command: ReferenceLogHistoryCommand, ids: Set<String>) -> Bool {
-        guard !invalidated, !selecting, !busy, hasWorkingTree, currentHeadHash != nil, ids.count == 1,
+        guard !invalidated,!selecting,commandSurfaceAvailable, hasWorkingTree, currentHeadHash != nil, ids.count == 1,
               let entry = entries.first(where: { ids.contains($0.id) }), !isOnStash(entry) else { return false }
         switch command {
         case .reset: return onReset != nil
@@ -321,7 +367,7 @@ import TurtleGitCore
         switch command { case .reset: onReset?(entry.hash); case .checkout: onCheckout?(referenceNamesByHash[entry.hash]?.first { $0.hasPrefix("refs/remotes/") } ?? entry.hash) }
     }
     func switchBranches(_ ids: Set<String>) -> [String] {
-        guard !invalidated, !selecting, !busy, hasWorkingTree,
+        guard !invalidated,!selecting,commandSurfaceAvailable, hasWorkingTree,
               ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }), !isOnStash(entry) else { return [] }
         return (referenceNamesByHash[entry.hash] ?? []).filter { $0.hasPrefix("refs/heads/") && $0 != "refs/heads/" + currentBranch }
     }
@@ -330,7 +376,7 @@ import TurtleGitCore
         onSwitchBranch?(ref)
     }
     func comparisonSides(_ command: ReferenceLogComparisonCommand, ids: Set<String>) -> (ComparisonRevision, ComparisonRevision)? {
-        guard !busy, !ids.isEmpty else { return nil }
+        guard commandSurfaceAvailable, !ids.isEmpty else { return nil }
         let indices = entries.indices.filter { ids.contains(entries[$0].id) }
         guard indices.count == ids.count, let first = indices.first, let last = indices.last else { return nil }
         switch command {
@@ -350,7 +396,7 @@ import TurtleGitCore
         onCompare(from, to)
     }
     func canCompareParent(_ ids: Set<String>, number: Int = 1) -> Bool {
-        guard !invalidated, !busy, onCompare != nil, ids.count == 1,
+        guard !invalidated,commandSurfaceAvailable, onCompare != nil, ids.count == 1,
               let entry = entries.first(where: { ids.contains($0.id) }),
               let parents = diffParents[entry.hash] else { return false }
         return parents.contains { $0.number == number }
@@ -362,7 +408,7 @@ import TurtleGitCore
         onCompare?(.revision(parent.hash), .revision(entry.hash))
     }
     func showLog(_ ids: Set<String>) {
-        guard !busy, ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return }
+        guard commandSurfaceAvailable, ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return }
         onLog?(entry.hash)
     }
     static func configureRevisionLog(_ log: LogWindowModel, revision: String) {
@@ -373,7 +419,7 @@ import TurtleGitCore
         log.configureWholeProjectScope()
     }
     func logRange(_ command: ReferenceLogRangeCommand, ids: Set<String>) -> HistoryRevisionRange? {
-        guard !busy, ids.count == 2 else { return nil }
+        guard commandSurfaceAvailable, ids.count == 2 else { return nil }
         let selected = entries.filter { ids.contains($0.id) }
         guard selected.count == 2 else { return nil }
         let first = selected[0].hash, last = selected[1].hash
@@ -390,7 +436,7 @@ import TurtleGitCore
     }
     func clipboardText(_ ids: Set<String>, format: ReferenceLogCopyFormat, dates: HistoryDateSettings = .load()) -> String? {
         let chosen = entries.filter { ids.contains($0.id) }
-        guard !busy, !chosen.isEmpty else { return nil }
+        guard commandSurfaceAvailable, !chosen.isEmpty else { return nil }
         switch format {
         case .hashes: return chosen.map(\.hash).joined(separator: "\r\n")
         case .messages: return chosen.map { "* " + Self.message($0) + "\r\n\r\n" }.joined()
@@ -427,15 +473,16 @@ import TurtleGitCore
               let entry = entries.first(where: { ids.contains($0.id) }) else { return }
         let token = OperationCancellation(), request = generation, reference = self.reference
         let repository = self.repository, factory = noteLog.sshSettings.capture()
-        revisionReadToken = token; busy = true; error = nil; Self.activeRevisionReads += 1
+        revisionReadToken=token;busy=true;mutating=true;error=nil;Self.activeRevisionReads += 1
         Task { [weak self, access] in
             defer { Self.activeRevisionReads -= 1; withExtendedLifetime(access) {} }
             let coordinator = factory?(); defer { coordinator?.close() }
             var changed = false, outputs: [String] = []
             defer {
                 if let self {
+                    self.mutating=false
                     if self.revisionReadToken === token { self.revisionReadToken = nil; self.busy = false }
-                    if changed { self.onChanged(outputs.joined(separator: "\n")); if !self.invalidated { self.reload() } }
+                    if changed {self.onChanged(outputs.joined(separator:"\n"));if !self.invalidated {self.reload(refreshReferences:false)}}
                 }
             }
             for name in names {
@@ -614,21 +661,21 @@ import TurtleGitCore
         }
     }
     func formatPatchPreset(_ ids: Set<String>) -> FormatPatchPreset? { FormatPatchPreset.referenceLogSelection(entries: entries, selected: ids) }
-    func invalidate() { combineToken?.cancel(); combineToken = nil; combineCandidate = nil; noteLog.invalidate(); noteChanges = nil; invalidated = true; generation += 1; revisionReadToken?.cancel(); revisionReadToken = nil }
-    func requestDiffParents(_ entry: ReferenceLogEntry) {
-        guard !invalidated, entries.contains(where: { $0.id == entry.id && $0.hash == entry.hash }), requestedDiffParents.insert(entry.hash).inserted else { return }
-        let request = generation
-        Task {
+    func invalidate() { cancelOwned();loadToken=nil;deleteQuestion=nil;confirmingDelete=false;combineToken?.cancel(); combineToken = nil; combineCandidate = nil; noteLog.invalidate(); noteChanges = nil; invalidated = true; generation += 1; revisionReadToken?.cancel(); revisionReadToken = nil }
+    func requestDiffParents(_ entry:ReferenceLogEntry) {
+        guard !invalidated,entries.contains(where:{$0.id==entry.id && $0.hash==entry.hash}),requestedDiffParents.insert(entry.hash).inserted else {return}
+        let request=generation,(operation,token)=startOwned()
+        Task { [self,repository,access] in
+            defer {finishOwned(operation);withExtendedLifetime(access){}}
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let parents = try await repository.referenceLogDiffParents(entry.hash)
-                guard !invalidated, request == generation else { return }
-                diffParents[entry.hash] = parents
-            } catch { if !invalidated, request == generation { diffParents[entry.hash] = [] } }
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                let parents=try await repository.referenceLogDiffParents(entry.hash,cancellation:token)
+                guard !invalidated,!token.isCancelled,request==generation else {return};diffParents[entry.hash]=parents
+            } catch {if !invalidated,!token.isCancelled,request==generation {diffParents[entry.hash]=[]}}
         }
     }
     func canInspect(_ ids: Set<String>, mode: ReferenceLogDiffMode = .parent(1)) -> Bool {
-        guard !invalidated, !busy, !unifiedViewerBusy, hasWorkingTree, (1...2).contains(ids.count) else { return false }
+        guard !invalidated,commandSurfaceAvailable, !unifiedViewerBusy, hasWorkingTree, (1...2).contains(ids.count) else { return false }
         let chosen = entries.filter { ids.contains($0.id) }
         guard chosen.count == ids.count else { return false }
         if chosen.count == 2 { return mode == .parent(1) }
@@ -640,28 +687,28 @@ import TurtleGitCore
     }
     func inspect(_ ids: Set<String>, mode: ReferenceLogDiffMode = .parent(1), alternate: Bool = false) {
         guard canInspect(ids, mode: mode) else { return }
-        let chosen = entries.filter { ids.contains($0.id) }, request = generation
-        busy = true; information = nil
-        Task {
-            defer { if request == generation { busy = false }; withExtendedLifetime(access) {} }
+        let chosen=entries.filter{ids.contains($0.id)},request=generation,(operation,token)=startOwned()
+        busy=true;information=nil
+        Task { [self,repository,access] in
+            defer {finishOwned(operation);if !invalidated,request==generation {busy=false};withExtendedLifetime(access){}}
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let bytes: Data
-                if chosen.count == 2 { bytes = try await repository.referenceLogUnifiedDiff(from: chosen[1].hash, to: chosen[0].hash) }
+                if chosen.count == 2 { bytes = try await repository.referenceLogUnifiedDiff(from:chosen[1].hash,to:chosen[0].hash,cancellation:token) }
                 else {
-                    let result = try await repository.referenceLogUnifiedDiff(chosen[0].hash, mode: mode)
-                    guard !invalidated, request == generation else { return }
+                    let result = try await repository.referenceLogUnifiedDiff(chosen[0].hash,mode:mode,cancellation:token)
+                    guard !invalidated,!token.isCancelled,request==generation else { return }
                     if result.noExtraChanges { information = "No extra changes after merge"; return }
                     bytes = result.bytes
                 }
-                guard !invalidated, request == generation else { return }
+                guard !invalidated,!token.isCancelled,request==generation else { return }
                 let viewerAlternate = chosen.count == 1 && mode == .extraChanges ? false : alternate
                 if let onUnifiedDiff { try await onUnifiedDiff(bytes, viewerAlternate) }
                 else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: viewerAlternate, preferences: preferences, title: "Selected RefLog changes", permissions: access.map { [$0] } ?? []) {
-                    guard !invalidated, request == generation else { return }
+                    guard !invalidated,!token.isCancelled,request==generation else { return }
                     unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected RefLog changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
-            } catch { if !invalidated, request == generation { self.error = error.localizedDescription } }
+            } catch { if !invalidated,!token.isCancelled,request==generation { self.error = error.localizedDescription } }
         }
     }
 }
@@ -704,21 +751,20 @@ private struct ReferenceLogDialog: View {
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
     var body: some View {
         VStack(spacing: 12) {
-            HStack { Text("Ref:"); ReferenceLogPicker(names: model.names, selection: $model.reference).frame(maxWidth: .infinity).frame(height: 26) }
-            ReferenceLogNativeTable(model: model, dates: HistoryDateSettings(shortDate: shortDate, relative: relativeTimes, useSystemLocale: useSystemLocale))
+            HStack { Text("Ref:"); ReferenceLogPicker(names: model.names, selection: Binding(get:{model.reference},set:{model.selectReference($0)})).frame(maxWidth: .infinity).frame(height: 26).disabled(!model.canRefresh) }
+            ReferenceLogNativeTable(model:model,dates:HistoryDateSettings(shortDate:shortDate,relative:relativeTimes,useSystemLocale:useSystemLocale)).disabled(!model.commandSurfaceAvailable)
             if let report = model.deletionReport { Text(report).font(.caption).foregroundStyle(.red).lineLimit(3).help(report) }
             HStack {
-                Button("Search…") { model.openFind() }.keyboardShortcut("f")
-                if !model.selecting && model.reference == "refs/stash" { Button("Clear stash") { model.delete([], clear: true) }.disabled(model.entries.isEmpty) }
-                Button("Refresh") { model.reload() }.keyboardShortcut("r")
+                Button("Search…") {model.openFind()}.keyboardShortcut("f").disabled(!model.commandSurfaceAvailable)
+                if !model.selecting && model.reference == "refs/stash" { Button("Clear stash") { model.delete([], clear: true) }.disabled(!model.commandSurfaceAvailable || model.entries.isEmpty) }
+                Button("Refresh") {model.reload()}.keyboardShortcut("r").disabled(!model.canRefresh)
                 if model.busy { ProgressView().controlSize(.small) }
                 Spacer()
-                Button("OK") { model.accept() }.disabled(model.selecting && model.selectedEntry == nil).keyboardShortcut(.defaultAction)
-                Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
+                Button("OK") { model.accept() }.disabled(!model.commandSurfaceAvailable || model.selecting && model.selectedEntry==nil).keyboardShortcut(.defaultAction)
+                Button("Cancel") {model.close()}.keyboardShortcut(.cancelAction).disabled(!model.canClose)
                 Button("Help") { TurtleGitHelp.show(.reflog) }
             }
-        }.padding(12).disabled(!model.commandSurfaceAvailable)
-        .onChange(of: model.reference) { _ in model.selection = []; model.reload() }
+        }.padding(12)
         .alert("RefLog", isPresented: Binding(get: { model.error != nil || model.information != nil }, set: { if !$0 { model.error = nil; model.information = nil } })) { Button("OK") { model.error = nil; model.information = nil } } message: { Text(model.error ?? model.information ?? "") }
     }
 }
@@ -737,12 +783,12 @@ private struct ReferenceLogPicker: NSViewRepresentable {
     func updateNSView(_ button: NSPopUpButton, context: Context) {
         context.coordinator.parent = self
         if button.itemTitles != names { button.removeAllItems(); button.addItems(withTitles: names) }
-        button.selectItem(withTitle: selection)
+        button.selectItem(at:names.firstIndex{GitReferenceName.equal($0,selection)} ?? -1)
     }
     final class Coordinator: NSObject {
         var parent: ReferenceLogPicker
         init(_ parent: ReferenceLogPicker) { self.parent = parent }
-        @objc func changed(_ sender: NSPopUpButton) { if let title = sender.titleOfSelectedItem { parent.selection = title } }
+        @objc func changed(_ sender:NSPopUpButton) {let index=sender.indexOfSelectedItem;if parent.names.indices.contains(index) {parent.selection=parent.names[index]}}
     }
 }
 
@@ -782,7 +828,7 @@ private struct ReferenceLogFindDialog: View {
             TextField("Find what:", text: $model.find).textFieldStyle(.roundedBorder).focused($focused).onSubmit { model.findNext() }
             Toggle("Match case", isOn: $model.matchCase).toggleStyle(.checkbox)
             if model.searchWrapped { Text("Search wrapped to the beginning.").font(.caption).foregroundStyle(.secondary) }
-            HStack { Spacer(); Button("Find Next") { model.findNext() }.disabled(model.find.isEmpty || model.busy).keyboardShortcut(.defaultAction)
+            HStack { Spacer(); Button("Find Next") { model.findNext() }.disabled(model.find.isEmpty || !model.commandSurfaceAvailable).keyboardShortcut(.defaultAction)
                 Button("Cancel", action: close).keyboardShortcut(.cancelAction) }
         }.padding(20).onAppear { focused = true }
     }
