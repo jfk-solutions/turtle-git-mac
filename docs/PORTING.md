@@ -1511,3 +1511,12 @@ one-use conflict-stage snapshot. Open With owns its native panel and validates
 after the choice; parent closure retires associated unified viewers. The source
 conflict group remains first. See [Resolve parity](RESOLVE-PARITY.md#captured-file-action-menu-family--october-16-2026)
 for exact scope and still-missing mutation/physical/signed acceptance.
+
+## Resolve mutation continuation — October 16, 2026
+
+The source Revert/missing-mark Delete family now connects native confirmation,
+shared progress/retry, exact conflict and HEAD validation, Trash/permanent index
+updates, actual post-operation list reads and the submodule comparison handoff.
+Captured selection marks are observed within the owning table and retired on
+Close. See [Resolve mutations](RESOLVE-PARITY.md#revert-and-missing-file-delete--october-16-2026)
+for remaining action-mask, physical and signed acceptance.

@@ -8,9 +8,10 @@ from native_receiver import build_receiver, run_receiver
 
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git',type=Path,action='append')
-parser.add_argument('--only',choices=['files','drop','progress'],action='append')
+parser.add_argument('--only',choices=['mutation','files','drop','progress'],action='append')
 args=parser.parse_args();root=Path(__file__).resolve().parent.parent
-cases={'files':('resolve-file-menu-native-2026-10-16.swift','PASS: Resolve captured source file menu'),
+cases={'mutation':('resolve-mutation-native-2026-10-16.swift','PASS: Resolve source mutation mask'),
+       'files':('resolve-file-menu-native-2026-10-16.swift','PASS: Resolve captured source file menu'),
        'drop':('resolve-drop-native-2026-10-16.swift','PASS: Resolve same-repository'),
        'progress':('resolve-progress-native-2026-10-14.swift','Resolve streamed real checked')}
 with tempfile.TemporaryDirectory(prefix='tg-resolve-family-') as temporary:

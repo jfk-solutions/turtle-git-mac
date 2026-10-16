@@ -61,10 +61,11 @@ claimed. The actual native capture is site/assets/resolve.png (1560 × 964).
 
 ## Remaining parity
 
-Full three-way merge integration, remaining submodule chooser cases, upstream status-list menu coverage, drag/drop, temporary merge artifact
+Full three-way merge integration, remaining submodule chooser cases, source
+status-list action-mask corner cases and column menus, temporary merge artifact
 ownership and cleanup, remaining batch/error variants, branch identity
-labels, broader native side-choice execution, stale
-refresh/retry, Commit handoff, dark-mode/keyboard/Help QA, parent restoration,
+labels, broader native side-choice execution, complete
+refresh/retry and Commit handoff acceptance, dark-mode/keyboard/Help QA, parent restoration,
 signed Finder and sandbox runtime remain pending. Double-click now opens the native delete/modify chooser for a single ordinary
 missing-side conflict (see DELETE-CONFLICT-PARITY.md), and the native submodule
 chooser for gitlink conflicts (see SUBMODULE-CONFLICT-PARITY.md). Ordinary UTF-8 text conflicts now open the partial native three-pane editor;
@@ -184,8 +185,9 @@ base/unified and two-file comparisons, history/Blame, editor/Open/Open With,
 Explorer/Finder and clipboard groups. Resolve now connects those read-only
 commands with original artwork and private context-icon preferences. Export,
 Save revision, Add, Ignore and comparison marks remain excluded by the source
-mask. Revert, remaining mutation/column-hit menus and physical default-item
-styling are still separate parity work. No complete context-menu claim is made.
+mask. Revert and eligible Delete are connected in the mutation continuation
+below; remaining column-hit menus and physical default-item styling are separate
+parity work. No complete context-menu claim is made.
 
 A popup retains its ordered ConflictEntry stages and owner/list epoch. It can
 invoke once; selection changes do not redirect it. Refresh/drop replacement,
@@ -222,3 +224,50 @@ All eight receivers were reaped and independently absent. Actual receiving apps,
 physical popup/copy gestures and signed grants were not exercised.
 [Batch evidence](qa/resolve-file-menu-2026-10-16.json) records builds, checks and
 the source eligibility/mutation work still open.
+
+## Revert and missing-file Delete — October 16, 2026
+
+Resolve now connects the source Revert and missing-mark Delete commands to the
+existing native operation owners. Revert obtains real porcelain rows from the
+captured conflict stages, uses the HEAD diff's modified-file confirmation and
+opens the shared Revert progress sheet. HEAD and stages are validated before
+launch and the first execution. Retry reads fresh selected-path status while
+keeping the original HEAD boundary; prior filesystem effects and Trash receipts
+remain recoverable. The source No-options auto-close and submodule post-action
+are retained. Gitlink reversion changes the parent index, then offers the existing
+submodule comparison workflow without changing its checkout automatically.
+
+Delete is offered only when the captured selection mark is physically missing.
+Its command retains the complete selected set, mark and Shift-permanent choice.
+A native No-default confirmation precedes a fresh stage/missing-mark check. The
+shared writer validates every selected path, moves existing files to Trash (or
+permanently removes them for captured Shift) and only then installs a private
+index with those selected entries removed. Ordinary existing conflicts do not
+gain an unrestricted Delete command. Explicit paths, including punctuation and
+Unicode, remain literal; unrelated index entries and HEAD remain independent.
+
+The table tracks pointer/keyboard selection marks without consuming events. Its
+monitor is scoped to the owning window and is explicitly removed on Close as
+well as view dismantling. Pending questions/children retain Resolve/Quit ownership;
+Close requests cancellation through the actual progress owner and forced retirement
+settles the question/child once. Actual conflict rows refresh after success,
+partial failure or cancellation; completed filesystem/index steps are retained.
+Publishing mutation results invalidates older captured menus, including menus for
+other still-conflicted paths; a fresh popup is required after the list changes.
+
+Source: GitStatusListCtrl.cpp IDGITLC_REVERT, DeleteSelectedFiles and the popup
+mask; RevertProgressCommand at the pinned source. Native Trash and confirmation
+sheets adapt SHFileOperation. Remaining source action-mask corner cases, column
+menus/hit testing, physical gestures, every submodule/partial-error combination
+and signed Finder/App Store acceptance remain open.
+
+
+[Grouped mutation evidence](qa/resolve-mutation-family-2026-10-16.json) records
+11 passing focused Core tests and eight passing native case/engine checks:
+mutation, retained file menus, drop/keyboard and resolution progress, each with
+system and bundled Git. A real stale-popup failure led to invalidating menu
+epochs after mutation refresh; its assertion remains. The retained missing-gitlink
+menu expectation was updated for the new Delete command. Only affected/unpassed
+cases continued. All ten receivers, including failures, were reaped and
+independently absent. The native mutation runs emitted NSTableView reentrant
+operation warnings; future SDK/physical table acceptance remains open.

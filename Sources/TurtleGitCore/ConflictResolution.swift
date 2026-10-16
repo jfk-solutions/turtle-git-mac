@@ -81,6 +81,18 @@ extension GitRepository {
         try cancellation?.check()
         return resolved
     }
+    /// Retain the captured conflict order while obtaining real porcelain rows
+    /// for shared Revert/Delete. Status reads do not refresh the index here.
+    public func conflictWorkingFileSelection(_ selected:[ConflictEntry],cancellation:OperationCancellation? = nil)throws->[StatusEntry] {
+        try validateConflicts(selected,using:.current,cancellation:cancellation)
+        let current = try status(refreshIndex:false,cancellation:cancellation)
+        let rows = try selected.map {entry -> StatusEntry in
+            guard let row = current.first(where:{$0.path.utf8.elementsEqual(entry.path.utf8)}),row.state == .conflicted else {throw ResolveFailure.stale}
+            return row
+        }
+        try validateConflicts(selected,using:.current,cancellation:cancellation)
+        return rows
+    }
     public func conflicts(paths: [String] = [], cancellation: OperationCancellation? = nil) throws -> [ConflictEntry] {
         guard try !isBare(cancellation: cancellation) else { throw ResolveFailure.selection }
         let scope = paths.filter { $0 != "." }

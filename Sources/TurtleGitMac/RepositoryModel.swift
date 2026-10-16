@@ -1016,6 +1016,9 @@ import UniformTypeIdentifiers
         controller.model.onSubmoduleReset = { [weak self, weak controller] child, revision, done in
             self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: { [weak controller] in controller?.model.dismissSubmoduleReset() })
         }
+        controller.model.onFileSubmoduleRevert = { [weak self] revision,paths in
+            for path in paths {self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:revision)}
+        }
         controller.model.onFileLog = { [weak self] path in self?.showLog(repository:repository,access:access,paths:[path]) }
         controller.model.onFileBlame = { [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
         controller.model.onFileSubmoduleLog = { [weak self] child in self?.showLog(repository:child,access:access,paths:[]) }

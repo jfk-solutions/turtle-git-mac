@@ -26,9 +26,25 @@ extension GitRepository {
     /// Delete status-list selections, removing their exact index entries only
     /// after file operations succeed. Trash failure never falls back to unlink.
     public func deleteWorkingFiles(_ selected: [StatusEntry], selectionMark: StatusEntry? = nil, permanently: Bool = false, cancellation: OperationCancellation? = nil) throws -> WorkingFileDeleteResult {
+        try deleteWorkingFileSelection(selected,selectionMark:selectionMark,permanently:permanently,cancellation:cancellation,missingConflict:false)
+    }
+    /// Resolve's status list offers Delete for a physically missing conflict mark.
+    /// Validate the captured unmerged stages before sharing the ordinary Trash/
+    /// private-index writer; no synthetic ordinary status can authorize this path.
+    public func deleteConflictWorkingFiles(_ conflicts:[ConflictEntry],markedPath:String,permanently:Bool = false,cancellation:OperationCancellation? = nil)throws->WorkingFileDeleteResult {
+        let selected = try conflictWorkingFileSelection(conflicts,cancellation:cancellation)
+        guard conflicts.contains(where:{$0.path.utf8.elementsEqual(markedPath.utf8)}) else {throw ResolveFailure.selection}
+        let location = try restoreLocation(markedPath)
+        var info = stat()
+        guard lstat(location.path,&info) != 0,errno == ENOENT else {throw GitFailure(arguments:["delete"],code:1,message:"Delete is available only from a missing conflict's selection mark.")}
+        let mark = selected.first{$0.path.utf8.elementsEqual(markedPath.utf8)}
+        try validateConflicts(conflicts,using:.current,cancellation:cancellation)
+        return try deleteWorkingFileSelection(selected,selectionMark:mark,permanently:permanently,cancellation:cancellation,missingConflict:true)
+    }
+    private func deleteWorkingFileSelection(_ selected:[StatusEntry],selectionMark:StatusEntry?,permanently:Bool,cancellation:OperationCancellation?,missingConflict:Bool)throws->WorkingFileDeleteResult {
         try cancellation?.check()
         guard !selected.isEmpty, Set(selected.map(\.path)).count == selected.count,
-              (selectionMark?.canDeleteFromStatusList ?? selected.contains(where: \.canDeleteFromStatusList)) else {
+              missingConflict || (selectionMark?.canDeleteFromStatusList ?? selected.contains(where: \.canDeleteFromStatusList)) else {
             throw GitFailure(arguments: ["delete"], code: 1, message: "Select unversioned, ignored or missing paths to delete.")
         }
         let current = Dictionary(try status(refreshIndex: false, cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })

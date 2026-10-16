@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "7e0abc2987be0b13d829232164ae1181ebe205d7",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Resolve Revert and missing-mark Delete: confirmation, shared progress/retry/submodule handoff, Trash/permanent removal and actual refresh",
+  "source": [
+    "GitStatusListCtrl.cpp IDGITLC_REVERT, DeleteSelectedFiles and popup mask",
+    "RevertProgressCommand"
+  ],
+  "implementation": [
+    "Real porcelain rows bounded by captured conflict stages; literal paths, no synthetic status authorization",
+    "Captured selection/mark/Shift; missing mark enables Delete; No-default confirmation and fresh validation",
+    "HEAD-bounded Revert, fresh selected status on retry, recoverable working bytes and owned submodule post-action",
+    "Shared private-index Delete writer preserves unrelated stages; Trash or explicit permanent selection",
+    "Reject drops during preparation; invalidate all older popups when publishing mutation results",
+    "Window-scoped pointer/navigation mark observer explicitly removed on Close"
+  ],
+  "core": {
+    "log": "build/qa/resolve-mutation-core-2026-10-16.log",
+    "exit": 0,
+    "suites": [
+      "WorkingFileDeleteTests",
+      "ConflictWorkingMutationTests"
+    ],
+    "tests": 11,
+    "failures": 0,
+    "full_suite_repeated": false
+  },
+  "debug": [
+    {
+      "log": "build/qa/resolve-mutation-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3
+    },
+    {
+      "log": "build/qa/resolve-mutation-build-guards-2026-10-16.log",
+      "exit": null,
+      "exit_zero_no_output_diagnostics": 2,
+      "note": "Terminal handle missing on continuation; superseded by final verified build."
+    },
+    {
+      "log": "build/qa/resolve-mutation-build-menu-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2,
+      "reason": "Repair stale popup after actual native failure"
+    }
+  ],
+  "native": {
+    "distinct_passing_case_engine_runs": 8,
+    "cases": {
+      "mutation": 2,
+      "files": 2,
+      "drop": 2,
+      "progress": 2
+    },
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "logs": [
+      "build/qa/resolve-mutation-native-2026-10-16.log",
+      "build/qa/resolve-mutation-native-repair-2026-10-16.log",
+      "build/qa/resolve-mutation-native-retained-2026-10-16.log"
+    ],
+    "final_passes": "Mutation passed both engines in repair log; six retained case/engine checks passed in retained log, terminal exit 0.",
+    "failed_runs": 2,
+    "repairs": [
+      "Stale Delete popup could run after Revert refresh; invalidate menu epoch before publishing rows, retaining assertion.",
+      "Exact retained menu expectation lacked new Delete for deliberately absent gitlink; updated expectation, without repeating already passed mutation cases."
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      49096,
+      49310,
+      49601,
+      49904,
+      49985,
+      50097,
+      50210,
+      50330,
+      50470,
+      50540
+    ],
+    "owned_windows_closed": true,
+    "warnings": [
+      "Successful mutation runs emit NSTableView reentrant-operation warnings; future SDK and physical gesture acceptance remain open."
+    ]
+  },
+  "documentation": {
+    "help_files": 50,
+    "help_bytes": 1963095,
+    "source_built_equal": true,
+    "built_extra": "Compiler-generated Contents/Resources/en.lproj/TurtleGitHelp.helpindex",
+    "site_log": "build/qa/resolve-mutation-site-2026-10-16.log",
+    "site_exit": 0,
+    "coverage_ledger": "regenerated"
+  },
+  "hosted_observation": {
+    "macos_run": 38945882818,
+    "head": "7e0abc29",
+    "status": "pending",
+    "older_running_macos_run": 38938237741,
+    "older_head": "2ee986c3",
+    "pages_run": 38945882783,
+    "pages_conclusion": "success"
+  },
+  "limits": [
+    "Full hosted CI, physical UI, signed Finder/sandbox and App Store acceptance remain open",
+    "Source action-mask corners, column menus/hit testing, every submodule/partial-error and external-writer combination remain open"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

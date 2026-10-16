@@ -37,11 +37,11 @@ import TurtleGitCore
         model.openFile={opened.append(($0,$1))};model.openFileEditor={edited.append($0)};model.revealFiles={revealed.append($0)}
         model.onFileUnified={bytes,shift,_ in patch=bytes;alternate=shift};model.writeFileClipboard={copied=$0};model.onComparison={prepared=$0}
         let first=model.fileMenu([paths[0]])
-        try require(first.commands==[.compareBase,.unified,.log,.blame,.editor,.open,.openWith,.reveal] && first.commands.allSatisfy{$0.icon.image() != nil},"Ordinary source menu/icons differ")
+        try require(first.commands==[.compareBase,.unified,.revert,.log,.blame,.editor,.open,.openWith,.reveal] && first.commands.allSatisfy{$0.icon.image() != nil},"Ordinary source menu/icons differ")
         let absent=model.fileMenu([paths[2]])
         try require(!absent.commands.contains(.open) && !absent.commands.contains(.blame) && absent.commands.contains(.reveal),"Missing working-file gates differ")
         let module=model.fileMenu(["module.ext"])
-        try require(module.commands==[.log,.submoduleLog,.reveal],"Gitlink menu confused child and ordinary file actions")
+        try require(module.commands==[.revert,.log,.submoduleLog,.reveal,.delete],"Missing gitlink menu confused child and ordinary file actions")
         model.selection=[paths[1]];model.fileCommand(.log,menu:first);try await wait {!model.busy}
         try require(logs==[paths[0]],"Captured menu followed later selection")
         model.fileCommand(.reveal,menu:first);try require(revealed.isEmpty,"Retained menu invoked twice")
