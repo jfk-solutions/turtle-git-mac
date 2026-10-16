@@ -1647,3 +1647,14 @@ full Commit reloads retain post-retirement Quit/access lifetime. Eight grouped n
 and absent. Physical, complete metadata-pipeline and signed acceptance remain open.
 See [the evidence](qa/file-list-refresh-2026-10-16.json).
 See [file-list refresh parity](FILE-LIST-REFRESH-PARITY.md).
+
+### Comparison common-record and interval family — October 16, 2026
+
+Engine-captured options now drive two-pane common-row visibility. Combined common
+records retain Mine payload/Base EOL, distinct from each side's input bytes and
+encoding; editing/export uses that captured layout. Moved-block display joins
+contiguous modified intervals before pairing and preserves original move plans.
+See [source rules and acceptance limits](MERGE-COMMON-RECORDS-PARITY.md).
+
+Seventy focused Core checks and all four grouped native workflows pass. The four
+owned receivers were reaped and independently absent. See [batch evidence](qa/merge-common-records-2026-10-16.json) for scope and limits.

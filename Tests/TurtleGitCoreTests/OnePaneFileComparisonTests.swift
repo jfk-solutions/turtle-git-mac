@@ -107,3 +107,37 @@ final class OnePaneFileComparisonTests: XCTestCase {
         XCTAssertEqual(OnePaneFileComparison(alignment: spaces, options: .init(whitespace: .ignoreChanges)).cells.map(\.displayText), ["a  b","a b"])
     }
 }
+
+extension OnePaneFileComparisonTests {
+    func testCommonCombinedRecordsUseBaseEndingForEveryRecognizedStyle() throws {
+        for first in MergeLineEnding.allCases {
+            for second in MergeLineEnding.allCases {
+                let base = "same 🐢" + first.rawValue, mine = "same 🐢" + second.rawValue
+                let input = try alignment(base,mine,options:.init())
+                XCTAssertEqual(input.rows.first?.base.text,base)
+                XCTAssertEqual(input.rows.first?.destination.text,mine)
+                let combined = OnePaneFileComparison(alignment:input)
+                XCTAssertEqual(combined.cells.map(\.text),[base],"Base EOL \(first), Mine EOL \(second)")
+                XCTAssertEqual(combined.sourceSaveText,base)
+                XCTAssertEqual(try combined.editingSource(for:[]).text,base)
+                XCTAssertTrue(combined.cells.allSatisfy(\.hiddenByComparison))
+                XCTAssertTrue(combined.differences.isEmpty)
+            }
+        }
+    }
+    func testCollapsedWhitespaceCommonRecordRetainsMinePayloadAndBaseEnding() throws {
+        for options in [MergeComparisonOptions(whitespace:.ignoreAll),.init(whitespace:.ignoreChanges)] {
+            let input = try alignment(" \ta b\r\n","  a b\n",options:options)
+            let combined = OnePaneFileComparison(alignment:input,options:options)
+            XCTAssertEqual(combined.sourceSaveText,"  a b\r\n")
+            XCTAssertEqual(input.rows[0].destination.text,"  a b\n")
+            let changed = try combined.applying("🐢",ranges:[NSRange(location:2,length:1)])
+            XCTAssertEqual(changed.text,"  🐢 b\r\n")
+        }
+        // Split aliases retain each side's own ending instead.
+        let options = MergeComparisonOptions(whitespace:.ignoreChanges)
+        let split = OnePaneFileComparison(alignment:try alignment("a  b\r\n","a b\n",options:options),options:options)
+        XCTAssertEqual(split.cells.map(\.text),["a  b\r\n","a b\n"])
+        XCTAssertEqual(split.sourceSaveText,"a  b\r\na b\n")
+    }
+}

@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "f57967b8ce355f083b190b66f18b4400e1f49f3e",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "DiffData.cpp::DoTwoWayDiff common combined records use Mine payload and Base EOL",
+    "DiffData.cpp::DoTwoWayDiff two-pane Normal/FilteredDiff and HideState branches",
+    "DiffData.cpp::StickAndSkip adjacent modified intervals while moved blocks are enabled"
+  ],
+  "scope": [
+    "Capture engine options in immutable SubversionDiffPlan for common-row presentation",
+    "Combined unsplit common payload/Base ending serialization; split aliases retain independent endings",
+    "Contiguous modified interval sticking before display pairing; original plan retained for move detection",
+    "Malformed/common-length validation and cancellation before presentation publication"
+  ],
+  "core": {
+    "log": "build/qa/merge-common-core-2026-10-16.log",
+    "exit": 0,
+    "tests": 70,
+    "failures": 0,
+    "filter": "MergeComparisonOptionsTests|OnePaneFileComparisonTests|MergeTerminalRecordTests|MergeMovedBlockTests|SubversionMergePresentationTests",
+    "ending_pairs": 81,
+    "retained_source_move_oracle_cases": 1265
+  },
+  "build": {
+    "log": "build/qa/merge-common-build-2026-10-16.log",
+    "exit": 0,
+    "exit_zero_no_output_diagnostics": 1
+  },
+  "native": {
+    "log": "build/qa/merge-common-native-2026-10-16.log",
+    "exit": 0,
+    "cases": [
+      "common",
+      "whitespace",
+      "terminal",
+      "moved"
+    ],
+    "passes": 4,
+    "receiver_compilations": 1,
+    "owned_receiver_pids": [
+      75897,
+      75920,
+      75937,
+      75947
+    ],
+    "all_owned_receiver_pids_absent": true,
+    "coverage": [
+      "Actual native common display, two-pane versus combined export bytes, input preservation and Mine UTF-8 BOM encoding",
+      "Combined native edit, Undo/Redo/save and return to two-pane view",
+      "Retained whitespace source states, private light/dark palette, modified-only Find, folding, export and save",
+      "Retained EOF/empty rows, source line chooser, locator, UTF-16 BOM/CRLF save and history",
+      "Retained moved-block icons/tooltips/navigation, stale targets, Save/Cancel/discard, private settings and unchanged files"
+    ],
+    "captures": false
+  },
+  "help": {
+    "source_files": 50,
+    "source_bytes": 1967763,
+    "bundled_mismatches": [],
+    "regenerated": false
+  },
+  "website": {
+    "log": "build/qa/merge-common-site-2026-10-16.log",
+    "documents": 261,
+    "unresolved_fragments": []
+  },
+  "hosted": {
+    "prior_run": 38967919455,
+    "prior_commit": "f87ac75ac231a3956c4b56a3283192861d69cddc",
+    "last_observed": "Git integration tests in progress; compilation passed; not cancelled or restarted",
+    "full_success_confirmed": false
+  },
+  "repairs": [],
+  "limits": [
+    "No full Core rerun or physical native keyboard/menu/VoiceOver certification.",
+    "One native receiver compilation links actual built Debug objects; four separate owned processes run the cases.",
+    "No new dialog layout or screenshots; existing source icons/color settings are retained.",
+    "No complete engine segmentation, large-file performance, minimum-OS, signed Finder sandbox or App Store acceptance claim."
+  ]
+}

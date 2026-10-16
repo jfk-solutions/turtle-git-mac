@@ -56,3 +56,8 @@ complete editor, physical or signed behavior.
 The [comparison EOF continuation](MERGE-EOF-PARITY.md) now restores the source
 DoTwoWayDiff final-record/trailing-gap repair. Move detection still uses original
 physical engine intervals, and source-to-view links retain original line numbers.
+
+The [common-record continuation](MERGE-COMMON-RECORDS-PARITY.md) now joins adjacent
+modified plan intervals before display pairing when moves are enabled, following
+StickAndSkip. Earlier descriptions of that entire step as absent are superseded;
+complete DiffData and physical/signed acceptance remain open.

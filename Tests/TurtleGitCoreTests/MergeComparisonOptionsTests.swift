@@ -54,3 +54,39 @@ final class MergeComparisonOptionsTests: XCTestCase {
         XCTAssertEqual(value.base.joined(), "ALPHA\t BETA\r\n")
     }
 }
+
+extension MergeComparisonOptionsTests {
+    func testEnginePlanCapturesOptionsForCommonDisplayAndFolding() throws {
+        for whitespace in MergeWhitespaceComparison.allCases {
+            let options = MergeComparisonOptions(whitespace:whitespace,ignoreCase:true)
+            let value = try plan("ALPHA\r\n","alpha\n",options:options)
+            XCTAssertEqual(value.options,options)
+            let cell = try SubversionComparisonPresentation(plan:value).alignment.rows[0].base
+            XCTAssertEqual(cell.state,.filtered);XCTAssertFalse(cell.hiddenByComparison)
+        }
+        for whitespace in [MergeWhitespaceComparison.ignoreChanges,.ignoreAll] {
+            let value = try plan("a  b\r\n","a b\n",options:.init(whitespace:whitespace))
+            let cell = try SubversionComparisonPresentation(plan:value).alignment.rows[0].base
+            XCTAssertEqual(cell.state,.normal);XCTAssertTrue(cell.hiddenByComparison)
+        }
+        let endings = try plan("same\r\n","same\n",options:.init())
+        let cell = try SubversionComparisonPresentation(plan:endings).alignment.rows[0].base
+        XCTAssertEqual(cell.state,.normal);XCTAssertTrue(cell.hiddenByComparison)
+    }
+    func testAdjacentMoveSegmentsStickBeforePairingAndDoNotLoseSourceCoordinates() throws {
+        let segments:[SubversionDiffSegment] = [.init(kind:.modified,base:0..<2,mine:0..<1,theirs:0..<0),.init(kind:.modified,base:2..<3,mine:1..<3,theirs:0..<0)]
+        let value = SubversionDiffPlan(segments:segments,base:["old 1\n","old 2\n","old 3\n"],mine:["new 1\n","new 2\n","new 3\n"],theirs:nil)
+        let off = try SubversionComparisonPresentation(plan:value).alignment
+        let on = try SubversionComparisonPresentation(plan:value,detectMovedBlocks:true).alignment
+        XCTAssertEqual(off.differences,[0..<2,2..<4]);XCTAssertEqual(on.differences,[0..<3])
+        XCTAssertEqual(on.rows.prefix(3).map(\.base.lineNumber),[1,2,3]);XCTAssertEqual(on.rows.prefix(3).map(\.destination.lineNumber),[1,2,3])
+        XCTAssertEqual(on.rows.map(\.base.text).joined(),value.base.joined());XCTAssertEqual(on.rows.map(\.destination.text).joined(),value.mine.joined())
+        XCTAssertEqual(OnePaneFileComparison(alignment:on).sourceSaveText,value.mine.joined())
+    }
+    func testInvalidAndCancelledComparisonPlansRefusePublication() throws {
+        let bad = SubversionDiffPlan(segments:[.init(kind:.common,base:0..<2,mine:0..<1,theirs:0..<0)],base:["a\n"],mine:["b\n"],theirs:nil)
+        XCTAssertThrowsError(try SubversionComparisonPresentation(plan:bad))
+        let value = try plan("old\n","new\n",options:.exact),token = OperationCancellation();token.cancel()
+        XCTAssertThrowsError(try SubversionComparisonPresentation(plan:value,cancellation:token))
+    }
+}

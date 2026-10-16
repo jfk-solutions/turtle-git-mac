@@ -33,22 +33,46 @@ public struct SubversionComparisonPresentation: Sendable {
             .init(text: lines[index], lineNumber: index + 1, state: state, hiddenByComparison: hidden)
         }
         let gap = MergeSourceCell(text: "", lineNumber: nil, state: .empty)
+        // MovedBlocksDetect can split a changed interval into adjacent pieces.
+        // DiffData::StickAndSkip restores one display block when moves are on.
+        var segments: [SubversionDiffSegment] = []
         for segment in plan.segments {
+            try cancellation?.check()
+            guard segment.base.lowerBound >= 0, segment.base.upperBound <= plan.base.count,
+                  segment.mine.lowerBound >= 0, segment.mine.upperBound <= plan.mine.count,
+                  segment.kind == .common || segment.kind == .modified,
+                  segment.kind != .common || segment.base.count == segment.mine.count else {
+                throw SubversionMergeDiffFailure.invalidOutput
+            }
+            if detectMovedBlocks, segment.kind == .modified, let previous = segments.last, previous.kind == .modified,
+               previous.base.upperBound == segment.base.lowerBound, previous.mine.upperBound == segment.mine.lowerBound {
+                segments[segments.count - 1] = .init(kind:.modified,base:previous.base.lowerBound..<segment.base.upperBound,
+                                                   mine:previous.mine.lowerBound..<segment.mine.upperBound,theirs:0..<0)
+            } else { segments.append(segment) }
+        }
+        for segment in segments {
+            try cancellation?.check()
             switch segment.kind {
             case .common:
                 for offset in 0..<segment.base.count {
+                    if offset % 256 == 0 { try cancellation?.check() }
                     let a = segment.base.lowerBound + offset, b = segment.mine.lowerBound + offset
                     let payloadDiffers = !MergeLineEndings.droppingFinalEnding(plan.base[a]).utf8.elementsEqual(MergeLineEndings.droppingFinalEnding(plan.mine[b]).utf8)
+                    // DoTwoWayDiff resets its provisional Whitespace state to
+                    // Normal before applying regex/case/comment FilteredDiff.
+                    // Equal payloads (even with unequal endings) always hide.
                     let state: MergeSourceState = payloadDiffers && plan.contentFiltered ? .filtered : .normal
-                    rows.append(.init(base: cell(plan.base, a, state, hidden: state == .normal), destination: cell(plan.mine, b, state, hidden: state == .normal)))
+                    let hidden = !payloadDiffers || state == .normal && plan.options.whitespace != .compare
+                    rows.append(.init(base: cell(plan.base, a, state, hidden: hidden), destination: cell(plan.mine, b, state, hidden: hidden)))
                 }
             case .modified:
                 let start = rows.count
                 for offset in 0..<max(segment.base.count, segment.mine.count) {
+                    if offset % 256 == 0 { try cancellation?.check() }
                     rows.append(.init(base: offset < segment.base.count ? cell(plan.base, segment.base.lowerBound + offset, .removed) : gap,
                                       destination: offset < segment.mine.count ? cell(plan.mine, segment.mine.lowerBound + offset, .added) : gap))
                 }
-                differences.append(start..<rows.count)
+                if start < rows.count { differences.append(start..<rows.count) }
             default: throw SubversionMergeDiffFailure.invalidOutput
             }
         }
@@ -73,6 +97,7 @@ public struct SubversionComparisonPresentation: Sendable {
                 else { differences.append(target..<(target + 1)) }
             }
         }
+        try cancellation?.check()
         alignment = FileComparisonAlignment(rows: rows, differences: differences)
         movedBlocks = detectMovedBlocks ? try MergeMovedBlock.detect(plan:plan,whitespace:whitespace,cancellation:cancellation) : []
     }

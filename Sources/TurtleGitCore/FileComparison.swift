@@ -435,7 +435,14 @@ public struct OnePaneFileComparison: Sendable {
                     let hidden = options.whitespace != .compare
                     append(row.base, at: index, base: true, state: .removedWhitespace, number: row.destination.lineNumber, hidden: hidden)
                     append(row.destination, at: index, base: false, state: .addedWhitespace, hidden: hidden)
-                } else { append(row.destination, at: index, base: false, state: .normal, hidden: true) }
+                } else {
+                    // DiffData's common combined record uses Your payload but
+                    // Base EOL, including NoEnding. Keep the two-pane originals
+                    // intact; only this serialized combined record adopts it.
+                    let baseEnding = (row.base.text as NSString).substring(from:row.base.displayText.utf16.count)
+                    let cell = MergeSourceCell(text:row.destination.displayText + baseEnding,lineNumber:row.destination.lineNumber,state:.normal,hiddenByComparison:true)
+                    append(cell, at:index, base:false)
+                }
                 index += 1
             }
         }

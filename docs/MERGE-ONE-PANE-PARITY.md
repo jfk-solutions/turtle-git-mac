@@ -187,3 +187,9 @@ The selected display block remains distinct from the insertion caret.
 The [final-record continuation](MERGE-EOF-PARITY.md) adds the source two-pane
 NoEnding EOF post-pass while keeping those original empty terminal records out of
 combined view. Edited empty user records remain part of combined editing.
+
+The [common-record family](MERGE-COMMON-RECORDS-PARITY.md) now retains the source's
+Base EOL on unsplit common combined records while keeping Mine's payload and
+encoding. Two-pane originals and unedited drafts remain independent. Split
+neutral aliases still retain each side's own ending; earlier blanket statements
+about all common records preserving Mine endings are superseded by this scope.
