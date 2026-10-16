@@ -51,3 +51,8 @@ complete editor, physical or signed behavior.
 ![Moved block source and destination margins, light](site/assets/merge-moved-blocks-light.png)
 
 ![Moved block source and destination margins, dark](site/assets/merge-moved-blocks-dark.png)
+
+
+The [comparison EOF continuation](MERGE-EOF-PARITY.md) now restores the source
+DoTwoWayDiff final-record/trailing-gap repair. Move detection still uses original
+physical engine intervals, and source-to-view links retain original line numbers.

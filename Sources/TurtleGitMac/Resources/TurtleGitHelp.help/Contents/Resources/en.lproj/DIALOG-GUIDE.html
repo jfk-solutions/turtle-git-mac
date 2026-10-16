@@ -407,7 +407,11 @@ marker in the margin to expand it; moved icons retain their counterpart jump.</p
 <p>In two-file text comparison, <strong>View → Moved blocks</strong> marks relocated lines in
 the margins. Hover a move icon for its destination/source line; double-click
 the margin or use <strong>Go to moved block</strong> in the text context menu to select the
-counterpart. It also works in combined view. Changing this comparison option
+counterpart. It also works in combined view. Two-pane comparisons retain the
+final empty line after a trailing ending; Go to Line and gutter input can select
+it, and typing there appends text without changing the previous ending. Combined
+view follows TortoiseMerge’s separate layout and omits that empty EOF record.
+Changing this comparison option
 asks about unsaved edits before reloading the files.</p>
 <p>Use <strong>View → Switch left and right view</strong> to reverse a two-file comparison.
 Unsaved edits get Save/Don't Save/Cancel before reloading. Each file keeps its

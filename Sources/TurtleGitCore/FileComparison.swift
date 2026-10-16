@@ -410,6 +410,10 @@ public struct OnePaneFileComparison: Sendable {
         var output: [Row] = [], ranges: [Range<Int>] = [], index = 0
         func append(_ cell: MergeSourceCell, at index: Int, base: Bool, state: MergeSourceState? = nil, number: Int? = nil, hidden: Bool? = nil) {
             guard cell.lineNumber != nil else { return }
+            // DiffData only installs the trailing NoEnding empty record in its
+            // left/right views, after building the combined view. Edited empty
+            // records are user content and remain eligible in retained layouts.
+            guard !cell.text.isEmpty || cell.state == .edited else { return }
             output.append(Row(cell: MergeSourceCell(text: cell.text, lineNumber: base ? (state == .removedWhitespace ? number : nil) : cell.lineNumber, state: state ?? cell.state, hiddenByComparison: hidden ?? cell.hiddenByComparison), alignmentRow: index, base: base))
         }
         let starts = Dictionary(uniqueKeysWithValues: alignment.differences.map { ($0.lowerBound, $0) })
@@ -418,7 +422,7 @@ public struct OnePaneFileComparison: Sendable {
                 let start = output.count
                 for row in range { append(alignment.rows[row].base, at: row, base: true, state: .removed) }
                 for row in range { append(alignment.rows[row].destination, at: row, base: false, state: .added) }
-                ranges.append(start..<output.count); index = range.upperBound
+                if output.count > start { ranges.append(start..<output.count) }; index = range.upperBound
             } else {
                 let row = alignment.rows[index]
                 let payloadDiffers = !row.base.displayText.utf8.elementsEqual(row.destination.displayText.utf8)

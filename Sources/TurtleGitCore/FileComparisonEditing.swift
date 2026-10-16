@@ -295,6 +295,23 @@ public enum FileComparisonEditing {
         }
         let replacement: String
         switch choice { case .other: replacement = otherText; case .otherThenCurrent: replacement = both(otherText, currentText); case .currentThenOther: replacement = both(currentText, otherText) }
+        if choice == .other {
+            // UseViewBlock::VerifyEols makes every occupied record except the
+            // last an ended line. A real empty EOF record counts as occupied;
+            // alignment gaps do not. In particular, accepting an added EOF
+            // record after an unterminated target line must supply its ending.
+            let before = alignment.rows.prefix(range.lowerBound).map(target).filter { $0.lineNumber != nil }.map(\.text)
+            let incoming = alignment.rows[range].map(other).filter { $0.lineNumber != nil }.map { MergeLineEndings.converting($0.text,to:style) }
+            let after = alignment.rows.suffix(from:range.upperBound).map(target).filter { $0.lineNumber != nil }.map(\.text)
+            let records = before + incoming + after
+            let text = records.enumerated().map { index,value in
+                index < records.count - 1 && !MergeLineEndings.hasFinalEnding(value) ? value + style.rawValue:value
+            }.joined()
+            let caret = (before + incoming).enumerated().reduce(0) { count,item in
+                count + item.element.utf16.count + (item.offset < records.count - 1 && !MergeLineEndings.hasFinalEnding(item.element) ? style.rawValue.utf16.count:0)
+            }
+            return (text,caret)
+        }
         return ((original as NSString).replacingCharacters(in: NSRange(location: start, length: length), with: replacement), start + (replacement as NSString).length)
     }
     public static func exported(_ content: ComparisonFileContent, editedText: String? = nil) throws -> Data {

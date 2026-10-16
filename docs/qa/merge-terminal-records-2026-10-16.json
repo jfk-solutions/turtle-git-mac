@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "0a8f23fd67c8d20f93cced5cff36f99189175a79",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Two-file DoTwoWayDiff terminal NoEnding records, combined exclusion and block ending repair",
+  "source": [
+    "FileTextLines.cpp Load final Add(line,NoEnding)",
+    "DiffData.cpp DoTwoWayDiff last-line post-pass",
+    "BaseView.cpp UseViewBlock final occupied-record ending repair"
+  ],
+  "implementation": [
+    "Restore real empty/ended-file final records only in two-pane projection with source numbers and shown Normal or Added/Removed states",
+    "Fill first trailing gap before appending; retain existing peer rows and physical engine/move intervals",
+    "Combined view built before source EOF post-pass: exclude original empty NoEnding records and empty difference ranges, retain edited empty content",
+    "Use other block repairs missing endings on non-final occupied records; real EOF empty records count, alignment gaps do not",
+    "Existing native Go to Line, locator, gutters, typing/history and encoded export/Save consume original record bytes"
+  ],
+  "core": {
+    "log": "build/qa/merge-terminal-core-2026-10-16.log",
+    "exit": 0,
+    "tests": 80,
+    "failures": 0,
+    "skipped": 0,
+    "suites": {
+      "FileComparisonEditingTests": 20,
+      "MergeMovedBlockTests": 4,
+      "MergeTerminalRecordTests": 7,
+      "OnePaneFileComparisonTests": 10,
+      "SubversionMergePresentationTests": 39
+    },
+    "full_suite_repeated": false,
+    "new_coverage": "Nine ending styles and empty files; one-sided terminal state, first trailing-gap fill, literal reconstruction, source/display EOF caret, CRLF/UTF-16 input, multiline input and added EOF block ending repair"
+  },
+  "debug": {
+    "log": "build/qa/merge-terminal-build-2026-10-16.log",
+    "exit": 0,
+    "exit_zero_no_output_diagnostics": 0
+  },
+  "native": {
+    "initial_log": "build/qa/merge-terminal-native-2026-10-16.log",
+    "continuation_log": "build/qa/merge-terminal-native-sheet-2026-10-16.log",
+    "continuation_exit": 0,
+    "distinct_cases": [
+      "terminal",
+      "margin",
+      "margin-selection",
+      "moved",
+      "wrapped",
+      "navigation"
+    ],
+    "successful_receivers": 7,
+    "failed_receivers": 1,
+    "capture_log": "build/qa/merge-terminal-capture-2026-10-16.log",
+    "capture_exit": 0,
+    "failure": "Retained margin-selection receiver PID 55020 crashed at objc_release in MergeMarginSelectionVerification.verify; owned diagnostic report inspected. Its locally created NSWindow sheet still used release-on-close, a lifetime hazard. Set isReleasedWhenClosed=false. The affected and not-yet-run four cases then passed; the already-passed EOF and margin cases were not repeated except the planned EOF capture follow-up. Stack alone does not prove the unique historical cause.",
+    "fixture_contract_updates": "Retained two-file margin counts now include shown terminal record (5 and 101); three-way count remains four. OnePane source hide test distinguishes shown final EOF from hidden common payload.",
+    "owned_receivers_reaped_and_independently_absent": [
+      55009,
+      55016,
+      55020,
+      55106,
+      55113,
+      55122,
+      55126,
+      55169
+    ],
+    "capture_helpers": "Two passive compositor captures, synchronous helpers waited, exit 0; no application activation or global input posting.",
+    "actual_checks": [
+      "Actual native final record line numbers, Go to Line limit/caret and locator rows",
+      "Exact original export bytes; EOF typing Undo/Redo and real UTF-16 BOM/CRLF working-file Save",
+      "Reloaded one-sided EOF placement, combined projection, empty-file line 1 input/Undo and preserved Base",
+      "Retained gutter icons/selection/drag, moved blocks, wrapping and block navigation"
+    ],
+    "git_engine_repetition": "Standalone native file-editor and pinned comparison engine; no duplicate Git-engine run needed."
+  },
+  "documentation": {
+    "help_files": 50,
+    "help_bytes": 1963923,
+    "source_built_equal": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/merge-terminal-records-dark.png",
+        "width": 2300,
+        "height": 1566,
+        "sha256": "ea910642d9c7efef6bab9bc476f4531c5c9a472418fbbeb655e0694cabd359b8"
+      },
+      {
+        "path": "docs/site/assets/merge-terminal-records-light.png",
+        "width": 2300,
+        "height": 1566,
+        "sha256": "1ad87ac43161f57aef756996d39a97e460a8bce0623bf4fedd1b90b88493a0ae"
+      }
+    ],
+    "visual_review": "Both raw compositor PNGs individually inspected. Base terminal empty NoEnding line 2 is orange Removed opposite real unterminated added tail text; line numbers, original margin icons, locator and UTF-16LE BOM/CRLF metadata are visible in both appearances. Inactive native toolbar dimming retained.",
+    "site_log": "build/qa/merge-terminal-site-2026-10-16.log",
+    "coverage_ledger": "regenerated",
+    "site_exit": 0,
+    "site_documents": 258,
+    "unresolved_fragments": 0
+  },
+  "hosted_observation": {
+    "macos_run": 38952131998,
+    "head": "0a8f23fd",
+    "status": "pending",
+    "pages_run": 38952131605,
+    "pages_conclusion": "success"
+  },
+  "limits": [
+    "This ports the two-file EOF post-pass; no fabricated three-way EOF records",
+    "Every marked-save/block-order/fold/virtual-wrapped geometry combination and physical mouse/VoiceOver remain open",
+    "Minimum OS, signed Finder/sandbox, full hosted CI and App Store/full application acceptance remain open"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

@@ -35,7 +35,7 @@ struct MergeMarginVerification {
         model.commentProfileURL=root.appendingPathComponent("comments.txt");model.load()
         try await TwoPaneEngineVerification.settled(model)
         func views()->[NSTextView] {TwoPaneEngineVerification.editors(pair.window?.contentView).filter {$0 is ComparisonContextMenuProviding}}
-        try await wait {views().count==2 && views().allSatisfy {($0.enclosingScrollView?.verticalRulerView as? MergeLineRuler)?.presentation.symbols.count==4}}
+        try await wait {views().count==2 && views().allSatisfy {($0.enclosingScrollView?.verticalRulerView as? MergeLineRuler)?.presentation.symbols.count==5}}
         let left=views().first {$0.string.contains("old record")}!,right=views().first {$0.string.contains("new record")}!
         let lr=left.enclosingScrollView!.verticalRulerView as! MergeLineRuler,rr=right.enclosingScrollView!.verticalRulerView as! MergeLineRuler
         try require(lr.symbol(at:1) == .whitespace && rr.symbol(at:1) == .whitespace && lr.symbol(at:2) == .removed && rr.symbol(at:2) == .added,"Actual two-pane margin states/whitespace differ")

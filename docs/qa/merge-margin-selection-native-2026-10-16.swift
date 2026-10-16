@@ -49,7 +49,7 @@ struct MergeMarginSelectionVerification {
         defer {pair.close()};pair.window!.alphaValue=0;pair.window!.setContentSize(.init(width:1150,height:700));pair.window!.orderFront(nil)
         model.commentProfileURL=root.appendingPathComponent("comments.txt");model.load();try await TwoPaneEngineVerification.settled(model)
         func editors()->[NSTextView] {TwoPaneEngineVerification.editors(pair.window?.contentView).filter {$0 is ComparisonContextMenuProviding}}
-        try await wait {editors().count==2 && editors().allSatisfy {ruler($0).presentation.symbols.count==100}}
+        try await wait {editors().count==2 && editors().allSatisfy {ruler($0).presentation.symbols.count==101}}
         let left=editors().first {$0.string.contains("record 5 🐢")==true && !$0.string.contains("changed record")}!,right=editors().first {$0 !== left}!
         let ranges=MergeSourceComparison.navigationRanges(text:right.string)
         click(right,1)
@@ -73,6 +73,7 @@ struct MergeMarginSelectionVerification {
         model.undo();try await wait {!model.dirty}
         // An owned sheet rejects input before any selection/anchor change.
         let sheet=NSWindow(contentRect:.init(x:0,y:0,width:100,height:60),styleMask:[.titled],backing:.buffered,defer:false)
+        sheet.isReleasedWhenClosed=false
         pair.window!.beginSheet(sheet,completionHandler:{_ in});let before=right.selectedRange();click(right,1)
         try require(right.selectedRange()==before && !rr.marginDragging,"Owned sheet accepted gutter input")
         pair.window!.endSheet(sheet);sheet.orderOut(nil);sheet.close();try await wait {pair.window?.attachedSheet==nil}

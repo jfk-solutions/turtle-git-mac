@@ -52,6 +52,27 @@ public struct SubversionComparisonPresentation: Sendable {
             default: throw SubversionMergeDiffFailure.invalidOutput
             }
         }
+        // FileTextLines::Load retains a final NoEnding record, including for an
+        // empty file. svn_diff does not report an empty final token. DiffData's
+        // two-pane post-pass adds it, or fills the first trailing Empty slot.
+        let baseEOF = plan.base.isEmpty || plan.base.last.map(MergeLineEndings.hasFinalEnding) == true
+        let mineEOF = plan.mine.isEmpty || plan.mine.last.map(MergeLineEndings.hasFinalEnding) == true
+        if baseEOF && mineEOF {
+            rows.append(.init(base:.init(text:"",lineNumber:plan.base.count + 1,state:.normal,hiddenByComparison:false),
+                              destination:.init(text:"",lineNumber:plan.mine.count + 1,state:.normal,hiddenByComparison:false)))
+        } else if baseEOF || mineEOF {
+            let terminal = MergeSourceCell(text:"",lineNumber:(baseEOF ? plan.base.count:plan.mine.count) + 1,state:baseEOF ? .removed:.added,hiddenByComparison:false)
+            var target = rows.count
+            while target > 0 && (baseEOF ? rows[target - 1].base:rows[target - 1].destination).state == .empty { target -= 1 }
+            if target < rows.count {
+                let old = rows[target]
+                rows[target] = .init(base:baseEOF ? terminal:old.base,destination:baseEOF ? old.destination:terminal)
+            } else { rows.append(.init(base:baseEOF ? terminal:gap,destination:baseEOF ? gap:terminal)) }
+            if !differences.contains(where:{$0.contains(target)}) {
+                if let last = differences.last,last.upperBound == target { differences[differences.count - 1] = last.lowerBound..<(target + 1) }
+                else { differences.append(target..<(target + 1)) }
+            }
+        }
         alignment = FileComparisonAlignment(rows: rows, differences: differences)
         movedBlocks = detectMovedBlocks ? try MergeMovedBlock.detect(plan:plan,whitespace:whitespace,cancellation:cancellation) : []
     }

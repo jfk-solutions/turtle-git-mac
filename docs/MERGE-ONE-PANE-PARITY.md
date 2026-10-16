@@ -182,3 +182,8 @@ This does not certify the complete Merge/editor family.
 Initial first-difference selection now searches the combined source-state list,
 so a neutral Base alias before the first engine changed region is selected first.
 The selected display block remains distinct from the insertion caret.
+
+
+The [final-record continuation](MERGE-EOF-PARITY.md) adds the source two-pane
+NoEnding EOF post-pass while keeping those original empty terminal records out of
+combined view. Edited empty user records remain part of combined editing.

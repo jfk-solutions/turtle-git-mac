@@ -11,7 +11,9 @@ final class OnePaneFileComparisonTests: XCTestCase {
     func testWhitespaceCommonRowsUseSourceStatesVisibilityNumbersAndFindCategories() throws {
         let options = MergeComparisonOptions(whitespace:.ignoreChanges)
         let input = try alignment("a  b\r\n","a b\r\n",options:options)
-        XCTAssertTrue(input.rows.allSatisfy{$0.base.state == .normal && $0.base.hiddenByComparison && $0.destination.hiddenByComparison})
+        XCTAssertTrue(input.rows.dropLast().allSatisfy{$0.base.state == .normal && $0.base.hiddenByComparison && $0.destination.hiddenByComparison})
+        XCTAssertEqual(input.rows.last?.base.text, ""); XCTAssertEqual(input.rows.last?.base.lineNumber, 2)
+        XCTAssertEqual(input.rows.last?.base.hiddenByComparison, false)
         let combined = OnePaneFileComparison(alignment:input,options:options)
         XCTAssertEqual(combined.cells.map(\.state),[.removedWhitespace,.addedWhitespace])
         XCTAssertEqual(combined.cells.map(\.lineNumber),[1,1]);XCTAssertTrue(combined.cells.allSatisfy(\.hiddenByComparison))
