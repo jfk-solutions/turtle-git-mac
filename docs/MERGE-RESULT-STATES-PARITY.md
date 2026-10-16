@@ -1,5 +1,39 @@
 # Merge resolved and edited presentation
 
+## Aligned formatting and operation ownership — October 16, 2026
+
+Result line-ending and whitespace commands now transform view records rather than
+replace the serialized result as one string. They skip Empty/ConflictEmpty gaps,
+retain row states and logical numbers, and can update the display-only removed
+Base records. Existing unended final lines remain unended. Unresolved marker
+blocks and their original source payloads are retained independently of result
+record formatting. Formatting an ignored-conflict Mine payload updates its range
+and Mine metadata without silently resolving that conflict. Native command
+availability and the result format ribbon inspect view payloads, not synthetic
+display LFs or hidden marker text.
+
+The output line-ending choice is retained separately from serialized marker
+endings and controls subsequent typing/paste and source block normalization.
+Encoding-only and combined Encoding/EOL choices use one history transaction;
+Undo/Redo restores text, all-pane layout/provenance, encoding and output ending.
+The combined choice validates the selected encoding before applying any change.
+Whitespace/direct ending commands leave encoding validation to Save, so a legacy
+Mine file with Unicode in Theirs remains editable without accepting lossy output.
+Save records the selected format baseline, and Undo across that savepoint makes
+the earlier format dirty again.
+
+The native format sheet is owned by its document, participates in active-operation
+Quit accounting, and blocks concurrent Save, reload, block choices and editing.
+Cancel leaves state/history intact. Duplicate requests and responses for a retired
+owner cannot apply. Forced owner closure ends its own format sheet and releases
+accounting. Keyboard/model Undo, typing and clipboard writes read model operation
+gates immediately, including before a deferred isEditable refresh during Save.
+
+These built-in formatting commands retain aligned editing after either source
+order. Arbitrary external serialized-result replacement can still invalidate
+precise row mapping; it retains the existing serialized fallback. Complete IME,
+large-file, physical visual parity and signed acceptance remain open.
+
 ## All-pane block choices and empty records — October 16, 2026
 
 Mine/Theirs and both ordering choices now operate on aligned view records. The
@@ -233,3 +267,5 @@ Aligned row-model evidence: [October 16 grouped verification](qa/merge-aligned-r
 Native aligned editor evidence: [October 16 grouped verification](qa/merge-aligned-editor-2026-10-16.json).
 
 All-pane block-choice evidence: [October 16 grouped verification](qa/merge-both-blocks-2026-10-16.json).
+
+Aligned result-format evidence: [October 16 grouped verification](qa/merge-result-format-2026-10-16.json).

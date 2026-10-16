@@ -2249,3 +2249,12 @@ cleanup of rows empty in all three panes, captured-command layout ownership and
 complete all-pane Undo/Redo. Core tests check the same record operations with
 unequal source lengths, mixed endings and EOF without an ending. The default
 merge group includes this case in its single cached fixture compilation.
+
+`scripts/test-merge-ignored.py --only format` checks result whitespace/EOL native
+menus, preserved row states and raw conflict bytes, encoding-only and combined
+format Undo/Redo, the actual Encoding sheet Cancel path, pending-choice
+Save/reload/Quit/edit gates, late-answer ownership, immediate Save-versus-Undo/key
+and typing races, and exact UTF-16BE BOM output. The grouped default compiles this
+fixture with the retained merge cases once. Core presentation cases cover removed
+row formatting, ignored-conflict metadata, no-op conversion and explicit typing
+endings when the result contains only blank conflict records.

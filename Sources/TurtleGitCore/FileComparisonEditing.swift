@@ -13,7 +13,7 @@ public struct FileComparisonInPlaceEdit: Sendable {
     public let insertedRows: Range<Int>
     public let removedEmptyRows: [Int]
     public init(alignment: FileComparisonAlignment, combined: OnePaneFileComparison? = nil,
-                base: Bool, range: NSRange, replacement: String) throws {
+                base: Bool, range: NSRange, replacement: String, lineEnding: MergeLineEnding? = nil) throws {
         let source = combined?.cells ?? alignment.rows.map { base ? $0.base : $0.destination }
         let cells = source.isEmpty ? [MergeSourceCell(text:"",lineNumber:1,state:.normal)] : source
         var offsets: [Int] = [], length = 0
@@ -27,7 +27,7 @@ public struct FileComparisonInPlaceEdit: Sendable {
         let prefix = firstText.substring(to:a), suffix = lastText.substring(from:b)
         let ending = NSMaxRange(range) > offsets[last] + lastText.length ? "" : (cells[last].text as NSString).substring(from:lastText.length)
         let original = combined?.sourceSaveText ?? cells.filter(\.hasSourceCoordinate).map(\.text).joined()
-        let style = MergeLineEndings.predominantStyle(in:original)
+        let style = lineEnding ?? MergeLineEndings.predominantStyle(in:original)
         let inserted = MergeLineEndings.converting(replacement,to:style)
         var payload = prefix + inserted + suffix + ending
         let hasFollowingPayload = cells.dropFirst(last + 1).contains { combined != nil ? !$0.state.isRemoval && $0.state != .empty : $0.hasSourceCoordinate }

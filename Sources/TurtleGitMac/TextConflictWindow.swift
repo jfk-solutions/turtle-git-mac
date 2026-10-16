@@ -143,7 +143,7 @@ private enum MergeSourceSide {
                 else if field.undoManager?.canUndo == true { field.undoManager?.undo() }
                 return true
             }
-            guard mergedText?.isEditable == true else { return true }
+            guard (mergedText as? MergeTextView)?.historyAllowed == true else { return true }
             if modifiers.contains(.shift) { if undo.canRedo { undo.redo() } }
             else if undo.canUndo { undo.undo() }
             return true
@@ -177,8 +177,8 @@ private enum MergeSourceSide {
     func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:))) }
     func windowDidResignKey(_ notification: Notification) { editorFileMenu.remove() }
     func detachForReplacement() { editorToolbar?.retire(); editorFileMenu.remove(); model.retire(); model.window = nil }
-    @objc func reloadEditor(_ sender: Any?) { guard !preparingReplacement, !model.exportingSource, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
-    func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.confirmingQuit && !model.retired && !model.exportingSource && window?.attachedSheet == nil }
+    @objc func reloadEditor(_ sender: Any?) { guard !preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
+    func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.formatPending && !model.confirmingQuit && !model.retired && !model.exportingSource && window?.attachedSheet == nil }
     private(set) var editorToolbar: MergeEditorToolbar?
     var showEditorHelp: () -> Void = { TurtleGitHelp.show(.resolve) }
     let model: TextConflictWindowModel
@@ -189,7 +189,7 @@ private enum MergeSourceSide {
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
     var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
     @objc func openMergeDocument(_ sender: Any?) {
-        guard !preparingReplacement, !model.exportingSource, editorOpenWorkflow == nil, let window, !model.busy, !model.preparing, !model.confirmingQuit, !model.retired, window.attachedSheet == nil else { return }
+        guard !preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil, let window, !model.busy, !model.preparing, !model.confirmingQuit, !model.retired, window.attachedSheet == nil else { return }
         let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
         editorOpenWorkflow = workflow
         workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil }
@@ -220,10 +220,10 @@ private enum MergeSourceSide {
         DialogGeometry.attach(window, identifier: "TurtleGit.TextConflict", legacyName: "TurtleGit.TextConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !preparingReplacement, !model.exportingSource, editorOpenWorkflow == nil else { return false }
+        guard !preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil else { return false }
         guard sender.attachedSheet == nil else { return false }
         if model.preparing { return true }
-        guard !model.busy, !model.confirmingQuit else { return false }
+        guard !model.busy, !model.confirmingQuit, !model.formatPending else { return false }
         guard model.dirty else { return true }
         let alert = NSAlert(); alert.messageText = "Save changes to “\(model.path)”?"
         alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
@@ -326,7 +326,7 @@ private enum MergeSourceSide {
         value.failure = { [weak self] in self?.error = $0 }
         return value
     }()
-    var sourceToolsAllowed: Bool { !retired && !busy && !preparing && !confirmingQuit && !exportingSource && window?.attachedSheet == nil && document != nil }
+    var sourceToolsAllowed: Bool { !retired && !busy && !preparing && !formatPending && !confirmingQuit && !exportingSource && window?.attachedSheet == nil && document != nil }
     func exportSource(mine: Bool) {
         guard sourceToolsAllowed, let window, let document, let sourceComparison else { return }
         do {
@@ -459,7 +459,7 @@ private enum MergeSourceSide {
     private var commentProfiles = MergeCommentProfiles.bundled()
     var supportsComments: Bool { commentProfiles.tokens(paths: [path]) != nil }
     func setComparisonOptions(_ value: MergeComparisonOptions) {
-        guard !busy, !confirmingQuit, !retired else { return }
+        guard !busy, !confirmingQuit, !retired, !formatPending else { return }
         pendingComparisonOptions = value; load()
     }
     enum ReloadDecision { case save, discard, cancel }
@@ -484,10 +484,11 @@ private enum MergeSourceSide {
         regexFilters = MergeRegexFilters.load(defaults: regexDefaults)
     }
     func selectRegexFilter(_ name: String?) {
-        guard !busy, !confirmingQuit, !retired, name == nil || regexFilters.contains(where: { $0.name == name }) else { return }
+        guard !busy, !confirmingQuit, !retired, !formatPending, name == nil || regexFilters.contains(where: { $0.name == name }) else { return }
         load(filterName: name)
     }
     func retire() {
+        retireFormatChoice()
         sourceExporter.retire()
         folding.retire(); resultFolding.retire()
         lineWrapping.retire()
@@ -518,6 +519,10 @@ private enum MergeSourceSide {
     func updateResultPresentation(_ value: MergeResultPresentation) { resultPresentation = value }
 
     @Published var encoding: ComparisonTextEncoding = .utf8
+    @Published var resultLineEnding:MergeLineEnding = .lf
+    private var savedResultLineEnding:MergeLineEnding = .lf
+    var resultFormatText:String { alignedResultProjection?.cells.filter { !$0.state.isViewEmpty }.map(\.text).joined() ?? result }
+    var applyResultFormat:((MergeResultPresentation,MergeSourceComparison?,ComparisonTextEncoding,MergeLineEnding,String)->Void)?
     @Published var selectedConflict = 0
     @Published var caret = NSRange(location: 0, length: 0)
     @Published var selectionRequest: NSRange?
@@ -590,7 +595,7 @@ private enum MergeSourceSide {
     func sourceBlockCommand(rows: Range<Int>, choice: MergeBlockChoice) -> SourceBlockCommand? {
         guard sourceToolsAllowed, let comparison = sourceComparison,
               let mapped = resultPresentation.navigationMap.resultRange(sourceRows:rows) else { return nil }
-        if alignedResultProjection != nil, let edit = try? MergeAlignedSourceBlockEdit(comparison:comparison,presentation:resultPresentation,rows:rows,choice:choice) {
+        if alignedResultProjection != nil, let edit = try? MergeAlignedSourceBlockEdit(comparison:comparison,presentation:resultPresentation,rows:rows,choice:choice,lineEnding:resultLineEnding) {
             return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,layoutRevision:sourceLayoutRevision,expected:resultPresentation,conflict:nil,edit:nil,choice:choice,aligned:edit)
         }
         // Unknown serialized mappings retain the existing atomic conflict path.
@@ -657,38 +662,83 @@ private enum MergeSourceSide {
             if workingMerge == nil { previous = document.initialResult }
             else if workingMergeOutput != nil { previous = standaloneSavedResult ?? document.initialResult }
             else { previous = document.workingContents.flatMap { document.encoding.decode($0) } ?? "" }
-            return !result.utf8.elementsEqual(previous.utf8) || resultPresentation.ignoredConflicts != savedIgnoredConflicts || resultPresentation.sourceChoiceRevision != savedSourceChoiceRevision || encoding != (workingMergeOutput != nil ? standaloneSavedEncoding ?? document.encoding : document.encoding)
+            return resultLineEnding != savedResultLineEnding || !result.utf8.elementsEqual(previous.utf8) || resultPresentation.ignoredConflicts != savedIgnoredConflicts || resultPresentation.sourceChoiceRevision != savedSourceChoiceRevision || encoding != (workingMergeOutput != nil ? standaloneSavedEncoding ?? document.encoding : document.encoding)
         } ?? false
     }
-    private var formatPending = false
-    var chooseFormat: (NSWindow, String, MergeFormatSelection) async -> MergeFormatSelection? = MergeFormatPrompt.choose
+    @Published private(set) var formatPending = false
+    var chooseFormat:((NSWindow,String,MergeFormatSelection) async -> MergeFormatSelection?)?
+    private var formatToken:UUID?
+    private var formatTask:Task<Void,Never>?
+    private var formatPrompt:MergeFormatPrompt?
+    private func finishFormatChoice(_ token:UUID) {
+        guard formatToken == token else { return }
+        formatToken = nil; formatPending = false; formatTask = nil; formatPrompt = nil
+        MergeRegexOperations.activeRequests -= 1
+    }
+    private func retireFormatChoice() {
+        guard let token = formatToken else { return }
+        if let prompt = formatPrompt, prompt.alert.window.sheetParent === window { window?.endSheet(prompt.alert.window,returnCode:.cancel) }
+        formatTask?.cancel(); finishFormatChoice(token)
+    }
     func showFormatDialog() {
-        guard !formatPending, !busy, !confirmingQuit, !retired, let document, let window, window.attachedSheet == nil else { return }
-        let original = result, originalEncoding = encoding, generation = loadGeneration
-        formatPending = true
-        Task {
-            defer { formatPending = false }
-            guard let choice = await chooseFormat(window,"Merged",.initial(encoding:originalEncoding,text:original)),
-                  generation == loadGeneration, !busy, !confirmingQuit, !retired, result.utf8.elementsEqual(original.utf8), encoding == originalEncoding, self.document?.entry == document.entry else { return }
-            do {
-                let converted = try choice.applying(to:original)
-                if !converted.utf8.elementsEqual(original.utf8) {
-                    if let replaceEntireResult { replaceEntireResult(converted) } else { result = converted }
-                }
-                encoding = choice.encoding
-            } catch { self.error = error.localizedDescription }
+        guard sourceToolsAllowed, let window else { return }
+        let original = resultPresentation, originalEncoding = encoding, originalEnding = resultLineEnding
+        let generation = loadGeneration, layout = sourceLayoutRevision, token = UUID()
+        formatToken = token; formatPending = true; MergeRegexOperations.activeRequests += 1
+        formatTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.finishFormatChoice(token) }
+            let initial = MergeFormatSelection(encoding:originalEncoding,ending:originalEnding)
+            let choice:MergeFormatSelection?
+            if let chooseFormat { choice = await chooseFormat(window,"Merged",initial) }
+            else {
+                let prompt = MergeFormatPrompt(pane:"Merged",selection:initial); formatPrompt = prompt
+                choice = await prompt.choose(window:window)
+            }
+            guard formatToken == token, !Task.isCancelled, let choice,
+                  generation == loadGeneration, layout == sourceLayoutRevision, !busy, !confirmingQuit, !retired,
+                  self.window === window, resultPresentation == original, encoding == originalEncoding, resultLineEnding == originalEnding else { return }
+            finishFormatChoice(token)
+            applyFormatChoice(choice,actionName:"Change file format")
         }
     }
-    func changeEncoding(_ value: ComparisonTextEncoding) {
-        guard !busy, !confirmingQuit, document != nil else { return }
-        do { _ = try value.encode(result); encoding = value }
-        catch { self.error = error.localizedDescription }
+    func applyFormatChoice(_ choice:MergeFormatSelection,actionName:String = "Change file format",validateEncoding:Bool = true) {
+        guard sourceToolsAllowed else { return }
+        do {
+            var next = resultPresentation, comparison = sourceComparison
+            if let ending = choice.ending {
+                if let current = comparison, alignedResultProjection != nil {
+                    let transform = try MergeAlignedResultTransform(comparison:current,presentation:next,operation:.lineEndings(ending))
+                    next = transform.presentation; comparison = transform.comparison
+                } else { next = next.reconciling(MergeLineEndings.converting(next.text,to:ending)) }
+            }
+            if validateEncoding { _ = try choice.encoding.encode(next.text) }
+            let ending = choice.ending ?? resultLineEnding
+            guard next != resultPresentation || encoding != choice.encoding || ending != resultLineEnding else { return }
+            if let applyResultFormat { applyResultFormat(next,comparison,choice.encoding,ending,actionName) }
+            else { sourceComparison = comparison; resultPresentation = next; result = next.text; encoding = choice.encoding; resultLineEnding = ending }
+        } catch { self.error = error.localizedDescription }
     }
-    func changeLineEnding(_ value: MergeLineEnding) {
-        guard !busy, !confirmingQuit, document != nil else { return }
-        let converted = MergeLineEndings.converting(result, to: value)
-        guard !converted.utf8.elementsEqual(result.utf8) else { return }
-        if let replaceEntireResult { replaceEntireResult(converted) } else { result = converted }
+    func changeEncoding(_ value:ComparisonTextEncoding) { applyFormatChoice(.init(encoding:value),actionName:"Change encoding") }
+    func changeLineEnding(_ value:MergeLineEnding) { applyFormatChoice(.init(encoding:encoding,ending:value),actionName:"Change line endings",validateEncoding:false) }
+    func canChangeWhitespace(_ command:MergeWhitespaceCommand,tabWidth:Int) -> Bool {
+        guard sourceToolsAllowed else { return false }
+        if let projection = alignedResultProjection {
+            return projection.cells.contains { !$0.state.isViewEmpty && MergeWhitespace.canApply(command,to:$0.text,tabWidth:tabWidth) }
+        }
+        return MergeWhitespace.canApply(command,to:result,tabWidth:tabWidth)
+    }
+    func changeWhitespace(_ command:MergeWhitespaceCommand,tabWidth:Int) {
+        guard canChangeWhitespace(command,tabWidth:tabWidth) else { return }
+        do {
+            var next = resultPresentation, comparison = sourceComparison
+            if let current = comparison, alignedResultProjection != nil {
+                let transform = try MergeAlignedResultTransform(comparison:current,presentation:next,operation:.whitespace(command,tabWidth:tabWidth))
+                next = transform.presentation; comparison = transform.comparison
+            } else { next = next.reconciling(MergeWhitespace.applying(command,to:next.text,tabWidth:tabWidth)) }
+            if let applyResultFormat { applyResultFormat(next,comparison,encoding,resultLineEnding,command.rawValue) }
+            else { sourceComparison = comparison; resultPresentation = next; result = next.text }
+        } catch { self.error = error.localizedDescription }
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
         self.repository = repository; self.access = access; self.path = path
@@ -711,7 +761,7 @@ private enum MergeSourceSide {
     func beginTransferredDocument() { initialLoadDeferred = false; load() }
     func load() { guard !initialLoadDeferred else { return }; load(filterName: regexFilterName) }
     private func load(filterName: String?) {
-        guard !busy, !confirmingQuit, !retired, window?.attachedSheet == nil else { return }
+        guard !busy, !confirmingQuit, !retired, !formatPending, window?.attachedSheet == nil else { return }
         if dirty {
             let decision: ReloadDecision
             if let chooseReload { decision = chooseReload() }
@@ -769,6 +819,7 @@ private enum MergeSourceSide {
         document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, states: comparison.resultLocator?.states ?? [], foldAnchors: .init(offsets: comparison.resultAnchors), ignoredConflicts: comparison.ignoredConflicts, navigationMap: comparison.navigationMap).reconciling(next.initialResult); result = next.initialResult; encoding = next.encoding
         savedIgnoredConflicts = resultPresentation.ignoredConflicts
         savedSourceChoiceRevision = resultPresentation.sourceChoiceRevision
+        resultLineEnding = MergeLineEndings.predominantStyle(in:next.mine); savedResultLineEnding = resultLineEnding
         commentProfiles = profiles
         comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
@@ -956,7 +1007,7 @@ private enum MergeSourceSide {
         save(markResolved: false, quitApproved: true, completion: completion)
     }
     func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, chooseNewOutput: Bool = false, quitApproved: Bool = false, completion: ((Bool) -> Void)? = nil) {
-        guard !busy, (!confirmingQuit || quitApproved), !retired, !markResolved || workingMerge == nil && !hasUnresolvedConflicts, window?.attachedSheet == nil, let document else { completion?(false); return }
+        guard !busy, !preparing, !formatPending, !exportingSource, (!confirmingQuit || quitApproved), !retired, !markResolved || workingMerge == nil && !hasUnresolvedConflicts, window?.attachedSheet == nil, let document else { completion?(false); return }
         if !markResolved && hasUnresolvedConflicts {
             let message = resultPresentation.ignoredConflicts.isEmpty ? "Save with unresolved conflict markers?" : "Save with unresolved conflicts ignored by comparison options?"
             let warningText = result
@@ -965,7 +1016,7 @@ private enum MergeSourceSide {
             busy = false; MergeRegexOperations.activeRequests -= 1
             guard accepted, !retired, result.utf8.elementsEqual(warningText.utf8) else { completion?(false); return }
         }
-        let text = result, outputEncoding = encoding, ignoredResolved = resultPresentation.ignoredConflicts.isEmpty, ignoredSnapshot = resultPresentation.ignoredConflicts, choiceSnapshot = resultPresentation.sourceChoiceRevision; busy = true
+        let text = result, outputEncoding = encoding, ignoredResolved = resultPresentation.ignoredConflicts.isEmpty, ignoredSnapshot = resultPresentation.ignoredConflicts, choiceSnapshot = resultPresentation.sourceChoiceRevision, endingSnapshot = resultLineEnding; busy = true
         loadCancellation = OperationCancellation(); MergeRegexOperations.activeRequests += 1
         Task {
             var saved = false
@@ -998,7 +1049,7 @@ private enum MergeSourceSide {
                     self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved, encoding: outputEncoding, options: options, ignoredConflictsResolved: ignoredResolved)
                 }
                 savedIgnoredConflicts = ignoredSnapshot
-                savedSourceChoiceRevision = choiceSnapshot
+                savedSourceChoiceRevision = choiceSnapshot; savedResultLineEnding = endingSnapshot
                 onChanged(markResolved ? "Resolved: " + path : "Saved merged result: " + (workingMergeOutput?.path ?? path))
                 if markResolved || closeAfter { close() }
                 else if reloadAfter { try await reloadDocument(filterName: regexFilterName, cancellation: loadCancellation) }
@@ -1076,7 +1127,7 @@ private struct TextConflictDialog: View {
             let counts=MergeLineStatistics(states:cells?.map(\.state) ?? (editable ? model.alignedResultStates : []))
             if !counts.isEmpty {MergeLineStatisticsView(statistics:counts).padding(.horizontal,7).padding(.vertical,2)}
             HStack {
-                MergeFormatControls(label: title, encoding: encoding, text: text, editable: editable && !model.busy && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, showFormatDialog:model.showFormatDialog)
+                MergeFormatControls(label: title, encoding: encoding, text: editable ? model.resultFormatText : text, editable: editable && model.sourceToolsAllowed && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, showFormatDialog:model.showFormatDialog)
                 Spacer()
                 MergeTabControls(label: title, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab, changeWidth: { model.tabWidths[title] = $0 }, changeSpaces: { model.spacePanes[title] = $0 }, changeSmart: { model.smartTabPanes[title] = $0 }, editorConfigEnabled: model.editorConfigEnabled[title] == true, editorConfigLoaded: model.editorConfigLoaded[title] == true, changeEditorConfig: { model.setEditorConfig($0, pane: title) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(title))
             }.padding(.horizontal, 7).padding(.vertical, 3).background(Color(nsColor: .controlBackgroundColor))
@@ -1154,7 +1205,7 @@ private struct TextConflictDialog: View {
                     Text("Line \(model.resultLineNumber)").font(.caption).foregroundStyle(.secondary)
                 }.padding(8)
             } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
-        }.disabled(model.busy || model.confirmingQuit).onAppear { model.load() }
+        }.disabled(model.busy || model.confirmingQuit || model.formatPending).onAppear { model.load() }
         .alert("Merge editor operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .onReceive(NotificationCenter.default.publisher(for: .mergeRegexFiltersChanged)) { _ in model.refreshRegexFilters() }
     }
@@ -1199,6 +1250,9 @@ private struct MergeEditor: NSViewRepresentable {
                 view.window?.makeFirstResponder(view)
                 view.replaceMergeBlock(range, with: value, state: .resolved)
             }
+            model.applyResultFormat = { [weak view] presentation,comparison,encoding,ending,name in
+                view?.applyFormat(presentation:presentation,comparison:comparison,encoding:encoding,ending:ending,actionName:name)
+            }
             model.applyAlignedSourceBlock = { [weak view] edit in
                 guard let view else { return }; view.window?.makeFirstResponder(view)
                 view.applyAlignedSourceBlock(edit)
@@ -1230,7 +1284,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.setMergeTabWidth(tabWidth)
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
-        view.isEditable = editable && !model.busy && !model.confirmingQuit; view.model = model
+        view.isEditable = editable && model.sourceToolsAllowed; view.model = model
         view.mergeFindController?.updateGates()
         if view.blockGeneration != model.navigationGeneration {
             view.blockSelection.clear(in:view); view.invalidateNavigationRevision(); view.blockGeneration = model.navigationGeneration
@@ -1313,7 +1367,7 @@ private struct MergeEditor: NSViewRepresentable {
         }
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
             guard editable, let view = textView as? MergeTextView, let replacementString else { return true }
-            guard view.isEditable, !model.busy, !model.confirmingQuit else { return false }
+            guard view.historyAllowed else { return false }
             if view.sourceCells != nil { view.replaceAlignedRange(affectedCharRange,with:replacementString,actionName:"Typing") }
             else {
                 view.replaceMergeBlock(affectedCharRange, with: replacementString, actionName: "Typing")
@@ -1459,7 +1513,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         return try? MergeClipboard.documentText(selection:selectedRange(),document:string)
     }
     fileprivate var clipboardWritable: Bool {
-        window != nil && model?.retired == false && mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && window?.attachedSheet == nil
+        window != nil && historyAllowed
     }
     @discardableResult fileprivate func copySelection(to pasteboard: NSPasteboard) -> Bool {
         guard let text = clipboardText, !text.isEmpty else { return false }
@@ -1514,8 +1568,9 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     private let mergeUndoManager: UndoManager = { let value = UndoManager(); value.groupsByEvent = false; return value }()
     override var undoManager: UndoManager? { mergeEditable ? mergeUndoManager : super.undoManager }
     func updateUndoState() { model?.canUndo = mergeUndoManager.canUndo; model?.canRedo = mergeUndoManager.canRedo }
-    func undoMergeEdit() { if mergeUndoManager.canUndo { beginUserNavigation(); mergeUndoManager.undo() }; updateUndoState() }
-    func redoMergeEdit() { if mergeUndoManager.canRedo { beginUserNavigation(); mergeUndoManager.redo() }; updateUndoState() }
+    var historyAllowed:Bool { isEditable && mergeEditable && mergeSourceRowsReady && model?.sourceToolsAllowed == true }
+    func undoMergeEdit() { guard historyAllowed else { return }; if mergeUndoManager.canUndo { beginUserNavigation(); mergeUndoManager.undo() }; updateUndoState() }
+    func redoMergeEdit() { guard historyAllowed else { return }; if mergeUndoManager.canRedo { beginUserNavigation(); mergeUndoManager.redo() }; updateUndoState() }
     func resetMergeHistory() { mergeUndoManager.removeAllActions(); updateUndoState() }
     func serializedSelection(_ range:NSRange) -> NSRange? {
         guard mergeEditable, sourceCells != nil else { return range }
@@ -1537,11 +1592,11 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     func replaceAlignedRange(_ range:NSRange,with replacement:String,actionName:String) {
         guard isEditable, let model, model.sourceToolsAllowed, let comparison = model.sourceComparison else { return }
         do {
-            let edit = try MergeAlignedResultEdit(comparison:comparison,presentation:model.resultPresentation,range:range,replacement:replacement)
+            let edit = try MergeAlignedResultEdit(comparison:comparison,presentation:model.resultPresentation,range:range,replacement:replacement,lineEnding:model.resultLineEnding)
             beginUserNavigation()
-            let previous = model.resultPresentation, oldComparison = comparison, selection = NSRange(location:selectedRange().location,length:0)
+            let previous = model.resultPresentation, oldComparison = comparison, selection = NSRange(location:selectedRange().location,length:0), format = MergeFormatSelection(encoding:model.encoding,ending:model.resultLineEnding)
             mergeUndoManager.beginUndoGrouping(); defer { mergeUndoManager.endUndoGrouping(); updateUndoState() }
-            mergeUndoManager.registerUndo(withTarget:self) { $0.restoreMergeText(previous.text,selection:selection,presentation:previous,comparison:oldComparison) }
+            mergeUndoManager.registerUndo(withTarget:self) { $0.restoreMergeText(previous.text,selection:selection,presentation:previous,comparison:oldComparison,format:format) }
             mergeUndoManager.setActionName(actionName)
             model.clearNavigationBlockSelection(clearTextSelections:true)
             model.sourceComparison = edit.comparison; model.updateResultPresentation(edit.presentation); model.result = edit.presentation.text
@@ -1551,9 +1606,9 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     func applyAlignedSourceBlock(_ edit:MergeAlignedSourceBlockEdit) {
         guard isEditable, let model, model.sourceToolsAllowed else { return }
         beginUserNavigation()
-        let previous = model.resultPresentation, comparison = model.sourceComparison, selection = NSRange(location:selectedRange().location,length:0)
+        let previous = model.resultPresentation, comparison = model.sourceComparison, selection = NSRange(location:selectedRange().location,length:0), format = MergeFormatSelection(encoding:model.encoding,ending:model.resultLineEnding)
         mergeUndoManager.beginUndoGrouping(); defer { mergeUndoManager.endUndoGrouping(); updateUndoState() }
-        mergeUndoManager.registerUndo(withTarget:self) { $0.restoreMergeText(previous.text,selection:selection,presentation:previous,comparison:comparison) }
+        mergeUndoManager.registerUndo(withTarget:self) { $0.restoreMergeText(previous.text,selection:selection,presentation:previous,comparison:comparison,format:format) }
         mergeUndoManager.setActionName("Use text block")
         model.clearNavigationBlockSelection(clearTextSelections:true)
         model.sourceComparison = edit.comparison; model.updateResultPresentation(edit.presentation); model.result = edit.presentation.text
@@ -1566,28 +1621,41 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         }
         didChangeText()
     }
+    func applyFormat(presentation:MergeResultPresentation,comparison:MergeSourceComparison?,encoding:ComparisonTextEncoding,ending:MergeLineEnding,actionName:String) {
+        guard mergeEditable, mergeSourceRowsReady, let model, model.sourceToolsAllowed else { return }
+        let previous = model.resultPresentation, previousComparison = model.sourceComparison
+        let selection = NSRange(location:selectedRange().location,length:0), format = MergeFormatSelection(encoding:model.encoding,ending:model.resultLineEnding)
+        mergeUndoManager.beginUndoGrouping(); defer { mergeUndoManager.endUndoGrouping(); updateUndoState() }
+        mergeUndoManager.registerUndo(withTarget:self) { $0.restoreMergeText(previous.text,selection:selection,presentation:previous,comparison:previousComparison,format:format) }
+        mergeUndoManager.setActionName(actionName)
+        beginUserNavigation(); model.clearNavigationBlockSelection(clearTextSelections:true)
+        model.sourceComparison = comparison; model.updateResultPresentation(presentation); model.result = presentation.text
+        model.encoding = encoding; model.resultLineEnding = ending
+        installResultView(); setSelectedRange(NSRange(location:min(selection.location,string.utf16.count),length:0)); didChangeText()
+    }
     func replaceMergeBlock(_ range: NSRange, with replacement: String, actionName: String = "Use text block", state: MergeSourceState = .edited, sourceEdit: MergeSourceBlockEdit? = nil) {
-        guard isEditable, let model, !model.busy, !model.confirmingQuit, NSMaxRange(range) <= model.result.utf16.count else { return }
+        guard isEditable, let model, model.sourceToolsAllowed, NSMaxRange(range) <= model.result.utf16.count else { return }
         let next = sourceEdit.flatMap { model.resultPresentation.applyingSourceBlock($0) } ?? (sourceEdit == nil ? model.resultPresentation.replacing(range,with:replacement,state:state) : nil)
         guard let next else { return }
         beginUserNavigation()
-        let previous = model.resultPresentation, selection = NSRange(location:selectedRange().location,length:0), comparison = model.sourceComparison
+        let previous = model.resultPresentation, selection = NSRange(location:selectedRange().location,length:0), comparison = model.sourceComparison, format = MergeFormatSelection(encoding:model.encoding,ending:model.resultLineEnding)
         mergeUndoManager.beginUndoGrouping(); defer { mergeUndoManager.endUndoGrouping(); updateUndoState() }
-        mergeUndoManager.registerUndo(withTarget:self) { $0.restoreMergeText(previous.text,selection:selection,presentation:previous,comparison:comparison) }
+        mergeUndoManager.registerUndo(withTarget:self) { $0.restoreMergeText(previous.text,selection:selection,presentation:previous,comparison:comparison,format:format) }
         model.updateResultPresentation(next); model.result = next.text
         mergeUndoManager.setActionName(actionName)
         installResultView()
         setSelectedRange(displaySelection(NSRange(location:range.location,length:replacement.utf16.count)) ?? NSRange(location:min(range.location,string.utf16.count),length:0))
         didChangeText()
     }
-    private func restoreMergeText(_ text: String, selection: NSRange, presentation: MergeResultPresentation? = nil, comparison:MergeSourceComparison? = nil) {
+    private func restoreMergeText(_ text: String, selection: NSRange, presentation: MergeResultPresentation? = nil, comparison:MergeSourceComparison? = nil,format:MergeFormatSelection? = nil) {
         guard let model else { return }
-        let previous = model.resultPresentation, previousSelection = NSRange(location:selectedRange().location,length:0), previousComparison = model.sourceComparison
-        mergeUndoManager.registerUndo(withTarget:self) { $0.restoreMergeText(previous.text,selection:previousSelection,presentation:previous,comparison:previousComparison) }
+        let previous = model.resultPresentation, previousSelection = NSRange(location:selectedRange().location,length:0), previousComparison = model.sourceComparison, previousFormat = MergeFormatSelection(encoding:model.encoding,ending:model.resultLineEnding)
+        mergeUndoManager.registerUndo(withTarget:self) { $0.restoreMergeText(previous.text,selection:previousSelection,presentation:previous,comparison:previousComparison,format:previousFormat) }
         model.selectionRequest = nil
         model.sourceComparison = comparison
         if let presentation { model.updateResultPresentation(presentation) }
         model.result = text
+        if let format { model.encoding = format.encoding; model.resultLineEnding = format.ending ?? model.resultLineEnding }
         installResultView()
         model.clearNavigationBlockSelection(clearTextSelections:true)
         setSelectedRange(NSRange(location:min(selection.location,string.utf16.count),length:0))
@@ -1666,11 +1734,11 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         menu.addItem(.separator())
         for (index, command) in MergeWhitespaceCommand.allCases.enumerated() {
             let item = NSMenuItem(title: command.rawValue, action: #selector(changeWhitespace(_:)), keyEquivalent: "")
-            item.target = self; item.tag = index; item.isEnabled = writable && MergeWhitespace.canApply(command, to: string, tabWidth: mergeTabWidth); menu.addItem(item)
+            item.target = self; item.tag = index; item.isEnabled = writable && model.canChangeWhitespace(command,tabWidth:mergeTabWidth); menu.addItem(item)
         }
         let endingsItem = NSMenuItem(title: "Line endings", action: nil, keyEquivalent: "")
         let endingsMenu = NSMenu(title: "Line endings")
-        let styles = MergeLineEndings.styles(in: string)
+        let styles = MergeLineEndings.styles(in:model.resultFormatText)
         for (index, ending) in MergeLineEnding.allCases.enumerated() {
             let item = NSMenuItem(title: ending.menuTitle, action: #selector(convertLineEndings(_:)), keyEquivalent: "")
             item.target = self; item.tag = index
@@ -1698,6 +1766,8 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         (window as? TextConflictNSWindow)?.find(.showFindInterface)
     }
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == NSSelectorFromString("undo:") { return historyAllowed && mergeUndoManager.canUndo }
+        if menuItem.action == NSSelectorFromString("redo:") { return historyAllowed && mergeUndoManager.canRedo }
         if menuItem.action == #selector(goToSourceLine(_:)) { return canNavigateToSourceLine }
         if menuItem.action == #selector(copyFromContext(_:)) || menuItem.action == NSSelectorFromString("copy:") { return !(clipboardText ?? "").isEmpty }
         if menuItem.action == #selector(cutFromContext(_:)) || menuItem.action == NSSelectorFromString("cut:") { return clipboardWritable && !(clipboardText ?? "").isEmpty }
@@ -1707,7 +1777,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         }
         if menuItem.action == #selector(changeWhitespace(_:)) {
             guard mergeEditable, isEditable, model?.busy == false, model?.confirmingQuit == false, MergeWhitespaceCommand.allCases.indices.contains(menuItem.tag) else { return false }
-            return MergeWhitespace.canApply(MergeWhitespaceCommand.allCases[menuItem.tag], to: string, tabWidth: mergeTabWidth)
+            return model?.canChangeWhitespace(MergeWhitespaceCommand.allCases[menuItem.tag],tabWidth:mergeTabWidth) == true
         }
         if menuItem.action == #selector(convertLineEndings(_:)) {
             return mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && MergeLineEnding.allCases.indices.contains(menuItem.tag)
@@ -1730,23 +1800,13 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         guard mergeEditable, isEditable, ComparisonTextEncoding.allCases.indices.contains(sender.tag) else { return }
         model?.changeEncoding(ComparisonTextEncoding.allCases[sender.tag])
     }
-    @objc private func convertLineEndings(_ sender: NSMenuItem) {
-        guard mergeEditable, isEditable, model?.busy == false, model?.confirmingQuit == false, MergeLineEnding.allCases.indices.contains(sender.tag) else { return }
-        let ending = MergeLineEnding.allCases[sender.tag]
-        let contents = model?.result ?? string
-        let converted = MergeLineEndings.converting(contents, to: ending)
-        guard !converted.utf8.elementsEqual(string.utf8) else { return }
-        window?.makeFirstResponder(self)
-        replaceMergeBlock(NSRange(location: 0, length: contents.utf16.count), with: converted, actionName: "Change line endings")
+    @objc private func convertLineEndings(_ sender:NSMenuItem) {
+        guard historyAllowed, MergeLineEnding.allCases.indices.contains(sender.tag) else { return }
+        model?.changeLineEnding(MergeLineEnding.allCases[sender.tag])
     }
-    @objc private func changeWhitespace(_ sender: NSMenuItem) {
-        guard mergeEditable, isEditable, model?.busy == false, model?.confirmingQuit == false, MergeWhitespaceCommand.allCases.indices.contains(sender.tag) else { return }
-        let command = MergeWhitespaceCommand.allCases[sender.tag]
-        let contents = model?.result ?? string
-        let converted = MergeWhitespace.applying(command, to: contents, tabWidth: mergeTabWidth)
-        guard !converted.utf8.elementsEqual(string.utf8) else { return }
-        window?.makeFirstResponder(self)
-        replaceMergeBlock(NSRange(location: 0, length: contents.utf16.count), with: converted, actionName: command.rawValue)
+    @objc private func changeWhitespace(_ sender:NSMenuItem) {
+        guard historyAllowed, MergeWhitespaceCommand.allCases.indices.contains(sender.tag) else { return }
+        model?.changeWhitespace(MergeWhitespaceCommand.allCases[sender.tag],tabWidth:mergeTabWidth)
     }
     private var selectedSourceRows: Range<Int>? {
         guard let cells = sourceCells, mergeSourceRowsReady else { return nil }

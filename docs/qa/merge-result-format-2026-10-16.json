@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "744a7e99",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "BaseView.cpp ReplaceLineEndings, SetLineEndingStyle and AskUserForNewLineEndingsAndTextType",
+    "BaseView.cpp ConvertTabToSpaces, Tabularize, RemoveTrailWhiteChars and SetViewLine retaining row state"
+  ],
+  "scope": [
+    "Whole-view EOL/whitespace transforms preserve aligned row geometry, source/resolution states, removed display records, EOF without ending and independent raw conflict/source payloads",
+    "Ignored-conflict formatting updates current Mine payload/range metadata while retaining unresolved identity",
+    "Native availability and status ribbon use row payloads rather than synthetic display endings or hidden markers",
+    "Explicit output ending retained independently of markers and used by subsequent native typing/paste and source block choices",
+    "Encoding-only/combined choices atomically validate selected encoding; one Undo/Redo transaction includes text, all-pane comparison, encoding and output ending",
+    "Whitespace/direct ending edits do not require an unrelated encoding conversion; Save still refuses lossy output",
+    "Owned native format prompt participates in active-operation Quit accounting; duplicate/retired/late responses, concurrent Save/reload/edit/history and Close are fenced",
+    "Immediate model and keyboard/history edit gates protect Save before deferred view isEditable changes; exact saved format baseline retained"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/merge-result-format-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/merge-result-format-encoding-build.log",
+      "exit": 0,
+      "reason": "Source review corrected direct format command encoding boundary before native execution"
+    }
+  ],
+  "core": {
+    "log": "build/qa/merge-result-format-core.log",
+    "tests": 78,
+    "failures": 0,
+    "suites": [
+      "SubversionMergePresentationTests",
+      "MergeSourceBlockEditTests",
+      "MergeNavigationMapTests",
+      "MergeResultPresentationTests",
+      "FileComparisonInPlaceTests",
+      "MergeWhitespaceTests",
+      "MergeFormatSelectionTests"
+    ],
+    "repeats_for_native_only_changes": 0
+  },
+  "native": [
+    {
+      "log": "build/qa/merge-result-format-native.log",
+      "result": "Fixture compile failure, corrected",
+      "reason": "New fixture used ApplicationDelegate instead of TurtleGitApplicationDelegate",
+      "receivers_started": 0
+    },
+    {
+      "log": "build/qa/merge-result-format-native-repair.log",
+      "exit": 0,
+      "successful_shared_fixture_compilations": 1,
+      "case_families": 7,
+      "passed": [
+        "Ignored conflicts with system Git",
+        "Ignored conflicts with bundled Git",
+        "Retained three-pane navigation/engine/Save/colors/history",
+        "Ordinary source/result block workflows",
+        "Aligned result rendering/typing/Find/Save/history",
+        "Both-order layouts/resolved-empty records/cleanup/partial choices/ownership",
+        "New native format menus, unchanged conflict markers and states, no-op availability, unrepresentable combined-choice rollback, encoding/combined Undo/Redo, real Encoding Cancel sheet, injected duplicate/Save/reload/edit/Quit gates, immediate Save-versus-Undo/typing/keyboard races, exact UTF-16BE BOM Save, saved-format Undo dirty state, owner-close count cleanup and late-answer refusal; second sequential owner tests real legacy Mine plus Unicode Theirs formatting and lossless Save rejection"
+      ],
+      "receivers_reaped": [
+        78550,
+        78611,
+        78674,
+        78969,
+        78972,
+        78974,
+        78976
+      ],
+      "all_owned_pids_absent": true,
+      "repeated_executed_cases": 0
+    }
+  ],
+  "ci": {
+    "macos": {
+      "run": 38828019335,
+      "sha": "744a7e99",
+      "last_observed": "pending"
+    },
+    "pages": {
+      "run": 38828019181,
+      "sha": "744a7e99",
+      "conclusion": "success"
+    },
+    "full_current_macos_pass": false
+  },
+  "limitations": [
+    "Arbitrary external serialized-result replacement can still invalidate the row map and use existing raw editor fallback",
+    "Complete IME, large-file and physical visual acceptance remain unverified",
+    "No complete upstream dialog/application parity, signed Finder deployment or App Store acceptance claimed"
+  ],
+  "documentation": {
+    "bundled_help": {
+      "documents": 26,
+      "topics": 47,
+      "files": 32,
+      "bytes": 196825
+    },
+    "site": {
+      "documents": 235,
+      "unresolved_fragments": 0
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 974,
+      "pending_control_reviews": 685
+    }
+  }
+}

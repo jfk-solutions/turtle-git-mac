@@ -183,3 +183,5 @@ are invalid after any intervening source layout edit or Undo, even when file tex
 returns to the same bytes.
 
 All-pane block-choice evidence: [October 16 grouped verification](qa/merge-both-blocks-2026-10-16.json).
+
+Aligned result-format evidence: [October 16 grouped verification](qa/merge-result-format-2026-10-16.json).

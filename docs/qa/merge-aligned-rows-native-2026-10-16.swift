@@ -70,10 +70,14 @@ struct MergeAlignedRowsVerification {
         try require(model.alignedResultStates[sourceRow] == .edited && model.alignedResultStates[sourceRow + 1] == .conflicted,"Typing lost per-slot conflict states")
         let output = root.appendingPathComponent("merged.txt")
         model.chooseStandaloneOutput = { _,_ in output }; model.confirmUnresolvedSave = { _ in true }
+        let previousEncoding = model.encoding
         model.changeEncoding(.utf8)
         let saved = model.result
         model.save(markResolved:false); try await wait { !model.busy }
         try require(model.error == nil && String(contentsOf:output) == saved && !String(contentsOf:output).contains("old one"),"Save serialized removed records or lost remaining markers")
+        if previousEncoding != .utf8 {
+            model.undo(); try await wait { model.encoding == previousEncoding && model.result == saved }
+        }
         model.undo(); try await wait { model.resultPresentation == initial && result.string == model.resultDisplayText }
         result.insertText("🐢\nnew line\n",replacementRange:NSRange(location:0,length:0))
         try await wait { model.sourceComparison?.rows.count == count + 2 && result.string == model.resultDisplayText && right.string.hasPrefix("header 0\n\n\nheader 1") }

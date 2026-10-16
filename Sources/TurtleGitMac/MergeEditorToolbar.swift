@@ -249,7 +249,7 @@ extension MergeEditorToolbar {
             visible: { [weak model] in model?.retired == false }, installed: { [weak model] installed in if model?.nativeToolbarInstalled != installed { model?.nativeToolbarInstalled = installed } },
             state: { [weak model, weak owner] command in
                 guard let model, let owner else { return nil }
-                let ready = !model.retired && !model.busy && !model.preparing && !model.exportingSource && !model.confirmingQuit && window.attachedSheet == nil && owner.editorOpenWorkflow == nil && !owner.preparingReplacement
+                let ready = !model.retired && !model.busy && !model.preparing && !model.exportingSource && !model.formatPending && !model.confirmingQuit && window.attachedSheet == nil && owner.editorOpenWorkflow == nil && !owner.preparingReplacement
                 let text = ready && model.document != nil
                 switch command {
                 case .open, .reload, .help: return .init(enabled: ready)

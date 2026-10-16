@@ -2206,9 +2206,11 @@ extension MergeLineNavigationProviding where Self: NSTextView {
         .init(encoding:MergeFormatSelection.encodings[max(0,encoding.indexOfSelectedItem)], ending:endings[max(0,ending.indexOfSelectedItem)])
     }
     static func choose(window: NSWindow, pane: String, selection: MergeFormatSelection) async -> MergeFormatSelection? {
-        let prompt = MergeFormatPrompt(pane:pane,selection:selection)
-        let response = await withCheckedContinuation { continuation in prompt.alert.beginSheetModal(for:window) { continuation.resume(returning:$0) } }
-        return response == .alertFirstButtonReturn ? prompt.selection : nil
+        await MergeFormatPrompt(pane:pane,selection:selection).choose(window:window)
+    }
+    func choose(window:NSWindow) async -> MergeFormatSelection? {
+        let response = await withCheckedContinuation { continuation in alert.beginSheetModal(for:window) { continuation.resume(returning:$0) } }
+        return response == .alertFirstButtonReturn ? selection : nil
     }
 }
 

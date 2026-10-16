@@ -322,13 +322,13 @@ public struct MergeAlignedResultEdit: Sendable {
     public let comparison: MergeSourceComparison
     public let presentation: MergeResultPresentation
     public let displayCaret: Int
-    public init(comparison:MergeSourceComparison,presentation:MergeResultPresentation,range:NSRange,replacement:String) throws {
+    public init(comparison:MergeSourceComparison,presentation:MergeResultPresentation,range:NSRange,replacement:String,lineEnding:MergeLineEnding? = nil) throws {
         guard let projection = MergeAlignedResultProjection(comparison:comparison,presentation:presentation) else { throw FileComparisonEditFailure.range }
         // A nonempty peer retains every existing source coordinate. Cleanup of
         // rows empty in all three panes is a separate view operation.
         let peer = MergeSourceCell(text:"",lineNumber:1,state:.normal)
         let alignment = FileComparisonAlignment(rows:projection.cells.map { .init(base:peer,destination:$0) },differences:[])
-        let edit = try FileComparisonInPlaceEdit(alignment:alignment,base:false,range:range,replacement:replacement)
+        let edit = try FileComparisonInPlaceEdit(alignment:alignment,base:false,range:range,replacement:replacement,lineEnding:lineEnding)
         let cells = edit.alignment.rows.map(\.destination)
         let gap = MergeSourceCell(text:"",lineNumber:nil,state:.empty)
         var sources = comparison.rows
@@ -413,7 +413,7 @@ private struct MergeAlignedResultSnapshot {
                 entries.append(.init(sourceRows:row..<(row + 1),resultRange:target))
                 if cell.state == .conflictedIgnored, let old = origins[row], projection.serializedRanges.indices.contains(old),
                    let metadata = presentation.ignoredConflicts.first(where: { $0.range == projection.serializedRanges[old] }) {
-                    ignored.append(.init(range:target,mine:metadata.mine,base:metadata.base,theirs:metadata.theirs))
+                    ignored.append(.init(range:target,mine:payload,base:metadata.base,theirs:metadata.theirs))
                 }
                 row += 1
             }
@@ -480,6 +480,37 @@ public struct MergeAlignedSourceBlockEdit: Sendable {
         let selected = snapshot.retainedIndices.enumerated().filter { replaced.contains($0.element) }.map(\.offset)
         let start = selected.first ?? snapshot.retainedIndices.filter { $0 < rows.lowerBound }.count
         selectedRows = start..<(selected.last.map { $0 + 1 } ?? start)
+    }
+}
+
+/// BaseView's whole-view format commands change record payload/endings without
+/// resolving conflicts, changing row states or serializing removed records.
+public struct MergeAlignedResultTransform: Sendable {
+    public enum Operation:Sendable { case lineEndings(MergeLineEnding), whitespace(MergeWhitespaceCommand,tabWidth:Int) }
+    public let comparison:MergeSourceComparison
+    public let presentation:MergeResultPresentation
+    public let changedRows:Set<Int>
+    public init(comparison:MergeSourceComparison,presentation:MergeResultPresentation,operation:Operation) throws {
+        guard let projection = MergeAlignedResultProjection(comparison:comparison,presentation:presentation) else { throw FileComparisonEditFailure.range }
+        var changed = Set<Int>()
+        let cells = projection.cells.enumerated().map { row,cell -> MergeSourceCell in
+            guard !cell.state.isViewEmpty else { return cell }
+            let text:String
+            switch operation {
+            case .lineEndings(let ending):
+                text = MergeLineEndings.hasFinalEnding(cell.text) ? cell.displayText + ending.rawValue : cell.text
+            case .whitespace(let command,let width): text = MergeWhitespace.applying(command,to:cell.text,tabWidth:width)
+            }
+            guard !text.utf8.elementsEqual(cell.text.utf8) else { return cell }
+            changed.insert(row)
+            return .init(text:text,lineNumber:cell.lineNumber,state:cell.state,hiddenByComparison:cell.hiddenByComparison)
+        }
+        changedRows = changed
+        if changed.isEmpty { self.comparison = comparison; self.presentation = presentation }
+        else {
+            let snapshot = try MergeAlignedResultSnapshot(sources:comparison.rows,cells:cells,origins:cells.indices.map { $0 },comparison:comparison,presentation:presentation)
+            self.comparison = snapshot.comparison; self.presentation = snapshot.presentation
+        }
     }
 }
 

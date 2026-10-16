@@ -312,3 +312,9 @@ afterward. Selecting a single unresolved source row resolves only that row.
 Resolved conflict gaps stay visible in the resolved color without becoming saved
 blank lines. Rows disappear only when all three panes contain ordinary gaps;
 Undo/Redo restores the entire layout.
+
+Result whitespace commands and Encoding/EOL choices preserve aligned rows and
+conflict/resolution colors. The format ribbon reports real row endings. The
+selected output ending also applies to subsequent typing and source choices.
+Encoding/EOL changes can be undone together; Save keeps the chosen format.
+While the Encoding dialog or Save is active, edits and Undo wait for it to finish.
