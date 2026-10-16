@@ -98,3 +98,11 @@ Owned compiler, receiver and loopback server PIDs were independently checked abs
 Core/AppStore suites were not repeated for this native delivery-boundary change.
 [Validation record](qa/send-mail-cancellation-2026-10-13.json) lists the actual scope
 and the still-unverified full hosted CI result.
+
+## Email Settings credential editor — October 17, 2026
+
+The [Email Settings family](EMAIL-SETTINGS-PARITY.md) now maps all source Email
+controls, conditional client availability and the owned native Password editor.
+Immediate Store/Clear remain independent of Apply/Cancel. Secure-control limits,
+focus/default buttons and request/Quit/retirement guards complete this connected
+native workflow; real Keychain/Apple Mail and signed acceptance remain open.

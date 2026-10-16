@@ -563,6 +563,10 @@
         {
           "path": "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift",
           "anchor": "struct GitSVNAuthenticationPrompt"
+        },
+        {
+          "path": "Sources/TurtleGitMac/EmailSettings.swift",
+          "anchor": "class SMTPCredentialWindowController"
         }
       ]
     },
@@ -665,6 +669,22 @@
       ],
       "parity_document": "docs/LOG-FILTER-PARITY.md",
       "status": "partial-workflow-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSMTP",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/EMAIL-SETTINGS-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/EmailSettings.swift",
+          "anchor": "class EmailSettingsModel"
+        },
+        {
+          "path": "Sources/TurtleGitMac/EmailSettings.swift",
+          "anchor": "class SMTPCredentialWindowController"
+        }
+      ]
     }
   ]
 }

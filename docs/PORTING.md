@@ -1720,3 +1720,15 @@ Twelve grouped native case/engine combinations pass after a template-newline
 fixture correction. All thirteen owned receivers were reaped and independently
 absent. Core Git algorithms are unchanged and its suite was not repeated. See
 [batch evidence](qa/commit-refresh-snapshot-2026-10-17.json).
+
+### Email Settings and native credential family — October 17, 2026
+
+Email now detects the Apple Mail choice and uses an explicitly owned native
+Password sheet with source focus/length/default-button behavior. Duplicate,
+changed-context and retired replies cannot store credentials; modal Settings/Quit
+ownership and immediate Store/Clear remain connected to the existing Keychain
+work lifetime. See [Email Settings parity](EMAIL-SETTINGS-PARITY.md).
+Both native families pass after a readiness-fixture repair. Four individually
+reviewed passive light/dark captures are published; all three owned receivers
+were reaped and absent. Sixteen source controls now have explicit native mappings.
+Physical/signed acceptance remains open. See [batch evidence](qa/email-credential-editor-2026-10-17.json).

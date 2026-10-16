@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 672,
-    "mapped_controls": 987,
+    "pending_control_reviews": 656,
+    "mapped_controls": 1003,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -1010,13 +1010,26 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 16,
-      "mapped_controls": 0,
-      "pending_control_reviews": 16,
+      "mapped_controls": 16,
+      "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/EmailSettings.swift",
+          "anchor": "class EmailSettingsModel"
+        },
+        {
+          "path": "Sources/TurtleGitMac/EmailSettings.swift",
+          "anchor": "class SMTPCredentialWindowController"
+        }
+      ],
       "missing_native_references": [],
-      "parity_documents": [],
-      "qa_records": []
+      "parity_documents": [
+        "docs/EMAIL-SETTINGS-PARITY.md"
+      ],
+      "qa_records": [
+        "docs/qa/email-credential-editor-2026-10-17.json"
+      ]
     },
     {
       "resource": "src/Resources/TortoiseProcENG.rc",
@@ -3402,13 +3415,19 @@
         {
           "path": "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift",
           "anchor": "struct GitSVNAuthenticationPrompt"
+        },
+        {
+          "path": "Sources/TurtleGitMac/EmailSettings.swift",
+          "anchor": "class SMTPCredentialWindowController"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/EMAIL-SETTINGS-PARITY.md",
         "docs/SVN-AUTHENTICATION-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/email-credential-editor-2026-10-17.json",
         "docs/qa/svn-authentication-2026-10-14.json",
         "docs/qa/svn-certificate-details-2026-10-14.json"
       ]
