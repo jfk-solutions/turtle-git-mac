@@ -6,6 +6,7 @@ import TurtleGitCore
     @MainActor static func wait(line:UInt = #line,_ condition:()->Bool)async throws{for _ in 0..<2500{if condition(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(description:"Replay progress timeout line \(line)")}
     @MainActor static func main()async{do{try await verify()}catch{fputs("Replay progress failed: \(error)\n",stderr);exit(1)}}
     @MainActor static func verify()async throws{
+        NSApp.setActivationPolicy(.prohibited)
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
         _ = try await repo.run(["init","-b","main"]);for (key,value) in [("user.name","Replay QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")]{_ = try await repo.run(["config",key,value])}
         try Data("base".utf8).write(to:root.appendingPathComponent("base"));try await repo.stage(["base"]);_ = try await repo.commit(message:"base");let base=try await repo.rebaseCommit("HEAD")
@@ -29,15 +30,18 @@ import TurtleGitCore
         try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path);setenv("TG_REPLAY_GIT",git.path,1);setenv("TG_REPLAY_GATE","--continue",1);defer{unsetenv("TG_REPLAY_GIT");unsetenv("TG_REPLAY_GATE")}
         let wrapped=GitRepository(root:root,executable:helper),suite="TurtleGit.ReplayProgress."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!;prefs.set(true,forKey:"ConfirmKillProcess");prefs.set(false,forKey:"EnableLogCache");prefs.set(false,forKey:"EnableGravatar");defer{prefs.removePersistentDomain(forName:suite)}
         let controller=RebaseWindowController(repository:wrapped,access:nil,preferences:prefs),model=controller.model;defer{controller.close()};model.load();try await wait{!model.busy && model.state?.isEditPause==true}
+        try require(model.dockProgress?.kind == .paused,"Edit pause lost yellow Dock state")
         var questions=0;model.confirmReplayCancellation={questions += 1;return questions>1};model.execute("continue")
         try await wait{FileManager.default.fileExists(atPath:marker.path) && model.output.contains("Unicode 雪")}
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try await repo.run(["ls-files","--stage","-z"]).stdout
         try require(model.replaying && model.output.contains("Replay: 35%") && !model.output.contains("Replay: 10%") && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Replay stream/ownership missing")
+        try require(model.dockProgress?.kind == .running,"Live replay lost running Dock state")
         model.cancelReplay();try await wait{questions==1 && !model.confirmingReplayCancellation};try require(model.busy,"No killed the replay")
         model.cancelReplay();try await wait{!model.busy && RebaseWindowModel.activeReplayOperations==0}
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try await repo.run(["ls-files","--stage","-z"]).stdout
         try require(model.active && !model.completedSuccessfully && head==afterHead && index==afterIndex && model.status.contains("stopped"),"Interrupted replay lost actual recovery state")
-        controller.close();try FileManager.default.removeItem(at:marker);setenv("TG_REPLAY_GATE","--abort",1);prefs.set(false,forKey:"ConfirmKillProcess")
+        try require(model.dockProgress?.kind == .failed,"Cancelled replay lost retained failure Dock state")
+        controller.close();try require(model.dockProgress == nil,"Retired replay kept Dock state");try FileManager.default.removeItem(at:marker);setenv("TG_REPLAY_GATE","--abort",1);prefs.set(false,forKey:"ConfirmKillProcess")
         let late=RebaseWindowController(repository:wrapped,access:nil,preferences:prefs);late.model.load();try await wait{!late.model.busy && late.model.active};var changed=0;late.model.onChanged={changed += 1};late.model.execute("abort")
         try await wait{FileManager.default.fileExists(atPath:marker.path)};late.close();try require(RebaseWindowModel.activeReplayOperations>0,"Forced close lost replay process lifetime")
         try await wait{RebaseWindowModel.activeReplayOperations==0};try require(late.model.retired && changed==0,"Retired replay published a callback")

@@ -787,6 +787,7 @@ struct PullProgressDialog: View {
                 }
             }.disabled(model.confirmingConflictHint || model.dispatchingAction)
         }.padding(12)
+        .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation || model.confirmingConflictHint, percentage: model.percentage))
     }
 }
 
@@ -1100,6 +1101,7 @@ struct FetchProgressDialog: View {
                 else { if !model.success { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }; Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
             }.disabled(model.dispatchingAction)
         }.padding(12)
+        .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation || model.confirmingRebaseDecision, percentage: model.percentage))
     }
 }
 

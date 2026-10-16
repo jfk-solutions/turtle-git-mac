@@ -2597,5 +2597,6 @@ private struct CommitProgressDialog: View {
                     .disabled(model.success || model.confirmingCancellation || model.busy && !model.canCancel)
             }
         }.padding(12)
+        .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation, percentage: model.percentage))
     }
 }

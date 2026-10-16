@@ -728,6 +728,7 @@ struct SwitchProgressDialog: View {
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
             }.disabled(model.confirmingCancellation)
         }.padding(12)
+        .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation, percentage: model.percentage))
     }
 }
 

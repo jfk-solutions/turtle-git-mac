@@ -522,6 +522,7 @@ struct FormatPatchProgressDialog: View {
                     .disabled(model.success || model.confirmingCancellation || model.busy && !model.canCancel)
             }
         }.padding(16).frame(minWidth: 650, idealWidth: 760, minHeight: 320, idealHeight: 430)
+        .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation, percentage: model.percentage))
     }
 }
 

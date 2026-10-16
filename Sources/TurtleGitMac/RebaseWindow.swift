@@ -1027,6 +1027,13 @@ struct RebaseReferenceRequest {
         if fileRecovery && supportsConflictSelection && state?.split == nil { return "Commit" }
         return "Continue"
     }
+    var dockProgress: DockProgressState? {
+        guard !retired, replaying || active || replayStopped else { return nil }
+        let total = state?.total ?? 0
+        let percentage = total > 0 ? min(100, max(0, (state?.currentStep ?? 0) * 100 / total)) : nil
+        if !busy && (error != nil || !(state?.conflicts.isEmpty ?? true) || replayStopped) { return DockProgressState(.failed, percentage: percentage) }
+        return DockProgressState(busy && !hasReplayQuestion && !confirmingReplayCancellation ? .running : .paused, percentage: percentage)
+    }
     var status: String {
         if replayStopped { return completion }
         if finished { return completion }
@@ -1851,6 +1858,7 @@ struct RebaseDialog: View {
         .sheet(isPresented: Binding(get: { model.conflictPatch != nil }, set: { if !$0 { model.conflictPatch = nil } })) {
             VStack { Text("Compare with base").font(.headline); OutputView(text: model.conflictPatch ?? "").frame(minWidth: 850, minHeight: 520); Button("Close") { model.conflictPatch = nil }.keyboardShortcut(.cancelAction) }.padding(12)
         }
+        .gitDockProgress(model.dockProgress)
     }
 }
 struct RebaseConflictSortableRow:Identifiable {

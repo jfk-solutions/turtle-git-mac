@@ -56,6 +56,9 @@ struct GitProgressOutputState {
     static func stream<T>(preferences: UserDefaults, update: @escaping (GitProgressOutputState) -> Void,
                           resultText: @escaping (T) -> String,
                           operation: @escaping (@escaping @Sendable (GitOutputChunk) -> Void) async throws -> T) async throws -> T {
+        let dockOwner = UUID()
+        DockProgressRegistry.shared.update(dockOwner, DockProgressState(.running))
+        defer { DockProgressRegistry.shared.remove(dockOwner) }
         var state = GitProgressOutputState(preferences: preferences)
         let parser = GitCliOutputParser(limit: state.limit)
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
@@ -63,7 +66,7 @@ struct GitProgressOutputState {
             defer { continuation.finish() }
             return try await operation { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }
         }
-        for await _ in updates { state.consume(parser.processPending(), parser: parser); update(state) }
+        for await _ in updates { state.consume(parser.processPending(), parser: parser); DockProgressRegistry.shared.update(dockOwner, DockProgressState(.running, percentage: state.percentage)); update(state) }
         state.consume(parser.processPending(), parser: parser); state.consume(parser.finish(), parser: parser); update(state)
         let result = try await worker.value
         if state.output.isEmpty {
@@ -126,6 +129,171 @@ struct GitCommandProgressBar: View {
             if let percentage { ProgressView(value: Double(percentage), total: 100) }
             else if animate { ProgressView().progressViewStyle(.linear) }
             else { ProgressView(value: 0, total: 100).accessibilityValue("Running; progress unknown") }
+        }
+    }
+}
+
+/// One Dock tile represents the application's independently owned Git windows.
+/// A retained error wins; running work wins over a separate paused session.
+struct DockProgressState: Equatable {
+    enum Kind: Int { case running, paused, failed }
+    let kind: Kind
+    let percentage: Int?
+    init(_ kind: Kind, percentage: Int? = nil) {
+        self.kind = kind; self.percentage = percentage.map { min(100, max(0, $0)) }
+    }
+    static func command(busy: Bool, success: Bool, waiting: Bool = false, percentage: Int?) -> Self? {
+        if busy { return Self(waiting ? .paused : .running, percentage: percentage) }
+        return success ? nil : Self(.failed, percentage: 100)
+    }
+    var accessibilityText: String {
+        let title = kind == .failed ? "Git command failed" : kind == .paused ? "Git command waiting" : "Git command running"
+        return title + (percentage.map { ", \($0) percent" } ?? "")
+    }
+}
+
+@MainActor final class DockProgressRegistry {
+    static let shared = DockProgressRegistry { DockProgressPresenter.shared.present($0) }
+    private var entries: [UUID: DockProgressState] = [:]
+    private(set) var current: DockProgressState?
+    var presentation: (DockProgressState?) -> Void
+    init(presentation: @escaping (DockProgressState?) -> Void) { self.presentation = presentation }
+    var ownerCount: Int { entries.count }
+    func update(_ owner: UUID, _ value: DockProgressState?) {
+        entries[owner] = value; publish()
+    }
+    func remove(_ owner: UUID) { entries.removeValue(forKey: owner); publish() }
+    private func publish() {
+        let values = Array(entries.values)
+        let kind: DockProgressState.Kind? = values.contains { $0.kind == .failed } ? .failed : values.contains { $0.kind == .running } ? .running : values.isEmpty ? nil : .paused
+        let matching = values.filter { $0.kind == kind }
+        let value = kind.map { DockProgressState($0, percentage: matching.contains { $0.percentage == nil } ? nil : matching.compactMap(\.percentage).min()) }
+        guard value != current else { return }; current = value; presentation(value)
+    }
+}
+
+/// Native attachment follows the actual view lifetime, including sheet teardown.
+/// Dismantled coordinators cannot recreate a retired Dock entry.
+struct DockProgressAttachment: NSViewRepresentable {
+    let value: DockProgressState?
+    var registry: DockProgressRegistry = .shared
+    func makeCoordinator() -> Coordinator { Coordinator(registry: registry) }
+    func makeNSView(context: Context) -> Probe {
+        let probe = Probe(frame: .zero); probe.coordinator = context.coordinator
+        context.coordinator.update(value); return probe
+    }
+    func updateNSView(_ view: Probe, context: Context) { context.coordinator.update(value) }
+    static func dismantleNSView(_ view: Probe, coordinator: Coordinator) { coordinator.retire() }
+    @MainActor final class Probe: NSView {
+        weak var coordinator: Coordinator?
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); coordinator?.attach(window) }
+    }
+    @MainActor final class Coordinator {
+        let registry: DockProgressRegistry
+        private let owner = UUID()
+        private var retired = false
+        private var value: DockProgressState?
+        private weak var window: NSWindow?
+        private var observation: NSObjectProtocol?
+        init(registry: DockProgressRegistry) { self.registry = registry }
+        func update(_ value: DockProgressState?) {
+            guard !retired else { return }; self.value = value
+            registry.update(owner, window == nil ? nil : value)
+        }
+        func attach(_ window: NSWindow?) {
+            guard !retired else { return }
+            if let observation { NotificationCenter.default.removeObserver(observation) }; observation = nil
+            self.window = window
+            if let window {
+                observation = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.retire() }
+                }
+            }
+            registry.update(owner, window == nil ? nil : value)
+        }
+        func retire() {
+            guard !retired else { return }; retired = true
+            if let observation { NotificationCenter.default.removeObserver(observation) }; observation = nil
+            registry.remove(owner)
+        }
+        deinit { if let observation { NotificationCenter.default.removeObserver(observation) } }
+    }
+}
+extension View {
+    func gitDockProgress(_ value: DockProgressState?) -> some View {
+        background(DockProgressAttachment(value: value).frame(width: 0, height: 0))
+    }
+}
+
+/// Replaces only this app's Dock content while progress exists; restores any
+/// previous custom content and leaves badge labels untouched.
+@MainActor final class DockProgressPresenter: NSObject {
+    static let shared = DockProgressPresenter(
+        read: { NSApp.dockTile.contentView }, write: { NSApp.dockTile.contentView = $0 },
+        display: { NSApp.dockTile.display() }, icon: { NSApp.applicationIconImage }, size: { NSApp.dockTile.size },
+        allowed: { NSApp.activationPolicy() == .regular },
+        reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
+    private let read: () -> NSView?, write: (NSView?) -> Void, display: () -> Void, icon: () -> NSImage?
+    private let allowed: () -> Bool, reduceMotion: () -> Bool
+    private let size: () -> NSSize
+    private var previous: NSView?
+    private(set) var tile: DockProgressTileView?
+    private(set) var timer: Timer?
+    init(read: @escaping () -> NSView?, write: @escaping (NSView?) -> Void, display: @escaping () -> Void,
+         icon: @escaping () -> NSImage?, size: @escaping () -> NSSize = { NSSize(width: 128, height: 128) }, allowed: @escaping () -> Bool, reduceMotion: @escaping () -> Bool) {
+        self.read = read; self.write = write; self.display = display; self.icon = icon
+        self.allowed = allowed; self.reduceMotion = reduceMotion; self.size = size
+    }
+    func present(_ value: DockProgressState?) {
+        guard let value, allowed() else { clear(); return }
+        if tile == nil {
+            previous = read()
+            let view = DockProgressTileView(frame: NSRect(origin: .zero, size: size()))
+            view.setAccessibilityElement(true); view.setAccessibilityRole(.progressIndicator)
+            view.icon = icon(); tile = view; write(view)
+        }
+        tile?.state = value
+        if value.kind == .running && value.percentage == nil && !reduceMotion() {
+            if timer == nil {
+                let next = Timer(timeInterval: 0.12, target: self, selector: #selector(advance), userInfo: nil, repeats: true)
+                timer = next; RunLoop.main.add(next, forMode: .common)
+            }
+        } else { timer?.invalidate(); timer = nil }
+        display()
+    }
+    @objc private func advance() {
+        guard allowed(), let tile, read() === tile else { clear(); return }
+        if reduceMotion() { timer?.invalidate(); timer = nil; tile.phase = 0 }
+        else { tile.phase = (tile.phase + 0.08).truncatingRemainder(dividingBy: 1) }
+        tile.needsDisplay = true; display()
+    }
+    func clear() {
+        timer?.invalidate(); timer = nil
+        if let tile, read() === tile { write(previous); display() }
+        tile = nil; previous = nil
+    }
+}
+
+@MainActor final class DockProgressTileView: NSView {
+    var icon: NSImage?
+    var state = DockProgressState(.running) { didSet { needsDisplay = true; setAccessibilityLabel(state.accessibilityText) } }
+    var phase: CGFloat = 0
+    override func draw(_ dirtyRect: NSRect) {
+        icon?.draw(in: bounds)
+        let bar = NSRect(x: bounds.width * 0.11, y: bounds.height * 0.08, width: bounds.width * 0.78, height: bounds.height * 0.115)
+        NSColor.black.withAlphaComponent(0.8).setFill(); NSBezierPath(roundedRect: bar, xRadius: bar.height / 2, yRadius: bar.height / 2).fill()
+        let interior = bar.insetBy(dx: 2, dy: 2)
+        let color: NSColor = state.kind == .failed ? .systemRed : state.kind == .paused ? .systemYellow : .systemGreen
+        color.setFill()
+        let fill: NSRect
+        if let value = state.percentage { fill = NSRect(x: interior.minX, y: interior.minY, width: interior.width * CGFloat(value) / 100, height: interior.height) }
+        else { fill = NSRect(x: interior.minX + (interior.width * 0.65) * phase, y: interior.minY, width: interior.width * 0.35, height: interior.height) }
+        NSBezierPath(roundedRect: fill, xRadius: interior.height / 2, yRadius: interior.height / 2).fill()
+        // A symbol keeps waiting/error states distinguishable without color.
+        if state.kind != .running {
+            let mark = state.kind == .failed ? "!" : "Ⅱ"
+            let text = NSAttributedString(string: mark, attributes: [.font: NSFont.boldSystemFont(ofSize: bounds.height * 0.24), .foregroundColor: NSColor.white, .strokeColor: NSColor.black, .strokeWidth: -3])
+            text.draw(at: NSPoint(x: bounds.width * 0.73, y: bounds.height * 0.20))
         }
     }
 }

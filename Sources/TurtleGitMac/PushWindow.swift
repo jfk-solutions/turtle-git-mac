@@ -750,5 +750,6 @@ struct PushProgressDialog: View {
                 else { if !result.success { Button("Cancel") { result.close() }.keyboardShortcut(.cancelAction) }; Button("Close") { result.close() }.keyboardShortcut(.defaultAction) }
             }.disabled(owner.confirmingCancellation)
         }.padding(12)
+        .gitDockProgress(.command(busy: result.busy, success: result.success, waiting: owner.confirmingCancellation, percentage: result.percentage))
     }
 }

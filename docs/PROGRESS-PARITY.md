@@ -143,3 +143,9 @@ Full workflow, physical and signed acceptance remain partial.
 Core cases, the Debug build and four native groups on both Git engines, including
 the argument-recorder setup repair. Complete hosted/physical/signed parity is
 not established.
+
+
+The connected [native Dock progress family](DOCK-PROGRESS.md) now adapts taskbar
+normal/indeterminate/waiting/error/completion to the application Dock, with
+concurrent operation and retained-window ownership. Physical/signed and full
+consumer acceptance remain open. Older Dock-pending entries are historical.

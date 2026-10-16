@@ -11,6 +11,7 @@ import TurtleGitCore
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Local command progress failed: \(error)\n", stderr); exit(1) } }
     @MainActor static func verify() async throws {
+        NSApp.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), repo = GitRepository(root: root, executable: git)
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Progress QA"), ("user.email", "progress@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
@@ -53,6 +54,7 @@ import TurtleGitCore
         @MainActor func live(_ text: String, _ busy: Bool) throws {
             try require(busy && text.contains("Unicode 雪") && text.contains("Work: 20%") && !text.contains("Work: 10%"), "Output was delayed, duplicated or damaged by CR/UTF-8 boundaries")
             try require(LocalGitCommandProgress.activeOperations > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Live command lacks global ownership")
+            try require(DockProgressRegistry.shared.current == DockProgressState(.running, percentage: 20), "Streamed local command lost real Dock progress")
         }
         gate("reset")
         let resetPlan = try await repo.prepareReset(to: base, mode: .hard)
@@ -71,6 +73,7 @@ import TurtleGitCore
         try require(LocalGitCommandProgress.activeOperations > 0, "Forced Reset close released live operation")
         try await wait { LocalGitCommandProgress.activeOperations == 0 }
         try require(reset.output == shown && resetCallbacks == 0, "Retired Reset published output/completion")
+        try await wait { DockProgressRegistry.shared.current == nil }
         var checkout = CheckoutOptions(); checkout.revision = "refs/heads/target"
         gate("switch")
         let switched = SwitchProgressWindowModel(repository: wrapped, access: nil, options: checkout, preferences: prefs)

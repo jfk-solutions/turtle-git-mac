@@ -569,6 +569,7 @@ struct MergeProgressDialog: View {
             }
         }.padding(12)
         .alert("Delete branch failed", isPresented: Binding(get: { model.deletionError != nil }, set: { if !$0 { model.deletionError = nil } })) { Button("OK") { model.deletionError = nil } } message: { Text(model.deletionError ?? "") }
+        .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation || model.confirmingDeletion, percentage: model.percentage))
     }
 }
 
@@ -873,5 +874,6 @@ private struct MergeAbortDialog: View {
                 HStack { Spacer(); Button("OK") { model.abort() }.keyboardShortcut(.defaultAction); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button("Help") { TurtleGitHelp.show(.merge) } }
             }
         }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(nsColor: .windowBackgroundColor))
+        .gitDockProgress(model.showingProgress ? .command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation, percentage: model.percentage) : nil)
     }
 }

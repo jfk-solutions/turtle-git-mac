@@ -2,6 +2,11 @@
 
 *A macOS fork of TortoiseGit*
 
+The native [Dock progress family](DOCK-PROGRESS.md) now connects transport,
+Commit, replay and shared local command progress, including unknown/paused/error
+states, simultaneous operations, reduced motion and closed-window retirement.
+Physical Dock and signed acceptance remain open.
+
 Rebase/Cherry Pick Add and merge-parent preparation now share cancellable ownership,
 atomic plan/draft publication, private multi-selection Log preferences and retired
 question/picker callbacks. See [Add and mainline preparation](REBASE-ADD-PARITY.md#owned-add-and-merge-parent-preparation--october-16-2026).

@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "e3c62e4860108a983020c8d7c09d362346e21163",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native macOS Dock equivalent of Windows taskbar progress across transport/Commit/replay/local command dialogs",
+  "source": [
+    "ProgressDlg.cpp around 303\u2013306, 366\u2013386 and 583\u2013604: normal, error, completion/no-progress and CLI indeterminate/percentage",
+    "RebaseDlg.cpp around 1931\u20131934, 2298\u20132299 and 2513\u20132595: progress, error, paused and no-progress",
+    "AppKit NSDockTile contentView/display and installed SDK APIs"
+  ],
+  "implementation": [
+    "Shared independent-owner registry with error > running > paused precedence; unknown concurrent work remains indeterminate, otherwise minimum fraction",
+    "Preserve native app icon/badge and prior custom Dock content, refusing to overwrite a later unrelated owner",
+    "Single animation timer, Reduce Motion/static indeterminate, known/paused/error/idle stop, accessibility state and non-color waiting/error symbols",
+    "Native view/window lifecycle retires even retained closed controllers; detached/dismantled/stale coordinators cannot recreate entries; hiding does not remove running work",
+    "Twelve progress views: Clone, Push, Pull, Fetch, Merge, Abort Merge, Commit, Format Patch, Reset, Switch, Stash Save and Rebase/Cherry Pick",
+    "Shared local-stream running entry survives disappearing windows until real producer/consumer drain; normal/error cleanup in defer",
+    "Rebase active Edit/review pause, running, interrupted/conflicted and retired states use actual session progress",
+    "Application termination clears presenter; prohibited/headless processes publish registry state without changing actual Dock"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/dock-progress-build.log",
+    "anomalous_exit_zero_diagnostics": 12
+  },
+  "core": {
+    "changed": false,
+    "run": false,
+    "reason": "Native presentation/lifecycle only; no Core suite repeat"
+  },
+  "native": {
+    "log": "build/qa/dock-progress-native.log",
+    "exit": 0,
+    "passing_cases": 8,
+    "first_attempt_pass": true,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "families": [
+      "new Dock registry/presenter/shipping progress views",
+      "retained local Reset/Switch/Stash Save/Restore streaming and cancellation with added Dock assertions",
+      "retained real Rebase Continue/cancellation/forced-close/Abort with added running/paused/failed/retired Dock assertions",
+      "retained Clone/Push/Fetch policy and real Fetch/Sync presentation"
+    ],
+    "receivers_reaped_and_independently_absent": [
+      43441,
+      43469,
+      43511,
+      43581,
+      43656,
+      43988,
+      44326,
+      44417
+    ],
+    "checks": [
+      "Concurrent known/unknown/paused/failed aggregation and fraction clamps",
+      "Last/duplicate retirement and stale coordinator refusal",
+      "Native retained-window close notification clears progress while hiding keeps it",
+      "Injected native Dock content installs renderer, animates, stops under reduced motion, exposes accessibility state, restores prior content and preserves foreign content",
+      "Actual observed shipping Push progress views deliver 45%, retained error, concurrent windows, success clear and forced close while controllers retained",
+      "Real local-command producer cancellation drains with unchanged pre-command HEAD/index and no late results",
+      "Real paused/running/stopped Rebase state and owned replay recovery; initial metadata does not invent command progress",
+      "Actual standalone Fetch submission snapshots, subsequent invocation and Sync preference regressions"
+    ],
+    "diagnostics": "Existing headless view/layout diagnostics, if present, are not physical Dock acceptance."
+  },
+  "visual": {
+    "captures_sha256": {
+      "build/qa/dock-progress-captures/dock-failed-dark.png": "0d770c9bb106fc49adb1073f42c21241d793a45d34a2b620faca37f41d715b36",
+      "build/qa/dock-progress-captures/dock-failed-light.png": "7d3672e55c183a65e022a5bfdb3bbcc82825d702f9c0c766a99086ff0c309599",
+      "build/qa/dock-progress-captures/dock-running-dark.png": "ead714a1cc51701cf47db6917584f194259776c60bd525957721d26a6708bcdf",
+      "build/qa/dock-progress-captures/dock-running-light.png": "b56be9f03a2f126fd2c63ada786938c7f3588b3f1c2fdb94111071a1fc556660",
+      "build/qa/dock-progress-captures/dock-unknown-dark.png": "08185a5caebb244d2a69c5d71dbf4892a7b9062a60987e0ab13f421bfa131392",
+      "build/qa/dock-progress-captures/dock-unknown-light.png": "eee65b5bf9d34cd0eed703a4fec071c0d518ad4ecf4343c2b02129fdaeae8681",
+      "build/qa/dock-progress-captures/dock-waiting-dark.png": "71246e2e4488a23078b7e17c6fd38cd4a3bf3b91983699f9e1d1a5a11452c95d",
+      "build/qa/dock-progress-captures/dock-waiting-light.png": "ded45aa583551a93e9c47b8205e0c7c2ba791c2b8203acb2db5fd318e089d7ce"
+    },
+    "reviewed": "All eight native tile view PNGs, four states in Aqua/darkAqua, visually inspected. Green known/unknown bar, yellow pause mark and red error mark visible; bar/text complete. These are class renders through injected content, not physical Dock screenshots.",
+    "finding": "Current unsigned app resolves to the generic macOS application icon; branded packaged AppIcon remains a separate distribution/UI gap."
+  },
+  "documentation": {
+    "help": {
+      "documents": 28,
+      "topics": 47,
+      "files": 34,
+      "bytes": 216480,
+      "mode": "write"
+    },
+    "coverage": "130 dialogs; 120 partial audits; 10 pending; 0 certified; 986 mapped / 673 pending controls",
+    "site": "239 documents, no unresolved fragments"
+  },
+  "limits": [
+    "No physical Dock, minimization/auto-hide, actual multi-display or VoiceOver acceptance",
+    "No native result publication added to every shared stream consumer; those consumers receive active stream progress only",
+    "No weighted combined-operation estimate or multiple per-window taskbar replicas",
+    "No signed Finder/App Store acceptance, complete hosted CI or full application parity",
+    "Branded packaged AppIcon still open"
+  ]
+}

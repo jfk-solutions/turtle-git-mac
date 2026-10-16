@@ -377,3 +377,13 @@ conflict/resolution colors. The format ribbon reports real row endings. The
 selected output ending also applies to subsequent typing and source choices.
 Encoding/EOL changes can be undone together; Save keeps the chosen format.
 While the Encoding dialog or Save is active, edits and Undo wait for it to finish.
+
+
+## Dock progress
+
+Git command windows show progress in the application Dock. Green indicates running
+work, yellow indicates a waiting replay/question and red indicates an open failed
+result. Successful completion clears its indicator; close an inspected failed
+result to clear it. Other running windows keep their progress. Unknown work uses
+an animated segment, which stays still with macOS Reduce Motion enabled. See
+[Dock progress](DOCK-PROGRESS.md) for simultaneous-operation behavior.
