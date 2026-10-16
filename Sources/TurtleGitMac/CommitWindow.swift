@@ -401,6 +401,7 @@ import UniformTypeIdentifiers
     private var droppedChecks: [CommitDroppedItem] = []
     private var reloadTask: Task<Void, Never>?
     private var reloadCancellation: OperationCancellation?
+    private var reloadError:String?
     @Published private var pendingReloadCancel = false
     var queryCommitStatus: (Bool, OperationCancellation) async throws -> [StatusEntry]
     var queryStagingStates: ([StatusEntry], String?, OperationCancellation) async throws -> [String: CommitStagingState]
@@ -450,13 +451,13 @@ import UniformTypeIdentifiers
             message = result.message; issueID = result.issueID; requestMessageFocus()
         }
     }
-    private func loadNativeIssueProvider(_ token: OperationCancellation) async throws {
+    private func readNativeIssueProvider(_ token: OperationCancellation) async throws -> (provider:NativeIssueCatalogProvider?,error:String?) {
         let rows: [NativeIssueAssociation]
-        do { rows = try NativeIssueAssociations.load(from: dialogDefaults) } catch { nativeIssueProvider = nil; issueProviderError = error.localizedDescription; return }
+        do { rows = try NativeIssueAssociations.load(from: dialogDefaults) }
+        catch { return (nil,error.localizedDescription) }
         let association = try await readReload(token) { try await repository.nativeIssueAssociation(rows: rows, cancellation: token) }
-        guard messageFocusAvailable else { return }
-        do { nativeIssueProvider = try association.map { try NativeIssueCatalogProvider(parameters: $0.parameters, identifier: $0.provider) }; issueProviderError = nil }
-        catch { nativeIssueProvider = nil; issueProviderError = error.localizedDescription }
+        do { return (try association.map { try NativeIssueCatalogProvider(parameters: $0.parameters, identifier: $0.provider) },nil) }
+        catch { return (nil,error.localizedDescription) }
     }
     @Published var issueProperties = IssueTrackerProperties() { didSet { if issueProperties != oldValue { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
     @Published private(set) var issueMessageStyles: [IssueMessageStyle] = []
@@ -1218,113 +1219,141 @@ import UniformTypeIdentifiers
         return true
     }
     func reload(paths: [String]? = nil) {
-        guard messageFocusAvailable, !issueProviderBusy, !busy, !pendingReloadCancel else { return }; fileMenuGeneration = UUID(); busy = true
-        let position = fileListRefresh.begin(preferences:dialogDefaults,reset:!hasLoaded || paths != nil && (paths!.contains(".") ? []:paths!) != scopePaths,selectedIDs:selection)
-        let token = OperationCancellation(); reloadCancellation = token;Self.activeReloads += 1
-        lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
-        let resetChecks = paths != nil && (!hasLoaded || (paths!.contains(".") ? [] : paths!) != scopePaths)
-        if let paths { scopePaths = paths.contains(".") ? [] : paths; showWholeProject = scopePaths.isEmpty }
+        guard messageFocusAvailable, !issueProviderBusy, !busy, !pendingReloadCancel else { return }
+        fileMenuGeneration = UUID(); busy = true
+        let requestedScope = paths.map { $0.contains(".") ? [] : $0 } ?? scopePaths
+        let requestedWholeProject = paths == nil ? showWholeProject : requestedScope.isEmpty
+        let resetChecks = paths != nil && (!hasLoaded || requestedScope != scopePaths)
+        let position = fileListRefresh.begin(preferences:dialogDefaults,reset:!hasLoaded || requestedScope != scopePaths,selectedIDs:selection)
+        let token = OperationCancellation(); reloadCancellation = token; Self.activeReloads += 1
         reloadTask = Task {
             defer {
-                Self.activeReloads -= 1;fileListRefresh.finish(position);withExtendedLifetime(access) {}
+                Self.activeReloads -= 1; fileListRefresh.finish(position); withExtendedLifetime(access) {}
                 if reloadCancellation === token {reloadCancellation=nil;reloadTask=nil;busy=false;offerStagingHint()}
             }
             do {
-                var restorePatch = false
-                if !loadedPreferences {
-                    let preferences = try await readReload(token) { try await repository.commitPreferences(cancellation: token) }
-                    persistedStaging=preferences.staging;stagingEnabled=preferences.staging;appliedStagingMode=preferences.staging;stagingHintPending=preferences.staging; restorePatch = preferences.showPatch; loadedPreferences = true
-                }
-                operation = try await readReload(token) { try await repository.commitOperation(cancellation: token) }
-                if operation != nil { createBranch = false; amend = false }
-                hasHead = try await readReload(token) { (try? await repository.run(["rev-parse", "--verify", "HEAD"], cancellation: token)) != nil }
-                hasParent = try await readReload(token) { (try? await repository.run(["rev-parse", "--verify", "HEAD^1"], cancellation: token)) != nil }
-                if amend && !hasParent { amendDiffToLastCommit = true }
-                comparisonBase = amendToParent ? try await readReload(token) { try await repository.commitComparisonBase(amendToParent: true, cancellation: token) } : nil
-                entries = try await readReload(token) { try await queryCommitStatus(amendToParent, token) }; stagingStates = nil; stagingStateNeedsRefresh = false; submodules = try await readReload(token) { try await repository.submodulePaths(cancellation: token) }; branch = try await readReload(token) { try await repository.branch(cancellation: token) }
                 try validateRestoreAccess()
-                fileMetadata = try await readReload(token) { await repository.statusListMetadata(paths: entries.map(\.path)) }
-                hasLFS = try await readReload(token) { try await repository.hasLFS(cancellation: token) }
+                // Collect the entire next display before changing the accepted
+                // one. Every suspension checks both token and owning window.
+                let preferences:CommitPreferences?
+                if loadedPreferences { preferences=nil }
+                else { preferences=try await readReload(token) { try await repository.commitPreferences(cancellation:token) } }
+                let nextOperation = try await readReload(token) { try await repository.commitOperation(cancellation:token) }
+                let nextHasHead = try await readReload(token) { (try? await repository.run(["rev-parse","--verify","HEAD"],cancellation:token)) != nil }
+                let nextHasParent = try await readReload(token) { (try? await repository.run(["rev-parse","--verify","HEAD^1"],cancellation:token)) != nil }
+                let nextAmend = nextOperation == nil && amend
+                let nextAmendDiff = nextAmend && !nextHasParent ? true : amendDiffToLastCommit
+                let compareParent = nextAmend && !nextAmendDiff
+                let nextBase = compareParent ? try await readReload(token) { try await repository.commitComparisonBase(amendToParent:true,cancellation:token) } : nil
+                let nextEntries = try await readReload(token) { try await queryCommitStatus(compareParent,token) }
+                let nextSubmodules = try await readReload(token) { try await repository.submodulePaths(cancellation:token) }
+                let nextBranch = try await readReload(token) { try await repository.branch(cancellation:token) }
+                let nextMetadata = try await readReload(token) { await repository.statusListMetadata(paths:nextEntries.map(\.path)) }
+                let nextHasLFS = try await readReload(token) { try await repository.hasLFS(cancellation:token) }
                 let snippetURL = RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("snippet.txt")
-                messageSnippets = try await readReload(token) { await snippetLoader.load(userURL: snippetURL) }
-                changelistsLoaded = false
-                changelists = try await readReload(token) { try await repository.changelists(cancellation: token) }; changelistsLoaded = true
-                indexFlagFiles = try await readReload(token) { try await repository.workingTreeStatus(cancellation: token) }
-                conflictRebase = try await readReload(token) { try await repository.conflictIsRebase(cancellation: token) }
-                statistics = Dictionary(try await readReload(token) { try await repository.workingTreeFiles(amendToParent: amendToParent, cancellation: token) }.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
-                stagedStatistics = Dictionary(try await readReload(token) { try await repository.stagingFiles(staged: true, base: comparisonBase, cancellation: token) }.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
-                unstagedStatistics = Dictionary(try await readReload(token) { try await repository.stagingFiles(staged: false, cancellation: token) }.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
-                if resetChecks {
-                    checked = Set(visibleEntries.filter { entry in
-                        let inScope = scopePaths.isEmpty || scopePaths.contains { $0 == entry.path || entry.path.hasPrefix($0 + "/") }
-                        let directFile = scopePaths.contains(entry.path)
-                        let missing = entry.worktree == "D"
-                        let automatic = (selectFilesAutomatically || replaySplit != nil) && entry.state != .untracked && (!doNotAutoselectMissing || !missing)
-                        return inScope && (directFile || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted
-                    }.map(\.id))
-                } else { checked.formIntersection(Set(entries.map(\.id))) }
-                if !droppedChecks.isEmpty {
-                    for item in droppedChecks {
-                        for entry in visibleEntries where item.path == "." || entry.path.utf8.elementsEqual(item.path.utf8) || item.directory && entry.path.hasPrefix(item.path + "/") {
-                            let missing = entry.worktree == "D"
-                            let automatic = (selectFilesAutomatically || replaySplit != nil) && entry.state != .untracked && (!doNotAutoselectMissing || !missing)
-                            let direct = scopePaths.contains(entry.path)
-                            if (direct || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted { checked.insert(entry.id) }
-                            else { checked.remove(entry.id) }
-                        }
-                    }
-                    droppedChecks = []
-                }
-                selection.formIntersection(Set(entries.map(\.id)))
+                let nextSnippets = try await readReload(token) { await snippetLoader.load(userURL:snippetURL) }
+                let nextChangelists = try await readReload(token) { try await repository.changelists(cancellation:token) }
+                let nextIndexFlags = try await readReload(token) { try await repository.workingTreeStatus(cancellation:token) }
+                let nextConflictRebase = try await readReload(token) { try await repository.conflictIsRebase(cancellation:token) }
+                let nextStatistics = Dictionary(try await readReload(token) { try await repository.workingTreeFiles(amendToParent:compareParent,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
+                let nextStaged = Dictionary(try await readReload(token) { try await repository.stagingFiles(staged:true,base:nextBase,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
+                let nextUnstaged = Dictionary(try await readReload(token) { try await repository.stagingFiles(staged:false,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
+                let nextAuthor:String?
                 if !hasLoaded && author.isEmpty {
-                    author = try await readReload(token) {
-                        let name = (try? await repository.run(["config", "user.name"], cancellation: token).text.trimmingCharacters(in: .newlines)) ?? ""
-                        let email = (try? await repository.run(["config", "user.email"], cancellation: token).text.trimmingCharacters(in: .newlines)) ?? ""
+                    nextAuthor = try await readReload(token) {
+                        let name=(try? await repository.run(["config","user.name"],cancellation:token).text.trimmingCharacters(in:.newlines)) ?? ""
+                        let email=(try? await repository.run(["config","user.email"],cancellation:token).text.trimmingCharacters(in:.newlines)) ?? ""
                         return name.isEmpty ? "" : "\(name) <\(email)>"
                     }
-                }
-                try await loadNativeIssueProvider(token)
-                hasLoaded = true; refreshPartial()
+                } else { nextAuthor=nil }
+                let provider = try await readNativeIssueProvider(token)
+                let nextIssueProperties:IssueTrackerProperties?,nextProjectSettings:ProjectDialogSettings?,nextHistory:CommitMessageHistory?,seed:CommitMessageSeed?
+                let draftMessage=message,draftIssueID=issueID
                 if !loadedMessage {
-                    issueProperties = try await readReload(token) { try await repository.issueTrackerProperties(cancellation: token) }
-                    projectSettings = try await readReload(token) { try await repository.projectDialogSettings(source: .effective, cancellation: token) }
-                    let identity = try await readReload(token) { try await repository.commitMessageHistoryIdentity(cancellation: token) }
-                    let storedLimit = dialogDefaults.object(forKey: "MaxHistoryItems") as? Int ?? dialogDefaults.object(forKey: "Commit.MaxHistoryItems") as? Int ?? 25
-                    messageHistory = CommitMessageHistory(repositoryIdentity: identity, defaults: dialogDefaults, limit: storedLimit)
-                    let seed = try await readReload(token) { try await loadMessageSeed(cancellation: token) }
-                    messageTemplate = seed.template
-                    if message.isEmpty && !amend {
-                        let separated = issueProperties.separateIssueLine(from: seed.message)
-                        message = separated.message; issueID = separated.issueID
-                    }
-                    do {
-                        if let hook = try await clientHooks.run(.startCommit, repository: repository, access: access, paths: scopePaths.isEmpty ? [repository.root.path] : scopePaths.map { repository.root.appendingPathComponent($0).path }, message: message, cancellation: token, allowContinue: true) {
-                            guard messageFocusAvailable, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
-                            message = hook.message
-                        }
-                    } catch {
-                        guard messageFocusAvailable, reloadCancellation === token, !token.isCancelled else { return }
-                        self.error = error.localizedDescription; busy = false; close(); return
-                    }
-                    loadedMessage = true
-                    if !seed.warnings.isEmpty { self.error = seed.warnings.joined(separator: "\n\n") }
-                }
-                prepareMessageCompletions(force: true)
-                if restorePatch { if stagingEnabled { showPartial(false) } else { showViewPatch() } }
-                if visibleFileColumns.contains(.lfsOwner) {
-                    lfsOwnerCancellation = token
-                    defer { if lfsOwnerCancellation === token { lfsOwnerCancellation = nil } }
+                    nextIssueProperties = try await readReload(token) { try await repository.issueTrackerProperties(cancellation:token) }
+                    nextProjectSettings = try await readReload(token) { try await repository.projectDialogSettings(source:.effective,cancellation:token) }
+                    let identity = try await readReload(token) { try await repository.commitMessageHistoryIdentity(cancellation:token) }
+                    let limit = dialogDefaults.object(forKey:"MaxHistoryItems") as? Int ?? dialogDefaults.object(forKey:"Commit.MaxHistoryItems") as? Int ?? 25
+                    nextHistory = CommitMessageHistory(repositoryIdentity:identity,defaults:dialogDefaults,limit:limit)
+                    seed = try await readReload(token) { try await loadMessageSeed(cancellation:token) }
+                } else { nextIssueProperties=nil;nextProjectSettings=nil;nextHistory=nil;seed=nil }
+                var nextOwners:[String:String]=[:],nextLocked=Set<String>(),nextOwnershipKnown=false
+                var warnings=seed?.warnings ?? []
+                if nextHasLFS && fileColumns.visible.contains(.lfsOwner) {
+                    lfsOwnerCancellation=token
+                    defer {if lfsOwnerCancellation === token {lfsOwnerCancellation=nil}}
                     do {
                         let locks = try await readReload(token) { try await queryLFSOwners(token) }
-                        guard !token.isCancelled else { return }
-                        lfsOwners = Dictionary(locks.map { ($0.path, $0.owner) }, uniquingKeysWith: { first, _ in first })
-                        lfsLockedPaths = Set(locks.map(\.path)); lfsOwnershipKnown = true
-                    } catch { if messageFocusAvailable, !token.isCancelled { self.error = "Could not get LFS locks: " + error.localizedDescription } }
+                        nextOwners=Dictionary(locks.map {($0.path,$0.owner)},uniquingKeysWith:{first,_ in first})
+                        nextLocked=Set(locks.map(\.path));nextOwnershipKnown=true
+                    } catch {
+                        try token.check()
+                        warnings.append("Could not get LFS locks: " + error.localizedDescription)
+                    }
                 }
-
-                if !position.remember {selection = []}
+                var nextMessage=draftMessage,nextIssueID=draftIssueID
+                if let seed {
+                    if draftMessage.isEmpty && !nextAmend {
+                        let separated=(nextIssueProperties ?? issueProperties).separateIssueLine(from:seed.message)
+                        nextMessage=separated.message;nextIssueID=separated.issueID
+                    }
+                    do {
+                        if let hook = try await clientHooks.run(.startCommit,repository:repository,access:access,paths:requestedScope.isEmpty ? [repository.root.path] : requestedScope.map {repository.root.appendingPathComponent($0).path},message:nextMessage,cancellation:token,allowContinue:true) { nextMessage=hook.message }
+                    } catch {
+                        guard messageFocusAvailable,reloadCancellation === token,!token.isCancelled else {return}
+                        self.error=error.localizedDescription;busy=false;close();return
+                    }
+                }
+                _ = try await readReload(token) { () }
+                // No suspension until every field and dependent command target
+                // belongs to the same accepted read. Native row settlement follows.
+                if let preferences {
+                    persistedStaging=preferences.staging;stagingEnabled=preferences.staging;appliedStagingMode=preferences.staging;stagingHintPending=preferences.staging;loadedPreferences=true
+                }
+                operation=nextOperation;if nextOperation != nil {createBranch=false}
+                amend=nextAmend;amendDiffToLastCommit=nextAmendDiff
+                hasHead=nextHasHead;hasParent=nextHasParent;comparisonBase=nextBase
+                scopePaths=requestedScope;showWholeProject=requestedWholeProject
+                entries=nextEntries;submodules=nextSubmodules;branch=nextBranch;fileMetadata=nextMetadata
+                hasLFS=nextHasLFS;messageSnippets=nextSnippets;changelists=nextChangelists;changelistsLoaded=true
+                indexFlagFiles=nextIndexFlags;conflictRebase=nextConflictRebase
+                statistics=nextStatistics;stagedStatistics=nextStaged;unstagedStatistics=nextUnstaged
+                stagingStates=nil;stagingStateNeedsRefresh=false
+                lfsOwners=nextOwners;lfsLockedPaths=nextLocked;lfsOwnershipKnown=nextOwnershipKnown
+                nativeIssueProvider=provider.provider;issueProviderError=provider.error
+                if resetChecks {
+                    checked=Set(visibleEntries.filter {entry in
+                        let inScope=requestedScope.isEmpty || requestedScope.contains {$0 == entry.path || entry.path.hasPrefix($0 + "/")}
+                        let directFile=requestedScope.contains(entry.path)
+                        let missing=entry.worktree == "D"
+                        let automatic=(selectFilesAutomatically || replaySplit != nil) && entry.state != .untracked && (!doNotAutoselectMissing || !missing)
+                        return inScope && (directFile || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted
+                    }.map(\.id))
+                } else {checked.formIntersection(Set(entries.map(\.id)))}
+                for item in droppedChecks {
+                    for entry in visibleEntries where item.path == "." || entry.path.utf8.elementsEqual(item.path.utf8) || item.directory && entry.path.hasPrefix(item.path + "/") {
+                        let missing=entry.worktree == "D"
+                        let automatic=(selectFilesAutomatically || replaySplit != nil) && entry.state != .untracked && (!doNotAutoselectMissing || !missing)
+                        let direct=requestedScope.contains(entry.path)
+                        if (direct || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted {checked.insert(entry.id)}
+                        else {checked.remove(entry.id)}
+                    }
+                }
+                droppedChecks=[];selection.formIntersection(Set(entries.map(\.id)))
+                if author.isEmpty,let nextAuthor {author=nextAuthor}
+                hasLoaded=true
+                if let seed {
+                    issueProperties=nextIssueProperties!;projectSettings=nextProjectSettings!;messageHistory=nextHistory;messageTemplate=seed.template
+                    if message.utf8.elementsEqual(draftMessage.utf8),issueID.utf8.elementsEqual(draftIssueID.utf8) {message=nextMessage;issueID=nextIssueID}
+                    loadedMessage=true
+                }
+                if !warnings.isEmpty {reloadError=warnings.joined(separator:"\n\n");self.error=reloadError}
+                else if self.error == reloadError {self.error=nil;reloadError=nil}
+                refreshPartial();prepareMessageCompletions(force:true)
+                if preferences?.showPatch == true {if stagingEnabled {showPartial(false)} else {showViewPatch()}}
+                if !position.remember {selection=[]}
                 await fileListRefresh.restore(position,ids:visibleFileRowIDs);try token.check()
-            } catch { if messageFocusAvailable, !token.isCancelled { self.error = error.localizedDescription } }
+            } catch {if messageFocusAvailable,!token.isCancelled {reloadError=error.localizedDescription;self.error=reloadError}}
         }
     }
     /// Capture config before presenting a permission sheet. A config edit while

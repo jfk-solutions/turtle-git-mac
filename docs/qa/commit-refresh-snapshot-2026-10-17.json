@@ -1,0 +1,113 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "2ec16d11fe65b1cdd845f6d612df938dbae687c6",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Collect full Commit file/operation/configuration/message metadata before accepting a new display",
+    "Required read failure/cancellation preserves accepted scope, checks, selection, statistics and ownership",
+    "Initial preferences/template/history/provider and start-hook results enter the same nonsuspending publication; later draft edits win",
+    "Optional LFS lookup uses newly collected availability and clears stale ownership on warning; Retry clears its own stale read error",
+    "Dependent completions, patch refresh, initial preview and native viewport settlement follow accepted publication"
+  ],
+  "build": {
+    "log": "build/qa/commit-refresh-build-2026-10-17.log",
+    "exit": 0,
+    "exit_zero_no_output_diagnostics": 2
+  },
+  "core": {
+    "repeated": false,
+    "reason": "No Core Git algorithm or persistence code changed; grouped native receivers exercise the actual built Git/Core paths."
+  },
+  "native": {
+    "distinct_case_engine_passes": 12,
+    "cases": [
+      "new complete refresh snapshot",
+      "retained incremental staging",
+      "author/date/amend transitions and real worker cancellation",
+      "preferences and template access including ReCommit seed",
+      "issue provider and actual commit completion",
+      "native list restoration and retained read/Quit ownership"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/commit-refresh-native-2026-10-17.log",
+        "exit": 1,
+        "owned_receivers_reaped": [
+          94237
+        ]
+      },
+      {
+        "log": "build/qa/commit-refresh-snapshot-repair-2026-10-17.log",
+        "exit": 0,
+        "owned_receivers_reaped": [
+          94337,
+          94606
+        ]
+      },
+      {
+        "log": "build/qa/commit-refresh-retained-2026-10-17.log",
+        "exit": 0,
+        "owned_receivers_reaped": [
+          94900,
+          95181,
+          95469,
+          95928,
+          96395,
+          96619,
+          96845,
+          97002,
+          97161,
+          97424
+        ]
+      }
+    ],
+    "independently_absent_owned_receiver_pids": [
+      94237,
+      94337,
+      94606,
+      94900,
+      95181,
+      95469,
+      95928,
+      96395,
+      96619,
+      96845,
+      97002,
+      97161,
+      97424
+    ],
+    "still_live": []
+  },
+  "repairs": [
+    "The new fixture expected a template without its final newline. Existing CommitMessage.normalizeCommitMessage retains exactly one final LF. Corrected both template expectations and added explicit initial-state diagnostics; repeated the failed system snapshot and previously unrun bundled snapshot, then continued the previously unrun retained families."
+  ],
+  "application_source_repairs_after_checkpoint": false,
+  "help": {
+    "check_exit": 0,
+    "files": 50,
+    "bytes": 1968682,
+    "bundled_bytes_equal": true
+  },
+  "site": {
+    "documents": 264,
+    "unresolved_fragments": 0
+  },
+  "captures": [],
+  "ci": {
+    "known_run": 38967919455,
+    "observed_status": "in_progress",
+    "observed_active_step": "Merge view switching, native chrome and saved splits",
+    "failed_steps_at_observation": [],
+    "new_batch_hosted_acceptance": "not established; local grouped pass is not full hosted acceptance"
+  },
+  "limitations": [
+    "Publication is one main-actor segment without asynchronous suspension, not a repository transaction against external Git writers.",
+    "Cancellation after acceptance during native row settlement does not roll back accepted fields.",
+    "New snapshot cases cover seeded drafts and edits during later reads; exhaustive start-hook side effects, active IME edits and physical interaction need separate acceptance.",
+    "No new visual layout or screenshot is claimed. Full Commit/source menu/visual, signed Finder/sandbox and App Store acceptance remain open."
+  ]
+}

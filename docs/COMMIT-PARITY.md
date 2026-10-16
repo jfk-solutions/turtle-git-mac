@@ -2503,3 +2503,19 @@ independence, filter changes and user-intent cancellation are covered by the
 [file-list refresh family](FILE-LIST-REFRESH-PARITY.md). Full reloads retain separate
 Quit/access lifetime after forced closure. Eight grouped case/engine runs pass; full
 metadata-pipeline, physical and signed acceptance remain open.
+
+## Complete refresh, initial metadata and draft publication — October 17, 2026
+
+Full Commit refresh now collects its file/operation/configuration/message family
+before publishing the accepted display. Scope, checkbox defaults and metadata
+therefore remain paired through required-read failure/cancellation and Retry.
+Initial preferences/template/provider/history, optional LFS ownership, start-hook
+results, user draft precedence and dependent previews share this boundary.
+See [complete Commit publication](FILE-LIST-REFRESH-PARITY.md#complete-commit-read-publication--october-17-2026)
+for behavior and remaining acceptance limits. Source references are
+`CCommitDlg::StatusThread`, its disabled read-time controls and initial-message/
+hook lifecycle; macOS retains the prior display until the collected read settles.
+This does not certify complete Commit or concurrent-writer parity.
+
+[Batch evidence](qa/commit-refresh-snapshot-2026-10-17.json) records twelve
+native case/engine passes, the fixture correction, build scope and owned cleanup.

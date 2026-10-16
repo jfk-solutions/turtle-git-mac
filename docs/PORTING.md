@@ -1707,3 +1707,16 @@ Thirty-eight distinct focused Core cases and eight grouped native case/engine
 combinations pass after two fixture/runner repairs. All nine owned receivers
 were reaped and independently absent. Signed/physical and complete upstream
 acceptance remain open; see [the batch evidence](qa/clean-metadata-access-2026-10-17.json).
+
+### Complete Commit refresh publication — October 17, 2026
+
+Full Commit refresh now collects required file/configuration/message metadata
+before changing its accepted native display. Failed/cancelled reads retain the
+old scope/checks/locks; Retry re-reads initial preferences and templates when the
+first load never completed. Optional LFS failures, current draft precedence,
+start-hook completion and dependent previews share the publication boundary.
+See [file-list refresh parity](FILE-LIST-REFRESH-PARITY.md#complete-commit-read-publication--october-17-2026).
+Twelve grouped native case/engine combinations pass after a template-newline
+fixture correction. All thirteen owned receivers were reaped and independently
+absent. Core Git algorithms are unchanged and its suite was not repeated. See
+[batch evidence](qa/commit-refresh-snapshot-2026-10-17.json).

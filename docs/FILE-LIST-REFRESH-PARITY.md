@@ -56,3 +56,45 @@ signed Finder/sandbox behavior. Commit's existing metadata/message/hook pipeline
 still publishes individual model fields during reads; this batch adds native
 settlement and lifetime, not a transaction across that whole pipeline. Full source
 visual/menu and all-dialog acceptance remain open.
+
+## Complete Commit read publication — October 17, 2026
+
+Commit now collects its required full-refresh reads before publishing files,
+branch/operation/amend base, metadata, changelists, index flags, three statistics
+sets, initial author, provider, preferences and message seed. The owning token is
+checked on both sides of each suspension and immediately before publication.
+Requested invocation scope/whole-project state and automatic checks are accepted
+with that display. Before publication, a failed or cancelled read keeps the
+previous accepted fields, scope, checks, selection and LFS ownership. An initial
+failed read does not consume preference/template initialization or open a preview.
+
+Optional LFS lookup finishes before publication. Its failure accepts the new
+files with empty/unknown ownership and a warning, rather than associating old
+locks with new rows. The new snapshot's LFS availability selects this lookup,
+including its first load. Retry clears its previous read error only if another
+operation has not replaced the error in the meantime.
+
+Initial templates, issue properties and history are prepared together. The start
+hook runs after the required reads; its accepted result enters the same
+publication. User message/issue edits made during seed/hook preparation win over
+that captured result. Failed required reads cannot consume the initialization
+flags; successful later refreshes do not repeat the start hook or initial preview.
+Existing explicit hook failure/close and template-permission policies remain.
+Completions and patch refresh start only after the new display is accepted.
+
+The field publication contains no asynchronous suspension. Native row/viewport
+settlement follows with the existing read lifetime and newer-user-intent guards.
+Cancellation during that later settlement does not undo an already accepted
+snapshot. This is a native publication boundary, not a Git repository transaction
+against concurrent external writers. Physical gestures, full source visual/menu
+parity and signed acceptance remain open. This supersedes the earlier limitation
+about individual Commit metadata fields being published during required reads.
+
+[Batch evidence](qa/commit-refresh-snapshot-2026-10-17.json) records twelve passing
+native case/engine combinations on system and bundled Git: complete refresh,
+incremental staging, author/date/amend controls, preferences/template access,
+issue-provider commits and actual native reading-position restoration. The Debug
+build passed with two exit-zero/no-output diagnostics. A new fixture's final-LF
+expectation was repaired; application sources did not change after the checkpoint.
+All thirteen owned receivers, including the failed fixture attempt, were reaped
+and independently absent. Core algorithms were unchanged and not retested.
