@@ -24,7 +24,7 @@ final class WordComparisonTests: XCTestCase {
         XCTAssertThrowsError(try WordComparisonPreview.prepare(document(absent:true),in:root,cancellation:.init()))
         XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath:root.path).isEmpty)
     }
-    func testWordAssociationsShiftExistingSettingsAndMergeRefusal() throws {
+    func testWordAssociationsShiftExistingSettingsAndMergeSelection() throws {
         let suite="TurtleGit.WordTests."+UUID().uuidString, defaults=UserDefaults(suiteName:suite)!; defer { defaults.removePersistentDomain(forName:suite) }
         var value=DiffToolPreferences.load(from:defaults)
         for ext in BuiltInDiffTool.wordDocument.extensions {
@@ -36,7 +36,7 @@ final class WordComparisonTests: XCTestCase {
         try value.save(to:defaults); XCTAssertEqual(try DiffToolPreferences.load(from:defaults).selected(base:"a.docx",destination:"b.docx")?.applicationPath,custom.program.applicationPath)
         value.restoreBundledAssociations(); XCTAssertEqual(value.associations.first { $0.pattern==".docx" }?.id,custom.id)
         var merge=MergeToolPreferences(); var program=DiffToolProgram(); program.enabled=true; program.builtIn = .wordDocument; merge.program=program
-        XCTAssertFalse(merge.valid); XCTAssertThrowsError(try merge.selected(path:"a.docx"))
+        XCTAssertTrue(merge.valid); XCTAssertEqual(try merge.selected(path:"a.docx")?.builtIn,.wordDocument)
     }
     func testPermissionAndUncertainDispatchFailuresDistinguishRetention() {
         let denied=WordComparisonFailure.automation(-1743,"denied",possiblyOpened:false)

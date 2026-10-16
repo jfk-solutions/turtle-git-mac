@@ -43,7 +43,9 @@ struct DiffProgramForm: View {
                 if value != "internal" { program.builtIn = BuiltInDiffTool(rawValue: value) }
             })) {
                 Text("TurtleGitMerge").tag("internal"); Text("External").tag("external")
-                if tool == "diff" { ForEach(BuiltInDiffTool.allCases, id: \.self) { Text($0.title).tag($0.rawValue) } }
+                ForEach(tool == "merge" ? [.wordDocument] : BuiltInDiffTool.allCases, id: \.self) { value in
+                    Text(tool == "merge" ? "Microsoft Word document merge" : value.title).tag(value.rawValue)
+                }
             }.pickerStyle(.radioGroup).labelsHidden()
             HStack {
                 TextField("Application or executable", text: Binding(get: { program.applicationPath }, set: { guard program.applicationPath != $0 else { return }; program.applicationPath = $0; program.bookmark = nil }))
@@ -109,11 +111,16 @@ struct DiffToolSettings: View {
     let tool: String
     init(associations: [DiffToolAssociation], tool: String) { draft = associations; self.tool = tool }
     var rows: [DiffToolAssociation] { draft.sorted { $0.normalizedPattern.localizedStandardCompare($1.normalizedPattern) == .orderedAscending } }
-    var valid: Bool { draft.allSatisfy(\.valid) && Set(draft.map(\.normalizedPattern)).count == draft.count }
+    var valid: Bool { draft.allSatisfy(\.valid) && Set(draft.map(\.normalizedPattern)).count == draft.count && (tool != "merge" || draft.allSatisfy { $0.program.builtIn == nil || $0.program.builtIn == .wordDocument }) }
     func restoreDefaults() {
-        guard tool == "diff", editing == nil else { return }
-        var value = DiffToolPreferences(); value.associations = draft; value.restoreBundledAssociations()
-        draft = value.associations; selected = draft.first { $0.normalizedPattern == ".zip" }?.id
+        guard editing == nil else { return }
+        if tool == "merge" {
+            var value=MergeToolPreferences(); value.associations=draft; value.restoreBundledAssociations(); draft=value.associations
+            selected=draft.first { $0.normalizedPattern == ".docx" }?.id
+        } else {
+            var value=DiffToolPreferences(); value.associations=draft; value.restoreBundledAssociations(); draft=value.associations
+            selected=draft.first { $0.normalizedPattern == ".zip" }?.id
+        }
     }
     func add() {
         guard editing == nil else { return }
@@ -151,11 +158,12 @@ struct DiffToolAssociations: View {
             Text("Advanced " + model.tool + " settings").font(.headline)
             ToolAssociationsTable(model: model).frame(minHeight: 240)
             if model.tool == "diff" { Text("Restore Defaults restores bundled archive, binary, Mathematica and Word document comparisons, preserving other associations. Word and Mathematica comparisons require those applications.").font(.caption).foregroundStyle(.secondary) }
+            if model.tool == "merge" { Text("Restore Defaults restores Word document merging for .doc/.docx/.docm, preserving other associations. Review changes in Word and Save As the original conflicting file.").font(.caption).foregroundStyle(.secondary) }
             HStack {
                 Button("Add…", action: model.add)
                 Button("Edit…", action: model.edit).disabled(model.selected == nil)
                 Button("Remove", action: model.remove).disabled(model.selected == nil)
-                if model.tool == "diff" { Button("Restore Defaults", action: model.restoreDefaults) }
+                Button("Restore Defaults", action: model.restoreDefaults)
                 Spacer(); Button("Cancel") { completed(nil) }.keyboardShortcut(.cancelAction)
                 Button("OK") { completed(model.draft) }.keyboardShortcut(.defaultAction).disabled(!model.valid)
             }.disabled(model.editing != nil)
@@ -206,7 +214,7 @@ struct ToolAssociationsTable: NSViewRepresentable {
             let entry = rows[row], text: String
             if tableColumn?.identifier.rawValue == "extension" { text = entry.pattern }
             else if !entry.program.enabled { text = "TurtleGitMerge (external disabled)" }
-            else { text = entry.program.displayName + (entry.program.builtIn != nil || entry.program.arguments.isEmpty ? "" : " " + entry.program.arguments) }
+            else { text = (entry.program.builtIn == .wordDocument && model.tool == "merge" ? "Microsoft Word document merge" : entry.program.displayName) + (entry.program.builtIn != nil || entry.program.arguments.isEmpty ? "" : " " + entry.program.arguments) }
             let cell = NSTableCellView(), field = NSTextField(labelWithString: text); field.lineBreakMode = .byTruncatingTail; field.toolTip = text
             field.translatesAutoresizingMaskIntoConstraints = false; cell.addSubview(field); cell.textField = field
             NSLayoutConstraint.activate([field.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 5), field.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -5), field.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
@@ -385,9 +393,9 @@ struct MergeToolSettings: View {
             GroupBox("Configure the program used for merging different revisions of files") {
                 VStack(alignment: .leading, spacing: 12) {
                     DiffProgramForm(program: $model.value.program, tool: "merge")
-                    Toggle("Block while merging", isOn: $model.value.blockWhileMerging).disabled(!model.value.program.enabled).onChange(of: model.value.blockWhileMerging) { if !$0 { model.value.trustExitCode = false } }
+                    Toggle("Block while merging", isOn: $model.value.blockWhileMerging).disabled(!model.value.program.enabled && !model.value.associations.contains { $0.program.enabled }).onChange(of: model.value.blockWhileMerging) { if !$0 { model.value.trustExitCode = false } }
                     Toggle("Trust the exit code", isOn: $model.value.trustExitCode).disabled(!model.value.trustExitCode && (!model.value.blockWhileMerging || !model.value.supportsTrustedExit))
-                    Text("Executable tools report an exit code. Trust resolves only exit code zero; otherwise blocking mode asks whether to mark the result resolved. App bundles use that question.").font(.caption).foregroundStyle(.secondary)
+                    Text("Executable tools report an exit code. Trust resolves only exit code zero; otherwise blocking mode asks whether to mark the result resolved. App bundles use that question. Word merging has no trusted exit status; save the reviewed document as the original conflicting file before marking it resolved.").font(.caption).foregroundStyle(.secondary)
                     HStack { Spacer(); Button("Advanced…") { advanced = true } }
                 }.padding(8)
             }
@@ -464,12 +472,21 @@ struct MergeToolSettings: View {
             return { observation.invalidate() }
         }
     }
+    func confirmWordPreparation(path: String) async -> Bool {
+        let question=NSAlert(); question.messageText="TurtleGit Word Merge"; question.alertStyle = .informational
+        question.informativeText="After you click OK we'll create a merge document. Please wait.\nThen reject or accept changes and use Save As to save the original conflicting file:\n\n"+path
+        question.addButton(withTitle:"OK"); question.addButton(withTitle:"Cancel")
+        return await ask(question)
+    }
     func confirmResolution(path: String) async -> Bool {
-        guard !retired, !cancellation.isCancelled, !Task.isCancelled, answer == nil, let owner, owner.isVisible, owner.attachedSheet == nil else { return false }
         let question = NSAlert(); question.messageText = "Was the merge of “" + path + "” successful?"
         question.addButton(withTitle: "Mark Resolved"); question.addButton(withTitle: "No")
         question.buttons[0].keyEquivalent = ""; question.buttons[1].keyEquivalent = "\r"
         question.window.defaultButtonCell = question.buttons[1].cell as? NSButtonCell
+        return await ask(question)
+    }
+    private func ask(_ question:NSAlert) async -> Bool {
+        guard !retired, !cancellation.isCancelled, !Task.isCancelled, answer == nil, let owner, owner.isVisible, owner.attachedSheet == nil else { return false }
         alert = question
         return await withTaskCancellationHandler(operation: {
             await withCheckedContinuation { continuation in
@@ -495,13 +512,15 @@ struct MergeToolSettings: View {
 
 @MainActor enum MergeToolApplication {
     private(set) static var previews: [URL] = []
+    static var mergeWord: (WordMergePreview,OperationCancellation) async throws -> Void = { try await WordComparisonAutomation.merge($0,cancellation:$1) }
+    static var configureWordSession: (ExternalMergeSession) -> Void = { _ in }
     private(set) static var activeRequests = 0
     static func discardAll() { for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
     static func open(repository: GitRepository, access: RepositoryAccessLease?, path: String, alternate: Bool, owner: NSWindow?, cancellation: OperationCancellation? = nil, onPrepared: () -> Void = {}, preferences: MergeToolPreferences? = nil, expectedEntry: ConflictEntry? = nil, identityOptions: ConflictIdentityOptions = .init(defaults: .standard), launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> NSRunningApplication)? = nil) async throws -> Bool {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let settings = preferences ?? MergeToolPreferences.load()
         guard let program = try settings.selected(path: path, alternate: alternate) else { return false }
-        guard !settings.blockWhileMerging || !settings.trustExitCode || !program.isApplicationBundle else { throw NSError(domain: "TurtleGit.MergeTools", code: 1, userInfo: [NSLocalizedDescriptionKey: "This application does not expose an exit code. Turn off Trust the exit code in Merge Tool settings."]) }
+        guard !settings.blockWhileMerging || !settings.trustExitCode || (!program.isApplicationBundle && program.builtIn == nil) else { throw NSError(domain: "TurtleGit.MergeTools", code: 1, userInfo: [NSLocalizedDescriptionKey: "This application does not expose an exit code. Turn off Trust the exit code in Merge Tool settings."]) }
         guard !GitRuntime.isAppStoreBuild || (access?.hasSecurityScope == true && access?.contains(repository.root) == true) else { throw RepositoryAccessFailure.securityScopeUnavailable }
         activeRequests += 1
         defer { activeRequests -= 1; withExtendedLifetime(access) {} }
@@ -513,6 +532,26 @@ struct MergeToolSettings: View {
         if let expectedEntry, input.entry != expectedEntry { throw ResolveFailure.stale }
         guard !session.retired else { return true }
         guard !GitRuntime.isAppStoreBuild || access?.contains(input.result) == true else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        if program.builtIn == .wordDocument {
+            configureWordSession(session)
+            onPrepared()
+            guard await session.confirmWordPreparation(path:input.result.path), !session.retired else { return true }
+            let root=try TurtleGitTemporaryStorage.root
+            let preview=try await Task.detached { try WordMergePreview.prepare(input,in:root,cancellation:token) }.value
+            var dispatched=false
+            do {
+                try await repository.validateExternalMergeInputs(input,cancellation:token)
+                try token.check(); guard !session.retired else { throw OperationCancellationFailure.cancelled }
+                dispatched=true; try await mergeWord(preview,token)
+                if settings.blockWhileMerging, !session.retired, !token.isCancelled {
+                    try await session.resolveIfConfirmed(repository:repository,entry:input.entry,path:path)
+                }
+                return true
+            } catch {
+                if !dispatched || (error as? WordMergeFailure)?.possiblyOpened == false { preview.discard() }
+                throw error
+            }
+        }
         let target: URL
         if let bookmark = program.bookmark { target = try SystemRepositoryBookmarkProvider().resolve(bookmark).url }
         else { target = URL(fileURLWithPath: program.applicationPath) }

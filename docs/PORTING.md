@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The [Word merge family](WORD-MERGE.md) now connects three-way stage preparation,
+owned instructions, Word handoff and explicit reviewed-result resolution. Merge
+Settings/defaults and both Word handlers share automatic-macro suppression with
+security restoration attempts. Twenty-seven Core checks and five grouped native
+case/engine pairs pass; actual Word output/security and signed acceptance remain
+open.
+
 The [Word comparison family](WORD-COMPARISON.md) now connects six document-format
 associations, exact private snapshots, a fixed native Apple-event handler and
 retired-worker/permission ownership. Twenty-three focused Core cases, the Debug

@@ -140,12 +140,20 @@ public struct MergeToolPreferences: Codable, Equatable, Sendable {
     public var trustExitCode = false
     public init() { var value = DiffToolProgram(); value.arguments = "%base %theirs %mine %merged"; program = value }
     public var supportsTrustedExit: Bool {
-        (program.enabled && !program.isApplicationBundle) || associations.contains { $0.program.enabled && !$0.program.isApplicationBundle }
+        (program.enabled && program.builtIn == nil && !program.isApplicationBundle) || associations.contains { $0.program.enabled && $0.program.builtIn == nil && !$0.program.isApplicationBundle }
     }
-    public var valid: Bool { program.builtIn == nil && associations.allSatisfy { $0.program.builtIn == nil } && program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.normalizedPattern)).count == associations.count }
+    public var valid: Bool { (program.builtIn == nil || program.builtIn == .wordDocument) && associations.allSatisfy { $0.program.builtIn == nil || $0.program.builtIn == .wordDocument } && program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.normalizedPattern)).count == associations.count }
     public static func load(from defaults: UserDefaults = .standard) -> Self {
-        guard let data = defaults.data(forKey: "TurtleGit.MergeTools"), let value = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }
+        guard let data = defaults.data(forKey: "TurtleGit.MergeTools") else { var value=Self(); value.restoreBundledAssociations(); return value }
+        guard let value = try? JSONDecoder().decode(Self.self, from:data) else { return Self() }
         return value
+    }
+    public mutating func restoreBundledAssociations() {
+        for pattern in [".doc", ".docx", ".docm"] {
+            var value=associations.first { $0.normalizedPattern == pattern } ?? DiffToolAssociation()
+            value.pattern=pattern; value.program=DiffToolProgram(); value.program.enabled=true; value.program.builtIn = .wordDocument
+            associations.removeAll { $0.normalizedPattern == pattern }; associations.append(value)
+        }
     }
     public func save(to defaults: UserDefaults = .standard) throws {
         guard valid else { throw DiffToolFailure.association }
@@ -157,7 +165,7 @@ public struct MergeToolPreferences: Codable, Equatable, Sendable {
         let found = keys.compactMap { key in associations.first { $0.normalizedPattern == key } }.first?.program ?? program
         guard found.enabled != alternate, found.builtIn != nil || !found.applicationPath.isEmpty else { return nil }
         var result = found; result.enabled = true
-        guard result.valid, result.builtIn == nil else { throw DiffToolFailure.application }; return result
+        guard result.valid, result.builtIn == nil || result.builtIn == .wordDocument else { throw DiffToolFailure.application }; return result
     }
 }
 public struct ExternalMergeInputs: Sendable {

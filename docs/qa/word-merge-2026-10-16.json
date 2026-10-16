@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "5834b916468b6c22ad30280fa5e099ea0fac1a2a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Modern Word three-way merge, shared macro policy, Settings/defaults, explicit reviewed-result resolution and actual worker ownership",
+  "source": [
+    "merge-doc.js modern >=2007 compare base/theirs and base/mine with selected target, merge theirs into mine and manual original-path Save As instruction",
+    "diff-doc.js and merge-doc.js AutomationSecurityForceDisable value 3",
+    "Installed Word.sdef activate object/compare/merge/automation security properties",
+    "Existing Core externalMergeInputs/validateExternalMergeInputs/resolveConflicts and ExternalMergeSession owned questions"
+  ],
+  "implementation": [
+    "Editable exact private stage copies with distinct role-prefixed names; original result remains separate; Core orientation/stale checks retained",
+    "Owned instructions precede Word dispatch and show captured result path; Cancel handled without internal-editor fallback",
+    "Blocking Word route offers Mark Resolved/No with No default; explicit Yes stages current original result after captured conflict validation; no trusted Word exit status",
+    "Closed/cancelled questions and workers refuse late dispatch/resolution, retain actual Quit/scope lifetime; Word never terminated",
+    "Known unopened/denied failure cleans copies; accepted/uncertain handoff keeps inputs beyond normal app cleanup",
+    "Word now supported in Diff and Merge contexts; other built-ins remain diff-only; Merge Restore Defaults for DOC/DOCX/DOCM preserves other records/identities",
+    "Active associations enable blocking option even with internal general program",
+    "Both serialized Word handlers suppress automatic macros and attempt restoration of prior security on success/error",
+    "Updated Automation description, NOTICE, README/manual/offline Help and source/control records"
+  ],
+  "core": {
+    "exit": 0,
+    "log": "build/qa/word-merge-core.log",
+    "cases": 27,
+    "first_attempt_pass": true,
+    "groups": [
+      "WordMergeTests (4)",
+      "WordComparisonTests (4)",
+      "BundledComparisonToolsTests (5)",
+      "ZIPInventoryTests (7)",
+      "DiffToolPreferencesTests (7)"
+    ]
+  },
+  "build": {
+    "exit": 0,
+    "log": "build/qa/word-merge-debug.log",
+    "first_attempt_pass": true,
+    "anomalous_exit_zero_diagnostics": 9
+  },
+  "native": {
+    "exit": 0,
+    "log": "build/qa/word-merge-native.log",
+    "distinct_families": 4,
+    "case_engine_pairs": 5,
+    "word_merge_engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "first_attempt_pass": true,
+    "receivers_reaped_and_independently_absent": [
+      64556,
+      64714,
+      64732,
+      64741,
+      64929
+    ],
+    "checks": [
+      "Retained ZIP, binary/notebook and Word comparison workflows",
+      "Actual Merge Restore Defaults model/selection and parent private Apply/Cancel persistence",
+      "Private real Git binary document conflicts with unchanged original result/index on No and no duplicated late Yes",
+      "Exact stage/rebase-capable input contract and literal four-field Apple-event descriptor routing",
+      "Closed instruction response settles once and cannot start Word",
+      "Denied/unopened receipt removes private inputs; successful inputs survive shared cleanup",
+      "Held worker after owner close retains Quit until reply and cannot resolve",
+      "Explicit simulated Word Save As plus Mark Resolved stages actual reviewed working bytes and clears conflict; HEAD unchanged",
+      "Both fixed Word handlers compile against installed dictionary; source macro suppression/restoration statements checked"
+    ],
+    "word_process_ids_after": [],
+    "word_execution": "Intercepted executor only. No actual Word compare/merge, macro setting or TCC interaction performed. No new captures."
+  },
+  "package_audit": {
+    "exit": 0,
+    "log": "build/qa/word-merge-bundle-audit.log",
+    "scope": "Debug app/runtime/Finder/helpers/311 icons/configured entitlement and usage audit; built NOTICE and Word Merge guide match source"
+  },
+  "documentation": {
+    "help": "32 guides, 47 topics, 40 files, 409509 bytes"
+  },
+  "limits": [
+    "Actual Word merge output, tracked-change direction, macro suppression/security restoration and Save As interaction unverified",
+    "Real permission/file grants, protected/macro documents, physical questions/keyboard/VoiceOver and signed AppStore/Finder remain open",
+    "Other Office/LibreOffice workflows and old Windows-version fallback branches remain open",
+    "No new Store build, full hosted CI result or complete port/dialog certification"
+  ]
+}

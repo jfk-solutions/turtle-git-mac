@@ -418,3 +418,7 @@ a generated Compare Notebooks button in the associated notebook application.
 [Microsoft Word comparison](WORD-COMPARISON.md) creates a new result with tracked
 formatting changes. It needs Word and your macOS Automation permission. Shift
 keeps the ordinary internal comparison; the originals remain unchanged.
+
+[Word merge](WORD-MERGE.md) prepares a private three-way document. Review it in
+Word and Save As the original conflicting path. Blocking mode offers an explicit
+Mark Resolved/No question; Word has no trusted exit status.

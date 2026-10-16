@@ -5,7 +5,8 @@ tracked text and formatting changes. It ports the modern Word branch of
 TortoiseGit's `diff-doc.js`; it does not flatten a document to plain text.
 Word must be installed separately. The adapter is offered for `.doc`, `.docx`,
 `.docm`, `.dot`, `.dotx` and `.odt`. Actual format conversion is performed by Word.
-Excel/PowerPoint, LibreOffice fallback and Word merge remain separate port work.
+Excel/PowerPoint and LibreOffice fallback remain separate port work.
+[Word merge](WORD-MERGE.md) now has its own three-way workflow.
 
 New unsaved Diff Viewer defaults include these associations. Existing saved
 settings remain authoritative. To restore the bundled associations, use Settings
@@ -20,7 +21,10 @@ Word opens the base and compares it against the new document, using a new result
 author `Comparison`, formatting detection and ignored comparison warnings. The
 result is marked saved to avoid the source's unwanted Save As prompt. Only the
 private input document opened by that call is closed. Existing user documents,
-global Word preferences and the original repository files are not modified.
+the original repository files are not modified. Automatic macros are suppressed
+during input opening, as in the source; restoration of the prior Word automation
+security value is attempted on success and failure. Other Word preferences are
+not changed.
 TurtleGit does not accept/reject tracked changes, save over the originals, stage
 files or mark a conflict resolved through this diff adapter.
 

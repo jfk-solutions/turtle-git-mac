@@ -6,7 +6,8 @@ Settings to save the changes. Other associations are retained; existing rows kee
 their identity. Existing saved configurations remain authoritative until changed.
 Each association or the general Diff Viewer program can choose an internal,
 external or bundled tool. Shift reverses its enabled state for that invocation.
-These are diff adapters; Merge Tool rejects them.
+ZIP/binary/notebook kinds are diff-only. Microsoft Word also supports the
+separate [document merge workflow](WORD-MERGE.md).
 
 ## Binary files and native libraries
 
@@ -59,7 +60,7 @@ Core and native checks distinguish local binary parsing and generated notebook
 handoff from actually executing Mathematica. The latter, physical popup/keyboard/
 VoiceOver, all PE resource languages, exotic Mach-O slices, real receiver grants,
 signed Finder/App Store access and full source dialog parity remain open. Word comparison is documented in [its native adapter guide](WORD-COMPARISON.md).
-Word merge, Excel, PowerPoint and LibreOffice/OpenDocument automation remain open.
+Excel, PowerPoint and LibreOffice/OpenDocument automation remain open.
 
 ## Native captures
 

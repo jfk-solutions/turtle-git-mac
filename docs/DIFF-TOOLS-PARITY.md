@@ -338,3 +338,32 @@ Word. All receivers were reaped and independently absent. The
 [dated evidence](qa/word-comparison-2026-10-16.json) records the dictionary hash,
 actual checks, build diagnostics and intercepted executor boundary. Real Word
 results, live TCC/file permissions and signed sandbox/App Review remain open.
+
+## Word three-way merge and shared macro policy — October 16, 2026
+
+The [Word merge family](WORD-MERGE.md) now adapts the modern `merge-doc.js`
+three-way sequence with source selected-target comparisons and explicit manual
+Save As of the original conflicting file. Stage bytes use editable, separate
+private copies, including existing rebase orientation/stale checks. An owned
+instruction sheet precedes dispatch; a configured blocking merge offers the
+existing Mark Resolved/No question, with No default and no trusted Word status.
+Closure/token cancellation retires questions and late publication while the
+actual worker keeps its Quit/lease lifetime. Success/uncertain opening retains
+private inputs; a confirmed denied/unopened failure removes them.
+
+Merge defaults and Advanced Restore Defaults cover DOC/DOCX/DOCM only, retaining
+saved/custom records and row identities. Word's shared kind now adapts behavior
+to Diff versus Merge; other built-in kinds remain invalid for Merge. Active
+associations can enable Block while merging even when the general program is
+internal. Both Word scripts now suppress automatic macros and attempt restoration
+of the prior security value through their serialized worker. Actual Word security
+and rendered merge output are separate acceptance work, not inferred from the
+script text or compilation.
+
+Twenty-seven focused Core checks, one Debug build/package audit and five native
+case/engine pairs passed on the first attempt. Both fixed Word handlers compiled
+against the installed dictionary without executing Word. Real private Git
+conflicts checked No, retired questions/workers, actual reviewed-result staging,
+unchanged HEAD and both engines. [Dated evidence](qa/word-merge-2026-10-16.json)
+records the intercepted-executor boundary and open live Word/macro/Save As/signed
+acceptance. All five receivers were reaped and independently absent.

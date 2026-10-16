@@ -3,7 +3,7 @@
 import argparse, os, tempfile, zipfile
 from pathlib import Path
 from native_receiver import build_receiver, run_receiver
-parser=argparse.ArgumentParser(description=__doc__); parser.add_argument('--only',choices=['archive','scripts','word'],action='append'); args=parser.parse_args()
+parser=argparse.ArgumentParser(description=__doc__); parser.add_argument('--only',choices=['archive','scripts','word','word-merge'],action='append'); parser.add_argument('--git',type=Path,action='append'); args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 with tempfile.TemporaryDirectory(prefix='TurtleGitArchiveDiff-') as temporary:
     directory=Path(temporary)
@@ -19,10 +19,15 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitArchiveDiff-') as temporary:
     library=root/'build/Build/Products/Debug/TurtleGitCore.framework/TurtleGitCore'
     binary=library.read_bytes(); (directory/'old.dylib').write_bytes(binary)
     changed=bytearray(binary); changed[-1] ^= 1; (directory/'new.dylib').write_bytes(changed)
-    for case,source,marker in [('archive','zip-inventory-native-2026-10-16.swift','PASS: actual ZIP association routing'),('scripts','bundled-comparison-native-2026-10-16.swift','PASS: real Mach-O binary native reports'),('word','word-comparison-native-2026-10-16.swift','PASS: shipping Word comparison route')]:
+    for case,source,marker in [('archive','zip-inventory-native-2026-10-16.swift','PASS: actual ZIP association routing'),('scripts','bundled-comparison-native-2026-10-16.swift','PASS: real Mach-O binary native reports'),('word','word-comparison-native-2026-10-16.swift','PASS: shipping Word comparison route'),('word-merge','word-merge-native-2026-10-16.swift','PASS: Word three-way stage copies')]:
         if args.only and case not in args.only: continue
         executable=build_receiver(root,[root/'docs/qa'/source],directory)
-        env=os.environ.copy(); env['DYLD_FRAMEWORK_PATH']=str(root/'build/Build/Products/Debug')
-        result=run_receiver([str(executable),str(directory)],cwd=root,env=env,capture_output=True,text=True)
-        print(result.stdout,end='',flush=True); print(result.stderr,end='',flush=True); result.check_returncode()
-        if marker not in result.stdout: raise SystemExit('Missing bundled comparison completion assertion: '+case)
+        env=os.environ.copy(); env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
+        engines=(args.git or [Path('/usr/bin/git')]) if case=='word-merge' else [None]
+        for index,git in enumerate(engines):
+            fixture=directory
+            if git is not None: fixture=directory/(case+str(index)); fixture.mkdir()
+            command=[str(executable),str(fixture)]+([str(git.absolute())] if git is not None else [])
+            result=run_receiver(command,cwd=root,env=env,capture_output=True,text=True)
+            print(result.stdout,end='',flush=True); print(result.stderr,end='',flush=True); result.check_returncode()
+            if marker not in result.stdout: raise SystemExit('Missing bundled comparison completion assertion: '+case)

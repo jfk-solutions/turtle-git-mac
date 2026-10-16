@@ -1514,3 +1514,12 @@ branch of contrib/diff-scripts/diff-doc.js: copyright (C) 2004-2008, 2011, 2013,
 Native Apple-event argument handling, private snapshots and cancellation replace
 Windows COM/WScript automation. Microsoft Word is separately installed software;
 this project does not redistribute Word or its scripting dictionary.
+
+WordMergePreview and the native Word merge handler adapt merge-doc.js,
+copyright (C) 2004-2008, 2011, 2019 the TortoiseSVN team, under the same GPL
+license as TortoiseSVN. Original script contributors include Dan Sheridan,
+Davide Orlandi, Hans-Emil Skogh, Richard Horton and Paolo Nesti Poggi.
+The modern three-way comparison/merge sequence, usage instructions and automatic
+macro suppression are adapted to Word's macOS scripting dictionary. Private
+stage snapshots, scoped native questions, security restoration and explicit Git
+resolution ownership are implemented for macOS.
