@@ -486,7 +486,7 @@ public struct MergeAlignedSourceBlockEdit: Sendable {
 /// BaseView's whole-view format commands change record payload/endings without
 /// resolving conflicts, changing row states or serializing removed records.
 public struct MergeAlignedResultTransform: Sendable {
-    public enum Operation:Sendable { case lineEndings(MergeLineEnding), whitespace(MergeWhitespaceCommand,tabWidth:Int) }
+    public enum Operation:Sendable { case lineEndings(MergeLineEnding), cycleLineEnding(row:Int), whitespace(MergeWhitespaceCommand,tabWidth:Int) }
     public let comparison:MergeSourceComparison
     public let presentation:MergeResultPresentation
     public let changedRows:Set<Int>
@@ -499,11 +499,14 @@ public struct MergeAlignedResultTransform: Sendable {
             switch operation {
             case .lineEndings(let ending):
                 text = MergeLineEndings.hasFinalEnding(cell.text) ? cell.displayText + ending.rawValue : cell.text
+            case .cycleLineEnding(let target): text = row == target ? MergeTyping.cycledLine(cell.text) ?? cell.text : cell.text
             case .whitespace(let command,let width): text = MergeWhitespace.applying(command,to:cell.text,tabWidth:width)
             }
             guard !text.utf8.elementsEqual(cell.text.utf8) else { return cell }
             changed.insert(row)
-            return .init(text:text,lineNumber:cell.lineNumber,state:cell.state,hiddenByComparison:cell.hiddenByComparison)
+            let state:MergeSourceState
+            if case .cycleLineEnding = operation { state = .edited } else { state = cell.state }
+            return .init(text:text,lineNumber:cell.lineNumber,state:state,hiddenByComparison:cell.hiddenByComparison)
         }
         changedRows = changed
         if changed.isEmpty { self.comparison = comparison; self.presentation = presentation }

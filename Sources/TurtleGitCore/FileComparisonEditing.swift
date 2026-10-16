@@ -551,3 +551,51 @@ public struct MergeFormatSelection: Equatable, Sendable {
         return value
     }
 }
+
+/// Changes one view record's ending without re-diffing its neighbours or losing
+/// one-pane removed rows. Display text/caret coordinates do not change.
+public struct FileComparisonLineEndingEdit: Sendable {
+    public let alignment:FileComparisonAlignment
+    public let combined:OnePaneFileComparison?
+    public let text:String
+    public let alignmentRow:Int
+    public init?(alignment:FileComparisonAlignment,combined:OnePaneFileComparison? = nil,base:Bool,row:Int) {
+        let cells = combined?.cells ?? alignment.rows.map { base ? $0.base : $0.destination }
+        guard cells.indices.contains(row),!cells[row].state.isViewEmpty,
+              let changed = MergeTyping.cycledLine(cells[row].text) else {return nil}
+        let cell = cells[row]
+        let updated = MergeSourceCell(text:changed,lineNumber:cell.lineNumber ?? 1,state:.edited,hiddenByComparison:false)
+        var rows = alignment.rows
+        if let combined {
+            let gap = MergeSourceCell(text:"",lineNumber:nil,state:.empty)
+            var rightNumber = 0
+            var projected:[OnePaneFileComparison.Row] = []
+            rows = []
+            for (index,original) in combined.rows.enumerated() {
+                let value = index == row ? updated : original.cell
+                let oldLeft = alignment.rows.indices.contains(original.alignmentRow) ? alignment.rows[original.alignmentRow].base : gap
+                let left = original.base || original.cell.state.isUnchanged ? oldLeft : gap
+                let included = index == row || !original.cell.state.isRemoval && original.cell.state != .empty
+                if included {rightNumber += 1}
+                let right = included ? MergeSourceCell(text:value.text,lineNumber:rightNumber,state:value.state,hiddenByComparison:value.hiddenByComparison) : gap
+                rows.append(.init(base:left,destination:right))
+                projected.append(.init(cell:included ? right : value,alignmentRow:index,base:index == row ? false : original.base))
+            }
+            alignmentRow = row
+            let next = OnePaneFileComparison(retainedRows:projected)
+            self.combined = next;text = next.sourceSaveText
+        } else {
+            guard rows.indices.contains(row),cell.hasSourceCoordinate else {return nil}
+            alignmentRow = row;self.combined = nil
+            rows[row] = base ? .init(base:updated,destination:rows[row].destination) : .init(base:rows[row].base,destination:updated)
+            text = rows.map {base ? $0.base : $0.destination}.filter(\.hasSourceCoordinate).map(\.text).joined()
+        }
+        var differences:[Range<Int>] = [],start:Int?
+        for index in 0...rows.count {
+            let changed = index < rows.count && rows[index].changed
+            if changed,start == nil {start = index}
+            if !changed,let first = start {differences.append(first..<index);start = nil}
+        }
+        self.alignment = .init(rows:rows,differences:differences)
+    }
+}

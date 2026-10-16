@@ -330,7 +330,9 @@ choices, a checkmark for its current width and Tab N caption. Changes are local
 to that pane and editor session, refreshing its monospaced tab interval without
 changing text, dirty state or Undo history. The merged pane's whitespace
 conversion and availability use its selected width. Global preference persistence,
-Global insertion-mode preferences and EditorConfig remain pending.
+Historical checkpoint: EditorConfig is now implemented, and per-view insertion mode
+is covered by the [typing family](MERGE-TYPING-PARITY.md). Upstream insertion mode
+is a per-view runtime choice rather than a global saved setting.
 
 Regression checks now cover all four menu widths, leading tab stops and
 internal-tab preservation. All 17 targeted merge tests passed and the app
@@ -636,3 +638,8 @@ partial; earlier generic-label gaps are superseded within this documented scope.
 
 [Grouped validation and visual review](qa/conflict-identities-2026-10-15.json)
 record actual coverage and remaining limits; no dialog is newly certified.
+
+The [typing family](MERGE-TYPING-PARITY.md) adds per-view Insert/Overwrite and
+current-row ending cycling to the native editors, retaining existing conflict
+metadata, output encoding and one-step Undo; physical input/caret acceptance remains
+open.

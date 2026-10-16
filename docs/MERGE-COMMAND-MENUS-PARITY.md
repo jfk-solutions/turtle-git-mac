@@ -87,3 +87,7 @@ passing native case/engine runs, including the new lifecycle workflow. The first
 grouped attempt passed; no Core suite was rerun. All owned receivers were reaped
 and independently absent. The fixture injects menu roots and tracking notifications;
 physical menu interaction, accessibility and signed acceptance remain open.
+
+The connected [typing batch](MERGE-TYPING-PARITY.md) adds checked Overwrite mode,
+current-row ending cycling and comparison marking to Edit, with Insert, Ctrl-Enter
+and Ctrl-M bindings and the same ownership/validation fences.

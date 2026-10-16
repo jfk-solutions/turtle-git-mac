@@ -76,3 +76,35 @@ final class MergeLineEndingsTests: XCTestCase {
         }
     }
 }
+
+extension MergeLineEndingsTests {
+    func testOverwriteKeepsComposedCharactersAndNeverConsumesEndings() {
+        let text = "A🦎e\u{301}Z\r\nEOF"
+        for (offset,length) in [(1,2),(3,2),(5,1)] {
+            XCTAssertEqual(MergeTyping.overwriteRange(in:text,range:NSRange(location:offset,length:0),inserted:"雪"),NSRange(location:offset,length:length))
+        }
+        for offset in [2,4,6,7,text.utf16.count,999] {
+            let range = NSRange(location:offset,length:0)
+            XCTAssertEqual(MergeTyping.overwriteRange(in:text,range:range,inserted:"雪"),range)
+        }
+        for inserted in ["", "paste", "\t", "\n", "\r\n", "\u{2028}"] {
+            XCTAssertEqual(MergeTyping.overwriteRange(in:text,range:NSRange(location:1,length:0),inserted:inserted),NSRange(location:1,length:0))
+        }
+        XCTAssertEqual(MergeTyping.overwriteRange(in:text,range:NSRange(location:1,length:4),inserted:"x"),NSRange(location:1,length:4))
+        XCTAssertEqual(MergeTyping.overwriteRange(in:"👨‍👩‍👧‍👦x",range:NSRange(location:0,length:0),inserted:"e\u{301}"),NSRange(location:0,length:"👨‍👩‍👧‍👦".utf16.count))
+    }
+    func testSingleLineCycleAndDisplayRowsDoNotInventFinalEnding() {
+        var line = "🦎e\u{301}\r\n"
+        for expected in ["🦎e\u{301}\r","🦎e\u{301}\n","🦎e\u{301}\r\n"] {
+            line = MergeTyping.cycledLine(line)!
+            XCTAssertEqual(Data(line.utf8),Data(expected.utf8))
+        }
+        XCTAssertNil(MergeTyping.cycledLine("last"));XCTAssertNil(MergeTyping.cycledLine(""))
+        for ending in MergeLineEnding.allCases where ![.crlf,.cr,.lf].contains(ending) {
+            XCTAssertEqual(MergeTyping.cycledLine("x"+ending.rawValue),"x\r\n")
+        }
+        XCTAssertEqual(MergeTyping.displayRow(in:"🦎\nlast\n",offset:3),1)
+        XCTAssertNil(MergeTyping.displayRow(in:"",offset:0))
+        XCTAssertNil(MergeTyping.displayRow(in:"x\n",offset:99))
+    }
+}

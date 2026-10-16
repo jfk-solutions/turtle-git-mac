@@ -343,6 +343,7 @@ extension MergeEditorToolbar {
     enum Command: Hashable {
         case toolbar(MergeToolbarCommand), saveAs, enableEdit, useFile, useBothFirst, useBothLast
         case nextInline, previousInline, nextPane, previousPane, gotoLine, findNext, findPrevious, findSelectionNext, findSelectionPrevious, clearSearch
+        case overwrite, cycleEnding, markBlock
         case toolbarVisible, statusVisible, lineDiff, lineNumbers, moved, locator, fishEye
         case whitespace(MergeWhitespaceComparison), ignoreEndings, ignoreCase, ignoreComments
         case regex(String?), configureRegex, settings, about
@@ -424,7 +425,7 @@ extension MergeEditorToolbar {
         mainMenu = main
         append([.toolbar(.open),.toolbar(.save),.saveAs,.toolbar(.resolved),.toolbar(.patch),.toolbar(.reload),.enableEdit],to:root("File",in:main))
         append([.useFile,.toolbar(conflict ? .useTheirs : .useLeft),.toolbar(.useMine),.useBothFirst,.useBothLast,
-                .toolbar(.theirsThenMine),.toolbar(.mineThenTheirs),.toolbar(.find),.findNext,.findPrevious,.findSelectionNext,.findSelectionPrevious,.clearSearch,.gotoLine],to:root("Edit",in:main))
+                .toolbar(.theirsThenMine),.toolbar(.mineThenTheirs),.toolbar(.find),.findNext,.findPrevious,.findSelectionNext,.findSelectionPrevious,.clearSearch,.gotoLine,.overwrite,.cycleEnding,.markBlock],to:root("Edit",in:main))
         append([.toolbar(.nextDifference),.toolbar(.previousDifference),.toolbar(.nextConflict),.toolbar(.previousConflict),.nextInline,.previousInline,.nextPane,.previousPane],to:root("Navigate",in:main))
         let view = root("View",in:main)
         append([.toolbarVisible,.statusVisible,.lineDiff,.locator,.fishEye,.toolbar(.wrap),.moved,.toolbar(.inline),.toolbar(.inlineWord),
@@ -517,6 +518,7 @@ extension MergeEditorToolbar {
         case .findPrevious:return [(key(NSF3FunctionKey),.shift)]
         case .findSelectionNext:return [(key(NSF3FunctionKey),.control)]
         case .findSelectionPrevious:return [(key(NSF3FunctionKey),[.control,.shift])]
+        case .cycleEnding:return [("\n",.control)]
         default:return []
         }
     }
@@ -525,6 +527,7 @@ extension MergeEditorToolbar {
         case .toolbar(.help):return "TurtleGitMerge Help"
         case .toolbar(let value):return value.title
         case .saveAs:return "Save As…";case .enableEdit:return "Enable editing"
+        case .overwrite:return "Overwrite mode";case .cycleEnding:return "Cycle current line ending";case .markBlock:return "Mark block"
         case .useFile:return "Use left file";case .useBothFirst:return "Use block from left before right";case .useBothLast:return "Use block from right before left"
         case .nextInline:return "Next inline difference";case .previousInline:return "Previous inline difference"
         case .nextPane:return "Next pane";case .previousPane:return "Previous pane";case .gotoLine:return "Go to Line…"
@@ -540,6 +543,7 @@ extension MergeEditorToolbar {
     private func icon(_ command: Command) -> MenuIcon? {
         switch command {
         case .toolbar(let value):return value.icon
+        case .overwrite:return .editor;case .cycleEnding:return .compare;case .markBlock:return .mergeMarked
         case .saveAs:return .mergeSaveAs;case .enableEdit:return .editor;case .useFile:return .mergeUseTheirs
         case .useBothFirst:return .mergeTheirsThenMine;case .useBothLast:return .mergeMineThenTheirs
         case .nextInline:return .mergeNextInline;case .previousInline:return .mergePreviousInline
@@ -562,6 +566,7 @@ extension MergeEditorToolbar {
         case .toolbar(.useMine):return (key(NSF10FunctionKey),.control)
         case .toolbar(.theirsThenMine):return (key(NSF9FunctionKey),[.control,.shift])
         case .toolbar(.mineThenTheirs):return (key(NSF10FunctionKey),[.control,.shift])
+        case .overwrite:return (key(NSInsertFunctionKey),[]);case .cycleEnding:return ("\r",.control);case .markBlock:return ("m",.control)
         case .gotoLine:return ("g",.control);case .nextPane:return (key(NSF6FunctionKey),[]);case .previousPane:return (key(NSF6FunctionKey),.shift)
         case .toolbar(.nextDifference):return (key(NSF7FunctionKey),[]);case .toolbar(.previousDifference):return (key(NSF7FunctionKey),.shift)
         case .toolbar(.nextConflict):return (key(NSF8FunctionKey),[]);case .toolbar(.previousConflict):return (key(NSF8FunctionKey),.shift)
@@ -604,6 +609,9 @@ extension MergeEditorCommandMenu {
                 case .useBothFirst,.useBothLast:return .init(enabled:document && model.oppositeViewCommandsAllowed && model.canTransfer(toBase:false) && model.transferRows != nil)
                 case .nextInline,.previousInline:return .init(enabled:document && model.canNavigateInline(forward:command == .nextInline))
                 case .nextPane,.previousPane:return .init(enabled:document && MergeMarkedWordInterface.panes(in:window?.contentView).filter{!$0.isHiddenOrHasHiddenAncestor}.count > 1)
+                case .overwrite:return .init(enabled:document && (text() as? MergeTypingProviding)?.mergeTypingAllowed == true,checked:(text() as? MergeTypingProviding)?.mergeOverwrite == true)
+                case .cycleEnding:return .init(enabled:document && (text() as? MergeTypingProviding)?.canCycleCurrentEnding == true)
+                case .markBlock:return .init(enabled:document && !model.onePaneActive && model.canTransfer(toBase:false) && model.transferRows != nil,checked:model.transferRows.map { model.annotations(base:false).marked.contains($0.lowerBound) } == true)
                 case .gotoLine:return .init(enabled:document && (text() as? (NSTextView & MergeLineNavigationProviding))?.canNavigateToSourceLine == true)
                 case .findNext,.findPrevious:return .init(enabled:document && (text() as? MergeFindProviding)?.mergeFindHighlights.query.isEmpty == false)
                 case .findSelectionNext,.findSelectionPrevious:return .init(enabled:document && (text() as? MergeFindProviding)?.mergeFindAllowed == true)
@@ -628,11 +636,16 @@ extension MergeEditorCommandMenu {
                 case .toolbar(let value):bar?.perform(value)
                 case .saveAs:model.saveAs(base:model.activeBase)
                 case .enableEdit:model.editingEnabled.toggle()
+                case .markBlock:
+                    if let view = text() {model.updateSelection(view.selectedRange(),cells:model.displayCells(base:model.activeBase))}
+                    if let first = model.transferRows?.lowerBound {model.markBlock(!model.annotations(base:false).marked.contains(first),targetBase:false)}
                 case .useFile:model.useOtherFile(targetBase:false)
                 case .useBothFirst:model.useOtherBlock(.otherThenCurrent,targetBase:false)
                 case .useBothLast:model.useOtherBlock(.currentThenOther,targetBase:false)
                 case .nextInline,.previousInline:model.navigateInline(forward:command == .nextInline)
                 case .nextPane,.previousPane:if let window { cycle(window:window,forward:command == .nextPane) }
+                case .overwrite:(text() as? MergeTypingProviding)?.toggleMergeOverwrite()
+                case .cycleEnding:(text() as? MergeTypingProviding)?.cycleCurrentEnding()
                 case .gotoLine:(text() as? (NSTextView & MergeLineNavigationProviding))?.navigateToSourceLine()
                 case .findNext,.findPrevious:model.find(command == .findNext ? .nextMatch : .previousMatch)
                 case .findSelectionNext,.findSelectionPrevious:if let text = text() {MergeFindInterface.selection(upwards:command == .findSelectionPrevious,in:text)}
@@ -676,6 +689,9 @@ extension MergeEditorCommandMenu {
                 case .enableEdit:return .init(enabled:false,checked:text()?.isEditable == true)
                 case .useFile,.useBothFirst,.useBothLast,.nextInline,.previousInline,.lineDiff,.lineNumbers,.moved:return nil
                 case .nextPane,.previousPane:return .init(enabled:enabled && MergeMarkedWordInterface.panes(in:window?.contentView).filter{!$0.isHiddenOrHasHiddenAncestor}.count > 1)
+                case .overwrite:return .init(enabled:enabled && (text() as? MergeTypingProviding)?.mergeTypingAllowed == true,checked:(text() as? MergeTypingProviding)?.mergeOverwrite == true)
+                case .cycleEnding:return .init(enabled:enabled && (text() as? MergeTypingProviding)?.canCycleCurrentEnding == true)
+                case .markBlock:return nil
                 case .gotoLine:return .init(enabled:enabled && (text() as? (NSTextView & MergeLineNavigationProviding))?.canNavigateToSourceLine == true)
                 case .findNext,.findPrevious:return .init(enabled:enabled && (text() as? MergeFindProviding)?.mergeFindHighlights.query.isEmpty == false)
                 case .findSelectionNext,.findSelectionPrevious:return .init(enabled:enabled && (text() as? MergeFindProviding)?.mergeFindAllowed == true)
@@ -697,6 +713,8 @@ extension MergeEditorCommandMenu {
                 case .toolbar(let value):bar?.perform(value)
                 case .saveAs:model.export()
                 case .nextPane,.previousPane:if let window { cycle(window:window,forward:command == .nextPane) }
+                case .overwrite:(text() as? MergeTypingProviding)?.toggleMergeOverwrite()
+                case .cycleEnding:(text() as? MergeTypingProviding)?.cycleCurrentEnding()
                 case .gotoLine:(text() as? (NSTextView & MergeLineNavigationProviding))?.navigateToSourceLine()
                 case .findNext,.findPrevious:if let text = text() { MergeFindInterface.perform(command == .findNext ? .nextMatch : .previousMatch,in:text) }
                 case .findSelectionNext,.findSelectionPrevious:if let text = text() {MergeFindInterface.selection(upwards:command == .findSelectionPrevious,in:text)}

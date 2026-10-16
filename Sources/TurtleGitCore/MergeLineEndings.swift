@@ -99,3 +99,30 @@ public enum MergeLineEndings {
         return output
     }
 }
+
+/// Source Insert/Overwrite affects committed printable typing, never paste,
+/// Tab, line breaks or an existing selection. macOS replaces whole composed
+/// characters rather than splitting UTF-16 surrogate/combining sequences.
+public enum MergeTyping {
+    public static func overwriteRange(in text:String,range:NSRange,inserted:String) -> NSRange {
+        let source = text as NSString
+        guard range.location >= 0,range.length == 0,range.location < source.length,
+              inserted.count == 1,!inserted.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) || CharacterSet.newlines.contains($0) }) else { return range }
+        let character = source.rangeOfComposedCharacterSequence(at:range.location)
+        guard character.location == range.location,
+              !source.substring(with:character).unicodeScalars.contains(where: { CharacterSet.newlines.contains($0) }) else { return range }
+        return character
+    }
+    public static func displayRow(in text:String,offset:Int) -> Int? {
+        guard offset >= 0,offset <= text.utf16.count else {return nil}
+        return MergeLineEndings.lineRanges(in:text).lastIndex { $0.location <= offset }
+    }
+    /// BaseView::OnChar(10): CRLF → CR → LF → CRLF. Unended rows
+    /// are unchanged; the other recognized file endings cycle to CRLF.
+    public static func cycledLine(_ text:String) -> String? {
+        guard let ending = MergeLineEndings.boundaries(in:text).last,
+              NSMaxRange(ending.range) == text.utf16.count else {return nil}
+        let next:MergeLineEnding = ending.style == .crlf ? .cr : ending.style == .cr ? .lf : .crlf
+        return (text as NSString).substring(to:ending.range.location) + next.rawValue
+    }
+}

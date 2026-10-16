@@ -431,3 +431,29 @@ final class MergeFileSaveTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: location.path + ".bak")), original)
     }
 }
+
+extension FileComparisonEditingTests {
+    func testCurrentLineEndingEditRetainsOppositeRowsAndOnePaneHistoryData() throws {
+        let base = "same\r\nold\r\ntail",mine = "same\r\nnew\r\ntail"
+        let alignment = FileComparisonAlignment(base:base,destination:mine)
+        let row = try XCTUnwrap(alignment.rows.firstIndex {$0.destination.displayText == "new"})
+        let edit = try XCTUnwrap(FileComparisonLineEndingEdit(alignment:alignment,base:false,row:row))
+        XCTAssertEqual(edit.text,"same\r\nnew\rtail")
+        XCTAssertEqual(edit.alignment.rows.map { $0.base.text },alignment.rows.map { $0.base.text })
+        XCTAssertEqual(edit.alignment.rows.map { $0.base.state },alignment.rows.map { $0.base.state })
+        XCTAssertEqual(edit.alignment.rows[row].destination.state,.edited)
+        XCTAssertNil(FileComparisonLineEndingEdit(alignment:alignment,base:false,row:-1))
+        let last = alignment.rows.count - 1
+        XCTAssertNil(FileComparisonLineEndingEdit(alignment:alignment,base:false,row:last))
+        let combined = OnePaneFileComparison(alignment:alignment)
+        let target = try XCTUnwrap(combined.rows.firstIndex {$0.cell.displayText == "new"})
+        let combinedEdit = try XCTUnwrap(FileComparisonLineEndingEdit(alignment:alignment,combined:combined,base:false,row:target))
+        XCTAssertEqual(combinedEdit.text,"same\r\nnew\rtail")
+        XCTAssertEqual(combinedEdit.combined?.rows.count,combined.rows.count)
+        XCTAssertEqual(combinedEdit.combined?.rows.first {$0.cell.displayText == "old"}?.cell.state,.removed)
+        XCTAssertEqual(combinedEdit.alignment.rows.map(\.base).filter(\.hasSourceCoordinate).map(\.text).joined(),base)
+        let removed = try XCTUnwrap(combined.rows.firstIndex {$0.cell.displayText == "old"})
+        let materialized = try XCTUnwrap(FileComparisonLineEndingEdit(alignment:alignment,combined:combined,base:false,row:removed))
+        XCTAssertEqual(materialized.text,"same\r\nold\rnew\r\ntail")
+    }
+}

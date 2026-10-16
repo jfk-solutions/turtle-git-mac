@@ -256,6 +256,7 @@ private extension FileComparisonDocument {
     private var loadedPaneMode = false
     private var combinedCache: OnePaneFileComparison?
     private var retainingViewEdits = false
+    @Published var overwriteModes: [Bool:Bool] = [:]
     struct EditingPresentation {
         let alignment: FileComparisonAlignment
         let combined: OnePaneFileComparison?
@@ -1729,7 +1730,9 @@ private struct FileComparisonDialog: View {
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
                 Text(model.filtering ? "Comparing…" : model.alignment.map { "\($0.differences.count) difference(s)" } ?? "").font(.caption)
-                Spacer(); Text(model.dirty ? "Modified · working file not saved" : model.editingEnabled && model.editableBase != nil ? "Editing working file" : "Read-only comparison").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                MergeTypingModeControl(overwrite:model.overwriteModes[model.activeBase] == true,enabled:model.canTransfer(toBase:model.activeBase),toggle:{ model.overwriteModes[model.activeBase] = !(model.overwriteModes[model.activeBase] ?? false) })
+                Text(model.dirty ? "Modified · working file not saved" : model.editingEnabled && model.editableBase != nil ? "Editing working file" : "Read-only comparison").font(.caption).foregroundStyle(.secondary)
             }.padding(8)
             }
         }
@@ -1765,7 +1768,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             redo: { [weak coordinator = context.coordinator] in guard let coordinator, !coordinator.model.busy, !coordinator.model.confirmingQuit else { return }; coordinator.history.redo(); coordinator.updateUndoState() },
             replace: { [weak coordinator = context.coordinator] text, caret, cleared in coordinator?.replace(text, caret: caret, cleared: cleared) },
             type: { [weak coordinator = context.coordinator] text, caret in coordinator?.replace(text, caret: caret, typing: true) },
-            annotate: { [weak coordinator = context.coordinator] value in guard let coordinator else { return }; coordinator.replace(coordinator.model.draftText(base: coordinator.base), caret: 0, restored: value) },
+            annotate: { [weak coordinator = context.coordinator] value in coordinator?.annotate(value) },
             keep: { [weak coordinator = context.coordinator] text in coordinator?.replace(text, caret: 0, clearMarks: true) },
             resolveForSave: { [weak coordinator = context.coordinator] text in coordinator?.replace(text, caret: 0, clearMarks: true, resolvingSave: true) }
         ))
@@ -1935,7 +1938,30 @@ struct FileComparisonEditor: NSViewRepresentable {
             DispatchQueue.main.async { if self.model.activeBase == self.base, self.model.alignmentGeneration == generation, view.selectedRange() == range { self.model.updateSelection(range, cells: cells) } }
         }
         func updateUndoState() { guard model.activeBase == base else { return }; model.canUndo = history.canUndo; model.canRedo = history.canRedo }
-        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false, resolvingSave: Bool = false, historyCaret: FileComparisonWindowModel.HistoryCaret? = nil, presentation: FileComparisonWindowModel.EditingPresentation? = nil, displayCaret: Int? = nil) {
+        func annotate(_ value:FileComparisonEditing.Annotations) {
+            guard model.canTransfer(toBase:base),let view = scroll?.documentView as? FileComparisonTextView else {return}
+            let selection = view.selectedRange(),block = view.mergeSelectedBlockRange
+            let sourceCaret = (try? FileComparisonEditing.sourceRange(NSRange(location:selection.location,length:0),cells:cells).location) ?? 0
+            replace(model.draftText(base:base),caret:sourceCaret,restored:value,presentation:model.captureEditingPresentation(),displayCaret:selection.location,actionName:"Mark block")
+            view.setSelectedRange(selection)
+            if let block {view.blockGeneration = model.alignmentGeneration;view.blockSelection.install(block,caret:selection.location,in:view)}
+            model.updateSelection(selection,cells:cells)
+        }
+        func cycleEnding(_ edit:FileComparisonLineEndingEdit,displayCaret:Int) {
+            guard model.canTransfer(toBase:base),let old = model.captureEditingPresentation() else {return}
+            var annotations = old.annotations,revisions = old.revisions
+            if edit.combined != nil {
+                for side in [true,false] { annotations[side] = model.annotations(base:side).remapped(from:old.alignment,to:edit.alignment,targetBase:side,typing:false) }
+            }
+            var changed = annotations[base] ?? .init();changed.edited.insert(edit.alignmentRow);annotations[base] = changed;revisions[base] = UUID()
+            // The combined display keeps its record order even when its
+            // alignment indices change; retained links use display coordinates.
+            let links = edit.combined == nil ? old.moveLinks : [false:model.movedRowLinks(base:false)]
+            let next = FileComparisonWindowModel.EditingPresentation(alignment:edit.alignment,combined:edit.combined,annotations:annotations,revisions:revisions,moves:old.moves,moveLinks:links)
+            let sourceCaret = (try? FileComparisonEditing.sourceRange(NSRange(location:displayCaret,length:0),cells:cells).location) ?? 0
+            replace(edit.text,caret:sourceCaret,presentation:next,displayCaret:displayCaret,actionName:"Cycle line ending")
+        }
+        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false, resolvingSave: Bool = false, historyCaret: FileComparisonWindowModel.HistoryCaret? = nil, presentation: FileComparisonWindowModel.EditingPresentation? = nil, displayCaret: Int? = nil, actionName:String = "Edit comparison") {
             guard model.canEdit(base: base), resolvingSave || (!model.busy && !model.confirmingQuit) else { return }
             let old = model.draftText(base: base), previous = model.annotations(base: base), oldAlignment = model.alignment
             var next = previous
@@ -1950,7 +1976,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             history.registerUndo(withTarget:self) { target in
                 target.replace(old,caret:previousCaret?.sourceOffset ?? min(caret,old.utf16.count),restored:previous,historyCaret:previousCaret,presentation:previousPresentation)
             }
-            history.setActionName("Edit comparison")
+            history.setActionName(actionName)
             model.updateDraft(text, base: base)
             if model.activeBase == base { model.selectionRequest = caret }
             if let presentation { model.installEditingPresentation(presentation) }
@@ -1983,7 +2009,7 @@ struct FileComparisonEditor: NSViewRepresentable {
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting {
+private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting, MergeTypingProviding {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     var navigationCells: [MergeSourceCell]? { sourceCells }
@@ -2041,6 +2067,34 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
             navigateInline(forward: event.keyCode == 124); return true
         }
         return super.performKeyEquivalent(with: event)
+    }
+    var mergeOverwrite:Bool { model?.overwriteModes[baseSide] == true }
+    var mergeTypingAllowed:Bool { isEditable && model?.contextCommandsAllowed == true && model?.canTransfer(toBase:baseSide) == true }
+    func toggleMergeOverwrite() { guard mergeTypingAllowed else {return};model?.overwriteModes[baseSide] = !mergeOverwrite;needsDisplay = true }
+    private var currentEndingEdit:FileComparisonLineEndingEdit? {
+        guard mergeTypingAllowed,let model,let alignment = model.alignment,let row = MergeTyping.displayRow(in:string,offset:selectedRange().location) else {return nil}
+        return FileComparisonLineEndingEdit(alignment:alignment,combined:model.onePaneActive ? model.combined : nil,base:baseSide,row:row)
+    }
+    var canCycleCurrentEnding:Bool {
+        guard mergeTypingAllowed,let row = MergeTyping.displayRow(in:string,offset:selectedRange().location),sourceCells.indices.contains(row),
+              !sourceCells[row].state.isViewEmpty else {return false}
+        return MergeTyping.cycledLine(sourceCells[row].text) != nil
+    }
+    func cycleCurrentEnding() {
+        guard let edit = currentEndingEdit else {return}
+        (delegate as? FileComparisonEditor.Coordinator)?.cycleEnding(edit,displayCaret:selectedRange().location)
+    }
+    override func drawInsertionPoint(in rect:NSRect,color:NSColor,turnedOn flag:Bool) {
+        if mergeOverwrite,mergeTypingAllowed {MergeTypingCaret.draw(in:self,rect:rect,color:color,on:flag)}
+        else {super.drawInsertionPoint(in:rect,color:color,turnedOn:flag)}
+    }
+    override func insertText(_ insertString:Any,replacementRange:NSRange) {
+        var range = replacementRange
+        let payload = (insertString as? String) ?? (insertString as? NSAttributedString)?.string
+        if mergeOverwrite,mergeTypingAllowed,!hasMarkedText(),range.location == NSNotFound,let payload {
+            range = MergeTyping.overwriteRange(in:string,range:selectedRange(),inserted:payload)
+        }
+        super.insertText(insertString,replacementRange:range)
     }
     var history: UndoManager?
     weak var model: FileComparisonWindowModel?

@@ -1412,3 +1412,11 @@ and [grouped evidence](qa/merge-menu-lifecycle-2026-10-16.json). Toolbar fading 
 a visual defect; enabled/full-opacity image diagnostics and public redraw/reset
 attempts did not resolve it. Full physical menu, accessibility and signed acceptance
 remain open.
+
+## Merge typing family — October 16, 2026
+
+[Insert/Overwrite and current-row endings](MERGE-TYPING-PARITY.md) connect native
+typing, caret/mode feedback, source keys and Edit commands, exact row/Unicode
+transformations, combined-view materialization and existing Save/Undo ownership.
+Ctrl-M exposes existing comparison marks. Grouped evidence and remaining physical
+input, appearance and signed limitations are recorded with that family.

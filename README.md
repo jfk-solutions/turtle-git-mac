@@ -303,3 +303,7 @@ literal filename argument. See [external tool configuration](docs/UNIFIED-DIFF-V
 Compare/Merge menus restore their commands after application-menu rebuilding and
 defer structural changes during menu tracking. Source block-choice and navigation
 shortcuts are available alongside macOS bindings; see [command menus](docs/MERGE-COMMAND-MENUS-PARITY.md#rebuilt-menus-and-source-accelerators--october-16-2026).
+
+Compare/Merge also provide Insert/Overwrite, current-line ending cycling and
+source block-mark shortcuts, with Unicode-aware typing and Undo. See
+[typing behavior](docs/MERGE-TYPING-PARITY.md).

@@ -503,3 +503,10 @@ include **F11** for the next difference, **Shift-F11/Ctrl-F11** for the previous
 choose Theirs/Mine in a merge. Add **Shift** to those merge keys to keep both
 blocks in the corresponding order. **Ctrl-F3** searches the selected text;
 **Edit → Clear Search Highlights** clears that pane's search paint.
+
+Compare and Merge support **Insert/Overwrite** through Edit → Overwrite mode or
+the **INS/OVR** footer control (Insert key). Overwrite replaces one complete Unicode
+character; paste, Tab and Return keep inserting. **Ctrl-Enter** cycles only the
+current line ending through CRLF, CR and LF, with Undo; an unended final line is
+unchanged. **Ctrl-M** toggles a selected comparison block’s mark. See
+[typing and line endings](MERGE-TYPING-PARITY.md) for behavior and limitations.

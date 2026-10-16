@@ -310,7 +310,7 @@ jobs:
       - name: LibreOffice comparison and tracked-change merge owners
         run: python3 scripts/test-libreoffice-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Scoped native Merge menus and pane shortcuts
-        run: python3 scripts/test-merge-view-family.py --only lifecycle --only menus
+        run: python3 scripts/test-merge-view-family.py --only typing --only lifecycle --only menus
       - name: Merge view switching, native chrome and saved splits
         run: python3 scripts/test-merge-view-family.py --only view --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Moved blocks and wrapped editor navigation family

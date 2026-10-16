@@ -553,3 +553,22 @@ final class MergeLocatorTests: XCTestCase {
         MergeLocatorPreferences().save(to: defaults); XCTAssertEqual(MergeLocatorPreferences.load(from: defaults), .init())
     }
 }
+
+extension SubversionMergePresentationTests {
+    func testCurrentRecordEndingCycleRetainsConflictAndSourcePayloads() throws {
+        let value = try presentation("head\r\nold\r\ntail", "head\r\nmine\r\ntail", "head\r\ntheirs\r\ntail"),initial = resultPresentation(value)
+        let edit = try MergeAlignedResultTransform(comparison:value.sources,presentation:initial,operation:.cycleLineEnding(row:0))
+        XCTAssertEqual(edit.changedRows,[0])
+        let projection = try XCTUnwrap(MergeAlignedResultProjection(comparison:edit.comparison,presentation:edit.presentation))
+        XCTAssertEqual(projection.cells[0].text,"head\r")
+        XCTAssertEqual(projection.cells[0].state,.edited)
+        XCTAssertEqual(projection.cells.last?.text,"tail")
+        XCTAssertEqual(edit.presentation.conflicts().count,initial.conflicts().count)
+        XCTAssertEqual((edit.presentation.text as NSString).substring(with:edit.presentation.conflicts()[0].range),(initial.text as NSString).substring(with:initial.conflicts()[0].range))
+        XCTAssertEqual(edit.comparison.rows.map { $0.mine.text },value.sources.rows.map { $0.mine.text })
+        XCTAssertEqual(edit.comparison.rows.map { $0.theirs.text },value.sources.rows.map { $0.theirs.text })
+        let noEnding = try MergeAlignedResultTransform(comparison:edit.comparison,presentation:edit.presentation,operation:.cycleLineEnding(row:projection.cells.count - 1))
+        XCTAssertTrue(noEnding.changedRows.isEmpty)
+        XCTAssertEqual(noEnding.presentation,edit.presentation)
+    }
+}

@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "9e176ff13b2ef9b024b85c6c5efcead1b37767ad",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected Compare/Merge typing modes, current-line ending cycling, native feedback/commands/keys, marking selection/Undo and exact save integration",
+  "source": [
+    "TortoiseMerge BaseView.cpp OnKeyDown VK_INSERT/Ctrl-M, OnChar printable input and Ctrl-Enter, UpdateCaret, per-view m_bInsertMode."
+  ],
+  "implementation": [
+    "Per-pane comparison and merged-result runtime Insert/Overwrite, Insert key, checked Edit command, INS/OVR footer and translucent native overwrite caret.",
+    "Committed printable single-character input replaces a composed Unicode character; selection, paste, Tab, Return and marked input retain existing insertion paths.",
+    "Ctrl-Enter and Edit command cycle current row CRLF/CR/LF, leave unended rows alone, retain default newline and encoding.",
+    "Comparison row records retain opposite payload, combined removed-row materialization, remapped annotations and stable moved-block display links; Undo snapshots preserve projection.",
+    "Merged result uses aligned row transforms and Edited state while preserving other conflict/source records; native Undo retains exact state.",
+    "Ctrl-M and Edit mark toggle reuse existing save/mark machinery; annotations retain current text/block selection and engine records.",
+    "Current owner, focused editable pane, fields, sheets, busy and retired fences are shared with checked menu actions."
+  ],
+  "core": [
+    {
+      "log": "build/qa/merge-typing-core.log",
+      "exit": 1,
+      "reason": "New test compared MergeSourceCell arrays although the type is not Equatable; assertion corrected to compare original text and state."
+    },
+    {
+      "log": "build/qa/merge-typing-core-repair.log",
+      "exit": 0,
+      "tests": 73,
+      "failures": 0,
+      "families": [
+        "MergeLineEndingsTests",
+        "FileComparisonEditingTests",
+        "MergeResultPresentationTests",
+        "SubversionMergePresentationTests"
+      ]
+    },
+    {
+      "log": "build/qa/merge-typing-core-row-state.log",
+      "exit": 0,
+      "tests": 1,
+      "reason": "Only the affected new single-row transform check repeated after adding source Edited state; it also checks unchanged conflict marker payload and input sides."
+    }
+  ],
+  "debug": [
+    {
+      "log": "build/qa/merge-typing-debug.log",
+      "exit": 0,
+      "reason": "Initial connected implementation build.",
+      "exit_zero_no_output_diagnostics": 7
+    },
+    {
+      "log": "build/qa/merge-typing-final-debug.log",
+      "exit": 0,
+      "reason": "Code review moved expensive current-row edit construction out of native menu validation.",
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/merge-typing-marks-debug.log",
+      "exit": 0,
+      "reason": "Code review retained marking selection and engine rows.",
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/merge-typing-undo-repair-debug.log",
+      "exit": 0,
+      "reason": "Repaired actual native Undo exception; current row Edited state and stable moved-link retention finalized together.",
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "attempts": [
+      {
+        "log": "build/qa/merge-typing-native.log",
+        "exit": 1,
+        "reason": "Fixture compilation passed conflict objects instead of NSRange arrays; fixture corrected without app rebuild."
+      },
+      {
+        "log": "build/qa/merge-typing-native-repair.log",
+        "exit": 1,
+        "reason": "AppKit swallowed an NSInternalInconsistencyException when the comparison cycle action named its Undo step outside an open group. Owned receiver 2460 was explicitly terminated after a process sample and owned-process error log established the exception and idle main loop. Runner reaped it. Product repair passes the action name into the existing open Undo group.",
+        "diagnostics": [
+          "build/qa/merge-typing-hang-sample.txt",
+          "build/qa/merge-typing-native-exception.log"
+        ]
+      }
+    ],
+    "final": {
+      "log": "build/qa/merge-typing-native-final.log",
+      "exit": 0,
+      "case_engine_runs": 11,
+      "cases": [
+        "new typing workflow",
+        "menu lifecycle",
+        "scoped menus",
+        "view family with system Git",
+        "view family with bundled Git",
+        "toolbar",
+        "File/Open",
+        "moved blocks",
+        "wrapped navigation",
+        "two-pane engine/editor",
+        "three-pane engine/editor"
+      ],
+      "owned_receivers_reaped_and_independently_absent": [
+        2460,
+        2743,
+        2747,
+        2750,
+        2761,
+        2879,
+        2965,
+        2984,
+        2990,
+        2997,
+        3015,
+        3033
+      ]
+    }
+  },
+  "documentation": {
+    "help": "50 source files, 1955816 bytes; built counterparts byte-equal, generated Help index expected.",
+    "site": "253 documents, zero unresolved fragments; build/qa/merge-typing-site.log",
+    "ledger": "130 dialogs, 120 partial family audits, 10 pending reviews, zero certified; 987 mapped/672 pending static controls unchanged."
+  },
+  "limits": [
+    "Native committed-input calls and simulated window shortcuts do not prove full physical input/IME/dead-key or VoiceOver behavior.",
+    "Overwrite caret and footer appearance require physical light/dark acceptance; no new gallery capture accepted.",
+    "Source-coordinate tooltip labels after materialized combined rows retain existing editor limitations.",
+    "Full upstream editor/dialog equivalence, minimum OS, complete hosted CI, signed installed Finder, sandbox and App Store acceptance remain open."
+  ]
+}

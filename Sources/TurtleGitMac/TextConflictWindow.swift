@@ -566,6 +566,7 @@ private enum MergeSourceSide {
     @Published var editorConfigLoaded: [String: Bool] = [:]
     @Published var editorConfigLoading: Set<String> = []
     private var editorConfigRequests: [String: UUID] = [:]
+    @Published var overwriteMode = false
     private let initialEditorConfigDefault = MergeEditorPreferences.load().enableEditorConfig
     func setEditorConfig(_ enabled: Bool, pane: String) {
         guard document != nil, !confirmingQuit else { return }
@@ -1240,6 +1241,7 @@ private struct TextConflictDialog: View {
                     Menu("Use text block") {
                         ForEach(MergeBlockChoice.allCases, id: \.self) { choice in Button { model.choose(choice) } label: { CommandLabel(title: choice.rawValue, icon: choice.icon) } }
                     }.disabled(!model.canChooseConflict)
+                    MergeTypingModeControl(overwrite:model.overwriteMode,enabled:model.sourceToolsAllowed,toggle:{model.overwriteMode.toggle()})
                     Text("Line \(model.resultLineNumber)").font(.caption).foregroundStyle(.secondary)
                 }.padding(8)
                 }
@@ -1429,7 +1431,7 @@ private struct MergeEditor: NSViewRepresentable {
     var mergeSourceRowsReady:Bool { get }
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting {
+private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     @objc private func expandFoldedSection(_ sender: Any?) { _ = foldLayout.expandSelection(in: self) }
@@ -1523,6 +1525,45 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     override func scrollRangeToVisible(_ range: NSRange) {
         if model?.selectingNavigationBlock != true { foldLayout.reveal(selection: range, in: self, includeMarker: true) }
         super.scrollRangeToVisible(range)
+    }
+    var mergeOverwrite:Bool { model?.overwriteMode == true }
+    var mergeTypingAllowed:Bool { mergeEditable && isEditable && historyAllowed && model?.sourceToolsAllowed == true }
+    func toggleMergeOverwrite() { guard mergeTypingAllowed else {return};model?.overwriteMode.toggle();needsDisplay = true }
+    var canCycleCurrentEnding:Bool {
+        guard mergeTypingAllowed,let row = MergeTyping.displayRow(in:string,offset:selectedRange().location) else {return false}
+        if let cells = sourceCells {return cells.indices.contains(row) && !cells[row].state.isViewEmpty && MergeTyping.cycledLine(cells[row].text) != nil}
+        let lines = MergeRegexFilters.lines(string)
+        return lines.indices.contains(row) && MergeTyping.cycledLine(lines[row]) != nil
+    }
+    func cycleCurrentEnding() {
+        guard canCycleCurrentEnding,let model,let row = MergeTyping.displayRow(in:string,offset:selectedRange().location) else {return}
+        do {
+            if let comparison = model.sourceComparison,sourceCells != nil {
+                let edit = try MergeAlignedResultTransform(comparison:comparison,presentation:model.resultPresentation,operation:.cycleLineEnding(row:row))
+                guard !edit.changedRows.isEmpty else {return}
+                applyFormat(presentation:edit.presentation,comparison:edit.comparison,encoding:model.encoding,ending:model.resultLineEnding,actionName:"Cycle line ending")
+            } else {
+                let lines = MergeRegexFilters.lines(string),line = lines[row]
+                let start = lines.prefix(row).reduce(0) {$0 + $1.utf16.count}
+                guard let ending = MergeLineEndings.boundaries(in:line).last,let next = MergeTyping.cycledLine(line) else {return}
+                let replacement = (next as NSString).substring(from:ending.range.location)
+                let caret = selectedRange().location
+                replaceMergeBlock(NSRange(location:start + ending.range.location,length:ending.range.length),with:replacement,actionName:"Cycle line ending")
+                setSelectedRange(NSRange(location:min(caret,string.utf16.count),length:0))
+            }
+        } catch {model.error = error.localizedDescription}
+    }
+    override func drawInsertionPoint(in rect:NSRect,color:NSColor,turnedOn flag:Bool) {
+        if mergeOverwrite,mergeTypingAllowed {MergeTypingCaret.draw(in:self,rect:rect,color:color,on:flag)}
+        else {super.drawInsertionPoint(in:rect,color:color,turnedOn:flag)}
+    }
+    override func insertText(_ insertString:Any,replacementRange:NSRange) {
+        var range = replacementRange
+        let payload = (insertString as? String) ?? (insertString as? NSAttributedString)?.string
+        if mergeOverwrite,mergeTypingAllowed,!hasMarkedText(),range.location == NSNotFound,let payload {
+            range = MergeTyping.overwriteRange(in:string,range:selectedRange(),inserted:payload)
+        }
+        super.insertText(insertString,replacementRange:range)
     }
     override func keyDown(with event: NSEvent) { beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }; model?.clearNavigationBlockSelection(); super.keyDown(with:event) }
     override func mouseDown(with event: NSEvent) {

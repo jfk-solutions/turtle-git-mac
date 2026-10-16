@@ -773,3 +773,40 @@ struct MergeComparisonSplit: NSViewRepresentable {
         needsDisplay = true
     }
 }
+
+
+@MainActor protocol MergeTypingProviding: AnyObject {
+    var mergeOverwrite: Bool { get }
+    var mergeTypingAllowed: Bool { get }
+    var canCycleCurrentEnding: Bool { get }
+    func toggleMergeOverwrite()
+    func cycleCurrentEnding()
+}
+
+struct MergeTypingModeControl: View {
+    let overwrite:Bool
+    let enabled:Bool
+    let toggle:()->Void
+    var body: some View {
+        Button(overwrite ? "OVR" : "INS",action:toggle)
+            .font(.system(.caption,design:.monospaced)).buttonStyle(.borderless)
+            .foregroundStyle(overwrite ? Color.orange : Color.secondary)
+            .accessibilityLabel(overwrite ? "Overwrite mode" : "Insert mode")
+            .help("Toggle Insert/Overwrite mode (Insert key)").disabled(!enabled)
+    }
+}
+
+
+@MainActor enum MergeTypingCaret {
+    static func draw(in view:NSTextView,rect:NSRect,color:NSColor,on:Bool) {
+        var block = rect
+        if let layout = view.layoutManager,let container = view.textContainer,view.selectedRange().location < view.string.utf16.count {
+            let chars = (view.string as NSString).rangeOfComposedCharacterSequence(at:view.selectedRange().location)
+            let glyphs = layout.glyphRange(forCharacterRange:chars,actualCharacterRange:nil)
+            block.size.width = max(rect.width,layout.boundingRect(forGlyphRange:glyphs,in:container).width)
+        }
+        if block.width < 3 {block.size.width = (" " as NSString).size(withAttributes:[.font:view.font ?? NSFont.monospacedSystemFont(ofSize:12,weight:.regular)]).width}
+        guard on else {view.setNeedsDisplay(block);return}
+        color.withAlphaComponent(0.35).setFill();block.fill()
+    }
+}
