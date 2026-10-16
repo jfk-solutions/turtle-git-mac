@@ -2288,3 +2288,10 @@ by retained color controls and Settings Apply/Cancel/cache workflows. Optional
 `--capture-dir PATH` captures actual native windows; `--only` reruns an affected
 family without repeating successful families. This batch changes native layout
 and dispatch only; no Core suite rerun is required.
+
+`python3 scripts/test-log-integration-preparation.py --git /usr/bin/git --git PATH_TO_BUNDLED_GIT`
+checks source Merge/Rebase target precedence with real local/tag/remote refs,
+moved preferred refs without fallback, native options presets and owned
+cancellation/selection/close/retirement/Quit behavior. It uses private repositories
+and preferences, preserves HEAD/index tree/status, closes owned windows and reaps
+helpers. This is a native-only preparation change; no Core implementation changed.

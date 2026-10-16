@@ -449,6 +449,7 @@ final class LogHistoryWindow: NSWindow {
         if model.cancelFollowedComparison(closeAfter:true) { return false }
         if model.cancelWorkingCommandRead(closeAfter:true) { return false }
         if model.cancelStartReferenceRead() { return false }
+        if model.cancelIntegrationRead(closeAfter:true) { return false }
         guard !model.referencePickerBlocked, (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
@@ -517,6 +518,35 @@ final class LogHistoryWindow: NSWindow {
 }
 
 enum LogIntegrationCommand { case merge, rebase }
+/// Capture the source's preferred ref once; a moved ref must not silently choose
+/// a different label or fall back to a hash while preparation is running.
+struct LogIntegrationPreparation {
+    let hash:String
+    let reference:String?
+    let revision:String
+    init(command:LogIntegrationCommand,entry:LogEntry,pointed:RevisionReference? = nil) {
+        hash = entry.hash
+        let chosen:RevisionReference?
+        if command == .merge { chosen = pointed ?? entry.references.first }
+        else { chosen = entry.references.first { $0.name.hasPrefix("refs/heads/") } ?? entry.references.first }
+        reference = chosen?.name
+        if command == .rebase, let name = chosen?.name, name.hasPrefix("refs/heads/") { revision = String(name.dropFirst("refs/heads/".count)) }
+        else { revision = chosen?.name ?? entry.hash }
+    }
+    func read(repository:GitRepository,cancellation:OperationCancellation) async throws -> String {
+        try cancellation.check()
+        guard try await !repository.isBare(cancellation:cancellation) else { throw LogIntegrationFailure.worktree }
+        let merging = try await repository.logMergeActive(cancellation:cancellation)
+        let rebasing = try await repository.rebaseState(cancellation:cancellation).active
+        guard !merging, !rebasing else { throw LogIntegrationFailure.active }
+        guard try await repository.rebaseCommit("HEAD",cancellation:cancellation).hash != hash else { throw LogIntegrationFailure.head }
+        if let reference {
+            let resolved = try await repository.run(["rev-parse","--verify","--end-of-options",reference + "^{commit}"],successfulExitCodes:0...128,cancellation:cancellation)
+            guard resolved.exitCode == 0, resolved.text.trimmingCharacters(in:.newlines) == hash else { throw LogIntegrationFailure.stale }
+        }
+        try cancellation.check(); return revision
+    }
+}
 enum LogBisectCommand: CaseIterable {
     case start, good, bad, skip, reset
     var operation: BisectOperation? { switch self { case .start: return nil; case .good: return .good; case .bad: return .bad; case .skip: return .skip; case .reset: return .reset } }
@@ -538,9 +568,10 @@ private enum LogWorkingCommandFailure: LocalizedError {
     var errorDescription: String? { "This command is no longer available. Refresh the Log." }
 }
 private enum LogIntegrationFailure: LocalizedError {
-    case worktree, head, active
+    case worktree, head, active, stale
     var errorDescription: String? {
         switch self {
+        case .stale: return "The selected reference changed. Refresh the Log and try again."
         case .worktree: return "This operation requires a working tree."
         case .head: return "The selected revision is already HEAD. Refresh the Log."
         case .active: return "Finish or abort the active Merge or Rebase before starting another operation."
@@ -1120,43 +1151,53 @@ struct LogCommandRequest: Identifiable {
         guard canCherryPick else { return }
         onCherryPick?(cherryPickSelection.map(\.hash))
     }
-    var integrationAvailable: Bool { revision != nil && revision?.isHead == false && !bare && !mergeActive && !selectedIsStash }
+    var integrationAvailable: Bool { !isInvalidated && revision != nil && revision?.isHead == false && !bare && !mergeActive && !selectedIsStash }
     func canIntegrate(_ command: LogIntegrationCommand) -> Bool {
-        integrationAvailable && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && (command == .merge ? onMergeRevision != nil : onRebaseRevision != nil)
+        integrationAvailable && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && !referencePickerBlocked && !orderingBlocked && !findBlocked && (command == .merge ? onMergeRevision != nil : onRebaseRevision != nil)
     }
     func integrationTitle(_ command: LogIntegrationCommand) -> String {
         let branch = currentBranch.isEmpty ? "HEAD" : currentBranch
         return command == .merge ? "Merge to \"\(branch)\"…" : "Rebase \"\(branch)\" onto this…"
     }
-    func requestIntegration(_ command: LogIntegrationCommand, target: LogReferenceMenuTarget? = nil) {
-        guard !isInvalidated, canIntegrate(command), let chosen = revision else { return }
-        let pointedReference: RevisionReference?
-        if let target { guard command == .merge, let reference = reference(for: target) else { return }; pointedReference = reference }
-        else { pointedReference = nil }
-        let request = generation; busy = true; error = nil
+    private var integrationCancellation:OperationCancellation?
+    private var closeAfterIntegrationRead = false
+    var readIntegration:((LogIntegrationPreparation,OperationCancellation) async throws -> String)?
+    @discardableResult func cancelIntegrationRead(closeAfter:Bool = false) -> Bool {
+        guard let token = integrationCancellation else { return false }
+        closeAfterIntegrationRead = closeAfterIntegrationRead || closeAfter; token.cancel(); return true
+    }
+    func requestIntegration(_ command:LogIntegrationCommand,target:LogReferenceMenuTarget? = nil) {
+        guard canIntegrate(command), integrationCancellation == nil, let chosen = revision else { return }
+        let pointed:RevisionReference?
+        if let target { guard command == .merge, let reference = reference(for:target) else { return }; pointed = reference }
+        else { pointed = nil }
+        let preparation = LogIntegrationPreparation(command:command,entry:chosen,pointed:pointed)
+        let request = generation, selection = selected, token = OperationCancellation()
+        integrationCancellation = token; closeAfterIntegrationRead = false
+        busy = true; error = nil; Self.activeReferenceReads += 1
         Task {
-            defer { busy = false }
+            defer {
+                Self.activeReferenceReads -= 1; withExtendedLifetime(access) {}
+                if integrationCancellation === token {
+                    integrationCancellation = nil; busy = false
+                    let shouldClose = closeAfterIntegrationRead; closeAfterIntegrationRead = false
+                    if shouldClose, !isInvalidated { close() }
+                }
+            }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let isBare = try await repository.isBare()
-                let merging = try await repository.logMergeActive()
-                let rebasing = try await repository.rebaseState().active
-                let head = try await repository.rebaseCommit("HEAD").hash
-                guard !isBare else { throw LogIntegrationFailure.worktree }
-                guard !merging, !rebasing else { throw LogIntegrationFailure.active }
-                guard head != chosen.hash else { throw LogIntegrationFailure.head }
-                var references = (pointedReference.map { [$0] } ?? chosen.references).map(\.name).filter { $0.utf8.starts(with: "refs/".utf8) && !$0.utf8.starts(with: "refs/stash".utf8) }
-                if command == .rebase { references = references.filter { $0.hasPrefix("refs/heads/") } + references.filter { !$0.hasPrefix("refs/heads/") } }
-                var target = chosen.hash
-                for reference in references {
-                    let resolved = try await repository.run(["rev-parse", "--verify", "--end-of-options", reference + "^{commit}"], successfulExitCodes: 0...128)
-                    if resolved.exitCode == 0 && resolved.text.trimmingCharacters(in: .newlines) == chosen.hash { target = command == .rebase && reference.hasPrefix("refs/heads/") ? String(reference.dropFirst("refs/heads/".count)) : reference; break }
-                }
-                if pointedReference != nil, target == chosen.hash { throw CheckoutFailure.invalidRevision }
-                guard !isInvalidated, request == generation, revision?.hash == chosen.hash, selected.count == 1 else { return }
-                busy = false
-                if command == .merge { onMergeRevision?(target) } else { onRebaseRevision?(target) }
-            } catch { if request == generation { self.error = error.localizedDescription } }
+                let destination:String
+                if let readIntegration { destination = try await readIntegration(preparation,token) }
+                else { destination = try await preparation.read(repository:repository,cancellation:token) }
+                guard !isInvalidated, request == generation, selected == selection, integrationCancellation === token, !token.isCancelled else { return }
+                if let target, reference(for:target) == nil { throw LogIntegrationFailure.stale }
+                // Release this read before a child callback starts another owned
+                // load; the old defer must not clear that newer busy state.
+                integrationCancellation = nil; busy = false
+                if command == .merge { onMergeRevision?(destination) } else { onRebaseRevision?(destination) }
+            } catch {
+                if !isInvalidated, request == generation, integrationCancellation === token, !token.isCancelled { self.error = error.localizedDescription }
+            }
         }
     }
     var canEditNotes: Bool { !isInvalidated && revision != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !selectedIsStash }
@@ -1725,6 +1766,7 @@ struct LogCommandRequest: Identifiable {
         if let jumpAlert, let parent = jumpAlert.window.sheetParent { parent.endSheet(jumpAlert.window, returnCode: .abort) }; jumpAlert = nil
         cancelSearchFilter(); pathFilterGeneration += 1; pathFilterTask?.cancel(); pathFilterTask = nil
         followedSession?.cancel();closeAfterFollowedRead=false
+        integrationCancellation?.cancel(); closeAfterIntegrationRead = false
         workingCommandCancellation?.cancel();closeAfterWorkingCommandRead=false
         changedFileColumnRequest=UUID();resettingChangedFileColumns=false;focusedChangedFile=nil
         combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll()
@@ -1860,7 +1902,7 @@ struct LogCommandRequest: Identifiable {
     }
     func select(_ hashes: Set<String>) {
         messageLinkGeneration = UUID()
-        if hashes != selected { cancelWorkingCommandRead(); cancelFollowedComparison() }
+        if hashes != selected { cancelWorkingCommandRead(); cancelFollowedComparison(); cancelIntegrationRead() }
         cancelNoteRead()
         cancelJump(); highlightedRevision = nil
         for entry in entries where !entry.hash.isEmpty && hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }

@@ -344,3 +344,9 @@ you resize the window. Scroll the page to reach lower controls; narrower pages
 can also scroll horizontally. Returning to a visited page restores its scroll
 position. Hover a shortened sidebar caption for its complete name. A validation
 error selects its page and expands the required sidebar parents.
+
+From Log, Merge uses the reference label you clicked, otherwise the selected
+commit’s first reference. Rebase prefers a local branch on that commit. If the
+chosen reference has moved, refresh the Log before trying again. Preparation can
+be cancelled by closing Log; a cancelled or retired window does not open late
+Merge/Rebase options.

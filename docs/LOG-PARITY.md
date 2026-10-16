@@ -412,8 +412,8 @@ merge graph, file stats and double-click diff with disposable sample repositorie
 
 | Area | Remaining behavior |
 | --- | --- |
-| Columns | ID/rebase and SVN columns; displayed header/reset and cross-launch persistence acceptance |
-| Graph | Collapse/expand, hidden refs and all merge parent choices; the working-tree row is now implemented with basic comparison/Bisect routing, see [Bisect parity](BISECT-PARITY.md) for remaining row gaps |
+| Columns | Normal Log optional/SVN columns are implemented; ID/rebase replacements belong to the dedicated Rebase list. Broader displayed header/reset and cross-launch acceptance remains open |
+| Graph | Compressed Expand/Collapse is implemented for loaded history. Cross-page compression, hidden-ref/merge-parent combinations and physical graph acceptance remain open; see [graph guide](LOG-GRAPH.md) and [Bisect parity](BISECT-PARITY.md) |
 | References | Branch/ref chooser, remote ref deletion and tracking menus |
 | Search/filter | Full history scope controls, search highlighting, displayed jump/selection-history acceptance and keyboard navigation; implemented fields/modes are recorded above |
 | Files | Multi-revision union, multi-file diff, file log/blame, restore, save/export revision, open/editor/Finder actions |
@@ -2034,7 +2034,7 @@ Ordinary Log and its three configured picker flows route this separate action to
 
 Log Create Branch now binds only a pointed remote-branch label, matching the upstream REMOTE_BRANCH hit-type gate. A local/tag hit, a row background, or Create Tag uses the first remote ref at that commit and otherwise the hash. Switch/Checkout uses any pointed canonical ref, or guesses the first remote ref before the hash. Push retains its existing pointed/hash behavior. Stash selection disables these checkout/creation menu actions. Selection changes and closed models reject stale pointed creation targets.
 
-Merge binds the pointed canonical ref through its native selector and existing asynchronous worktree/active-operation/HEAD checks. It validates the pointed ref still resolves to the chosen commit; mismatch reports an error rather than silently changing to a hash. Background Merge retains the existing first-resolving-ref fallback, which is broader than upstream's first-ref selection; moved-ref behavior and complete availability/order remain pending. Rebase targeting is unchanged. These checks do not establish physical dialog routing or signed sandbox acceptance.
+Merge binds the pointed canonical ref through its native selector and existing asynchronous worktree/active-operation/HEAD checks. It validates the pointed ref still resolves to the chosen commit; mismatch reports an error rather than silently changing to a hash. The October 16 owned-integration continuation supersedes the earlier first-resolving fallback and adds source Rebase target order. Complete availability/order remains under review. These checks do not establish physical dialog routing or signed sandbox acceptance.
 
 ### Reference deletion from Log
 
@@ -2663,3 +2663,27 @@ See [primary dialog presentation](PRIMARY-DIALOG-VISUAL-REVIEW.md) for connected
 Commit layout work and acceptance limits.
 
 The current connected checks and capture settings are recorded in [dated native evidence](qa/primary-live-presentation-2026-10-16.json).
+
+## Owned source integration targets — October 16, 2026
+
+Merge preparation now captures the pointed canonical ref, otherwise the first
+reference on the selected revision, otherwise its hash. Rebase captures the first
+local branch in that source list and passes its short branch name; absent a local
+branch it uses the first reference, then the hash. It no longer searches for a
+later resolving ref when the source-preferred reference moves. The captured ref
+is validated against the selected commit before opening options. A moved/missing
+preferred ref reports a stale-selection diagnostic instead of silently changing
+the command target. This adds an explicit native stale-ref boundary around the
+source's target-choice order.
+
+All worktree, active-operation, HEAD and reference reads receive an owned
+cancellation token. The read retains the repository lease and participates in the
+existing reference-read Quit accounting. Selection changes cancel it; duplicate,
+retired and blocked-child requests are refused. Normal Close cancels and waits
+for settlement before closing; forced retirement fences late results and retains
+read accounting until the worker actually returns. Handoff releases its busy
+state before a child starts another load, so an old defer cannot clear a newer
+operation's state. Source icons and the existing native Merge/Rebase dialogs are
+retained. Broader modal/physical/signed acceptance remains open.
+
+The [grouped native evidence](qa/log-integration-preparation-2026-10-16.json) records the actual two-engine pass, fixture repairs and remaining acceptance.

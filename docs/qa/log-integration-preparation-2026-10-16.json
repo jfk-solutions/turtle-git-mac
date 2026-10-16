@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "102301fd",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/GitLogListAction.cpp ID_MERGEREV: pointed label, first ref, hash",
+    "src/TortoiseProc/GitLogListAction.cpp ID_REBASE_TO_VERSION: first local branch shortened, otherwise first ref/hash",
+    "src/TortoiseProc/GitLogListBase.cpp Merge/Rebase eligibility and original menu icons"
+  ],
+  "scope": [
+    "Capture source target precedence without searching later resolving refs",
+    "Validate preferred canonical ref against captured commit; moved/missing refs report stale selection",
+    "Cancellable worktree/operation/HEAD/ref reads retain access and reference-read Quit accounting",
+    "Duplicate, blocked-child, changed-selection, Close and forced-retirement fences",
+    "Release preparation before handoff so cleanup cannot clear a child callback new busy state",
+    "Retain existing native Merge/Rebase dialogs and source artwork"
+  ],
+  "build": {
+    "log": "build/qa/log-integration-preparation-build.log",
+    "exit": 0,
+    "notes": "Existing warnings/anomalous command-failed-with-exit-code-0/no-output diagnostics were emitted. Native receiver object freshness guards passed."
+  },
+  "core": "Native-only preparation change; no Core implementation edits or Core suite rerun.",
+  "native": {
+    "runner": "scripts/test-log-integration-preparation.py",
+    "fixture": "docs/qa/log-integration-preparation-native-2026-10-16.swift",
+    "log": "build/qa/log-integration-preparation-native-owner-repair.log",
+    "exit": 0,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "receivers_reaped": [
+      85609,
+      85791
+    ],
+    "checks": [
+      "Merge first ref and pointed canonical remote ref; unlabeled commit hash",
+      "Rebase first local short name over tag/remote, otherwise hash",
+      "Moved first/default and local-preferred refs refused without fallback",
+      "Actual native Merge tag preset and Rebase upstream preset",
+      "Held read participates in busy/Quit accounting and rejects duplicates",
+      "Selection away/back cancels old request",
+      "Old cleanup does not clear a newer callback-owned busy state",
+      "Actual Log close cancels/waits and performs one deferred close",
+      "Forced retirement retains read accounting until uncooperative worker returns and rejects late result",
+      "HEAD/logical index tree/working status preserved; owned native windows closed"
+    ]
+  },
+  "earlier_failures": [
+    {
+      "log": "build/qa/log-integration-preparation-native.log",
+      "receiver_reaped": 85101,
+      "reason": "Fixture supplied history rows but left default bare=true. Loaded actual repository metadata; product guard unchanged."
+    },
+    {
+      "log": "build/qa/log-integration-preparation-native-repair.log",
+      "receiver_reaped": 85179,
+      "reason": "Fixture supplied native Log rows without matching graph rows; SIGTRAP in RevisionTable.Coordinator.tableView viewFor. Crash report confirmed the fixture projection mismatch. Added matching graph; no feature preference plist remained."
+    },
+    {
+      "log": "build/qa/log-integration-preparation-native-final.log",
+      "receiver_reaped": 85388,
+      "reason": "Actual Log controller initial history load had not completed when fixture requested integration, so existing busy guard refused it. Final fixture waits for real history/metadata rather than injecting owner rows."
+    }
+  ],
+  "hosted": {
+    "macos": {
+      "run": 38835304074,
+      "sha": "102301fd",
+      "last_observed": "pending"
+    },
+    "pages": {
+      "run": 38835304048,
+      "sha": "102301fd",
+      "conclusion": "success"
+    },
+    "full_current_macos_pass": false
+  },
+  "limitations": [
+    "Stale-ref refusal is an explicit native boundary around source choice order; no atomic lock spans preparation and later dialog submission",
+    "Broader modal child-window behavior, complete source menu masks/order, physical keyboard and signed sandbox acceptance remain open",
+    "No whole-application parity or App Store readiness claimed"
+  ],
+  "cleanup": {
+    "owned_receivers_absence_checked": [
+      85101,
+      85179,
+      85388,
+      85609,
+      85791
+    ],
+    "owned_windows_closed": true,
+    "private_repositories_removed_by_runner": true
+  },
+  "documentation": {
+    "bundled_help": {
+      "documents": 26,
+      "topics": 47,
+      "files": 32,
+      "bytes": 199086
+    },
+    "site": {
+      "documents": 235,
+      "unresolved_fragments": 0
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 986,
+      "pending_control_reviews": 673
+    }
+  }
+}
