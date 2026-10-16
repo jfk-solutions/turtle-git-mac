@@ -162,6 +162,12 @@ work that remains.
 
 ## Screenshots and website
 
+Rebase's Revision Files tab now includes historical file actions and shared
+native column controls. See the [implementation and limits](docs/REBASE-REVISION-FILES.md).
+
+![Rebase Revision Files, light appearance](docs/site/assets/rebase-revision-files-light.png)
+![Rebase Revision Files, dark appearance](docs/site/assets/rebase-revision-files-dark.png)
+
 Notes, Merge and Rebase now share Commit's source-style issue/URL links and
 message formatting, preserving plain-text drafts and Undo. Reviewed Notes
 [light](docs/site/assets/notes-message-styles-light.png) /

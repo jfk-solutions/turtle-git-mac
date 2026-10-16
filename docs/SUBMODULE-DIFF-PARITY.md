@@ -588,3 +588,12 @@ and closes after settlement; the explicit Cancel button only cancels the read.
 This remains partial parity. Physical menu/keyboard gestures, comprehensive
 light/dark layout review, signed Finder integration and App Store sandbox
 acceptance remain open. The dated QA record states the actual local scope.
+
+
+The native Changed Files file table and owner-bound file-action presenter are
+now reused by Rebase's Revision Files tab. Both consumers also offer pinned
+historical Open/Open With/alternative-editor and Save revision commands.
+Application, Save and export panels share cancellation with the owning file
+operation; original menu icons and snapshot-bound one-use dispatch are retained.
+See [Rebase Revision Files](REBASE-REVISION-FILES.md) for connected scope and
+acceptance limits.

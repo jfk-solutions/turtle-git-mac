@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "2ff7048ecf11d26cbbd092134352ed698f796b70",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/RebaseDlg.cpp m_FileListCtrl creation/Init and revision selection",
+    "src/TortoiseProc/Controls/GitStatusListCtrl.cpp historical file commands",
+    "src/Resources/TortoiseProcENG.rc IDD_REBASE"
+  ],
+  "implementation": [
+    "Shared native RevisionComparisonFileList and owner-bound RevisionFileActionPresenter used by Changed Files and Rebase Revision Files",
+    "Captured first-parent/root-empty-tree snapshots populate rename/status/line-count rows with existing original icons/colors",
+    "Comparison/unified, both-version Revert, file/submodule Log, Blame, export, saved list and clipboard/header/column-layout controls connected to embedded model",
+    "Historical Open/Open With/alternative-editor and Save revision use pinned blob bytes in both consumers",
+    "Independent RebaseDlg.RevisionFiles.Columns persistence; private injectable clipboard",
+    "Selected-commit replacement cancels preparation and invalidates one-use popup identities; parent plan editing/row selection/execution blocked during file action",
+    "Parent-owned cancellable application/Save/export/result sheets, repository lease and Quit accounting, cancellation and forced-retirement/viewer cleanup"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/rebase-revision-files-build.log",
+    "notes": "Existing warnings and 3 anomalous exit-code-0/no-output diagnostics emitted; terminal build status zero; native object freshness guards passed."
+  },
+  "core": "No Core implementation changes; no Core suite rerun.",
+  "native": {
+    "runner": "scripts/test-rebase-revision-files.py",
+    "log": "build/qa/rebase-revision-files-native.log",
+    "exit": 0,
+    "cases": 6,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "fixtures": [
+      "rebase-revision-files-native-2026-10-16.swift",
+      "comparison-launch-native-2026-10-14.swift",
+      "rebase-references-native-2026-10-14.swift"
+    ],
+    "receivers_reaped": [
+      89343,
+      89523,
+      89716,
+      90340,
+      90969,
+      91339
+    ],
+    "first_checkpoint": "All six cases passed; no failed/affected rechecks required.",
+    "checks": [
+      "Actual native Rebase file table and independently persisted columns; original menu artwork decode",
+      "Exact parent/root snapshots and rename origin/deleted Open restriction",
+      "Pinned comparison and file Log endpoints; deleted Base Blame",
+      "Injected historical Open/Open With exact UTF-8/binary content, actual Save As and export file bytes",
+      "Historical exports skip deleted entries and preserve current checkout",
+      "Stale popup refused after selecting another commit",
+      "Held export Cancel/Close/Quit and Rebase Start/Add/menu guards; retained forced-close ownership in Changed Files regression",
+      "Unchanged HEAD/index/worktree after read-only Rebase actions; retired list rejects actions",
+      "Retained Changed Files real reverts, history/blame/export, folder/failure and protected checkout lifetimes",
+      "Retained Rebase reference dropdown kinds/artwork, Upstream/Onto picker/cancellation/retirement and replacement-plan checks"
+    ],
+    "notes": "Existing retained hidden Rebase reference fixture emitted zero-size NSSplitView layout warnings; displayed captures use actual sized Rebase window."
+  },
+  "captures": {
+    "method": "Unaltered native screencapture -x -o -l of the owning Rebase window; no drawn controls or image editing.",
+    "files": [
+      "docs/site/assets/rebase-revision-files-light.png",
+      "docs/site/assets/rebase-revision-files-dark.png"
+    ],
+    "reviewed": "Both images viewed. Replay/file panes, branch controls, tabs, colored rename/deletion/binary statuses and footer visible. No whole-dialog source parity claim."
+  },
+  "limits": [
+    "External Open/With/editor launches are injected; no real external application opened",
+    "Physical panels, pointer/keyboard/VoiceOver, full source context-menu masks, arbitrary graph and minimum-size layout acceptance remain open",
+    "Signed sandbox/Finder/App Store acceptance and full hosted CI pass not established",
+    "Other Rebase action-row layout and completion interaction differences remain open"
+  ]
+}

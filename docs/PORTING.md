@@ -3,6 +3,14 @@
 *A macOS fork of TortoiseGit*
 
 
+Rebase's Revision Files pane now connects the Changed Files inspection family:
+comparison/unified, Revert, history, Blame, historical Open/Save/export,
+clipboard and independently saved native column layouts. Original status colors
+and icons, root/parent snapshots and owner-bound cancellation accompany the
+shared controls. See [Revision Files and native captures](REBASE-REVISION-FILES.md).
+Full source-menu, physical and signed acceptance remain open.
+
+
 Log-to-Rebase now carries the selected canonical branch/tag identity into native
 options, including configured child Logs. Same-named tags cannot replace a
 preferred local branch. Core commit-ID reads separate successful stdout from

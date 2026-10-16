@@ -572,3 +572,16 @@ The exact email OCR and all existing metadata/menu/font/column/repository
 assertions remain required. Both local engine cases passed using the compositor;
 [repair evidence](qa/rebase-compositor-2026-10-15.json) records scope and cleanup.
 The hosted rerun remains pending; this is not a full CI or Rebase parity claim.
+
+
+## Connected Revision Files workflow — October 16, 2026
+
+The lower historical file table now shares Changed Files' actual comparison,
+unified, Revert, history, Blame, export, clipboard and native column controls.
+Historical Open/Open With/alternative-editor and Save revision are connected to
+pinned blob bytes in both consumers. Root/parent snapshots, rename/deletion
+routing, source colors/icons, parent-owned sheets, stale popup invalidation and
+operation/cancellation/Quit ownership are part of the same batch. Conflict
+recovery keeps the checked Conflict Files pane. See the
+[Revision Files implementation and native captures](REBASE-REVISION-FILES.md).
+Full source-menu, physical, accessibility and signed acceptance remain open.

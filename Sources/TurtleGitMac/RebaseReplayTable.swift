@@ -85,9 +85,9 @@ struct RebaseReplayTable: NSViewRepresentable {
             guard rows.indices.contains(row) else { return nil }
             let view = RebaseReplayNativeRow(); view.action = rows[row].action; return view
         }
-        func selectionShouldChange(in tableView: NSTableView) -> Bool { synchronizing || available }
+        func selectionShouldChange(in tableView: NSTableView) -> Bool { synchronizing || available && !model.revisionFiles.busy }
         func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !synchronizing, available, let table else { return }
+            guard !synchronizing, available, !model.revisionFiles.busy, let table else { return }
             let selected = Set(table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].id : nil })
             if selected != model.selection { menuGeneration = UUID(); model.selection = selected }
         }

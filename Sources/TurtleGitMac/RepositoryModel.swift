@@ -2399,6 +2399,13 @@ import UniformTypeIdentifiers
         controller.model.onCompletedPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onCompletedMail = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset, sendMail: true) }
         controller.model.configureCommitSelection = { [weak self] commit in self?.configureCommitInteractions(commit, repository: repository, access: access) }
+        let revisionFiles=controller.model.revisionFiles
+        revisionFiles.onFileLog={ [weak self] path,revision in self?.showLog(repository:repository,access:access,paths:[path],endRevision:revision) }
+        revisionFiles.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
+        revisionFiles.onSubmoduleLog={ [weak self] child,revision in self?.showLog(repository:GitRepository(root:child,executable:repository.executable),access:access,paths:[],endRevision:revision) }
+        revisionFiles.onSubmoduleCompare={ [weak self] path,from,to in
+            self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:from == .emptyTree ? "" : from.label,to:to == .workingTree ? nil : to.label)
+        }
         let revisionLog = controller.model.revisionMenuLog
         revisionLog.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         revisionLog.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }

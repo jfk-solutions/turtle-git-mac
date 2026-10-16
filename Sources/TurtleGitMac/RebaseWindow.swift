@@ -1,10 +1,12 @@
 import AppKit
 import SwiftUI
+import Combine
 import UniformTypeIdentifiers
 import TurtleGitCore
 
 @MainActor final class RebaseWindowController: NSWindowController, NSWindowDelegate {
     let model: RebaseWindowModel
+    private var revisionFilePresenter:RevisionFileActionPresenter?
     var onClosed: () -> Void = {}
     private var replayQuestion: (UUID, NSAlert, (Int) -> Void)?
     private(set) var conflictBaseViewer: FileComparisonWindowController?
@@ -66,6 +68,10 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: RebaseDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
         model.revisionMenuLog.window = window
+        model.revisionFiles.window = window
+        revisionFilePresenter=RevisionFileActionPresenter(model:model.revisionFiles,window:window)
+        model.revisionFiles.onFilesChanged={ [weak model] in model?.onChanged() }
+
         model.chooseConflictApplication = { [weak self] in await self?.chooseConflictLocation(application: true) }
         model.chooseConflictExport = { [weak self] in await self?.chooseConflictLocation(application: false) }
         model.onConflictBaseComparison = { [weak self] prepared in
@@ -322,6 +328,10 @@ struct RebaseReferenceRequest {
     @Published var state: RebaseState?
     @Published var selection = Set<String>()
     @Published var files: [CommitFile] = []
+    let revisionFiles:RevisionComparisonWindowModel
+    private var revisionFilesObservation:AnyCancellable?
+    var revisionFilesAvailable:Bool { !retired && !busy && !selectingSplit && !pickingCommits && pickingReference == nil && !revisionFiles.busy && revisionFiles.window?.attachedSheet == nil }
+
     @Published var conflictRows: [StatusEntry] = []
     @Published var conflictStatistics: [String: CommitFile] = [:]
     @Published private(set) var conflictIndexFlags:[String:FinderIndexFlags]=[:]
@@ -463,11 +473,12 @@ struct RebaseReferenceRequest {
     static private(set) var activePreparationReads = 0
     var readPlan: (RebaseOptions, OperationCancellation) async throws -> RebasePlan
     var validateOnto: (String, String, String, OperationCancellation) async throws -> String?
-    var hasCancellablePreparation: Bool { conflictFileCancellation != nil || sessionCancellation != nil || conflictDiffCancellation != nil || planCancellation != nil || referenceCancellation != nil || initialCancellation != nil || detailCancellation != nil }
+    var hasCancellablePreparation: Bool { revisionFiles.hasOwnedPreparation || conflictFileCancellation != nil || sessionCancellation != nil || conflictDiffCancellation != nil || planCancellation != nil || referenceCancellation != nil || initialCancellation != nil || detailCancellation != nil }
     @discardableResult func cancelPreparation() -> Bool {
         if revertingConflictFiles {cancelConflictRevert();return true}
         if presentingConflictFileDialog {cancelConflictFileDialog();return true}
         guard hasCancellablePreparation else { return false }
+        revisionFiles.cancelEmbeddedPreparation()
         cancellingPreparation = true;pendingSessionRefresh=false;sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); return true
     }
     func referenceChoices(_ target: RebaseReferenceTarget?) -> [CheckoutReference] {
@@ -549,9 +560,9 @@ struct RebaseReferenceRequest {
     var chooseStashBeforeReplay: () async -> Bool = { false }
     var chooseRestoreReplayStash: () async -> Bool = { false }
     var restoreReplayStash: (Int) async -> Void = { _ in }
-    func retire() { retired = true;conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
+    func retire() { retired = true;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
     func finishReplay(after: (() -> Void)? = nil) {
-        guard !retired, !busy, !active, !selectingSplit, !pickingCommits else { return }
+        guard !retired, !busy, !revisionFiles.busy, !active, !selectingSplit, !pickingCommits else { return }
         // Preserve immediate completion routing when there is no stash question
         // or restore operation to await.
         if !hasReplayStash { if let after { after() } else { close() }; return }
@@ -919,7 +930,7 @@ struct RebaseReferenceRequest {
         load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges, cherryPick: pending.cherryPick)
     }
     var active: Bool { state?.active == true }
-    var editable: Bool { !retired && !busy && pickingReference == nil && !active && !finished && !pickingCommits && !selectingSplit }
+    var editable: Bool { !retired && !busy && !revisionFiles.busy && pickingReference == nil && !active && !finished && !pickingCommits && !selectingSplit }
     var canAdd: Bool { editable && !options.preserveMerges }
     // Upstream displays newest first, while replay proceeds from the oldest commit.
     var entries: [RebaseEntry] {
@@ -992,6 +1003,7 @@ struct RebaseReferenceRequest {
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, messageDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.messageDefaults = messageDefaults
+        revisionFiles=RevisionComparisonWindowModel(repository:repository,access:access,from:.emptyTree,to:.revision("HEAD"),preferences:messageDefaults,columnsKey:"RebaseDlg.RevisionFiles.Columns")
         conflictFileColumns=StatusListColumnSettings.load(from:messageDefaults,key:Self.conflictColumnKey)
         let saved=messageDefaults.string(forKey:Self.conflictColumnKey+".SortColumn").flatMap(StatusListColumn.init(rawValue:))
         let column=saved.flatMap { Self.conflictColumns.contains($0) ? $0:nil } ?? .path
@@ -1002,8 +1014,9 @@ struct RebaseReferenceRequest {
         prepareReplayMessage={try await repository.prepareCommitMessageFile($0,stripComments:$1,sanitize:$2,cancellation:$3).contents}
         validateOnto = { try await repository.rebaseOntoSelection($0, branch: $1, upstream: $2, cancellation: $3) }
         self.fullCommitMessageOnLogLine = messageDefaults.bool(forKey: "FullCommitMessageOnLogLine")
+        revisionFilesObservation=revisionFiles.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
     }
-    var revisionMenuAvailable: Bool { !retired && !busy && !selectingSplit && !pickingCommits && revisionMenuLog.noteRequest == nil && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
+    var revisionMenuAvailable: Bool { !retired && !busy && !revisionFiles.busy && !selectingSplit && !pickingCommits && revisionMenuLog.noteRequest == nil && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
     func revisionMenuRows(_ ids: Set<String>) -> [RebaseEntry] { entries.filter { ids.contains($0.id) } }
     @discardableResult func prepareRevisionMenu(_ ids: Set<String>) -> LogWindowModel? {
         let rows = revisionMenuRows(ids)
@@ -1091,7 +1104,7 @@ struct RebaseReferenceRequest {
             finishReplay { [weak self] in self?.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick) }
             return
         }
-        guard !busy, pickingReference == nil, !pickingCommits, !selectingSplit else {
+        guard !busy, !revisionFiles.busy, pickingReference == nil, !pickingCommits, !selectingSplit else {
             if upstream != nil || cherryPick != nil { pendingLoad = (upstream, autoStart, preserveMerges, cherryPick) }
             return
         }; planCancellation?.cancel(); detailCancellation?.cancel(); planSignature = nil
@@ -1284,19 +1297,25 @@ struct RebaseReferenceRequest {
         guard !retired else { return }; detailCancellation?.cancel()
         if !busy { refreshColumnMetadata() }
         detailGeneration += 1; let request = detailGeneration
-        files = []; message = ""
-        guard let entry = entries.first(where: { selection.contains($0.id) }) else { return }
+        files = []; selectedFiles=[]; message = "";revisionFiles.clearEmbeddedSnapshot()
+        guard let entry = entries.first(where: { selection.contains($0.id) }), !fileRecovery else { return }
         message = entry.commit.message
         let token = OperationCancellation(); detailCancellation = token; Self.activePreparationReads += 1
         Task {
             defer { Self.activePreparationReads -= 1; withExtendedLifetime(access) {}; if detailCancellation === token { detailCancellation = nil } }
-            do { try requireAccess(); let changed = try await repository.files(in: entry.commit, cancellation: token); guard !retired, !token.isCancelled, request == detailGeneration else { return }; files = changed }
+            do {
+                try requireAccess()
+                let base:ComparisonRevision=entry.commit.parents.first.map(ComparisonRevision.revision) ?? .emptyTree
+                let changed=try await repository.revisionComparison(from:base,to:.revision(entry.commit.hash),cancellation:token)
+                guard !retired,!token.isCancelled,request == detailGeneration else {return}
+                files=changed.files;revisionFiles.installEmbeddedSnapshot(changed,bare:revisionMenuLog.bare)
+            }
             catch { if !retired, !token.isCancelled, request == detailGeneration { self.error = error.localizedDescription } }
         }
     }
     func refreshState() {
         guard !retired,pickingReference == nil,!selectingSplit,!pickingCommits else {return}
-        if busy {pendingSessionRefresh=true;return}
+        if busy || revisionFiles.busy {pendingSessionRefresh=true;return}
         let request=UUID(),token=OperationCancellation(),previous=conflictIdentity,wasActive=active
         sessionGeneration=request;sessionCancellation=token;refreshingSession=true;cancellingPreparation=false;busy=true
         Self.activePreparationReads += 1
@@ -1329,7 +1348,7 @@ struct RebaseReferenceRequest {
         else { execute(action) }
     }
     func execute(_ action: String) {
-        guard !retired, !busy, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
+        guard !retired, !busy, !revisionFiles.busy, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
         let snapshot = plan, draftMessage = amendMessage, previouslyFinished = finished
         let continuationState=state,continuationPaths=checkedConflicts,continuationHead=conflictHead
         let continuationRecovery=fileRecovery,usesCheckedSelection=supportsConflictSelection
@@ -1556,13 +1575,11 @@ struct RebaseDialog: View {
                     Group {
                     if model.fileRecovery { RebaseConflictFiles(model: model) }
                     else {
-                    Table(model.files, selection: $model.selectedFiles) {
-                        TableColumn("Path", value: \.path)
-                        TableColumn("Extension") { file in Text((file.path as NSString).pathExtension) }.width(70)
-                        TableColumn("Status", value: \.status).width(100)
-                        TableColumn("Lines added") { file in Text(file.added.map(String.init) ?? "–") }.width(85)
-                        TableColumn("Lines removed") { file in Text(file.removed.map(String.init) ?? "–") }.width(95)
-                    }.fileListFont()
+                    RevisionComparisonFileList(model:model.revisionFiles,pathTitle:"Path",statusTitle:"Status")
+                        .disabled(!model.revisionFilesAvailable)
+                        .alert("File operation failed",isPresented:Binding(get:{model.revisionFiles.error != nil},set:{if !$0 {model.revisionFiles.error=nil}})) {
+                            Button("OK"){model.revisionFiles.error=nil}
+                        } message:{Text(model.revisionFiles.error ?? "")}
                     }
                     }.tabItem { Text(model.fileRecovery ? "Conflict Files" : "Revision Files") }.tag(0)
                     Group {
@@ -1604,6 +1621,8 @@ struct RebaseDialog: View {
         .overlay(alignment: .bottomLeading) {
             if model.replaying {
                 HStack { Text(model.cancellingReplay ? "Stopping replay…" : "Running replay…").font(.caption); Button(model.cancellingReplay ? "Cancelling…" : "Cancel") { model.cancelReplay() }.disabled(model.cancellingReplay || model.hasReplayQuestion || model.confirmingReplayCancellation) }.padding(12)
+            } else if model.revisionFiles.busy {
+                HStack {ProgressView().controlSize(.small);Text(model.revisionFiles.fileActionTitle.isEmpty ? "Preparing revision files…":model.revisionFiles.fileActionTitle).font(.caption);Spacer();Button("Cancel"){model.revisionFiles.cancelEmbeddedPreparation()}}.padding(12).background(.regularMaterial)
             } else if model.hasCancellablePreparation {
                 HStack { ProgressView().controlSize(.small); Text(model.revertingConflictFiles ? "Reverting selected files…":model.refreshingSession ? "Refreshing replay state…":model.preparingConflictFiles ? "Preparing file action…":model.preparingConflictDiff ? "Preparing conflict comparison…":model.loadingPlan ? "Preparing commit plan…" : "Reading references…").font(.caption); Button(model.cancellingPreparation ? "Cancelling…" : "Cancel") { model.cancelPreparation() }.disabled(model.cancellingPreparation) }.padding(12)
             }
