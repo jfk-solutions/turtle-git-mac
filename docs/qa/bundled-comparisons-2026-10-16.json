@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "fb2b41402157d4c595c7b039033bbb185b06aa9e",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Bundled binary and Mathematica notebook comparison adapters, shared settings/defaults, exact snapshots and native result/launch ownership",
+  "source": [
+    "contrib/diff-scripts/diff-dll.js: file sizes, content comparison and file version with Identical/Differs information/warning result",
+    "contrib/diff-scripts/diff-nb.js: generated noneditable Compare Notebooks/AuthorTools/NotebookDiff driver",
+    "AppUtils.cpp SetupDiffScripts and shared Diff tool matching/Shift",
+    "Wolfram Input Syntax https://reference.wolfram.com/language/tutorial/InputSyntax.html: quoted strings and four/six hexadecimal character escapes",
+    "macOS SDK Mach-O format fields for LC_ID_DYLIB and universal slices"
+  ],
+  "implementation": [
+    "Binary byte comparison in cancellable chunks with source summary text and independent scrollable native result",
+    "PE32/PE32+ resource hierarchy/VS_FIXEDFILEINFO version inspection; Mach-O endian/32/64/universal current-version metadata; no code loading/execution",
+    "Exact readonly private notebook inputs preserve filenames; ASCII driver uses literal quoted/character-code paths",
+    "Notebook associated-application dispatch; failed/cancelled prepare/launch cleanup, successful driver/input lifetime beyond normal app termination",
+    "SDK launch callback retains independent Quit accounting after owner closure; late successful handoff keeps accepted inputs",
+    "New/Restore defaults install ZIP, DLL, EXE, dylib and NB adapters; saved lists and unrelated associations preserved; Merge rejects adapters",
+    "NOTICE attribution, README/manual/offline Help/site and native Aqua/Dark Aqua compositor screenshots"
+  ],
+  "core": {
+    "exit": 0,
+    "log": "build/qa/bundled-comparisons-core.log",
+    "first_attempt_pass": true,
+    "cases": 19,
+    "groups": [
+      "BundledComparisonToolsTests (5)",
+      "ZIPInventoryTests (7)",
+      "DiffToolPreferencesTests (7)"
+    ]
+  },
+  "build": {
+    "exit": 0,
+    "log": "build/qa/bundled-comparisons-debug.log",
+    "first_attempt_pass": true,
+    "anomalous_exit_zero_diagnostics": 7
+  },
+  "native": {
+    "first_group_exit": 0,
+    "first_group_log": "build/qa/bundled-comparisons-native.log",
+    "distinct_cases": 2,
+    "checks": [
+      "Retained real ZIP dispatch/readonly/Shift and updated default associations",
+      "Actual built framework Mach-O bytes/versions in native Identical/Differs results",
+      "Intercepted notebook receiver receives source driver plus unchanged captured bytes/names",
+      "Successful private driver survives shared cleanup; failed launch removes files",
+      "Forced owner closure retains active Quit guard until SDK reply and refuses obsolete error",
+      "Original binary and notebook inputs unchanged"
+    ],
+    "receivers_reaped_and_independently_absent": [
+      58038,
+      58052,
+      58146
+    ],
+    "capture_repair": "Both behavioral receivers passed initially, but cacheDisplay offscreen PNGs were transparent/incomplete when inspected. Replaced capture with owned-window screencapture, then reran only the affected scripts receiver. No app/Core or ZIP repetition.",
+    "capture_repair_log": "build/qa/bundled-comparisons-capture-repaired.log",
+    "captures": [
+      {
+        "path": "docs/site/assets/binary-comparison-light.png",
+        "sha256": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
+        "width": 840,
+        "height": 544
+      },
+      {
+        "path": "docs/site/assets/binary-comparison-dark.png",
+        "sha256": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
+        "width": 840,
+        "height": 544
+      }
+    ],
+    "capture_scope": "Owned real binary window compositor captures, actual light/dark appearance, inspected. Native receiver closes all windows and waits for screenshot child processes. No external notebook app launched; launch callbacks are intercepted."
+  },
+  "limits": [
+    "Actual Mathematica/AuthorTools execution and receiver grants are unverified; a suitable separately installed notebook receiver is needed",
+    "No physical default/Escape/selection/VoiceOver, all PE languages, exotic native formats or source visual parity certification",
+    "Windows Office/OpenDocument comparison/merge adapters still open; restored bundled list is partial SetupDiffScripts equivalence",
+    "Successful notebook temporary copies persist until explicit Saved Data or OS cleanup; indefinite external-app lifetime is not guaranteed",
+    "No new Store build or signed Finder/AppStore acceptance; no full hosted CI claim"
+  ],
+  "coverage": "130 dialogs; 120 partial audits; 10 pending; 0 certified; 987 mapped / 672 pending static controls",
+  "resource_update": {
+    "log": "build/qa/bundled-comparisons-resources.log",
+    "exit": 0,
+    "scope": "Final offline Help/capture/NOTICE resource update; no Swift source change or behavior-test repeat",
+    "verified": "Built app NOTICE, bundled guide and both image byte streams equal source",
+    "help": "30 guides, 47 topics, 38 files, 396601 bytes",
+    "site": "243 documents, no unresolved fragments"
+  }
+}

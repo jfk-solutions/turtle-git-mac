@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The [bundled comparison family](BUNDLED-COMPARISONS.md) now adds native binary
+byte/version reports (PE and Mach-O), source Mathematica notebook preparation/
+handoff, shared default associations and retained/failed launch ownership.
+Nineteen focused Core cases and both native family cases pass; light/dark binary
+window captures are published. Actual Mathematica execution and signed acceptance
+remain open.
+
 The bundled [ZIP comparison](ZIP-COMPARISON.md) now connects default associations,
 Advanced Restore Defaults, bounded ZIP64/Unicode metadata reading and a read-only
 native inventory viewer. Raw Shift comparison and saved custom associations are

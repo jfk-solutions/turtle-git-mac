@@ -1497,3 +1497,13 @@ conversions, with resampling above upstream's largest 256px representation.
 Sources, resource license and provenance accompany Contents/Resources/Branding.
 The website header uses the same application artwork. GPL alternative selected;
 no affiliation or endorsement by TortoiseGit or TortoiseSVN is claimed.
+
+BundledComparisonTools.swift adapts contrib/diff-scripts/diff-dll.js and
+diff-nb.js from the pinned TortoiseGit baseline. Those scripts retain copyright
+(C) 2026 the TortoiseGit team; (C) 2010-2014 and 2004-2009, 2012-2014 the
+TortoiseSVN team, respectively, under the same GPL license as TortoiseGit.
+Credited script authors include Casey Barton, Hans-Emil Skogh, Szabolcs Horvat,
+Chris Rodgers and Sven Strickroth. The macOS binary/PE/Mach-O reader, native
+result window, private notebook snapshots and literal-path escaping replace
+Windows WScript, fc.exe and FileSystemObject integration. Mathematica and its
+AuthorTools functionality are separately installed software, not redistributed.

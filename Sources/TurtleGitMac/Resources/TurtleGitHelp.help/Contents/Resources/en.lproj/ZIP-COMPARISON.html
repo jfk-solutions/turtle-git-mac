@@ -8,7 +8,8 @@ date and size is therefore not detected by this view, matching that script.</p>
 <p>New Diff Viewer settings use the bundled ZIP association. Existing saved
 associations are preserved. To enable or restore it, open Settings → Diff Viewer →
 Advanced → Restore Defaults, then accept Advanced and Apply Settings. Restore
-Defaults replaces only the bundled <code>.zip</code> association, retaining other entries.
+Defaults restores the bundled <code>.zip</code>, <code>.dll</code>, <code>.exe</code>, <code>.dylib</code> and <code>.nb</code>
+associations, retaining other entries. See <a href="BUNDLED-COMPARISONS.html">bundled comparisons</a>.
 Cancel in either settings owner preserves its prior saved value. An association
 can also select ZIP archive inventory in its program editor. External programs
 and disabled associations keep their usual matching and Shift behavior. Hold
@@ -32,9 +33,8 @@ Reload reuses that captured inventory; reopen the original comparison to read a
 changed archive. An absent side is represented by an empty absent-file pane.
 Cancellation and initiating-window closure reject a late prepared inventory;
 active preparation participates in the normal application Quit guard.</p>
-<p>The Windows Word/Excel/PowerPoint/OpenDocument/Mathematica and DLL scripts still
-need their own macOS adapters. Restore Defaults currently restores the bundled
-ZIP adapter only. This feature does not establish full document-tool, dialog or
+<p>The Windows Word/Excel/PowerPoint/OpenDocument scripts still need their own macOS
+adapters. Binary and Mathematica adaptations are documented separately. This feature does not establish full document-tool, dialog or
 App Store parity. Physical native interaction, Finder handoff, signed sandbox
 access and large/exotic archive acceptance remain open.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

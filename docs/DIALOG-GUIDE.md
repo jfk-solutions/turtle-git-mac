@@ -410,3 +410,7 @@ not create, move, clone or export anything until you confirm the dialog.
 ZIP archive comparisons can use the bundled read-only names/date/size inventory.
 See [ZIP comparison](ZIP-COMPARISON.md) for Settings → Diff Viewer → Advanced →
 Restore Defaults, raw Shift comparison, and the metadata-only scope.
+
+Bundled [binary and Mathematica comparisons](BUNDLED-COMPARISONS.md) also use the
+Diff Viewer associations. Binary results are read-only; notebook comparison opens
+a generated Compare Notebooks button in the associated notebook application.

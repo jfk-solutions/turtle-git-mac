@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C81620000000000000000001 /* BundledComparisonTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81620000000000000000002 /* BundledComparisonTools.swift */; };
+		C81620000000000000000003 /* BinaryComparisonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81620000000000000000004 /* BinaryComparisonWindow.swift */; };
 		C81610000000000000000001 /* ZIPInventory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81610000000000000000002 /* ZIPInventory.swift */; };
 		1BDA0DAE2D744061AA72AE3D /* RepositoryAccessWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11CD90E289AB4107B73987F8 /* RepositoryAccessWindow.swift */; };
 		003A4001BFAED871A45BC255 /* HistoryReferenceDeletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDFF34043A119AA7ED83853 /* HistoryReferenceDeletion.swift */; };
@@ -497,6 +499,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C81620000000000000000002 /* BundledComparisonTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledComparisonTools.swift; sourceTree = "<group>"; };
+		C81620000000000000000004 /* BinaryComparisonWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BinaryComparisonWindow.swift; sourceTree = "<group>"; };
 		C81610000000000000000002 /* ZIPInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZIPInventory.swift; sourceTree = "<group>"; };
 		11CD90E289AB4107B73987F8 /* RepositoryAccessWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccessWindow.swift; sourceTree = "<group>"; };
 		001BF3B476FF7414E244B9A6 /* IssueProviderWindows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueProviderWindows.swift; sourceTree = "<group>"; };
@@ -1121,6 +1125,7 @@
 				4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */,
 				2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */,
 				C210101600000000000001B1 /* PathEntryField.swift */,
+				C81620000000000000000004 /* BinaryComparisonWindow.swift */,
 				5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */,
 				9B6A308CF3E486ADD7497BD1 /* WorktreeListTable.swift */,
 				1669C286FA69F91FFFF7C002 /* WorktreeListWindow.swift */,
@@ -1220,6 +1225,7 @@
 				966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */,
 				36D340EDBB3CC101A00E5910 /* DiffToolPreferences.swift */,
 				C81610000000000000000002 /* ZIPInventory.swift */,
+				C81620000000000000000002 /* BundledComparisonTools.swift */,
 				181B9FE19CD19EA7DAB1E824 /* Fetch.swift */,
 				7428B46131B5378475891E94 /* FileComparison.swift */,
 				FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */,
@@ -1772,6 +1778,7 @@
 				10817BEE6C73733AEFE13A86 /* DeleteConflict.swift in Sources */,
 				1C8614FEC2CFD890B47268BD /* DiffToolPreferences.swift in Sources */,
 				C81610000000000000000001 /* ZIPInventory.swift in Sources */,
+				C81620000000000000000001 /* BundledComparisonTools.swift in Sources */,
 				96858E5400FE448CEE799A09 /* Fetch.swift in Sources */,
 				4CCA62C8CECAD2B41E2E888A /* FileComparison.swift in Sources */,
 				7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */,
@@ -2108,6 +2115,7 @@
 				3A74A3FA2DEEA1B3A877C24E /* UnifiedDiffAppearanceSettings.swift in Sources */,
 				1CF4C1812C13221DE3927E15 /* UnifiedDiffViewerSettings.swift in Sources */,
 				C210101600000000000001B0 /* PathEntryField.swift in Sources */,
+				C81620000000000000000003 /* BinaryComparisonWindow.swift in Sources */,
 				37FF0ADA08C102C423B8A3C0 /* WorktreeCreateWindow.swift in Sources */,
 				2B851665B4C4A9C890BF3324 /* WorktreeListTable.swift in Sources */,
 				83F67572608DE1A6E12AC47E /* WorktreeListWindow.swift in Sources */,

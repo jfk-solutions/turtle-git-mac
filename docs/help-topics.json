@@ -232,6 +232,7 @@
     "CONFLICT-IDENTITIES.md",
     "GIT-PROPERTIES.md",
     "ACTION-LOG.md",
-    "ZIP-COMPARISON.md"
+    "ZIP-COMPARISON.md",
+    "BUNDLED-COMPARISONS.md"
   ]
 }

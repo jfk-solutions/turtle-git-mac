@@ -11,9 +11,22 @@ public enum DiffToolFailure: LocalizedError {
         }
     }
 }
-public enum BuiltInDiffTool: String, Codable, Sendable {
-    case zipInventory
-    public var title: String { "ZIP archive inventory" }
+public enum BuiltInDiffTool: String, Codable, CaseIterable, Sendable {
+    case zipInventory, binaryReport, mathematicaNotebook
+    public var title: String {
+        switch self {
+        case .zipInventory: return "ZIP archive inventory"
+        case .binaryReport: return "Binary file comparison"
+        case .mathematicaNotebook: return "Mathematica notebook comparison"
+        }
+    }
+    public var extensions: [String] {
+        switch self {
+        case .zipInventory: return [".zip"]
+        case .binaryReport: return [".dll", ".exe", ".dylib"]
+        case .mathematicaNotebook: return [".nb"]
+        }
+    }
 }
 public struct DiffToolProgram: Codable, Equatable, Sendable {
     public var enabled = false
@@ -93,9 +106,13 @@ public struct DiffToolPreferences: Codable, Equatable, Sendable {
     /// SetupDiffScripts(force): replace only extensions for shipped adapters;
     /// retain unrelated user associations and an existing row identity.
     public mutating func restoreBundledAssociations() {
-        var value = associations.first { $0.normalizedPattern == ".zip" } ?? DiffToolAssociation()
-        value.pattern = ".zip"; value.program = DiffToolProgram(); value.program.enabled = true; value.program.builtIn = .zipInventory
-        associations.removeAll { $0.normalizedPattern == ".zip" }; associations.append(value)
+        for tool in BuiltInDiffTool.allCases {
+            for pattern in tool.extensions {
+                var value = associations.first { $0.normalizedPattern == pattern } ?? DiffToolAssociation()
+                value.pattern = pattern; value.program = DiffToolProgram(); value.program.enabled = true; value.program.builtIn = tool
+                associations.removeAll { $0.normalizedPattern == pattern }; associations.append(value)
+            }
+        }
     }
     /// AppUtils::PickDiffTool: destination filename, base filename, destination extension.
     public func selected(base: String, destination: String, alternate: Bool = false) throws -> DiffToolProgram? {

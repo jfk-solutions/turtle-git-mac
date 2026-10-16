@@ -43,7 +43,7 @@ import TurtleGitCore
         var zip=DiffToolAssociation(); zip.pattern="*.ZIP"; zip.program.applicationPath="/Applications/Custom.app"
         let associations=ToolAssociationsModel(associations:[custom,zip],tool:"diff")
         associations.restoreDefaults()
-        try require(associations.draft.count==2 && associations.draft.contains(custom) && associations.selected==zip.id && associations.draft.first { $0.id==zip.id }?.program.builtIn == .zipInventory,"Restore Defaults lost other associations or row identity")
+        try require(associations.draft.count==BuiltInDiffTool.allCases.flatMap(\.extensions).count+1 && associations.draft.contains(custom) && associations.selected==zip.id && associations.draft.first { $0.id==zip.id }?.program.builtIn == .zipInventory,"Restore Defaults lost other associations or row identity")
         associations.add(); let frozen=associations.draft; associations.restoreDefaults()
         try require(associations.draft==frozen,"Restore Defaults changed a draft behind its child editor")
         associations.accept(nil)

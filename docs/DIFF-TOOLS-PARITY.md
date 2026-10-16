@@ -281,3 +281,34 @@ A scoped build repair and the fixture's deferred-load Shift correction are recor
 in [dated evidence](qa/zip-inventory-2026-10-16.json). Both native receivers were
 reaped and independently absent. No full Core suite, Store build, new screenshot
 or physical/signed acceptance is claimed.
+
+## Binary and Mathematica bundled workflow family — October 16, 2026
+
+The [bundled comparison family](BUNDLED-COMPARISONS.md) now also adapts
+`diff-dll.js` and `diff-nb.js`. Binary reports compare byte sizes and exact chunks,
+read PE32/PE32+ fixed versions without loading code, and add native Mach-O dylib/
+universal version metadata. Source Identical/Differs text and information/warning
+roles appear in a selectable, scrollable native result with OK/Escape.
+
+Notebook preparation captures exact read-only input files and an ASCII driver
+with source Compare Notebooks/AuthorTools/NotebookDiff controls. Literal Wolfram
+path escaping avoids command/string injection. Launch follows the associated
+notebook receiver. Failure/cancellation cleans private files; successful handoff
+retains them through normal app exit, matching the source driver's deferred
+button lifetime. Active preparation/SDK callbacks keep the Quit guard after
+owner closure. These paths spawn no shell or binary under inspection.
+
+New defaults and Advanced Restore Defaults install ZIP, DLL/EXE/dylib and NB
+associations; saved configurations stay authoritative and other associations are
+preserved. Tool radio choices/table labels use the shared built-in catalogue.
+Windows Office/OpenDocument comparison/merge adapters remain open. Native binary
+captures and actual notebook receiver execution have separate evidence scopes.
+
+Nineteen focused Core checks and both native family receivers passed on the first
+behavioral run. The incomplete offscreen images were rejected; only the affected
+receiver was rerun with real owned-window compositor capture. The resulting Aqua/
+Dark Aqua images were inspected and published. All three receivers were reaped
+and independently absent. [Dated evidence](qa/bundled-comparisons-2026-10-16.json)
+separates actual framework-byte/version/native-window checks from intercepted
+notebook launch callbacks. No real notebook application was launched, and no
+Store/signed or complete source acceptance is claimed.

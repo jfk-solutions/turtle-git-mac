@@ -38,12 +38,12 @@ struct DiffProgramForm: View {
     @State private var error: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker(tool == "merge" ? "Merge tool" : "Diff tool", selection: Binding(get: { !program.enabled ? "internal" : program.builtIn == .zipInventory ? "zip" : "external" }, set: { value in
+            Picker(tool == "merge" ? "Merge tool" : "Diff tool", selection: Binding(get: { !program.enabled ? "internal" : program.builtIn?.rawValue ?? "external" }, set: { value in
                 program.enabled = value != "internal"
-                if value != "internal" { program.builtIn = value == "zip" ? .zipInventory : nil }
+                if value != "internal" { program.builtIn = BuiltInDiffTool(rawValue: value) }
             })) {
                 Text("TurtleGitMerge").tag("internal"); Text("External").tag("external")
-                if tool == "diff" { Text("ZIP archive inventory").tag("zip") }
+                if tool == "diff" { ForEach(BuiltInDiffTool.allCases, id: \.self) { Text($0.title).tag($0.rawValue) } }
             }.pickerStyle(.radioGroup).labelsHidden()
             HStack {
                 TextField("Application or executable", text: Binding(get: { program.applicationPath }, set: { guard program.applicationPath != $0 else { return }; program.applicationPath = $0; program.bookmark = nil }))
@@ -150,7 +150,7 @@ struct DiffToolAssociations: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Advanced " + model.tool + " settings").font(.headline)
             ToolAssociationsTable(model: model).frame(minHeight: 240)
-            if model.tool == "diff" { Text("Bundled ZIP comparison lists archive names, dates and sizes. Restore Defaults replaces the ZIP association and preserves other associations.").font(.caption).foregroundStyle(.secondary) }
+            if model.tool == "diff" { Text("Restore Defaults restores ZIP, binary (.dll/.exe/.dylib) and Mathematica (.nb) comparisons, preserving other associations. Notebook comparison requires Mathematica.").font(.caption).foregroundStyle(.secondary) }
             HStack {
                 Button("Add…", action: model.add)
                 Button("Edit…", action: model.edit).disabled(model.selected == nil)
@@ -261,9 +261,19 @@ private struct DiffToolAssociationEditor: View {
 @MainActor enum DiffToolApplication {
     private static var previews: [URL] = []
     private static var inventoryWindows: [UUID: FileComparisonWindowController] = [:]
+    private static var binaryWindows: [UUID: BinaryComparisonWindowController] = [:]
+    static var presentBinary: (BinaryComparisonWindowController) -> Bool = { controller in controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return true }
+    static var openNotebook: (URL) async throws -> Void = { file in
+        guard let application = NSWorkspace.shared.urlForApplication(toOpen: file) else { throw NotebookComparisonFailure.application }
+        try await withCheckedThrowingContinuation { (reply: CheckedContinuation<Void, Error>) in
+            NSWorkspace.shared.open([file], withApplicationAt: application, configuration: .init()) { _, error in
+                if let error { reply.resume(throwing: error) } else { reply.resume() }
+            }
+        }
+    }
     static var presentInventory: (FileComparisonWindowController) -> Bool = { controller in controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return true }
     private(set) static var activeRequests = 0
-    static func discardAll() { let windows = inventoryWindows.values; inventoryWindows = [:]; for window in windows { window.close() }; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
+    static func discardAll() { let windows = Array(inventoryWindows.values); inventoryWindows = [:]; for window in windows { window.close() }; let reports = Array(binaryWindows.values); binaryWindows = [:]; for report in reports { report.close() }; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
     static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool, preferences: UserDefaults = .standard, cancellation: OperationCancellation? = nil, owner: NSWindow? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> Void)? = nil) async throws -> Bool {
         try cancellation?.check()
         guard let program = try DiffToolPreferences.load(from: preferences).selected(base: document.base.path, destination: document.destination.path, alternate: alternate) else { return false }
@@ -277,6 +287,28 @@ private struct DiffToolAssociationEditor: View {
             controller.onClosed = { inventoryWindows.removeValue(forKey: identity) }
             guard presentInventory(controller) else { inventoryWindows.removeValue(forKey: identity); controller.close(); throw CocoaError(.userCancelled) }
             return true
+        }
+        if program.builtIn == .binaryReport {
+            activeRequests += 1; defer { activeRequests -= 1 }
+            let report = try await Task.detached { try BinaryComparisonReport(document, cancellation: cancellation) }.value
+            try cancellation?.check()
+            let controller = BinaryComparisonWindowController(report: report); controller.window?.appearance = owner?.appearance
+            let identity = UUID(); binaryWindows[identity] = controller
+            controller.onClosed = { binaryWindows.removeValue(forKey: identity) }
+            guard presentBinary(controller) else { binaryWindows.removeValue(forKey: identity); controller.close(); throw CocoaError(.userCancelled) }
+            return true
+        }
+        if program.builtIn == .mathematicaNotebook {
+            activeRequests += 1; defer { activeRequests -= 1 }
+            let root = try TurtleGitTemporaryStorage.root
+            let preview = try await Task.detached { try NotebookComparisonPreview.prepare(document, in: root, cancellation: cancellation) }.value
+            do {
+                try cancellation?.check(); try await openNotebook(preview.notebook)
+                // The notebook's Compare button may be used after TurtleGit exits.
+                // Like upstream, retain successful driver/inputs for explicit
+                // Saved Data cleanup (or the OS temporary-directory cleanup).
+                return true
+            } catch { preview.discard(); throw error }
         }
         let provider = SystemRepositoryBookmarkProvider()
         let application: URL
