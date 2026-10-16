@@ -22,18 +22,13 @@ struct UnifiedDiffAppearanceSettings: View {
         guard let font = Int(size), let tab = Int(tabs), (1...1000).contains(font), (1...1000).contains(tab) else { return nil }
         var value = draft; value.fontSize = font; value.tabSize = tab; return value
     }
-    private func color(_ style: UnifiedDiffLineStyle, foreground: Bool) -> Binding<Color> {
-        Binding(get: {
-            let palette = draft.colors(style, dark: dark), rgb = foreground ? palette.foreground : palette.background
-            return Color(.sRGB, red: Double((rgb >> 16) & 255) / 255, green: Double((rgb >> 8) & 255) / 255, blue: Double(rgb & 255) / 255, opacity: 1)
-        }, set: { color in
-            guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return }
-            func channel(_ value: CGFloat) -> UInt32 { UInt32(min(255, max(0, Int((value * 255).rounded())))) }
-            let packed = channel(rgb.redComponent) << 16 | channel(rgb.greenComponent) << 8 | channel(rgb.blueComponent)
-            var palette = draft.colors(style, dark: dark)
-            if foreground { palette.foreground = packed } else { palette.background = packed }
-            if dark { draft.dark[style] = palette } else { draft.light[style] = palette }
-        })
+    private func swatch(_ style:UnifiedDiffLineStyle, foreground:Bool) -> some View {
+        let palette = draft.colors(style,dark:dark), defaults = UnifiedDiffAppearance().colors(style,dark:dark)
+        return NativeSettingsColorChoice(namespace:"UnifiedDiffColors",value:foreground ? palette.foreground : palette.background,automatic:foreground ? defaults.foreground : defaults.background,label:style.label + (foreground ? " foreground" : " background"),identifier:style.rawValue + (foreground ? ".foreground" : ".background"),changed: { value in
+            var colors = draft.colors(style,dark:dark)
+            if foreground { colors.foreground = value } else { colors.background = value }
+            if dark { draft.dark[style] = colors } else { draft.light[style] = colors }
+        }).frame(width:100,height:26).frame(maxWidth:.infinity)
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -41,13 +36,13 @@ struct UnifiedDiffAppearanceSettings: View {
                 VStack(alignment: .leading, spacing: 14) {
                     GroupBox("Colors") {
                         VStack(spacing: 10) {
-                            Picker("Appearance", selection: $dark) { Text("Light").tag(false); Text("Dark").tag(true) }.pickerStyle(.segmented)
+                            NativeSettingsPaletteChoice(dark:$dark,identifier:"UnifiedDiffColors.Palette").frame(height:26)
                             HStack { Text(" ").frame(width: 150); Text("Foreground").frame(maxWidth: .infinity); Text("Background").frame(maxWidth: .infinity) }
                             ForEach(UnifiedDiffLineStyle.configurable, id: \.self) { style in
                                 HStack {
                                     Text(style.label).frame(width: 150, alignment: .leading)
-                                    ColorPicker(style.label + " foreground", selection: color(style, foreground: true), supportsOpacity: false).labelsHidden().frame(maxWidth: .infinity)
-                                    ColorPicker(style.label + " background", selection: color(style, foreground: false), supportsOpacity: false).labelsHidden().frame(maxWidth: .infinity)
+                                    swatch(style,foreground:true)
+                                    swatch(style,foreground:false)
                                 }
                             }
                             HStack { Spacer(); Button("Restore Default") { draft.restoreColors(dark: dark) } }

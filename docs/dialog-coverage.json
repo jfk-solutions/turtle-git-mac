@@ -152,7 +152,8 @@
         "docs/qa/blame-pane-tabs-2026-10-15.json",
         "docs/qa/blame-parent-family-2026-10-15.json",
         "docs/qa/blame-source-editor-2026-10-13.json",
-        "docs/qa/blame-wrap-2026-10-13.json"
+        "docs/qa/blame-wrap-2026-10-13.json",
+        "docs/qa/settings-color-choices-2026-10-16.json"
       ]
     },
     {
@@ -372,11 +373,23 @@
       "native_sources": [],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/APPEARANCE.md",
         "docs/MERGE-COLORS-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/history-lanes-2026-10-09.json",
+        "docs/qa/history-projection-2026-10-09.json",
+        "docs/qa/log-list-preferences-2026-10-09.json",
+        "docs/qa/log-palette-2026-10-09.json",
+        "docs/qa/log-reference-kinds-2026-10-09.json",
+        "docs/qa/log-reference-painter-2026-10-09.json",
+        "docs/qa/log-search-walk-2026-10-09.json",
+        "docs/qa/log-status-colors-2026-10-09.json",
         "docs/qa/merge-colors-2026-10-12.json",
-        "docs/qa/merge-colors-controls-2026-10-12.json"
+        "docs/qa/merge-colors-controls-2026-10-12.json",
+        "docs/qa/settings-color-choices-2026-10-16.json",
+        "docs/qa/status-color-settings-2026-10-09.json",
+        "docs/qa/status-colors-2026-10-09.json"
       ]
     },
     {
@@ -1309,6 +1322,7 @@
       "qa_records": [
         "docs/qa/commit-close-log-unified-2026-10-05.json",
         "docs/qa/external-documents-2026-10-15.json",
+        "docs/qa/settings-color-choices-2026-10-16.json",
         "docs/qa/udiff-input-readiness-2026-10-15.json",
         "docs/qa/unified-appearance-footer-2026-10-05.json",
         "docs/qa/unified-appearance-navigation-2026-10-05.json",
@@ -1385,6 +1399,7 @@
       "qa_records": [
         "docs/qa/configuration-lifecycle-2026-10-15.json",
         "docs/qa/integration-settings-family-2026-10-13.json",
+        "docs/qa/settings-color-choices-2026-10-16.json",
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json",
@@ -1414,6 +1429,7 @@
       "qa_records": [
         "docs/qa/configuration-lifecycle-2026-10-15.json",
         "docs/qa/integration-settings-family-2026-10-13.json",
+        "docs/qa/settings-color-choices-2026-10-16.json",
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json",
@@ -1568,14 +1584,26 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/APPEARANCE.md",
         "docs/SETTINGS-NAVIGATION-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/configuration-lifecycle-2026-10-15.json",
+        "docs/qa/history-lanes-2026-10-09.json",
+        "docs/qa/history-projection-2026-10-09.json",
         "docs/qa/integration-settings-family-2026-10-13.json",
+        "docs/qa/log-list-preferences-2026-10-09.json",
+        "docs/qa/log-palette-2026-10-09.json",
+        "docs/qa/log-reference-kinds-2026-10-09.json",
+        "docs/qa/log-reference-painter-2026-10-09.json",
+        "docs/qa/log-search-walk-2026-10-09.json",
+        "docs/qa/log-status-colors-2026-10-09.json",
+        "docs/qa/settings-color-choices-2026-10-16.json",
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/status-color-settings-2026-10-09.json",
+        "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/tool-settings-family-2026-10-13.json"
       ]
     },
@@ -1746,8 +1774,22 @@
         }
       ],
       "missing_native_references": [],
-      "parity_documents": [],
-      "qa_records": []
+      "parity_documents": [
+        "docs/APPEARANCE.md"
+      ],
+      "qa_records": [
+        "docs/qa/history-lanes-2026-10-09.json",
+        "docs/qa/history-projection-2026-10-09.json",
+        "docs/qa/log-list-preferences-2026-10-09.json",
+        "docs/qa/log-palette-2026-10-09.json",
+        "docs/qa/log-reference-kinds-2026-10-09.json",
+        "docs/qa/log-reference-painter-2026-10-09.json",
+        "docs/qa/log-search-walk-2026-10-09.json",
+        "docs/qa/log-status-colors-2026-10-09.json",
+        "docs/qa/settings-color-choices-2026-10-16.json",
+        "docs/qa/status-color-settings-2026-10-09.json",
+        "docs/qa/status-colors-2026-10-09.json"
+      ]
     },
     {
       "resource": "src/Resources/TortoiseProcENG.rc",
@@ -2379,14 +2421,26 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/APPEARANCE.md",
         "docs/SETTINGS-NAVIGATION-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/configuration-lifecycle-2026-10-15.json",
+        "docs/qa/history-lanes-2026-10-09.json",
+        "docs/qa/history-projection-2026-10-09.json",
         "docs/qa/integration-settings-family-2026-10-13.json",
+        "docs/qa/log-list-preferences-2026-10-09.json",
+        "docs/qa/log-palette-2026-10-09.json",
+        "docs/qa/log-reference-kinds-2026-10-09.json",
+        "docs/qa/log-reference-painter-2026-10-09.json",
+        "docs/qa/log-search-walk-2026-10-09.json",
+        "docs/qa/log-status-colors-2026-10-09.json",
+        "docs/qa/settings-color-choices-2026-10-16.json",
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/status-color-settings-2026-10-09.json",
+        "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/tool-settings-family-2026-10-13.json"
       ]
     },
@@ -2408,14 +2462,26 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/APPEARANCE.md",
         "docs/SETTINGS-NAVIGATION-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/configuration-lifecycle-2026-10-15.json",
+        "docs/qa/history-lanes-2026-10-09.json",
+        "docs/qa/history-projection-2026-10-09.json",
         "docs/qa/integration-settings-family-2026-10-13.json",
+        "docs/qa/log-list-preferences-2026-10-09.json",
+        "docs/qa/log-palette-2026-10-09.json",
+        "docs/qa/log-reference-kinds-2026-10-09.json",
+        "docs/qa/log-reference-painter-2026-10-09.json",
+        "docs/qa/log-search-walk-2026-10-09.json",
+        "docs/qa/log-status-colors-2026-10-09.json",
+        "docs/qa/settings-color-choices-2026-10-16.json",
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/status-color-settings-2026-10-09.json",
+        "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/tool-settings-family-2026-10-13.json"
       ]
     },
@@ -3452,11 +3518,23 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/APPEARANCE.md",
         "docs/UNIFIED-DIFF-VIEWER-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/commit-close-log-unified-2026-10-05.json",
         "docs/qa/external-documents-2026-10-15.json",
+        "docs/qa/history-lanes-2026-10-09.json",
+        "docs/qa/history-projection-2026-10-09.json",
+        "docs/qa/log-list-preferences-2026-10-09.json",
+        "docs/qa/log-palette-2026-10-09.json",
+        "docs/qa/log-reference-kinds-2026-10-09.json",
+        "docs/qa/log-reference-painter-2026-10-09.json",
+        "docs/qa/log-search-walk-2026-10-09.json",
+        "docs/qa/log-status-colors-2026-10-09.json",
+        "docs/qa/settings-color-choices-2026-10-16.json",
+        "docs/qa/status-color-settings-2026-10-09.json",
+        "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/udiff-input-readiness-2026-10-15.json",
         "docs/qa/unified-appearance-footer-2026-10-05.json",
         "docs/qa/unified-appearance-navigation-2026-10-05.json",
@@ -3927,6 +4005,7 @@
       "qa_records": [
         "docs/qa/commit-close-log-unified-2026-10-05.json",
         "docs/qa/external-documents-2026-10-15.json",
+        "docs/qa/settings-color-choices-2026-10-16.json",
         "docs/qa/udiff-input-readiness-2026-10-15.json",
         "docs/qa/unified-appearance-footer-2026-10-05.json",
         "docs/qa/unified-appearance-navigation-2026-10-05.json",

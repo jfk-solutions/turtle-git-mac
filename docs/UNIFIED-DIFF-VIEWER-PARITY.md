@@ -568,3 +568,5 @@ bounded wait. Save/encoding/dirty/Undo/preservation assertions remain unchanged.
 The affected document case passed locally with both engines, with owned windows
 and receivers closed. This is a fixture synchronization repair; hosted confirmation
 is still required. See [exact failure and local evidence](qa/udiff-input-readiness-2026-10-15.json).
+
+The shared source color-button family passed native Settings draft/panel checks; see [dated evidence](qa/settings-color-choices-2026-10-16.json) for fixture repairs, exact scope and remaining navigation/physical acceptance.

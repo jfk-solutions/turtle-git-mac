@@ -267,7 +267,7 @@ private struct MergeSettingsWindowProbe: NSViewRepresentable {
     private let rows: [MergeColorRole] = [.normal, .added, .removed, .modified, .conflicted, .resolved, .empty, .filtered]
     init(model: MergeColorsSettingsModel? = nil) { _model = StateObject(wrappedValue: model ?? MergeColorsSettingsModel()) }
     private func swatch(_ role: MergeColorRole, foreground: Bool) -> some View {
-        NativeMergeColorChoice(value: model.color(role, foreground: foreground), automatic: model.automatic(role, foreground: foreground),
+        NativeSettingsColorChoice(value: model.color(role, foreground: foreground), automatic: model.automatic(role, foreground: foreground),
             label: ([MergeColorRole.inlineAdded, .inlineRemoved].contains(role) ? "Inline " : "") + role.title + (foreground ? " foreground" : " background"), identifier: role.rawValue + (foreground ? ".foreground" : ".background"),
             changed: { model.setColor($0, role: role, foreground: foreground) })
             .frame(width: 76, height: 26)
@@ -281,7 +281,7 @@ private struct MergeSettingsWindowProbe: NSViewRepresentable {
     }
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 16) {
-            NativeMergePaletteChoice(dark: $model.dark).frame(height: 26)
+            NativeSettingsPaletteChoice(dark: $model.dark).frame(height: 26)
             HStack { Text(" ").frame(width: 140); Text("Foreground").frame(maxWidth: .infinity); Text("Background").frame(maxWidth: .infinity) }
             GroupBox("Line differences") { VStack(spacing: 10) { ForEach(rows, id: \.self) { row($0) } }.padding(8) }
             GroupBox("Inline differences") { VStack(spacing: 10) { row(.inlineAdded); row(.inlineRemoved) }.padding(8) }
@@ -295,14 +295,16 @@ private struct MergeSettingsWindowProbe: NSViewRepresentable {
     }
 }
 
-private struct NativeMergePaletteChoice: NSViewRepresentable {
+struct NativeSettingsPaletteChoice: NSViewRepresentable {
     @Binding var dark: Bool
+    var identifier = "MergeColors.Palette"
+    @Environment(\.isEnabled) private var enabled
     func makeNSView(context: Context) -> NSSegmentedControl {
         let control = NSSegmentedControl(labels: ["Light", "Dark"], trackingMode: .selectOne, target: context.coordinator, action: #selector(Coordinator.choose(_:)))
-        control.identifier = NSUserInterfaceItemIdentifier("MergeColors.Palette"); control.setAccessibilityLabel("Palette to edit")
+        control.identifier = NSUserInterfaceItemIdentifier(identifier); control.setAccessibilityLabel("Palette to edit")
         return control
     }
-    func updateNSView(_ control: NSSegmentedControl, context: Context) { context.coordinator.binding = $dark; control.selectedSegment = dark ? 1 : 0 }
+    func updateNSView(_ control: NSSegmentedControl, context: Context) { context.coordinator.binding = $dark; control.selectedSegment = dark ? 1 : 0; control.isEnabled = enabled }
     func makeCoordinator() -> Coordinator { Coordinator(binding: $dark) }
     final class Coordinator: NSObject {
         var binding: Binding<Bool>
@@ -311,15 +313,25 @@ private struct NativeMergePaletteChoice: NSViewRepresentable {
     }
 }
 
-private struct NativeMergeColorChoice: NSViewRepresentable {
+/// Source color-button behavior shared by the native settings pages.
+struct NativeSettingsColorChoice: NSViewRepresentable {
+    @Environment(\.isEnabled) private var enabled
+    var namespace = "MergeColors"
     let value: UInt32, automatic: UInt32
     let label: String, identifier: String
     let changed: (UInt32) -> Void
     func makeNSView(context: Context) -> MergeColorChoiceView { MergeColorChoiceView() }
     func updateNSView(_ view: MergeColorChoiceView, context: Context) {
-        view.configure(value: value, automatic: automatic, label: label, identifier: identifier, changed: changed)
+        view.configure(value:value, automatic:automatic, label:label, identifier:identifier, namespace:namespace, enabled:enabled, changed:changed)
     }
     static func dismantleNSView(_ view: MergeColorChoiceView, coordinator: ()) { view.retire() }
+}
+
+enum SettingsColorValue {
+    static func packed(_ rgb:[Int]) -> UInt32 {
+        UInt32(rgb[0]) << 16 | UInt32(rgb[1]) << 8 | UInt32(rgb[2])
+    }
+    static func channels(_ rgb:UInt32) -> [Int] { [Int(rgb >> 16 & 255),Int(rgb >> 8 & 255),Int(rgb & 255)] }
 }
 
 /// A native color well plus the source Automatic/More colors dropdown.
@@ -330,6 +342,8 @@ private struct NativeMergeColorChoice: NSViewRepresentable {
     private var automatic: UInt32 = 0
     private var changed: ((UInt32) -> Void)?
     private var ownerObserver: NSObjectProtocol?
+    private var retired = false
+    private var enabled = true
     var presentPanel: (NSColorPanel) -> Void = { $0.orderFront(nil) }
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -348,38 +362,46 @@ private struct NativeMergeColorChoice: NSViewRepresentable {
         arrow.frame = NSRect(x: bounds.width - 20, y: 0, width: 20, height: bounds.height)
     }
     private static func color(_ rgb: UInt32) -> NSColor { NSColor(srgbRed: CGFloat(rgb >> 16 & 255) / 255, green: CGFloat(rgb >> 8 & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1) }
-    func configure(value: UInt32, automatic: UInt32, label: String, identifier: String, changed: @escaping (UInt32) -> Void) {
+    func configure(value: UInt32, automatic: UInt32, label: String, identifier: String, namespace:String = "MergeColors", enabled:Bool = true, changed: @escaping (UInt32) -> Void) {
+        guard !retired else { return }
+        self.enabled = enabled
+        if !enabled { choices.cancelTracking(); closeOwnedPanel() }
+        well.isEnabled = enabled; arrow.isEnabled = enabled
         self.automatic = automatic; self.changed = changed
-        self.identifier = NSUserInterfaceItemIdentifier("MergeColors." + identifier)
+        self.identifier = NSUserInterfaceItemIdentifier(namespace + "." + identifier)
         well.color = Self.color(value); well.setAccessibilityLabel(label)
-        well.identifier = NSUserInterfaceItemIdentifier("MergeColors." + identifier + ".well")
-        arrow.identifier = NSUserInterfaceItemIdentifier("MergeColors." + identifier + ".choices")
+        well.identifier = NSUserInterfaceItemIdentifier(namespace + "." + identifier + ".well")
+        arrow.identifier = NSUserInterfaceItemIdentifier(namespace + "." + identifier + ".choices")
         arrow.setAccessibilityLabel(label + " choices"); choices.title = label
         choices.items.first?.state = value == automatic ? .on : .off
         let image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in Self.color(automatic).setFill(); rect.fill(); return true }
         choices.items.first?.image = image
     }
     @objc private func colorChanged(_ sender: Any?) {
-        guard let changed, let color = well.color.usingColorSpace(.sRGB) else { return }
+        guard enabled, !retired, window != nil, let changed, let color = well.color.usingColorSpace(.sRGB) else { return }
         func channel(_ value: CGFloat) -> UInt32 { UInt32(min(255, max(0, Int((value * 255).rounded())))) }
         let rgb = channel(color.redComponent) << 16 | channel(color.greenComponent) << 8 | channel(color.blueComponent)
         well.color = Self.color(rgb); changed(rgb)
     }
-    @objc private func useAutomatic(_ sender: Any?) { guard let changed else { return }; well.color = Self.color(automatic); changed(automatic) }
-    @objc private func moreColors(_ sender: Any?) { guard changed != nil else { return }; well.activate(true); presentPanel(.shared) }
-    @objc private func showChoices(_ sender: Any?) { guard changed != nil else { return }; choices.popUp(positioning: nil, at: NSPoint(x: bounds.minX, y: bounds.minY), in: self) }
+    @objc private func useAutomatic(_ sender: Any?) { guard enabled, !retired, window != nil, let changed else { return }; well.color = Self.color(automatic); changed(automatic) }
+    @objc private func moreColors(_ sender: Any?) { guard enabled, !retired, window != nil, changed != nil else { return }; well.activate(true); presentPanel(.shared) }
+    @objc private func showChoices(_ sender: Any?) { guard enabled, !retired, window != nil, changed != nil else { return }; choices.popUp(positioning: nil, at: NSPoint(x: bounds.minX, y: bounds.minY), in: self) }
     private func closeOwnedPanel() { if well.isActive { well.deactivate(); NSColorPanel.shared.orderOut(nil) } }
-    override func viewWillMove(toWindow newWindow: NSWindow?) { if newWindow == nil { closeOwnedPanel() }; super.viewWillMove(toWindow: newWindow) }
+    override func viewWillMove(toWindow newWindow: NSWindow?) { if window !== newWindow { choices.cancelTracking(); closeOwnedPanel() }; super.viewWillMove(toWindow: newWindow) }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }; ownerObserver = nil
-        if let window {
+        if !retired, let window {
             ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.retire() }
             }
         }
     }
-    func retire() { choices.cancelTracking(); closeOwnedPanel(); changed = nil; well.target = nil; arrow.target = nil; well.isEnabled = false; arrow.isEnabled = false }
+    func retire() {
+        retired = true; choices.cancelTracking(); closeOwnedPanel(); changed = nil
+        well.target = nil; arrow.target = nil; well.isEnabled = false; arrow.isEnabled = false
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }; ownerObserver = nil
+    }
     deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
 }
 

@@ -1315,3 +1315,11 @@ See [pane-interaction evidence](qa/blame-pane-tabs-2026-10-15.json) and the
 [dark](site/assets/blame-tabs-log-dark.png) and
 [Commit Info tab in light](site/assets/blame-tabs-properties-light.png) /
 [dark](site/assets/blame-tabs-properties-dark.png) captures.
+
+The Settings Colors group now follows the source labelled swatch layout and
+Automatic/More colors menu, with an opaque native RGB panel and owned page/close
+lifetime. Light and Dark retain independent drafts and source defaults. The
+[shared color-button family](APPEARANCE.md) documents the Settings transaction,
+late callback fences and remaining physical/VoiceOver acceptance.
+
+The shared source color-button family passed native Settings draft/panel checks; see [dated evidence](qa/settings-color-choices-2026-10-16.json) for fixture repairs, exact scope and remaining navigation/physical acceptance.

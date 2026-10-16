@@ -86,3 +86,11 @@ source palette channels and Colors Apply behavior. Pane statistics use these
 state categories as well. See [source states and counts](MERGE-RESULT-STATES-PARITY.md).
 Whitespace-only/ignored/resolved-empty production and physical whole-window
 acceptance remain open; the new aliases do not certify the full state catalogue.
+
+The native swatch and palette controls are now shared with the source status/log,
+Blame and Unified Diff color pages. They also honor disabled state, fence detached
+or retired callbacks and release an owned panel on disable/owner changes. Existing
+Merge identifiers/defaults/channel counts remain stable; the retained native
+Merge Colors workflow is part of the connected color-settings validation.
+
+The shared source color-button family passed native Settings draft/panel checks; see [dated evidence](qa/settings-color-choices-2026-10-16.json) for fixture repairs, exact scope and remaining navigation/physical acceptance.

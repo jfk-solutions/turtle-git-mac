@@ -210,3 +210,53 @@ dark backgrounds. It also connects private Working Tree and Commit line-count
 color stores and verifies live updates across existing Log/Commit/Working Tree
 windows. This supersedes the earlier absence of rendered status-color evidence;
 its own QA record identifies exactly which captures and appearances were checked.
+
+## Source color-button family — October 16, 2026
+
+Colors 1, 2 and 3, Blame and Unified Diff now use the source-style native swatch
+with an **Automatic** / **More colors…** menu. Status/reference/lane row labels
+and their separate swatches follow the source pages; per-row extra Default buttons
+are replaced by Automatic. Page-wide Restore Default remains. Automatic shows its
+role's default swatch and edits only that channel/palette draft; Apply and Cancel
+remain owned by the shared Settings transaction. Existing source RGB defaults,
+status dark conversion, graph dimensions and renderer notifications are retained.
+
+The same native control serves Merge Colors. Each page/channel has a stable
+accessibility identifier. Native wells use opaque sRGB. More colors owns the
+shared RGB-only AppKit panel; switching away, disabling the control or closing
+its owner releases that ownership. Detached, disabled and retired controls refuse
+late menu and color actions. An inactive control does not dismiss another well's
+panel. Cached pages can reattach with their existing drafts. Blame and Unified
+Diff use explicit native Light/Dark palette selectors independently of app theme.
+This is the macOS adaptation of the pinned color buttons, not certification of
+complete physical color-panel, VoiceOver or Windows color-management parity.
+
+The shared source color-button family passed native Settings draft/panel checks; see [dated evidence](qa/settings-color-choices-2026-10-16.json) for fixture repairs, exact scope and remaining navigation/physical acceptance.
+
+The reviewed source resources are `IDD_SETTINGSCOLORS_1`, `IDD_SETTINGSCOLORS_2`,
+`IDD_SETTINGSCOLORS_3`, `IDD_SETTINGSTBLAME`, `IDD_SETTINGSUDIFF` and Merge
+`IDD_SETCOLORPAGE`. Captures below show real native windows and private fixture
+colors, not complete dialog certification. Existing long sidebar captions still
+need layout work; nested Merge Colors heading/scrolling diagnostics are excluded
+from this gallery. Light/Dark here denotes window appearance; the palette being
+edited remains independently selected.
+
+![settings blame colors dark](site/assets/settings-blame-colors-dark.png)
+
+![settings blame colors light](site/assets/settings-blame-colors-light.png)
+
+![settings colors 1 dark](site/assets/settings-colors-1-dark.png)
+
+![settings colors 1 light](site/assets/settings-colors-1-light.png)
+
+![settings colors 2 dark](site/assets/settings-colors-2-dark.png)
+
+![settings colors 2 light](site/assets/settings-colors-2-light.png)
+
+![settings colors 3 dark](site/assets/settings-colors-3-dark.png)
+
+![settings colors 3 light](site/assets/settings-colors-3-light.png)
+
+![settings unified colors dark](site/assets/settings-unified-colors-dark.png)
+
+![settings unified colors light](site/assets/settings-unified-colors-light.png)

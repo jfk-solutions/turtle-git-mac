@@ -38,17 +38,18 @@ struct BlameSettings: View {
         guard let font = Int(fontSize), let tabs = Int(tabSize), (1...1000).contains(font), (1...1000).contains(tabs) else { return nil }
         var value = presentation; value.fontSize = font; value.tabSize = tabs; return value
     }
-    private func colorBinding(recent: Bool) -> Binding<Color> {
-        Binding(get: {
-            let rgb = darkColors ? (recent ? presentation.darkRecentColor : presentation.darkOldColor) : (recent ? presentation.recentColor : presentation.oldColor)
-            return Color(.sRGB, red: Double((rgb >> 16) & 255) / 255, green: Double((rgb >> 8) & 255) / 255, blue: Double(rgb & 255) / 255, opacity: 1)
-        }, set: { color in
-            guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return }
-            func channel(_ value: CGFloat) -> UInt32 { UInt32(min(255, max(0, Int((value * 255).rounded())))) }
-            let value = channel(rgb.redComponent) << 16 | channel(rgb.greenComponent) << 8 | channel(rgb.blueComponent)
-            if darkColors { if recent { presentation.darkRecentColor = value } else { presentation.darkOldColor = value } }
-            else { if recent { presentation.recentColor = value } else { presentation.oldColor = value } }
-        })
+    private func colorRow(recent:Bool) -> some View {
+        let defaults = GitBlamePresentation()
+        let value = darkColors ? (recent ? presentation.darkRecentColor : presentation.darkOldColor) : (recent ? presentation.recentColor : presentation.oldColor)
+        let automatic = darkColors ? (recent ? defaults.darkRecentColor : defaults.darkOldColor) : (recent ? defaults.recentColor : defaults.oldColor)
+        let title = recent ? "Recently modified lines" : "Older lines"
+        return HStack {
+            Text(title).frame(maxWidth:.infinity,alignment:.leading)
+            NativeSettingsColorChoice(namespace:"BlameColors",value:value,automatic:automatic,label:title,identifier:recent ? "recent" : "old",changed: { value in
+                if darkColors { if recent { presentation.darkRecentColor = value } else { presentation.darkOldColor = value } }
+                else { if recent { presentation.recentColor = value } else { presentation.oldColor = value } }
+            }).frame(width:152,height:26)
+        }
     }
     private func count(_ value: String) -> UInt32? {
         guard !value.isEmpty, value.utf8.allSatisfy({ (48...57).contains($0) }) else { return nil }
@@ -63,9 +64,9 @@ struct BlameSettings: View {
         VStack(alignment: .leading, spacing: 14) {
             GroupBox("Colors") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Picker("Appearance", selection: $darkColors) { Text("Light").tag(false); Text("Dark").tag(true) }.pickerStyle(.segmented)
-                    ColorPicker("Recently modified lines", selection: colorBinding(recent: true), supportsOpacity: false)
-                    ColorPicker("Older lines", selection: colorBinding(recent: false), supportsOpacity: false)
+                    NativeSettingsPaletteChoice(dark:$darkColors,identifier:"BlameColors.Palette").frame(height:26)
+                    colorRow(recent:true)
+                    colorRow(recent:false)
                     HStack {
                         Spacer()
                         Button("Restore Default") {

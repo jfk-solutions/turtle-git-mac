@@ -132,14 +132,14 @@ struct SourceColorSettings: View {
     }
     private func statusRow(_ role: StatusTextRole, _ title: String) -> some View {
         HStack {
-            ColorPicker(title, selection: Binding(get: { status.color(role) }, set: { status.setColor(role, color: $0) }), supportsOpacity: false)
-            StatusColorButton("Default") { status.automatic(role) }
+            Text(title).frame(maxWidth:.infinity,alignment:.leading)
+            NativeSettingsColorChoice(namespace:"StatusColors",value:SettingsColorValue.packed(status.draft.rgb(role)),automatic:SettingsColorValue.packed(role.rgb),label:title,identifier:role.rawValue,changed:{ status.set(role,rgb:SettingsColorValue.channels($0)) }).frame(width:152,height:26)
         }
     }
     private func logRow(_ role: LogColorRole, _ title: String) -> some View {
         HStack {
-            ColorPicker(title, selection: Binding(get: { log.color(role) }, set: { log.setColor(role, color: $0) }), supportsOpacity: false)
-            StatusColorButton("Default") { log.automatic(role) }
+            Text(title).frame(maxWidth:.infinity,alignment:.leading)
+            NativeSettingsColorChoice(namespace:"LogColors",value:SettingsColorValue.packed(log.draft.rgb(role)),automatic:SettingsColorValue.packed(role.rgb),label:title,identifier:role.rawValue,changed:{ log.set(role,rgb:SettingsColorValue.channels($0)) }).frame(width:152,height:26)
         }
     }
     private func restore() {
@@ -435,8 +435,8 @@ struct StatusColorsSettings: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(roles, id: \.self) { role in
                     HStack {
-                        ColorPicker(role.title, selection: Binding(get: { model.color(role) }, set: { model.setColor(role, color: $0) }), supportsOpacity: false)
-                        StatusColorButton("Default") { model.automatic(role) }.help("Restore the default \(role.title.lowercased()) color")
+                        Text(role.title).frame(maxWidth:.infinity,alignment:.leading)
+                        NativeSettingsColorChoice(namespace:"StatusColors",value:SettingsColorValue.packed(model.draft.rgb(role)),automatic:SettingsColorValue.packed(role.rgb),label:role.title,identifier:role.rawValue,changed:{ model.set(role,rgb:SettingsColorValue.channels($0)) }).frame(width:152,height:26)
                     }
                 }
                 Text("Choose light-mode colors. Dark mode follows TortoiseGit’s color conversion.").font(.caption).foregroundStyle(.secondary)

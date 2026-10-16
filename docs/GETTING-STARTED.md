@@ -329,3 +329,12 @@ window. In two-pane view, **Next/Previous inline difference** move between chang
 boundaries on the current line with Control-Option-Right/Left. They do not wrap.
 Three-pane merge sources show inline colors while their result pane remains
 editable; inline navigation is disabled in that layout, matching TortoiseGit.
+
+## Choosing colors
+
+In Settings, Colors 1 controls file status colors, Colors 2 reference labels and
+filter matches, and Colors 3 the graph lanes. Each color swatch has an
+**Automatic** choice for its default and **More colors…** for the native picker.
+Blame, Unified Diff and Merge Colors also offer separate Light/Dark palettes.
+The palette being edited is independent of the window appearance. Changes stay
+in the Settings draft until **Apply**; **Cancel** restores saved choices.

@@ -163,8 +163,8 @@ struct LogColorsSettings: View {
         VStack(spacing: 8) {
             ForEach(roles, id: \.self) { role in
                 HStack {
-                    ColorPicker(role.title, selection: Binding(get: { model.color(role) }, set: { model.setColor(role, color: $0) }), supportsOpacity: false)
-                    StatusColorButton("Default") { model.automatic(role) }
+                    Text(role.title).frame(maxWidth:.infinity,alignment:.leading)
+                    NativeSettingsColorChoice(namespace:"LogColors",value:SettingsColorValue.packed(model.draft.rgb(role)),automatic:SettingsColorValue.packed(role.rgb),label:role.title,identifier:role.rawValue,changed:{ model.set(role,rgb:SettingsColorValue.channels($0)) }).frame(width:152,height:26)
                 }
             }
         }.padding(8)

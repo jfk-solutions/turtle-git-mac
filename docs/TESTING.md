@@ -2273,3 +2273,10 @@ progress modes, captured Commit scope and partial index-flag updates, followed b
 the affected Working Tree file-action and scope regressions. It uses private Git
 fixtures/preferences and current cached Debug objects, closes owned windows and
 reaps each helper. No Core implementation changed in this native command batch.
+
+`python3 scripts/test-settings-color-choices.py` links the six-page native color
+Settings workflow and retained Merge Colors regression against cached Debug app
+objects. Optional `--capture-dir PATH` records unaltered compositor frames. The
+workflow uses a private preference suite and SMTP fixture, no Git operations or
+network requests, and closes all owned windows/panels. Native-only control changes
+do not require rerunning the Core suite.

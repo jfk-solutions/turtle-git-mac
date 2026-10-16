@@ -1,0 +1,200 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "6a14c74b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/Settings/SettingsColors.cpp",
+    "src/TortoiseProc/Settings/SettingsColors2.cpp",
+    "src/TortoiseProc/Settings/SettingsColors3.cpp",
+    "src/TortoiseProc/Settings/SettingsTBlame.cpp",
+    "src/TortoiseProc/Settings/SettingsTUDiff.cpp",
+    "src/TortoiseMerge/SetColorPage.cpp",
+    "src/Resources/TortoiseProcENG.rc: IDD_SETTINGSCOLORS_1/2/3, IDD_SETTINGSTBLAME, IDD_SETTINGSUDIFF",
+    "doc/images/en/SettingsColors.png, SettingsColors2.png, SettingsColors3.png, SettingsBlame.png, SettingsUDiff.png, TMerge_SettingsColors.png"
+  ],
+  "scope": [
+    "Source labelled swatch and Automatic/More colors control across Colors 1/2/3, Blame and Unified Diff, shared with Merge Colors",
+    "Opaque source RGB conversion, default swatch, role/channel/palette draft isolation",
+    "Cached-page Settings Apply/Cancel, status/log selective role persistence",
+    "Explicit native Blame/Unified Light/Dark palette controls",
+    "Panel ownership on detachment, disable, window change, close and retirement; late action fences"
+  ],
+  "build": {
+    "log": "build/qa/settings-color-choices-build.log",
+    "exit": 0,
+    "notes": "Existing warnings and anomalous failed-command exit-code-0/no-output diagnostics were emitted; native receiver freshness guards accepted current Debug objects."
+  },
+  "core": "No Core implementation changed; no Core suite rerun.",
+  "native": {
+    "runner": "scripts/test-settings-color-choices.py",
+    "fixture": "docs/qa/settings-color-choices-native-2026-10-16.swift",
+    "retained_fixture": "docs/qa/merge-colors-native-2026-10-12.swift",
+    "log": "build/qa/settings-color-choices-native-final.log",
+    "exit": 0,
+    "receiver_reaped": 83255,
+    "scope": "One grouped native process; no Git engine or network request needed. Private preferences and SMTP fixture.",
+    "source_swatch_counts": {
+      "Colors 1": 8,
+      "Colors 2": 5,
+      "Colors 3": 8,
+      "Blame": 2,
+      "Unified Diff": 12,
+      "Merge Colors": 17
+    },
+    "retained_checks": "All 17 Merge channels, independent palettes, selective Restore Default, actual native light/dark bounds and panel ownership passed."
+  },
+  "earlier_failures": [
+    {
+      "receiver_reaped": 83066,
+      "log": "build/qa/settings-color-choices-native.log",
+      "reason": "Fixture expected capitalized Conflict identifier; status role identifiers are lowercase. Fixed fixture before further interaction."
+    },
+    {
+      "receiver_reaped": 83175,
+      "log": "build/qa/settings-color-choices-native-repair.log",
+      "reason": "Fixture compared sparse color seed objects with the persisted format, which expands all default roles. Reloaded seeds immediately after saving; production unchanged."
+    }
+  ],
+  "cleanup": {
+    "all_three_receivers_absence_checked": true,
+    "owned_windows_and_panel_closed": true
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/settings-blame-colors-dark.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "ac1d3c028526afb43a4f96bf868626abe35f32992f4af9044bea9bcb0ba7bc4e",
+      "published": true,
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/settings-blame-colors-light.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "f5f533299a386ab210f8a5ad27e0b97c33ef82f42b1dc4b63aee2cdb9b4c1591",
+      "published": true,
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/settings-colors-1-dark.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "c8211a3fa8d99afaff5761e071494b56163d10200f8ceaf99ba56cc497739437",
+      "published": true,
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/settings-colors-1-light.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "ac6a175e9e9c77e343d664c0ab4add250448b509ae6c138dd27f4d066e22ec81",
+      "published": true,
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/settings-colors-2-dark.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "c8740379ada547e69408c69a23833b3606cdf9cc63f009d4c5fd4c87cf8d6e5e",
+      "published": true,
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/settings-colors-2-light.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "89508eb9a3f407fedb1c1c101c06890cd28364ce9dd2db84bc67d2e137e0b71b",
+      "published": true,
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/settings-colors-3-dark.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "e93dd037a39975ca9f28a6e2e728f0a5a5229097280edd52dbb511452c2b0541",
+      "published": true,
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/settings-colors-3-light.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "709232e56c22a7dbf5ddd9f8a2501cc1d1480894d24233103510f2f61aa92550",
+      "published": true,
+      "reviewed": true
+    },
+    {
+      "path": "build/qa/settings-color-choices-captures/settings-merge-colors-dark.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "0a1f066ca323cac26102839d8d06feade1ab07fd8e904527f47caec0d5cab565",
+      "published": false,
+      "reviewed": true
+    },
+    {
+      "path": "build/qa/settings-color-choices-captures/settings-merge-colors-light.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "c6bdf3bc0daca54de110deb1a14730410070e53740a2241c474045a1f98f27a3",
+      "published": false,
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/settings-unified-colors-dark.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "217601503663b581099f02b23bf3d6ab53921690869eb236772977246a1dae70",
+      "published": true,
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/settings-unified-colors-light.png",
+      "width": 1842,
+      "height": 1482,
+      "sha256": "f581f2f3c3fdab71341f8bcd3516fab31eb052881ce603267a5e39522526ee30",
+      "published": true,
+      "reviewed": true
+    }
+  ],
+  "capture_notes": "Unaltered native window compositor frames, no image manipulation. Both appearances show the selected palette independently of app theme. Unified added background deliberately retains custom fixture RGB. Ten frames published; Merge frames remain diagnostics because the existing nested page heading exposes mergeColors and lower controls require scrolling at this screen size.",
+  "hosted": {
+    "macos": {
+      "run": 38832102611,
+      "sha": "6a14c74b",
+      "last_observed": "pending"
+    },
+    "pages": {
+      "run": 38832102630,
+      "sha": "6a14c74b",
+      "conclusion": "success"
+    },
+    "full_current_macos_pass": false
+  },
+  "limitations": [
+    "Existing Settings tree descendant lookup exposes raw mergeColors heading and can miss nested page lookup; recorded for next navigation/layout family",
+    "Long sidebar captions remain clipped at this screen width; resizing/accessibility/VoiceOver acceptance remains open",
+    "Windows palette-grid gestures and exact Windows/macOS color management are not certified",
+    "Signed sandbox/Finder/App Store distribution and full application parity remain open"
+  ],
+  "documentation": {
+    "bundled_help": {
+      "documents": 26,
+      "topics": 47,
+      "files": 32,
+      "bytes": 198338
+    },
+    "site": {
+      "documents": 235,
+      "unresolved_fragments": 0
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 974,
+      "pending_control_reviews": 685
+    }
+  }
+}

@@ -379,3 +379,13 @@ adds shared read/Quit ownership, Dialogs 3 save ownership, captured confirmation
 context and owning hierarchy-hint preferences. Its
 [grouped checkpoint](qa/configuration-lifecycle-2026-10-15.json) records native
 checks and the remaining physical/signed scope.
+
+## Current visual follow-up — October 16, 2026
+
+The [color family captures](qa/settings-color-choices-2026-10-16.json) expose two
+existing layout gaps: the tree lookup only flattens one child level, so nested
+Merge Colors uses its raw identifier as the heading and can be missed by failed-
+page selection; long sidebar captions are clipped at the captured screen width.
+Merge Colors also requires scrolling to its lower controls at that height. These
+remain explicit navigation/layout work; the successful color-control workflow
+does not certify them.
