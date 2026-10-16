@@ -88,6 +88,10 @@ private actor SettingsSMTPFixture: SMTPCredentialStore {
         try require(prefs.bool(forKey:"NoSounds"),"Cached Dialogs 2 applied outside owner domain")
         func enter(_ placeholder:String,_ text:String) throws {
             guard let field=views(navigation.view).compactMap({ $0 as? NSTextField }).first(where:{ $0.placeholderString==placeholder }) else { throw Failure(message:"Missing field: "+placeholder) }
+            if let path=field as? PathEntryField.Field {
+                guard let owner=path.window,owner.makeFirstResponder(path),let editor=path.currentEditor() as? NSTextView else {throw Failure(message:"Path editor unavailable: "+placeholder)}
+                editor.insertText(text,replacementRange:NSRange(location:0,length:editor.string.utf16.count));owner.makeFirstResponder(nil);return
+            }
             field.stringValue=text
             field.delegate?.controlTextDidChange?(Notification(name:NSControl.textDidChangeNotification,object:field))
         }
@@ -102,8 +106,8 @@ private actor SettingsSMTPFixture: SMTPCredentialStore {
         try choose("Diff Viewer"); navigation.transaction.apply(closeAfter:false)
         try await wait("Cached Unified Apply") { !navigation.transaction.busy }
         try require(UnifiedDiffAppearance.load(from:prefs).tabSize==7,"Unified appearance ignored owner domain")
-        try await wait("Nested viewer control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Viewer application" } }
-        try enter("Viewer application","/Applications/ChangedViewer.app")
+        try await wait("Nested viewer control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Unified Diff program" } }
+        try enter("Unified Diff program","/Applications/ChangedViewer.app")
         try await wait("Nested viewer draft") { navigation.transaction.modified }
         try choose("Alternative Editor"); navigation.transaction.apply(closeAfter:false)
         try await wait("Nested viewer Apply") { !navigation.transaction.busy }

@@ -4,57 +4,102 @@ import SwiftUI
 import UniformTypeIdentifiers
 import TurtleGitCore
 
-@MainActor final class ToolApplicationChooser {
-    weak var window: NSWindow?
-    private var panel: NSOpenPanel?
-    func cancel() { if let panel { (panel.sheetParent ?? window)?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil }
-    func choose(_ completion: @escaping (URL, Data) -> Void, failure: @escaping (String) -> Void, allowExecutables: Bool = false) {
-        guard let window, panel == nil, window.attachedSheet == nil else { return }
-        let chooser = NSOpenPanel(); chooser.allowedContentTypes = allowExecutables ? [] : [.applicationBundle]; chooser.allowsOtherFileTypes = allowExecutables
-        chooser.canChooseDirectories = false; chooser.allowsMultipleSelection = false
-        chooser.title = allowExecutables ? "Select tool application or executable" : "Select tool application"; chooser.prompt = "Select"; chooser.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel = chooser
-        chooser.beginSheetModal(for: window) { [weak self] response in
-            guard let self, self.panel === chooser else { return }; self.panel = nil
-            guard response == .OK, let application = chooser.url else { return }
-            do { completion(application, try application.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)) }
-            catch { failure(error.localizedDescription) }
+@MainActor final class ToolApplicationChooser: ObservableObject {
+    static private(set) var activeChoosers=0
+    @Published private(set) var selecting=false
+    weak var window:NSWindow? {
+        didSet {
+            guard oldValue !== window else {return}
+            cancel()
+            if let observation {NotificationCenter.default.removeObserver(observation)}
+            observation=nil
+            if let window {observation=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in MainActor.assumeIsolated {self?.cancel()} }}
         }
+    }
+    private var panel:NSOpenPanel?
+    private var observation:NSObjectProtocol?
+    var present:((NSOpenPanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void)?
+    var selectedURL:(NSOpenPanel)->URL? = {$0.url}
+    var bookmark:(URL)throws->Data = {try $0.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil)}
+    deinit {if let observation {NotificationCenter.default.removeObserver(observation)}}
+    func cancel() {
+        guard let panel else {return}
+        self.panel=nil;selecting=false;Self.activeChoosers -= 1
+        (panel.sheetParent ?? window)?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil)
+    }
+    func choose(_ completion:@escaping (URL,Data)->Void,failure:@escaping (String)->Void,allowExecutables:Bool = false,currentPath:String = "",isCurrent:@escaping ()->Bool = {true}) {
+        guard let window,panel == nil,window.attachedSheet == nil,isCurrent() else {return}
+        let chooser=NSOpenPanel();chooser.allowedContentTypes=allowExecutables ? []:[.applicationBundle];chooser.allowsOtherFileTypes=allowExecutables
+        chooser.canChooseDirectories=false;chooser.allowsMultipleSelection=false;chooser.treatsFilePackagesAsDirectories=false
+        chooser.title=allowExecutables ? "Select tool application or executable":"Select tool application";chooser.prompt="Select"
+        // Source Browse starts from an existing configured program, otherwise Applications.
+        let configured=URL(fileURLWithPath:currentPath)
+        if currentPath.hasPrefix("/"),FileManager.default.fileExists(atPath:currentPath) {chooser.directoryURL=configured.deletingLastPathComponent()}
+        else {chooser.directoryURL=URL(fileURLWithPath:"/Applications")}
+        panel=chooser;selecting=true;Self.activeChoosers += 1
+        let reply:(NSApplication.ModalResponse)->Void = { [weak self,weak window] response in
+            guard let self,self.panel === chooser else {return}
+            self.panel=nil;self.selecting=false;Self.activeChoosers -= 1
+            guard response == .OK,self.window === window,window != nil,isCurrent(),let application=self.selectedURL(chooser) else {return}
+            do {
+                let resolved=application.resolvingSymlinksInPath()
+                let properties=try resolved.resourceValues(forKeys:[.isDirectoryKey,.isRegularFileKey])
+                let app=application.pathExtension.lowercased() == "app" && properties.isDirectory == true
+                let executable=properties.isRegularFile == true && FileManager.default.isExecutableFile(atPath:resolved.path)
+                guard app || allowExecutables && executable else {throw DiffToolFailure.application}
+                let bookmark=try self.bookmark(application)
+                guard isCurrent(),self.window === window else {return}
+                completion(application,bookmark)
+            } catch {if isCurrent(),self.window === window {failure(error.localizedDescription)}}
+        }
+        if let present {present(chooser,window,reply)} else {chooser.beginSheetModal(for:window,completionHandler:reply)}
     }
 }
 struct ToolChooserProbe: NSViewRepresentable {
-    let chooser: ToolApplicationChooser
-    func makeNSView(context: Context) -> Probe { let probe = Probe(); probe.chooser = chooser; return probe }
-    func updateNSView(_ view: Probe, context: Context) { chooser.window = view.window }
-    final class Probe: NSView {
-        weak var chooser: ToolApplicationChooser?
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); chooser?.window = window }
+    let chooser:ToolApplicationChooser
+    func makeNSView(context:Context)->Probe {let probe=Probe();probe.chooser=chooser;return probe}
+    func updateNSView(_ view:Probe,context:Context) {chooser.window=view.window}
+    static func dismantleNSView(_ view:Probe,coordinator:()) {view.chooser?.cancel();view.chooser=nil}
+    final class Probe:NSView {
+        weak var chooser:ToolApplicationChooser?
+        override func viewDidMoveToWindow() {super.viewDidMoveToWindow();chooser?.window=window}
     }
 }
 struct DiffProgramForm: View {
     @Binding var program: DiffToolProgram
     var tool = "diff"
-    @State private var chooser = ToolApplicationChooser()
+    var preferences:UserDefaults = .standard
+    @StateObject private var chooser = ToolApplicationChooser()
     @State private var error: String?
+    init(program:Binding<DiffToolProgram>,tool:String = "diff",preferences:UserDefaults = .standard,chooser:ToolApplicationChooser? = nil) {
+        _program=program;self.tool=tool;self.preferences=preferences;_chooser=StateObject(wrappedValue:chooser ?? ToolApplicationChooser())
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker(tool == "merge" ? "Merge tool" : "Diff tool", selection: Binding(get: { !program.enabled ? "internal" : program.builtIn?.rawValue ?? "external" }, set: { value in
-                program.enabled = value != "internal"
-                if value != "internal" { program.builtIn = BuiltInDiffTool(rawValue: value) }
-            })) {
-                Text("TurtleGitMerge").tag("internal"); Text("External").tag("external")
-                ForEach(tool == "merge" ? [.wordDocument, .libreOfficeDocument] : BuiltInDiffTool.allCases, id: \.self) { value in
-                    Text(tool == "merge" ? (value == .wordDocument ? "Microsoft Word document merge" : "LibreOffice document merge") : value.title).tag(value.rawValue)
-                }
-            }.pickerStyle(.radioGroup).labelsHidden()
+            Picker(tool == "merge" ? "Merge tool":"Diff tool",selection:$program.enabled) {
+                Text("TurtleGitMerge").tag(false);Text("External").tag(true)
+            }.pickerStyle(.radioGroup).horizontalRadioGroupLayout().labelsHidden()
             HStack {
-                TextField("Application or executable", text: Binding(get: { program.applicationPath }, set: { guard program.applicationPath != $0 else { return }; program.applicationPath = $0; program.bookmark = nil }))
-                Button("Browse…") { chooser.choose({ application, bookmark in program.applicationPath = application.path; program.bookmark = bookmark }, failure: { error = $0 }, allowExecutables: true) }
+                Text("Program kind:").frame(width:120,alignment:.leading)
+                Picker("Program kind",selection:Binding(get:{program.builtIn?.rawValue ?? "external"},set:{program.builtIn=BuiltInDiffTool(rawValue:$0)})) {
+                    Text("Application or executable").tag("external")
+                    ForEach(tool == "merge" ? [.wordDocument,.libreOfficeDocument]:BuiltInDiffTool.allCases,id:\.self) {value in
+                        Text(tool == "merge" ? (value == .wordDocument ? "Microsoft Word document merge":"LibreOffice document merge"):value.title).tag(value.rawValue)
+                    }
+                }.labelsHidden()
+            }.disabled(!program.enabled)
+            HStack {
+                Text("External Program:").frame(width:120,alignment:.leading)
+                PathEntryField(text:Binding(get:{program.applicationPath},set:{program.applicationPath=$0;program.bookmark=nil}),label:tool+" program",preferences:preferences,mayEdit:{program.enabled && program.builtIn == nil && !chooser.selecting}).frame(height:24)
+                Button("Browse…") {
+                    let captured=program
+                    chooser.choose({application,bookmark in program.applicationPath=application.path;program.bookmark=bookmark},failure:{error=$0},allowExecutables:true,currentPath:captured.applicationPath,isCurrent:{program == captured && program.enabled && program.builtIn == nil})
+                }
             }.disabled(!program.enabled || program.builtIn != nil)
-            TextField("Arguments", text: $program.arguments).disabled(!program.enabled || program.builtIn != nil)
+            HStack {Text("Arguments:").frame(width:120,alignment:.leading);TextField("",text:$program.arguments).accessibilityLabel(tool+" arguments")}.disabled(!program.enabled || program.builtIn != nil)
             if !program.valid { Text(DiffToolFailure.application.localizedDescription).foregroundStyle(.red) }
             if let error { Text(error).foregroundStyle(.red) }
-        }.background(ToolChooserProbe(chooser: chooser).frame(width: 0, height: 0)).onDisappear { chooser.cancel() }
+        }.disabled(chooser.selecting).background(ToolChooserProbe(chooser: chooser).frame(width: 0, height: 0)).onDisappear { chooser.cancel() }
     }
 }
 @MainActor final class ToolSettingsDraft<Value: Equatable>: ObservableObject {
@@ -91,8 +136,8 @@ struct DiffToolSettings: View {
             VStack(alignment: .leading, spacing: 16) {
                 GroupBox("Configure the program used for comparing different revisions of files") {
                     VStack(alignment: .leading, spacing: 10) {
-                        DiffProgramForm(program: $model.value.program)
-                        HStack { Spacer(); Button("Advanced…") { advanced = true } }
+                        DiffProgramForm(program: $model.value.program,preferences:preferences)
+                        HStack {Text("Specify alternate diff programs based on file extension.").font(.caption).foregroundStyle(.secondary);Spacer(); Button("Advanced…") { advanced = true } }
                     }.padding(8)
                 }
                 Text("Arguments: %base, %mine, %bname, %yname, %bpath, %ypath, %brev, %yrev and %wtroot. Quote arguments containing spaces. Hold Shift when opening a comparison to reverse the internal/external choice.").font(.caption).foregroundStyle(.secondary)
@@ -108,6 +153,8 @@ struct DiffToolSettings: View {
     @Published var draft: [DiffToolAssociation]
     @Published var selected: UUID?
     @Published var editing: DiffToolAssociation?
+    @Published private(set) var editorIdentity=UUID()
+    @Published private(set) var focusRequest=UUID()
     let tool: String
     init(associations: [DiffToolAssociation], tool: String) { draft = associations; self.tool = tool }
     var rows: [DiffToolAssociation] { draft.sorted { $0.normalizedPattern.localizedStandardCompare($1.normalizedPattern) == .orderedAscending } }
@@ -126,13 +173,14 @@ struct DiffToolSettings: View {
         guard editing == nil else { return }
         var entry = DiffToolAssociation()
         if tool == "merge" { entry.program.arguments = "%base %theirs %mine %merged" }
-        editing = entry
+        editorIdentity=UUID();editing = entry
     }
-    func edit() { guard editing == nil else { return }; editing = draft.first { $0.id == selected } }
-    func accept(_ value: DiffToolAssociation?) {
-        guard let original = editing else { return }
+    func edit() { guard editing == nil else { return };editorIdentity=UUID(); editing = draft.first { $0.id == selected } }
+    func accept(_ value: DiffToolAssociation?,for identity:UUID? = nil) {
+        guard let original=editing,identity == nil || identity == editorIdentity else {return}
         defer { editing = nil }
-        guard var value, value.id == original.id, value.valid,
+        defer {focusRequest=UUID()}
+        guard var value, value.id == original.id, value.valid,tool != "merge" || MergeToolPreferences.supports(value.program.builtIn),
               !draft.contains(where: { $0.id != value.id && $0.normalizedPattern == value.normalizedPattern }) else { return }
         value.pattern = value.normalizedPattern
         if let index = draft.firstIndex(where: { $0.id == value.id }) { draft[index] = value } else { draft.append(value) }
@@ -143,6 +191,7 @@ struct DiffToolSettings: View {
         let ordered = rows; draft.removeAll { $0.id == selected }
         let survivors = ordered.filter { $0.id != selected }
         self.selected = survivors.isEmpty ? nil : survivors[min(index, survivors.count - 1)].id
+        focusRequest=UUID()
     }
 }
 
@@ -156,20 +205,28 @@ struct DiffToolAssociations: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Advanced " + model.tool + " settings").font(.headline)
-            ToolAssociationsTable(model: model).frame(minHeight: 240)
-            if model.tool == "diff" { Text("Restore Defaults restores bundled archive, binary, Mathematica, Word, Excel and LibreOffice comparisons, preserving other associations. Office and Mathematica comparisons require those applications.").font(.caption).foregroundStyle(.secondary) }
-            if model.tool == "merge" { Text("Restore Defaults restores Word document merging for .doc/.docx/.docm, preserving other associations. Review changes in Word and Save As the original conflicting file.").font(.caption).foregroundStyle(.secondary) }
+            GroupBox("Extension specific programs") {
+                VStack(alignment:.leading,spacing:12) {
+                    ToolAssociationsTable(model:model).frame(minHeight:240)
+                    HStack {
+                        Button("Add…",action:model.add)
+                        Button("Edit…",action:model.edit).disabled(model.selected == nil)
+                        Button("Remove",action:model.remove).disabled(model.selected == nil)
+                        Button("Restore Defaults",action:model.restoreDefaults)
+                        Spacer()
+                    }.disabled(model.editing != nil)
+                }.padding(8)
+            }
+            if model.tool == "diff" {Text("Restore Defaults restores bundled comparison tools, preserving other associations. Office and Mathematica comparisons require those applications.").font(.caption).foregroundStyle(.secondary)}
+            if model.tool == "merge" {Text("Restore Defaults restores bundled Word and LibreOffice document merging, preserving other associations. Save the reviewed result as the original conflicting file.").font(.caption).foregroundStyle(.secondary)}
             HStack {
-                Button("Add…", action: model.add)
-                Button("Edit…", action: model.edit).disabled(model.selected == nil)
-                Button("Remove", action: model.remove).disabled(model.selected == nil)
-                Button("Restore Defaults", action: model.restoreDefaults)
-                Spacer(); Button("Cancel") { completed(nil) }.keyboardShortcut(.cancelAction)
-                Button("OK") { completed(model.draft) }.keyboardShortcut(.defaultAction).disabled(!model.valid)
+                Spacer();Button("Cancel") {completed(nil)}.keyboardShortcut(.cancelAction)
+                Button("OK") {completed(model.draft)}.keyboardShortcut(.defaultAction).disabled(!model.valid)
             }.disabled(model.editing != nil)
         }.padding(20).frame(width: 720)
         .sheet(item: $model.editing) { entry in
-            DiffToolAssociationEditor(entry: entry, existing: model.draft, tool: model.tool, completed: model.accept)
+            let identity=model.editorIdentity
+            DiffToolAssociationEditor(entry: entry, existing: model.draft, tool: model.tool, completed: {model.accept($0,for:identity)})
         }
     }
 }
@@ -188,7 +245,7 @@ struct ToolAssociationsTable: NSViewRepresentable {
         table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.edit(_:))
         context.coordinator.table = table
-        let scroll = NSScrollView(); scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder
+        let scroll = FocusScroll();scroll.coordinator=context.coordinator; scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder
         return scroll
     }
     func updateNSView(_ view: NSScrollView, context: Context) {
@@ -198,8 +255,14 @@ struct ToolAssociationsTable: NSViewRepresentable {
         if let index = coordinator.rows.firstIndex(where: { $0.id == model.selected }) { table.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
         else { table.deselectAll(nil) }
         coordinator.updating = false
+        coordinator.attach(table.window);coordinator.requestFocusIfNeeded()
+    }
+    final class FocusScroll:NSScrollView {
+        weak var coordinator:Coordinator?
+        override func viewDidMoveToWindow() {super.viewDidMoveToWindow();coordinator?.attach(window)}
     }
     static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) {
+        coordinator.retire()
         coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.target = nil; coordinator.table = nil
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
@@ -207,7 +270,32 @@ struct ToolAssociationsTable: NSViewRepresentable {
         var rows: [DiffToolAssociation] = []
         var updating = false
         weak var table: NSTableView?
-        init(model: ToolAssociationsModel) { self.model = model }
+        private var focusRequest:UUID
+        private var pendingFocus=false,retired=false
+        private var observation:NSObjectProtocol?
+        private weak var owner:NSWindow?
+        init(model:ToolAssociationsModel) {self.model=model;focusRequest=model.focusRequest}
+        deinit {if let observation {NotificationCenter.default.removeObserver(observation)}}
+        func attach(_ window:NSWindow?) {
+            guard owner !== window else {return}
+            if let observation {NotificationCenter.default.removeObserver(observation)};observation=nil;owner=window
+            if let window {observation=NotificationCenter.default.addObserver(forName:NSWindow.didEndSheetNotification,object:window,queue:.main) { [weak self] _ in
+                DispatchQueue.main.async {self?.restoreFocus()}
+            }}
+        }
+        func requestFocusIfNeeded() {
+            guard focusRequest != model.focusRequest else {return}
+            focusRequest=model.focusRequest;pendingFocus=true
+            DispatchQueue.main.async { [weak self] in self?.restoreFocus() }
+        }
+        func restoreFocus() {
+            guard !retired,pendingFocus,model.editing == nil,let table,let window=table.window,window.attachedSheet == nil else {return}
+            pendingFocus=false
+            if table.selectedRow >= 0 {table.scrollRowToVisible(table.selectedRow)}
+            window.makeFirstResponder(table)
+        }
+        func retire() {retired=true;pendingFocus=false;if let observation {NotificationCenter.default.removeObserver(observation)};observation=nil}
+
         func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
             guard rows.indices.contains(row) else { return nil }
@@ -230,17 +318,17 @@ struct ToolAssociationsTable: NSViewRepresentable {
     }
 }
 
-private struct DiffToolAssociationEditor: View {
+struct DiffToolAssociationEditor: View {
     @State private var draft: DiffToolAssociation
     let existing: [DiffToolAssociation]
     let tool: String
     let completed: (DiffToolAssociation?) -> Void
     init(entry: DiffToolAssociation, existing: [DiffToolAssociation], tool: String, completed: @escaping (DiffToolAssociation?) -> Void) { _draft = State(initialValue: entry); self.existing = existing; self.completed = completed; self.tool = tool }
-    private var valid: Bool { draft.valid && !existing.contains { $0.id != draft.id && $0.normalizedPattern == draft.normalizedPattern } }
+    private var valid: Bool { draft.valid && (tool != "merge" || MergeToolPreferences.supports(draft.program.builtIn)) && !existing.contains { $0.id != draft.id && $0.normalizedPattern == draft.normalizedPattern } }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text((existing.contains { $0.id == draft.id } ? "Edit " : "Add ") + tool + " tool").font(.headline)
-            TextField("Extension or filename", text: $draft.pattern)
+            HStack {Text("Extension:").frame(width:120,alignment:.leading);TextField("",text:$draft.pattern).accessibilityLabel("Tool extension or filename")}
             DiffProgramForm(program: $draft.program, tool: tool)
             if tool == "merge" { Text("Use .swift for an extension, or .filename for an exact filename.").font(.caption) }
             if !valid { Text("Choose a unique extension (such as .swift) or filename, and a valid program.").font(.caption).foregroundStyle(.red) }
@@ -436,7 +524,7 @@ struct MergeToolSettings: View {
                     Toggle("Block while merging", isOn: $model.value.blockWhileMerging).disabled(!model.value.program.enabled && !model.value.associations.contains { $0.program.enabled }).onChange(of: model.value.blockWhileMerging) { if !$0 { model.value.trustExitCode = false } }
                     Toggle("Trust the exit code", isOn: $model.value.trustExitCode).disabled(!model.value.trustExitCode && (!model.value.blockWhileMerging || !model.value.supportsTrustedExit))
                     Text("Executable tools report an exit code. Trust resolves only exit code zero; otherwise blocking mode asks whether to mark the result resolved. App bundles use that question. Word merging has no trusted exit status; save the reviewed document as the original conflicting file before marking it resolved.").font(.caption).foregroundStyle(.secondary)
-                    HStack { Spacer(); Button("Advanced…") { advanced = true } }
+                    HStack {Text("Specify alternate merge programs based on file extension.").font(.caption).foregroundStyle(.secondary);Spacer(); Button("Advanced…") { advanced = true } }
                 }.padding(8)
             }
             Text("Arguments: %base, %theirs, %mine, %merged, %bname, %tname, %yname, %mname and %wtroot. Hold Shift when opening a conflict to reverse the internal/external choice.").font(.caption).foregroundStyle(.secondary)

@@ -717,6 +717,70 @@
           "anchor": "struct CredentialSettingsPage"
         }
       ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSPROGSDIFF",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/DIFF-TOOLS-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/DiffToolSettings.swift",
+          "anchor": "struct DiffProgramForm"
+        },
+        {
+          "path": "Sources/TurtleGitMac/UnifiedDiffViewerSettings.swift",
+          "anchor": "struct UnifiedDiffViewerSettings"
+        }
+      ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSPROGSMERGE",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/DIFF-TOOLS-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/DiffToolSettings.swift",
+          "anchor": "struct DiffProgramForm"
+        },
+        {
+          "path": "Sources/TurtleGitMac/UnifiedDiffViewerSettings.swift",
+          "anchor": "struct UnifiedDiffViewerSettings"
+        }
+      ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSPROGSADV",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/DIFF-TOOLS-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/DiffToolSettings.swift",
+          "anchor": "struct DiffProgramForm"
+        },
+        {
+          "path": "Sources/TurtleGitMac/UnifiedDiffViewerSettings.swift",
+          "anchor": "struct UnifiedDiffViewerSettings"
+        }
+      ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_TOOLASSOC",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/DIFF-TOOLS-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/DiffToolSettings.swift",
+          "anchor": "struct DiffProgramForm"
+        },
+        {
+          "path": "Sources/TurtleGitMac/UnifiedDiffViewerSettings.swift",
+          "anchor": "struct UnifiedDiffViewerSettings"
+        }
+      ]
     }
   ]
 }

@@ -1,0 +1,159 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "746e13f3e6aac2d7f2db082f164f3afe11c380f4",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Diff/Merge/Unified Diff/association permanent labels, horizontal radio choices and compact native adapter menu",
+    "Native literal path completion and bookmark clearing after typed edits",
+    "Captured Browse drafts/owners, duplicate/cancel/close handling, selected-file validation before bookmark creation and independent Quit/Settings ownership",
+    "Advanced source group/footer, sorted selection and table focus return after nested editing/Remove",
+    "Captured association-editor replies and rejection of unsupported Merge adapters",
+    "All 36 static controls in four dialogs mapped partially; 30 newly reviewed"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/tool-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/tool-source-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/tool-source-editor-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/tool-source-identity-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "log": "build/qa/tool-source-native-controls-2026-10-17.log",
+    "exit": 0,
+    "distinct_families_passed": 3,
+    "owned_receivers_reaped": [
+      2095,
+      2127,
+      2282,
+      2440,
+      2485,
+      2520,
+      2551,
+      2762,
+      2782,
+      2860,
+      2876
+    ],
+    "independently_absent_owned_receivers": [
+      2095,
+      2127,
+      2282,
+      2440,
+      2485,
+      2520,
+      2551,
+      2762,
+      2782,
+      2860,
+      2876
+    ],
+    "navigation": {
+      "log": "build/qa/tool-source-navigation-recheck-2026-10-17.log",
+      "exit": 0,
+      "owned_receiver": 2782
+    },
+    "affected_identity_recheck": {
+      "log": "build/qa/tool-source-native-identity-2026-10-17.log",
+      "exit": 0,
+      "families_passed": 2,
+      "owned_receivers_reaped": [
+        2860,
+        2876
+      ]
+    }
+  },
+  "core": {
+    "repeated": false,
+    "reason": "Native-only changes; Git operations, argument parsing and persisted Core models unchanged."
+  },
+  "repairs": [
+    "Two initial Browse seed assertions assumed NSOpenPanel preserved a Save-panel filename; a URL directory-bit mismatch was also corrected. The accepted adaptation seeds the existing program folder, with filename preselection explicitly unclaimed. Logs: tool-source-native and tool-source-native-recheck.",
+    "Compacted the preexisting vertical adapter radio list into the source horizontal Internal/External row plus native Program kind menu. Captured nested editor identities after inspecting late Cancel handling.",
+    "The source fixture initially treated SwiftUI static Text as NSTextField; two subsequent fixture compiles used the wrong Swift accessibility namespace, and two passive-host accessibility probes returned no captions. Replaced this unsupported inspection with direct native editable-control checks and individually reviewed raw caption captures. No accessibility/VoiceOver acceptance claim. Logs: tool-source-native-final/accessibility/reviewed/protocol/layout.",
+    "The retained actual-Settings fixture referenced the old viewer placeholder and notified a generic NSTextField delegate. Updated it to use the new path label and actual owned native field editor. The added runner initially omitted its Git-engine argument (2762 crashed); supplying /usr/bin/git let the unchanged navigation case pass (2782).",
+    "Final inspection strengthened editor identity from association id to a fresh presentation UUID, covering reopening the same association; affected tool cases are rechecked separately."
+  ],
+  "captures": [
+    {
+      "path": "docs/site/assets/tool-associations-light.png",
+      "sha256": "a20295ac50af3b5a5bf2b6743ea4087f80f235ceca681bb12394104bec9a0c55",
+      "pixels": [
+        1440,
+        964
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/tool-associations-dark.png",
+      "sha256": "0b9c564e4f167b48bcbc86b1da882500506bbe3f7ea45e9aadbc0fb199b852cd",
+      "pixels": [
+        1440,
+        964
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/tool-association-editor-light.png",
+      "sha256": "689ba319ae25f19a220b286266038d036efe707c989dcd14a4b967a8f09013a1",
+      "pixels": [
+        1200,
+        582
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/tool-association-editor-dark.png",
+      "sha256": "fb97f20474edf4652efc6373ce43f5b33d9649edcf1c8f9f0e5e8d3f6a522396",
+      "pixels": [
+        1200,
+        582
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of actual shared Advanced/association editor views in private native window hosts, without changing user activation. Titles remain inactive by design. The later presentation-identity-only repair was rechecked without recapturing unchanged layout.",
+  "help": {
+    "files": 50,
+    "bytes": 1968682,
+    "mode": "check",
+    "unchanged": true
+  },
+  "hosted_observation": {
+    "head": "746e13f3e6aac2d7f2db082f164f3afe11c380f4",
+    "pages": {
+      "run": 38980682275,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 38980682310,
+      "status": "pending",
+      "conclusion": null
+    }
+  },
+  "limitations": [
+    "No complete upstream dialog certification",
+    "Static caption visibility reviewed visually; passive-host AX inspection provided no acceptance evidence",
+    "Real receiving applications, physical keyboard/double-click/chooser acceptance and signed bookmark grants remain open",
+    "System/bundled Git matrix not repeated: this family has no Git operations"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": []
+  }
+}

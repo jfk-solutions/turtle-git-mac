@@ -431,3 +431,39 @@ snapshot along with the existing Shift/path/owner/stage identity. This fixes the
 old default closure's use of global preferences. External merge bypass falls
 back to the source extension-based image or text conflict workflow, with raw-side
 and empty-Base selection handled by [image conflict selection](IMAGE-CONFLICT-PARITY.md).
+
+## Source tool forms and Browse ownership — October 17, 2026
+
+Diff, Merge, GNU patch viewer and extension association inputs now retain visible
+External Program and Arguments labels when populated. Program fields use the
+shared native literal filesystem completion adapter; changing a typed path drops
+its old bookmark. The Windows command line remains split into program/arguments,
+and built-in document adapters remain explicit macOS choices.
+
+Browse starts in the folder of an existing configured path and otherwise Applications.
+NSOpenPanel does not preselect the configured filename through its Save-panel name
+field. Internal/External choices use the source horizontal row; a compact native
+Program kind menu holds the additional document adapters. A
+single owned chooser disables its form, blocks Settings close/navigation and
+application Quit, validates a selected app directory or executable file before
+creating its bookmark, and accepts it only for the unchanged captured draft and
+owner. Duplicate replies, Cancel, dismantling and owner closure cannot install a
+late bookmark or error. No receiving tool is launched by Browse.
+
+Advanced now groups the Extension/Program table and Add/Edit/Remove/Restore
+Defaults separately from the OK/Cancel footer, matching the resource structure.
+The source extension instructions remain beside Advanced on both parent pages.
+Add/Edit/Cancel and Remove request focus back to the native table, after a nested
+sheet has ended, retaining the existing sorted selection behavior. An unsupported
+Diff-only adapter is rejected before it can enter a Merge association draft,
+rather than leaving an invalid parent waiting for Apply. Nested editor completions
+capture a fresh presentation identity, so an old Cancel cannot dismiss a newer
+editor even when reopening the same association.
+
+All 36 static resource controls across these four dialogs now have partial native
+mappings. Source filesystem completion is adapted to retained macOS scopes, so an
+App Store file grant does not authorize sibling enumeration. Native locale
+sorting, split command fields and built-in adapter choices are adaptations rather
+than pixel-identical Windows controls. Physical keyboard/double-click, real
+receiving applications, signed bookmarks and complete source acceptance remain
+open. All three distinct native families pass after the recorded fixture/runner repairs, including actual Settings navigation; the two affected tool families pass again after the presentation-identity repair. Four raw light/dark captures were individually reviewed: the source group/footer and populated Extension/Program/Arguments captions fit without clipping. All eleven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/tool-source-family-2026-10-17.json) for the build diagnostics, fixture failures and physical/signed limits.

@@ -1764,3 +1764,12 @@ clears externally removed selections. Independent selection requests guard
 Settings/Quit, while the password-manager action remains available in simple
 modes. See [Credential parity](CREDENTIAL-SETTINGS-PARITY.md#source-inputs-and-coherent-refresh--october-17-2026).
 Four grouped native case/engine combinations pass with system and bundled Git. Both raw light/dark page captures were individually reviewed: labels, editable Helper, list, actions and footers fit without clipping. All four owned receivers were reaped and independently absent. Core algorithms were unchanged and their suite was not repeated. Physical keyboard, signed Keychain/Finder and complete upstream acceptance remain open. See [batch evidence](qa/credential-source-family-2026-10-17.json).
+
+### Source tool forms and Browse ownership — October 17, 2026
+
+Diff/Merge/Unified Diff/association forms now share persistent labels, native path
+completion and captured, validated, owned Browse choices. Advanced uses the
+source group/footer structure and returns focus to its sorted native table after
+editing or removal. Merge draft acceptance rejects Diff-only adapters. See
+[tool parity](DIFF-TOOLS-PARITY.md#source-tool-forms-and-browse-ownership--october-17-2026).
+All three distinct native families pass after the recorded fixture/runner repairs, including actual Settings navigation; the two affected tool families pass again after the presentation-identity repair. Four raw light/dark captures were individually reviewed: the source group/footer and populated Extension/Program/Arguments captions fit without clipping. All eleven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/tool-source-family-2026-10-17.json) for the build diagnostics, fixture failures and physical/signed limits.

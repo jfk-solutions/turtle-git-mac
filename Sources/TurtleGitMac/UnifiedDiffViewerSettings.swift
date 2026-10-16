@@ -68,7 +68,7 @@ struct UnifiedDiffViewerSettings: View {
         _draft = State(initialValue:value); _saved = State(initialValue:value)
     }
     @State private var error: String?
-    @State private var chooser = ToolApplicationChooser()
+    @StateObject private var chooser = ToolApplicationChooser()
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             GroupBox("Configure viewer program for GNU diff files (patch files)") {
@@ -76,12 +76,13 @@ struct UnifiedDiffViewerSettings: View {
                     Picker("Viewer", selection: $draft.enabled) {
                         Text("TurtleGit Unified Diff").tag(false)
                         Text("External").tag(true)
-                    }.pickerStyle(.radioGroup).labelsHidden()
+                    }.pickerStyle(.radioGroup).horizontalRadioGroupLayout().labelsHidden()
                     HStack {
-                        TextField("Viewer application", text: Binding(get: { draft.applicationPath }, set: { draft.applicationPath = $0; draft.bookmark = nil }))
+                        Text("External Program:").frame(width:120,alignment:.leading)
+                        PathEntryField(text:Binding(get:{draft.applicationPath},set:{draft.applicationPath=$0;draft.bookmark=nil}),label:"Unified Diff program",preferences:preferences,mayEdit:{draft.enabled && !chooser.selecting}).frame(height:24)
                         Button("Browse…", action: browse)
                     }.disabled(!draft.enabled)
-                    TextField("Arguments", text: $draft.arguments).disabled(!draft.enabled).accessibilityIdentifier("UnifiedDiff.ViewerArguments")
+                    HStack {Text("Arguments:").frame(width:120,alignment:.leading);TextField("",text:$draft.arguments).accessibilityLabel("Unified Diff arguments").accessibilityIdentifier("UnifiedDiff.ViewerArguments")}.disabled(!draft.enabled)
                     Text("Use %1 for the patch and %title for its title. The patch is appended when %1 is absent. Leave arguments empty to open a document in an app bundle. Quotes group an argument; filenames and titles are substituted afterward.").font(.caption).foregroundStyle(.secondary)
                     if !draft.valid { Text(draft.argumentsValid ? "Choose an application bundle or executable using its full path." : "Finish the quote or escape in the arguments.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
@@ -92,13 +93,14 @@ struct UnifiedDiffViewerSettings: View {
                 Button("Cancel") { draft = saved; chooser.window?.performClose(nil) }
                 Button("Apply") { draft.save(to:preferences); saved = draft }.disabled(!draft.valid || draft == saved)
             } }
-        }.padding(20).background(ToolChooserProbe(chooser: chooser).frame(width: 0, height: 0)).onDisappear { chooser.cancel() }
+        }.padding(20).disabled(chooser.selecting).background(ToolChooserProbe(chooser: chooser).frame(width: 0, height: 0)).onDisappear { chooser.cancel() }
             .settingsParticipant("unifiedDiff.viewer", page: settingsPage, value: draft, modified: { draft != saved },
                 validate: { draft.valid ? nil : "Choose a valid viewer and argument template." },
                 apply: { draft.save(to:preferences); saved = draft; return true }, cancel: { draft = saved })
             .alert("Unified Diff Viewer", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
     }
     private func browse() {
-        chooser.choose({ application, bookmark in draft.bookmark = bookmark; draft.applicationPath = application.path }, failure: { error = $0 }, allowExecutables: true)
+        let captured=draft
+        chooser.choose({ application, bookmark in draft.bookmark = bookmark; draft.applicationPath = application.path }, failure: { error = $0 }, allowExecutables: true,currentPath:captured.applicationPath,isCurrent:{draft == captured && draft.enabled})
     }
 }
