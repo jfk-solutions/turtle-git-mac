@@ -1,7 +1,7 @@
 # Bundled binary and Mathematica comparisons
 
 Settings → Diff Viewer → Advanced → Restore Defaults installs the bundled
-`.zip`, `.dll`, `.exe`, `.dylib`, `.nb` and Word document comparisons. Accept Advanced and Apply
+`.zip`, `.dll`, `.exe`, `.dylib`, `.nb` Word, Excel and LibreOffice document comparisons. Accept Advanced and Apply
 Settings to save the changes. Other associations are retained; existing rows keep
 their identity. Existing saved configurations remain authoritative until changed.
 Each association or the general Diff Viewer program can choose an internal,
@@ -61,7 +61,7 @@ handoff from actually executing Mathematica. The latter, physical popup/keyboard
 VoiceOver, all PE resource languages, exotic Mach-O slices, real receiver grants,
 signed Finder/App Store access and full source dialog parity remain open. Word comparison is documented in [its native adapter guide](WORD-COMPARISON.md).
 The [Excel adapter](EXCEL-COMPARISON.md) now covers workbook comparisons.
-PowerPoint and LibreOffice/OpenDocument automation remain open.
+The [LibreOffice adapter](LIBREOFFICE-COMPARISON.md) adds UNO comparison and tracked-change merge handoff; live LibreOffice acceptance remains open. PowerPoint comparison remains open.
 
 ## Native captures
 

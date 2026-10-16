@@ -12,7 +12,7 @@ public enum DiffToolFailure: LocalizedError {
     }
 }
 public enum BuiltInDiffTool: String, Codable, CaseIterable, Sendable {
-    case zipInventory, binaryReport, mathematicaNotebook, wordDocument, excelWorkbook, excelWorkbookFast
+    case zipInventory, binaryReport, mathematicaNotebook, wordDocument, excelWorkbook, excelWorkbookFast, libreOfficeDocument
     public var title: String {
         switch self {
         case .zipInventory: return "ZIP archive inventory"
@@ -21,6 +21,7 @@ public enum BuiltInDiffTool: String, Codable, CaseIterable, Sendable {
         case .wordDocument: return "Microsoft Word document comparison"
         case .excelWorkbook: return "Microsoft Excel workbook comparison"
         case .excelWorkbookFast: return "Microsoft Excel workbook comparison (fast)"
+        case .libreOfficeDocument: return "LibreOffice document comparison"
         }
     }
     public var extensions: [String] {
@@ -28,9 +29,10 @@ public enum BuiltInDiffTool: String, Codable, CaseIterable, Sendable {
         case .zipInventory: return [".zip"]
         case .binaryReport: return [".dll", ".exe", ".dylib"]
         case .mathematicaNotebook: return [".nb"]
-        case .wordDocument: return [".doc", ".docx", ".docm", ".dot", ".dotx", ".odt"]
+        case .wordDocument: return [".doc", ".docx", ".docm", ".dot", ".dotx"]
         case .excelWorkbook: return [".xls", ".xlsx", ".xlsm", ".xlsb", ".xlam"]
         case .excelWorkbookFast: return []
+        case .libreOfficeDocument: return [".odt", ".ods", ".sxw"]
         }
     }
 }
@@ -155,16 +157,17 @@ public struct MergeToolPreferences: Codable, Equatable, Sendable {
     public var supportsTrustedExit: Bool {
         (program.enabled && program.builtIn == nil && !program.isApplicationBundle) || associations.contains { $0.program.enabled && $0.program.builtIn == nil && !$0.program.isApplicationBundle }
     }
-    public var valid: Bool { (program.builtIn == nil || program.builtIn == .wordDocument) && associations.allSatisfy { $0.program.builtIn == nil || $0.program.builtIn == .wordDocument } && program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.normalizedPattern)).count == associations.count }
+    public static func supports(_ tool: BuiltInDiffTool?) -> Bool { tool == nil || tool == .wordDocument || tool == .libreOfficeDocument }
+    public var valid: Bool { Self.supports(program.builtIn) && associations.allSatisfy { Self.supports($0.program.builtIn) } && program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.normalizedPattern)).count == associations.count }
     public static func load(from defaults: UserDefaults = .standard) -> Self {
         guard let data = defaults.data(forKey: "TurtleGit.MergeTools") else { var value=Self(); value.restoreBundledAssociations(); return value }
         guard let value = try? JSONDecoder().decode(Self.self, from:data) else { return Self() }
         return value
     }
     public mutating func restoreBundledAssociations() {
-        for pattern in [".doc", ".docx", ".docm"] {
+        for (pattern, tool) in [(".doc", BuiltInDiffTool.wordDocument), (".docx", .wordDocument), (".docm", .wordDocument), (".odt", .libreOfficeDocument), (".ods", .libreOfficeDocument), (".sxw", .libreOfficeDocument)] {
             var value=associations.first { $0.normalizedPattern == pattern } ?? DiffToolAssociation()
-            value.pattern=pattern; value.program=DiffToolProgram(); value.program.enabled=true; value.program.builtIn = .wordDocument
+            value.pattern=pattern; value.program=DiffToolProgram(); value.program.enabled=true; value.program.builtIn = tool
             associations.removeAll { $0.normalizedPattern == pattern }; associations.append(value)
         }
     }
@@ -178,7 +181,7 @@ public struct MergeToolPreferences: Codable, Equatable, Sendable {
         let found = keys.compactMap { key in associations.first { $0.normalizedPattern == key } }.first?.program ?? program
         guard found.enabled != alternate, found.builtIn != nil || !found.applicationPath.isEmpty else { return nil }
         var result = found; result.enabled = true
-        guard result.valid, result.builtIn == nil || result.builtIn == .wordDocument else { throw DiffToolFailure.application }; return result
+        guard result.valid, Self.supports(result.builtIn) else { throw DiffToolFailure.application }; return result
     }
 }
 public struct ExternalMergeInputs: Sendable {

@@ -1357,3 +1357,11 @@ check after passing the build/Core and earlier native steps. The native page/foo
 now reserve explicit control-frame space; the original assertion plus a stricter
 margin check passes locally, with six refreshed light/dark captures. Hosted
 verification remains pending. See [the scoped repair](SETTINGS-NAVIGATION-PARITY.md#native-footer-containment-after-hosted-failure--october-16-2026).
+
+## LibreOffice document workflow — October 16, 2026
+
+The bundled [LibreOffice family](LIBREOFFICE-COMPARISON.md) now provides source
+UNO tracked-change comparison and mine/theirs merge, literal private inputs,
+isolated profile/runtime ownership, Settings associations and native Save As/
+resolution flow. Live LibreOffice and signed sandbox acceptance remain open.
+See [grouped evidence](qa/libreoffice-family-2026-10-16.json) for exact checks, repairs and limits.

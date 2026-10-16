@@ -25,7 +25,7 @@ final class WordMergeTests:XCTestCase {
     func testMergeDefaultsPreserveSavedChoicesAndRestoreIdentity() throws {
         let suite="TurtleGit.WordMerge."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!;defer{prefs.removePersistentDomain(forName:suite)}
         var value=MergeToolPreferences.load(from:prefs)
-        XCTAssertEqual(value.associations.map(\.pattern),[".doc",".docx",".docm"])
+        XCTAssertEqual(value.associations.map(\.pattern),[".doc",".docx",".docm",".odt",".ods",".sxw"])
         XCTAssertEqual(try value.selected(path:"A.DOCX")?.builtIn,.wordDocument);XCTAssertNil(try value.selected(path:"a.docx",alternate:true))
         XCTAssertFalse(value.supportsTrustedExit)
         let id=value.associations[1].id;value.associations[1].program.enabled=false;try value.save(to:prefs)

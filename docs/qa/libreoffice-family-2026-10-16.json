@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "b79195b4e2b5816574b2c216b97d0e19c1aa332a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected LibreOffice ODT/ODS/SXW UNO comparison and tracked-change merge handoff, settings, native ownership, documentation/Help and CI",
+  "source": [
+    "contrib/diff-scripts/diff-odt.js: load new, show tracked changes, CompareDocuments against base.",
+    "contrib/diff-scripts/merge-odt.js: load mine, compare theirs; base unused; distinct merged/mine path requires Save As.",
+    "diff-ppt.js presentation Merge is absent from the installed PowerPoint Mac dictionary; no replacement or parity claim made."
+  ],
+  "implementation": [
+    "Exact private editable source-role files; fixed worker plus literal JSON; filenames retained.",
+    "Launch Services fresh nested LibreOffice Python application, UUID pipe and private profile; no existing desktop/current frame attachment.",
+    "UNO properties use typed NEVER_EXECUTE/NO_UPDATE constants, owned loaded-document frame and source dispatch sequence.",
+    "Atomic bounded completion receipt, unopened/uncertain cleanup distinction; cancellation signals worker and actual runtime exit retains operation/Quit ownership; 180/185-second termination only targets the created runtime.",
+    "Mine/theirs orientation follows Git conflict loader and existing rebase handling. Native preparation/Save As, expected-stage revalidation and explicit Mark Resolved/No; no automatic save/stage.",
+    "Default/Restore Defaults ODT/ODS/SXW associations in Diff and Merge, preserved saved Word ODT choice, row identity/unrelated records; Shift bypass and Apply/Cancel.",
+    "Existing Word merge defaults/fixture updated for six shipped association rows. New native CI family uses both Git engines."
+  ],
+  "core": {
+    "exit": 0,
+    "cases": 20,
+    "groups": [
+      "LibreOfficeComparisonTests (5)",
+      "WordComparisonTests (4)",
+      "WordMergeTests (4)",
+      "DiffToolPreferencesTests (7)"
+    ],
+    "log": "build/qa/libreoffice-core-repair.log",
+    "initial_failure": {
+      "log": "build/qa/libreoffice-core.log",
+      "reason": "New fixture omitted required ComparisonFileContent.mode arguments; repaired before 20-test pass."
+    },
+    "worker_checks": "Execute shipping Python worker using injected UNO/process interfaces: literal encoded URLs, typed properties, owned frame, dispatch sequence, cancellation before spawn, connect failure termination/wait, load/dispatch uncertainty receipts."
+  },
+  "debug": {
+    "initial_exit": 0,
+    "initial_log": "build/qa/libreoffice-debug.log",
+    "initial_exit_zero_no_output_diagnostics": 3,
+    "final_exit": 0,
+    "final_log": "build/qa/libreoffice-final-debug.log",
+    "final_exit_zero_no_output_diagnostics": 7,
+    "note": "Project regeneration rewrote unrelated current Info declarations. Restored authoritative App-Info.plist and original project identities plus only eight new source-registration lines, then rebuilt affected packaging. Built Office usage/document type declarations match source; all 50 bundled Help files byte-equal."
+  },
+  "native": {
+    "exit": 0,
+    "case_engine_pairs": 4,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "logs": [
+      "build/qa/libreoffice-native-final.log",
+      "build/qa/libreoffice-word-merge-retained.log"
+    ],
+    "checks": [
+      "Native nested runtime discovery in a fake private application bundle, bounded receipt validation, real missing-runtime path when no LibreOffice installed.",
+      "Shipping diff default routing and exact inputs, Shift bytes, unavailable cleanup, accepted/retired copy retention and Quit guard.",
+      "Settings draft Restore Defaults/Apply, real private binary Git conflict, source theirs/mine snapshots, literal JSON result path, Save As instruction acceptance, No and duplicate late replies, instructions/worker retirement, unavailable cleanup, explicit saved-result staging and unchanged HEAD.",
+      "Retained Word native merge workflow with expanded shared association defaults."
+    ],
+    "initial_failures": [
+      {
+        "log": "build/qa/libreoffice-native.log",
+        "reason": "Runtime discovery assertion compared directory URLs including unequal trailing-directory metadata."
+      },
+      {
+        "log": "build/qa/libreoffice-native-diagnostic.log",
+        "reason": "Added diagnostic confirmed identical resolved path strings; assertion now compares canonical paths."
+      }
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      88857,
+      88890,
+      88917,
+      89106,
+      89307,
+      89505
+    ],
+    "external_office_apps_launched": false
+  },
+  "documentation": {
+    "help": "36 guides, 47 topics, 50 files, 1953075 bytes; source/built equality verified.",
+    "site_log": "build/qa/libreoffice-site.log",
+    "screenshots": "No new screenshots; this is backend/routing plus the existing native instruction/resolve sheet, not a visual parity claim.",
+    "site": "249 documents; zero unresolved fragments"
+  },
+  "limits": [
+    "LibreOffice not installed: actual nested Python launch, UNO bridge loading, Writer/Calc rendering, formats and Save As remain unverified.",
+    "Worker tests inject service/process protocols; they do not establish an actual office service or real runtime termination behavior.",
+    "Reference-file macro/link behavior during CompareDocuments still needs live acceptance; explicit properties are applied when loading the destination.",
+    "Minimum-OS, physical controls, signed Finder/grants/AppStore and whole application parity remain open.",
+    "PowerPoint presentation Compare/Merge remains unsupported by inspected Mac scripting API.",
+    "No full hosted CI pass claimed."
+  ]
+}

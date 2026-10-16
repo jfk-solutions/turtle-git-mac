@@ -466,3 +466,7 @@ Advanced → ReaddUnselectedAddedFilesAfterCommit controls this restoration.
 Use Staging support to preserve and commit exact staged contents instead.
 See [checkbox index behavior](COMMIT-CHECKBOX-INDEX.md), including failure and
 cancellation effects.
+
+[LibreOffice comparison and merge](LIBREOFFICE-COMPARISON.md) use tracked changes
+for ODT/ODS/SXW documents. Merges retain Save As and explicit Mark Resolved/No.
+An installed LibreOffice Python runtime is required; live/signed acceptance remains open.

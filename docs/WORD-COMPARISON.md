@@ -5,11 +5,11 @@ tracked text and formatting changes. It ports the modern Word branch of
 TortoiseGit's `diff-doc.js`; it does not flatten a document to plain text.
 Word must be installed separately. The adapter is offered for `.doc`, `.docx`,
 `.docm`, `.dot`, `.dotx` and `.odt`. Actual format conversion is performed by Word.
-PowerPoint and LibreOffice fallback remain separate port work.
+PowerPoint remains separate port work; [LibreOffice](LIBREOFFICE-COMPARISON.md) now has a UNO comparison/merge adapter.
 [Excel comparison](EXCEL-COMPARISON.md) has its own native adapter.
 [Word merge](WORD-MERGE.md) now has its own three-way workflow.
 
-New unsaved Diff Viewer defaults include these associations. Existing saved
+New unsaved Diff Viewer defaults include the five DOC/DOCX/DOCM/DOT/DOTX associations. ODT now defaults to LibreOffice; Word remains explicitly selectable for it. Existing saved
 settings remain authoritative. To restore the bundled associations, use Settings
 → Diff Viewer → Advanced → Restore Defaults, accept Advanced, then Apply Settings.
 Other associations remain. The program editor can select Microsoft Word document

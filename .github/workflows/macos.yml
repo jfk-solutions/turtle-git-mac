@@ -305,6 +305,8 @@ jobs:
         run: python3 scripts/test-git-properties-family.py --only parents --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Image native command family
         run: python3 scripts/test-image-command-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: LibreOffice comparison and tracked-change merge owners
+        run: python3 scripts/test-libreoffice-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Inline engine native consumers
         run: python3 scripts/test-inline-native.py
       - name: Working copy revision utility and upstream templates

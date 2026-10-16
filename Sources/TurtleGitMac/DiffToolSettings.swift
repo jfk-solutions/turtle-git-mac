@@ -43,8 +43,8 @@ struct DiffProgramForm: View {
                 if value != "internal" { program.builtIn = BuiltInDiffTool(rawValue: value) }
             })) {
                 Text("TurtleGitMerge").tag("internal"); Text("External").tag("external")
-                ForEach(tool == "merge" ? [.wordDocument] : BuiltInDiffTool.allCases, id: \.self) { value in
-                    Text(tool == "merge" ? "Microsoft Word document merge" : value.title).tag(value.rawValue)
+                ForEach(tool == "merge" ? [.wordDocument, .libreOfficeDocument] : BuiltInDiffTool.allCases, id: \.self) { value in
+                    Text(tool == "merge" ? (value == .wordDocument ? "Microsoft Word document merge" : "LibreOffice document merge") : value.title).tag(value.rawValue)
                 }
             }.pickerStyle(.radioGroup).labelsHidden()
             HStack {
@@ -111,7 +111,7 @@ struct DiffToolSettings: View {
     let tool: String
     init(associations: [DiffToolAssociation], tool: String) { draft = associations; self.tool = tool }
     var rows: [DiffToolAssociation] { draft.sorted { $0.normalizedPattern.localizedStandardCompare($1.normalizedPattern) == .orderedAscending } }
-    var valid: Bool { draft.allSatisfy(\.valid) && Set(draft.map(\.normalizedPattern)).count == draft.count && (tool != "merge" || draft.allSatisfy { $0.program.builtIn == nil || $0.program.builtIn == .wordDocument }) }
+    var valid: Bool { draft.allSatisfy(\.valid) && Set(draft.map(\.normalizedPattern)).count == draft.count && (tool != "merge" || draft.allSatisfy { MergeToolPreferences.supports($0.program.builtIn) }) }
     func restoreDefaults() {
         guard editing == nil else { return }
         if tool == "merge" {
@@ -157,7 +157,7 @@ struct DiffToolAssociations: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Advanced " + model.tool + " settings").font(.headline)
             ToolAssociationsTable(model: model).frame(minHeight: 240)
-            if model.tool == "diff" { Text("Restore Defaults restores bundled archive, binary, Mathematica, Word and Excel comparisons, preserving other associations. Office and Mathematica comparisons require those applications.").font(.caption).foregroundStyle(.secondary) }
+            if model.tool == "diff" { Text("Restore Defaults restores bundled archive, binary, Mathematica, Word, Excel and LibreOffice comparisons, preserving other associations. Office and Mathematica comparisons require those applications.").font(.caption).foregroundStyle(.secondary) }
             if model.tool == "merge" { Text("Restore Defaults restores Word document merging for .doc/.docx/.docm, preserving other associations. Review changes in Word and Save As the original conflicting file.").font(.caption).foregroundStyle(.secondary) }
             HStack {
                 Button("Add…", action: model.add)
@@ -214,7 +214,7 @@ struct ToolAssociationsTable: NSViewRepresentable {
             let entry = rows[row], text: String
             if tableColumn?.identifier.rawValue == "extension" { text = entry.pattern }
             else if !entry.program.enabled { text = "TurtleGitMerge (external disabled)" }
-            else { text = (entry.program.builtIn == .wordDocument && model.tool == "merge" ? "Microsoft Word document merge" : entry.program.displayName) + (entry.program.builtIn != nil || entry.program.arguments.isEmpty ? "" : " " + entry.program.arguments) }
+            else { text = (model.tool == "merge" && entry.program.builtIn == .libreOfficeDocument ? "LibreOffice document merge" : entry.program.builtIn == .wordDocument && model.tool == "merge" ? "Microsoft Word document merge" : entry.program.displayName) + (entry.program.builtIn != nil || entry.program.arguments.isEmpty ? "" : " " + entry.program.arguments) }
             let cell = NSTableCellView(), field = NSTextField(labelWithString: text); field.lineBreakMode = .byTruncatingTail; field.toolTip = text
             field.translatesAutoresizingMaskIntoConstraints = false; cell.addSubview(field); cell.textField = field
             NSLayoutConstraint.activate([field.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 5), field.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -5), field.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
@@ -283,6 +283,7 @@ private struct DiffToolAssociationEditor: View {
         }
     }
     static var presentInventory: (FileComparisonWindowController) -> Bool = { controller in controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return true }
+    static var compareLibreOffice: (LibreOfficeComparisonPreview, OperationCancellation) async throws -> Void = { try await LibreOfficeComparisonAutomation.compare($0, cancellation: $1) }
     static var compareWord: (WordComparisonPreview, OperationCancellation) async throws -> Void = { try await WordComparisonAutomation.compare($0,cancellation:$1) }
     private(set) static var activeRequests = 0
     static func discardAll() { let windows = Array(inventoryWindows.values); inventoryWindows = [:]; for window in windows { window.close() }; let reports = Array(binaryWindows.values); binaryWindows = [:]; for report in reports { report.close() };let warnings=Array(excelWarnings.values);excelWarnings=[:];for warning in warnings{warning.close()}; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
@@ -322,6 +323,21 @@ private struct DiffToolAssociationEditor: View {
                 // Saved Data cleanup (or the OS temporary-directory cleanup).
                 return true
             } catch { preview.discard(); throw error }
+        }
+        if program.builtIn == .libreOfficeDocument {
+            let token = cancellation ?? OperationCancellation()
+            activeRequests += 1; defer { activeRequests -= 1; withExtendedLifetime(permissions) {} }
+            let root = try TurtleGitTemporaryStorage.root
+            let preview = try await Task.detached { try LibreOfficeComparisonPreview.prepare(document, in: root, cancellation: token) }.value
+            var dispatched = false
+            do {
+                try token.check(); dispatched = true
+                try await compareLibreOffice(preview, token)
+                return true
+            } catch {
+                if !dispatched || (error as? LibreOfficeComparisonFailure)?.possiblyOpened == false { preview.discard() }
+                throw error
+            }
         }
         if program.builtIn == .wordDocument {
             let token = cancellation ?? OperationCancellation()
@@ -496,8 +512,8 @@ struct MergeToolSettings: View {
             return { observation.invalidate() }
         }
     }
-    func confirmWordPreparation(path: String) async -> Bool {
-        let question=NSAlert(); question.messageText="TurtleGit Word Merge"; question.alertStyle = .informational
+    func confirmWordPreparation(path: String, libreOffice: Bool = false) async -> Bool {
+        let question=NSAlert(); question.messageText=libreOffice ? "TurtleGit LibreOffice Merge" : "TurtleGit Word Merge"; question.alertStyle = .informational
         question.informativeText="After you click OK we'll create a merge document. Please wait.\nThen reject or accept changes and use Save As to save the original conflicting file:\n\n"+path
         question.addButton(withTitle:"OK"); question.addButton(withTitle:"Cancel")
         return await ask(question)
@@ -543,7 +559,9 @@ struct MergeToolSettings: View {
 
 @MainActor enum MergeToolApplication {
     private(set) static var previews: [URL] = []
+    static var mergeLibreOffice: (LibreOfficeComparisonPreview, OperationCancellation) async throws -> Void = { try await LibreOfficeComparisonAutomation.compare($0, cancellation: $1) }
     static var mergeWord: (WordMergePreview,OperationCancellation) async throws -> Void = { try await WordComparisonAutomation.merge($0,cancellation:$1) }
+    static var configureLibreOfficeSession: (ExternalMergeSession) -> Void = { _ in }
     static var configureWordSession: (ExternalMergeSession) -> Void = { _ in }
     private(set) static var activeRequests = 0
     static func discardAll() { for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
@@ -563,6 +581,26 @@ struct MergeToolSettings: View {
         if let expectedEntry, input.entry != expectedEntry { throw ResolveFailure.stale }
         guard !session.retired else { return true }
         guard !GitRuntime.isAppStoreBuild || access?.contains(input.result) == true else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        if program.builtIn == .libreOfficeDocument {
+            configureLibreOfficeSession(session)
+            onPrepared()
+            guard await session.confirmWordPreparation(path: input.result.path, libreOffice: true), !session.retired else { return true }
+            let root = try TurtleGitTemporaryStorage.root
+            let preview = try await Task.detached { try LibreOfficeComparisonPreview.prepare(input, in: root, cancellation: token) }.value
+            var dispatched = false
+            do {
+                try await repository.validateExternalMergeInputs(input, cancellation: token)
+                try token.check(); guard !session.retired else { throw OperationCancellationFailure.cancelled }
+                dispatched = true; try await mergeLibreOffice(preview, token)
+                if settings.blockWhileMerging, !session.retired, !token.isCancelled {
+                    try await session.resolveIfConfirmed(repository: repository, entry: input.entry, path: path)
+                }
+                return true
+            } catch {
+                if !dispatched || (error as? LibreOfficeComparisonFailure)?.possiblyOpened == false { preview.discard() }
+                throw error
+            }
+        }
         if program.builtIn == .wordDocument {
             configureWordSession(session)
             onPrepared()

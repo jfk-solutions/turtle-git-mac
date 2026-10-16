@@ -26,7 +26,7 @@ import TurtleGitCore
         let suite="TurtleGit.WordMergeNative."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!;defer{prefs.removePersistentDomain(forName:suite)}
         var custom=DiffToolAssociation();custom.pattern=".txt";custom.program.enabled=false
         let associations=ToolAssociationsModel(associations:[custom],tool:"merge");associations.restoreDefaults()
-        try require(associations.valid && associations.draft.count==4 && associations.draft.contains(custom) && associations.draft.first{$0.id==associations.selected}?.pattern==".docx","Native Merge Restore Defaults lost rows/selection")
+        try require(associations.valid && associations.draft.count==7 && associations.draft.contains(custom) && associations.draft.first{$0.id==associations.selected}?.pattern==".docx","Native Merge Restore Defaults lost rows/selection")
         var initial=MergeToolPreferences();initial.associations=[custom];try initial.save(to:prefs)
         let draft=ToolSettingsDraft(initial,valid:{$0.valid},persist:{try $0.save(to:prefs)})
         draft.value.associations=associations.draft;try require(MergeToolPreferences.load(from:prefs)==initial,"Merge defaults persisted before Apply")
