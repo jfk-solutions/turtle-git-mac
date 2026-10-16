@@ -137,6 +137,8 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         destinationAccess = access
         key = keys.first ?? ""; useKey = sshAvailable && (defaults.object(forKey: "Clone.UseSSHKey") as? Bool ?? true)
     }
+    var pathCompletionAvailable: Bool { !invalidated && !finished && !activeOperation }
+    var pathCompletionPermissions: [RepositoryAccessLease] { [destinationAccess].compactMap { $0 } }
     var supportsKey: Bool {
         let url = source.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return url.hasPrefix("svn+ssh://") || url.hasPrefix("ssh://") || (!url.contains("://") && !url.hasPrefix("/") && url.contains(":"))
@@ -304,7 +306,7 @@ struct CloneDialog: View {
                                 Button { model.browseSource() } label: { CommandLabel(title: "Browse local repository…", icon: .explore) }
                             } label: { Image(systemName: "chevron.down") }.menuStyle(.borderlessButton).frame(width: 18)
                         }
-                        HStack { Text("Directory:").frame(width: 70, alignment: .leading); TextField("Destination directory", text: $model.directory); Button("Browse…") { model.browseDirectory() } }
+                        HStack { Text("Directory:").frame(width: 70, alignment: .leading); PathEntryField(text: $model.directory, label: "Destination directory", permissions: model.pathCompletionPermissions, mayEdit: { model.pathCompletionAvailable }).frame(height: 22); Button("Browse…") { model.browseDirectory() } }
                         HStack {
                             Toggle("Depth", isOn: $model.useDepth).disabled(model.svn); TextField("Depth", text: $model.depth).frame(width: 48).disabled(!model.useDepth || model.svn)
                             Toggle("Recursive", isOn: $model.recursive).disabled(model.svn || model.bare)

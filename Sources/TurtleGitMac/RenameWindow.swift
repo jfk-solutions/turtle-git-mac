@@ -117,7 +117,6 @@ import TurtleGitCore
 }
 private struct RenameDialog: View {
     @ObservedObject var model: RenameWindowModel
-    @FocusState private var focused: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if model.progress {
@@ -126,11 +125,11 @@ private struct RenameDialog: View {
                 HStack { if !model.busy { Button("Back") { model.back() } }; Spacer(); Button(model.busy ? "Cancel" : "Close") { if model.busy { model.cancel() } else { model.saveActionLog(); model.close() } }.disabled(model.cancelling || model.hasQuestion || model.confirmingCancellation) }
             } else {
                 Text("Rename “\((model.source as NSString).lastPathComponent)”: ").lineLimit(2).help(model.source)
-                HStack { Text("New name:").frame(width: 90, alignment: .leading); TextField("New name", text: $model.name).textFieldStyle(.roundedBorder).focused($focused).disabled(!model.canEdit); Button("…") { model.browse() }.disabled(!model.canEdit) }
+                HStack { Text("New name:").frame(width: 90, alignment: .leading); PathEntryField(text: $model.name, label: "New name", base: model.repository.root.appendingPathComponent(model.source).deletingLastPathComponent(), permissions: [model.access].compactMap { $0 }, focus: true, mayEdit: { model.canEdit }).frame(height: 22).disabled(!model.canEdit); Button("…") { model.browse() }.disabled(!model.canEdit) }
                 if let error = model.error { Text(error).font(.caption).foregroundStyle(.red).lineLimit(2) }
                 Spacer(minLength: 0)
                 HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("OK") { model.rename() }.keyboardShortcut(.defaultAction).disabled(!model.canEdit); Button("Cancel") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction).disabled(model.choosingDestination) }
             }
-        }.padding(16).onAppear { focused = true }
+        }.padding(16)
     }
 }

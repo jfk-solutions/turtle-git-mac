@@ -76,6 +76,7 @@ import TurtleGitCore
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let directory: String
+    var pathCompletionAvailable: Bool { !invalidated && !busy && progress == nil && pickerTarget == nil }
     var outputAccess: RepositoryAccessLease?
     @Published var destination = ""
     @Published var target = Target.head
@@ -249,7 +250,7 @@ struct ExportDialog: View {
         VStack(alignment: .leading, spacing: 12) {
             GroupBox("Export Zip File") {
                 VStack(alignment: .leading) { Text("Zip File")
-                    HStack { TextField("ZIP file", text: $model.destination); Button("…") { model.chooseDestination() }.accessibilityLabel("Choose ZIP file") }
+                    HStack { PathEntryField(text: $model.destination, label: "ZIP file", permissions: [model.access, model.outputAccess].compactMap { $0 }, mayEdit: { model.pathCompletionAvailable }).frame(height: 22); Button("…") { model.chooseDestination() }.accessibilityLabel("Choose ZIP file") }
                 }.padding(8)
             }
             .disabled(model.busy)

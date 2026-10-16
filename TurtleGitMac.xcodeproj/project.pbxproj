@@ -386,6 +386,7 @@
 		C210101600000000000001A0 /* ApplicationAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C210101600000000000001A1 /* ApplicationAssets.xcassets */; };
 		C210101600000000000001A2 /* Branding in Resources */ = {isa = PBXBuildFile; fileRef = C210101600000000000001A3 /* Branding */; };
 		C210101600000000000001A4 /* TurtleGitPatch.icns in Resources */ = {isa = PBXBuildFile; fileRef = C210101600000000000001A5 /* TurtleGitPatch.icns */; };
+		C210101600000000000001B0 /* PathEntryField.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101600000000000001B1 /* PathEntryField.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -870,6 +871,7 @@
 		C210101600000000000001A1 /* ApplicationAssets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = ApplicationAssets.xcassets; path = Resources/ApplicationAssets.xcassets; sourceTree = "<group>"; };
 		C210101600000000000001A3 /* Branding */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Branding; path = Resources/Branding; sourceTree = "<group>"; };
 		C210101600000000000001A5 /* TurtleGitPatch.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = TurtleGitPatch.icns; path = Resources/Branding/TurtleGitPatch.icns; sourceTree = "<group>"; };
+		C210101600000000000001B1 /* PathEntryField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathEntryField.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1116,6 +1118,7 @@
 				1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */,
 				4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */,
 				2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */,
+				C210101600000000000001B1 /* PathEntryField.swift */,
 				5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */,
 				9B6A308CF3E486ADD7497BD1 /* WorktreeListTable.swift */,
 				1669C286FA69F91FFFF7C002 /* WorktreeListWindow.swift */,
@@ -2100,6 +2103,7 @@
 				140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */,
 				3A74A3FA2DEEA1B3A877C24E /* UnifiedDiffAppearanceSettings.swift in Sources */,
 				1CF4C1812C13221DE3927E15 /* UnifiedDiffViewerSettings.swift in Sources */,
+				C210101600000000000001B0 /* PathEntryField.swift in Sources */,
 				37FF0ADA08C102C423B8A3C0 /* WorktreeCreateWindow.swift in Sources */,
 				2B851665B4C4A9C890BF3324 /* WorktreeListTable.swift in Sources */,
 				83F67572608DE1A6E12AC47E /* WorktreeListWindow.swift in Sources */,

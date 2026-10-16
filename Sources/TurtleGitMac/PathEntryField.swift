@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+import AppKit
+import SwiftUI
+import TurtleGitCore
+
+/// One-level filesystem completion. It never interprets shell quoting/globs or
+/// searches a repository index. Typed spelling is retained until a choice is made.
+// Query state and retained scope containment are immutable during the worker.
+struct PathEntryQuery: @unchecked Sendable {
+    let text: String
+    let base: URL
+    let permissions: [RepositoryAccessLease]
+    let requiresScopes: Bool
+    func results(cancellation: OperationCancellation) throws -> [String] {
+        try cancellation.check()
+        guard !text.isEmpty, !text.contains("\0"), !text.contains("://") else { return [] }
+        let slash = text.lastIndex(of: "/")
+        let prefix = slash.map { String(text[...$0]) } ?? ""
+        let leaf = slash.map { String(text[text.index(after: $0)...]) } ?? text
+        let expanded = ((prefix.isEmpty ? "." : prefix) as NSString).expandingTildeInPath
+        let parent = (expanded.hasPrefix("/") ? URL(fileURLWithPath: expanded, isDirectory: true) : base.appendingPathComponent(expanded, isDirectory: true)).standardizedFileURL
+        guard !requiresScopes || permissions.contains(where: { $0.permits(parent) }) else { return [] }
+        // A selected file grant does not authorize enumerating its siblings.
+        var directory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: parent.path, isDirectory: &directory), directory.boolValue else { return [] }
+        try cancellation.check()
+        guard let iterator = FileManager.default.enumerator(at: parent, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey], options: [.skipsSubdirectoryDescendants], errorHandler: { _, _ in false }) else { return [] }
+        var values: [String] = []
+        for case let child as URL in iterator {
+            try cancellation.check()
+            let name = child.lastPathComponent
+            if name.hasPrefix(".") && !leaf.hasPrefix(".") { continue }
+            guard name.range(of: leaf, options: [.anchored, .caseInsensitive]) != nil || leaf.isEmpty else { continue }
+            let properties = try? child.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            let suffix = properties?.isDirectory == true && properties?.isSymbolicLink != true ? "/" : ""
+            // Expanded tilde choices must be valid for existing absolute-path
+            // consumers. Other relative prefixes (including ../) stay literal.
+            let start = prefix.hasPrefix("~") ? parent.path + "/" : prefix
+            values.append(start + name + suffix)
+        }
+        try cancellation.check()
+        return values.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+}
+
+struct PathEntryField: NSViewRepresentable {
+    @Binding var text: String
+    let label: String
+    var base = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+    var permissions: [RepositoryAccessLease] = []
+    var focus = false
+    var mayEdit: () -> Bool = { true }
+    @Environment(\.isEnabled) private var enabled
+    init(text: Binding<String>, label: String, base: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true), permissions: [RepositoryAccessLease] = [], focus: Bool = false, mayEdit: @escaping () -> Bool = { true }) {
+        self._text = text; self.label = label; self.base = base; self.permissions = permissions; self.focus = focus; self.mayEdit = mayEdit
+    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> Field {
+        let field = Field(frame: NSRect(x: 0, y: 0, width: 200, height: 22))
+        field.cell = Cell(textCell: ""); field.isBezeled = true; field.bezelStyle = .roundedBezel
+        field.isEditable = true; field.isSelectable = true; field.drawsBackground = true; field.backgroundColor = .textBackgroundColor
+        field.cell?.usesSingleLineMode = true
+        field.font = .systemFont(ofSize: NSFont.systemFontSize); field.cell?.isScrollable = true
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        field.coordinator = context.coordinator; field.delegate = context.coordinator
+        updateNSView(field, context: context); return field
+    }
+    func updateNSView(_ field: Field, context: Context) {
+        let coordinator = context.coordinator
+        let identities = permissions.map(ObjectIdentifier.init)
+        if coordinator.base != base || coordinator.permissionIDs != identities || field.stringValue != text || !enabled { coordinator.cancel() }
+        coordinator.field = field; coordinator.base = base; coordinator.permissions = permissions; coordinator.permissionIDs = identities
+        coordinator.changed = { text = $0 }; coordinator.currentText = { text }; coordinator.mayEdit = mayEdit
+        field.isEnabled = enabled; field.placeholderString = label; field.setAccessibilityLabel(label)
+        if field.stringValue != text { field.stringValue = text }
+        if focus && !coordinator.focused {
+            DispatchQueue.main.async { [weak coordinator, weak field] in
+                guard let coordinator, !coordinator.retired, !coordinator.focused, coordinator.acceptsInput, let field, field.isEnabled, let window = field.window, window.attachedSheet == nil else { return }
+                coordinator.focused = true; window.makeFirstResponder(field)
+            }
+        }
+    }
+    static func dismantleNSView(_ field: Field, coordinator: Coordinator) { coordinator.retire(); field.delegate = nil }
+    @MainActor final class Field: NSTextField {
+        weak var coordinator: Coordinator?
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); coordinator?.attach(window) }
+    }
+    @MainActor final class Cell: NSTextFieldCell {
+        private let editor = Editor(frame: .zero)
+        override func fieldEditor(for controlView: NSView) -> NSTextView? {
+            editor.owner = (controlView as? Field)?.coordinator
+            editor.isFieldEditor = true; editor.isRichText = false; editor.allowsUndo = true
+            return editor
+        }
+    }
+    @MainActor final class Editor: NSTextView {
+        weak var owner: Coordinator?
+        override func complete(_ sender: Any?) {
+            guard let owner, owner.acceptsInput else { return }
+            if Data(owner.queryText.utf8) == Data(string.utf8), !owner.choices.isEmpty { super.complete(sender) }
+            else { owner.request(explicit: true) }
+        }
+        func showReadyCompletions() { super.complete(nil) }
+        override var rangeForUserCompletion: NSRange { NSRange(location: 0, length: string.utf16.count) }
+        override func completions(forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String]? {
+            guard let owner, owner.acceptsInput, Data(owner.queryText.utf8) == Data(string.utf8) else { return nil }
+            index.pointee = -1; return owner.choices
+        }
+        override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal flag: Bool) {
+            guard let owner, owner.acceptsInput else { return }
+            let binding = Data(owner.currentText().utf8), current = Data(string.utf8)
+            let preview = binding == Data(owner.queryText.utf8) && owner.choices.contains { Data($0.utf8) == current }
+            guard binding == current || preview,
+                  Data(word.utf8) == Data(owner.queryText.utf8) || owner.choices.contains(where: { Data($0.utf8) == Data(word.utf8) }) else { return }
+            owner.inserting = true
+            super.insertCompletion(word, forPartialWordRange: charRange, movement: movement, isFinal: flag)
+            owner.inserting = false
+            if flag && Data(owner.currentText().utf8) != Data(string.utf8) { owner.changed(string) }
+            if flag && word.hasSuffix("/") { owner.request() }
+        }
+    }
+    @MainActor final class Coordinator: NSObject, NSTextFieldDelegate {
+        static private(set) var activeReads = 0
+        weak var field: Field?
+        var base = URL(fileURLWithPath: "/", isDirectory: true), permissions: [RepositoryAccessLease] = []
+        var permissionIDs: [ObjectIdentifier] = []
+        var changed: (String) -> Void = { _ in }
+        var currentText: () -> String = { "" }, mayEdit: () -> Bool = { true }
+        var focused = false, inserting = false
+        private(set) var retired = false, choices: [String] = [], queryText = ""
+        private var token: OperationCancellation?
+        private var generation = UUID()
+        private var observation: NSObjectProtocol?
+        var read: (PathEntryQuery, OperationCancellation) async throws -> [String] = { query, token in try await Task.detached { try query.results(cancellation: token) }.value }
+        var present: (Editor) -> Void = { $0.showReadyCompletions() }
+        var acceptsInput: Bool { !retired && mayEdit() && field?.isEnabled == true && field?.window != nil && field?.window?.attachedSheet == nil }
+        func attach(_ window: NSWindow?) {
+            if let observation { NotificationCenter.default.removeObserver(observation) }; observation = nil
+            guard !retired else { return }
+            if let window {
+                observation = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.retire() } }
+            } else { cancel() }
+        }
+        func cancel() { generation = UUID(); token?.cancel(); token = nil; choices = []; queryText = "" }
+        func retire() { retired = true; cancel(); if let observation { NotificationCenter.default.removeObserver(observation) }; observation = nil }
+        deinit { if let observation { NotificationCenter.default.removeObserver(observation) } }
+        func controlTextDidEndEditing(_ obj: Notification) { cancel() }
+        func controlTextDidChange(_ obj: Notification) {
+            guard acceptsInput, let field else { return }
+            changed(field.stringValue)
+            if !inserting { request() }
+        }
+        func request(explicit: Bool = false) {
+            cancel()
+            guard acceptsInput, let editor = field?.currentEditor() as? Editor, !editor.hasMarkedText(), explicit || editor.selectedRange().length == 0 && editor.selectedRange().location == editor.string.utf16.count else { return }
+            let text = editor.string, request = generation, token = OperationCancellation()
+            let query = PathEntryQuery(text: text, base: base, permissions: permissions, requiresScopes: GitRuntime.isAppStoreBuild)
+            self.token = token; Self.activeReads += 1
+            Task {
+                defer { Self.activeReads -= 1; withExtendedLifetime(query.permissions) {}; if self.token === token { self.token = nil } }
+                do {
+                    try await Task.sleep(nanoseconds: 150_000_000); try token.check()
+                    let result = try await read(query, token)
+                    guard !token.isCancelled, generation == request, acceptsInput, field?.currentEditor() === editor, Data(editor.string.utf8) == Data(text.utf8), Data(currentText().utf8) == Data(text.utf8), !editor.hasMarkedText() else { return }
+                    choices = result; queryText = text
+                    if !result.isEmpty { present(editor) }
+                } catch { /* Completion failure never replaces the user's draft or reports a Git error. */ }
+            }
+        }
+    }
+}

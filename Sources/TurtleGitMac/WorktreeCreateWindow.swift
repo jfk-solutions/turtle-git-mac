@@ -236,7 +236,7 @@ private struct WorktreeCreateDialog: View {
             else {
                 GroupBox("Location") { HStack {
                     Text("Directory:").frame(width: 100, alignment: .leading)
-                    TextField("Worktree directory", text: $model.directory)
+                    PathEntryField(text: $model.directory, label: "Worktree directory", permissions: [model.access, model.destinationAccess].compactMap { $0 }, mayEdit: { !model.busy && !chooser.busy && chooser.pickerTarget == nil }).frame(height: 22)
                     Button("Browse…") { model.chooseDirectory() }
                 }.padding(8) }
                 GroupBox("Base On") { VStack(spacing: 6) {

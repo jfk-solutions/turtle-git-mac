@@ -2,6 +2,11 @@
 
 *A macOS fork of TortoiseGit*
 
+The shared [path-entry family](PATH-ENTRY-PARITY.md) now connects source filesystem
+completion to Clone, New Worktree, Rename and Export with native full-field
+completion, owned directory reads, access scoping and retired-result guards.
+Physical keyboard/IME/popup and signed acceptance remain open.
+
 The [application identity/file-open family](APPLICATION-IDENTITY.md) now packages
 original app/document icons, full macOS icon slots, native patch/diff file-URL
 routing and scoped document Save/Undo ownership. The website uses the same

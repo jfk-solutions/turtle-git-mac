@@ -109,3 +109,10 @@ The expanded grouped checkpoint passed 36 Core tests and fourteen native cases
 across system and bundled Git. Initial compilation and fixture failures, scoped
 repairs, actual process cleanup and acceptance limits are recorded in
 [the batch evidence](qa/rename-reference-management-2026-10-14.json).
+
+
+The shared [path-entry family](PATH-ENTRY-PARITY.md) now supplies native filesystem
+completion for Rename, Clone, New Worktree and Export, including full-field text
+boundaries, captured directory reads and retired/changed input guards. Earlier
+autocomplete-pending entries above describe the preceding implementation. Physical
+completion/focus/IME and signed access remain open.

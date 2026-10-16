@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "b90b9d76bcf2ac994fdfdd6f76e4636813604901",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Shared native filesystem completion in Clone destination, New Worktree destination, Rename name/path and Export ZIP field",
+  "source": [
+    "CloneDlg.cpp SHAutoComplete(IDC_CLONE_DIR, SHACF_FILESYSTEM)",
+    "RenameDlg.cpp SHAutoComplete(IDC_NAME, SHACF_DEFAULT)",
+    "CreateWorktreeDlg.cpp SHAutoComplete(IDC_WORKTREE_DIR, SHACF_DEFAULT)",
+    "ExportDlg.cpp SHAutoComplete(IDC_EXPORTFILE, SHACF_FILESYSTEM)",
+    "Installed AppKit SDK NSCell.fieldEditorForView and NSTextView rangeForUserCompletion/completionsForPartialWordRange/insertCompletion declarations"
+  ],
+  "implementation": [
+    "AppKit field/field-editor replacement preserves labels/Browse and uses full-field UTF16 completion ranges",
+    "One-level background enumeration with source-like file/directory choices and trailing slash, literal path data, relative prefixes and explicit-dot hidden names; no shell or URL lookup",
+    "Tilde-prefix selections expand to absolute choices for existing consumers; ordinary typing does not normalize through the query",
+    "Debounced automatic and explicit Complete requests; model binding, native input/focus and environment enablement",
+    "Captured text/base/leases, cancellation and generation ownership; changed model/field, disabled/sheet/retired states refuse replies and inserts",
+    "AppStore parent enumeration requires existing permitted scope; physical-path containment refuses symlink-parent escape; no automatic permission prompts",
+    "Read-only in-process workers retain scope until drain; they spawn no helper and do not add an application Quit block",
+    "CI affected path case plus connected native regression runner and user/Help/parity documentation"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/path-entry-build.log",
+    "anomalous_exit_zero_diagnostics": 2
+  },
+  "core": {
+    "changed": false,
+    "run": false,
+    "reason": "Native UI/filesystem completion only; no Core/Git operation changes or suite repeat"
+  },
+  "appstore": "No additional Store build for this native-only batch; true signed scope and release acceptance remain open.",
+  "native": {
+    "exit": 0,
+    "log": "build/qa/path-entry-native.log",
+    "first_attempt_pass": true,
+    "passing_cases": 6,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "families": [
+      "new path query/four native dialog fields",
+      "retained Rename workflow/progress",
+      "retained Branch/Tag/Worktree picker workflows"
+    ],
+    "receivers_reaped_and_independently_absent": [
+      52050,
+      52080,
+      52113,
+      52153,
+      52199,
+      52857
+    ],
+    "checks": [
+      "Real filesystem relative/parent-relative/space/dot/Unicode/newline/glob-literal and case-insensitive prefix matches",
+      "Simulated scope permits root, denies absent/outside and real symlink-parent escape; pre-cancellation refuses lookup",
+      "Actual shipping Clone, Rename, Worktree and Export views expose new native fields and custom TextKit editors",
+      "Real insertText updates models and automatic query results; complete range spans whole field and index -1 avoids premature selection",
+      "Actual insertCompletion binds exact selected choice in all four consumers",
+      "Held successful read result cannot reopen completion after a changed model or forced window closure; active reader count lasts until reply; retired delegate is inert",
+      "New completion case leaves HEAD/raw index unchanged after unrelated initial metadata settles",
+      "Retained real Rename preserves distinct staged/working versions, cancellation/Back/callbacks and owned process drain",
+      "Retained actual branch/tag/worktree creation and full reference/Log picker focus/ownership/suggestions invariants"
+    ],
+    "diagnostics": "Retained hidden creation-picker cases emit pre-existing zero-sized NSSplitView arranged-frame warnings."
+  },
+  "documentation": {
+    "help": {
+      "documents": 28,
+      "topics": 47,
+      "files": 34,
+      "bytes": 217550,
+      "mode": "write"
+    },
+    "site": "241 documents, no unresolved fragments",
+    "ledger": "130 dialogs; 120 partial audits; 10 pending; 0 certified; 986 mapped / 673 pending controls"
+  },
+  "limits": [
+    "New fixture injects the presentation callback and calls actual TextKit completion methods; it does not track a physical system completion popup",
+    "No new screenshots, complete layout/theme or physical Return/Tab/Escape/IME/VoiceOver certification",
+    "Caret/selection-only changes during delayed lookup and native substitution/preferences need broader physical acceptance",
+    "Windows shell URL/history providers and exact locale/hidden-file equivalence are not reproduced",
+    "No network/very large directory, external filesystem alias race or signed scope certification",
+    "No complete hosted CI, all-dialog or application parity claim"
+  ]
+}
