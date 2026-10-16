@@ -2116,7 +2116,7 @@ struct LogCommandRequest: Identifiable {
     }
     func copyDetails(includePaths: Bool = true) {
         let hashes = revisions.map(\.hash); guard !hashes.isEmpty else { return }
-        let dateSettings = HistoryDateSettings.load()
+        let dateSettings = HistoryDateSettings.load(defaults:labelDefaults)
         cancelClipboardRead()
         let cancellation = OperationCancellation(); clipboardCancellation = cancellation
         let request = clipboardGeneration
@@ -3324,6 +3324,7 @@ struct RevisionTable: NSViewRepresentable {
         table.doubleAction = #selector(Coordinator.doubleClickRevision); table.target = context.coordinator
         table.menu = NSMenu(); table.menu?.delegate = context.coordinator
         context.coordinator.table = table
+        table.onWindowChanged = { [weak coordinator = context.coordinator] in coordinator?.configureDateRefresh() }
         table.contextMenuAvailable={ [weak coordinator=context.coordinator] in
             guard let model=coordinator?.model else { return false }
             return !model.isInvalidated && !model.busy && !model.findBlocked && !model.orderingBlocked && !model.referencePickerBlocked && model.window?.attachedSheet==nil
@@ -3346,6 +3347,7 @@ struct RevisionTable: NSViewRepresentable {
         let colorsChanged = coordinator.colorRevision != statusColorUpdates.revision
         coordinator.colorRevision = statusColorUpdates.revision
         let datesChanged = coordinator.dateSettings != dateSettings; coordinator.dateSettings = dateSettings
+        coordinator.configureDateRefresh()
         let font = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
         let fontChanged = coordinator.logFont != font; coordinator.logFont = font
         table.rowHeight = font.map { max(24, ceil($0.ascender - $0.descender + $0.leading) + 4) } ?? 24
@@ -3402,8 +3404,9 @@ struct RevisionTable: NSViewRepresentable {
     }
     static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {
         if let table=scroll.documentView as? HistoryTableView {
-            table.onReturn=nil;table.onFind=nil;table.presentContextMenu=nil;table.contextMenuAvailable={false}
+            table.onReturn=nil;table.onFind=nil;table.presentContextMenu=nil;table.contextMenuAvailable={false};table.onWindowChanged=nil
         }
+        coordinator.retireDateRefresh()
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         var model: LogWindowModel
@@ -3440,7 +3443,50 @@ struct RevisionTable: NSViewRepresentable {
         var referenceContext = HistoryReferenceContext()
         var scrollRequest = 0
         var colorRevision = -1
+        private(set) var dateRefreshTimer:Timer?
+        private var dateCloseObserver:NSObjectProtocol?
+        private weak var dateWindow:NSWindow?
+        private var dateRefreshRetired = false
+        var dateNow:()->Date = Date.init
         init(model: LogWindowModel) { self.model = model }
+        func configureDateRefresh() {
+            guard !dateRefreshRetired, !model.isInvalidated, let window = table?.window else { return }
+            if dateWindow !== window {
+                if let dateCloseObserver { NotificationCenter.default.removeObserver(dateCloseObserver) }
+                dateWindow = window
+                dateCloseObserver = NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.retireDateRefresh() }
+                }
+            }
+            guard dateSettings.relative else { dateRefreshTimer?.invalidate(); dateRefreshTimer = nil; return }
+            guard dateRefreshTimer == nil else { return }
+            let timer = Timer(timeInterval:1,repeats:true) { [weak self] _ in
+                MainActor.assumeIsolated { guard let self else { return }; self.refreshDateCells(now:self.dateNow()) }
+            }
+            dateRefreshTimer = timer; RunLoop.main.add(timer,forMode:.common)
+        }
+        func refreshDateCells(now:Date) {
+            guard !dateRefreshRetired, dateSettings.relative, !model.isInvalidated, !model.busy, !updating,
+                  let table, let window = table.window, window.isVisible, !window.isMiniaturized else { return }
+            let visible = table.rows(in:table.visibleRect); guard visible.location != NSNotFound else { return }
+            for row in visible.location..<min(NSMaxRange(visible),model.entries.count) {
+                let entry = model.entries[row]
+                for (id,timestamp) in [("date",entry.date),("committerDate",entry.committerDate)] {
+                    guard let column = table.tableColumn(withIdentifier:.init(id)), !column.isHidden,
+                          let cell = table.view(atColumn:table.column(withIdentifier:.init(id)),row:row,makeIfNecessary:false) as? NSTableCellView,
+                          let text = cell.textField else { continue }
+                    let value = dateSettings.format(timestamp,now:now)
+                    if text.stringValue != value { text.stringValue = value }
+                    text.toolTip = dateSettings.format(timestamp,absolute:true)
+                }
+            }
+        }
+        func retireDateRefresh() {
+            dateRefreshRetired = true; dateRefreshTimer?.invalidate(); dateRefreshTimer = nil
+            if let dateCloseObserver { NotificationCenter.default.removeObserver(dateCloseObserver) }
+            dateCloseObserver = nil; dateWindow = nil
+        }
+        deinit { dateRefreshTimer?.invalidate(); if let dateCloseObserver { NotificationCenter.default.removeObserver(dateCloseObserver) } }
         func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) {
             guard !model.busy, !model.isInvalidated, !model.findBlocked, !model.orderingBlocked else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(10)) { [weak self] in
@@ -3500,11 +3546,11 @@ struct RevisionTable: NSViewRepresentable {
             case "email": text.stringValue = entry.email
             case "committer": text.stringValue = entry.committer
             case "committerEmail": text.stringValue = entry.committerEmail
-            case "committerDate": text.stringValue = dateSettings.format(entry.committerDate)
+            case "committerDate": text.stringValue = dateSettings.format(entry.committerDate,now:dateNow())
             case "svn": text.stringValue = model.svnRevisions[entry.hash] ?? ""
             case "bugs": text.stringValue = entry.issueIDs
             case "author": text.stringValue = entry.author
-            case "date": text.stringValue = dateSettings.format(entry.date)
+            case "date": text.stringValue = dateSettings.format(entry.date,now:dateNow())
             default:
                 let label = NSMutableAttributedString()
                 let badges = NSMutableAttributedString()
@@ -4019,6 +4065,8 @@ struct RevisionTable: NSViewRepresentable {
 
 
 final class HistoryTableView: NSTableView {
+    var onWindowChanged:(()->Void)?
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); onWindowChanged?() }
     var contextReference: (row: Int, name: String)?
     var contextExtendedMenu = false
     var onReturn: (() -> Bool)?

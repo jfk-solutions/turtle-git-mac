@@ -56,8 +56,8 @@ Focused tests cover defaults, persisted choices, timezone/DST conversion, locale
 layouts and relative boundaries. A headless AppKit receiver checks actual date
 cells and absolute tooltips; it displays no windows. Displayed settings gestures,
 live preference refresh acceptance, translated relative labels and signed sandbox
-acceptance remain pending. Relative values update when rows render; a periodic
-clock refresh is not implemented. Exact Windows timezone/DST edge equivalence remains pending. See
+acceptance remain pending. The October 16 primary-presentation continuation below adds an owned visible-cell
+clock refresh while relative dates are enabled. Exact Windows timezone/DST edge equivalence remains pending. See
 [the date preference record](qa/log-dates-2026-10-06.json).
 
 ## Actions column
@@ -2650,3 +2650,16 @@ plain-text pane description within that scope; full Log acceptance remains open.
 Shared repository titles and path-cell tooltips now consume the source Advanced
 preferences; see [repository presentation](REPOSITORY-PRESENTATION-PARITY.md)
 and its [grouped evidence](qa/repository-presentation-2026-10-15.json).
+
+## Live native date presentation — October 16, 2026
+
+The primary Log table refreshes author and committer relative dates through an
+owned one-second timer, updating only existing visible date fields. It retains
+absolute tooltips, graph, selection and history rows, and performs no Git read.
+Hidden/minimized/busy windows do not redraw from the timer. Absolute mode stops
+the timer; window closure/dismantling retires it and rejects subsequent refreshes.
+Copied commit details use the same owning preference domain as the displayed Log.
+See [primary dialog presentation](PRIMARY-DIALOG-VISUAL-REVIEW.md) for connected
+Commit layout work and acceptance limits.
+
+The current connected checks and capture settings are recorded in [dated native evidence](qa/primary-live-presentation-2026-10-16.json).

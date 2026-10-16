@@ -2313,3 +2313,16 @@ selection remain release acceptance work.
 Shared repository titles and path-cell tooltips now consume the source Advanced
 preferences; see [repository presentation](REPOSITORY-PRESENTATION-PARITY.md)
 and its [grouped evidence](qa/repository-presentation-2026-10-15.json).
+
+## Destination and issue header adaptation — October 16, 2026
+
+The current branch is a selectable native read-only field, retaining its full
+value for copy and tooltip even when visually shortened. A native SwiftUI layout
+keeps destination and issue/provider controls in source order on one line when
+they fit, and moves only the issue band below at narrow widths. Long provider and
+issue labels retain full tooltips. Resizing retains one new-branch field/editor
+instance and its caret. The normal checkbox, message and file-list arrangement is
+unchanged. See [primary presentation](PRIMARY-DIALOG-VISUAL-REVIEW.md) for current
+checks and remaining physical/signed acceptance.
+
+The current connected checks and capture settings are recorded in [dated native evidence](qa/primary-live-presentation-2026-10-16.json).

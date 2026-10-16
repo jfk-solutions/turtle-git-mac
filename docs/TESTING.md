@@ -2258,3 +2258,11 @@ and typing races, and exact UTF-16BE BOM output. The grouped default compiles th
 fixture with the retained merge cases once. Core presentation cases cover removed
 row formatting, ignored-conflict metadata, no-op conversion and explicit typing
 endings when the result contains only blank conflict records.
+
+`scripts/test-primary-live-presentation.py --git /usr/bin/git` checks native Commit
+long destination/provider/issue layout, full branch read-only copy and resize focus,
+actual timer-driven Log author/committer dates and tooltips without changing
+rows/graph/selection, font updates, private copied-detail date settings and timer
+retirement. `--capture-dir PATH` captures the first engine's owned windows in both
+appearances. Subsequent engine cases run without compositor capture. No Commit or
+Git write action is invoked, and HEAD/index tree/status are checked unchanged.

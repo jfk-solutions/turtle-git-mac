@@ -1,0 +1,112 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "b2a39d81",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/Resources/TortoiseProcENG.rc: IDD_COMMITDLG and IDD_LOGMESSAGE",
+    "doc/images/en/Commit.png",
+    "doc/images/en/LogMessages.png"
+  ],
+  "scope": [
+    "Adaptive destination/issue header retains one native editor and caret across minimum-width resizing",
+    "Selectable full branch name with native pasteboard copy",
+    "Live visible author/committer relative dates, absolute tooltips and existing source formatter",
+    "Owning Log preference domain for copied details; font/preferences and timer shutdown"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/primary-live-presentation-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/primary-live-presentation-date-cell-build.log",
+      "exit": 0
+    }
+  ],
+  "build_notes": "Overall builds exited 0; anomalous SwiftCompile exit-code-0/no-output diagnostics and existing warnings were present. Native receiver object freshness guards passed.",
+  "core": "Not rerun: native-only changes.",
+  "native": {
+    "runner": "scripts/test-primary-live-presentation.py",
+    "fixture": "docs/qa/primary-live-presentation-native-2026-10-16.swift",
+    "log": "build/qa/primary-live-presentation-native-final.log",
+    "exit": 0,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "receivers_reaped": [
+      80443,
+      80549
+    ],
+    "invariants": [
+      "HEAD unchanged",
+      "logical index tree unchanged",
+      "working status unchanged",
+      "owned windows closed",
+      "timer retired"
+    ]
+  },
+  "earlier_failures": [
+    "Fixture compile referenced private loadedMessage; corrected before receiver launch",
+    "Receivers 80004/80094 exposed fixture pasteboard type mismatch; fixed to advertised writable types",
+    "Receiver 80185 aborted on fixture table-cell cast; actual cells wrap NSTextField in NSTableCellView. Corrected production refresh lookup and fixture, rebuilt, then both full cases passed."
+  ],
+  "cleanup": {
+    "earlier_receivers_reaped": [
+      80004,
+      80094,
+      80185
+    ],
+    "crash_preferences_domain_removed": "TurtleGit.PrimaryLive.273A3B16-3DC8-48D5-BDBE-2D7101934D9B",
+    "process_absence_checked": true
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/primary-commit-header-light.png",
+      "width": 1800,
+      "height": 1584,
+      "sha256": "ee7d55f79baef04f9102f3ae5ba8e45471006e8787d3c6008f2e82d99c5ae9b2",
+      "source": "Unaltered native window compositor capture"
+    },
+    {
+      "path": "docs/site/assets/primary-commit-header-dark.png",
+      "width": 1800,
+      "height": 1584,
+      "sha256": "f24215b00e2fc91192d750384b6d4c6bdce9ae4cbd3140c63f04c4794eca7c27",
+      "source": "Unaltered native window compositor capture"
+    },
+    {
+      "path": "docs/site/assets/primary-log-live-dates-light.png",
+      "width": 2240,
+      "height": 1624,
+      "sha256": "5fb6ad66b1ddffe99e9fd6880ee621e4fef8c4d9a58606576d1cfe61fb721529",
+      "source": "Unaltered native window compositor capture"
+    },
+    {
+      "path": "docs/site/assets/primary-log-live-dates-dark.png",
+      "width": 2240,
+      "height": 1624,
+      "sha256": "18f57ffb4a50c1bbf1e98a2ebe5f0c30ba49318c57ca5608cfc321266cd72441",
+      "source": "Unaltered native window compositor capture"
+    }
+  ],
+  "capture_settings": "Commit at narrow width with long provider/issue labels. Log uses private Menlo 18pt preference, Actions hidden, Commit Date visible; these are not default Log gallery replacements. Dates restored to actual current time before captures.",
+  "hosted": {
+    "macos": {
+      "run": 38829401747,
+      "sha": "b2a39d81",
+      "last_observed": "in_progress"
+    },
+    "pages": {
+      "run": 38829401889,
+      "sha": "b2a39d81",
+      "conclusion": "success"
+    },
+    "full_current_macos_pass": false
+  },
+  "limitations": [
+    "Conditional layouts, VoiceOver and all graph topologies are not fully certified",
+    "No signed Finder, distribution or App Store acceptance claimed",
+    "The native date timer adapts presentation; it is not claimed as a direct upstream timer port"
+  ]
+}

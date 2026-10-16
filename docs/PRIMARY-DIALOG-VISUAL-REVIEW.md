@@ -60,3 +60,37 @@ Commit/Working Tree/Log source light and adapted dark captures, plus actual
 custom-color Apply pixels. It addresses the rename-text issue recorded in the
 preceding footer captures. Physical/selected-row and full appearance certification
 remain open.
+
+## Adaptive primary presentation — October 16, 2026
+
+The pinned Commit resource places destination and issue controls in a shared
+header. Native Commit now retains one field instance for each value and places
+its issue controls on a second line only when both bands cannot fit. Long provider
+and issue labels are constrained with full tooltips; the current branch is a
+selectable native read-only field with full-name tooltip. New-branch editing keeps
+its field editor and caret while resizing between ordinary and minimum widths.
+The normal header order, original provider icon and conditional issue controls
+remain tied to the source dialog.
+
+Log author/committer relative dates now refresh their existing visible cells on
+an owned one-second native timer. It performs no Git read, graph rebuild or
+selection change, skips hidden/minimized/busy windows and stops when relative
+formatting is off or the owner closes. Absolute tooltips and the existing source
+threshold/wording formatter remain in use. Copied commit details now capture the
+owning Log's date preferences rather than the global defaults.
+
+The prior primary screenshots above document earlier source-layout checkpoints.
+The connected fixture checks current header containment/focus and real timer,
+font, private-copy preferences and retirement; current captures are recorded with
+its dated evidence. This is partial primary-dialog acceptance, not certification
+of every conditional layout, VoiceOver, graph topology or signed deployment.
+
+See [dated native evidence](qa/primary-live-presentation-2026-10-16.json). Commit captures show the narrow header with long issue labels. Log captures intentionally use a private 18pt Menlo font, hidden Actions and visible Commit Date columns.
+
+![Native commit-header-light](site/assets/primary-commit-header-light.png)
+
+![Native commit-header-dark](site/assets/primary-commit-header-dark.png)
+
+![Native log-live-dates-light](site/assets/primary-log-live-dates-light.png)
+
+![Native log-live-dates-dark](site/assets/primary-log-live-dates-dark.png)

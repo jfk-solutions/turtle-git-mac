@@ -1849,18 +1849,24 @@ struct CommitDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Group {
-                HStack {
-                    Text("Commit to:")
-                    if model.createBranch { CommitNewBranchField(name: $model.newBranch).frame(width: 250) }
-                    else { Text(model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).foregroundStyle(.blue) }
-                    Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox).disabled(model.operation != nil || model.replaySplit != nil || model.historyCombine != nil)
-                    Spacer()
-                    if let provider = model.nativeIssueProvider { Button { model.selectProviderIssues() } label: { CommandLabel(title: provider.linkText, icon: .settingsIssueTracker) }.disabled(model.inputsBlocked) }
-                    if model.issueProperties.showsIssueField {
-                        Text(model.issueProperties.label)
-                        TextField("", text: $model.issueID).textFieldStyle(.roundedBorder).frame(width: 140).accessibilityLabel(model.issueProperties.label).focused($issueFieldFocused)
+                CommitDestinationLayout {
+                    HStack(spacing:8) {
+                        Text("Commit to:").fixedSize()
+                        if model.createBranch { CommitNewBranchField(name:$model.newBranch).frame(width:250) }
+                        else { CommitDestinationLabel(branch:model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).frame(minWidth:30,idealWidth:100,maxWidth:250) }
+                        Toggle("new branch",isOn:$model.createBranch).toggleStyle(.checkbox).fixedSize().disabled(model.operation != nil || model.replaySplit != nil || model.historyCombine != nil)
                     }
-                if model.busy { ProgressView().controlSize(.small) }
+                    HStack(spacing:8) {
+                        if let provider = model.nativeIssueProvider {
+                            Button { model.selectProviderIssues() } label: { CommandLabel(title:provider.linkText,icon:.settingsIssueTracker).lineLimit(1).truncationMode(.tail) }
+                                .frame(maxWidth:200).help(provider.linkText).disabled(model.inputsBlocked)
+                        }
+                        if model.issueProperties.showsIssueField {
+                            Text(model.issueProperties.label).lineLimit(1).truncationMode(.tail).frame(maxWidth:180).help(model.issueProperties.label)
+                            TextField("",text:$model.issueID).textFieldStyle(.roundedBorder).frame(width:140).accessibilityLabel(model.issueProperties.label).focused($issueFieldFocused)
+                        }
+                        if model.busy { ProgressView().controlSize(.small) }
+                    }
                 }
                 if let error = model.issueProviderError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
                 if !model.fileOperationTitle.isEmpty { HStack { Text(model.fileOperationCancelling ? "Cancelling…" : model.fileOperationTitle).font(.caption); Spacer(); Button("Cancel operation") { model.cancelFileOperation() }.disabled(model.fileOperationCancelling) } }
@@ -2212,6 +2218,38 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
     }
     private var groupRule: some View { Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1) }
     func checkButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View { Button(title, action: action).buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled) }
+}
+
+/// Keep the source destination/issue bands on one line when they fit. At the
+/// minimum window width, place issue controls below without duplicating fields
+/// or losing their focus/selection identity during a resize.
+struct CommitDestinationLayout:Layout {
+    private func sizes(_ subviews:Subviews) -> [CGSize] { subviews.map { $0.sizeThatFits(.unspecified) } }
+    func sizeThatFits(proposal:ProposedViewSize,subviews:Subviews,cache:inout ()) -> CGSize {
+        let values = sizes(subviews), width = proposal.width ?? values.reduce(0) { $0 + $1.width } + 12
+        guard values.count == 2 else { return CGSize(width:width,height:24) }
+        let wrapped = values[1].width > 0 && values[0].width + values[1].width + 12 > width
+        return CGSize(width:width,height:wrapped ? values[0].height + values[1].height + 6 : max(values[0].height,values[1].height))
+    }
+    func placeSubviews(in bounds:CGRect,proposal:ProposedViewSize,subviews:Subviews,cache:inout ()) {
+        let values = sizes(subviews); guard values.count == 2 else { return }
+        let wrapped = values[1].width > 0 && values[0].width + values[1].width + 12 > bounds.width
+        subviews[0].place(at:CGPoint(x:bounds.minX,y:bounds.minY),proposal:.init(width:min(bounds.width,values[0].width),height:values[0].height))
+        subviews[1].place(at:CGPoint(x:max(bounds.minX,bounds.maxX - values[1].width),y:wrapped ? bounds.minY + values[0].height + 6 : bounds.minY),proposal:.init(width:min(bounds.width,values[1].width),height:values[1].height))
+    }
+}
+struct CommitDestinationLabel:NSViewRepresentable {
+    let branch:String
+    func makeNSView(context:Context) -> NSTextField {
+        let field = NSTextField(labelWithString:branch)
+        field.isSelectable = true; field.lineBreakMode = .byTruncatingMiddle
+        field.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        field.setAccessibilityLabel("Commit destination"); field.identifier = .init("Commit destination")
+        return field
+    }
+    func updateNSView(_ field:NSTextField,context:Context) {
+        field.stringValue = branch; field.toolTip = branch; field.textColor = .linkColor
+    }
 }
 
 /// The divider uses the system cursor; SwiftUI handles dragging and accessibility.
