@@ -856,8 +856,8 @@ import UniformTypeIdentifiers
     enum ConflictEditorRoute: String { case deleteModify, submodule, image, text }
     var conflictEditorPresentation: ((ConflictEditorRoute, GitRepository, String, ImageConflictDocument?) -> Void)?
     var readConflictEditorEntry: ((GitRepository, String, OperationCancellation) async throws -> ConflictEntry)?
-    lazy var openExternalConflict: (GitRepository, RepositoryAccessLease?, String, Bool, NSWindow?, ConflictEntry, OperationCancellation, @escaping () -> Void) async throws -> Bool = { [weak self] repository, access, path, alternate, owner, entry, token, prepared in
-        try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner, cancellation: token, onPrepared: prepared, expectedEntry: entry, identityOptions: ConflictIdentityOptions(defaults: self?.fileComparisonPreferences ?? .standard))
+    lazy var openExternalConflict: (GitRepository, RepositoryAccessLease?, String, Bool, NSWindow?, ConflictEntry, OperationCancellation, @escaping () -> Void, MergeToolPreferences) async throws -> Bool = { [weak self] repository, access, path, alternate, owner, entry, token, prepared, tools in
+        try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner, cancellation: token, onPrepared: prepared, preferences: tools, expectedEntry: entry, identityOptions: ConflictIdentityOptions(defaults: self?.fileComparisonPreferences ?? .standard))
     }
     private var conflictEditorPreparations: [String: ConflictEditorLaunch] = [:]
     @Published private(set) var conflictEditorPreparationCount = 0
@@ -873,6 +873,7 @@ import UniformTypeIdentifiers
         let key = repository.root.path + "\0" + path
         guard conflictEditorPreparations[key] == nil else { return }
         let alternate = ComparisonToolInvocation.capture, owner = owner ?? NSApp.keyWindow ?? workspaceWindow
+        let tools = MergeToolPreferences.load(from: fileComparisonPreferences)
         let request = ConflictEditorLaunch(owner: owner, preferences: fileComparisonPreferences)
         conflictEditorPreparations[key] = request; conflictEditorPreparationCount = conflictEditorPreparations.count
         request.showProgress(path: path)
@@ -895,7 +896,7 @@ import UniformTypeIdentifiers
                     else { showDeleteConflict(repository: repository, access: access, path: path) }; return
                 }
                 if !entry.isSubmodule {
-                    if try await openExternalConflict(repository, access, path, alternate, owner, entry, token, { request.dismissProgress() }) {
+                    if try await openExternalConflict(repository, access, path, alternate, owner, entry, token, { request.dismissProgress() }, tools) {
                         try token.check(); guard !confirmingQuit else { return }
                         let root = repository.root
                         statusWindows[root.path]?.model.requestReload(); commitWindows[root.path]?.model.reload(); rebaseWindows[root.path]?.model.refreshState(); refreshRepositoryLogs(root)

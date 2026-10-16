@@ -38,7 +38,7 @@ import Darwin
         _ = try await repo.run(["config","user.name","Image Conflict Tests"])
         _ = try await repo.run(["config","user.email","image-conflict@example.invalid"])
         _ = try await repo.run(["config","commit.gpgsign","false"])
-        let path = "image.dat", file = root.appendingPathComponent(path)
+        let path = "image.png", file = root.appendingPathComponent(path)
         let base = png(.red), mine = png(.green), theirs = png(.blue)
         try base.write(to: file); try await repo.stage([path]); _ = try await repo.commit(message: "base")
         _ = try await repo.run(["switch","-c","side"])
@@ -79,6 +79,7 @@ import Darwin
             // enabled environment to its native buttons. Wait for the actual
             // control, then exercise its target/action without bypassing it.
             try await wait({ button(index).isEnabled }, line: line)
+            window.orderFront(nil) // Transparent/offscreen, but a live sheet owner.
             button(index).performClick(nil)
             try require(controller.model.busy, line: line)
         }
@@ -87,8 +88,8 @@ import Darwin
             let sheet = window.attachedSheet!
             try require(controller.model.busy && !controller.windowShouldClose(window))
             try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
-            sheet.alphaValue = 0; window.orderOut(nil); sheet.orderOut(nil)
-            try require(!window.isVisible && !sheet.isVisible)
+            sheet.alphaValue = 0
+            try require(window.isVisible && sheet.isVisible)
             guard let answer = descendants(sheet.contentView!).compactMap({ $0 as? NSButton }).first(where: { $0.title == title }) else { throw Failure(line: #line) }
             answer.performClick(nil)
             try await wait { !controller.model.busy }

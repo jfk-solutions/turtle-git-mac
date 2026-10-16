@@ -422,3 +422,12 @@ without repeating passing checks. All eleven owned receiver processes (ten passe
 and one failed fixture) were reaped and independently absent. See
 [the dated record](qa/image-tool-routing-2026-10-16.json) for diagnostics, cached
 compilation, native behavior scope and remaining physical/signed acceptance.
+
+## Conflict handoff preferences — October 16, 2026
+
+Conflict editor preparation captures Merge Tool preferences from its initiating
+workspace before its first suspension. The actual merge launcher consumes that
+snapshot along with the existing Shift/path/owner/stage identity. This fixes the
+old default closure's use of global preferences. External merge bypass falls
+back to the source extension-based image or text conflict workflow, with raw-side
+and empty-Base selection handled by [image conflict selection](IMAGE-CONFLICT-PARITY.md).

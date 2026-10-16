@@ -502,6 +502,13 @@ struct MergeToolSettings: View {
         question.addButton(withTitle:"OK"); question.addButton(withTitle:"Cancel")
         return await ask(question)
     }
+    func confirmImageResolution(path: String) async -> Bool {
+        let question = NSAlert(); question.alertStyle = .informational
+        question.messageText = "Mark “" + (path as NSString).lastPathComponent + "” as resolved?"
+        question.informativeText = "The selected content has been copied to the working file."
+        question.addButton(withTitle: "Yes"); question.addButton(withTitle: "No")
+        return await ask(question)
+    }
     func confirmResolution(path: String) async -> Bool {
         let question = NSAlert(); question.messageText = "Was the merge of “" + path + "” successful?"
         question.addButton(withTitle: "Mark Resolved"); question.addButton(withTitle: "No")

@@ -81,9 +81,9 @@ import Darwin
         _ = try await repo.run(["config", "user.name", "Image Color Tests"])
         _ = try await repo.run(["config", "user.email", "image-colors@example.invalid"])
         _ = try await repo.run(["config", "commit.gpgsign", "false"])
-        let first = root.appendingPathComponent("first.dat"), second = root.appendingPathComponent("second.dat")
+        let first = root.appendingPathComponent("first.png"), second = root.appendingPathComponent("second.png")
         let red = png(0), blue = png(2), green = png(1)
-        try red.write(to: first); try blue.write(to: second); try await repo.stage(["first.dat", "second.dat"])
+        try red.write(to: first); try blue.write(to: second); try await repo.stage(["first.png", "second.png"])
         _ = try await repo.commit(message: "transparent images")
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: first, destination: second), permissions: [])
@@ -128,11 +128,11 @@ import Darwin
         try keyD(window); try await settle(); try require(replacement.presentation.darkMode && replacement.presentation.transparentColor == nil)
         try keyD(window); try await settle()
         _ = try await repo.run(["switch", "-c", "color-side"])
-        try blue.write(to: first); try await repo.stage(["first.dat"]); _ = try await repo.commit(message: "theirs")
+        try blue.write(to: first); try await repo.stage(["first.png"]); _ = try await repo.commit(message: "theirs")
         _ = try await repo.run(["switch", "main"])
-        try green.write(to: first); try await repo.stage(["first.dat"]); _ = try await repo.commit(message: "mine")
+        try green.write(to: first); try await repo.stage(["first.png"]); _ = try await repo.commit(message: "mine")
         do { _ = try await repo.run(["merge", "color-side"]); throw Failure(line: #line) } catch is GitFailure {}
-        guard let document = try await repo.imageConflictDocument(path: "first.dat") else { throw Failure(line: #line) }
+        guard let document = try await repo.imageConflictDocument(path: "first.png") else { throw Failure(line: #line) }
         let conflictIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), conflictBytes = try Data(contentsOf: first)
         let conflict = ImageConflictWindowController(repository: repo, access: nil, document: document), conflictWindow = conflict.window!
         conflictWindow.alphaValue = 0; conflictWindow.setFrameOrigin(NSPoint(x: -10000, y: -10000)); conflictWindow.appearance = NSAppearance(named: .aqua)

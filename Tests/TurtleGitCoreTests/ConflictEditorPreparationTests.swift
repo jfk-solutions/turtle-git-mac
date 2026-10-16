@@ -24,16 +24,16 @@ final class ConflictEditorPreparationTests: XCTestCase {
     func testPreCancelledImageReadsSelectionsAndMarkResolvedPreserveIndexAndWorkingBytes() async throws {
         let (root,repo,_) = try await ImageConflictTests().fixture()
         defer { try? FileManager.default.removeItem(at:root) }
-        let value = try await repo.imageConflictDocument(path:"picture.dat"),document = try XCTUnwrap(value)
-        let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),file=try Data(contentsOf:root.appendingPathComponent("picture.dat")),token=OperationCancellation();token.cancel()
+        let value = try await repo.imageConflictDocument(path:"picture.png"),document = try XCTUnwrap(value)
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),file=try Data(contentsOf:root.appendingPathComponent("picture.png")),token=OperationCancellation();token.cancel()
         let operations: [() async throws -> Void] = [
-            { _ = try await repo.imageConflictDocument(path:"picture.dat",cancellation:token) },
+            { _ = try await repo.imageConflictDocument(path:"picture.png",cancellation:token) },
             { _ = try await repo.selectImageConflict(document,side:.theirs,cancellation:token) },
             { _ = try await repo.markImageConflictResolved(document,cancellation:token) }
         ]
         for operation in operations { do { try await operation();XCTFail("Cancelled image operation accepted") } catch OperationCancellationFailure.cancelled {} }
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
-        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("picture.dat")),file)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("picture.png")),file)
     }
     func testExternalStageReadCancellationStopsOwnedGitBeforePreparingInputs() async throws {
         let (root,repo,path) = try await ConflictResolutionTests().fixture()

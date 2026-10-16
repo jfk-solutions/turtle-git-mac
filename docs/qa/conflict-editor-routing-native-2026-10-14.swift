@@ -17,6 +17,7 @@ import TurtleGitCore
     @MainActor static func verify() async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),path="-conflict 雪\n[*].dat"
         func fixture(_ name:String,image:Bool=false,deleted:Bool=false) async throws -> GitRepository {
+            let path = image ? path + ".png" : path
             let folder=root.appendingPathComponent(name);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
             let repo=GitRepository(root:folder,executable:git);_ = try await repo.run(["init","-b","main"])
             for (key,value) in [("user.name","Routing QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] { _ = try await repo.run(["config",key,value]) }
@@ -38,16 +39,16 @@ import TurtleGitCore
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false);workspace.fileComparisonPreferences=prefs
         let window=owner();defer { window.close();workspace.cancelConflictEditorPreparations() }
         var routes:[(RepositoryModel.ConflictEditorRoute,String,String)]=[],imageBytes:Data?,externalOwners:[NSWindow?]=[]
-        workspace.openExternalConflict={_,_,_,_,captured,_,_,_ in externalOwners.append(captured);return false}
+        workspace.openExternalConflict={_,_,_,_,captured,_,_,_,_ in externalOwners.append(captured);return false}
         workspace.conflictEditorPresentation={route,repo,path,document in routes.append((route,repo.root.path,path));if route == .image { imageBytes=document?.contents[.mine] };precondition(window.attachedSheet == nil)}
         let baselines=try await [text,image,deleted].asyncBaseline()
-        for (repo,selected,expected) in [(text,path,RepositoryModel.ConflictEditorRoute.text),(image,path,.image),(deleted,path,.deleteModify),(text,module,.submodule)] {
+        for (repo,selected,expected) in [(text,path,RepositoryModel.ConflictEditorRoute.text),(image,path+".png",.image),(deleted,path,.deleteModify),(text,module,.submodule)] {
             workspace.showConflictEditor(repository:repo,access:nil,path:selected,owner:window)
             try await wait { workspace.conflictEditorPreparationCount == 0 && FileListComparisonSession.activeOperations == 0 }
             try require(workspace.error == nil && routes.last?.0 == expected && routes.last?.1 == repo.root.path && routes.last?.2 == selected,"Routing changed kind/root/literal path")
         }
         try require(imageBytes == png(100) && externalOwners.count == 2 && externalOwners.allSatisfy({$0 === window}),"Image stages/external owner capture changed")
-        for (repo,head,index,file) in baselines { try require(try await repo.run(["rev-parse","HEAD"]).stdout == head && Data(contentsOf:repo.root.appendingPathComponent(".git/index")) == index && Data(contentsOf:repo.root.appendingPathComponent(path)) == file,"Routing changed repository state") }
+        for (repo,head,index,file) in baselines { try require(try await repo.run(["rev-parse","HEAD"]).stdout == head && Data(contentsOf:repo.root.appendingPathComponent(".git/index")) == index && Data(contentsOf:repo.root.appendingPathComponent(repo.root.lastPathComponent == "image" ? path+".png" : path)) == file,"Routing changed repository state") }
         // Owner closure during a noncooperative entry read retains Quit lifetime,
         // suppresses all routing and settles only after that same reader returns.
         var release:(()->Void)?,reads=0
@@ -61,7 +62,7 @@ import TurtleGitCore
         workspace.readConflictEditorEntry=nil
         // Real stage-blob read cancellation must kill/reap its Git group before
         // image inspection can publish or text fallback can open.
-        let helper=text.root.appendingPathComponent("gated-git"),marker=text.root.appendingPathComponent("ready")
+        let helper=image.root.appendingPathComponent("gated-git"),marker=image.root.appendingPathComponent("ready")
         let script = #"""
         #!/bin/sh
         if [ "$4" = cat-file ] && [ "$5" = blob ];then
@@ -71,9 +72,9 @@ import TurtleGitCore
         exec "$TG_ROUTING_GIT" "$@"
         """#
         try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path);setenv("TG_ROUTING_GIT",git.path,1);defer { unsetenv("TG_ROUTING_GIT") }
-        let wrapped=GitRepository(root:text.root,executable:helper),live=owner();defer { live.close() }
-        workspace.showConflictEditor(repository:wrapped,access:nil,path:path,owner:live);try await wait { FileManager.default.fileExists(atPath:marker.path) }
-        workspace.cancelConflictEditorPreparation(repository:wrapped,path:path);try await wait { workspace.conflictEditorPreparationCount == 0 && FileListComparisonSession.activeOperations == 0 }
+        let wrapped=GitRepository(root:image.root,executable:helper),live=owner();defer { live.close() }
+        workspace.showConflictEditor(repository:wrapped,access:nil,path:path+".png",owner:live);try await wait { FileManager.default.fileExists(atPath:marker.path) }
+        workspace.cancelConflictEditorPreparation(repository:wrapped,path:path+".png");try await wait { workspace.conflictEditorPreparationCount == 0 && FileListComparisonSession.activeOperations == 0 }
         try require(routes.count == beforeRoutes && workspace.error == nil,"Cancelled blob read fell through to editor/error")
         // An external launch callback returning after owner close keeps its
         // already-launched tool inputs, but cannot mark resolved or fall back.
@@ -102,6 +103,6 @@ import TurtleGitCore
 private extension Array where Element == GitRepository {
     func asyncBaseline() async throws -> [(GitRepository,Data,Data,Data)] {
         var result:[(GitRepository,Data,Data,Data)]=[]
-        for repo in self { result.append((repo,try await repo.run(["rev-parse","HEAD"]).stdout,try Data(contentsOf:repo.root.appendingPathComponent(".git/index")),try Data(contentsOf:repo.root.appendingPathComponent("-conflict 雪\n[*].dat")))) };return result
+        for repo in self { result.append((repo,try await repo.run(["rev-parse","HEAD"]).stdout,try Data(contentsOf:repo.root.appendingPathComponent(".git/index")),try Data(contentsOf:repo.root.appendingPathComponent(repo.root.lastPathComponent == "image" ? "-conflict 雪\n[*].dat.png" : "-conflict 雪\n[*].dat")))) };return result
     }
 }

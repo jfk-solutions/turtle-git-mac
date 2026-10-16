@@ -10,17 +10,18 @@ Overlay, Blend, Link positions and linked width/height controls. It retains
 Fit, Original size, Zoom, Image info and vertical arrangement. The native
 replacement follows that layout with three independently fitted image panes,
 two draggable splitters and original icon resources. It can arrange panes
-side by side or top to bottom. Source image bytes determine routing, rather
-than file extensions. Rebase Mine/Theirs use the same stage inversion as the
+side by side or top to bottom. The merged filename extension determines routing, matching StartExtMerge;
+content decoding does not select the conflict editor. Rebase Mine/Theirs use the same stage inversion as the
 existing text conflict editor; their titles identify the rebase meaning.
 
 Select copies the chosen stage's exact bytes into the working file. The index
 stays unmerged until the user answers Yes to “Mark as resolved?”. Answering No
 keeps the selected working image and the window open, allowing another choice.
 Answering Yes stages that working file and closes after success. Selection does
-not commit or continue merge/rebase. Missing Base in add/add conflicts has an
-empty pane and disabled Select. Mixed image/non-image and nonregular conflicts
-continue through the existing conflict workflows.
+not commit or continue merge/rebase. Missing Base in add/add conflicts has an empty pane and a Select action that
+copies an empty file, matching the source temporary BASE file. An undecodable
+side retains its original bytes and Select action; nonregular conflicts continue
+through their existing workflows.
 
 The source copies before asking. The native port additionally captures working
 bytes/permissions and index stages; it revalidates them before copying and again
@@ -80,3 +81,50 @@ controller-hosted content tool rows with source-ordered AppKit toolbars and
 native menu/overflow actions, common keyboard gates, full header tooltips and
 stable model ownership across image replacement. See its dated evidence for
 validation and remaining acceptance limits.
+
+## Connected conflict dispatch and selection — October 16, 2026
+
+Compared `AppUtils::StartExtMerge/ConflictEdit` and IDiff's `SELECTBUTTON_ID`,
+`SetSelectionMode` and `PositionChildren` at the pinned commit. The source chooses
+IDiff from the merged filename extension after external-tool inversion. It does
+not require every stage to decode. Its Select button copies the original side
+file, including an empty temporary Base when stage one is absent.
+
+Core now preserves all captured regular stage bytes for source image extensions.
+Unregistered extensions do not enter IDiff merely because the bytes decode as
+images. Undecodable sides display a diagnostic and selectable byte size; Select
+copies those exact bytes. An absent Base exposes empty-file selection. Decode
+success controls image display and frame playback, independently of content
+selection. Rebase orientation is checked again before copying or marking resolved;
+a changed merge/rebase context requires reload even if the index stages match.
+
+The initiating workspace captures its Merge Tool preferences before asynchronous
+entry preparation and supplies those preferences to the actual tool launcher.
+Shift, literal path, owner, repository and stage checks retain their existing
+captured handoff. The source image fallback remains distinct from two-file Shift
+behavior: bypassing an external merge tool on an image still selects IDiff.
+
+The image model owns the actual reload/select/question lifetime through a shared
+operation counter, including forced close and cancellation before a Task starts.
+Quit remains blocked until the worker or callback settles. An owned resolution
+sheet uses the existing one-response session; retirement dismisses it and settles
+No. A noncooperative late Yes cannot stage, publish an error or reopen a retired
+window. Normal No keeps the selected bytes and unmerged stages; explicit Yes
+revalidates and stages without committing or continuing a pending operation.
+
+Earlier dated checks above establish their earlier scope. The new family checks
+and remaining physical/signed acceptance are recorded separately in the batch
+record; no complete dialog or source-format certification is inferred.
+
+The reviewed light/dark compositor captures show a private real Git conflict with
+an undecodable incoming image and its enabled Select action. The first captures
+exposed an overlap between the decode message and file-size information; the
+native layout now centers the diagnostic and reserves the lower metadata area.
+The unchanged originals are published in the [dialog guide](DIALOG-GUIDE.md#image-conflict-selection).
+
+Twenty-four focused Core cases and all four native family cases with both Git
+engines pass. The screenshot repair repeated only the affected native case;
+Core was not rerun. [The dated record](qa/image-conflict-family-2026-10-16.json)
+retains all fixture failures, the native layout repair and exact cleanup scope.
+This supersedes earlier content-only routing and disabled missing-Base behavior;
+complete physical, format and signed acceptance remain open.

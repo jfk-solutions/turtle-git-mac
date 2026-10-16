@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "8aeb060929701c4b25246916eb9f296649d88a90",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected image conflict dispatch, raw-side/empty-Base selection, captured merge settings, rebase validation and actual operation/question ownership",
+  "source": [
+    "AppUtils.cpp StartExtMerge image extension fallback after tool inversion.",
+    "AppUtils.cpp ConflictEdit prepares empty temporary Base when stage one is absent.",
+    "TortoiseIDiff MainWindow.cpp SELECTBUTTON_ID copies source file before resolution question; PicWindow.cpp PositionChildren exposes selection independently of decode success."
+  ],
+  "implementation": [
+    "Source extension routing; stage bytes remain available even when decoding fails.",
+    "Select undecodable original content; absent add/add Base selects an empty file; distinct native diagnostics and metadata.",
+    "Rebase orientation revalidated before selection/resolution alongside existing index and working snapshot checks.",
+    "Workspace Merge Tool preferences captured before preparation and passed to actual external launcher with captured Shift/owner/path.",
+    "Image worker counter protects Quit through reload/selection/question even after forced close or retirement before Task start.",
+    "Resolution uses owned one-response sheet session; forced retirement settles No; late noncooperative Yes cannot stage or publish.",
+    "Native decode diagnostic centered separately from metadata after screenshot review found overlap."
+  ],
+  "core": {
+    "exit": 0,
+    "cases": 24,
+    "log": "build/qa/image-conflict-family-core.log",
+    "first_attempt_pass": true,
+    "scope": "Image conflicts, conflict preparation/cancellation, shared identities/rebase and diff/merge preferences"
+  },
+  "debug_builds": [
+    {
+      "exit": 0,
+      "log": "build/qa/image-conflict-family-debug.log",
+      "anomalous_exit_zero_diagnostics": 2
+    },
+    {
+      "exit": 0,
+      "log": "build/qa/image-conflict-family-layout-debug.log",
+      "anomalous_exit_zero_diagnostics": 1
+    }
+  ],
+  "native": {
+    "distinct_case_engine_pairs": 8,
+    "passing_process_runs": 9,
+    "families": [
+      "conflict selection",
+      "frames/playback",
+      "conflict routing/preparation",
+      "owned conflict family"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "logs": [
+      "build/qa/image-conflict-family-native.log",
+      "build/qa/image-conflict-family-native-repaired.log",
+      "build/qa/image-conflict-family-native-visible-owner.log",
+      "build/qa/image-conflict-family-owned.log",
+      "build/qa/image-conflict-family-retained.log",
+      "build/qa/image-conflict-family-layout-native.log",
+      "build/qa/image-conflict-family-bundled.log"
+    ],
+    "receivers_reaped_and_independently_absent": [
+      72017,
+      72132,
+      72236,
+      72453,
+      72668,
+      72777,
+      72833,
+      73124,
+      73341,
+      73555,
+      73664,
+      73726
+    ],
+    "repairs": [
+      "Initial new fixture passed ModalResponse to deprecated NSApplication.endSheet expecting raw Int; fixture compile corrected. No receiver started.",
+      "Older conflict fixture hid its parent before asking; owned-sheet visible-owner guard correctly refused. Fixture made transparent/offscreen but AppKit-visible.",
+      "Older fixture also hid the sheet before pressing its buttons; kept transparent live sheet visible for real target/action completion.",
+      "Old preparation fixture gated image-inspection blobs on a .dat text path; source extension routing now skips that read. Moved actual cancellation gate to its image repository/path.",
+      "First compositor captures exposed real overlap of undecodable-side diagnostic and file-size overlay. Native layout fixed; only affected system owned case/captures repeated after native rebuild. Core unchanged/not rerun."
+    ],
+    "checks": [
+      "Actual Select buttons and production Yes/No sheets: raw incoming bytes copied with unchanged index on No; empty Base copies zero bytes; explicit Yes stages exact raw bytes without committing.",
+      "Ordinary close/Quit fenced during question; forced close dismisses and settles production sheet; held late Yes and pre-start reload retirement preserve actual counter/lease lifetime and suppress late writes/errors.",
+      "Private real Git HEAD/index invariants and intended explicit resolution mutations.",
+      "Captured workspace Merge settings and Shift survive suspended entry read and changed saved preferences.",
+      "Retained native image pixels/frame controls/whole-GIF selection, four editor kinds, duplicate/retired reads and actual Git blob group cancellation.",
+      "Intercepted external SDK callback retains inputs after owner close; no external user app launched or killed."
+    ]
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/image-conflict-undecodable-light.png",
+      "sha256": "138d20aa5da3ab6b283e6d2d69e78639534af3cbef1a2bbbb686ab48aa3b1446",
+      "scope": "Unaltered macOS compositor capture of shipping native window using private real Git conflict; native light/dark appearance; repaired diagnostic/metadata overlap reviewed"
+    },
+    {
+      "path": "docs/site/assets/image-conflict-undecodable-dark.png",
+      "sha256": "727262ffec640e5984e5f122c8680bd26298fd4e5c69ee564118927c2c61043b",
+      "scope": "Unaltered macOS compositor capture of shipping native window using private real Git conflict; native light/dark appearance; repaired diagnostic/metadata overlap reviewed"
+    }
+  ],
+  "documentation": {
+    "help": "33 guides, 47 topics, 45 files, 1675540 bytes",
+    "site": "246 documents; zero unresolved fragments",
+    "resource_copy": {
+      "exit": 0,
+      "log": "build/qa/image-conflict-family-resources-debug.log",
+      "scope": "Final Help HTML/PNG/JSON byte-equal in Debug app; resource-only build, no behavior rechecks"
+    }
+  },
+  "limits": [
+    "All source image codecs, symlink/nonregular conflict policies and complete tool masks remain open.",
+    "Physical keyboard/mouse, VoiceOver/client discovery, signed Finder/AppStore and security-scope acceptance remain open.",
+    "No full hosted CI result, new Store build or complete port/dialog certification."
+  ]
+}

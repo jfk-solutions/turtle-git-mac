@@ -26,16 +26,7 @@ import TurtleGitCore
         window.minSize = NSSize(width: 800,height: 400)
         super.init(window: window); model.presentation.attach(window); model.windowForCommands = window; window.delegate = self; window.imageModel = model; window.center()
         model.close = { [weak window] in window?.close() }
-        model.askMarkResolved = { [weak window] path in
-            guard let window else { return false }
-            let alert = NSAlert(); alert.alertStyle = .informational
-            alert.messageText = "Mark “\((path as NSString).lastPathComponent)” as resolved?"
-            alert.informativeText = "The selected image has been copied to the working file."
-            alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
-            return await withCheckedContinuation { continuation in
-                alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertFirstButtonReturn) }
-            }
-        }
+        model.askMarkResolved = { [weak model = model] path in await model?.confirmResolution(path: path) ?? false }
         imageToolbar = ImageEditorToolbar.conflict(self)
         DialogGeometry.attach(window, identifier: "TurtleGit.ImageConflict", legacyName: "TurtleGit.ImageConflict")
     }
@@ -46,6 +37,7 @@ import TurtleGitCore
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ImageConflictWindowModel: ObservableObject {
+    private(set) static var activeOperations = 0
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let preferences: UserDefaults
@@ -58,6 +50,7 @@ import TurtleGitCore
     private(set) var retired = false
     private var task: Task<Void,Never>?
     private var cancellation: OperationCancellation?
+    private var resolutionSession: ExternalMergeSession?
     var onChanged: (String) -> Void = { _ in }
     var close: () -> Void = {}
     var askMarkResolved: (String) async -> Bool = { _ in false }
@@ -97,12 +90,29 @@ import TurtleGitCore
     func fitImages() { for pane in panes.values { pane.fit = true } }
     func originalSize() { for pane in panes.values { pane.originalSize() } }
     func zoom(_ zoomIn: Bool) { for pane in panes.values { pane.changeZoom(zoomIn: zoomIn) } }
-    func retire() { presentation.retire(); for pane in panes.values { pane.stopAllPlayback() }; retired = true; cancellation?.cancel(); task?.cancel(); task = nil }
+    func retire() {
+        guard !retired else { return }
+        presentation.retire(); for pane in panes.values { pane.stopAllPlayback() }
+        retired = true; cancellation?.cancel(); resolutionSession?.retire(); task?.cancel()
+        // Keep the actual operation and its retained repository grant alive
+        // until the Git worker or owned question really settles.
+    }
+    func confirmResolution(path: String) async -> Bool {
+        guard !retired, let cancellation else { return false }
+        let question = ExternalMergeSession(owner: windowForCommands, cancellation: cancellation)
+        resolutionSession = question
+        defer { question.retire(cancelWork: false); if resolutionSession === question { resolutionSession = nil } }
+        return await question.confirmImageResolution(path: path)
+    }
+    func canSelect(_ side: ImageConflictSide) -> Bool {
+        !busy && !retired && windowForCommands?.attachedSheet == nil && document.selectionBytes(side) != nil
+    }
     func reload() {
-        guard !busy, !retired else { return }; busy = true; error = nil
-        let token = OperationCancellation(); cancellation = token
-        task = Task { [weak self] in
-            guard let self, !self.retired else { return }; defer { busy = false; task = nil; cancellation = nil }
+        guard !busy, !retired, windowForCommands?.attachedSheet == nil else { return }; busy = true; error = nil
+        let token = OperationCancellation(); cancellation = token; Self.activeOperations += 1
+        task = Task { [self] in
+            defer { busy = false; task = nil; cancellation = nil; Self.activeOperations -= 1 }
+            guard !retired else { return }
             do {
                 guard let next = try await repository.imageConflictDocument(path: document.entry.path, identityOptions: ConflictIdentityOptions(defaults: preferences), cancellation: token) else { throw ImageConflictFailure.unavailable }
                 guard !retired else { return }
@@ -124,10 +134,11 @@ import TurtleGitCore
         return side == .mine && document.mineStage == 3 ? "Mine — Branch being rebased" : side == .theirs && document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : side.rawValue
     }
     func select(_ side: ImageConflictSide) {
-        guard !busy, !retired, images[side] != nil else { return }; busy = true; error = nil
-        let token = OperationCancellation(); cancellation = token
-        task = Task { [weak self] in
-            guard let self, !self.retired else { return }; defer { busy = false; task = nil; cancellation = nil }
+        guard canSelect(side) else { return }; busy = true; error = nil
+        let token = OperationCancellation(); cancellation = token; Self.activeOperations += 1
+        task = Task { [self] in
+            defer { busy = false; task = nil; cancellation = nil; Self.activeOperations -= 1 }
+            guard !retired else { return }
             do {
                 let saved = try await repository.selectImageConflict(document, side: side, cancellation: token)
                 guard !retired else { return }; document = saved
@@ -186,7 +197,8 @@ struct ImageConflictDialog: View {
     }
     private func pane(_ side: ImageConflictSide) -> some View {
         ImageConflictPane(side: side, image: model.images[side], bytes: model.document.contents[side]?.count ?? 0,
-                          title: model.title(for: side),
+                          title: model.title(for: side), selectable: model.canSelect(side),
+                          emptyBase: side == .base && model.document.contents[side] == nil,
                           model: model.panes[side]!, info: model.showInfo) { model.select(side) }
     }
 }
@@ -195,6 +207,8 @@ private struct ImageConflictPane: View {
     let image: ComparisonImage?
     let bytes: Int
     let title: String
+    let selectable: Bool
+    let emptyBase: Bool
     @ObservedObject var model: ImageComparisonViewModel
     let info: Bool
     let select: () -> Void
@@ -205,17 +219,23 @@ private struct ImageConflictPane: View {
             ImageFrameControls(model: model, base: true, label: side.rawValue)
             ZStack(alignment: .bottomLeading) {
                 ImageComparisonScroll(model: model, image: current, second: nil, base: true)
-                if image == nil { Text("No image on this side").foregroundStyle(.secondary) }
-                if info, let image = current {
+                if image == nil {
+                    Text(emptyBase ? "No base revision — Select copies an empty file" : "Unable to decode image — Select copies the original bytes")
+                        .foregroundStyle(.secondary).multilineTextAlignment(.center).padding(20)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity).allowsHitTesting(false)
+                }
+                if info {
                     VStack(alignment: .leading) {
                         Text("File size: \(bytes) bytes")
-                        Text("Width: \(image.pixels.width) pixels")
-                        Text("Height: \(image.pixels.height) pixels")
-                        Text("Depth: \(image.pixels.bitsPerPixel) bits")
+                        if let image = current {
+                            Text("Width: \(image.pixels.width) pixels")
+                            Text("Height: \(image.pixels.height) pixels")
+                            Text("Depth: \(image.pixels.bitsPerPixel) bits")
+                        }
                     }.font(.caption).padding(8).background(.regularMaterial).padding(10).allowsHitTesting(false)
                 }
             }
-            HStack { Text(model.fit ? "Fit in window" : "Zoom: \(Int(model.zoom * 100))%").font(.caption); Spacer(); ImageConflictSelectButton(side: side, enabled: image != nil, action: select).frame(width: 90,height: 24) }.padding(7)
+            HStack { Text(model.fit ? "Fit in window" : "Zoom: \(Int(model.zoom * 100))%").font(.caption); Spacer(); ImageConflictSelectButton(side: side, enabled: selectable, action: select).frame(width: 90,height: 24) }.padding(7)
         }.frame(minWidth: 200,minHeight: 100)
     }
 }

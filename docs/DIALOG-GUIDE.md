@@ -437,3 +437,22 @@ Reload even if Settings changes. Invalid image data shows its decode message in
 IDiff. Use **Load Images** to view image content with arbitrary filenames; this
 explicit command does not invoke configured external diff programs. Explicit
 Merge Open/source comparisons stay in the Merge editor.
+
+### Image conflict selection
+
+Image conflicts use the filename extension and your Merge Tool association.
+Each Mine/Base/Theirs pane has Select, even if that side cannot be decoded as an
+image. Select copies its captured original bytes; the diagnostic distinguishes
+an undecodable image from an absent Base. For an add/add conflict, selecting the
+absent Base writes an empty file. The resolution question follows the copy:
+**No** keeps the selected working file and unmerged index; **Yes** stages the
+selected result without committing. Reload after an external edit or a changed
+merge/rebase context. Closing a question normally is blocked; forced retirement
+cancels its answer and prevents late staging.
+
+The following native captures use a private Git conflict with a damaged incoming
+image. The source bytes remain selectable in the third pane.
+
+![Image conflict with an undecodable incoming side, light appearance](site/assets/image-conflict-undecodable-light.png)
+
+![Image conflict with an undecodable incoming side, dark appearance](site/assets/image-conflict-undecodable-dark.png)

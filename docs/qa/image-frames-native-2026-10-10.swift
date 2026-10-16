@@ -180,7 +180,7 @@ import Darwin
         let conflictWindow = conflict.window!, conflictHost = conflictWindow.contentView!
         conflictWindow.alphaValue = 0; conflictWindow.setFrameOrigin(NSPoint(x: -10000,y: -10000))
         defer { if let sheet = conflictWindow.attachedSheet { conflictWindow.endSheet(sheet,returnCode: .abort) }; conflictWindow.close() }
-        conflictWindow.orderFront(nil); conflictWindow.orderOut(nil); try await settle()
+        conflictWindow.orderFront(nil); try await settle()
         func conflictButton(_ title: String) throws -> NSButton {
             guard let button = descendants(conflictHost).compactMap({ $0 as? NSButton }).first(where: { $0.accessibilityLabel() == title }) else { throw Failure(line: #line) }
             return button
@@ -197,8 +197,8 @@ import Darwin
         try conflictButton("Select Mine").performClick(nil)
         try await wait { conflictWindow.attachedSheet != nil }
         let sheet = conflictWindow.attachedSheet!
-        sheet.alphaValue = 0; conflictWindow.orderOut(nil); sheet.orderOut(nil)
-        try require(!conflictWindow.isVisible && !sheet.isVisible)
+        sheet.alphaValue = 0
+        try require(conflictWindow.isVisible && sheet.isVisible)
         guard let no = descendants(sheet.contentView!).compactMap({ $0 as? NSButton }).first(where: { $0.title == "No" }) else { throw Failure(line: #line) }
         no.performClick(nil); try await wait { !conflict.model.busy }
         let copied = try Data(contentsOf: left), unmergedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))

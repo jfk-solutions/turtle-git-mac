@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The [image conflict family](IMAGE-CONFLICT-PARITY.md) now uses source extension
+routing, keeps undecodable sides selectable by their captured bytes, and supports
+empty Base selection in add/add conflicts. Rebase-state checks, workspace-owned
+Merge Tool settings, one-response resolution sheets and actual worker/Quit
+lifetime are connected. See [the batch record](qa/image-conflict-family-2026-10-16.json)
+for validation, capture review and remaining physical/signed acceptance.
+
 The [connected image/tool routing family](DIFF-TOOLS-PARITY.md#connected-imagetool-dispatch--october-16-2026)
 now separates source Merge, IDiff and configured-program selection. Captured Shift
 and Settings determine dispatch before image decoding. Reload preserves that

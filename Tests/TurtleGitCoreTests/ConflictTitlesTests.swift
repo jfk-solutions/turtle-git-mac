@@ -101,7 +101,7 @@ final class ConflictTitlesTests: XCTestCase {
     func testImageIdentitySurvivesSelectionAndRebaseSwap() async throws {
         let (root, repo, bytes) = try await ImageConflictTests().fixture(rebase: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let captured = try await repo.imageConflictDocument(path: "picture.dat")
+        let captured = try await repo.imageConflictDocument(path: "picture.png")
         let image = try XCTUnwrap(captured), titles = try await repo.conflictTitles()
         XCTAssertEqual(image.conflictTitles, titles); XCTAssertEqual(image.mineStage, 3); XCTAssertEqual(image.theirsStage, 2)
         XCTAssertEqual(image.contents[.mine], bytes[1]); XCTAssertEqual(image.contents[.theirs], bytes[2])
