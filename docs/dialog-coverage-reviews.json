@@ -701,6 +701,22 @@
           "anchor": "struct NetworkSettingsPage"
         }
       ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSCREDENTIAL",
+      "status": "partial-native-replacement",
+      "parity_document": "docs/CREDENTIAL-SETTINGS-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/CredentialSettings.swift",
+          "anchor": "class CredentialSettingsModel"
+        },
+        {
+          "path": "Sources/TurtleGitMac/CredentialSettings.swift",
+          "anchor": "struct CredentialSettingsPage"
+        }
+      ]
     }
   ]
 }

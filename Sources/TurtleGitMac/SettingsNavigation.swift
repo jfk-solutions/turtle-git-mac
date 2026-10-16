@@ -138,7 +138,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         TurtleGitHelp.attach(window, topic: TurtleGitHelp.settingsTopic(selected))
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
-    var canDismiss: Bool { !retired && workspace.finderWatches?.busy != true && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && view.window?.attachedSheet == nil }
+    var canDismiss: Bool { !retired && workspace.finderWatches?.busy != true && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
         guard !retired, !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
@@ -208,7 +208,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     @objc private func cancelSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.cancel(); view.window?.performClose(nil) }
     private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction).defaultAppStorage(preferences)) }
     private func show(_ page: SettingsPageID) {
-        guard !retired, !emailDraft.busy, !emailDraft.editingCredentials, !transaction.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0, IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 else { return }
+        guard !retired, !emailDraft.busy, !emailDraft.editingCredentials, !transaction.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0, NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0, IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 else { return }
         if current != nil && selected == page { return }
         view.window?.makeFirstResponder(nil)
         let controller: NSViewController

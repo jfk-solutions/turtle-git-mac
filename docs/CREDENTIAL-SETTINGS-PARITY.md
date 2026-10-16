@@ -128,3 +128,46 @@ second click creates only one confirmation; its accepted late response cannot
 replace the selected group or unsaved draft after deactivation/reactivation.
 This native-only extension did not rerun Core tests. Real native sheets, keyboard
 acceptance and signed deployment remain unverified.
+
+## Source inputs and coherent refresh — October 17, 2026
+
+The source URL, Helper and Username labels now remain visible with populated
+fields. Helper uses an editable native combo with installed helpers in its
+completion/dropdown list, replacing the separate text-field/menu arrangement.
+Selecting a group preserves its complete helper/reset chain; an explicit helper
+edit intentionally replaces that chain with the entered value. Field callbacks
+capture the accepted editor identity, so a removed/replaced/retired field cannot
+edit a different group after reactivation. Cached page activity is observable and
+restores the enabled state when the page returns.
+
+The Helpers list follows source title sorting, distinguishes the known XDG origin
+with its source X prefix and provides each group's full file/origin tooltip.
+Native locale sorting may differ from Windows. Config type and HTTP-path controls
+retain the existing scoped write behavior. The independent Keychain Access entry
+now stays available in simple modes, matching `EnableAdvancedOptions`, which does
+not disable the source Windows Credential Manager button. Saved SSH Authentication
+remains a separate native addition.
+
+Refresh collects configuration-file origins, credential entries and installed
+helper metadata before changing the accepted display. Failure/cancellation keeps
+the previous accepted origins/list/mode/draft. Refresh refuses unsaved edits. If a
+selected group disappeared externally, successful refresh clears that selection
+and its saved draft rather than retaining a valid-looking helper that could
+recreate the removed credentials. Unknown list identities cannot clear a current
+group. Source-ordered immediate Add New/Save/Remove and property-sheet Apply/Cancel
+remain distinct.
+
+A helper-selection/discard question owns a single selection request, Settings
+close/page-switch and application Quit. Duplicate selection clicks share one
+question. Retirement releases the modal request and fences late responses,
+including when the same page is activated again. Read tasks retain their separate
+read/access lifetime. Authorized configuration writes retain their existing
+independent save/drain policy.
+
+All eighteen `IDD_SETTINGSCREDENTIAL` controls have recorded partial mappings.
+The two Windows administrator/elevated-relaunch controls are platform adaptations:
+macOS uses existing configuration-folder authorization and reports unwritable
+system configuration; it does not install a privileged helper or promise elevated
+system writes. The credential-manager action maps to Keychain Access. These
+adaptations are not full Windows elevation equivalence or App Store acceptance.
+Four grouped native case/engine combinations pass with system and bundled Git. Both raw light/dark page captures were individually reviewed: labels, editable Helper, list, actions and footers fit without clipping. All four owned receivers were reaped and independently absent. Core algorithms were unchanged and their suite was not repeated. Physical keyboard, signed Keychain/Finder and complete upstream acceptance remain open. See [batch evidence](qa/credential-source-family-2026-10-17.json).

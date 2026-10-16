@@ -1754,3 +1754,13 @@ Four distinct native case/engine combinations pass; affected source rechecks
 cover the recorded layout and cached-page repairs. Two reviewed passive page
 captures are published, and all eight owned receivers are closed. Core was
 unchanged and not repeated. See [batch evidence](qa/network-source-family-2026-10-17.json).
+
+### Credential source inputs and refresh — October 17, 2026
+
+Credential now retains field labels and the source editable Helper combo, keeps
+chains until explicit edits, and fences callbacks by accepted editor identity.
+Refresh accepts origins/list/helper metadata together, preserves failed reads and
+clears externally removed selections. Independent selection requests guard
+Settings/Quit, while the password-manager action remains available in simple
+modes. See [Credential parity](CREDENTIAL-SETTINGS-PARITY.md#source-inputs-and-coherent-refresh--october-17-2026).
+Four grouped native case/engine combinations pass with system and bundled Git. Both raw light/dark page captures were individually reviewed: labels, editable Helper, list, actions and footers fit without clipping. All four owned receivers were reaped and independently absent. Core algorithms were unchanged and their suite was not repeated. Physical keyboard, signed Keychain/Finder and complete upstream acceptance remain open. See [batch evidence](qa/credential-source-family-2026-10-17.json).

@@ -7,6 +7,9 @@ import TurtleGitCore
     let settingsRegistration = UUID()
     static var activeSaves = 0
     static private(set) var activeReads = 0
+    static private(set) var activeSelections=0
+    @Published private(set) var editorIdentity=UUID()
+    private var selectionRequest:UUID?
     @Published private(set) var snapshot: GitCredentialSnapshot?
     @Published private(set) var files: GitConfigurationFiles?
     @Published private(set) var helpers: [String] = []
@@ -26,7 +29,7 @@ import TurtleGitCore
     var openPasswordManager: (() -> Bool)?
     private var generation = UUID()
     private var token: OperationCancellation?
-    private var active = false
+    @Published private var active = false
     private var saving = false
     private var panel: NSOpenPanel?
     private var alert: NSAlert?
@@ -47,9 +50,28 @@ import TurtleGitCore
         switch destination { case .local: return files?.local; case .global: return files?.global; case .system: return files?.system; case .effective: return nil }
     }
     var writable: Bool { target != nil && group?.scope != "command" }
+    var canManagePasswords:Bool {active && !busy}
+    var canEditFields:Bool {active && !busy && snapshot != nil && mode == "advanced"}
+    var displayGroups:[GitCredentialGroup] {
+        (snapshot?.groups ?? []).sorted {
+            let result=groupTitle($0).localizedCaseInsensitiveCompare(groupTitle($1))
+            return result == .orderedSame ? $0.id.utf8.lexicographicallyPrecedes($1.id.utf8) : result == .orderedAscending
+        }
+    }
+    func groupTitle(_ group:GitCredentialGroup)->String {
+        let prefix:String
+        if group.scope == "global",let file=group.file,file == files?.xdg {prefix="X"}
+        else {prefix=String(group.scope.prefix(1)).uppercased()}
+        return prefix + ":" + (group.url.isEmpty ? "Default" : group.url)
+    }
+    func editHelper(_ text:String,identity:UUID) {
+        guard canEditFields,editorIdentity==identity else {return}
+        draft.helpers=[text]
+    }
     func activate() { active = true; if snapshot == nil { refresh() } }
     func deactivate() {
-        active = false; generation = UUID(); token?.cancel(); token = nil
+        active = false; generation = UUID(); token?.cancel(); token = nil;editorIdentity=UUID()
+        if selectionRequest != nil {selectionRequest=nil;Self.activeSelections -= 1}
         if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
         if let alert { window?.endSheet(alert.window, returnCode: .abort) }; alert = nil
         let reply = reply; self.reply = nil; reply?(false)
@@ -106,14 +128,14 @@ import TurtleGitCore
         return nil
     }
     func refresh() {
-        guard active, !busy else { return }
+        guard active,!busy,snapshot == nil || !modified else {return}
         busy = true; error = nil; let request = UUID(), token = OperationCancellation(); generation = request; self.token = token; Self.activeReads += 1
-        Task {
-            defer { Self.activeReads -= 1; if generation == request { busy = false; self.token = nil } }
+        Task { [self,access] in
+            defer { Self.activeReads -= 1;withExtendedLifetime(access) {};if generation == request {busy=false;self.token=nil} }
             do {
                 try checkAccess()
                 let files = try await repository.gitConfigurationFiles(hasRepository: localAvailable, cancellation: token)
-                guard active, generation == request else { return }; self.files = files
+                guard active, generation == request else { return }
                 for file in [files.global, files.xdg, files.system].compactMap({ $0 }) {
                     guard await permission(file), active, generation == request else { return }
                 }
@@ -121,9 +143,13 @@ import TurtleGitCore
                 guard active, generation == request, !token.isCancelled else { return }
                 let configuration = try await repository.firstStartConfiguration(cancellation: token)
                 guard active, generation == request, !token.isCancelled else { return }
-                self.snapshot = snapshot; helpers = configuration.helpers.filter { !$0.isEmpty }
-                mode = simpleMode(snapshot); savedMode = mode
-                if let selected, let group = snapshot.groups.first(where: { $0.id == selected }) { load(group) }
+                // No suspension while the accepted origins/list/mode/draft change.
+                self.files=files;self.snapshot=snapshot;helpers=configuration.helpers.filter {!$0.isEmpty}
+                mode=simpleMode(snapshot);savedMode=mode
+                if let selected {
+                    if let group=snapshot.groups.first(where:{$0.id==selected}) {load(group)}
+                    else {clearDraft(resetDestination:true)}
+                }
             } catch { if active, generation == request, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
@@ -141,18 +167,25 @@ import TurtleGitCore
         selected = group.id
         destination = group.scope == "local" || group.scope == "worktree" ? .local : group.scope == "system" ? .system : .global
         var draft = GitCredentialDraft(); draft.url = group.url; draft.helpers = group.helpers; draft.username = group.username; draft.useHTTPPath = group.useHTTPPath
-        self.draft = draft; saved = draft; savedDestination = destination
+        self.draft = draft; saved = draft; savedDestination = destination;editorIdentity=UUID()
+    }
+    private func clearDraft(resetDestination:Bool = false) {
+        if resetDestination {destination=localAvailable ? .local:.global}
+        selected=nil;draft=GitCredentialDraft();saved=draft;savedDestination=destination;editorIdentity=UUID()
     }
     func select(_ id: String?) {
-        guard active, !busy, id == nil || id != selected else { return }
-        let request = generation
-        busy = true
-        Task {
-            defer { if generation == request { busy = false } }
+        guard canEditFields,id == nil || id != selected,id == nil || snapshot?.groups.contains(where:{$0.id==id}) == true else {return}
+        let request=generation,choice=UUID();selectionRequest=choice;Self.activeSelections += 1
+        busy=true
+        Task { [self,access] in
+            defer {
+                withExtendedLifetime(access) {}
+                if selectionRequest==choice {selectionRequest=nil;Self.activeSelections -= 1;if generation==request {busy=false}}
+            }
             if draft != saved || destination != savedDestination, !(await confirm("Discard unsaved helper changes?", detail: "Select Add New/Save or Apply to save the current fields before selecting another helper.", action: "Discard")) { return }
             guard active, generation == request else { return }
             if let group = snapshot?.groups.first(where: { $0.id == id }) { load(group) }
-            else { selected = nil; draft = GitCredentialDraft(); saved = draft; savedDestination = destination }
+            else {clearDraft()}
         }
     }
     func cancelDraft() { guard !busy else { return }; draft = saved; destination = savedDestination; mode = savedMode }
@@ -205,7 +238,7 @@ import TurtleGitCore
             guard active, generation == request else { return true }
             let result = try await read()
             guard active, generation == request else { return true }
-            self.snapshot = result; savedMode = mode; selected = nil; draft = GitCredentialDraft(); saved = draft; savedDestination = destination; return true
+            self.snapshot=result;savedMode=mode;clearDraft();return true
         } catch { if active, generation == request { self.error = error.localizedDescription }; return false }
     }
     func remove() {
@@ -220,7 +253,7 @@ import TurtleGitCore
                 try checkAccess(); try await repository.removeCredential(group, expected: snapshot)
                 guard active, generation == request else { return }
                 let snapshot = try await read()
-                guard active, generation == request else { return }; self.snapshot = snapshot; selected = nil; draft = GitCredentialDraft(); saved = draft; savedDestination = destination
+                guard active,generation==request else {return};self.snapshot=snapshot;clearDraft()
             } catch { if active, generation == request { self.error = error.localizedDescription } }
         }
     }
@@ -236,6 +269,7 @@ struct CredentialSettingsPage: View {
     @ObservedObject var model: CredentialSettingsModel
     @Environment(\.settingsTransaction) private var transaction
     var body: some View {
+        let identity=model.editorIdentity
         VStack(alignment: .leading, spacing: 14) {
             Picker("Credential helper:", selection: $model.mode) {
                 Text("Advanced configuration").tag("advanced")
@@ -250,11 +284,11 @@ struct CredentialSettingsPage: View {
                 VStack(alignment: .leading) {
                     Text("Helpers:")
                     List(selection: Binding(get: { model.selected }, set: model.select)) {
-                        ForEach(model.snapshot?.groups ?? []) { group in
+                        ForEach(model.displayGroups) { group in
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(group.scope.prefix(1).uppercased() + ":" + (group.url.isEmpty ? "Default" : group.url)).lineLimit(2)
+                                Text(model.groupTitle(group)).lineLimit(2)
                                 Text(group.file?.lastPathComponent ?? group.origin).font(.caption).foregroundStyle(.secondary)
-                            }.tag(group.id)
+                            }.help(group.file?.path ?? group.origin).tag(group.id)
                         }
                     }.frame(minWidth: 200, idealWidth: 230, maxWidth: 280, minHeight: 300)
                     Button("New helper") { model.select(nil) }
@@ -265,25 +299,28 @@ struct CredentialSettingsPage: View {
                         Text("Global").tag(GitConfigurationSource.global)
                         if model.files?.system != nil { Text("System").tag(GitConfigurationSource.system) }
                     }
-                    TextField("URL:", text: $model.draft.url)
+                    HStack {Text("URL:").frame(width:80,alignment:.leading);TextField("",text:$model.draft.url).accessibilityLabel("Credential URL")}
                     HStack {
-                        TextField("Helper:", text: Binding(get: { model.draft.helpers.first ?? "" }, set: { model.draft.helpers = [$0] }))
-                        Menu("Installed helpers") { ForEach(model.helpers, id: \.self) { helper in Button(helper) { model.draft.helpers = [helper] } } }
+                        Text("Helper:").frame(width:80,alignment:.leading)
+                        CloneHistoryCombo(value:Binding(get:{model.draft.helpers.first ?? ""},set:{model.editHelper($0,identity:identity)}),choices:model.helpers,label:"Credential helper").id(identity).frame(height:26)
                     }
                     if model.draft.helpers.count > 1 {
                         Text("Helper chain (in order): " + model.draft.helpers.map { $0.isEmpty ? "Reset inherited helpers" : $0 }.joined(separator: " → ")).font(.caption)
                     }
-                    TextField("Username:", text: $model.draft.username)
+                    HStack {Text("Username:").frame(width:80,alignment:.leading);TextField("",text:$model.draft.username).accessibilityLabel("Credential username")}
                     Toggle("Use HTTP path component", isOn: $model.draft.useHTTPPath)
                     Button("Add New/Save", action: model.save).disabled(!model.draft.valid || !model.writable)
                     Button("Remove", action: model.remove).disabled(model.group?.file == nil || model.group?.scope == "command")
                     if let file = model.target { Text(file.path).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
                     Text("System settings require write access to their configuration folder. Credential passwords are managed by the selected helper.").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Keychain Access", action: model.openKeychain)
-                    Button("Saved SSH Authentication…") { SavedSSHAuthenticationService.shared.show() }
+                    Spacer(minLength:0)
                 }.frame(maxWidth: .infinity, alignment: .leading)
-            }.disabled(model.busy || model.mode != "advanced")
+            }.disabled(!model.canEditFields)
+            HStack {
+                Spacer()
+                Button("Keychain Access",action:model.openKeychain)
+                Button("Saved SSH Authentication…") {SavedSSHAuthenticationService.shared.show()}
+            }.disabled(!model.canManagePasswords)
             HStack { Button("Refresh", action: model.refresh).disabled(model.busy || model.modified); if model.busy { ProgressView().controlSize(.small) } }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             Text("Add New/Save and Remove save immediately, like the source dialog. Cancel restores only unsaved field edits.").font(.caption).foregroundStyle(.secondary)
