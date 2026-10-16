@@ -82,3 +82,9 @@ Finder clipboard, format and physical/signed acceptance remain incomplete.
 The [native file-panel continuation](PATCH-FILE-PANEL-PARITY.md) uses highlighted
 rows for explicit preview and selected/all application. It supersedes the earlier
 checkbox description for the Review UI; the checked backend API remains separate.
+
+The [recorded-base recovery continuation](PATCH-RECOVERY-PARITY.md) adds initial
+Ready/Conflict/Error classification, versioned-base retry, an embedded native
+three-pane preview and clean-merge Patch all/selected continuation. Earlier text
+listing all initial-state and conflict preview behavior as absent is historical;
+the continuation records the implemented paths and remaining special-file scope.

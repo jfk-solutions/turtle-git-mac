@@ -56,3 +56,9 @@ Actual AppKit result-list captures are published in
 a failed row and its diagnostic alongside the original patch. Comparison-view
 candidates also confirmed the initial viewport and file icons; they are retained
 in local QA. These captures do not prove keyboard popup or full dialog parity.
+
+The [recorded-base recovery continuation](PATCH-RECOVERY-PARITY.md) adds initial
+Ready/Conflict/Error classification, versioned-base retry, an embedded native
+three-pane preview and clean-merge Patch all/selected continuation. Earlier text
+listing all initial-state and conflict preview behavior as absent is historical;
+the continuation records the implemented paths and remaining special-file scope.

@@ -517,3 +517,10 @@ press Return to preview one file. Right-click offers **Preview patched file**,
 the keyboard. **View → Patch file list** and the Hide/Show file list button restore
 or hide the panel without losing the selection. See
 [the native patch panel](PATCH-FILE-PANEL-PARITY.md) for behavior and current limits.
+
+Patch review now checks initial file states. A **conflict** row can be previewed
+in the three-pane editor using the recorded patch base, current working file and
+patched base. Resolve its blocks and Save; Mark as resolved is disabled here.
+**Patch all/selected** can save a clean recorded-base merge, while conflicts stay
+unwritten for review. Missing base versions remain errors. See
+[patch recovery](PATCH-RECOVERY-PARITY.md) for supported paths and limitations.

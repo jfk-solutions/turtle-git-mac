@@ -1,0 +1,101 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "95a1623e96f283d7d4763da663e42119ce9fd4d8",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Recorded-base patch preparation, initial ready/conflict/error state, embedded Subversion three-pane/native toolbar, resolved Save ownership and clean Patch all continuation",
+  "source": [
+    "Git/GitPatch.cpp PatchFile and GitPatch.h GetFailedHunks/GetHasConflict.",
+    "TortoiseMerge/MainFrm.cpp PatchFile and FilePatchesDlg.cpp initial states."
+  ],
+  "implementation": [
+    "Retry failed application only against the exact old/new recorded local blob in a private workspace; reverse, literal rename paths, original policy/modes and current snapshots retained. No guessed HEAD or remote fetch.",
+    "Initial per-file ready/conflict/error classification, full-check fast path and exclusion of already-completed paths. Conflict is the source recovered-base flag, not a fabricated hunk count.",
+    "An initially applicable review refuses later conflicts until Refresh; save validates actual captured current bytes/modes/paths. Unsafe aliases/.git/traversal retain explicit path refusal.",
+    "Embedded existing Subversion three-pane beside file list; native Merge toolbar shared through a model/window owner adapter. Captions distinguish current and patched base; index resolution disabled.",
+    "Guarded existing edited-result save, current encoding, optional new-file Add, clean completed preview/history reset, original zero-line PatchSave deletion semantics. Source patch remains immutable.",
+    "Patch all/selected use existing direct application or save a clean three-way recovery without staging. Conflicting/ignored results remain unwritten; later files continue.",
+    "Parent dirty/Close/Quit/export/operation gates, owned tokens, retained grants and forced-retirement fences connected to the embedded editor."
+  ],
+  "core": [
+    {
+      "log": "build/qa/patch-recovery-core.log",
+      "exit": 1,
+      "tests": 29,
+      "reason": "Initial grouped checkpoint: stale applicable review was allowed to recover; existing refusal fixtures also expected the older generic review error instead of the now-explicit path error."
+    },
+    {
+      "log": "build/qa/patch-recovery-core-repair.log",
+      "exit": 1,
+      "tests": 11,
+      "reason": "Restored initially-applicable review refusal and added rename/mode and ignored-conflict cases. Ten batch cases passed; remaining unsafe-path fixture needed its explicit location-error expectation."
+    },
+    {
+      "log": "build/qa/patch-recovery-core-location.log",
+      "exit": 0,
+      "tests": 1,
+      "reason": "Only the affected stale/unsafe/foreign case repeated after correcting both explicit safety-error expectations; no refusal assertion removed."
+    }
+  ],
+  "debug": [
+    {
+      "log": "build/qa/patch-recovery-debug.log",
+      "exit": 65,
+      "reason": "Find retained an old controller reference after extracting the shared toolbar adapter.",
+      "exit_zero_no_output_diagnostics": 3
+    },
+    {
+      "log": "build/qa/patch-recovery-debug-repair.log",
+      "exit": 0,
+      "reason": "Find uses the adapter window; complete native implementation compiled.",
+      "exit_zero_no_output_diagnostics": 6
+    }
+  ],
+  "native": {
+    "initial_log": "build/qa/patch-recovery-native.log",
+    "initial_exit": 1,
+    "initial_failure": "After Undo the fixture tried a block choice without selecting the current conflict. The command correctly refused its stale target. Fixture now calls Continue resolving before choosing; no action guard weakened and no app rebuild for fixture repair.",
+    "final": {
+      "log": "build/qa/patch-recovery-native-selection.log",
+      "exit": 0,
+      "case_engine_runs": 9,
+      "cases": [
+        "new recovery with system Git",
+        "new recovery with bundled Git",
+        "retained native panel with both engines",
+        "retained ordered per-file application with both engines",
+        "full import/editor/lifecycle/output ownership with both engines",
+        "scoped comparison/merge menus with system Git"
+      ],
+      "owned_receivers_reaped_and_independently_absent": [
+        10942,
+        11112,
+        11302,
+        11493,
+        11603,
+        11713,
+        11926,
+        12136,
+        13283,
+        14426
+      ]
+    }
+  },
+  "documentation": {
+    "captures_reviewed_and_published": [
+      "docs/site/assets/patch-recovery-light.png",
+      "docs/site/assets/patch-recovery-dark.png"
+    ],
+    "capture_scope": "Actual 2200x1606 light/dark first-run captures inspected. They show ready/conflict/error list states, native toolbar, current/patched source captions and aligned red unresolved result. Capture preceded the fixture-only selection repair; final behavior uses the same built app. No physical popup/input or post-save screenshot claim.",
+    "help": "50 source files, 1956971 bytes; built counterparts byte-equal, generated Help index expected.",
+    "site": "255 documents, zero unresolved fragments; build/qa/patch-recovery-site.log",
+    "ledger": "130 dialogs, 120 partial family audits, 10 pending reviews, zero certified; 987 mapped/672 pending static controls unchanged."
+  },
+  "limits": [
+    "Binary/symlink/deletion recovery and unavailable base objects require their dedicated remaining paths; direct supported special-file patching is retained.",
+    "Pinned rejects/conflict flags implemented; complete source hunk-parser equivalence is not certified.",
+    "Full backup/empty-file option equivalence across Review and every other editor remains open; Review keeps its existing PatchSave zero-line deletion policy.",
+    "New mid-flight recovery cancellation/forced-close save timing, physical toolbar/menu/keyboard/accessibility, broad large-patch performance and signed grants need further acceptance.",
+    "No complete hosted CI, installed signed Finder, minimum OS or App Store certification claim."
+  ],
+  "core_distinct_passing_cases": 31
+}

@@ -130,7 +130,7 @@ private enum MergeSourceSide {
             if flags == .command, event.charactersIgnoringModifiers?.lowercased() == "o" { openMergeDocument(); return true }
             if flags == .command, event.charactersIgnoringModifiers == "s" { patchModel.saveDraft(); return true }
             if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", (firstResponder as? NSTextView)?.isFieldEditor != true {
-                if flags.contains(.shift) { patchModel.editor?.redo() } else { patchModel.editor?.undo() }; return true
+                if flags.contains(.shift) { patchModel.redoPreview() } else { patchModel.undoPreview() }; return true
             }
             if flags == .command, event.charactersIgnoringModifiers == "f" { patchModel.findComparison(); return true }
             if event.keyCode == 96 { (delegate as? WorkingTreePatchWindowController)?.reloadEditor(nil); return true }
@@ -247,6 +247,11 @@ private enum MergeSourceSide {
 }
 @MainActor final class TextConflictWindowModel: ObservableObject {
     let repository: GitRepository
+    var patchComparison:WorkingTreePatchFileComparison?
+    var patchResultSaver:((String,ComparisonTextEncoding,OperationCancellation?) async throws -> TextConflictDocument)?
+    @Published var patchResultCompleted = false
+    var repositoryResolutionAllowed:Bool {workingMerge == nil && patchComparison == nil}
+    func cancelPatchOperation() {if patchComparison != nil {loadCancellation?.cancel()}}
     var workingMerge: WorkingTextMerge?
     var workingMergePermissions: [RepositoryAccessLease] = []
     var openPermissions: [RepositoryAccessLease] { workingMergePermissions + [access].compactMap { $0 } }
@@ -324,6 +329,7 @@ private enum MergeSourceSide {
     private(set) var sourceTargets: [Bool: SavedMergePane] = [:]
     func sourceTargetURL(mine: Bool) -> URL? { sourceTargets[mine]?.url }
     func sourceCaption(mine: Bool) -> String? {
+        if patchComparison != nil,sourceTargets[mine] == nil {return mine ? "Current working file" : "Patched recorded base"}
         guard sourceTargets[mine] == nil, let titles = document?.conflictTitles else { return nil }
         return mine ? titles.mine.title : titles.theirs.title
     }
@@ -334,7 +340,7 @@ private enum MergeSourceSide {
         value.failure = { [weak self] in self?.error = $0 }
         return value
     }()
-    var sourceToolsAllowed: Bool { !retired && !busy && !preparing && !formatPending && !confirmingQuit && !exportingSource && window?.attachedSheet == nil && document != nil }
+    var sourceToolsAllowed: Bool { !patchResultCompleted && !retired && !busy && !preparing && !formatPending && !confirmingQuit && !exportingSource && window?.attachedSheet == nil && document != nil }
     func exportSource(mine: Bool) {
         guard sourceToolsAllowed, let window, let document, let sourceComparison else { return }
         do {
@@ -827,7 +833,10 @@ private enum MergeSourceSide {
         let profiles = try MergeCommentProfileFile.load(at: commentProfileURL)
         engine.filter = filter; engine.options = options; engine.commentTokens = profiles.tokens(paths: [path])
         var next: TextConflictDocument
-        if let workingMerge {
+        if let patchComparison {
+            let prefer = ComparisonTextEncoding.preferUTF8(from:comparisonDefaults)
+            next = try await Task.detached {try patchComparison.patchMergeDocument(engine:engine,preferUTF8:prefer,cancellation:cancellation)}.value
+        } else if let workingMerge {
             if GitRuntime.isAppStoreBuild {
                 for url in [workingMerge.baseURL, workingMerge.theirsURL, workingMerge.mineURL] {
                     guard workingMergePermissions.contains(where: { $0.hasSecurityScope && $0.contains(url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -1046,7 +1055,7 @@ private enum MergeSourceSide {
         save(markResolved: false, quitApproved: true, completion: completion)
     }
     func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, chooseNewOutput: Bool = false, quitApproved: Bool = false, completion: ((Bool) -> Void)? = nil) {
-        guard !busy, !preparing, !formatPending, !exportingSource, (!confirmingQuit || quitApproved), !retired, !markResolved || workingMerge == nil && !hasUnresolvedConflicts, window?.attachedSheet == nil, let document else { completion?(false); return }
+        guard !patchResultCompleted, !busy, !preparing, !formatPending, !exportingSource, (!confirmingQuit || quitApproved), !retired, !markResolved || repositoryResolutionAllowed && !hasUnresolvedConflicts, window?.attachedSheet == nil, let document else { completion?(false); return }
         if !markResolved && hasUnresolvedConflicts {
             let message = resultPresentation.ignoredConflicts.isEmpty ? "Save with unresolved conflict markers?" : "Save with unresolved conflicts ignored by comparison options?"
             let warningText = result
@@ -1070,13 +1079,18 @@ private enum MergeSourceSide {
                 for target in sourceTargets.values { try target.validate() }
                 if workingMerge == nil && GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let choice: MergeEmptyResult
-                if text.isEmpty {
+                if text.isEmpty,patchComparison != nil {choice = .delete}
+                else if text.isEmpty {
                     if let chooseEmptyResult { choice = await chooseEmptyResult(path) }
                     else { choice = await MergeEmptyResultPrompt.choose(window: window, path: path) }
                 }
                 else { choice = .keep }
                 let options = MergeFileSaveOptions(backupOriginal: MergeFileSaveOptions.backupEnabled(from: comparisonDefaults), emptyResult: choice)
-                if let workingMerge {
+                if let patchResultSaver {
+                    let next = try await patchResultSaver(text,outputEncoding,loadCancellation)
+                    guard !retired,loadCancellation?.isCancelled != true else {return}
+                    self.document = next
+                } else if let workingMerge {
                     if GitRuntime.isAppStoreBuild {
                         let target = standaloneOutput!
                         guard workingMergePermissions.contains(where: { $0.hasSecurityScope && $0.contains(target) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -1176,8 +1190,8 @@ private struct TextConflictDialog: View {
         VStack(spacing: 0) {
             if !model.nativeToolbarInstalled {
             HStack(spacing: 10) {
-                Button { model.save(markResolved: false) } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s", modifiers: .command)
-                Button { model.save(markResolved: true) } label: { CommandLabel(title: "Mark as resolved", icon: .mergeResolved) }.disabled(model.workingMerge != nil || model.document == nil || model.hasUnresolvedConflicts)
+                Button { model.save(markResolved: false) } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s", modifiers: .command).disabled(model.patchResultCompleted)
+                Button { model.save(markResolved: true) } label: { CommandLabel(title: "Mark as resolved", icon: .mergeResolved) }.disabled(!model.repositoryResolutionAllowed || model.document == nil || model.hasUnresolvedConflicts)
                 Menu {
                     Button { model.exportSource(mine: false) } label: { CommandLabel(title: "Save left pane as…", icon: .mergeSaveAs) }
                     Button { model.exportSource(mine: true) } label: { CommandLabel(title: "Save right pane as…", icon: .mergeSaveAs) }
@@ -1981,4 +1995,11 @@ final class MergeLineRuler: NSRulerView {
     @objc func copySelection(_ sender: Any?) { view?.copySelection(to: pasteboard) }
     @objc func cutSelection(_ sender: Any?) { view?.cutSelection(to: pasteboard) }
     @objc func pasteSelection(_ sender: Any?) { view?.pasteSelection(from: pasteboard) }
+}
+
+
+/// Reuses the native three-pane editor inside the patch viewer's file panel.
+struct PatchMergeEditor:View {
+    @ObservedObject var model:TextConflictWindowModel
+    var body:some View {TextConflictDialog(model:model)}
 }

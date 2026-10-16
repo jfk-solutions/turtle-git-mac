@@ -383,3 +383,23 @@ extension TextConflictDocument {
         return next
     }
 }
+
+
+extension WorkingTreePatchFileComparison {
+    public func patchMergeDocument(engine:SubversionMergeConfiguration,preferUTF8:Bool? = nil,cancellation:OperationCancellation? = nil) throws -> TextConflictDocument {
+        guard let recoveryBase else {throw WorkingTreePatchFailure.review}
+        func content(_ value:ComparisonFileContent)->ComparisonFileContent {preferUTF8.map {value.usingMergeEncoding(preferUTF8:$0)} ?? value}
+        let base = content(recoveryBase),mine = content(document.base),theirs = content(document.destination)
+        guard let baseText = base.text,let mineText = mine.text,let theirsText = theirs.text,let encoding = mine.encoding ?? theirs.encoding else {throw TextConflictFailure.encoding}
+        let merged = try SubversionMergePresentation(plan:engine.plan(base:baseText,mine:mineText,theirs:theirsText,cancellation:cancellation))
+        var result = TextConflictDocument(entry:ConflictEntry(path:document.destination.path,stages:[]),base:baseText,mine:mineText,theirs:theirsText,mineStage:2,theirsStage:3,initialResult:merged.result,generatedResult:merged.result,workingContents:mine.bytes,permissions:mine.permissions ?? 0o644,encoding:encoding,baseEncoding:base.encoding,mineEncoding:mine.encoding,theirsEncoding:theirs.encoding)
+        result.mergeSources = merged.sources;return result
+    }
+}
+extension TextConflictDocument {
+    public func recordingPatchSave(_ saved:WorkingTreePatchSaveResult) throws -> TextConflictDocument {
+        guard let text = saved.document.destination.text else {throw TextConflictFailure.encoding}
+        var next = TextConflictDocument(entry:entry,base:base,mine:mine,theirs:theirs,mineStage:mineStage,theirsStage:theirsStage,initialResult:text,generatedResult:generatedResult,workingContents:saved.document.destination.isDeleted ? nil : saved.document.destination.bytes,permissions:saved.document.destination.permissions ?? permissions,encoding:saved.document.destination.encoding ?? encoding,baseEncoding:baseEncoding,mineEncoding:mineEncoding,theirsEncoding:theirsEncoding)
+        next.mergeSources = mergeSources;next.conflictTitles = conflictTitles;return next
+    }
+}

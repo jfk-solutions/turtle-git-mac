@@ -440,7 +440,7 @@ jobs:
       - name: Native Merge and Fetch fast-forward live output
         run: python3 scripts/test-merge-stream.py
       - name: Native patch file panel, Import batch and recovery
-        run: python3 scripts/test-patch-file-panel.py --only panel --only files --only import --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+        run: python3 scripts/test-patch-file-panel.py --only recovery --only panel --only files --only import --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Source color conversion and native status text appearance
         run: python3 scripts/test-status-colors.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Log filter menu, timing and owned validation

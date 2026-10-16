@@ -607,3 +607,9 @@ handlers. It adds native Return/context-key routing, captured menus and file-lis
 hiding/restoration with scoped Review main-menu commands. Existing per-file
 application, draft/export and plain-directory/real-index rules are retained.
 See the linked audit for grouped evidence and remaining full-family acceptance.
+
+The [recorded-base recovery continuation](PATCH-RECOVERY-PARITY.md) adds initial
+Ready/Conflict/Error classification, versioned-base retry, an embedded native
+three-pane preview and clean-merge Patch all/selected continuation. Earlier text
+listing all initial-state and conflict preview behavior as absent is historical;
+the continuation records the implemented paths and remaining special-file scope.

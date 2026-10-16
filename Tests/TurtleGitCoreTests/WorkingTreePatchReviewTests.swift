@@ -251,14 +251,14 @@ final class WorkingTreePatchReviewTests: XCTestCase {
         try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("alias").path, withDestinationPath: "actual")
         let throughLink = Data("diff --git a/alias/file b/alias/file\n--- a/alias/file\n+++ b/alias/file\n@@ -1 +1 @@\n-before\n+after\n".utf8)
         let aliasReview = try await repo.reviewWorkingTreePatch(throughLink)
-        do { _ = try await repo.compareWorkingTreePatchFile(aliasReview, fileID: aliasReview.files[0].id); XCTFail("Symlink parent preview accepted") } catch WorkingTreePatchFailure.review { }
+        do { _ = try await repo.compareWorkingTreePatchFile(aliasReview, fileID: aliasReview.files[0].id); XCTFail("Symlink parent preview accepted") } catch WorkingFileRestoreFailure.location { }
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("actual/file")), Data("before\n".utf8))
         let (other, otherRepo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: other) }
         do { _ = try await otherRepo.compareWorkingTreePatchFile(review, fileID: file.id); XCTFail("Foreign review accepted") } catch WorkingTreePatchFailure.selection {}
         for path in ["../outside", ".git/config"] {
             let unsafe = Data("diff --git a/\(path) b/\(path)\nnew file mode 100644\n--- /dev/null\n+++ b/\(path)\n@@ -0,0 +1 @@\n+unsafe\n".utf8)
             let rejected = try await repo.reviewWorkingTreePatch(unsafe)
-            do { _ = try await repo.compareWorkingTreePatchFile(rejected, fileID: rejected.files[0].id); XCTFail("Unsafe preview accepted") } catch WorkingTreePatchFailure.review {}
+            do { _ = try await repo.compareWorkingTreePatchFile(rejected, fileID: rejected.files[0].id); XCTFail("Unsafe preview accepted") } catch WorkingFileRestoreFailure.location {}
         }
     }
 

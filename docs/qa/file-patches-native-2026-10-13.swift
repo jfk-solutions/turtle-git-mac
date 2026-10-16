@@ -57,9 +57,9 @@ import TurtleGitCore
         let shown = model.focusedFile
         model.focusFile(review.files[2].id)
         precondition(!model.busy && model.focusedFile == shown)
-        let comparison = model.comparison?.fileID
-        model.focusFile(review.files[1].id)
-        precondition(!model.busy && model.focusedFile == shown && model.comparison?.fileID == comparison && model.comparisonNotice.contains("middle.txt"))
+        model.focusFile(review.files[1].id);try await wait()
+        for _ in 0..<1000 {if model.conflictEditor?.busy == false && model.conflictEditor?.document != nil {break};try await Task.sleep(nanoseconds:10_000_000)}
+        precondition(model.focusedFile == review.files[1].id && model.conflictEditor?.document != nil && model.fileResults[Data("middle.txt".utf8)]?.requiresMerge == true)
         for path in ["a.txt","z.txt"] { let value = try String(contentsOf: root.appendingPathComponent(path)); precondition(value == "after\n") }
         try Data("before\n".utf8).write(to: root.appendingPathComponent("middle.txt"))
         model.patchFiles(all, generation: model.fileListGeneration); try await wait()

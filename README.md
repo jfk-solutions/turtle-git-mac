@@ -311,3 +311,7 @@ source block-mark shortcuts, with Unicode-aware typing and Undo. See
 Patch review has a [native file panel](docs/PATCH-FILE-PANEL-PARITY.md) with separate
 highlight/preview actions, multiple-selection context commands and a Hide/Show
 file-list menu. Per-file application retains individual success/error results.
+
+[Recorded-base patch recovery](docs/PATCH-RECOVERY-PARITY.md) provides initial
+file states, embedded three-pane conflict review and clean three-way continuation
+for Patch all/selected while preserving captured Save checks.

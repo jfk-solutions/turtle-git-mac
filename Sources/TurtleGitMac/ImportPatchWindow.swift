@@ -596,6 +596,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
 @MainActor final class WorkingTreePatchWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     private let editorFileMenu = MergeEditorFileMenu()
     var editorCommandMenu: MergeEditorCommandMenu?
+    var editorToolbar:MergeEditorToolbar?
     var commandsAvailable:Bool { !retired && !preparingReplacement && editorOpenWorkflow == nil }
     var editorOpenWorkflow: MergeEditorOpenWorkflow?
     var replacementOwner: MergeEditorReplacementOwner?
@@ -603,7 +604,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
     func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.remove();editorCommandMenu?.install() }
     func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove();editorFileMenu.remove() }
-    func detachForReplacement() { editorCommandMenu?.retire();editorFileMenu.remove(); model.retire(); model.window = nil }
+    func detachForReplacement() { editorToolbar?.retire();editorCommandMenu?.retire();editorFileMenu.remove(); model.retire(); model.window = nil }
     func validateMenuItem(_ item: NSMenuItem) -> Bool { !retired && !activeOperation && !preparingReplacement && (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) }
     @objc func reloadEditor(_ sender: Any?) {
         guard !activeOperation, !preparingReplacement else { return }
@@ -628,7 +629,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var onClosed: () -> Void = {}
     private var approvedClose = false
     private var retired = false
-    var activeOperation: Bool { editorOpenWorkflow != nil || model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.hasPendingEditorChoice == true || model.editor?.busy == true || window?.attachedSheet != nil }
+    var activeOperation: Bool { editorOpenWorkflow != nil || model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.hasPendingEditorChoice == true || model.editor?.busy == true || model.conflictOperationActive || window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1, automaticallyRefresh: Bool = true) {
         model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, initialStripCount: initialStripCount)
         let window = TextConflictNSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -647,6 +648,15 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             let response = await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
             return response == .alertFirstButtonReturn ? .save : response == .alertSecondButtonReturn ? .discard : .cancel
         }
+        model.onConflictEditorChanged = { [weak self] conflict in
+            guard let self else {return}
+            self.editorToolbar?.retire();self.editorToolbar = nil
+            if let conflict,let window = self.window {
+                self.editorToolbar = MergeEditorToolbar.conflict(model:conflict,window:window,ownerReady:{ [weak self] in self?.commandsAvailable == true },open:{ [weak self] in self?.openMergeDocument(nil) },reload:{ [weak self] in self?.reloadEditor(nil) },help:{TurtleGitHelp.show(.patches)})
+            }
+            self.editorCommandMenu?.remove()
+            if self.window?.isKeyWindow == true {self.editorCommandMenu?.install()}
+        }
         editorCommandMenu = MergeEditorCommandMenu.patchReview(self)
         if automaticallyRefresh { model.refresh() }
     }
@@ -659,7 +669,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         return true
     }
     func windowWillClose(_ notification: Notification) {
-        guard !retired else { return }; retired = true; editorCommandMenu?.retire();editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire()
+        guard !retired else { return }; retired = true; editorToolbar?.retire();editorCommandMenu?.retire();editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire()
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }
         onClosed()
     }
@@ -675,7 +685,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     let directoryMode: Bool
     let isGitWorkingTree: Bool
     var openPreferences: UserDefaults { preferences }
-    var openPermissions: [RepositoryAccessLease] { [access, fileAccess].compactMap { $0 } + (editor?.openPermissions ?? []) }
+    var openPermissions: [RepositoryAccessLease] { [access, fileAccess].compactMap { $0 } + (editor?.openPermissions ?? []) + (conflictEditor?.openPermissions ?? []) }
     private let preferences: UserDefaults
     private let access: RepositoryAccessLease?
     private let fileAccess: RepositoryAccessLease?
@@ -685,6 +695,11 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     @Published private(set) var selected: Set<Int> = []
     @Published private(set) var appliedPaths: Set<Data> = []
     @Published private(set) var fileResults: [Data: WorkingTreePatchFileResult] = [:]
+    @Published private(set) var fileInspections:[Data:WorkingTreePatchFileInspection] = [:]
+    var onConflictEditorChanged:(TextConflictWindowModel?)->Void = {_ in}
+    @Published private(set) var conflictEditor:TextConflictWindowModel? {didSet {onConflictEditorChanged(conflictEditor)}}
+    private var conflictChanges:AnyCancellable?
+    var conflictOperationActive:Bool {conflictEditor.map {$0.busy || $0.preparing || $0.formatPending || $0.exportingSource} == true}
     @Published private(set) var highlightedFiles = Set<Int>()
     private(set) var fileListGeneration = UUID()
     private var comparisonRead = false
@@ -698,7 +713,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             window?.makeFirstResponder(destination)
         }
     }
-    var canHighlightFiles:Bool { !retired && editor?.hasPendingEditorChoice != true && (!busy || comparisonRead) && !dirty && !editingEnabled && !confirmingQuit && !draftDecisionPending && !requiresRefresh }
+    var canHighlightFiles:Bool { !retired && !conflictOperationActive && editor?.hasPendingEditorChoice != true && (!busy || comparisonRead) && !dirty && !editingEnabled && !confirmingQuit && !draftDecisionPending && !requiresRefresh }
     func highlightFiles(_ ids: Set<Int>) {
         guard canHighlightFiles,let review else {return}
         // Source LVN_ITEMCHANGED changes selection only; preview is explicit.
@@ -713,8 +728,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     func fileState(_ file:WorkingTreePatchReview.File) -> String {
         if appliedPaths.contains(file.pathBytes) {return "patched"}
-        if fileResults[file.pathBytes]?.success == false {return "error"}
-        return ""
+        if let result = fileResults[file.pathBytes],!result.success {return result.requiresMerge ? "conflict" : "error"}
+        switch fileInspections[file.pathBytes]?.state {case .error:return "error";case .conflict:return "conflict";default:return ""}
     }
     func patchFiles(_ ids: Set<Int>, generation: UUID) {
         guard generation == fileListGeneration, canPatchFiles, let review else { return }
@@ -727,7 +742,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             var reported = false
             do {
                 try checkAccess()
-                let batch = try await repository.applyWorkingTreePatchBatch(review, fileIDs: targets, cancellation: token) { [weak self] result in
+                var engine = try? SubversionMergeConfiguration.bundled();engine?.options = .load(from:preferences)
+                let batch = try await repository.applyWorkingTreePatchBatch(review, fileIDs: targets, mergeConfiguration:engine, cancellation: token) { [weak self] result in
                     Task { @MainActor [weak self] in
                         guard let self, !self.retired, self.operation === token else { return }
                         self.fileResults[result.pathBytes] = result
@@ -759,13 +775,13 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private var editorChanges: AnyCancellable?
     @Published private(set) var draftDecisionPending = false { didSet { updateParentState(); onBusyChanged() } }
     var chooseDraft: () async -> DraftChoice = { .cancel }
-    weak var window: NSWindow? { didSet { editor?.window = window } }
+    weak var window: NSWindow? { didSet { editor?.window = window;conflictEditor?.window = window } }
     var alignment: FileComparisonAlignment? { editor?.alignment }
-    var dirty: Bool { editor?.dirty == true }
+    var dirty: Bool { conflictEditor?.dirty == true || editor?.dirty == true }
     var editingEnabled: Bool { editor?.patchEditingEnabled == true }
     var canReplaceComparison: Bool { editable && !dirty && !editingEnabled }
     var canEditResult: Bool { editable && !requiresRefresh && (editor?.savedPaneURL(base: false) != nil || comparison.map({ !appliedPaths.contains(Data($0.document.destination.path.utf8)) }) == true) && alignment != nil && editor?.canEdit(base: false) == true }
-    var canSaveDraft: Bool { canEditResult && editingEnabled }
+    var canSaveDraft: Bool { conflictEditor.map {editable && !$0.patchResultCompleted && $0.document != nil} ?? (canEditResult && editingEnabled) }
     @Published private(set) var focusedFile: Int?
     @Published private(set) var comparisonNotice = ""
     @Published var previewTab = 0
@@ -782,7 +798,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var onMutationStopped: () -> Void = {}
     var onBusyChanged: () -> Void = {}
     var parentActive: () -> Bool = { false }
-    var editable: Bool { !retired && !busy && editor?.busy != true && editor?.hasPendingEditorChoice != true && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
+    var editable: Bool { !retired && !busy && !conflictOperationActive && editor?.busy != true && editor?.hasPendingEditorChoice != true && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
     private func begin() -> OperationCancellation? {
         guard !retired, !busy else { return nil }
         let token = OperationCancellation(); operation = token; busy = true; Self.activeOperations += 1
@@ -805,11 +821,11 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private func ensure(_ token: OperationCancellation) throws {
         guard !retired, operation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
     }
-    func cancelOperation() { operation?.cancel(); editor?.cancelOutput(); editor?.cancelPaneSave() }
+    func cancelOperation() { operation?.cancel(); editor?.cancelOutput(); editor?.cancelPaneSave();conflictEditor?.cancelPatchOperation() }
     func retire() {
         guard !retired else { return }; retired = true; operation?.cancel()
         fileListGeneration = UUID()
-        previewDocument.retire(); editor?.retireImageLoader(); editorChanges = nil
+        previewDocument.retire(); editor?.retireImageLoader(); editorChanges = nil;conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil
         beforeScroll = nil; afterScroll = nil; close = {}; chooseDraft = { .cancel }; onBusyChanged = {}
     }
     var canApply: Bool { canReplaceComparison && !requiresRefresh && selectedReview?.canApply == true && !selected.isEmpty }
@@ -822,18 +838,18 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     func setReversed(_ value: Bool) {
         guard canReplaceComparison, value != reversed else { return }
-        reversed = value; requiresRefresh = true; selectedReview = nil; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; notice = "Refresh to check the changed options."
+        reversed = value; requiresRefresh = true; selectedReview = nil; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil; beforeScroll = nil; afterScroll = nil; notice = "Refresh to check the changed options."
     }
     func setStripCount(_ value: Int) {
         guard canReplaceComparison, value != stripCount else { return }
-        stripCount = value; requiresRefresh = true; selectedReview = nil; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; notice = "Refresh to check the changed options."
+        stripCount = value; requiresRefresh = true; selectedReview = nil; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil; beforeScroll = nil; afterScroll = nil; notice = "Refresh to check the changed options."
     }
     private func checkAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func refresh(completion: (() -> Void)? = nil) {
-        guard canReplaceComparison, let token = begin() else { completion?(); return }; selectedReview = nil; appliedPaths = []; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil
-        fileResults = [:]
+        guard canReplaceComparison, let token = begin() else { completion?(); return }; selectedReview = nil; appliedPaths = []; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil; beforeScroll = nil; afterScroll = nil
+        fileResults = [:];fileInspections = [:]
         let reverse = reversed, strip = stripCount
         Task {
             defer { finish(token); completion?() }
@@ -849,6 +865,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         highlightedFiles.formIntersection(Set(next.files.map(\.id)))
         selected = Set(next.files.filter { !appliedPaths.contains($0.pathBytes) }.map(\.id))
         try await validateSelection(token)
+        let inspections = try await repository.inspectWorkingTreePatchFiles(next,excluding:appliedPaths,cancellation:token)
+        try ensure(token);fileInspections = inspections
         if !retainingSavedComparison { await loadComparison(token) }
     }
     private func validateSelection(_ token: OperationCancellation) async throws {
@@ -864,7 +882,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         if let id, let file = review?.files.first(where: { $0.id == id }) {
             // FilePatchesDlg does not reopen or redirect an already-patched row.
             if appliedPaths.contains(file.pathBytes) { return }
-            if let result = fileResults[file.pathBytes], !result.success {
+            if let result = fileResults[file.pathBytes], !result.success && !result.requiresMerge {
                 comparisonNotice = result.output; return
             }
         } else if id != nil { return }
@@ -875,20 +893,21 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     private func loadComparison(_ token: OperationCancellation) async {
         guard (try? ensure(token)) != nil else { return }
-        comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; comparisonNotice = ""; difference = -1
+        comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil; beforeScroll = nil; afterScroll = nil; comparisonNotice = ""; difference = -1
         guard let review else { focusedFile = nil; return }
         let file: WorkingTreePatchReview.File?
         if let focusedFile { file = review.files.first(where: { $0.id == focusedFile }) }
         else { file = review.files.first(where: { !appliedPaths.contains($0.pathBytes) }) }
         guard let file else { focusedFile = nil; return }
         guard !appliedPaths.contains(file.pathBytes) else { return }
-        if let result = fileResults[file.pathBytes], !result.success { comparisonNotice = result.output; return }
+        if let result = fileResults[file.pathBytes], !result.success && !result.requiresMerge { comparisonNotice = result.output; return }
         focusedFile = file.id
         do {
             try checkAccess()
             let value = try await repository.compareWorkingTreePatchFile(review, fileID: file.id, cancellation: token)
             try ensure(token)
             comparison = value
+            if value.requiresMerge {installConflict(value);return}
             let nextEditor = FileComparisonWindowModel(patchComparison: value, access: access, preferences: preferences)
             nextEditor.window = window; nextEditor.retainPermissions(openPermissions)
             nextEditor.onExportStateChanged = { [weak self] in self?.updateParentState(); self?.onBusyChanged() }
@@ -896,6 +915,28 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             editorChanges = nextEditor.objectWillChange.sink { [weak self] in self?.objectWillChange.send(); self?.onBusyChanged() }
             editor = nextEditor; updateParentState()
         } catch { if !retired && !token.isCancelled { comparisonNotice = error.localizedDescription } }
+    }
+    private func installConflict(_ comparison:WorkingTreePatchFileComparison) {
+        let next = TextConflictWindowModel(repository:repository,access:access,path:comparison.document.destination.path)
+        next.patchComparison = comparison;next.window = window;next.comparisonDefaults = preferences
+        next.workingMergePermissions = [access,fileAccess].compactMap {$0}
+        next.patchResultSaver = { [weak self,weak next] text,encoding,cancellation in
+            guard let self,let next,!self.retired,let document = next.document else {throw OperationCancellationFailure.cancelled}
+            do {
+                try self.checkAccess()
+                let saved = try await self.repository.saveWorkingTreePatchFile(comparison,text:text,encoding:encoding,autoAddNewFiles:MergeEditorPreferences.load(from:self.preferences).autoAdd,cancellation:cancellation)
+                self.onChanged(saved.output)
+                if !self.retired {
+                    self.appliedPaths.insert(Data(comparison.document.destination.path.utf8));self.output += saved.output
+                    next.patchResultCompleted = true;next.resetHistory()
+                    if let failure = saved.addError {self.notice = "Saved patched result, but Add failed: " + failure}
+                }
+                return try document.recordingPatchSave(saved)
+            } catch {self.onMutationStopped();throw error}
+        }
+        next.onChanged = {_ in}
+        conflictChanges = next.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send();self?.onBusyChanged() }
+        conflictEditor = next;next.load();updateParentState()
     }
     enum ComparisonPresentation: Equatable { case text, processing, failure(String), binary, empty }
     var comparisonPresentation: ComparisonPresentation {
@@ -928,8 +969,13 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             text.scrollRangeToVisible(text.selectedRange())
         }
     }
+    func undoPreview() {if let conflictEditor {conflictEditor.undo()} else {editor?.undo()}}
+    func redoPreview() {if let conflictEditor {conflictEditor.redo()} else {editor?.redo()}}
+    var canUndoPreview:Bool {conflictEditor?.canUndo ?? editor?.canUndo ?? false}
+    var canRedoPreview:Bool {conflictEditor?.canRedo ?? editor?.canRedo ?? false}
     func findComparison() {
         guard editable else { return }
+        if conflictEditor != nil {(window as? TextConflictNSWindow)?.find(.showFindInterface);return}
         guard let view = afterScroll?.documentView as? NSTextView else { return }
         view.window?.makeFirstResponder(view)
         let sender = NSMenuItem(); sender.tag = NSTextFinder.Action.showFindInterface.rawValue
@@ -938,6 +984,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     func updateParentState() {
         editor?.busy = busy || editor?.exporting == true
         editor?.confirmingQuit = confirmingQuit || draftDecisionPending || parentActive()
+        let blocked = confirmingQuit || draftDecisionPending || busy || parentActive()
+        if conflictEditor?.confirmingQuit != blocked {conflictEditor?.confirmingQuit = blocked}
         objectWillChange.send()
     }
     func setEditing(_ value: Bool) {
@@ -950,6 +998,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     private func resetComparisonDraft() {
         guard let comparison else { return }
+        if conflictEditor != nil {conflictEditor?.retire();conflictChanges = nil;installConflict(comparison);return}
         editor?.resetHistory(); editor?.retireImageLoader(); beforeScroll = nil; afterScroll = nil
         let next = FileComparisonWindowModel(patchComparison: comparison, access: access, preferences: preferences)
         next.window = window; next.retainPermissions(openPermissions)
@@ -959,6 +1008,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         editor = next; updateParentState(); onBusyChanged()
     }
     func saveDraft(completion: ((Bool) -> Void)? = nil) {
+        if let conflictEditor {guard canSaveDraft else {completion?(false);return};conflictEditor.save(markResolved:false,completion:completion);return}
         guard canSaveDraft, let token = begin() else { completion?(false); return }
         Task { let saved = await performSave(token); finish(token); completion?(saved) }
     }
@@ -992,7 +1042,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         }
     }
     func resolveDraft(discardImmediately: Bool = true) async -> Bool {
-        guard !retired, editor?.hasPendingEditorChoice != true else { return false }
+        guard !retired, !conflictOperationActive, editor?.hasPendingEditorChoice != true else { return false }
         guard dirty else { return true }
         guard !busy, !draftDecisionPending else { return false }
         draftDecisionPending = true; Self.activeOperations += 1
@@ -1002,6 +1052,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         switch choice {
         case .cancel: return false
         case .save:
+            if let conflictEditor {return await withCheckedContinuation {continuation in conflictEditor.saveForQuit {continuation.resume(returning:$0)}}}
             guard let token = begin() else { return false }
             defer { finish(token) }
             return await performSave(token)
@@ -1076,7 +1127,7 @@ struct WorkingTreePatchDialog: View {
             Text(model.notice).foregroundStyle(model.canApply ? Color.secondary : Color.orange).textSelection(.enabled)
             if !model.output.isEmpty { DisclosureGroup("Output") { OutputView(text: model.output, usesLogFont: true).frame(height: 100) } }
             HStack {
-                if model.busy || model.editor?.exporting == true { ProgressView().controlSize(.small); Text(model.editor?.exporting == true ? "Saving copy…" : "Processing patch…"); Button("Cancel operation", action: model.cancelOperation) }
+                if model.busy || model.editor?.exporting == true || model.conflictEditor?.busy == true { ProgressView().controlSize(.small); Text(model.editor?.exporting == true ? "Saving copy…" : "Processing patch…"); Button("Cancel operation", action: model.cancelOperation) }
                 Spacer()
                 Button("Close") { model.requestClose() }.disabled(!model.editable)
             }
@@ -1115,6 +1166,10 @@ struct WorkingTreePatchComparisonView: View {
     }
     var body: some View {
         VStack(alignment: .leading) {
+            if let conflict = model.conflictEditor {
+                PatchMergeEditor(model:conflict)
+                if conflict.dirty {Button("Discard edits") {model.discardDraft()}.disabled(!model.editable)}
+            } else {
             HStack {
                 Button { model.navigate(-1) } label: { Image(nsImage: MenuIcon.mergePreviousConflict.image() ?? NSImage()) }.help("Previous difference").accessibilityLabel("Previous difference").disabled(model.difference <= 0)
                 Button { model.navigate(1) } label: { Image(nsImage: MenuIcon.mergeNextConflict.image() ?? NSImage()) }.help("Next difference").accessibilityLabel("Next difference").disabled(model.alignment?.differences.isEmpty != false || model.difference >= (model.alignment?.differences.count ?? 0) - 1)
@@ -1132,6 +1187,7 @@ struct WorkingTreePatchComparisonView: View {
                     Spacer()
                     Button("Dismiss") { model.editor?.error = nil }
                 }.accessibilityElement(children: .contain).accessibilityLabel("Comparison error")
+            }
             }
             if model.requiresRefresh { Text("Refresh to compare the changed options.").foregroundStyle(.orange) }
             else if !model.comparisonNotice.isEmpty { Text(model.comparisonNotice).foregroundStyle(.orange).textSelection(.enabled) }
@@ -1202,7 +1258,7 @@ struct WorkingTreePatchNativeFileList: NSViewRepresentable {
             guard !retired,let table else {return}
             updating = true;defer {updating = false}
             rows = model.review?.files ?? []
-            let next = rows.map {RowState(id:$0.id,path:$0.pathBytes,state:model.fileState($0),shown:model.focusedFile == $0.id,diagnostic:model.fileResults[$0.pathBytes]?.output ?? "")}
+            let next = rows.map {RowState(id:$0.id,path:$0.pathBytes,state:model.fileState($0),shown:model.focusedFile == $0.id,diagnostic:model.fileResults[$0.pathBytes]?.output ?? model.fileInspections[$0.pathBytes]?.diagnostic ?? "")}
             if next != rendered {
                 let origin = table.enclosingScrollView?.contentView.bounds.origin
                 rendered = next;table.reloadData()
@@ -1217,9 +1273,9 @@ struct WorkingTreePatchNativeFileList: NSViewRepresentable {
             let cell = NSTableCellView(),label = NSTextField(labelWithString:tableColumn?.identifier.rawValue == "State" ? state : (file.path as NSString).lastPathComponent)
             label.lineBreakMode = .byTruncatingTail
             label.font = model.focusedFile == file.id ? .boldSystemFont(ofSize:NSFont.systemFontSize) : .systemFont(ofSize:NSFont.systemFontSize)
-            label.textColor = state == "error" ? .systemRed : state == "patched" ? .secondaryLabelColor : .labelColor
+            label.textColor = ["error","conflict"].contains(state) ? .systemRed : state == "patched" ? .secondaryLabelColor : .labelColor
             label.translatesAutoresizingMaskIntoConstraints = false;cell.addSubview(label);cell.textField = label
-            cell.toolTip = model.repository.root.appendingPathComponent(file.path).path + (state == "error" ? "\n" + (model.fileResults[file.pathBytes]?.output ?? "") : "")
+            cell.toolTip = model.repository.root.appendingPathComponent(file.path).path + (["error","conflict"].contains(state) ? "\n" + (model.fileResults[file.pathBytes]?.output ?? model.fileInspections[file.pathBytes]?.diagnostic ?? "") : "")
             if tableColumn?.identifier.rawValue == "Path" {
                 let image = NSImageView();image.image = NSWorkspace.shared.icon(for:UTType(filenameExtension:(file.path as NSString).pathExtension) ?? .data);image.translatesAutoresizingMaskIntoConstraints = false;cell.addSubview(image);cell.imageView = image
                 NSLayoutConstraint.activate([image.leadingAnchor.constraint(equalTo:cell.leadingAnchor,constant:4),image.centerYAnchor.constraint(equalTo:cell.centerYAnchor),image.widthAnchor.constraint(equalToConstant:16),image.heightAnchor.constraint(equalToConstant:16),label.leadingAnchor.constraint(equalTo:image.trailingAnchor,constant:4)])

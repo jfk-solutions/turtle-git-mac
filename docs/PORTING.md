@@ -1428,3 +1428,11 @@ explicit preview, native context/keyboard actions, captured-menu lifetimes, file
 state presentation and hiding/restoration. It uses the existing owned per-file
 application and comparison flows and shares the Merge main-menu owner. Initial
 failed-hunk/conflict counts and complete patch-engine/source acceptance remain open.
+
+## Recorded-base patch recovery — October 16, 2026
+
+The [connected recovery family](PATCH-RECOVERY-PARITY.md) ports versioned-base
+preparation, initial per-file classification, embedded Subversion merge/native
+toolbar, guarded resolved Save and clean batch continuation. Missing-version and
+special-file recovery, complete physical/signed acceptance and full port
+certification remain open; the dated record distinguishes checks and repairs.

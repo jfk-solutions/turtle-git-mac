@@ -276,20 +276,23 @@ extension MergeEditorToolbar {
             })
     }
     static func conflict(_ owner: TextConflictWindowController) -> MergeEditorToolbar? {
-        guard let window = owner.window else { return nil }; let model = owner.model
+        guard let window = owner.window else { return nil }
+        return conflict(model:owner.model,window:window,ownerReady:{ [weak owner] in owner != nil && owner?.editorOpenWorkflow == nil && owner?.preparingReplacement == false },open:{ [weak owner] in owner?.openMergeDocument(nil) },reload:{ [weak owner] in owner?.reloadEditor(nil) },help:{ [weak owner] in owner?.showEditorHelp() })
+    }
+    static func conflict(model:TextConflictWindowModel,window:NSWindow,ownerReady:@escaping ()->Bool,open:@escaping ()->Void,reload:@escaping ()->Void,help:@escaping ()->Void) -> MergeEditorToolbar {
         let commands: [MergeToolbarCommand] = [.open, .save, .saveAs, .reload, .undo, .redo, .previousDifference, .nextDifference, .previousConflict, .nextConflict, .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs, .resolved, .whitespace, .wrap, .inline, .inlineWord, .collapsed, .find, .compareSources, .showBase, .help]
         return MergeEditorToolbar(window: window, identifier: "TurtleGit.Merge.Conflict", commands: commands,
             defaults: [.open, .save, .saveAs, .reload, .undo, .redo, .previousDifference, .nextDifference, .previousConflict, .nextConflict, .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs, .resolved, .wrap, .find, .compareSources, .showBase, .help],
             menus: [.saveAs: [.saveLeft, .saveRight, .saveMerged, .continueResolving], .compareSources: [.compareTheirs, .compareMine]],
             changes: model.objectWillChange, preferences: model.comparisonDefaults,
             visible: { [weak model] in model?.retired == false }, toolbarShown:{ [weak model] in model?.showToolbar == true }, changedVisibility:{ [weak model] in model?.setToolbarVisible($0) }, installed: { [weak model] installed in if model?.nativeToolbarInstalled != installed { model?.nativeToolbarInstalled = installed } },
-            state: { [weak model, weak owner] command in
-                guard let model, let owner else { return nil }
-                let ready = !model.retired && !model.busy && !model.preparing && !model.exportingSource && !model.formatPending && !model.confirmingQuit && window.attachedSheet == nil && owner.editorOpenWorkflow == nil && !owner.preparingReplacement
+            state: { [weak model] command in
+                guard let model else { return nil }
+                let ready = !model.retired && !model.busy && !model.preparing && !model.exportingSource && !model.formatPending && !model.confirmingQuit && window.attachedSheet == nil && ownerReady()
                 let text = ready && model.document != nil
                 switch command {
                 case .open, .reload, .help: return .init(enabled: ready)
-                case .save: return .init(enabled: text)
+                case .save: return .init(enabled: text && !model.patchResultCompleted)
                 case .saveAs, .saveLeft, .saveRight, .saveMerged, .compareSources, .compareTheirs, .compareMine: return .init(enabled: text && model.sourceToolsAllowed)
                 case .continueResolving: return .init(enabled: text && !model.blocks.isEmpty)
                 case .undo: return .init(enabled: text && model.canUndo)
@@ -299,7 +302,7 @@ extension MergeEditorToolbar {
                 case .previousConflict: return .init(enabled: text && model.canNavigateBlock(-1,conflictsOnly:true))
                 case .nextConflict: return .init(enabled: text && model.canNavigateBlock(1,conflictsOnly:true))
                 case .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs: return .init(enabled: text && model.canChooseConflict)
-                case .resolved: return .init(enabled: text && model.workingMerge == nil && !model.hasUnresolvedConflicts)
+                case .resolved: return .init(enabled: text && model.repositoryResolutionAllowed && !model.hasUnresolvedConflicts)
                 case .find: return .init(enabled: text)
                 case .showBase: return .init(enabled: text, checked: model.showBase)
                 case .whitespace: return .init(enabled: text, checked: model.whitespaceDisplay.visible)
@@ -309,10 +312,10 @@ extension MergeEditorToolbar {
                 case .collapsed: return .init(enabled: text, checked: model.folding.collapsed)
                 default: return nil
                 }
-            }, action: { [weak model, weak owner] command in
-                guard let model, let owner else { return }
+            }, action: { [weak model] command in
+                guard let model else { return }
                 switch command {
-                case .open: owner.openMergeDocument(nil); case .reload: owner.reloadEditor(nil)
+                case .open: open(); case .reload: reload()
                 case .save: model.save(markResolved: false)
                 case .saveLeft: model.exportSource(mine: false); case .saveRight: model.exportSource(mine: true)
                 case .saveMerged: model.export(); case .continueResolving: model.continueResolving()
@@ -323,14 +326,14 @@ extension MergeEditorToolbar {
                 case .useTheirs: model.choose(.theirs); case .useMine: model.choose(.mine)
                 case .theirsThenMine: model.choose(.theirsThenMine); case .mineThenTheirs: model.choose(.mineThenTheirs)
                 case .resolved: model.save(markResolved: true)
-                case .find: (owner.window as? TextConflictNSWindow)?.find(.showFindInterface)
+                case .find: (window as? TextConflictNSWindow)?.find(.showFindInterface)
                 case .showBase: model.showBase.toggle()
                 case .whitespace: var next = model.whitespaceDisplay; next.visible.toggle(); model.setWhitespaceDisplay(next)
                 case .wrap: model.setWrapLines(!model.wrapLines)
                 case .inline: model.setInlineDiff(!model.showInlineDiff)
                 case .inlineWord: model.setInlineWordDiff(!model.inlineWordDiff)
                 case .collapsed: model.setCollapsed(!model.folding.collapsed)
-                case .help: owner.showEditorHelp()
+                case .help: help()
                 default: break
                 }
             })
@@ -756,14 +759,16 @@ extension MergeEditorCommandMenu {
         let ready = { [weak owner,weak window] in owner?.commandsAvailable == true && owner?.activeOperation == false && window?.attachedSheet == nil && (window?.firstResponder as? NSTextView)?.isFieldEditor != true }
         return MergeEditorCommandMenu(window:window,conflict:false,changes:model.objectWillChange,
             available:{ [weak owner,weak model,weak window] in owner?.window === window && model?.retired == false },
-            state:{ [weak model] command in
+            state:{ [weak owner,weak model] command in
                 guard let model else {return nil};let enabled = ready()
                 switch command {
                 case .toolbar(.open),.toolbar(.reload),.toolbar(.help),.settings,.about:return .init(enabled:enabled)
                 case .toolbar(.save):return .init(enabled:enabled && model.canSaveDraft)
-                case .toolbar(.undo):return .init(enabled:enabled && model.editor?.canUndo == true)
-                case .toolbar(.redo):return .init(enabled:enabled && model.editor?.canRedo == true)
-                case .toolbar(.find):return .init(enabled:enabled && model.alignment != nil)
+                case .toolbar(.undo):return .init(enabled:enabled && model.canUndoPreview)
+                case .toolbar(.redo):return .init(enabled:enabled && model.canRedoPreview)
+                case .toolbar(.find):return .init(enabled:enabled && (model.alignment != nil || model.conflictEditor?.document != nil))
+                case .toolbar(let value):guard let state = owner?.editorToolbar?.commandState(value) else {return nil};return .init(enabled:enabled && state.enabled,checked:state.checked)
+                case .saveAs:return model.conflictEditor == nil ? nil : .init(enabled:enabled && model.conflictEditor?.sourceToolsAllowed == true)
                 case .patchPreview:return .init(enabled:enabled && model.canPreviewFiles(model.highlightedFiles,generation:model.fileListGeneration))
                 case .patchAll:return .init(enabled:enabled && model.canPatchFiles)
                 case .patchSelected:return .init(enabled:enabled && model.canPatchFiles && model.review?.files.contains(where:{model.highlightedFiles.contains($0.id) && !model.appliedPaths.contains($0.pathBytes)}) == true)
@@ -776,12 +781,14 @@ extension MergeEditorCommandMenu {
                 case .toolbar(.open):owner.openMergeDocument(nil)
                 case .toolbar(.reload):owner.reloadEditor(nil)
                 case .toolbar(.save):model.saveDraft()
-                case .toolbar(.undo):model.editor?.undo()
-                case .toolbar(.redo):model.editor?.redo()
+                case .toolbar(.undo):model.undoPreview()
+                case .toolbar(.redo):model.redoPreview()
                 case .toolbar(.find):model.findComparison()
                 case .toolbar(.help):TurtleGitHelp.show(.patches)
                 case .settings:SettingsPresentationService.shared.show(globalOnly:true,initialPage:.mergeEditor)
                 case .about:TurtleGitAboutService.shared.show(.merge)
+                case .toolbar(let value):owner.editorToolbar?.perform(value)
+                case .saveAs:model.conflictEditor?.export()
                 case .patchPreview:model.previewFiles(model.highlightedFiles,generation:model.fileListGeneration)
                 case .patchAll:model.patchFiles(Set(model.review?.files.map(\.id) ?? []),generation:model.fileListGeneration)
                 case .patchSelected:model.patchFiles(model.highlightedFiles,generation:model.fileListGeneration)
