@@ -1245,3 +1245,10 @@ fixture: unresolved aligned placeholder rows are now checked before selecting
 both sides and exercising the original three-match Find/Replace/Undo assertions.
 The isolated native phase passed; this is not a full hosted CI pass. See
 [the repair record](qa/merge-find-ci-repair-2026-10-16.json).
+
+
+The older hosted run at `78bcdd06` failed its small Settings footer containment
+check after passing the build/Core and earlier native steps. The native page/footers
+now reserve explicit control-frame space; the original assertion plus a stricter
+margin check passes locally, with six refreshed light/dark captures. Hosted
+verification remains pending. See [the scoped repair](SETTINGS-NAVIGATION-PARITY.md#native-footer-containment-after-hosted-failure--october-16-2026).

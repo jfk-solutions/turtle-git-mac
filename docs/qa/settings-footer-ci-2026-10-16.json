@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "70d22b91",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "hosted_failure": {
+    "run": 38852442307,
+    "job": 116816772168,
+    "head": "78bcdd065ea70295697e51fa6e296ec11b04b4b9",
+    "step": 102,
+    "name": "Native Settings navigation and constrained layout",
+    "diagnostic": "Footer button clipped at small size: OK",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38852442307/job/116816772168",
+    "source": "Decoded GitHub job log through fetch_workflow_job_logs"
+  },
+  "local_diagnostic": {
+    "exit": 0,
+    "receiver": 28112,
+    "log": "build/qa/settings-footer-ci-diagnostic-2026-10-16.log",
+    "result": "Existing containment check passed locally before product changes; exact hosted geometry not reproduced"
+  },
+  "implementation": [
+    "Right property-sheet pane has 12-point outer insets; footer has 8-point vertical insets and center alignment",
+    "Heading/footer/page width constraints account for the outer insets",
+    "Original full-frame containment assertion retained with actual rect diagnostics; four-point margin assertion added",
+    "Existing scrolling/navigation/transaction semantics and all four footer controls retained",
+    "Six fresh native compositor captures reviewed and published; old assets retained"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/settings-footer-ci-build-2026-10-16.log",
+    "anomalous_exit_zero_diagnostics": 2
+  },
+  "native": {
+    "exit": 0,
+    "receiver": 28213,
+    "log": "build/qa/settings-footer-ci-native-2026-10-16.log",
+    "scope": "One affected layout fixture with compositor capture; no Core or unrelated native rerun",
+    "checks": [
+      "All original nested selection/rebuild/error-routing/scroll-restoration checks",
+      "Small-window footer containment and added native frame margin",
+      "Lower Merge/Restore Default control access through independent scrolling",
+      "Long sidebar captions and retired navigation guards"
+    ],
+    "ownership": "Both diagnostic/final receivers reaped and independently absent. Fixture closes window and color panel and invalidates controller."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/settings-footer-merge-colors-dark.png",
+      "sha256": "8efce7057d3adb472b5ad2810cf4548818f119800239397c5d36779c6bbb552f"
+    },
+    {
+      "path": "docs/site/assets/settings-footer-merge-colors-light.png",
+      "sha256": "56f289fc13d91081f81340e5dc709f9e8c34ec23c3997b5fdf810e62504575d3"
+    },
+    {
+      "path": "docs/site/assets/settings-footer-small-bottom-dark.png",
+      "sha256": "c70f4d762886ef0cde70886358acf75be59dd98e9ac55dc2924354fad3bad7d9"
+    },
+    {
+      "path": "docs/site/assets/settings-footer-small-bottom-light.png",
+      "sha256": "ab5c6932a88ee88ec2a2d59a4507c6154f348980ddc4defefea2b4222f6dd7a2"
+    },
+    {
+      "path": "docs/site/assets/settings-footer-small-top-dark.png",
+      "sha256": "de77cf82087a4135b178201ca20913a2ea9d7d3ae35df1e6d0ba47a9b0083fd0"
+    },
+    {
+      "path": "docs/site/assets/settings-footer-small-top-light.png",
+      "sha256": "91c30d94fe6eeab653d325365af4c2aea868a36cf15a6fde3f022eba3e83604e"
+    }
+  ],
+  "limits": [
+    "CI failure not reproduced locally before repair; cross-version acceptance needs hosted result",
+    "No full hosted pass or signed/Finder/App Store acceptance",
+    "No certification of every Settings page/VoiceOver interaction"
+  ]
+}

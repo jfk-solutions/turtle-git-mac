@@ -432,14 +432,43 @@ positions while the heading and OK/Cancel/Apply/Help stay visible. Inner page
 scrolling retains its own position between appearance switches. These captures
 do not certify every Settings page or VoiceOver behavior.
 
-![settings layout merge colors dark](site/assets/settings-layout-merge-colors-dark.png)
+![settings layout merge colors dark](site/assets/settings-footer-merge-colors-dark.png)
 
-![settings layout merge colors light](site/assets/settings-layout-merge-colors-light.png)
+![settings layout merge colors light](site/assets/settings-footer-merge-colors-light.png)
 
-![settings layout small bottom dark](site/assets/settings-layout-small-bottom-dark.png)
+![settings layout small bottom dark](site/assets/settings-footer-small-bottom-dark.png)
 
-![settings layout small bottom light](site/assets/settings-layout-small-bottom-light.png)
+![settings layout small bottom light](site/assets/settings-footer-small-bottom-light.png)
 
-![settings layout small top dark](site/assets/settings-layout-small-top-dark.png)
+![settings layout small top dark](site/assets/settings-footer-small-top-dark.png)
 
-![settings layout small top light](site/assets/settings-layout-small-top-light.png)
+![settings layout small top light](site/assets/settings-footer-small-top-light.png)
+
+
+## Native footer containment after hosted failure — October 16, 2026
+
+Hosted macOS run `38852442307` at `78bcdd06` passed its app/Finder build,
+full Git integration suite and earlier native phases, then failed step 102,
+Native Settings navigation and constrained layout: **Footer button clipped at
+small size: OK**. The same original assertion passed locally before this change;
+the exact hosted geometry has not been reproduced on this macOS version.
+
+The native property-sheet stack previously had no outer insets. It now reserves
+12 points around the right pane and 8 vertical points inside the footer, centers
+its controls and accounts for those insets in its width constraints. AppKit lays
+out alignment rects separately from a control's full frame; the reserved space
+keeps native button frames away from the sheet edges. The scrolling page keeps
+its existing minimum document size and cached origin. No footer control is removed.
+
+The original full-frame containment assertion remains, with frame diagnostics
+and an additional four-point outer-space assertion for OK/Cancel/Apply/Help.
+The affected Debug build and one isolated native layout case passed. No Core,
+color-family or full application suite was repeated for this native layout change.
+The six reviewed captures above were refreshed from this run in both themes;
+they show normal size and different small-window scroll positions, with existing
+page-local scrolling retained across appearance changes. Older capture assets and
+QA records remain available as historical evidence.
+
+See [the hosted failure and local repair record](qa/settings-footer-ci-2026-10-16.json).
+A new hosted pass, other macOS versions, full physical/VoiceOver and signed
+acceptance remain unverified. This does not certify every Settings page.

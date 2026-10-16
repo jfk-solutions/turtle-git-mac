@@ -80,7 +80,8 @@ private actor SettingsLayoutSMTPFixture: SMTPCredentialStore {
         for title in ["OK","Cancel","Apply","Help"] {
             let button = views(navigation.view).compactMap { $0 as? NSButton }.first { $0.title == title }!
             let rect = button.convert(button.bounds,to:navigation.view)
-            try require(rootBounds.insetBy(dx:-1,dy:-1).contains(rect),"Footer button clipped at small size: " + title)
+            try require(rootBounds.insetBy(dx:-1,dy:-1).contains(rect),"Footer button clipped at small size: \(title), button=\(rect), root=\(rootBounds), viewport=\(viewport.frame)")
+            try require(rootBounds.insetBy(dx:4,dy:4).contains(rect),"Footer lacks outer space for native frame: \(title), button=\(rect), root=\(rootBounds)")
         }
         try require(viewport.pageDocument.bounds.width >= 600 && viewport.pageDocument.bounds.height > viewport.contentView.bounds.height,"Normal page geometry not retained for scrolling")
         let legalBounds = viewport.contentView.constrainBoundsRect(NSRect(origin:.init(x:90,y:100),size:viewport.contentView.bounds.size))

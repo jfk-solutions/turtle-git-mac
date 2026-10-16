@@ -96,11 +96,17 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         okButton.keyEquivalent = "\r"; cancelButton.keyEquivalent = "\u{1b}"
         errorLabel.textColor = .systemRed
         let footer = NSStackView(views: [errorLabel, NSView(), okButton, cancelButton, applyButton, helpButton]); footer.orientation = .horizontal; footer.spacing = 8
+        // Stack views align controls by alignment rects, whose bezel/focus-frame
+        // insets differ across macOS releases. Reserve space for the entire
+        // native button frames at the property sheet's edges.
+        footer.alignment = .centerY
+        footer.edgeInsets = NSEdgeInsets(top:8,left:0,bottom:8,right:0)
         let right = NSStackView(views: [heading, NSBox(), content, footer]); right.orientation = .vertical; right.alignment = .leading; right.spacing = 8; right.distribution = .fill
+        right.edgeInsets = NSEdgeInsets(top:12,left:12,bottom:12,right:12)
         content.setContentHuggingPriority(.defaultLow,for:.vertical)
         heading.setContentHuggingPriority(.required,for:.vertical); footer.setContentHuggingPriority(.required,for:.vertical)
-        heading.widthAnchor.constraint(lessThanOrEqualTo:right.widthAnchor).isActive = true
-        footer.widthAnchor.constraint(equalTo: right.widthAnchor).isActive = true
+        heading.widthAnchor.constraint(lessThanOrEqualTo:right.widthAnchor,constant:-24).isActive = true
+        footer.widthAnchor.constraint(equalTo: right.widthAnchor,constant:-24).isActive = true
         transaction.changed = { [weak self] in self?.renderFooter() }
         transaction.failed = { [weak self] page in
             guard let self, !self.retired else { return }; self.show(page)
@@ -115,7 +121,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             split.leadingAnchor.constraint(equalTo: view.leadingAnchor), split.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             split.topAnchor.constraint(equalTo: view.topAnchor), split.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             sidebar.widthAnchor.constraint(greaterThanOrEqualToConstant:190), sidebar.widthAnchor.constraint(lessThanOrEqualToConstant:320),
-            content.widthAnchor.constraint(equalTo:right.widthAnchor), right.widthAnchor.constraint(greaterThanOrEqualToConstant:520)
+            content.widthAnchor.constraint(equalTo:right.widthAnchor,constant:-24), right.widthAnchor.constraint(greaterThanOrEqualToConstant:520)
         ])
         rebuildTree(); show(selected); renderFooter()
     }
