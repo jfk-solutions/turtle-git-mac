@@ -1,0 +1,147 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "4b487803d0aed988b780191a4a0d186842d34d08",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Shared Clone/Submodule Add clipboard link/quote defaults and first-history fallback; explicit Clone source priority in application routing",
+    "Submodule Add three bounded exact native histories with deletion and accepted-submission save",
+    "Pinned PathUtils filename semantics shared by repository end-edit and path Browse",
+    "Captured draft/request picker replies, forced-close dismissal and retired/duplicate callback refusal",
+    "Private AppStorage environment and new reviewed light/dark native gallery frames"
+  ],
+  "core": {
+    "log": "build/qa/repository-inputs-core-2026-10-17.log",
+    "filter": "FetchTests",
+    "exit": 0,
+    "tests": 16,
+    "failures": 0,
+    "full_suite_repeated": false
+  },
+  "builds": [
+    {
+      "log": "build/qa/repository-inputs-build-2026-10-17.log",
+      "exit": 65,
+      "exit_zero_no_output_diagnostics": 0
+    },
+    {
+      "log": "build/qa/repository-inputs-build-repaired-2026-10-17.log",
+      "exit": 65,
+      "exit_zero_no_output_diagnostics": 0
+    },
+    {
+      "log": "build/qa/repository-inputs-build-initialization-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "runs": [
+      {
+        "log": "build/qa/repository-inputs-native-2026-10-17.log",
+        "exit": 1,
+        "receivers_reaped": [
+          84767,
+          84867,
+          84954,
+          84993,
+          85028
+        ],
+        "inputs_passes": 2,
+        "clone_passes": 2,
+        "ssh_passes": 0
+      },
+      {
+        "log": "build/qa/repository-inputs-capture-2026-10-17.log",
+        "exit": 0,
+        "receivers_reaped": [
+          85072
+        ],
+        "inputs_passes": 1,
+        "clone_passes": 0,
+        "ssh_passes": 0
+      },
+      {
+        "log": "build/qa/repository-inputs-ssh-2026-10-17.log",
+        "exit": 0,
+        "receivers_reaped": [
+          85171,
+          86142
+        ],
+        "inputs_passes": 0,
+        "clone_passes": 0,
+        "ssh_passes": 2
+      }
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+    ],
+    "distinct_case_engine_passes": 6,
+    "additional_affected_capture_passes": 1,
+    "owned_receiver_pids": [
+      84767,
+      84867,
+      84954,
+      84993,
+      85028,
+      85072,
+      85171,
+      86142
+    ],
+    "all_owned_receiver_pids_absent": true,
+    "remaining_private_family_agent_processes": [],
+    "coverage": [
+      "Private clipboard/defaults and exact case/Unicode history identity, native deletion in all three controls",
+      "Source filename/scp/uppercase/trailing-separator path derivation and outside-tree Browse refusal",
+      "Changed draft and superseded picker response fencing, actual native panel retirement, Close/Quit and stale-control refusal",
+      "Captured accepted-history/progress handoff and real local staged submodule gitlink with unchanged parent/source HEAD",
+      "Retained Clone completion/history/retry/warnings and full encrypted-key/native transport/Submodule Add coordinator family"
+    ]
+  },
+  "repairs": [
+    "Swift Published wrappers require individual declarations; split the three histories.",
+    "Published source history was read through an autoclosure before the draft source/path initialized; retain local loaded source entries for initial selection. Native-only initialization repairs did not repeat passing Core checks.",
+    "New runner omitted SSH receiver required askpass argument; it trapped at arguments[3] before any repository/key/agent setup. Supply the built helper path; only the unrun SSH family repeats.",
+    "First captures had disabled OK because the private fixture had no submission callback. Supply a passive callback during capture; repeat only the affected system-Git input capture. Initial frames are not published."
+  ],
+  "captures": [
+    {
+      "path": "docs/site/assets/submodule-add-inputs-light.png",
+      "sha256": "2114beab0844190ec0570a13f680dd3139034c9103cbaf355c72b2dccd88958a",
+      "width": 1340,
+      "height": 592,
+      "review": "Actual passive native compositor capture individually inspected: source group/Repository/Path, visible Branch/main, Force, OpenSSH key and enabled OK/Cancel/Help fit in light. Private fixture and inactive native appearance; no activation or image editing."
+    },
+    {
+      "path": "docs/site/assets/submodule-add-inputs-dark.png",
+      "sha256": "a46ad62af39564d2fa5af6e7f6f0734ff38e077ce5d46105b28233dcdba8d38b",
+      "width": 1340,
+      "height": 592,
+      "review": "Actual passive native compositor capture individually inspected: source group/Repository/Path, visible Branch/main, Force, OpenSSH key and enabled OK/Cancel/Help fit in dark. Private fixture and inactive native appearance; no activation or image editing."
+    }
+  ],
+  "help": {
+    "source_files": 50,
+    "source_bytes": 1967763,
+    "bundled_mismatches": [],
+    "regenerated": false
+  },
+  "website": {
+    "log": "build/qa/repository-inputs-site-2026-10-17.log",
+    "documents": 264,
+    "unresolved_fragments": []
+  },
+  "hosted": {
+    "run": 38967919455,
+    "commit": "f87ac75ac231a3956c4b56a3283192861d69cddc",
+    "job": 117199386162,
+    "last_observed": "in_progress: Git integration tests; app compilation passed",
+    "full_success_confirmed": false
+  },
+  "limits": [
+    "Captured defaults never authorize a source/destination/key, perform Git or parse full shell commands.",
+    "Native screenshots establish the actual form/appearances and source order; physical popup/keyboard, VoiceOver and complete Windows layout are not certified.",
+    "Local transport fixtures and private encrypted keys do not establish public servers, git-svn, signing or authentication acceptance.",
+    "Signed installed Finder/sandbox, minimum macOS, complete dialog/control parity and App Store distribution remain open."
+  ]
+}

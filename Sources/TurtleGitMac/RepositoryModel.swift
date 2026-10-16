@@ -725,8 +725,9 @@ import UniformTypeIdentifiers
             if resolved.stale { UserDefaults.standard.set(try provider.create(for: resolved.url), forKey: "Clone.KeyBookmark." + root.path) }
         } catch { self.error = "The clone’s SSH-key permission could not be renewed.\n" + error.localizedDescription }
     }
+    var creationClipboardText:()->String? = {NSPasteboard.general.string(forType:.string)}
     private func showClone(directory: URL? = nil, source: String? = nil) {
-        let id = UUID(), controller = CloneWindowController(directory: directory ?? root, access: activeAccess)
+        let id = UUID(), controller = CloneWindowController(directory: directory ?? root, access: activeAccess,clipboardText:source == nil ? creationClipboardText():nil)
         controller.onClosed = { [weak self] in self?.cloneWindows.removeValue(forKey: id) }
         controller.model.onLog = { [weak self] repository, access in self?.showLog(repository: repository, access: access, paths: []) }
         controller.model.onCloned = { [weak self] repo, access, keyAccess, bare, result in
@@ -1780,7 +1781,7 @@ import UniformTypeIdentifiers
     }
     private func showSubmoduleAdd(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
         let key = repository.root.path
-        let controller = submoduleAddWindows[key] ?? SubmoduleAddWindowController(repository: repository, access: access, path: path)
+        let controller = submoduleAddWindows[key] ?? SubmoduleAddWindowController(repository: repository, access: access, path: path,clipboardText:creationClipboardText())
         controller.onClosed = { [weak self] in self?.submoduleAddWindows.removeValue(forKey: key) }
         controller.model.onSubmit = { [weak self] progress in self?.showSubmoduleAddProgress(model: progress) }
         submoduleAddWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

@@ -246,3 +246,19 @@ final class FetchTests: XCTestCase {
         do { _ = try await consumer.fetch(options); XCTFail("Unknown remote") } catch FetchFailure.remote {}
     }
 }
+
+extension FetchTests {
+    func testCloneClipboardDefaultsUseSourcePrefixQuotesAndRecognizedLinks() {
+        for (input,expected) in [("https://host/repo","https://host/repo"),("\"https://host/repo\"","https://host/repo"),("git clone 'ssh://host/repo.git'","ssh://host/repo.git"),("git clone \"https://host/repo\"","https://host/repo"),("git@host:repo","git@host:repo"),("/tmp/repo 雪","/tmp/repo 雪"),("file:///tmp/repo","file:///tmp/repo"),("https://host/repo\r\nignored","https://host/repo"),("https://host/repo\0ignored","https://host/repo"),("git clone ''","''"),("git clone 😺 main ignored","😺 main")] {
+            XCTAssertEqual(FetchClipboardInput.cloneSource(input),expected,input.debugDescription)
+        }
+        for input in ["","git clone ","git clonex repo","Git clone https://host/repo","arbitrary text","HTTPS://host/repo","\nhttps://host/repo"] {XCTAssertNil(FetchClipboardInput.cloneSource(input),input.debugDescription)}
+        XCTAssertEqual(FetchClipboardInput.cloneSource("git clone https://host/repo target"),"https://host/repo target","Source link probe is not a shell argument parser")
+    }
+    func testSubmoduleNamesFollowSourcePathRulesWithoutRewritingPayload() {
+        let cases=[("ssh://host/group/repo.git","repo"),("https://host/repo.GIT","repo.GIT"),("git@host:repo.git","git@host:repo"),("folder\\repo.git","repo"),("repo.git/",""),("repo.git ","repo.git "),("repo 雪.git","repo 雪"),("https://host/repo:part.git","repo:part"),("",""),(".git","")]
+        for (input,expected) in cases {XCTAssertEqual(SubmoduleAddOptions.moduleName(from:input),expected,input.debugDescription)}
+        XCTAssertTrue(SubmoduleAddOptions.moduleName(from:"folder/e\u{301}.git").utf16.elementsEqual("e\u{301}".utf16))
+        XCTAssertEqual(SubmoduleAddOptions.moduleName(from:"folder/repo.git?query"),"repo.git?query")
+    }
+}

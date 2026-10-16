@@ -1682,3 +1682,16 @@ saved deletion and source submission timing after read-only validation. See
 Twenty distinct focused Core cases and eight grouped native case/engine runs
 pass. The Core fixture repair and private cleanup are recorded; all eight owned
 receivers were reaped and absent. See [batch evidence](qa/clone-completion-2026-10-17.json).
+
+### Connected Clone/Submodule Add inputs — October 17, 2026
+
+Source clipboard defaults and first-history fallback now enter new dialogs from
+captured application input. Submodule Add shares bounded native deletion across
+its source/path/key histories, exact source filename derivation and captured-draft
+picker acceptance. Closed/replaced pickers refuse late folder/key replies and
+controls inherit private preferences. See [source comparison and limits](REPOSITORY-INPUT-DEFAULTS-PARITY.md).
+
+Six distinct native case/engine combinations and sixteen focused Core cases pass.
+The affected capture recheck, compile/runner repairs and owned cleanup are recorded
+in [batch evidence](qa/repository-inputs-2026-10-17.json). New reviewed light/dark
+Submodule Add frames are published in the gallery.

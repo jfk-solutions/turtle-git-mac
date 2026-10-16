@@ -8,8 +8,8 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     let model: CloneWindowModel
     var onClosed: () -> Void = {}
     private var progressController: CloneProgressWindowController?
-    init(directory: URL?, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, executable: URL? = nil) {
-        model = CloneWindowModel(directory: directory, access: access, preferences: preferences, executable: executable)
+    init(directory: URL?, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, executable: URL? = nil, clipboardText:String? = nil) {
+        model = CloneWindowModel(directory: directory, access: access, preferences: preferences, executable: executable,clipboardText:clipboardText)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 820, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Git Clone – TurtleGit"
         window.minSize = NSSize(width: 780, height: 452)
@@ -130,15 +130,16 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     var onCloned: (GitRepository, RepositoryAccessLease, RepositoryAccessLease?, Bool, String) -> Void = { _, _, _, _, _ in }
     var onLog: (GitRepository, RepositoryAccessLease) -> Void = { _, _ in }
     private var clonedRepository: GitRepository?
-    init(directory: URL?, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, executable: URL? = nil) {
+    init(directory: URL?, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, executable: URL? = nil, clipboardText:String? = nil) {
         self.preferences = preferences; self.executable = executable
         let defaults = preferences
         self.directory = directory?.path ?? defaults.string(forKey: "Clone.Directory") ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].path
         recursive = defaults.bool(forKey: "Clone.Recursive")
         urls = FetchDialogHistory.load(defaults,key:"Clone.URLHistory",caseSensitive:true)
         keys = FetchDialogHistory.load(defaults,key:"Clone.KeyHistory",caseSensitive:true)
+        source=clipboardText.flatMap(FetchClipboardInput.cloneSource) ?? urls.first ?? ""
         destinationAccess = access
-        key = keys.first ?? ""; useKey = sshAvailable && (defaults.object(forKey: "Clone.UseSSHKey") as? Bool ?? true)
+        key = keys.first ?? ""; useKey = supportsKey && sshAvailable && (defaults.object(forKey: "Clone.UseSSHKey") as? Bool ?? true)
     }
     var pathCompletionPreferences: UserDefaults { preferences }
     var pathCompletionAvailable: Bool { !invalidated && !finished && !activeOperation }

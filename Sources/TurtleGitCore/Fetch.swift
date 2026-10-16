@@ -188,6 +188,16 @@ public enum FetchClipboardInput {
         if spaces.count >= 2, spaces[1] > 0 { text = String(decoding: remaining[..<spaces[1]], as: UTF16.self) }
         return text.isEmpty ? nil : text
     }
+    /// CloneDlg/SubmoduleAddDlg use the common link probe, then remove one
+    /// matching quote pair. This is a field default, never a command execution.
+    public static func cloneSource(_ text:String) -> String? {
+        guard var value=link(text,prefix:"git clone ")?.trimmingCharacters(in:whitespace),!value.isEmpty else {return nil}
+        let units=Array(value.utf16)
+        if units.count>2,let first=units.first,first==units.last,first==34 || first==39 {
+            value=String(decoding:units.dropFirst().dropLast(),as:UTF16.self)
+        }
+        return value.isEmpty ? nil:value
+    }
     public static func selection(_ text: String, isPull: Bool) -> (url: String, branch: String?)? {
         guard let value = link(text, prefix: isPull ? "git pull" : "git fetch") ?? link(text, prefix: isPull ? "git fetch" : "git pull") else { return nil }
         let units = Array(value.utf16)

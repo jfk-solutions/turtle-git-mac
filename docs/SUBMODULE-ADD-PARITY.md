@@ -99,3 +99,11 @@ fences, completion behind a pending question, private action-log deduplication
 and captured no-options/no-errors automatic-close policy with real local
 Git effects. No main app or physically displayed window is involved; Root routing
 is inspected/compiled rather than instantiated in the receiver.
+
+## Connected repository input family — October 17, 2026
+
+[Clipboard/history/picker parity](REPOSITORY-INPUT-DEFAULTS-PARITY.md) now supplies
+source clipboard defaults, all three native history deletions, shared exact
+repository-name/path derivation and draft-bound picker acceptance. This supersedes
+the earlier missing clipboard-default statement. Narrow leases, submitted progress
+ownership and all physical/signed acceptance limits remain independent.

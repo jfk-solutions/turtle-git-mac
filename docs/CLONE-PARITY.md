@@ -218,3 +218,7 @@ retries opening without recloning, and supplies native saved-history deletion.
 Accepted failed submissions now retain captured history, matching source OnOK;
 this supersedes earlier success-only history and failed-result descriptions for
 post-clone key configuration. Physical and signed acceptance remain open.
+
+The [repository input continuation](REPOSITORY-INPUT-DEFAULTS-PARITY.md) adds the
+source clipboard/first-history defaults shared with Submodule Add. Explicit caller
+URLs keep priority; prefill supplies no authorization or automatic submission.

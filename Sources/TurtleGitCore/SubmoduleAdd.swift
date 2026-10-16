@@ -8,6 +8,13 @@ public struct SubmoduleAddOptions: Sendable {
     public var force = false
     public var sshKey: URL?
     public init() {}
+    /// SubmoduleAddDlg uses GetFileNameFromPath: only slash/backslash separate
+    /// components; preserve case, whitespace, trailing emptiness and scp colons.
+    public static func moduleName(from source:String)->String {
+        var name=source.replacingOccurrences(of:"\\",with:"/").components(separatedBy:"/").last ?? ""
+        if name.hasSuffix(".git") {name.removeLast(4)}
+        return name
+    }
     public func relativePath(root: URL) throws -> String {
         let value = path.trimmingCharacters(in: .whitespacesAndNewlines)
         let relative: String
