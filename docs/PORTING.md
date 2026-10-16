@@ -1599,3 +1599,16 @@ ownership complete this connected presentation batch. See
 [Browser parity](REPOSITORY-BROWSER-PARITY.md) and
 [batch evidence](qa/browser-presentation-2026-10-16.json). Physical and signed
 acceptance remain open.
+
+
+### Revert planning family — October 16, 2026
+
+The Revert file-selection window now connects shared original-icon file menus,
+comparison/export/application handoffs, native sortable/persisted columns and
+source default checks. Atomic owned reads, coalesced same-repository drops,
+confirmed context Revert/recovery children and related-dialog refresh replace
+its older standalone handling. Planning, retained progress and shared file-menu
+checks pass on both Git engines within the recorded repair scope; all owned
+receivers are closed. Full source masks, watermark, visual/physical and signed
+acceptance remain open. [Batch evidence](qa/revert-planning-2026-10-16.json). See
+[Revert planning parity](REVERT-PARITY.md#revert-planning-family--october-16-2026).

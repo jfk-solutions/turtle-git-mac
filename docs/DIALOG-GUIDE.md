@@ -316,7 +316,7 @@ application. Conflicts still require resolution. Inspect the result before
 assuming that a stash has been removed.
 
 Revert working files restores their selected state; see
-[Reverting working files](REVERTING-FILES.md). Revert a commit from Log creates
+[Reverting working files](REVERTING-FILES.md). The file-selection window supports sortable saved columns, file history/Blame, Open With/export, and same-repository file drops. Context Revert opens its recovery/progress window and refreshes the list when closed. Revert a commit from Log creates
 an inverse change; see [Reverting a commit](REVERT-COMMIT.md).
 
 Reset selects a revision and reset mode. Review the mode before accepting: changes

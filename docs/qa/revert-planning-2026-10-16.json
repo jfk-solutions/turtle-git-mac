@@ -1,0 +1,159 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "99584e00db1b2b5757ac06978af66d66c6838a8f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RevertDlg.cpp Init, RevertThread, OnFileDropped and refresh timer",
+    "GitStatusListCtrl.cpp shared popup mask and IDGITLC_REVERT confirmation/progress handoff"
+  ],
+  "scope": [
+    "Atomic scoped status/statistics/metadata snapshots, superseding cancellation, queued related refresh after failed read, worker/access/Quit drain",
+    "Direct clean files, source initial checks and refresh check/highlight preservation",
+    "Coalesced same-repository drops, nested repository rejection and unchanged prior scope on failure",
+    "Shared original-icon file actions, comparison, private clipboard, export/application/deletion panels and Resolve/Ignore/Rename/Move/LFS routing",
+    "Independent saved/sortable native columns, optional filename/date/size, shared input/header integration and confirmed Reset",
+    "Owning native F5/Ctrl Return, Yes-default context Revert, actual recovery child and parent refresh on child close",
+    "Related Rename/Move scope/check remapping and Ignore/Resolve refresh"
+  ],
+  "core": {
+    "run": false,
+    "reason": "Native model/controller/SwiftUI integration only; Core Git/status/selection algorithms unchanged"
+  },
+  "builds": [
+    {
+      "log": "build/qa/revert-planning-build-2026-10-16.log",
+      "exit": 65,
+      "compiler_assertion": true,
+      "exit_zero_no_output_diagnostics": 0
+    },
+    {
+      "log": "build/qa/revert-planning-build-repair-2026-10-16.log",
+      "exit": 0,
+      "compiler_assertion": false,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/revert-planning-build-owner-2026-10-16.log",
+      "exit": 0,
+      "compiler_assertion": false,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/revert-planning-build-refresh-2026-10-16.log",
+      "exit": 0,
+      "compiler_assertion": false,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "engines": [
+      "/usr/bin/git",
+      "build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/revert-planning-native-2026-10-16.log",
+        "exit": 1,
+        "receivers_reaped": [
+          65411
+        ],
+        "planning_passes": 0,
+        "progress_passes": 0,
+        "shared_menu_passes": 0,
+        "appkit_reentrant_table_warnings": 1
+      },
+      {
+        "log": "build/qa/revert-planning-native-diagnose-2026-10-16.log",
+        "exit": 1,
+        "receivers_reaped": [
+          65568
+        ],
+        "planning_passes": 0,
+        "progress_passes": 0,
+        "shared_menu_passes": 0,
+        "appkit_reentrant_table_warnings": 1
+      },
+      {
+        "log": "build/qa/revert-planning-native-owner-2026-10-16.log",
+        "exit": 0,
+        "receivers_reaped": [
+          65745,
+          65880,
+          66026,
+          66076,
+          66134,
+          66201
+        ],
+        "planning_passes": 2,
+        "progress_passes": 2,
+        "shared_menu_passes": 2,
+        "appkit_reentrant_table_warnings": 2
+      },
+      {
+        "log": "build/qa/revert-planning-native-refresh-2026-10-16.log",
+        "exit": 0,
+        "receivers_reaped": [
+          66343,
+          66489
+        ],
+        "planning_passes": 2,
+        "progress_passes": 0,
+        "shared_menu_passes": 0,
+        "appkit_reentrant_table_warnings": 2
+      }
+    ],
+    "final_scope": "Planning passes on both engines after queued-refresh repair. Progress and shared Working Tree file-menu passes on both engines before that Revert-only repair.",
+    "all_owned_receiver_pids_absent": true,
+    "owned_receiver_pids": [
+      65411,
+      65568,
+      65745,
+      65880,
+      66026,
+      66076,
+      66134,
+      66201,
+      66343,
+      66489
+    ]
+  },
+  "repairs": [
+    "Initial Swift compiler assertion from assigning the implicitly shadowed catch error; qualify self.error.",
+    "Initial planning assertion ran menu actions before the nested-drop error sheet had dismissed. Wait for owner readiness; also reject late file actions while an owner sheet is attached.",
+    "Code review found deferred related refresh could be stranded after a failed owned read; drain pending refresh from read/question finalization and add an injected-failure assertion."
+  ],
+  "limitations": [
+    "AppKit emits a reentrant NSTableView delegate warning in planning runs; no assertion/crash occurred. Future SDK behavior and physical native table acceptance remain open.",
+    "New planning runs use hidden native windows and injected launches/choices where specified; they do not establish full visual or physical keyboard/Finder acceptance.",
+    "Full source popup masks, list watermark, all conflict/gitlink/rename/copy combinations and multi-display/frame acceptance remain open.",
+    "Signed sandbox Trash/application/export behavior and full hosted CI are not certified by focused local runs."
+  ],
+  "documentation": {
+    "help_source_files": 50,
+    "help_source_bytes": 1966497,
+    "built_help_matches_source": true,
+    "site_documents": 259,
+    "site_unresolved_fragments": 0,
+    "dialog_coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0
+    },
+    "coverage_note": "Audit mapping counts are not feature completion percentages."
+  },
+  "hosted_observation": {
+    "commit": "99584e00db1b2b5757ac06978af66d66c6838a8f",
+    "pages": {
+      "run": 38961145093,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 38961144866,
+      "status": "pending",
+      "conclusion": null
+    },
+    "note": "Observed before this batch push; does not certify the new commit."
+  }
+}

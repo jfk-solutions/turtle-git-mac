@@ -64,10 +64,9 @@ files and added files start checked; other folder changes await review. Mixed
 Select/deselect all clears checks, then an unchecked control selects all. F5
 refresh retains reviewed checks; Control-Return and Command-Return accept the
 plan. Cancel performs no Revert. The unversioned-items note retains the upstream
-default-hidden behavior and uses `Status.UnversionedAsModified`; a settings UI
-for that preference is still pending. File drops are restricted to the same
-repository and refresh the scope. Double-click/context comparison opens a native
-diff sheet; the context menu also provides check/uncheck and scoped Log.
+default-hidden behavior and uses the source `UnversionedAsModified` preference. File drops are restricted to the same
+repository and refresh the scope. Double-click/context comparison hands off to the shared native comparison; the
+expanded context menu is described in the planning-family continuation below.
 
 Revert now has an icon-bearing app/Finder action and checked cached eligibility.
 Its URL carries literal multi-path selections through repository authorization
@@ -89,9 +88,9 @@ footer sizing were corrected after inspecting the native captures. Each preview
 was closed and process absence verified before the next rebuilt preview opened.
 The final unsigned Xcode Debug build and app/extension/icon audit passed.
 
-Full file-list context commands, background artwork, sortable columns, unchanged directly requested
-files, file-drop runtime acceptance, Command-Return, error/retry and busy-Quit
-runtime checks, saved frame reopen and multi-display placement remain pending.
+The planning-family continuation below adds shared file commands, sortable saved
+columns, direct clean files and owned drop/read handling. Background artwork, full
+source popup masks, saved frame reopen and multi-display placement remain pending.
 The Finder request test does not prove signed Finder extension activation or
 actual Finder menu acceptance.
 
@@ -191,3 +190,45 @@ that rolls back completed working-file effects. Grouped evidence follows validat
 Debug, 33 related Core tests and four grouped native cases passed on the first
 checkpoint with both Git engines. Receiver cleanup and exact validation limits
 are recorded in [the batch evidence](qa/revert-progress-family-2026-10-14.json).
+
+
+## Revert planning family — October 16, 2026
+
+Source: pinned `RevertDlg.cpp` initialization/read/drop handlers and
+`GitStatusListCtrl.cpp` Revert/menu handling. The source enables the shared file
+popup except Commit, Restore and changelists, and uses the five-column
+Path/Extension/Status/Lines added/Lines removed default.
+
+The native planning window now embeds the shared Working Tree file-action backend
+without grouping or its preferences. History/old-name history, Blame, two-file
+comparison, Open/Open With/editor, export, Reveal, deletion, Resolve/Ignore,
+Rename/Move, index flags and LFS retain original menu artwork and captured paths.
+The ordinary comparison handoff and shared unified viewer replace the earlier
+plain-string patch sheet. Context Revert uses source Yes-default confirmation for
+modified ordinary files and opens the existing recovery/progress controller;
+closing that child refreshes the planning table. Related Rename/Move/Ignore/Resolve
+completion also refreshes the bound repository; Rename updates direct scope and
+checks to the new path.
+
+Status, statistics, metadata, repository identity and menu state publish as one
+owned snapshot. Refresh supersedes and cancels its predecessor; cancellation and
+forced closure retain worker/access lifetime until drain and reject late results.
+Same-repository drops coalesce over the source 200 ms delay and union the invocation
+scope. Failed/nested-repository drops retain prior rows/scope. A directly requested
+clean tracked file appears checked; root/folder requests omit clean files and
+unversioned files. Existing checks/highlights survive successful refresh.
+
+The shared native file-list interaction owns checkbox/Space, keyboard deletion,
+clipboard, optional filename/date/size columns, sorting, fitting and confirmed
+Reset columns. Layout is stored under `RevertDlg.FileColumns`; Working Tree and
+Commit preferences remain independent. F5 and Control/Command-Return are scoped
+to the owning active window. File questions, export/application panels and progress
+children own close and Quit lifetime, including forced retirement.
+
+The Debug build passes after the recorded compiler repair. Planning, retained
+progress and shared Working Tree file-menu checks pass with system and bundled
+Git; the Revert-only queued-refresh repair passes its affected two-engine check.
+All ten receiver processes, including the two failed initial runs, are absent.
+See [batch evidence](qa/revert-planning-2026-10-16.json) for exact scope and the
+AppKit reentrant-table warning. These checks do not certify full source popup-mask, background watermark, physical keyboard/Finder,
+all conflict/gitlink/rename combinations, visual or signed sandbox acceptance.

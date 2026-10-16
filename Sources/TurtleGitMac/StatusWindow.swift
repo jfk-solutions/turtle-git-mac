@@ -189,6 +189,16 @@ final class StatusNativeWindow: NSWindow {
     @Published private(set) var currentOperation = ""
     @Published private(set) var cancelling = false
     var readStatus: (OperationCancellation) async throws -> [WorkingTreeFile]
+    var embeddedReload: (() -> Void)?
+    var actionOwnerAvailable: () -> Bool = {true}
+    var groupsEnabled = true
+    var clipboard = NSPasteboard.general
+    func installEmbeddedFiles(_ rows:[WorkingTreeFile],statistics:[String:CommitFile],metadata:[String:StatusListMetadata],submodules:Set<String>,hasHead:Bool,rebase:Bool,hasLFS:Bool) {
+        guard !retired,!busy else {return};menuGeneration = UUID()
+        files = rows;self.statistics = statistics;fileMetadata = metadata;self.submodules = submodules
+        self.hasHead = hasHead;conflictRebase = rebase;self.hasLFS = hasLFS
+        selection.formIntersection(Set(rows.map(\.id)))
+    }
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     @Published var changelists = GitChangelists()
@@ -320,7 +330,7 @@ final class StatusNativeWindow: NSWindow {
             StatusGroupedRow(row: $0, contents: $0.entry.flatMap { lookup[$0.path] })
         }
     }
-    var sortedRows: [StatusRow] { tableRows.compactMap(\.contents) }
+    var sortedRows: [StatusRow] { groupsEnabled ? tableRows.compactMap(\.contents):ungroupedSortedRows }
     var summary: String {
         let rows = visibleFiles
         return "\(rows.count) files shown, \(rows.filter { $0.entry.staged }.count) staged, \(rows.filter { $0.state == .modified }.count) modified, \(rows.filter { $0.state == .untracked }.count) unversioned"
@@ -385,7 +395,7 @@ final class StatusNativeWindow: NSWindow {
         !retired && operationCancellation === token && !token.isCancelled
     }
     private func runOperation(_ title: String, operation: @escaping (OperationCancellation) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
-        guard !retired, !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !confirmingQuit,actionOwnerAvailable() else { return }
         let token = OperationCancellation(); operationCancellation = token
         busy = true; cancelling = false; currentOperation = title; Self.activeOperations += 1
         Task {
@@ -408,7 +418,9 @@ final class StatusNativeWindow: NSWindow {
         }
     }
     func reload() {
-        guard !retired, !busy, !confirmingQuit else { return }; menuGeneration = UUID(); refreshRequested = false
+        guard !retired, !busy, !confirmingQuit else { return }
+        if let embeddedReload {embeddedReload();return}
+        menuGeneration = UUID(); refreshRequested = false
         if let pendingScope { self.pendingScope = nil; applyScope(pendingScope) }
         let scopePaths = filter.paths
         runOperation("Refreshing working tree…", operation: { [self] token in
@@ -448,7 +460,7 @@ final class StatusNativeWindow: NSWindow {
         return LFSLockMenu.actions(paths: selected.map(\.id), ownersVisible: ownersVisible, lockedPaths: lfsLockedPaths, ownershipKnown: lfsOwnershipKnown)
     }
     func setLFSLocked(_ ids: Set<String>, locked: Bool) {
-        guard !retired, !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !confirmingQuit,actionOwnerAvailable() else { return }
         let selected = sortedRows.map(\.file).filter { ids.contains($0.id) }
         guard selected.count == ids.count, lfsActions(selected).contains(locked ? .lock : .unlock) else { return }
         busy = true
@@ -463,7 +475,7 @@ final class StatusNativeWindow: NSWindow {
         }, completed: { [self] in reload(); onChanged() })
     }
     func setFlags(_ action: IndexFlagAction, files: [WorkingTreeFile], selectionMark: WorkingTreeFile? = nil) {
-        guard !retired, !busy, !confirmingQuit, !files.isEmpty, action.isAvailable(for: selectionMark.map { [$0] } ?? files), confirmFlags(action), !retired else { return }
+        guard !retired, !busy, !confirmingQuit, actionOwnerAvailable(), !files.isEmpty, action.isAvailable(for: selectionMark.map { [$0] } ?? files), confirmFlags(action), !retired else { return }
         runOperation("Updating index flags…", operation: { [self] token in
             try await repository.setIndexFlags(action, paths: files.map(\.id), markedPath: selectionMark?.id, cancellation: token)
         }, completed: { [self] in reload(); onChanged() }, failed: { [self] in reload(); onChanged() })
@@ -543,7 +555,7 @@ final class StatusNativeWindow: NSWindow {
         onAddFiles(snapshot.entries.map(\.path), mode)
     }
     private func accepts(_ snapshot: StatusFileMenuSnapshot, duringOperation: Bool = false) -> Bool {
-        guard !retired, !confirmingQuit, (duringOperation || !busy), snapshot.generation == menuGeneration,
+        guard !retired, !confirmingQuit, actionOwnerAvailable(), (duringOperation || !busy), snapshot.generation == menuGeneration,
               !snapshot.entries.isEmpty else { return false }
         let current = Dictionary(files.map { ($0.id, $0.entry) }, uniquingKeysWith: { _, last in last })
         return snapshot.entries.allSatisfy { current[$0.path] == $0 } && (snapshot.mark.map { current[$0.path] == $0 } ?? true)
@@ -662,10 +674,10 @@ final class StatusNativeWindow: NSWindow {
         }.joined(separator: "\n") + "\n"
     }
     func copy(_ ids: Set<String>, information: StatusListCopy = .relativePaths) {
-        guard !retired, !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !confirmingQuit,actionOwnerAvailable() else { return }
         let text = clipboardText(ids, copy: information)
         guard !text.isEmpty else { return }
-        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+        clipboard.clearContents(); clipboard.setString(text, forType: .string)
     }
 }
 

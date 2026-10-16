@@ -789,7 +789,7 @@ import UniformTypeIdentifiers
         controller.onClosed = { [weak self] in self?.renameWindows.removeValue(forKey: key) }
         controller.model.onRenamed = { [weak self] old, new, output in
             guard let self else { return }
-            self.statusWindows[root.path]?.model.didRename(old, to: new)
+            self.revertWindows[root.path]?.model.didRename(old,to:new); self.statusWindows[root.path]?.model.didRename(old, to: new)
             self.commitWindows[root.path]?.model.didRename(old, to: new)
             if self.root == root {
                 self.selection = Set(self.selection.map { $0 == old ? new : $0.hasPrefix(old + "/") ? new + $0.dropFirst(old.count) : $0 })
@@ -797,7 +797,7 @@ import UniformTypeIdentifiers
             }
         }
         controller.model.onChanged = { [weak self] in
-            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.revertWindows[root.path]?.model.requestReload(); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             if self?.root == root { Task { await self?.refresh() } }
         }
         renameWindows[key] = controller
@@ -808,11 +808,11 @@ import UniformTypeIdentifiers
         let controller = moveWindows[key] ?? FileMoveWindowController(repository: repository, access: access, paths: paths)
         controller.onClosed = { [weak self] in self?.moveWindows.removeValue(forKey: key) }
         controller.model.onMoved = { [weak self] old, new, text in
-            guard let self else { return }; self.statusWindows[root.path]?.model.didRename(old, to: new); self.commitWindows[root.path]?.model.didRename(old, to: new)
+            guard let self else { return }; self.revertWindows[root.path]?.model.didRename(old,to:new); self.statusWindows[root.path]?.model.didRename(old, to: new); self.commitWindows[root.path]?.model.didRename(old, to: new)
             if self.root == root { self.selection = Set(self.selection.map { $0 == old ? new : $0.hasPrefix(old + "/") ? new + $0.dropFirst(old.count) : $0 }); self.output = text.isEmpty ? "Moved \(old) to \(new)." : text }
         }
         controller.model.onChanged = { [weak self] in
-            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
+            self?.revertWindows[root.path]?.model.requestReload(); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
             if self?.root == root { Task { await self?.refresh() } }
         }
         moveWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -998,7 +998,7 @@ import UniformTypeIdentifiers
     }
     private func refreshAfterConflictChange(_ root:URL) {
         ConflictListRefreshPolicy.perform(preferences:fileComparisonPreferences) {
-            statusWindows[root.path]?.model.requestReload();commitWindows[root.path]?.model.reload()
+            revertWindows[root.path]?.model.requestReload(); statusWindows[root.path]?.model.requestReload();commitWindows[root.path]?.model.reload()
             for resolve in resolveWindows.values where resolve.model.repository.root == root {resolve.model.load()}
         }
         rebaseWindows[root.path]?.model.refreshState();refreshRepositoryLogs(root)
@@ -1038,7 +1038,7 @@ import UniformTypeIdentifiers
             controller.onClosed = { [weak self] in self?.ignoreWindows.removeValue(forKey: key) }
             controller.onChanged = { [weak self] output in
                 self?.refreshRepositoryLogs(root)
-                self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+                self?.revertWindows[root.path]?.model.requestReload(); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
                 guard let self, self.root == root else { return }
                 self.output = output; Task { await self.refresh() }
             }
@@ -1473,6 +1473,30 @@ import UniformTypeIdentifiers
         controller.onClosed = { [weak self] in self?.revertWindows.removeValue(forKey: root.path) }
         controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
         controller.model.onAccepted = { [weak self] entries in self?.showRevertProgress(repository: repository, access: access, entries: entries) }
+        controller.model.onCompare = { [weak self,weak controller] paths in self?.showWorkingFiles(repository:repository,access:access,paths:paths,owner:controller?.window) }
+        controller.model.commands.onBlame = { [weak self] path in self?.showBlame(repository:repository,access:access,path:path,revision:"HEAD") }
+        controller.model.commands.onCompareTwoFiles = { [weak self,weak controller] paths in self?.showWorkingFilePair(repository:repository,access:access,paths:paths,owner:controller?.window) }
+        controller.model.commands.onSubmoduleLog = { [weak self] child in self?.showLog(repository:child,access:access,paths:[]) }
+        controller.model.onHandleSubmodules = { [weak self] revision,paths in for path in paths {self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:revision)} }
+        controller.model.onAction = { [weak self,weak controller] action,paths in
+            guard let self,let controller,!controller.model.retired else {return}
+            if action.isIgnore {self.showIgnore(repository:repository,access:access,paths:paths,action:action);return}
+            if action.isResolve {
+                if action == .editConflict,let path = paths.first {self.showConflictEditor(repository:repository,access:access,path:path,owner:controller.window)}
+                else {self.showResolve(repository:repository,access:access,paths:paths,quick:action.resolveChoice)}
+                return
+            }
+            switch action {
+            case .rename:if let path = paths.first {self.showRename(repository:repository,access:access,source:path)}
+            case .move:self.showMove(repository:repository,access:access,paths:paths)
+            case .pull:self.showFetch(repository:repository,access:access,isPull:true)
+            default:break
+            }
+        }
+        controller.model.onChanged = { [weak self] in
+            self?.refreshRepositoryLogs(root);self?.statusWindows[root.path]?.model.requestReload();self?.commitWindows[root.path]?.model.reload()
+        }
+
         revertWindows[root.path] = controller
         controller.model.setScope(paths)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
