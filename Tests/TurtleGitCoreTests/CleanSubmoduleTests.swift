@@ -39,6 +39,60 @@ final class CleanSubmoduleTests: XCTestCase {
             for path in item.preview.candidates { XCTAssertTrue(FileManager.default.fileExists(atPath: item.repository.appendingPathComponent(path).path)) }
         }
     }
+    func testPermissionPreparationPrecedesEveryCheckoutReadAndExecutionRemoval() async throws {
+        let (base,parent,repositories,_) = try await fixture()
+        defer {try? FileManager.default.removeItem(at:base)}
+        let wrapper=base.appendingPathComponent("permission-git")
+        // GitRepository places literal mode and -C before the checkout. Refuse
+        // every Git invocation until that checkout's preparation has completed.
+        let quote="'" + parent.executable.path.replacingOccurrences(of:"'",with:"'\\''") + "'"
+        let script="""
+        #!/bin/sh
+        if [ ! -f "$3/.clean-access-prepared" ]; then
+          echo 'checkout read before preparation' >&2; exit 97
+        fi
+        exec \(quote) "$@"
+        """
+        try Data(script.utf8).write(to:wrapper)
+        try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:wrapper.path)
+        let checked=GitRepository(root:parent.root,executable:wrapper)
+        let prepare:CleanRepositoryAccessPreparation = {location,token in
+            try token.check()
+            try Data().write(to:location.appendingPathComponent(".clean-access-prepared"))
+        }
+        // Keep gate files out of the cleanup plan and Git's index.
+        for repository in repositories {
+            let exclude=try await administration(repository,"info/exclude")
+            try FileManager.default.createDirectory(at:exclude.deletingLastPathComponent(),withIntermediateDirectories:true)
+            try Data(".clean-access-prepared\n".utf8).write(to:exclude)
+        }
+        let plan=try await checked.cleanBatchPreview(options:CleanOptions(type:.nonIgnored),includeSubmodules:true,prepareAccess:prepare)
+        XCTAssertEqual(plan.repositories.count,4)
+        for repository in repositories {try FileManager.default.removeItem(at:repository.root.appendingPathComponent(".clean-access-prepared"))}
+        let results=try await checked.executeCleanBatch(plan,permanently:true,prepareAccess:prepare)
+        XCTAssertEqual(results.flatMap {$0.result.removedPaths}.count,4)
+        for repository in repositories {XCTAssertEqual(try Data(contentsOf:repository.root.appendingPathComponent("tracked")),Data("working\n".utf8))}
+    }
+    func testDeniedOrCancelledChildPreparationPreventsAllRemoval() async throws {
+        let (base,parent,repositories,_) = try await fixture()
+        defer {try? FileManager.default.removeItem(at:base)}
+        let plan=try await parent.cleanBatchPreview(includeSubmodules:true)
+        for cancel in [false,true] {
+            let token=OperationCancellation()
+            do {
+                _ = try await parent.executeCleanBatch(plan,permanently:true,cancellation:token,prepareAccess:{location,cancellation in
+                    if location != parent.root {
+                        if cancel {cancellation.cancel();try cancellation.check()}
+                        throw RepositoryAccessFailure.securityScopeUnavailable
+                    }
+                })
+                XCTFail("Unapproved child preparation reached removal")
+            } catch {XCTAssertEqual(token.isCancelled,cancel)}
+            for (repository,junk) in zip(repositories,["parent-junk","child-junk","grand-junk","sibling-junk"]) {
+                XCTAssertEqual(try Data(contentsOf:repository.root.appendingPathComponent(junk)),Data(junk.utf8))
+            }
+        }
+    }
     private func fixture() async throws -> (URL, GitRepository, [GitRepository], String) {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitCleanModules-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: false)

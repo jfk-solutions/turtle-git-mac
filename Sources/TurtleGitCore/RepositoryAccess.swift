@@ -73,6 +73,14 @@ public final class RepositoryAccessLease {
     public func permits(_ candidate: URL) -> Bool {
         hasSecurityScope && contains(candidate) || relatedScopes.contains { $0.permits(candidate) }
     }
+    /// Metadata discovery needs every retained live folder, while contains()
+    /// deliberately keeps the original working-folder boundary.
+    public func permittedFolders(requireSecurityScope:Bool = true)->[URL] {
+        var result = !requireSecurityScope || hasSecurityScope ? [url]:[]
+        for scope in relatedScopes {result += scope.permittedFolders(requireSecurityScope:requireSecurityScope)}
+        var seen=Set<String>()
+        return result.filter {seen.insert($0.standardizedFileURL.resolvingSymlinksInPath().path).inserted}
+    }
     public static func pathIsContained(_ candidate: URL, by folder: URL) -> Bool {
         guard candidate.isFileURL, folder.isFileURL else { return false }
         guard let root = Self.canonicalPath(folder), let path = Self.canonicalPath(candidate) else { return false }
@@ -337,7 +345,7 @@ public enum RepositoryMetadataAccessFailure: LocalizedError {
 /// covered by live grants; each newly authorized folder reveals the next layer.
 public enum RepositoryMetadataAccess {
     public static func next(at location: URL, permissions: [RepositoryAccessLease], requireSecurityScope: Bool = true, cancellation: OperationCancellation? = nil) throws -> RepositoryMetadataAccessRequirement? {
-        try next(at: location, authorizedFolders: permissions.filter { !requireSecurityScope || $0.hasSecurityScope }.map(\.url), cancellation: cancellation)
+        try next(at: location, authorizedFolders: permissions.flatMap {$0.permittedFolders(requireSecurityScope:requireSecurityScope)}, cancellation: cancellation)
     }
     public static func next(at location: URL, authorizedFolders: [URL], cancellation: OperationCancellation? = nil) throws -> RepositoryMetadataAccessRequirement? {
         let manager = FileManager.default

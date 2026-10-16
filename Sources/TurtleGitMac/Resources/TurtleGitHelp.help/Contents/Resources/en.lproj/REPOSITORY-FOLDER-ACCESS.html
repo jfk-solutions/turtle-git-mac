@@ -66,4 +66,16 @@ continue to use their separate Settings page.</p>
 <p>See <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/repository-access-manager-2026-10-15.json">manager implementation evidence</a>
 and the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/repository-access-light.png">light</a> /
 <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/repository-access-dark.png">dark</a> native window captures.</p>
+<h2 id="clean-and-recursive-submodules">Clean and recursive submodules</h2>
+<p>Clean reuses the opening workspace's retained metadata permissions. If a linked
+worktree, shared object store or initialized recursive submodule needs another
+folder, its progress window asks for the exact dependency before querying that
+checkout. Select the requested folder or a containing parent. Cancel stops the
+attempt; choosing an unrelated folder reports failure. Retry prepares a fresh
+plan and reuses permissions already accepted in that progress window.</p>
+<p>These extra Clean permissions are temporary for the progress window and its
+workers. To remember access across openings, use Manage Repository Access.
+Recursive cleanup revalidates all checkouts before its first removal, including
+permission preparation. Closing an active operation requests cancellation; any
+filesystem work already completed remains completed.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

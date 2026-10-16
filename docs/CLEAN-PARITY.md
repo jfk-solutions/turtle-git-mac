@@ -242,3 +242,33 @@ no application rebuild or Core rerun followed those repairs. See
 Physical permission/traversal/Trash, signed
 security-scope inheritance, keyboard/VoiceOver, full upstream parity and App Store
 acceptance remain unverified.
+
+## Metadata preparation and recursive access — October 17, 2026
+
+Clean now prepares missing metadata access before its first Git read, including
+linked worktree Git/common directories and recursive shared object stores. Every
+initialized recursive submodule is prepared before its own Git discovery. Accepted
+workspace compound grants are reused without widening primary checkout ownership.
+The complete candidate/topology revalidation also uses this preparation callback
+before the first removal. A denied or cancelled child request prevents that batch
+from starting removal.
+
+The owning native folder sheet identifies the exact dependency and accepts that
+folder or a containing parent. Wrong folders and unavailable scopes fail without
+adopting access; Cancel settles the attempt as cancelled. Retry retains accepted
+grants for a fresh plan. Forced progress-window retirement dismisses the owned
+picker, answers its suspended worker once and refuses duplicate or late replies.
+The operation keeps all accepted grants and Quit ownership until actual drain.
+These Clean-specific grants last for this window; persistence remains the
+workspace access manager's separate workflow. This supersedes the automatic
+preparation gap in the October 14 manual-recovery entry.
+
+Signed sandbox inheritance, physical powerbox/Trash behavior, complete upstream
+parity and App Store acceptance still require separate evidence.
+
+[Grouped evidence](qa/clean-metadata-access-2026-10-17.json) covers 38 distinct
+focused Core cases and eight native case/engine combinations with system and
+bundled Git. The permission fixture gates actual checkout Git reads; retained
+checks exercise real permanent deletion, recoverable Trash and owned process
+cancellation. Two fixture/runner repairs are recorded separately. No application
+source repair or expanded test cycle followed the grouped checkpoint.

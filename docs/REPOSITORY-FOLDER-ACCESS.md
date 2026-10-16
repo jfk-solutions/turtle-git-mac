@@ -81,3 +81,18 @@ continue to use their separate Settings page.
 See [manager implementation evidence](qa/repository-access-manager-2026-10-15.json)
 and the [light](site/assets/repository-access-light.png) /
 [dark](site/assets/repository-access-dark.png) native window captures.
+
+## Clean and recursive submodules
+
+Clean reuses the opening workspace's retained metadata permissions. If a linked
+worktree, shared object store or initialized recursive submodule needs another
+folder, its progress window asks for the exact dependency before querying that
+checkout. Select the requested folder or a containing parent. Cancel stops the
+attempt; choosing an unrelated folder reports failure. Retry prepares a fresh
+plan and reuses permissions already accepted in that progress window.
+
+These extra Clean permissions are temporary for the progress window and its
+workers. To remember access across openings, use Manage Repository Access.
+Recursive cleanup revalidates all checkouts before its first removal, including
+permission preparation. Closing an active operation requests cancellation; any
+filesystem work already completed remains completed.

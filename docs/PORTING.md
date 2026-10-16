@@ -1695,3 +1695,15 @@ Six distinct native case/engine combinations and sixteen focused Core cases pass
 The affected capture recheck, compile/runner repairs and owned cleanup are recorded
 in [batch evidence](qa/repository-inputs-2026-10-17.json). New reviewed light/dark
 Submodule Add frames are published in the gallery.
+
+### Clean metadata preparation family — October 17, 2026
+
+Clean now prepares external Git/common/object access before parent and recursive
+checkout reads, reuses compound workspace grants, and carries the same preparation
+through full pre-removal revalidation. Required native pickers share cancellation,
+retirement/late-response fencing and operation-scoped grant/Quit ownership. See
+[CLEAN-PARITY](CLEAN-PARITY.md#metadata-preparation-and-recursive-access--october-17-2026).
+Thirty-eight distinct focused Core cases and eight grouped native case/engine
+combinations pass after two fixture/runner repairs. All nine owned receivers
+were reaped and independently absent. Signed/physical and complete upstream
+acceptance remain open; see [the batch evidence](qa/clean-metadata-access-2026-10-17.json).

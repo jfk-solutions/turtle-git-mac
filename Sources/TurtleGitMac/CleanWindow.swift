@@ -109,6 +109,12 @@ private struct CleanDialog: View {
     }
 }
 
+@MainActor private final class CleanOperationAccess {
+    var leases:[RepositoryAccessLease]
+    init(_ leases:[RepositoryAccessLease]) {self.leases=leases}
+    func covers(_ location:URL)->Bool {leases.contains {$0.permits(location)}}
+}
+
 @MainActor final class CleanProgressWindowModel: ObservableObject {
     static var activeOperations = 0
     @Published private(set) var authorizing = false
@@ -116,6 +122,31 @@ private struct CleanDialog: View {
     var requiresSecurityScope = GitRuntime.isAppStoreBuild
     var offerAdditionalPermission = GitRuntime.isAppStoreBuild
     var authorizeFolder: () -> Void = {}
+    var chooseMetadataFolder:((RepositoryMetadataAccessRequirement,OperationCancellation) async throws -> URL?)?
+    var cancelMetadataAuthorization:()->Void = {}
+    var bookmarkProvider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()
+    private func prepareMetadata(at location:URL,session:CleanOperationAccess,cancellation token:OperationCancellation) async throws {
+        guard requiresSecurityScope else {return}
+        for _ in 0..<64 {
+            try token.check();guard !invalidated,self.cancellation === token else {throw OperationCancellationFailure.cancelled}
+            let folders=session.leases.flatMap {$0.permittedFolders()}
+            let requirement=try await Task.detached {try RepositoryMetadataAccess.next(at:location,authorizedFolders:folders,cancellation:token)}.value
+            try token.check();guard !invalidated,self.cancellation === token else {throw OperationCancellationFailure.cancelled}
+            guard let requirement else {return}
+            guard let chooseMetadataFolder else {throw RepositoryAccessFailure.securityScopeUnavailable}
+            authorizing=true;current="Allow repository folder access…"
+            let selected:URL?
+            do {selected=try await chooseMetadataFolder(requirement,token)}
+            catch {if !invalidated {authorizing=false};throw error}
+            if !invalidated {authorizing=false}
+            try token.check();guard !invalidated,self.cancellation === token else {throw OperationCancellationFailure.cancelled}
+            guard let selected else {token.cancel();throw OperationCancellationFailure.cancelled}
+            let lease=RepositoryAccessLease(url:selected,provider:bookmarkProvider)
+            guard lease.hasSecurityScope,lease.contains(requirement.folder) else {throw RepositoryAccessFailure.repositoryRootOutsidePermission(requirement.folder.path)}
+            session.leases.append(lease);additionalAccess.append(lease)
+        }
+        throw RepositoryMetadataAccessFailure.tooManyDependencies
+    }
     var canAuthorizeFolder: Bool { offerAdditionalPermission && failed && !busy && !authorizing && !confirmingCancellation && !invalidated }
     func beginAuthorization() -> Bool { guard canAuthorizeFolder else { return false }; authorizing = true; return true }
     func finishAuthorization(_ lease: RepositoryAccessLease?) {
@@ -156,7 +187,7 @@ private struct CleanDialog: View {
         if previewSucceeded { return permanentFirst ? [.permanent, .trash] : [.trash, .permanent] }
         return []
     }
-    func invalidate() { invalidated = true; cancellation?.cancel(); confirmingCancellation = false; authorizing = false; authorizeFolder = {}; onFinished = { _, _ in }; close = {}; additionalAccess.removeAll() }
+    func invalidate() { invalidated = true; cancellation?.cancel();cancelMetadataAuthorization();chooseMetadataFolder=nil;cancelMetadataAuthorization={}; confirmingCancellation = false; authorizing = false; authorizeFolder = {}; onFinished = { _, _ in }; close = {}; additionalAccess.removeAll() }
     init(repository: GitRepository, access: RepositoryAccessLease?, request: CleanDialogRequest, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.request = request; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
     }
@@ -169,6 +200,7 @@ private struct CleanDialog: View {
     }
     func cancel() {
         guard canCancel, let token = cancellation else { return }
+        if authorizing {stop(token);return}
         if (lastPreviewOnly || lastPermanent) && preferences.bool(forKey: "ConfirmKillProcess") {
             confirmingCancellation = true
             confirmCancellation { [weak self] accepted in
@@ -178,7 +210,7 @@ private struct CleanDialog: View {
             }
         } else { stop(token) }
     }
-    private func stop(_ token: OperationCancellation) { cancelRequested = true; token.cancel(); current = "Cancelling…" }
+    private func stop(_ token: OperationCancellation) { cancelRequested = true; token.cancel();cancelMetadataAuthorization(); current = "Cancelling…" }
     private func finishAutomaticClose() {
         // Trash uses CSysProgressDlg upstream and ends on successful completion.
         // Git progress settings apply only to dry runs and permanent removal.
@@ -192,14 +224,15 @@ private struct CleanDialog: View {
         completed = 0; total = 0
         current = previewOnly ? "Previewing cleanup…" : permanently ? "Removing files…" : "Moving files to Trash…"
         let cancellation = OperationCancellation(); self.cancellation = cancellation
-        let leases = [access].compactMap { $0 } + additionalAccess
+        let session=CleanOperationAccess([access].compactMap {$0} + additionalAccess)
         Self.activeOperations += 1
-        Task { [self, leases] in
-            defer { Self.activeOperations -= 1; withExtendedLifetime(leases) {}; if self.cancellation === cancellation { self.cancellation = nil; busy = false } }
+        Task { [self,session] in
+            defer { Self.activeOperations -= 1; withExtendedLifetime(session) {}; if self.cancellation === cancellation { self.cancellation = nil; busy = false } }
             do {
-                if requiresSecurityScope && !leases.contains(where: { $0.hasSecurityScope && $0.contains(repository.root) }) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let plan = try await repository.cleanBatchPreview(options: request.options, paths: request.paths, includeSubmodules: request.submodules, cancellation: cancellation)
-                if requiresSecurityScope && !plan.repositories.allSatisfy({ item in item.requiredAccess.allSatisfy { target in leases.contains { $0.hasSecurityScope && $0.contains(target) } } }) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                if requiresSecurityScope && !session.leases.contains(where: { $0.hasSecurityScope && $0.contains(repository.root) }) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let prepare:CleanRepositoryAccessPreparation = { [self,session] location,token in try await self.prepareMetadata(at:location,session:session,cancellation:token) }
+                let plan = try await repository.cleanBatchPreview(options: request.options, paths: request.paths, includeSubmodules: request.submodules, cancellation: cancellation,prepareAccess:prepare)
+                if requiresSecurityScope && !plan.repositories.allSatisfy({ item in item.requiredAccess.allSatisfy {session.covers($0)} }) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 try cancellation.check(); guard !invalidated else { return }
                 output = plan.repositories.map { $0.repository.path + "\n" + String(decoding: $0.preview.output, as: UTF8.self) }.joined(separator: "\n")
                 if previewOnly { previewSucceeded = true; current = "Dry run finished" }
@@ -209,7 +242,7 @@ private struct CleanDialog: View {
                     let (stream, continuation) = AsyncStream<CleanProgress>.makeStream()
                     let operation = Task {
                         defer { continuation.finish() }
-                        return try await repository.executeCleanBatch(plan, permanently: permanently, cancellation: cancellation) { continuation.yield($0) }
+                        return try await repository.executeCleanBatch(plan, permanently: permanently, cancellation: cancellation, prepareAccess:prepare) { continuation.yield($0) }
                     }
                     for await event in stream {
                         guard !invalidated else { continue }
@@ -244,14 +277,43 @@ private struct CleanDialog: View {
     private(set) var authorizationPanel: NSOpenPanel?
     var presentAuthorization: (NSOpenPanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, owner, completion in panel.beginSheetModal(for: owner, completionHandler: completion) }
     var selectedAuthorizationURL: (NSOpenPanel) -> URL? = { $0.url }
+    private var authorizationReply:((URL?)->Void)?
+    private var authorizationID=UUID()
+    private var authorizationMonitor:Task<Void,Never>?
+    private func finishRequiredAuthorization(_ selected:URL?,dismiss:Bool) {
+        guard let reply=authorizationReply else {return};authorizationReply=nil;authorizationID=UUID()
+        authorizationMonitor?.cancel();authorizationMonitor=nil
+        let panel=authorizationPanel;authorizationPanel=nil
+        if dismiss,let panel {panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil);panel.close()}
+        reply(selected)
+    }
+    private func chooseMetadataFolder(_ requirement:RepositoryMetadataAccessRequirement,cancellation:OperationCancellation) async -> URL? {
+        guard !cancellation.isCancelled,authorizationPanel==nil,let window,window.attachedSheet==nil else {return nil}
+        let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.showsHiddenFiles=true;panel.prompt="Allow Access"
+        panel.title="Allow repository folder access";panel.message=requirement.explanation + "\n\nSelect this folder or a containing parent:\n" + requirement.folder.path
+        panel.directoryURL=requirement.folder;authorizationPanel=panel;let identity=UUID();authorizationID=identity
+        authorizationMonitor=Task { [weak self] in
+            while !cancellation.isCancelled {do {try await Task.sleep(nanoseconds:25_000_000)} catch {return}}
+            self?.finishRequiredAuthorization(nil,dismiss:true)
+        }
+        return await withCheckedContinuation { continuation in
+            authorizationReply={continuation.resume(returning:$0)}
+            presentAuthorization(panel,window) { [weak self,weak panel] response in
+                guard let self,let panel,self.authorizationID==identity,self.authorizationPanel === panel else {return}
+                self.finishRequiredAuthorization(response == .OK && !cancellation.isCancelled ? self.selectedAuthorizationURL(panel):nil,dismiss:false)
+            }
+        }
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, request: CleanDialogRequest, preferences: UserDefaults = .standard) {
         model = CleanProgressWindowModel(repository: repository, access: access, request: request, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 500), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Clean Progress", preferences: preferences)
         window.contentMinSize = NSSize(width: 650, height: 330); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: CleanProgressDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: CleanProgressDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.center()
         model.authorizeFolder = { [weak self] in self?.chooseAuthorizationFolder() }
+        model.chooseMetadataFolder={ [weak self] requirement,token in await self?.chooseMetadataFolder(requirement,cancellation:token) }
+        model.cancelMetadataAuthorization={ [weak self] in self?.finishRequiredAuthorization(nil,dismiss:true) }
         model.close = { [weak self, weak window] in
             guard let self, !self.model.authorizing, !self.model.confirmingCancellation, window?.attachedSheet == nil else { return }
             if self.model.busy { self.model.cancel() } else { window?.close() }

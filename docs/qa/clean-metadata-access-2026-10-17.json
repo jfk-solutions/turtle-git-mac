@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "4277fa7083bef1dce7250a1c314fe0fd06ffa512",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Clean parent and recursive checkout metadata preparation before Git reads",
+    "External Git/common directories and recursive objects/info/alternates through retained compound scopes",
+    "Required native picker cancellation, wrong-folder/scope refusal, duplicate/late replies, operation grant and Quit ownership",
+    "Fresh complete-batch pre-removal preparation; retained manual access recovery, Retry, permanent cleanup and Trash",
+    "Offline help and grouped CI receiver integration"
+  ],
+  "core": {
+    "initial_log": "build/qa/clean-metadata-core-2026-10-17.log",
+    "initial_exit": 1,
+    "initial_cases": 38,
+    "initial_failures": 1,
+    "repair_log": "build/qa/clean-metadata-core-repair-2026-10-17.log",
+    "repair_exit": 0,
+    "repair_cases": 1,
+    "distinct_passed_cases": 38,
+    "filter": "RepositoryAccessTests|CleanSubmoduleTests|CleanProgressTests|CleanTests",
+    "full_suite_repeated": false
+  },
+  "builds": [
+    {
+      "log": "build/qa/clean-metadata-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 9
+    },
+    {
+      "log": "build/qa/clean-metadata-help-refresh-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 0
+    }
+  ],
+  "native": {
+    "distinct_case_engine_passes": 8,
+    "cases": [
+      "metadata authorization",
+      "owned options/access/retirement",
+      "progress policies and cancellation",
+      "existing cleanup actions"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/clean-metadata-native-2026-10-17.log",
+        "exit": 1,
+        "receivers_reaped": [
+          90857,
+          91469
+        ]
+      },
+      {
+        "log": "build/qa/clean-metadata-native-repair-2026-10-17.log",
+        "exit": 0,
+        "receivers_reaped": [
+          92376
+        ]
+      },
+      {
+        "log": "build/qa/clean-metadata-native-retained-2026-10-17.log",
+        "exit": 0,
+        "receivers_reaped": [
+          92988,
+          93015,
+          93046,
+          93221,
+          93409,
+          93471
+        ]
+      }
+    ],
+    "independently_absent_pids": [
+      90857,
+      91469,
+      92376,
+      92988,
+      93015,
+      93046,
+      93221,
+      93409,
+      93471
+    ],
+    "still_live": []
+  },
+  "repairs": [
+    "Core gate fixture used default all-files cleanup, which intentionally includes ignored gate files; switched that gate fixture to nonignored cleanup so permission markers do not become candidates or change fingerprints. Only the failed case was repeated.",
+    "Native runner resolved the bundled Git symlink to the relocated binary and lost runtime helper discovery during fixture submodule setup. Preserved the provided runtime path and inherited the captured runtime environment for the gate wrapper; repeated only the failed metadata/bundled case, then ran remaining previously unrun families."
+  ],
+  "application_source_repairs_after_checkpoint": false,
+  "captures": [],
+  "help": {
+    "files": 50,
+    "bytes": 1968682,
+    "bundled_source_bytes_equal": true,
+    "xcode_generated_extra_files": [
+      "Contents/Resources/en.lproj/TurtleGitHelp.helpindex"
+    ]
+  },
+  "site": {
+    "documents": 264,
+    "unresolved_fragments": 0
+  },
+  "limitations": [
+    "Physical macOS powerbox and signed sandbox inheritance are not established by injected bookmark providers/presenters.",
+    "Clean grants are window/session-scoped; workspace manager retains its separate persistent access workflow.",
+    "Whole-app dialog parity, physical Finder integration and App Store acceptance remain incomplete.",
+    "Hosted run 38967919455 was observed in progress, past Git integration into native message styling; not a complete CI pass and not a run of this uncommitted batch."
+  ]
+}
