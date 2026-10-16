@@ -10,17 +10,23 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model:model) }
     func makeNSView(context:Context) -> NSScrollView { context.coordinator.makeView() }
     func updateNSView(_ view:NSScrollView,context:Context) { context.coordinator.model=model;context.coordinator.update() }
-    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) { coordinator.retired=true }
+    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) {
+        coordinator.retired = true
+        coordinator.table?.delegate = nil;coordinator.table?.dataSource = nil;coordinator.table?.menu?.delegate = nil
+        (coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.buildMenu = {nil}
+        (coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.fit = {_,_ in}
+    }
     @MainActor final class Coordinator:NSObject,NSTableViewDelegate,NSTableViewDataSource,NSMenuDelegate {
         static let definitions:[(String,String,CGFloat)]=[("name","Name",310),("extension","Extension",100),("size","Size",100)]
         var model:RepositoryBrowserWindowModel
         weak var table:NSTableView?
         var retired=false
+        private var columnMenuSession = UUID()
         private var updating=false
         private var rows:[RepositoryBrowserEntry]=[]
         private var layout:RepositoryBrowserColumns?
         init(model:RepositoryBrowserWindowModel) { self.model=model }
-        var available:Bool { !retired && model.canEditColumns }
+        var available:Bool { !retired && model.canEditColumns && table?.window?.attachedSheet == nil }
         func makeView() -> NSScrollView {
             let table=RepositoryBrowserNativeTable();table.style = .plain
             table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(open)
@@ -110,17 +116,27 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             table.tableColumns[index].width=fitted(table.tableColumns[index],headers:headers);updating=false;saveLayout()
         }
         func columnMenu() -> NSMenu {
-            let menu=NSMenu();menu.autoenablesItems=false
-            let reset=NSMenuItem(title:"Reset columns",action:#selector(resetColumns),keyEquivalent:"");reset.target=self;reset.isEnabled=available;menu.addItem(reset);menu.addItem(.separator())
-            for (id,title,_) in Self.definitions {
-                let item=NSMenuItem(title:title,action:#selector(toggle(_:)),keyEquivalent:"");item.target=self;item.representedObject=id;item.state=model.columns.visible.contains(id) ? .on : .off;item.isEnabled=available && id != "name";menu.addItem(item)
-            };return menu
+            let menu = NSMenu();menu.autoenablesItems = false
+            columnMenuSession = UUID()
+            let session = columnMenuSession,revision = model.columnsRevision,generation = model.generation
+            func add(_ title:String,state:NSControl.StateValue = .off,action:@escaping (Coordinator)->Void) {
+                let command = RepositoryBrowserColumnCommand { [weak self] in
+                    guard let self,self.available,self.columnMenuSession == session,self.model.columnsRevision == revision,self.model.generation == generation else {return}
+                    self.columnMenuSession = UUID();action(self)
+                }
+                let item = NSMenuItem(title:title,action:#selector(RepositoryBrowserColumnCommand.invoke(_:)),keyEquivalent:"")
+                item.target = command;item.representedObject = command;item.isEnabled = available;item.state = state;menu.addItem(item)
+            }
+            add("Reset column order") {$0.model.requestResetColumns()};menu.addItem(.separator())
+            for (id,title,_) in Self.definitions where id != "name" {
+                add(title,state:model.columns.visible.contains(id) ? .on:.off) {coordinator in
+                    var columns = coordinator.model.columns
+                    if columns.visible.contains(id) {columns.visible.remove(id)} else {columns.visible.insert(id)}
+                    coordinator.model.saveColumns(columns)
+                }
+            }
+            return menu
         }
-        @objc func toggle(_ sender:NSMenuItem) {
-            guard available,let id=sender.representedObject as? String,id != "name" else { return };var columns=model.columns
-            if columns.visible.contains(id) { columns.visible.remove(id) } else { columns.visible.insert(id) };model.saveColumns(columns)
-        }
-        @objc func resetColumns() { guard available else { return };model.requestResetColumns() }
         var selected:[RepositoryBrowserEntry] { rows.filter { model.selection.contains($0.id) } }
         func menuNeedsUpdate(_ menu:NSMenu) {
             menu.removeAllItems();let values=selected
@@ -216,4 +232,10 @@ final class RepositoryBrowserColumnHeader:NSTableHeaderView {
             }
         };super.mouseDown(with:event)
     }
+}
+
+@MainActor private final class RepositoryBrowserColumnCommand:NSObject {
+    private var action:(()->Void)?
+    init(_ action:@escaping ()->Void) {self.action = action}
+    @objc func invoke(_ sender:Any?) {let run = action;action = nil;run?()}
 }

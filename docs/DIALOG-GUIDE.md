@@ -633,3 +633,12 @@ Jump chooser’s context menu exposes these actions and **Go to copied commit ha
 Outside editable fields, Cmd-V or Ctrl-V jumps to a copied lowercase commit hash
 or prefix; text fields retain normal paste. Option-Up/Down uses the selected
 Jump category.
+
+
+### Repository Browser layout
+
+The Repository Browser remembers its folder/list divider with its column layout.
+Right-click the contents header for Extension/Size visibility or **Reset column
+order**; Name remains visible. Reset restores columns after Yes/No confirmation
+and keeps the divider position. In the contents list, Ctrl-A or Cmd-A selects all
+and Ctrl-C or Cmd-C copies the selected names. F5 refreshes the active browser.

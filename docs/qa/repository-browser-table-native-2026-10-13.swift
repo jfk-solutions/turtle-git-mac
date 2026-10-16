@@ -113,7 +113,7 @@ import TurtleGitCore
         let columns=header.buildMenu()!,hide=columns.items.first { $0.title=="Extension" }!
         try require(NSApplication.shared.sendAction(hide.action!,to:hide.target,from:hide),"Native header toggle")
         try await wait { table.tableColumns.first { $0.identifier.rawValue=="extension" }!.isHidden }
-        try require(columns.items.first { $0.title=="Name" }?.isEnabled==false,"Name must remain visible")
+        try require(columns.items.first { $0.title=="Name" }==nil,"Source header omits mandatory Name column")
         table.moveColumn(2,toColumn:0);table.tableColumns[0].width=187;coordinator.saveLayout()
         let saved=model.columns;try require(saved.order==["size","name","extension"] && saved.widths["size"]==187,"Adjusted order/width")
         table.sortDescriptors=[NSSortDescriptor(key:"size",ascending:false)]

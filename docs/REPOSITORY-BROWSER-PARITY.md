@@ -541,3 +541,38 @@ changing system clipboard contents.
 [Grouped evidence](qa/browser-revisions-2026-10-16.json) records the validation and
 any repairs. No new screenshot, physical picker/menu/keyboard/VoiceOver claim,
 signed scope acceptance or full Browser parity is inferred from these checks.
+
+
+## Scoped presentation and native command family — October 16, 2026
+
+RepositoryBrowser's SaveDividerPosition/HandleDividerMove store the folder width
+in unscaled units. The native split controller now restores and saves the folder
+width in its supplied browser preference store, bounded by the existing native
+160-point folder/300-point contents minima. Invalid stored widths fall back to the
+existing 28-percent initial layout. This replaces the former unconditional global
+AppKit autosave name; private browser domains no longer modify the user's global
+divider setting. Existing global AppKit divider records are left intact, but are
+not imported into the new explicit preference. Layout ownership/observers retire
+with the split controller. Busy, child/sheet and retired callbacks cannot persist
+new positions. Column Reset does not reset the divider.
+
+ColumnManager's header now omits mandatory Name, presents Reset column order,
+Extension and Size, and uses source Yes/No with Yes default. Header invocations
+retain a single-use popup session, current layout revision and browser generation;
+another popup, changed/restored columns, refresh/navigation or Close retires them.
+Accepted Reset retains the existing owned question/request/Quit lifecycle, plus
+its captured layout revision. Native table/header callbacks detach on dismantle.
+Column-only changes preserve row selection and the vertical reading position.
+
+F5, Enter, Ctrl-A/C and native Cmd-A/C route only in the owning active event
+window. Select All/Copy apply to the focused contents table; folder copy retains
+its separate selected-folder route. Editing fields keep their native key handling.
+F5 is unmodified, and Return keeps source Alt exclusion. Child/sheet, busy and
+retired owners refuse competing actions. These source aliases complement existing
+native activation/copy behavior; no global input monitor is installed.
+
+[Presentation evidence](qa/browser-presentation-2026-10-16.json) records grouped
+native divider/reopen/private-domain, production Reset sheet, stale header,
+keyboard and retained revision/table/lifecycle checks. Physical mouse/keyboard,
+minimum-size/DPI, VoiceOver, signed Finder/sandbox and complete Browser/application
+acceptance remain open. No whole-dialog visual certification is claimed.

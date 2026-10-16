@@ -882,6 +882,7 @@
         "docs/REPOSITORY-BROWSER-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/browser-presentation-2026-10-16.json",
         "docs/qa/browser-revisions-2026-10-16.json",
         "docs/qa/browser-tree-comparisons-2026-10-15.json",
         "docs/qa/help-book-2026-10-15.json",

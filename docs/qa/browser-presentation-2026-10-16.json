@@ -1,0 +1,143 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "1b7c2b28fce870d710e5fdd42f73ccd44544f77d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RepositoryBrowser.cpp SaveDividerPosition, HandleDividerMove and initial width restore",
+    "ColumnManager.cpp header first-column omission, Reset and source Yes/No default",
+    "RepositoryBrowser.cpp PreTranslateMessage and OnOK"
+  ],
+  "scope": [
+    "Folder/list divider width in owning browser preferences, native min-size clamps and invalid-value fallback",
+    "Restore after actual native split attachment/layout; weak owned observers, busy/child/retired save and pointer gates",
+    "Source header Reset column order/Extension/Size, mandatory Name omission, Yes-default production question",
+    "Single-use header popup session, layout revision/browser generation fencing and captured Reset revision",
+    "Ctrl/Cmd-A/C list routes, separate folder Copy, owning event/key window F5/Return and source Alt exclusion",
+    "Stable column-only reading position/selection, retired table/header delegate cleanup and reopened private layout"
+  ],
+  "core": {
+    "run": false,
+    "reason": "Native controller/model/table presentation only; existing Core browser/columns/Git APIs unchanged"
+  },
+  "builds": [
+    {
+      "log": "build/qa/browser-presentation-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/browser-presentation-build-restore-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "runs": [
+      {
+        "log": "build/qa/browser-presentation-native-2026-10-16.log",
+        "receivers_reaped": [
+          62696
+        ],
+        "case_pass_markers": {
+          "PASS: Browser scoped divider": 0,
+          "PASS: browser revision labels": 0,
+          "Repository Browser native table:": 0,
+          "Repository Browser: retained ancestor": 0
+        }
+      },
+      {
+        "log": "build/qa/browser-presentation-divider-2026-10-16.log",
+        "receivers_reaped": [
+          62779
+        ],
+        "case_pass_markers": {
+          "PASS: Browser scoped divider": 0,
+          "PASS: browser revision labels": 0,
+          "Repository Browser native table:": 0,
+          "Repository Browser: retained ancestor": 0
+        }
+      },
+      {
+        "log": "build/qa/browser-presentation-native-final-2026-10-16.log",
+        "receivers_reaped": [
+          62913,
+          62950,
+          62994,
+          63059,
+          63132,
+          63197,
+          63269,
+          63480
+        ],
+        "case_pass_markers": {
+          "PASS: Browser scoped divider": 2,
+          "PASS: browser revision labels": 2,
+          "Repository Browser native table:": 2,
+          "Repository Browser: retained ancestor": 2
+        }
+      }
+    ],
+    "final_exit": 0,
+    "distinct_case_engine_passes": 8,
+    "cases": [
+      "presentation",
+      "revision",
+      "table",
+      "lifecycle"
+    ],
+    "engines": [
+      "system Git",
+      "bundled universal Git arm64 execution"
+    ],
+    "failed_receivers": 2,
+    "failure_and_repair": "Initial presentation run timed out restoring 333 points. Diagnostic-only follow-up reported displayed width 441.5, bounds width 976 and saved model width still 333. Restoration had been tied solely to the split controller layout callback. Repair schedules restore from actual native split view attachment/layout after valid geometry, adds busy/child divider pointer gate and completes both-engine restoration/reopen checks. These observations do not uniquely distinguish every AppKit intermediate layout cause.",
+    "owned_receivers_reaped_and_independently_absent": [
+      62696,
+      62779,
+      62913,
+      62950,
+      62994,
+      63059,
+      63132,
+      63197,
+      63269,
+      63480
+    ],
+    "new_assertions": [
+      "Invalid stored width fallback; actual initial restore, user divider move/save and reopened width",
+      "Private browser does not mutate global legacy AppKit autosave record",
+      "Exact source header order/mandatory omission, stale width and sibling-popup generation rejection",
+      "Production Reset default Yes, No preserves complete columns, Yes restores defaults without changing divider",
+      "Column-only update retains selection and vertical reading position",
+      "Pre-refresh header cannot affect replacement rows/layout",
+      "Native Ctrl-A/native Copy byte order and Return pinned historical contents without launching another app",
+      "Background/child F5, blocked divider save and retired menu/divider refusal; owned F5 performs real refresh",
+      "Unchanged HEAD/raw index and settled operation counters"
+    ],
+    "retained_scope": "Revision labels, pinned selection/picker/private preferences; original table icons/column fitting/numeric sort/reset retirement; historical file/folder promises and collision protection; ancestor refresh/cancellation/revert and actual owned cleanup.",
+    "activation": "Hidden native verification; no new captures or global input posting."
+  },
+  "documentation": {
+    "help_log": "build/qa/browser-presentation-help-2026-10-16.log",
+    "help_files": 50,
+    "help_bytes": 1966282,
+    "source_built_equal": true,
+    "captures": "No new screenshots; retained table/lifecycle fixtures keep their existing light/dark host assertions.",
+    "site_log": "build/qa/browser-presentation-site-2026-10-16.log",
+    "site_exit": 0,
+    "site_documents": 259,
+    "unresolved_fragments": 0,
+    "coverage_ledger": "regenerated"
+  },
+  "limits": [
+    "Old global AppKit divider records are retained but not imported into the new browser-specific preference",
+    "Physical splitter/header dragging, keyboard layouts, multiple displays/DPI and VoiceOver",
+    "Exact Windows/macOS geometry and minimum-OS behavior",
+    "Signed Finder/sandbox/App Store and full Browser/application acceptance",
+    "Full hosted CI not established by focused local checks"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

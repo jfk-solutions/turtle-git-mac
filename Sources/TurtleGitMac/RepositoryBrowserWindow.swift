@@ -7,24 +7,30 @@ import UniformTypeIdentifiers
 
 private final class RepositoryBrowserNativeWindow: NSWindow {
     weak var model: RepositoryBrowserWindowModel?
+    var commandKeyWindow: () -> NSWindow? = {NSApp.keyWindow}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if attachedSheet == nil, firstResponder is NSTableView, !(firstResponder is NSOutlineView), event.modifierFlags.contains(.command),
-           event.modifierFlags.intersection([.control,.option]).isEmpty {
-            if event.charactersIgnoringModifiers?.lowercased() == "a", let model, model.active, !model.busy, !model.mutating {
-                model.selection = Set(model.entries.map(\.id)); return true
+        guard commandKeyWindow() === self,event.window === self else {return super.performKeyEquivalent(with:event)}
+        let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if firstResponder is NSTableView,!(firstResponder is NSOutlineView),flags == .command || flags == .control {
+            if event.keyCode == 0 {
+                if attachedSheet == nil,let model,model.canUseMenu {model.selection = Set(model.entries.map(\.id))};return true
             }
-            if event.charactersIgnoringModifiers?.lowercased() == "c" { model?.copy(); return true }
+            if event.keyCode == 8 {if attachedSheet == nil {model?.copy()};return true}
         }
-        if attachedSheet == nil, event.keyCode == 96 { model?.refresh(); return true }
-        if attachedSheet == nil, [36, 76].contains(event.keyCode), !event.modifierFlags.contains(.option), firstResponder is NSTableView, !(firstResponder is NSOutlineView) {
-            if let model, model.selected.count == 1, let entry = model.selected.first { model.open(entry) }
+        if let tree = firstResponder as? RepositoryBrowserFolderOutline,event.keyCode == 8,flags == .command || flags == .control {
+            if attachedSheet == nil,model?.canUseMenu == true {tree.copySelection()};return true
+        }
+        if event.keyCode == 96,flags.isEmpty {if attachedSheet == nil {model?.refresh()};return true}
+        if [36,76].contains(event.keyCode),!flags.contains(.option),firstResponder is NSTableView,!(firstResponder is NSOutlineView) {
+            if attachedSheet == nil,let model,model.canUseMenu,model.selected.count == 1,let entry = model.selected.first {model.open(entry)}
             return true
         }
-        return super.performKeyEquivalent(with: event)
+        return super.performKeyEquivalent(with:event)
     }
 }
 @MainActor final class RepositoryBrowserWindowController: NSWindowController, NSWindowDelegate {
     let model: RepositoryBrowserWindowModel
+    var commandKeyWindow: () -> NSWindow? = {NSApp.keyWindow}
     var onClosed: () -> Void = {}
     private(set) var picker: LogWindowController?
     private var pickerIdentity:UUID?
@@ -36,7 +42,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Repository Browser", preferences: preferences)
         window.contentMinSize = NSSize(width: 760, height: 440); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RepositoryBrowserDialog(model: model))
-        super.init(window: window); window.delegate = self; window.model = model
+        super.init(window: window); window.delegate = self; window.model = model;window.commandKeyWindow = { [weak self] in self?.commandKeyWindow() }
         window.setContentSize(NSSize(width: 1000, height: 650))
         window.center()
         model.close = { [weak window] in window?.performClose(nil) }
@@ -79,11 +85,11 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         model.confirmResetColumns = { [weak self] in
             guard let self,self.model.active,let window=self.window,window.attachedSheet==nil else { return false }
             let alert=NSAlert();alert.messageText="Reset columns?";alert.informativeText="Restore the default Repository Browser columns, order and widths?"
-            alert.addButton(withTitle:"No");alert.addButton(withTitle:"Yes");self.ownedSheet=alert.window
+            alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No");self.ownedSheet=alert.window
             return await withCheckedContinuation { continuation in
                 alert.beginSheetModal(for:window) { [weak self] response in
                     if self?.ownedSheet === alert.window { self?.ownedSheet=nil }
-                    continuation.resume(returning:self?.model.active == true && response == .alertSecondButtonReturn)
+                    continuation.resume(returning:self?.model.active == true && response == .alertFirstButtonReturn)
                 }
             }
         }
@@ -213,21 +219,29 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var onSubmoduleUpdate: (String) -> Void = { _ in }
     let preferences:UserDefaults
     @Published private(set) var columns:RepositoryBrowserColumns
+    private(set) var columnsRevision = 0
+    static let dividerKey = "TurtleGit.RepositoryBrowser.Divider"
+    private(set) var dividerWidth: Double?
+    func saveDivider(_ width:Double) {
+        guard canUseMenu,width.isFinite,(160...10000).contains(width),dividerWidth != width else {return}
+        dividerWidth = width;preferences.set(width,forKey:Self.dividerKey)
+    }
     @Published private(set) var confirmingColumns=false
     var confirmResetColumns: () async -> Bool = { false }
     var canEditColumns:Bool { canUseMenu }
     func saveColumns(_ value:RepositoryBrowserColumns) {
         guard canEditColumns else { return }
-        columns=RepositoryBrowserColumns(visible:value.visible,order:value.order,widths:value.widths);columns.save(preferences)
+        let value = RepositoryBrowserColumns(visible:value.visible,order:value.order,widths:value.widths)
+        guard columns != value else {return};columns = value;columnsRevision &+= 1;columns.save(preferences)
     }
     func requestResetColumns() {
         guard canEditColumns else { return };confirmingColumns=true
-        let identity=generation,(request,cancellation)=startRequest()
+        let identity=generation,layout=columnsRevision,(request,cancellation)=startRequest()
         Task { [self] in
             defer { confirmingColumns=false;finishRequest(request) }
             let accepted=await confirmResetColumns()
-            guard active,generation==identity,!cancellation.isCancelled,accepted else { return }
-            columns=RepositoryBrowserColumns();columns.save(preferences)
+            guard active,generation==identity,columnsRevision==layout,!cancellation.isCancelled,accepted else { return }
+            columns=RepositoryBrowserColumns();columnsRevision &+= 1;columns.save(preferences)
         }
     }
     var onLog: (String, String) -> Void = { _, _ in }
@@ -237,7 +251,10 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
     enum FileAction { case open, openWith, alternativeEditor, save }
     var presentFile: (ComparisonFileContent, FileAction) -> Void = { _, _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences:UserDefaults = .standard) { self.repository = repository; self.access = access; self.revision = revision;self.revisionLabel=revision; self.preferences=preferences;self.columns = .load(preferences) }
+    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences:UserDefaults = .standard) { self.repository = repository; self.access = access; self.revision = revision;self.revisionLabel=revision; self.preferences=preferences;self.columns = .load(preferences)
+        let width = preferences.object(forKey:Self.dividerKey) as? NSNumber
+        dividerWidth = width.flatMap {let value = $0.doubleValue;return value.isFinite && (160...10000).contains(value) ? value:nil}
+    }
     var entries: [RepositoryBrowserEntry] {
         let first = sortOrder.first
         let column: RepositoryBrowserSort = first?.keyPath == \RepositoryBrowserEntry.fileExtension ? .fileExtension : first?.keyPath == \RepositoryBrowserEntry.sizeSort ? .size : .name
@@ -512,7 +529,7 @@ private struct RepositoryBrowserDialog: View {
                 Text("Revision:")
                 Button(model.revisionLabel) { model.chooseRevision() }.lineLimit(1).frame(minWidth:180,maxWidth:300).help(model.revisionLabel + ((model.snapshot?.objectID).map { "\n" + $0 } ?? "")).disabled(!model.canUseMenu)
             }
-            RepositoryBrowserSplit {
+            RepositoryBrowserSplit(model:model) {
                 RepositoryBrowserFolderTree(model:model)
             } right: {
                 RepositoryBrowserContentsTable(model:model)
@@ -537,24 +554,69 @@ private struct RepositoryBrowserDialog: View {
     }
 }
 private struct RepositoryBrowserSplit<Left: View, Right: View>: NSViewControllerRepresentable {
-    let left: Left
-    let right: Right
-    init(@ViewBuilder left: () -> Left, @ViewBuilder right: () -> Right) { self.left = left(); self.right = right() }
-    func makeNSViewController(context: Context) -> NSSplitViewController {
-        let controller = NSSplitViewController()
-        controller.splitView.isVertical = true; controller.splitView.dividerStyle = .thin
-        controller.splitView.autosaveName = "TurtleGit.RepositoryBrowserDivider"
-        let folders = NSSplitViewItem(viewController: NSHostingController(rootView: left))
-        folders.minimumThickness = 160; folders.preferredThicknessFraction = 0.28
-        let contents = NSSplitViewItem(viewController: NSHostingController(rootView: right))
-        contents.minimumThickness = 300
-        controller.addSplitViewItem(folders); controller.addSplitViewItem(contents)
+    let model:RepositoryBrowserWindowModel
+    let left:Left
+    let right:Right
+    init(model:RepositoryBrowserWindowModel,@ViewBuilder left:()->Left,@ViewBuilder right:()->Right) {self.model = model;self.left = left();self.right = right()}
+    func makeNSViewController(context:Context) -> RepositoryBrowserSplitController {
+        let controller = RepositoryBrowserSplitController(model:model)
+        controller.splitView.isVertical = true;controller.splitView.dividerStyle = .thin
+        let folders = NSSplitViewItem(viewController:NSHostingController(rootView:left))
+        folders.minimumThickness = 160;folders.preferredThicknessFraction = 0.28
+        let contents = NSSplitViewItem(viewController:NSHostingController(rootView:right));contents.minimumThickness = 300
+        controller.addSplitViewItem(folders);controller.addSplitViewItem(contents);controller.observeDivider()
         return controller
     }
-    func updateNSViewController(_ controller: NSSplitViewController, context: Context) {
+    func updateNSViewController(_ controller:RepositoryBrowserSplitController,context:Context) {
         (controller.splitViewItems[0].viewController as? NSHostingController<Left>)?.rootView = left
         (controller.splitViewItems[1].viewController as? NSHostingController<Right>)?.rootView = right
     }
+    static func dismantleNSViewController(_ controller:RepositoryBrowserSplitController,coordinator:()) {controller.retire()}
+}
+private final class RepositoryBrowserSplitController:NSSplitViewController {
+    private weak var model:RepositoryBrowserWindowModel?
+    private var observer:NSObjectProtocol?
+    private var restored = false,restoring = false,retired = false,restoreScheduled = false
+    init(model:RepositoryBrowserWindowModel) {
+        self.model = model;super.init(nibName:nil,bundle:nil)
+        let split = RepositoryBrowserLayoutSplitView()
+        split.afterLayout = { [weak self] in self?.scheduleRestore() }
+        split.interactionAllowed = { [weak model] in model?.canUseMenu == true }
+        splitView = split
+    }
+    required init?(coder:NSCoder) {fatalError("init(coder:) is not supported")}
+    func observeDivider() {
+        observer = NotificationCenter.default.addObserver(forName:NSSplitView.didResizeSubviewsNotification,object:splitView,queue:.main) { [weak self] _ in
+            MainActor.assumeIsolated {self?.saveDivider()}
+        }
+    }
+    override func viewDidLayout() {super.viewDidLayout();scheduleRestore()}
+    private func scheduleRestore() {
+        guard !retired,!restored,!restoreScheduled,splitView.window != nil,splitView.bounds.width >= 461,splitView.arrangedSubviews.count == 2 else {return}
+        restoreScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {return};defer {self.restoreScheduled = false}
+            guard !self.retired,!self.restored,self.splitView.window != nil,self.splitView.bounds.width >= 461 else {return}
+            self.restoring = true
+            if let width = self.model?.dividerWidth {self.splitView.setPosition(min(max(160,width),self.splitView.bounds.width - 301),ofDividerAt:0)}
+            self.restoring = false;self.restored = true;self.saveDivider()
+        }
+    }
+    private func saveDivider() {
+        guard !retired,restored,!restoring,splitView.window?.attachedSheet == nil,let first = splitView.arrangedSubviews.first else {return}
+        model?.saveDivider(first.frame.width)
+    }
+    func retire() {retired = true;if let observer {NotificationCenter.default.removeObserver(observer)};observer = nil}
+    deinit {if let observer {NotificationCenter.default.removeObserver(observer)}}
+}
+
+private final class RepositoryBrowserLayoutSplitView:NSSplitView {
+    var afterLayout:()->Void = {}
+    var interactionAllowed:()->Bool = {true}
+    override func viewDidMoveToWindow() {super.viewDidMoveToWindow();afterLayout()}
+    override func layout() {super.layout();afterLayout()}
+    override func resizeSubviews(withOldSize oldSize:NSSize) {super.resizeSubviews(withOldSize:oldSize);afterLayout()}
+    override func mouseDown(with event:NSEvent) {if interactionAllowed(),window?.attachedSheet == nil {super.mouseDown(with:event)}}
 }
 
 /// Native historical folder navigation. Items keep identity across lazy loads;
@@ -691,11 +753,14 @@ private struct RepositoryBrowserSplit<Left: View, Right: View>: NSViewController
     var openSelection:()->Void = {},copySelection:()->Void = {}
     var contextSelection:(Int)->Void = { _ in }
     override func keyDown(with event:NSEvent) {
-        if isEnabled,event.keyCode==36 || event.keyCode==76 { openSelection();return }
+        if isEnabled,[36,76].contains(event.keyCode),!event.modifierFlags.contains(.option),window?.firstResponder === self,
+           let owner = window as? RepositoryBrowserNativeWindow,owner.commandKeyWindow() === owner,event.window === owner {openSelection();return}
         super.keyDown(with:event)
     }
     override func performKeyEquivalent(with event:NSEvent) -> Bool {
-        if isEnabled,event.modifierFlags.intersection([.command,.control,.option]) == .command,event.charactersIgnoringModifiers?.lowercased()=="c" { copySelection();return true }
+        let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if isEnabled,flags == .command || flags == .control,event.keyCode == 8,
+           let owner = window as? RepositoryBrowserNativeWindow,owner.commandKeyWindow() === owner,event.window === owner,owner.firstResponder === self {copySelection();return true}
         return super.performKeyEquivalent(with:event)
     }
     override func menu(for event:NSEvent) -> NSMenu? {

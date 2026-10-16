@@ -1587,3 +1587,15 @@ cursor/future; manual selection branches it. Native text-editor and active-windo
 ownership gates retain normal editing, and hidden targets preserve selection.
 See [Log parity](LOG-PARITY.md) and [batch evidence](qa/log-navigation-2026-10-16.json).
 Physical input and signed acceptance remain open.
+
+
+### Repository Browser presentation family — October 16, 2026
+
+Moved divider persistence into the owning browser preference domain with native
+restore/clamps and retired-observer fences. Header choices/default Reset now
+follow ColumnManager; single-use popup/layout/generation captures reject stale
+actions. Native Ctrl/Cmd list aliases, active-window F5/Enter and folder-copy
+ownership complete this connected presentation batch. See
+[Browser parity](REPOSITORY-BROWSER-PARITY.md) and
+[batch evidence](qa/browser-presentation-2026-10-16.json). Physical and signed
+acceptance remain open.
