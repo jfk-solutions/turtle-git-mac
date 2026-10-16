@@ -11,6 +11,9 @@ public struct CommitOptions: Sendable {
     public var newBranch: String?
     /// Explicit Commit-dialog Ignore choice; checked conflicts remain forbidden.
     public var ignoreUnresolvedConflicts = false
+    /// Supplied by the checkbox dialog. Index/staging callers retain their own
+    /// semantics and never acquire this whole-file preparation policy.
+    public var checkboxIndexPolicy: CommitCheckboxIndexPolicy?
     public init() {}
 }
 
@@ -56,13 +59,22 @@ extension GitRepository {
         guard checked.count == paths.count, checked.allSatisfy({ $0.state != .ignored && $0.state != .conflicted }) else {
             throw failure("The checked files have changed since the dialog was loaded. Refresh the file list before committing.")
         }
+        if options.amend { _ = try run(["rev-parse", "--verify", "HEAD"], cancellation:cancellation) }
+        if let branch=options.newBranch { _ = try validateCommitBranch(branch,cancellation:cancellation) }
+        if let policy=options.checkboxIndexPolicy {
+            return try withCommitCheckboxIndex(policy,changes:changes,checked:paths,parentMode:parentMode,cancellation:cancellation,onOutput:onOutput) {
+                base in try commitSeparateSelection(message:message,checked:checked,options:options,base:base,fileModes:selectedStagedFileModes(checked),cancellation:cancellation,onOutput:onOutput)
+            }
+        }
+        return try commitPreparedSelection(message:message,paths:paths,checked:checked,options:options,parentMode:parentMode,operation:operation,hasConflicts:hasConflicts,cancellation:cancellation,onOutput:onOutput)
+    }
+    private func commitPreparedSelection(message:String,paths:Set<String>,checked:[StatusEntry],options:CommitOptions,parentMode:Bool,operation:CommitOperation?,hasConflicts:Bool,cancellation:OperationCancellation?,onOutput:(@Sendable (GitOutputChunk)->Void)?) throws -> String {
         if operation != nil {
             // A normal commit against a selected temporary index preserves the
             // operation's parents/author/state. --only is forbidden by Git for
             // merges and cherry-picks. The real index retains unchecked entries.
             return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", fileModes: selectedStagedFileModes(checked), cancellation: cancellation, onOutput: onOutput)
         }
-        if options.amend { _ = try run(["rev-parse", "--verify", "HEAD"]) }
         if parentMode { return try commitParentSelection(message: message, checked: checked, options: options, cancellation: cancellation, onOutput: onOutput) }
         let modes = try selectedStagedFileModes(checked)
         if hasConflicts || !modes.isEmpty {
@@ -99,7 +111,7 @@ extension GitRepository {
         defer { try? FileManager.default.removeItem(at: file) }
         let data = Data(Set(commitPaths).sorted().flatMap { Array($0.utf8) + [0] })
         guard FileManager.default.createFile(atPath: file.path, contents: data, attributes: [.posixPermissions: 0o600]) else {
-            throw failure("Could not prepare the checked file list.")
+            throw GitFailure(arguments:["commit"],code:1,message:"Could not prepare the checked file list.")
         }
         args += ["--pathspec-from-file=" + file.path, "--pathspec-file-nul"]
         return try run(args, cancellation: cancellation, onOutput: onOutput).text

@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+The [checkbox Commit index family](COMMIT-CHECKBOX-INDEX.md) now resets unchecked
+ordinary rows to the comparison base and optionally restores unchecked additions,
+deletions and renames after the Git attempt. Native Commit captures the source
+preference and path set; staging mode retains exact index contents. The grouped
+[batch evidence](qa/commit-checkbox-index-2026-10-16.json) records validation and
+remaining action-mask, external-writer, physical and signed acceptance.
+
 The independent helper now has the [optional cache menu](CACHE-MENU.md): source
 counts, a bounded activity window, shared cache-mode controls and awaited Exit.
 CacheTrayIcon has an effective consumer; accepted shared overlay settings remain

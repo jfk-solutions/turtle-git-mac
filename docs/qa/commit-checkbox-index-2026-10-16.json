@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "89fd135bd8e86a76ddce0d17f73da1b8d57f8c83",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native checkbox Commit index preparation, unchecked add/delete/rename restoration, captured Advanced policy and staging isolation",
+  "source": [
+    "CommitDlg.cpp PrepareIndexForCommitWithoutStagingSupport resets unchecked ordinary rows against HEAD/HEAD~1 and queues re-add/new-name and cached deletion/old-name tasks.",
+    "CommitDlg.cpp post-progress ReaddUnselectedAddedFilesAfterCommit exact DWORD TRUE gate, independent of commit success; staging support skips it."
+  ],
+  "implementation": [
+    "Native checkbox attempts capture their visible row paths and source restoration preference. Staged paths retain existing list visibility outside initial selection scope.",
+    "Prepare unchecked ordinary index entries from comparison base; retain working bytes and explicit Ignore unmerged stages.",
+    "Use existing private selected commit index to preserve selected modes, pending-operation parents/authorship and checked whole-file semantics.",
+    "Restore queued added/renamed destinations from latest working contents and apply cached deletes/rename-source removals after success, hook failure or cancellation.",
+    "Fresh cleanup token cannot inherit already-cancelled commit token. Operation lifetime includes restoration; no automatic rollback.",
+    "Restoration failure emits progress warning while preserving authoritative commit success/failure; completed commit is not turned into retryable commit failure.",
+    "Staging mode ignores checkbox policy and preserves exact staged bytes. Programmatic selected APIs without the explicit dialog policy retain their preservation contract.",
+    "Advanced consumer tooltip, guide/offline Help and CI native selection updated."
+  ],
+  "core": {
+    "exit": 0,
+    "cases": 27,
+    "first_attempt_pass": true,
+    "log": "build/qa/commit-checkbox-index-core.log",
+    "groups": [
+      "CommitCheckboxIndexTests (8)",
+      "CommitSelectionTests (14)",
+      "CommitAmendTests (5)"
+    ],
+    "checks": [
+      "Default and disabled queues, literal newline/wildcard paths, unchecked modification reset, add/delete/rename states and scoped unrelated staged preservation.",
+      "Unborn, parent/message-only amend, staging exact bytes, hook failure and unchanged working files.",
+      "Pre-cancellation/index lock preserve original index and HEAD.",
+      "Injected post-commit restoration failure reports warning and retains exactly one successful new commit."
+    ]
+  },
+  "debug_build": {
+    "exit": 0,
+    "first_attempt_pass": true,
+    "log": "build/qa/commit-checkbox-index-debug.log",
+    "anomalous_exit_zero_diagnostics": 11
+  },
+  "native": {
+    "exit": 0,
+    "first_attempt_pass": true,
+    "case_engine_pairs": 6,
+    "families": [
+      "checkbox policy",
+      "Commit progress/cancellation",
+      "incremental staging list"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "log": "build/qa/commit-checkbox-index-native.log",
+    "receivers_reaped_and_independently_absent": [
+      77830,
+      78085,
+      78347,
+      80091,
+      81836,
+      82112
+    ],
+    "checks": [
+      "Actual native Commit owner with default/disabled source preference and staging mode, literal rows, private preferences changed after captured progress options, exact index/working content and successful settlement.",
+      "Existing real checked/staged commits, post-actions, snapshot/duplicate/close gates, live hook No/Yes cancellation for ordinary/index/parent-amend, reaped owned hook/helpers and surviving unrelated decoy.",
+      "Progress fixture now expects source-specific unchecked index values for checkbox versus staging and parent-amend modes; working-byte/HEAD invariants retained.",
+      "Retained native staging controls, rows/groups, partial patch updates, F5, failed-read gate and retired operation ownership."
+    ],
+    "captures": "None; behavioral/index changes with existing layout."
+  },
+  "documentation": {
+    "help": "35 guides, 47 topics, 49 files, 1945841 bytes; built HTML/PNG/JSON byte-equal to source",
+    "site": "248 documents; zero unresolved fragments"
+  },
+  "hosted_ci": {
+    "failed_run": 38880822315,
+    "failed_job": 116911012311,
+    "failed_commit": "435567a7384ae01c2d1ffee91c2c7b12214ca428",
+    "failure": "Log reference navigation: Mixed checkbox did not return to current scope",
+    "observed_active_run": 38891002651,
+    "observed_active_job": 116943475096,
+    "observed_active_commit": "8aeb060929701c4b25246916eb9f296649d88a90",
+    "observed_step": "Git integration tests",
+    "scope": "Separate known hosted Log control failure remains open; local passes do not establish green full CI."
+  },
+  "limits": [
+    "Rare action-mask/copy/alias combinations, hook/external-writer interference and whole-index transactional semantics remain under audit.",
+    "Explicit Ignore keeps native unmerged stages rather than applying ordinary unchecked reset to them.",
+    "Restoration after cancellation may continue until its Git cleanup commands settle; no rollback claimed.",
+    "Physical UI/VoiceOver, signed grants/Finder/AppStore and complete application parity remain open."
+  ]
+}

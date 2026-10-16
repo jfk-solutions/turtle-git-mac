@@ -2424,3 +2424,26 @@ Full physical input, all amend/linked-worktree combinations, large repositories,
 visual and signed acceptance remain open. Source unversioned rows retain their
 existing partial-preview exclusion until F5 changes their status. No full Commit
 parity certification is claimed.
+
+## Checkbox index preparation and restoration — October 16, 2026
+
+The connected [checkbox index family](COMMIT-CHECKBOX-INDEX.md) now supplies the
+source's visible unchecked-row preparation and optional add/delete/rename queues.
+Unchecked modifications reset in the index; default-on restoration re-adds current
+unchecked new-file contents after success/failure/cancellation. The preference
+and visible path set are captured per native attempt; staging mode keeps its exact
+index behavior. The older unchecked-index preservation descriptions above apply
+to programmatic calls without this explicit dialog policy, not the native checkbox
+flow. Existing explicit Ignore keeps its real unmerged stages.
+
+The existing native progress assertions now check source-specific index outcomes
+for ordinary, staged and parent-amend cancellation instead of requiring every
+mode to preserve the original staged bytes. Working-file, HEAD, process reaping,
+post-action and duplicate/close assertions remain in that fixture.
+
+Twenty-seven focused Core checks, the Debug build and six native case/engine pairs
+passed on the first attempt. No additional Core or native reruns were needed.
+All six receiver processes were reaped and independently absent. See
+[the batch evidence](qa/commit-checkbox-index-2026-10-16.json) for exact scope,
+build diagnostics and the separate hosted Log reference-checkbox failure. This
+does not establish full CI, physical controls or signed acceptance.

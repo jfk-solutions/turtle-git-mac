@@ -456,3 +456,13 @@ image. The source bytes remain selectable in the third pane.
 ![Image conflict with an undecodable incoming side, light appearance](site/assets/image-conflict-undecodable-light.png)
 
 ![Image conflict with an undecodable incoming side, dark appearance](site/assets/image-conflict-undecodable-dark.png)
+
+### Checkbox Commit index behavior
+
+Checkbox mode commits checked whole files. Unchecked modifications become
+unstaged. By default, unchecked additions, renames and staged deletions are
+restored in the index after the attempt; their working files remain unchanged.
+Advanced → ReaddUnselectedAddedFilesAfterCommit controls this restoration.
+Use Staging support to preserve and commit exact staged contents instead.
+See [checkbox index behavior](COMMIT-CHECKBOX-INDEX.md), including failure and
+cancellation effects.

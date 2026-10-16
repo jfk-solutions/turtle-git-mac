@@ -1601,6 +1601,7 @@ import UniformTypeIdentifiers
         let preserveChangelists = keepChangelists
         var options = CommitOptions(); options.amend = amend; options.amendDiffToLastCommit = amendDiffToLastCommit; options.author = setAuthor ? author : nil
         options.authorDate = setAuthorDate ? authorDate : nil; options.resetAuthorDate = amend && setAuthorDate && resetAuthorDate; options.messageOnly = messageOnly; options.newBranch = createBranch ? newBranch : nil
+        if !staging { options.checkboxIndexPolicy = CommitCheckboxIndexPolicy(paths:Set(visibleEntries.map(\.path)),defaults:dialogDefaults) }
         let preflight=UUID(),preflightToken=OperationCancellation();preflightRequest=preflight;preflightCancellation=preflightToken
         busy = true;Self.activeCommitPreflights += 1
         Task { [self,access] in

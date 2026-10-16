@@ -205,3 +205,7 @@ preferences share the existing settings transaction. The helper observes accepte
 configuration changes; disabling the icon retires its visible activity and stale
 menu actions. See [cache menu](CACHE-MENU.md) for native adaptations and deployment
 limits. Other dormant Advanced entries are not implied to have new consumers.
+
+The [checkbox index family](COMMIT-CHECKBOX-INDEX.md) now consumes the default-on
+ReaddUnselectedAddedFilesAfterCommit preference in native checkbox Commit attempts.
+Staging mode is unaffected. Other dormant preferences retain their existing status.

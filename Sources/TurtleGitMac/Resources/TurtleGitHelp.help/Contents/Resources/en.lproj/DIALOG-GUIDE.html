@@ -358,4 +358,12 @@ cancels its answer and prevents late staging.</p>
 image. The source bytes remain selectable in the third pane.</p>
 <p><img src="images/ed3713977296-image-conflict-undecodable-light.png" alt="Image conflict with an undecodable incoming side, light appearance" /></p>
 <p><img src="images/ad7d9efb82f2-image-conflict-undecodable-dark.png" alt="Image conflict with an undecodable incoming side, dark appearance" /></p>
+<h3 id="checkbox-commit-index-behavior">Checkbox Commit index behavior</h3>
+<p>Checkbox mode commits checked whole files. Unchecked modifications become
+unstaged. By default, unchecked additions, renames and staged deletions are
+restored in the index after the attempt; their working files remain unchanged.
+Advanced → ReaddUnselectedAddedFilesAfterCommit controls this restoration.
+Use Staging support to preserve and commit exact staged contents instead.
+See <a href="COMMIT-CHECKBOX-INDEX.html">checkbox index behavior</a>, including failure and
+cancellation effects.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

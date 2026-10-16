@@ -113,7 +113,7 @@ import Darwin
             let unchecked = try await repo.run(["show",":b"]).stdout
             let working = try Data(contentsOf: repo.root.appendingPathComponent("b"))
             let body = try await repo.run(["log","-1","--format=%B"]).text
-            try require(selected == Data("selected\n".utf8) && unchecked == Data("unchecked index\n".utf8) && working == Data("unchecked working\n".utf8) && body.contains("progress message") && !body.contains("changed after snapshot"))
+            try require(selected == Data("selected\n".utf8) && unchecked == Data("base\n".utf8) && working == Data("unchecked working\n".utf8) && body.contains("progress message") && !body.contains("changed after snapshot"))
             progress.choose(action); progress.choose(action); try await wait { !model.busy }
             try require(model.commitProgress == nil && results == 1 && push == (action == .push ? 1 : 0) && pull == (action == .pull ? 1 : 0) && tag == (action == .createTag ? 1 : 0) && dcommit == (action == .svnDCommit ? 1 : 0))
             if action == .recommit { try require(closes == 0 && model.message.isEmpty && !model.amend && !model.messageOnly && model.checked.contains("b")) }
@@ -199,7 +199,8 @@ import Darwin
             while (kill(pids[0],0) == 0 || kill(pids[1],0) == 0) && Date() < end { try await Task.sleep(nanoseconds:10_000_000) }
             try require(kill(pids[0],0) != 0 && kill(pids[1],0) != 0,"Owned hook/helper survived")
             let unchecked = try await repo.run(["show",":b"]).stdout, working = try Data(contentsOf:repo.root.appendingPathComponent("b"))
-            try require(unchecked == Data("unchecked index\n".utf8) && working == Data("unchecked working\n".utf8))
+            let expectedIndex = mode == 0 ? "base\n" : mode == 1 ? "unchecked index\n" : "unchecked working\n"
+            try require(unchecked == Data(expectedIndex.utf8) && working == Data("unchecked working\n".utf8))
             _ = try await repo.run(["config","core.hooksPath","/dev/null"]); model.commit(); try await wait { model.commitProgress?.busy == false }
             try require(model.commitProgress!.success); model.commitProgress!.choose(nil); try await wait { !model.busy }
         }
@@ -242,6 +243,6 @@ import Darwin
         try require(controller.window!.performKeyEquivalent(with: escape) && displayCloses == 1, "Commit Escape did not resolve completed progress")
         display.choose(nil); try require(displayCloses == 1, "Commit duplicate close")
         try require(!NSApplication.shared.windows.contains { $0.isVisible }, "Commit receiver displayed a window")
-        print("Commit progress: real checked/staged commits; retained owner and exact post-actions; duplicate/snapshot gates; Push/Pull/Tag callbacks and ReCommit reset; footer auto-close; hook rejection/draft retry; pre-cancelled APIs; actual live-hook No/Yes cancellation for ordinary/index/parent-amend commits, owned hook/helper dead and unrelated decoy alive, no success callback and unchecked bytes preserved. Bounded completed output, disabled timing, native links/private copy-all/menu and hidden completed Escape/duplicate Close passed. No displayed windows, standard preference or general pasteboard writes.")
+        print("Commit progress: real checked/staged commits; retained owner and exact post-actions; duplicate/snapshot gates; Push/Pull/Tag callbacks and ReCommit reset; footer auto-close; hook rejection/draft retry; pre-cancelled APIs; actual live-hook No/Yes cancellation for ordinary/index/parent-amend commits, owned hook/helper dead and unrelated decoy alive, no success callback and source checkbox/index restoration and unchanged working bytes. Bounded completed output, disabled timing, native links/private copy-all/menu and hidden completed Escape/duplicate Close passed. No displayed windows, standard preference or general pasteboard writes.")
     }
 }
