@@ -11,14 +11,20 @@ import TurtleGitCore
         guard let view else { return [] }
         return (view as? NSTextView).map { [$0] } ?? view.subviews.flatMap { editors($0) }
     }
-    @MainActor static func settled(_ model: FileComparisonWindowModel) async throws {
+    @MainActor static func settled(_ model: FileComparisonWindowModel, line:UInt = #line, file:String = #fileID) async throws {
         var count = 0
-        try await wait {
+        try await wait({
             count += 1
-            if count == 999 { print("Two-pane wait state: busy=\(model.busy), filtering=\(model.filtering), selections=\(model.alignmentSelections.keys), error=\(String(describing: model.error)), window=\(model.window != nil)"); fflush(stdout) }
+            if count == 999 {
+                let geometry = editors(model.window?.contentView).enumerated().map { index,view in
+                    "editor=\(index), attached=\(view.window != nil), scroll=\(String(describing:view.enclosingScrollView?.contentSize))"
+                }.joined(separator:"; ")
+                print("Two-pane wait state at \(file):\(line): busy=\(model.busy), filtering=\(model.filtering), selections=\(model.alignmentSelections.keys), initialNavigation=\(model.initialNavigationPending), onePane=\(model.onePaneActive), error=\(String(describing:model.error)), visible=\(model.window?.isVisible == true), editors=[\(geometry)]")
+                fflush(stdout)
+            }
             model.window?.contentView?.layoutSubtreeIfNeeded()
             return !model.busy && !model.filtering && model.alignmentSelections.isEmpty && !model.initialNavigationPending
-        }
+        }, line:line, file:file)
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)

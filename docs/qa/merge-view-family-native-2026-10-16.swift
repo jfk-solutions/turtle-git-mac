@@ -84,6 +84,8 @@ struct MergeViewFamilyVerification {
         let snapshot=try await repo.revisionFileComparison(from:.revision("HEAD"),to:.workingTree,paths:["left.txt"])
         let historical=FileComparisonWindowController(repository:repo,access:nil,snapshot:snapshot,path:"left.txt")
         historical.model.comparisonDefaults=prefs;defer { historical.close() }
+        // Viewport restoration needs an actual native host, including hidden QA.
+        historical.window?.alphaValue=0;historical.window?.orderFront(nil)
         historical.model.load();try await TwoPaneEngineVerification.settled(historical.model)
         historical.model.switchSides();try await TwoPaneEngineVerification.settled(historical.model)
         try require(historical.model.document?.base.revision == .workingTree && historical.model.document?.base.bytes==Data("working\n".utf8),"Revision/worktree switch routing")
@@ -97,6 +99,7 @@ struct MergeViewFamilyVerification {
         let pair=try await repo.historicalWorkingFileComparison(revision:"HEAD",path:"left.txt",workingFile:b)
         let external=FileComparisonWindowController(repository:repo,access:nil,comparison:pair,permission:permission)
         external.model.comparisonDefaults=prefs;defer {external.close()}
+        external.window?.alphaValue=0;external.window?.orderFront(nil)
         external.model.load();try await TwoPaneEngineVerification.settled(external.model)
         external.model.switchSides();try await TwoPaneEngineVerification.settled(external.model)
         external.model.activatePane(base:false);external.model.editingEnabled=true

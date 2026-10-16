@@ -53,3 +53,23 @@ Optional light/dark captures were inspected, but their toolbar icons look faded
 after the visibility/replacement sequence. They remain local QA candidates;
 physical toolbar appearance and its cause are unresolved. No new accepted gallery
 frame or complete Windows/editor/signed acceptance is claimed.
+
+## Hosted viewport readiness — October 16, 2026
+
+Hosted run 38930685497 passed Git integration but timed out in the bundled-Git
+view receiver with a pending Base selection. Both engine cases passed locally
+before changing window hosting, so the exact hosted failure was not reproduced.
+The historical/repository and external-file comparison windows now explicitly
+order their native hosts with zero opacity, matching the first fixture window.
+Waiting for a native viewport no longer relies on an unshown window receiving
+incidental layout. All selection, exact Save/Save As/input routing, dirty Cancel,
+Undo, toolbar, split, replacement and Git-state assertions remain.
+
+The shared wait reports the actual caller and each editor's attachment/geometry,
+initial navigation and pane mode if readiness still fails. This is an acceptance
+fixture correction, without a shipping UI or wait-budget change. A new passing
+hosted run is still required; local success cannot prove the timeout resolved.
+
+[Investigation evidence](qa/merge-view-hosted-readiness-2026-10-16.json) records
+both engine passes before and after explicit hosting, the diagnostic compile
+repair, and all four reaped receivers.

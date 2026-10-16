@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "53377a5a0f72987f2640dbe003274cce77863d23",
+  "scope": "Hosted Merge view readiness investigation and explicitly hosted native fixture windows",
+  "hosted_failure": {
+    "run": 38930685497,
+    "job": 117076731808,
+    "head": "e6da8fe7",
+    "integration": "success",
+    "case": "Merge view, bundled Git",
+    "message": "Timed out waiting for two-pane comparison",
+    "state": "busy=false, filtering=false, selections=[true], error=nil, window=true",
+    "source": "GitHub decoded job logs"
+  },
+  "local_reproduction": {
+    "log": "build/qa/merge-view-ci-readiness-2026-10-16.log",
+    "exit": 0,
+    "case_engine_runs": 2,
+    "failure_reproduced": false,
+    "change": "Shared wait forwards its caller rather than reporting its own internal line"
+  },
+  "changes": [
+    "Order historical/repository and external-file fixture windows with zero opacity before waiting for native viewport selection, matching the first window",
+    "Report actual caller, editor attachment and scroll geometry, initial navigation and pane mode on timeout",
+    "Retain existing readiness, Save/Save As, byte/encoding/input, dirty Cancel, Undo, split/chrome, replacement and HEAD assertions; no delay increase"
+  ],
+  "native": {
+    "compile_attempt": {
+      "log": "build/qa/merge-view-ci-hosted-windows-2026-10-16.log",
+      "exit": 1,
+      "reason": "Diagnostic referenced private FileComparisonTextView; replaced with public NSTextView geometry",
+      "receivers_launched": 0
+    },
+    "final_log": "build/qa/merge-view-ci-hosted-windows-repair-2026-10-16.log",
+    "exit": 0,
+    "case_engine_runs": 2,
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      41773,
+      41851,
+      42039,
+      42113
+    ],
+    "windows_closed": true
+  },
+  "core_repeated": false,
+  "app_rebuilt": false,
+  "reason": "Acceptance-fixture hosting/diagnostics only; actual Debug objects reused",
+  "limits": [
+    "Exact hosted failure not reproduced locally",
+    "New complete passing macOS CI result required",
+    "No shipping UI change or full parity/signed acceptance claim"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}
