@@ -1,21 +1,29 @@
 import AppKit
 import SwiftUI
+import Combine
 import UniformTypeIdentifiers
 import TurtleGitCore
 import UniformTypeIdentifiers
 
 @MainActor private final class CommitNativeWindow: NSWindow {
     weak var model: CommitWindowModel?
+    weak var commandMenu:CommitCommandMenu?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.keyCode == 96, attachedSheet == nil, let model, !model.busy, !model.confirmingQuit {
-            model.reload(); return true
-        }
+        if commandMenu?.performKeyEquivalent(event)==true {return true}
         return super.performKeyEquivalent(with: event)
     }
 }
 
 @MainActor final class CommitWindowController: NSWindowController, NSWindowDelegate {
     let model: CommitWindowModel
+    private(set) var commandMenu:CommitCommandMenu?
+    func windowDidResignKey(_ notification:Notification) {commandMenu?.remove()}
+    var commandsAvailable:Bool {!closingCommit && !hasMessagePicker && !model.inputsBlocked && window?.attachedSheet==nil && model.messageFocusAvailable}
+    func messageEditor(in view:NSView? = nil)->CommitMessageTextView? {
+        guard let view=view ?? window?.contentView else {return nil}
+        if let editor=view as? CommitMessageTextView {return editor}
+        return view.subviews.compactMap {messageEditor(in:$0)}.first
+    }
     var onClosed: () -> Void = {}
     private(set) var partial: PatchWindowController?
     private(set) var stagingHintAlert:NSAlert?
@@ -235,10 +243,12 @@ import UniformTypeIdentifiers
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn ? .commit : $0 == .alertSecondButtonReturn ? .ignore : .cancel) }
         }
 
+        commandMenu=CommitCommandMenu(owner:self);window.commandMenu=commandMenu
         DialogGeometry.attach(window, identifier: "CommitWindowController")
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) {
+        commandMenu?.retire()
         let hintAnswer=stagingHintAnswer;stagingHintAnswer=nil;stagingHintAlert=nil;hintAnswer?(nil)
         templatePanel?.cancel(nil); templatePanel = nil
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
@@ -361,7 +371,7 @@ import UniformTypeIdentifiers
     func windowDidResize(_ notification: Notification) { followPartial() }
     func windowWillMiniaturize(_ notification: Notification) { partial?.window?.orderOut(nil) }
     func windowDidDeminiaturize(_ notification: Notification) { showPartialWithoutActivation() }
-    func windowDidBecomeKey(_ notification: Notification) {showPartialWithoutActivation();model.offerStagingHint()}
+    func windowDidBecomeKey(_ notification: Notification) {commandMenu?.install();showPartialWithoutActivation();model.offerStagingHint()}
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -1402,10 +1412,10 @@ import UniformTypeIdentifiers
             }
         }
     }
-    func check(_ predicate: (StatusEntry) -> Bool) {
+    func check(_ predicate: (StatusEntry) -> Bool,checking:Bool = true) {
         guard messageFocusAvailable,!inputsBlocked else {return}
-        let paths = Set(visibleEntries.filter { $0.state != .conflicted && predicate($0) }.map(\.id))
-        if stagingEnabled { moveToStage(paths, staged: true) } else { checked.formUnion(paths) }
+        let paths = Set(visibleEntries.filter {(!checking || $0.state != .conflicted) && predicate($0)}.map(\.id))
+        if stagingEnabled {moveToStage(paths,staged:checking)} else if checking {checked.formUnion(paths)} else {checked.subtract(paths)}
     }
     func setGroupChecked(_ files: [StatusEntry], checked value: Bool) {
         guard messageFocusAvailable,!inputsBlocked else {return}
@@ -1422,6 +1432,7 @@ import UniformTypeIdentifiers
         else if value { checked.formUnion(paths) }
         else { checked.subtract(paths) }
     }
+    func checkAll(_ checking:Bool) {check({_ in true},checking:checking)}
     func uncheckAll() {
         guard messageFocusAvailable,!inputsBlocked else {return}
         if stagingEnabled { moveToStage(Set(visibleEntries.filter { isStaged($0) }.map(\.id)), staged: false) }
@@ -1465,6 +1476,7 @@ import UniformTypeIdentifiers
         message = value; originalAmendMessage = value; loadingAmendMessage = false
         dateChanged(); authorChanged(); requestMessageFocus(); comparisonChanged()
     }
+    func focusMessage() {guard !inputsBlocked else {return};requestMessageFocus()}
     private func requestMessageFocus() {
         guard messageFocusAvailable else { return }
         messageFocusRequest += 1
@@ -1547,13 +1559,20 @@ import UniformTypeIdentifiers
             } catch { if generation == dateGeneration, amend, setAuthorDate { self.error = error.localizedDescription } }
         }
     }
+    var querySignOff:((OperationCancellation) async throws -> String)?
     func addSignOff() {
-        Task {
+        runFileOperation("Reading signing identity…",operation:{ [self] token,_ in
+            let trailer:String
             do {
-                let trailer = try await repository.commitSignOffLine()
-                message = IssueTrackerProperties.addingSignOff(trailer, to: message)
-            } catch { self.error = "Configure your Git user name and email before adding a sign-off.\n" + error.localizedDescription }
-        }
+                if let querySignOff {trailer=try await querySignOff(token)}
+                else {trailer=try await repository.commitSignOffLine(cancellation:token)}
+            } catch {
+                guard !token.isCancelled else {throw error}
+                throw NSError(domain:"TurtleGit.CommitSignOff",code:1,userInfo:[NSLocalizedDescriptionKey:"Configure your Git user name and email before adding a sign-off.\n" + error.localizedDescription])
+            }
+            guard isFileOperationLive(token) else {return}
+            message=IssueTrackerProperties.addingSignOff(trailer,to:message)
+        },completed:{ [weak self] in self?.requestMessageFocus() })
     }
     func compare(paths selected: Set<String>) {
         guard !busy, !confirmingQuit else { return }
@@ -2002,7 +2021,7 @@ struct CommitDialog: View {
                         }
                         if model.issueProperties.showsIssueField {
                             Text(model.issueProperties.label).lineLimit(1).truncationMode(.tail).frame(maxWidth:180).help(model.issueProperties.label)
-                            TextField("",text:$model.issueID).textFieldStyle(.roundedBorder).frame(width:140).accessibilityLabel(model.issueProperties.label).focused($issueFieldFocused)
+                            TextField("",text:$model.issueID).textFieldStyle(.roundedBorder).frame(width:140).accessibilityLabel(model.issueProperties.label).focused($issueFieldFocused).onSubmit {issueFieldFocused=false;model.focusMessage()}
                         }
                         if model.busy { ProgressView().controlSize(.small) }
                     }
@@ -2108,15 +2127,15 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 10) {
                             Text("Check:")
-                            checkButton("All") { model.check { _ in true } }
-                            checkButton("None") { model.uncheckAll() }
-                            checkButton("Unversioned", enabled: model.visibleEntries.contains { $0.state == .untracked }) { model.check { $0.state == .untracked } }
-                            checkButton("Versioned", enabled: model.visibleEntries.contains { $0.state != .untracked }) { model.check { $0.state != .untracked } }
-                            checkButton("Added", enabled: model.visibleEntries.contains { $0.state == .added }) { model.check { $0.state == .added } }
-                            checkButton("Deleted", enabled: model.visibleEntries.contains { $0.state == .deleted }) { model.check { $0.state == .deleted } }
-                            checkButton("Modified", enabled: model.visibleEntries.contains { $0.state == .modified }) { model.check { $0.state == .modified } }
-                            checkButton("Files", enabled: model.visibleEntries.contains { !model.submodules.contains($0.path) }) { model.check { !model.submodules.contains($0.path) } }
-                            checkButton("Submodules", enabled: model.visibleEntries.contains { model.submodules.contains($0.path) }) { model.check { model.submodules.contains($0.path) } }
+                            checkButton("All") { checking in model.check({ _ in true },checking:checking) }
+                            checkButton("None") { model.checkAll(!$0) }
+                            checkButton("Unversioned", enabled: model.visibleEntries.contains { $0.state == .untracked }) { checking in model.check({ $0.state == .untracked },checking:checking) }
+                            checkButton("Versioned", enabled: model.visibleEntries.contains { $0.state != .untracked }) { checking in model.check({ $0.state != .untracked },checking:checking) }
+                            checkButton("Added", enabled: model.visibleEntries.contains { $0.state == .added }) { checking in model.check({ $0.state == .added },checking:checking) }
+                            checkButton("Deleted", enabled: model.visibleEntries.contains { $0.state == .deleted }) { checking in model.check({ $0.state == .deleted },checking:checking) }
+                            checkButton("Modified", enabled: model.visibleEntries.contains { $0.state == .modified }) { checking in model.check({ $0.state == .modified },checking:checking) }
+                            checkButton("Files", enabled: model.visibleEntries.contains { !model.submodules.contains($0.path) }) { checking in model.check({ !model.submodules.contains($0.path) },checking:checking) }
+                            checkButton("Submodules", enabled: model.visibleEntries.contains { model.submodules.contains($0.path) }) { checking in model.check({ model.submodules.contains($0.path) },checking:checking) }
                         }.font(.system(size: 12)).disabled(model.messageOnly)
                         fileTable(model.visibleEntries, selection: $model.selection, staged: model.stagingEnabled ? model.stagedDiff : nil).frame(minHeight: 120).disabled(model.messageOnly)
                         HStack {
@@ -2352,7 +2371,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
         } else { groupRule }
     }
     private var groupRule: some View { Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1) }
-    func checkButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View { Button(title, action: action).buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled) }
+    func checkButton(_ title: String, enabled: Bool = true, action: @escaping (Bool) -> Void) -> some View { Button(title) {action(!NSEvent.modifierFlags.contains(.shift))}.buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled).help(title == "None" ? "Uncheck all files. Shift-click checks all files." : "Check matching files. Shift-click unchecks matching files.") }
 }
 
 /// Keep the source destination/issue bands on one line when they fit. At the
@@ -2599,5 +2618,182 @@ private struct CommitProgressDialog: View {
             }
         }.padding(12)
         .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation, percentage: model.percentage))
+    }
+}
+
+/// Native commands belong to the active Commit owner, independently of the
+/// repository selected in the main workspace. Static menu shapes survive tracking.
+@MainActor final class CommitCommandMenu:NSObject,NSMenuItemValidation,NSMenuDelegate {
+    enum Command:String,CaseIterable {
+        case current="Current commit action",commit="Commit",recommit="ReCommit",push="Commit & Push"
+        case refresh="Refresh",focus="Focus commit message",history="Recent messages…",hash="Pick commit hash…",message="Pick commit message…",pasteFiles="Paste file list",signOff="Add Signed-off-by"
+        case all="All",none="None",unversioned="Unversioned",versioned="Versioned",added="Added",deleted="Deleted",modified="Modified",files="Files",submodules="Submodules"
+        case staging="Staging support (EXPERIMENTAL)",showUnversioned="Show Unversioned Files",whole="Show Whole Project",messageOnly="Message only",amend="Amend Last Commit"
+        case patch="View Patch",partialStage="Partial Staging",partialUnstage="Partial Unstaging",help="Commit Help"
+    }
+    private final class Invocation {let command:Command,epoch:UUID;init(_ command:Command,_ epoch:UUID){self.command=command;self.epoch=epoch}}
+    private weak var owner:CommitWindowController?
+    private weak var installedMenu:NSMenu?
+    private var root:NSMenuItem?,items=[NSMenuItem](),epoch=UUID(),retired=false,queued=false
+    private var trackedMenus=Set<ObjectIdentifier>()
+    private var observations=[AnyCancellable]()
+    var applicationMenu:()->NSMenu? = {NSApp.mainMenu}
+    var keyWindow:()->NSWindow? = {NSApp.keyWindow}
+    init(owner:CommitWindowController) {
+        self.owner=owner;super.init()
+        observations.append(owner.model.objectWillChange.sink { [weak self] _ in self?.schedule() })
+        observations.append(NotificationCenter.default.publisher(for:NSApplication.didUpdateNotification).sink { [weak self] _ in self?.schedule() })
+    }
+    private var active:Bool {!retired && owner?.model.messageFocusAvailable==true && keyWindow() === owner?.window}
+    private var ready:Bool {active && owner?.commandsAvailable==true}
+    private func schedule() {
+        guard !retired,!queued else {return};queued=true
+        DispatchQueue.main.async { [weak self] in guard let self else {return};self.queued=false;if self.active {self.install();self.refresh()} }
+    }
+    func install() {
+        guard active,trackedMenus.isEmpty,let main=applicationMenu() else {return}
+        if installedMenu === main,root?.menu === main {refresh();return}
+        remove();installedMenu=main
+        for item in main.items where item.identifier?.rawValue=="TurtleGit.Commit.Commands" {main.removeItem(item)}
+        let root=NSMenuItem(title:"Commit",action:nil,keyEquivalent:"");root.identifier = .init("TurtleGit.Commit.Commands")
+        let menu=NSMenu(title:"Commit");menu.delegate=self;root.submenu=menu;self.root=root
+        func append(_ commands:[Command],to menu:NSMenu) {
+            for command in commands {
+                let binding=shortcut(command),item=NSMenuItem(title:command.rawValue,action:#selector(invoke(_:)),keyEquivalent:binding?.0 ?? "")
+                item.keyEquivalentModifierMask=binding?.1 ?? [];item.target=self;item.representedObject=Invocation(command,epoch)
+                item.image=icon(command).contextImage(defaults:owner?.presentationPreferences ?? .standard)
+                menu.addItem(item);items.append(item)
+            }
+        }
+        func group(_ title:String,_ commands:[Command]) {let item=NSMenuItem(title:title,action:nil,keyEquivalent:"");let child=NSMenu(title:title);child.delegate=self;item.submenu=child;menu.addItem(item);append(commands,to:child)}
+        append([.current],to:menu);group("Commit actions",[.commit,.recommit,.push]);menu.addItem(.separator())
+        group("Check files",[.all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules])
+        group("Message",[.focus,.history,.hash,.message,.pasteFiles,.signOff])
+        group("Options",[.staging,.showUnversioned,.whole,.messageOnly,.amend])
+        append([.patch,.partialStage,.partialUnstage,.refresh,.help],to:menu)
+        let index=main.items.firstIndex(where:{["Window","Help"].contains($0.title)}) ?? main.numberOfItems
+        main.insertItem(root,at:index);refresh()
+    }
+    func remove() {epoch=UUID();if let root,let menu=root.menu {menu.removeItem(root)};root=nil;installedMenu=nil;items=[]}
+    func retire() {remove();retired=true;observations=[];owner=nil}
+    func menuWillOpen(_ menu:NSMenu) {trackedMenus.insert(ObjectIdentifier(menu));refresh()}
+    func menuDidClose(_ menu:NSMenu) {trackedMenus.remove(ObjectIdentifier(menu));schedule()}
+    func menuNeedsUpdate(_ menu:NSMenu) {refresh()}
+    private func attached(_ item:NSMenuItem)->Bool {
+        guard let main=installedMenu,main === applicationMenu(),root?.menu === main else {return false}
+        var menu=item.menu
+        while let current=menu {if current === main {return true};menu=current.supermenu}
+        return false
+    }
+    private func predicate(_ command:Command,_ entry:StatusEntry)->Bool {
+        guard let model=owner?.model else {return false}
+        switch command {
+        case .unversioned:return entry.state == .untracked
+        case .versioned:return entry.state != .untracked
+        case .added:return entry.state == .added
+        case .deleted:return entry.state == .deleted
+        case .modified:return entry.state == .modified
+        case .files:return !model.submodules.contains(entry.path)
+        case .submodules:return model.submodules.contains(entry.path)
+        default:return true
+        }
+    }
+    private func enabled(_ command:Command)->Bool {
+        guard ready,let owner else {return false};let model=owner.model
+        switch command {
+        case .current,.commit:return model.canCommit
+        case .recommit,.push:return model.canCommit && model.replaySplit==nil && model.historyCombine==nil
+        case .all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules:return !model.messageOnly && model.visibleEntries.contains{predicate(command,$0)}
+        case .history:return model.messageHistory?.entries.isEmpty==false && owner.messageEditor() != nil
+        case .hash,.message,.pasteFiles:return owner.messageEditor() != nil
+        case .whole:return !model.scopePaths.isEmpty
+        case .amend:return model.hasHead && model.operation==nil && model.replaySplit==nil && model.historyCombine==nil
+        case .patch:return !model.stagingEnabled
+        case .partialStage,.partialUnstage:return model.stagingEnabled && !model.selection.isEmpty
+        default:return true
+        }
+    }
+    private func checked(_ command:Command)->Bool {
+        guard let model=owner?.model else {return false}
+        switch command {
+        case .commit:return model.currentCompletionAction == .commit
+        case .recommit:return model.currentCompletionAction == .recommit
+        case .push:return model.currentCompletionAction == .push
+        case .staging:return model.stagingEnabled
+        case .showUnversioned:return model.showUnversioned
+        case .whole:return model.showWholeProject
+        case .messageOnly:return model.messageOnly
+        case .amend:return model.amend
+        case .patch:return model.viewingPatch
+        case .partialStage:return model.partialMode==false
+        case .partialUnstage:return model.partialMode==true
+        default:return false
+        }
+    }
+    private func refresh() {
+        for item in items {guard let invocation=item.representedObject as? Invocation else {continue};let command=invocation.command;item.isEnabled=attached(item) && enabled(command);item.state=checked(command) ? .on:.off;if command == .current {item.title=owner?.model.currentCompletionAction.rawValue ?? command.rawValue}}
+    }
+    func validateMenuItem(_ item:NSMenuItem)->Bool {guard let invocation=item.representedObject as? Invocation else {return false};return invocation.epoch==epoch && attached(item) && enabled(invocation.command)}
+    @objc private func invoke(_ item:NSMenuItem) {
+        guard validateMenuItem(item),let invocation=item.representedObject as? Invocation else {return}
+        perform(invocation.command);refresh()
+    }
+    private func perform(_ command:Command) {
+        guard enabled(command),let owner else {return};let model=owner.model
+        switch command {
+        case .current:model.commitCurrentAction()
+        case .commit:model.commit(.commit)
+        case .recommit:model.commit(.recommit)
+        case .push:model.commit(.push)
+        case .refresh:model.reload()
+        case .focus:model.focusMessage()
+        case .history,.hash,.message,.pasteFiles:owner.messageEditor()?.performCommitMenuCommand(command)
+        case .signOff:model.addSignOff()
+        case .all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules:
+            let shift=NSEvent.modifierFlags.contains(.shift),value=command == .none ? shift:!shift
+            model.check({self.predicate(command,$0)},checking:value)
+        case .staging:model.setStagingEnabled(!model.stagingEnabled)
+        case .showUnversioned:model.setShowUnversioned(!model.showUnversioned)
+        case .whole:model.showWholeProject.toggle()
+        case .messageOnly:model.messageOnly.toggle()
+        case .amend:model.amend.toggle()
+        case .patch:model.showViewPatch()
+        case .partialStage:model.showPartial(false)
+        case .partialUnstage:model.showPartial(true)
+        case .help:TurtleGitHelp.show(.commit)
+        }
+    }
+    func performKeyEquivalent(_ event:NSEvent)->Bool {
+        guard active else {return false};install()
+        let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if event.keyCode==96,flags.isEmpty {if enabled(.refresh) {perform(.refresh)};return true}
+        if [36,76].contains(event.keyCode),flags == .control {if enabled(.current) {perform(.current)};return true}
+        guard let text=event.charactersIgnoringModifiers?.lowercased() else {return false}
+        for item in items {guard let invocation=item.representedObject as? Invocation,let binding=shortcut(invocation.command),binding.0.lowercased()==text,binding.1==flags,attached(item) else {continue};if enabled(invocation.command) {invoke(item)};return true}
+        return false
+    }
+    private func shortcut(_ command:Command)->(String,NSEvent.ModifierFlags)? {
+        switch command {
+        case .current:return ("\r",.command)
+        case .recommit:return ("\r",[.command,.option])
+        case .push:return ("\r",[.command,.shift])
+        case .refresh:return (String(UnicodeScalar(NSF5FunctionKey)!),[])
+        default:return nil
+        }
+    }
+    private func icon(_ command:Command)->MenuIcon {
+        switch command {
+        case .push:return .push
+        case .current,.commit,.recommit,.amend,.signOff:return .commit
+        case .refresh:return .refresh
+        case .focus,.messageOnly:return .editor
+        case .history,.hash,.message:return .log
+        case .pasteFiles:return .copy
+        case .help:return .help
+        case .patch,.partialStage,.partialUnstage:return .patch
+        case .whole:return .repositoryBrowser
+        case .none:return .revert
+        default:return .add
+        }
     }
 }

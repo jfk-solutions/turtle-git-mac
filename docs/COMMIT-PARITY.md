@@ -2447,3 +2447,50 @@ All six receiver processes were reaped and independently absent. See
 [the batch evidence](qa/commit-checkbox-index-2026-10-16.json) for exact scope,
 build diagnostics and the separate hosted Log reference-checkbox failure. This
 does not establish full CI, physical controls or signed acceptance.
+
+## Native Commit commands, selection direction and keyboard flow — October 16, 2026
+
+The pinned CommitDlg::PreTranslateMessage consumes Control-Return and invokes the
+current split-button action when enabled. Commit's native window now routes that
+shortcut to its own remembered action, while retaining Command-Return. Native
+Commit actions also offer Command-Option-Return for ReCommit and
+Command-Shift-Return for Commit & Push. Disabled commit shortcuts are consumed
+without inserting a newline or dispatching a second attempt. Return from the issue
+field requests message focus, matching the source field-to-editor flow. macOS
+Option typing is retained rather than adopting Windows Alt-letter mnemonics.
+
+A window-scoped native Commit menu exposes the current action, source three-action
+submenu, category checks, message/history/revision insertion, sign-off, existing
+options, patch controls, Refresh and Help with original artwork. Checked states
+reflect the actual model. Commands capture the Commit owner, not the repository
+selected in the main workspace. Busy, preferences, message pickers, sheets, Quit,
+background/retired windows and replay restrictions use the existing model guards.
+Detached menu targets carry an installation epoch and cannot act after repair.
+Menu replacement is repaired idempotently, with structural changes deferred while
+owned menus are tracking. The existing Commit dialog's split button is unchanged.
+
+CommitDlg::OnCheck also reverses direction when Shift is held: category links now
+uncheck only matching files on Shift-click. Shift-None checks all eligible files;
+Shift-All unchecks them. Checkbox mode changes the check set; staging mode applies
+the same direction through the existing owned whole-file index operation. Other
+categories, message text, worktree contents and the source's retained staging rows
+remain independent. Check links include native help describing the reverse action.
+
+Add Signed-off-by now owns its identity lookup through the existing cancellable
+Commit operation lifecycle. Duplicate actions and Close/Quit are gated while it is
+pending; forced retirement cancels its token and refuses late message, focus and
+error updates. The configured identity still comes from the existing Core reader.
+
+This is a native menu/keyboard adaptation, not complete Commit certification.
+Physical Shift-click/menu gestures, issue-field Return, keyboard layouts,
+VoiceOver, signing/authentication and signed Finder/Store acceptance remain open.
+
+[Grouped evidence](qa/commit-command-family-2026-10-16.json) records ten passing
+native case/engine runs: commands, retained staging list, history, remembered
+actions and focus, each on both Git versions. Control-Return made exactly one
+real checked-file commit and used the remembered ReCommit action. Sign-off checks
+cover Close-requested cancellation/retry and forced retirement. Build and fixture
+repairs are recorded; the failed ownership expectation did not weaken a guard.
+All eleven owned receivers, including that failed run, were reaped and independently
+absent. Core sources were unchanged and its suite was not repeated. These checks
+do not certify every physical gesture, complete Commit parity or signed deployment.

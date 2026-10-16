@@ -503,6 +503,8 @@ jobs:
         run: python3 scripts/test-branch-revision-number.py
       - name: Native Commit columns, sorting and closed-owner settings
         run: python3 scripts/test-commit-column-sorting.py
+      - name: Native scoped Commit commands and keyboard actions
+        run: python3 scripts/test-commit-command-family.py --only commands --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native remembered Commit button actions
         run: python3 scripts/test-commit-last-action.py
       - name: Native Fetch/Rebase decisions and fast-forward merge

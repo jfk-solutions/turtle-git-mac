@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "cd88dd737125b475e97f07463413d2cd275d70eb",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Commit menu/current-action keyboard dispatch, reverse category checks, issue-to-message focus and owned sign-off identity lookup",
+  "source": [
+    "TortoiseProc/CommitDlg.cpp PrepareOkButton and PreTranslateMessage",
+    "CommitDlg::OnCheck Shift direction",
+    "CommitDlg::OnBnClickedSignOff and existing Core commitSignOffLine"
+  ],
+  "implementation": [
+    "Window-scoped native Commit root with current/source three-action submenu, selection, message/history/revision insertion, sign-off, options, patch, refresh and Help commands; original icons and checked/enabled states.",
+    "Control-Return invokes the current remembered action, with Command-Return retained. Dedicated Command-Option-Return ReCommit and Command-Shift-Return Commit & Push adapt Windows Alt mnemonics without consuming macOS Option typing.",
+    "F5 uses the same owner scope and recognizes its native key code; busy/background/sheet/retired and duplicate guards remain authoritative.",
+    "Owned menus repair replacement idempotently, defer reconstruction during nested tracking, and reject detached/retained items through installation epochs.",
+    "Shift-check reverses only the matching category; None/All invert, checkbox unchecking clears matching conflicted rows, while staging still excludes conflicted paths.",
+    "Issue-field Return requests existing message focus. Main-menu message insertion focuses the actual editor.",
+    "Sign-off identity lookup uses existing cancellable Commit operation lifetime; Close requests cancellation and drains ownership, retry works, forced retirement refuses late message/focus/error updates."
+  ],
+  "core": {
+    "source_changes": false,
+    "suite_repeated": false,
+    "reason": "Native menu, focus, selection routing and owned use of existing Core operations."
+  },
+  "debug": [
+    {
+      "log": "build/qa/commit-command-build-2026-10-16.log",
+      "exit": 65,
+      "exit_zero_no_output_diagnostics": 0
+    },
+    {
+      "log": "build/qa/commit-command-build-repair-2026-10-16.log",
+      "exit": 65,
+      "exit_zero_no_output_diagnostics": 0
+    },
+    {
+      "log": "build/qa/commit-command-build-editor-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 4
+    },
+    {
+      "log": "build/qa/commit-command-build-scope-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 0
+    }
+  ],
+  "build_repairs": [
+    "Menu needed internal access to the formerly private message editor; it is now named CommitMessageTextView. Merged command installation into the pre-existing key-window callback, retaining partial-panel/hint behavior.",
+    "A broad class rename accidentally changed ProjectMessageTextView; restored the actual superclass before successful builds.",
+    "Final pre-native review removed the unscoped F5 fallback and preserved conflict-row checkbox unchecking; only an incremental native build was needed."
+  ],
+  "native": {
+    "compile_log": "build/qa/commit-command-native-2026-10-16.log",
+    "compile_exit": 1,
+    "compile_reason": "Fixture referenced private loadedMessage; use public readiness and validate enabled current-action state instead. No receiver ran in this attempt.",
+    "initial_log": "build/qa/commit-command-native-state-2026-10-16.log",
+    "initial_exit": 1,
+    "initial_reason": "Fixture treated windowShouldClose as a passive probe; Commit actually requests cancellation. It now asserts unchanged message/cancellation and retries sign-off successfully.",
+    "final_log": "build/qa/commit-command-native-cancel-2026-10-16.log",
+    "final_exit": 0,
+    "distinct_passing_case_engine_runs": 10,
+    "failed_case_engine_runs": 1,
+    "cases": {
+      "commands": 2,
+      "staging": 2,
+      "history": 2,
+      "remembered_actions": 2,
+      "focus": 2
+    },
+    "new_coverage": [
+      "Native command icons/source action labels and remembered current action",
+      "Busy shortcut consumption, background/sheet/retired/detached/old-epoch refusal",
+      "Category check/reverse and staging/unstaging effects",
+      "Actual history sheet/focus and Cancel",
+      "Owned sign-off read, duplicate/Close cancellation/retry and late-retirement refusal",
+      "Menu replacement and tracking/idempotence repair",
+      "Actual Control-Return produces exactly one checked-file commit and runs remembered ReCommit"
+    ],
+    "fixture_update": "Retained hidden staging F5 check injects its intended key-window/menu scope before sending the actual native key event; status/index/row assertions unchanged.",
+    "owned_receivers_reaped_and_independently_absent": [
+      33904,
+      34068,
+      34309,
+      34553,
+      34836,
+      35117,
+      35180,
+      35246,
+      36261,
+      37289,
+      37294
+    ],
+    "owned_windows_closed": true,
+    "physical_ui_acceptance_claimed": false
+  },
+  "help": {
+    "files": 50,
+    "bytes": 1959764,
+    "built_source_counterparts_equal": true
+  },
+  "site": {
+    "log": "build/qa/commit-command-site-2026-10-16.log",
+    "exit": 0,
+    "documents": 256,
+    "unresolved_fragments": 0
+  },
+  "coverage_ledger": {
+    "dialogs": 130,
+    "partial_family_audits": 120,
+    "pending_family_reviews": 10,
+    "certified_complete": 0,
+    "mapped_static_controls": 987,
+    "pending_static_controls": 672
+  },
+  "remaining": [
+    "Physical Shift-click and main-menu gestures, issue-field Return, keyboard layouts and VoiceOver",
+    "Full Commit/source dialog parity and broader conditional workflows",
+    "Actual signing/authentication and signed Finder/Store deployment",
+    "Latest complete hosted CI pass; local native checks do not prove it"
+  ]
+}

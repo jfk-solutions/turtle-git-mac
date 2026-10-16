@@ -550,3 +550,15 @@ This allows replacement saves, backups and recreating a deleted file. Existing
 folder access is reused. Choose the containing folder and Allow Save, or Cancel
 to keep your draft and existing files. Source Save As and unified patch output
 use the same rule.
+
+### Commit keyboard and selection shortcuts
+
+Control-Return or Command-Return runs the Commit button's current action.
+Command-Option-Return runs ReCommit; Command-Shift-Return runs Commit & Push.
+The native Commit menu follows the active Commit window and shows its current
+options. Return in the issue field moves focus to the commit message.
+
+Click a Check category to check its matching files; Shift-click unchecks them.
+Shift-None checks all eligible files, and Shift-All unchecks all. In staging mode
+these actions stage or unstage the corresponding files. Signed-off-by reads the
+configured identity as an owned operation and keeps your draft on cancellation.

@@ -84,6 +84,8 @@ import TurtleGitCore
         try unchanged(); try require(model.stagingState(try entry("file")) == .off, "Partial unstage retained mixed state")
         model.moveToStage(["new"], staged: true); try await ready(model)
         let beforeRefresh = reads
+        let main=NSMenu(title:"Staging list commands")
+        owner.commandMenu?.applicationMenu={main};owner.commandMenu?.keyWindow={owner.window};owner.commandMenu?.install()
         let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.function], timestamp: 0, windowNumber: owner.window!.windowNumber, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 96)!
         try require(owner.window!.performKeyEquivalent(with: event), "Actual F5 route declined refresh"); try await ready(model)
         try require(reads == beforeRefresh + 1 && model.entries.first { $0.path == "new" }?.state == .added && model.entries != rows && model.stagingState(try entry("new")) == .on, "F5 failed to rebuild status/groups from index")

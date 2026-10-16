@@ -9,7 +9,7 @@ struct CommitMessageEditor: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.borderType = .noBorder
-        let editor = MessageTextView(frame: NSRect(x: 0, y: 0, width: 600, height: 120))
+        let editor = CommitMessageTextView(frame: NSRect(x: 0, y: 0, width: 600, height: 120))
         editor.isRichText = false; editor.allowsUndo = true
         editor.isAutomaticLinkDetectionEnabled = false
         editor.linkTextAttributes = [.foregroundColor: NSColor.linkColor, .cursor: NSCursor.pointingHand]
@@ -28,7 +28,7 @@ struct CommitMessageEditor: NSViewRepresentable {
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
-        guard let editor = scroll.documentView as? MessageTextView else { return }
+        guard let editor = scroll.documentView as? CommitMessageTextView else { return }
         context.coordinator.updateModel(model)
         editor.isEditable = enabled && !model.loadingAmendMessage; editor.model = model
         editor.sourceLinkAvailable = { [weak model] in model?.messageFocusAvailable == true && model?.busy == false && model?.confirmingQuit == false }
@@ -47,7 +47,7 @@ struct CommitMessageEditor: NSViewRepresentable {
     }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
         coordinator.invalidate()
-        if let editor = scroll.documentView as? MessageTextView {
+        if let editor = scroll.documentView as? CommitMessageTextView {
             editor.dismissSpellingSuggestions(); editor.retireSourceStyling(); editor.delegate = nil; editor.model = nil; editor.onAttachmentChange = nil
         }
     }
@@ -90,7 +90,7 @@ struct CommitMessageEditor: NSViewRepresentable {
                 guard let editor, !self.invalidated, self.model.messageFocusAvailable,
                       self.model.messageFocusRequest > 0,
                       self.model.messageFocusRequest != self.model.appliedMessageFocusRequest,
-                      (editor as? MessageTextView)?.model === self.model,
+                      (editor as? CommitMessageTextView)?.model === self.model,
                       let owner = editor.window, owner.attachedSheet == nil,
                       editor.isEditable, !self.model.busy, !self.model.confirmingQuit,
                       self.model.error == nil,
@@ -127,7 +127,7 @@ struct CommitMessageEditor: NSViewRepresentable {
     }
 }
 
-private final class MessageTextView: ProjectMessageTextView {
+final class CommitMessageTextView: ProjectMessageTextView {
     weak var model: CommitWindowModel?
     var onAttachmentChange: (@MainActor () -> Void)?
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); applyProjectPresentation(); onAttachmentChange?() }
@@ -216,6 +216,17 @@ private final class MessageTextView: ProjectMessageTextView {
             guard let self else { return }
             self.insertText(text, replacementRange: self.selectedRange())
             self.window?.makeFirstResponder(self)
+        }
+    }
+    func performCommitMenuCommand(_ command:CommitCommandMenu.Command) {
+        guard let model,model.messageFocusAvailable,!model.inputsBlocked,window?.attachedSheet==nil else {return}
+        window?.makeFirstResponder(self)
+        switch command {
+        case .history:recentMessages()
+        case .hash:pick(false)
+        case .message:pick(true)
+        case .pasteFiles:pasteFileList()
+        default:break
         }
     }
     @objc private func pickHash() { pick(false) }

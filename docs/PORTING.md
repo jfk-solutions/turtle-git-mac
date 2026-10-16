@@ -1464,3 +1464,13 @@ in Store builds. Existing and related scopes are reused; file-only/sibling grant
 do not authorize temporary/backup siblings. Cancellation and retirement retain
 operation ownership while refusing late grants and writes. The unsigned injected
 scope checks cannot certify signed sandbox acceptance. See [save workflows](MERGE-SAVE-WORKFLOWS-PARITY.md#containing-folder-authorization--october-16-2026).
+
+## Commit native command family — October 16, 2026
+
+Commit now exposes owner-scoped native commands with source action icons and live
+checked/enabled states, current-action Control/Command-Return and dedicated macOS
+ReCommit/Commit & Push shortcuts. Source Shift-check category direction applies
+to checked files and staging; issue-field Return requests message focus. Sign-off
+identity reads share owned cancellation/Close/Quit and late-retirement gates.
+Menu repair and installation epochs reject detached/background targets. See
+[Commit parity](COMMIT-PARITY.md#native-commit-commands-selection-direction-and-keyboard-flow--october-16-2026).
