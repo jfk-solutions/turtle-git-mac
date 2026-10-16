@@ -631,7 +631,12 @@ struct LogCommandRequest: Identifiable {
     var onFindReferenceRefresh: (() -> Void)?
     @Published var findBlocked = false
     @Published var orderingBlocked = false
-    @Published var entries: [LogEntry] = []
+    private(set) var historyProjectionEpoch = UUID()
+    @Published var entries: [LogEntry] = [] { didSet { historyProjectionEpoch = UUID() } }
+    // IsSelectionContinuous compares the displayed and raw walk counts. Search,
+    // graph compression and rollups may leave adjacent visible rows with gaps.
+    private var historySourceRowCount: Int? { didSet { if oldValue != historySourceRowCount { historyProjectionEpoch = UUID() } } }
+    var historyHasHiddenRows: Bool { historySourceRowCount.map { $0 != entries.count } ?? false }
     @Published var revisionActions: [String: LogRevisionActions] = [:]
     @Published var actionFailures = Set<String>()
     private var actionQueue: [LogEntry] = []
@@ -1030,12 +1035,13 @@ struct LogCommandRequest: Identifiable {
     private struct HistoryRestore {
         let entries: [LogEntry], graph: [CommitGraphRow], rollups: [String: HistoryRollupInfo]
         let highlights: [String: [String: [NSRange]]]
+        let sourceRowCount: Int?
     }
     private var historyRestore: HistoryRestore?
     private var provisionalHistory: [LogEntry] = []
     private var nextHistoryPublication = 128
     private func restoreHistorySnapshot() {
-        if let snapshot = historyRestore { entries = snapshot.entries; graph = snapshot.graph; rollupInfo = snapshot.rollups; searchHighlights = snapshot.highlights }
+        if let snapshot = historyRestore { entries = snapshot.entries; graph = snapshot.graph; rollupInfo = snapshot.rollups; searchHighlights = snapshot.highlights; historySourceRowCount = snapshot.sourceRowCount }
         historyRestore = nil; provisionalHistory = []; nextHistoryPublication = 128
     }
     private func publishHistoryBatch(_ batch: [LogEntry], request: Int, cancellation: OperationCancellation, walk: HistoryWalkOptions, references: HistoryReferenceVisibility, states: [String: HistoryRollupChoice]) {
@@ -1046,7 +1052,7 @@ struct LogCommandRequest: Identifiable {
         // the walk length instead of rebuilding it for every arriving chunk.
         nextHistoryPublication = max(128, provisionalHistory.count * 2)
         let projection = CommitGraph.project(provisionalHistory, walk: walk, references: references, rollupStates: states)
-        entries = projection.entries; graph = projection.graph; rollupInfo = projection.rollups; searchHighlights = [:]
+        entries = projection.entries; graph = projection.graph; rollupInfo = projection.rollups; searchHighlights = [:]; historySourceRowCount = provisionalHistory.count
     }
     @Published private(set) var loadedRevisionCount = 0
     var loadingHistory: Bool { historyCancellation != nil }
@@ -1550,15 +1556,12 @@ struct LogCommandRequest: Identifiable {
         guard canStartHistoryTransport,selectedHistoryRanges.contains(range) else { return }
         onShowHistoryRange?(range)
     }
-    var continuousHistorySelection:Bool {
-        let indices=entries.indices.filter{selected.contains(entries[$0].hash)}
-        return indices.count==selected.count && indices.count>1 && indices.last! - indices.first! + 1 == indices.count
+    var continuousHistorySelection: Bool {
+        let indices = entries.indices.filter { selected.contains(entries[$0].hash) }
+        guard !indices.isEmpty, indices.count == selected.count else { return false }
+        return indices.count == 1 || (!historyHasHiddenRows && indices.last! - indices.first! + 1 == indices.count)
     }
-    var continuousRevisionSelection: Bool {
-        let indices=entries.indices.filter { selected.contains(entries[$0].hash) }
-        return !includesWorkingTree && indices.count==selected.count && indices.count>1 &&
-            indices.last! - indices.first! + 1 == indices.count
-    }
+    var continuousRevisionSelection: Bool { !includesWorkingTree && continuousHistorySelection }
     var canCompareRevisionSelection: Bool {
         let count=revisions.count
         return selected.count==count && (count==1 || count==2 || continuousRevisionSelection)
@@ -1614,7 +1617,7 @@ struct LogCommandRequest: Identifiable {
     var onFormatPatch: ((FormatPatchPreset) -> Void)?
     var formatPatchPreset: FormatPatchPreset? {
         guard !includesWorkingTree else { return nil }
-        return FormatPatchPreset.logSelection(orderedHashes: entries.filter { !$0.hash.isEmpty }.map(\.hash), selected: selected)
+        return FormatPatchPreset.logSelection(orderedHashes: entries.filter { !$0.hash.isEmpty }.map(\.hash), selected: selected, hasHiddenRows: historyHasHiddenRows)
     }
     var onReset: (String) -> Void = { _ in }
     var onFollowedFileComparison: ((RevisionComparisonSnapshot, OperationCancellation) -> Void)?
@@ -1810,7 +1813,7 @@ struct LogCommandRequest: Identifiable {
         guard !isInvalidated, !referencePickerBlocked, !busy || loadingHistory else { return }
         cancelSearchFilter()
         restoreHistorySnapshot()
-        historyRestore = HistoryRestore(entries: entries, graph: graph, rollups: rollupInfo, highlights: searchHighlights)
+        historyRestore = HistoryRestore(entries: entries, graph: graph, rollups: rollupInfo, highlights: searchHighlights, sourceRowCount: historySourceRowCount)
         onFindReferenceRefresh?()
         cancelPatchPreview()
         cancelRepositoryRefresh()
@@ -1903,6 +1906,7 @@ struct LogCommandRequest: Identifiable {
                 loadedHighlightFields = options.searchFields
                 searchHighlights = highlights
                 historyFilterActive = filterActive; rollupInfo = projection.rollups
+                historySourceRowCount = result.count
                 entries = projection.entries; graph = projection.graph
                 result = projection.entries
                 workingTreeSnapshot = working; workingIndexFiles = indexFiles; workingSubmodules = submodules
@@ -3500,12 +3504,12 @@ struct RevisionTable: NSViewRepresentable {
             model.revertCaptured(target.entries,mainline:target.mainline,selectedRows:target.selectedRows)
         }
         private final class CombineTarget: NSObject {
-            let entries: [LogEntry], offset: Int, head: String
-            init(entries: [LogEntry], offset: Int, head: String) { self.entries = entries; self.offset = offset; self.head = head }
+            let entries: [LogEntry], offset: Int, head: String, projection: UUID
+            init(entries: [LogEntry], offset: Int, head: String, projection: UUID) { self.entries = entries; self.offset = offset; self.head = head; self.projection = projection }
         }
         @objc func combineRevisions(_ sender: NSMenuItem) {
             guard !model.isInvalidated, !model.busy, !model.findBlocked, !model.orderingBlocked, !model.mergeActive, !model.bare,
-                  model.window?.attachedSheet == nil, let target = sender.representedObject as? CombineTarget else { return }
+                  model.window?.attachedSheet == nil, model.continuousRevisionSelection, let target = sender.representedObject as? CombineTarget, target.projection == model.historyProjectionEpoch, model.revisions.map(\.hash) == target.entries.map(\.hash) else { return }
             model.onCombineRevisions?(target.entries, target.offset, target.head)
         }
         var updating = false
@@ -3864,19 +3868,19 @@ struct RevisionTable: NSViewRepresentable {
                 item(LogBisectCommand.skip.title, #selector(bisectSkip), icon: .bisect, enabled: model.canBisect(.skip)); menu.addItem(.separator())
             }
             let combineRows = model.entries.indices.filter { model.selected.contains(model.entries[$0].hash) }
-            if !model.bare, !model.mergeActive, !model.includesWorkingTree, combineRows.count > 1,
-               combineRows.count == model.selected.count, combineRows.last! - combineRows.first! + 1 == combineRows.count,
+            if !model.busy, !model.bare, !model.mergeActive, !model.includesWorkingTree, combineRows.count > 1,
+               combineRows.count == model.selected.count, model.continuousRevisionSelection,
                let headRow = model.entries.firstIndex(where: \.isHead), combineRows.first! >= headRow, model.onCombineRevisions != nil {
-                let chosen = combineRows.map { model.entries[$0] }, offset = combineRows.first! - headRow, head = model.entries[headRow].hash
+                let chosen = combineRows.map { model.entries[$0] }, offset = combineRows.first! - headRow, head = model.entries[headRow].hash, projection = model.historyProjectionEpoch
                 let combine = item("Combine to one commit", #selector(combineRevisions(_:)), icon: .combine, enabled: false)
-                combine.representedObject = CombineTarget(entries: chosen, offset: offset, head: head); combine.isHidden = true
+                combine.representedObject = CombineTarget(entries: chosen, offset: offset, head: head, projection: projection); combine.isHidden = true
                 let request = OperationCancellation(); combineMenuCancellation = request
                 let repository = model.repository
                 combineMenuTask = Task { [weak self, weak combine] in
                     do {
                         guard let self else { return }
                         try await self.model.validateCombineSelection(chosen,offset:offset,head:head,token:request)
-                        guard !Task.isCancelled,!request.isCancelled,!self.model.isInvalidated,self.model.selected == Set(chosen.map(\.hash)) else { return }
+                        guard !Task.isCancelled,!request.isCancelled,!self.model.isInvalidated,self.model.historyProjectionEpoch == projection,self.model.continuousRevisionSelection,self.model.selected == Set(chosen.map(\.hash)) else { return }
                         combine?.isHidden = false; combine?.isEnabled = !self.model.busy && !self.model.findBlocked && !self.model.orderingBlocked && self.model.window?.attachedSheet == nil
                     } catch { /* Source omits Combine when ancestry cannot be resolved. */ }
                 }
@@ -4099,18 +4103,18 @@ struct RevisionTable: NSViewRepresentable {
 @MainActor private final class HistoryMenuActionTarget:NSObject {
     private weak var coordinator:RevisionTable.Coordinator?
     private weak var model:LogWindowModel?
-    private let generation:Int,selection:Set<String>,hashes:[String],references:[[RevisionReference]]
+    private let generation:Int,projection:UUID,selection:Set<String>,hashes:[String],references:[[RevisionReference]]
     private var consumed=false
     init(_ coordinator:RevisionTable.Coordinator) {
         self.coordinator=coordinator;let model=coordinator.model;self.model=model
-        generation=model.contextMenuGeneration;let selected=model.selected;selection=selected
+        generation=model.contextMenuGeneration;projection=model.historyProjectionEpoch;let selected=model.selected;selection=selected
         let entries=model.entries.filter{selected.contains($0.hash)}
         hashes=entries.map(\.hash);references=entries.map(\.references)
     }
     private func invoke(_ selector:Selector,sender:NSMenuItem? = nil) {
         guard !consumed,let coordinator,let model,coordinator.model === model,!model.isInvalidated,
               !model.busy,!model.findBlocked,!model.orderingBlocked,!model.referencePickerBlocked,
-              model.window?.attachedSheet==nil,model.contextMenuGeneration==generation,
+              model.window?.attachedSheet==nil,model.contextMenuGeneration==generation,model.historyProjectionEpoch==projection,
               !selection.isEmpty,model.selected==selection else { return }
         let entries=model.entries.filter{selection.contains($0.hash)}
         guard entries.count==selection.count,entries.map(\.hash)==hashes,entries.map(\.references)==references else { return }

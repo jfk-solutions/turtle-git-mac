@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+Log range commands now follow source raw/displayed-row continuity through search,
+graph projection and streamed rollback. Single/two-row exceptions remain; Compare,
+Format Patch and Combine no longer treat hidden rows as adjacent selection.
+Captured popup/Combine replies expire on projection replacement. See
+[range selection](LOG-POPUP-VARIANTS.md#filtered-and-projected-range-selection--october-16-2026).
+Physical, full consumer masks and signed acceptance remain open.
+
 Changed Files and Rebase Revision Files now prepare Revert per file so copied/
 missing historical files can use source Ignore/Abort and completed-count results.
 Root comparisons expose empty-tree Revert, and historical export reads only the

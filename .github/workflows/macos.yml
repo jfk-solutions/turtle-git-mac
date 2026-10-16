@@ -372,7 +372,7 @@ jobs:
       - name: Native submodule progress output controls
         run: python3 scripts/test-submodule-progress-output.py
       - name: Native Log revision popup variants
-        run: python3 scripts/test-log-popup-variants.py --only variants --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+        run: python3 scripts/test-log-popup-variants.py --only ranges --only variants --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Log Revert original selection context
         run: python3 scripts/test-log-revert-selection.py --only selection --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Browser revision selection

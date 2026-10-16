@@ -90,6 +90,13 @@ leaves the empty stash view until a full Refresh. You can refresh again or close
 the window while history or diff data is loading. An active deletion must finish
 before normal closure; **Abort** in its confirmation leaves the entries unchanged.
 
+When a Log display filter or graph rollup hides commits, adjacent visible rows
+may not form a continuous range. Compare and Format Patch still support two
+selected revisions; ranges of three or more require no hidden display rows.
+Combine requires a continuous selection and its checked-out-branch validation.
+An all-matching filter and a complete file-scoped Follow walk keep their normal
+range commands.
+
 ## Repository Browser and references
 
 Repository Browser reads the tree at a pinned revision. Navigate folders, inspect

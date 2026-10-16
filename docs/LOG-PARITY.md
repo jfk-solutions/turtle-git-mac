@@ -2719,3 +2719,11 @@ commands retain the synthetic row without resolving an empty Git revision.
 Contiguous ranges including the working tree compare the oldest selected commit
 with live contents; Revert handoffs exclude the synthetic row. See
 [implementation and exact acceptance](LOG-POPUP-VARIANTS.md).
+
+
+The [range-selection continuation](LOG-POPUP-VARIANTS.md#filtered-and-projected-range-selection--october-16-2026)
+now carries raw-versus-displayed walk counts through streaming/rollback and applies
+the source continuity rule to Compare, Format Patch and Combine. Popup and late
+Combine validation targets also expire when the display projection changes.
+Ordinary picker Logs keep the ordinary source menu mask. Physical/signed and full
+consumer-mask certification remain open.

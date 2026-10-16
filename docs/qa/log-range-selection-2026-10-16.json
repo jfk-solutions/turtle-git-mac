@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "e8bda250a9386c63accd7e8a55890cdcf796aa6d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "GitLogListBase.cpp IsSelectionContinuous: one row true; multiple require raw/shown count equality and adjacent indices",
+    "GitLogListBase.cpp ID_COMPARETWO, ID_CREATE_PATCH and ID_COMBINE_COMMIT explicit selection exceptions",
+    "GitLogListBase constructor and LogDlg.h SetSelect: ordinary picker Logs retain ordinary menu mask",
+    "Existing Core FormatPatchPreset.logSelection hasHiddenRows argument and its unchanged FormatPatchTests policy cases"
+  ],
+  "implementation": [
+    "Raw walk row count accompanies incremental/final graph projection and restores on failed/cancelled load",
+    "Compare and Format Patch three-plus selections use source continuity; two-row exceptions retained; Combine requires full continuity",
+    "Active all-matching search remains continuous; file-scoped Follow uses its own raw walk and gains no whole-repository ancestry restriction",
+    "All revision popup relays capture projection epoch in addition to generation/selection/reference snapshots",
+    "Combine validates its captured projection before revealing/enabling an asynchronous result and before dispatch; busy loads start no extra Combine read",
+    "Ordinary picker Logs retain original source commands; no invented read-only mask",
+    "Native streaming case asserts hidden-row state on prefix/rollback/final state; user guide, offline Help and CI runner updated"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/log-range-selection-build.log",
+    "anomalous_exit_zero_diagnostics": 4
+  },
+  "core": {
+    "changed": false,
+    "run": false,
+    "reason": "Native model/menu/fixture changes only. The existing Core FormatPatch hidden-row policy was inspected and remains unchanged; no fresh Core execution claimed."
+  },
+  "native": {
+    "initial_log": "build/qa/log-range-selection-native.log",
+    "initial_failed_receiver": 33322,
+    "failure": "Follow fixture replaced its whole one-line file during rename; Git classified D file and A renamed and returned only three Follow rows.",
+    "diagnosis": "Independent private Git reproduction returned row8,row6,row4 with delete/add classification at the rename commit.",
+    "repair": "Retain 32 stable context lines while changing the final row, so the test exercises a real rename. Original five-row Follow assertion retained with explicit state diagnostics.",
+    "final_exit": 0,
+    "final_log": "build/qa/log-range-selection-native-repair.log",
+    "passing_cases": 8,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "receivers_reaped": [
+      33783,
+      34147,
+      34519,
+      34585,
+      34657,
+      34770,
+      34890,
+      36559
+    ],
+    "checks": [
+      "Actual Log menus omit Compare/Format Patch/Combine for three filtered adjacent rows when the raw walk has hidden rows",
+      "Two filtered rows retain endpoint comparison/inclusive Format Patch but omit Combine; single filtered row remains continuous",
+      "An active all-matching filter retains normal continuous ranges",
+      "Labeled projection hides rows and refuses fabricated ranges",
+      "Actual Follow across rename retains file-scoped continuity despite unrelated repository commits",
+      "Failed history reload restores old displayed rows and hidden-row count",
+      "Retained native popup refuses old clipboard action after projection replacement with unchanged selected hashes and load generation",
+      "Held real Combine ancestry process retains Quit/read ownership; its valid old result cannot reveal or dispatch stale projected menu item",
+      "Retained live streaming graph/labels/progress, actual cancellation and prefix rollback, final UTF-8/order, plus new hidden-row state checks",
+      "Retained single/root/merge/two/continuous/discontinuous/working/bare popups, clipboard/Find and original-icons/one-use payloads",
+      "Retained real history Revert/Combine preparation, partial message/Commit handoffs, rollback and owned ancestry cancellation"
+    ],
+    "ownership": "All nine attempted receivers reaped and independently absent. New fixture closes owned window and asserts held helper/sleep pair gone; private clipboard/preferences/repos cleaned. Retained cases keep their owned-process assertions."
+  },
+  "limits": [
+    "No complete hosted CI result for this commit",
+    "No new popup screenshots or physical tracking/VoiceOver certification",
+    "Every consumer mask and all filter/rollup/Follow combinations remain incomplete acceptance",
+    "Ordinary picker source mask verified from source; no complete factory/physical picker certification added",
+    "Signed Finder/App Store/full application parity remain open"
+  ]
+}

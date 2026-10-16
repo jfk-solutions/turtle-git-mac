@@ -14,6 +14,7 @@ import TurtleGitCore
             fputs("Log stream failed: \(error)\n", stderr); exit(1) }
     }
     @MainActor static func verify() async throws {
+        NSApp.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), repo = GitRepository(root: root, executable: git)
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Stream QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
@@ -41,16 +42,16 @@ import TurtleGitCore
         model.reload()
         try await wait { model.loadedRevisionCount == 3 && model.loadingHistory && model.entries.count==3 }
         try require(model.busy && LogWindowModel.activeHistoryLoads > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Incremental walk has no live rows/progress/Quit ownership")
-        try require(model.graph.count==3 && model.entries.first?.isHead==true && model.entries.map(\.subject)==["row 2 雪","row 1 雪","row 0 雪"],"Live prefix lacks graph/labels/order")
+        try require(!model.historyHasHiddenRows && model.graph.count==3 && model.entries.first?.isHead==true && model.entries.map(\.subject)==["row 2 雪","row 1 雪","row 0 雪"],"Live prefix lacks graph/labels/order")
         model.invalidate()
         try await wait { LogWindowModel.activeHistoryLoads == 0 }
-        try require(model.entries.isEmpty && !model.loadingHistory, "Cancelled stream published incomplete rows")
+        try require(model.entries.isEmpty && !model.loadingHistory && !model.historyHasHiddenRows, "Cancelled stream published incomplete rows")
         try FileManager.default.removeItem(at: root.appendingPathComponent("slow"))
         let final = LogWindowController(repository: slow, access: nil, labelDefaults: prefs, savesGeometry: false), next = final.model
         defer { next.invalidate(); final.close() }
         next.showWorkingTree = false; next.reload()
         try await wait { !next.busy && !next.loadingHistory && next.entries.count == 3 && LogWindowModel.activeHistoryLoads == 0 }
-        try require(next.error == nil && next.loadedRevisionCount == 3 && next.entries.map(\.subject) == ["row 2 雪", "row 1 雪", "row 0 雪"], "Finished streamed history changed final row order/text")
+        try require(next.error == nil && !next.historyHasHiddenRows && next.loadedRevisionCount == 3 && next.entries.map(\.subject) == ["row 2 雪", "row 1 雪", "row 0 雪"], "Finished streamed history changed final row order/text")
         owner.close(); final.close()
         print("Log stream: live complete rows/graph/labels and count before Git exit, actual owned process cancellation/retirement/Quit, cancelled prefix rollback and final UTF-8 row/order preserved. Private repo/preferences; owned windows closed.")
     }

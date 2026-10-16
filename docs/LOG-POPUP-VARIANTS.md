@@ -61,3 +61,46 @@ full application parity remain open. The connected
 preserves mixed working-tree/root, merge and stash batch semantics. Incomplete/
 discontinuous Follow history still needs further source comparison and acceptance;
 the synthetic row is never passed to Git as a commit.
+
+
+## Filtered and projected range selection — October 16, 2026
+
+Pinned `GitLogListBase::IsSelectionContinuous` treats one selected row as
+continuous. For multiple rows, the shown list must contain every loaded walk row
+and the selected indices must be adjacent. It does not infer continuity merely
+from adjacency after a filter, graph compression or rollup has hidden rows.
+
+The native Log now retains the raw walk row count with each displayed projection.
+Compare for three or more selections, Format Patch ranges of three or more and
+Combine use this source rule. Two-row endpoint comparison and Format Patch keep
+the source's explicit exception even when other rows are hidden; Combine still
+requires continuity. A single filtered row remains continuous. An active filter
+that matches every row does not disable range commands. File-scoped/Follow walks
+use their own raw result rather than treating unrelated repository commits as
+hidden display rows. Follow does not acquire a new single-tip or ancestry rule.
+
+Incremental history prefixes publish their source count with their graph/rows.
+Cancellation or failure restores the previous coherent count and display. A
+finished walk counts its optional working-tree row consistently with the displayed
+list. Existing limits define the loaded walk, not an assertion that the repository
+history has no additional commits.
+
+Revision popup relays now capture the display projection epoch in addition to
+load generation, selected hashes and references. Replacing rows/order expires an
+old popup even when its selected entries remain unchanged. Combine's asynchronous
+ancestry check and final dispatch retain the same projection identity; late
+validation cannot enable an old menu item after filtering/reordering. Busy history
+loads do not start new Combine validation reads from their partial prefix.
+
+Ordinary revision picker Logs retain the ordinary upstream Log menu mask.
+`SetSelect` changes selection behavior; it does not impose an invented read-only
+command set. Dedicated Rebase/Blame/RefLog lists retain their existing native
+consumer-specific command implementations. This continuation addresses range
+eligibility, not complete mask certification for every consumer.
+
+See [grouped native evidence](qa/log-range-selection-2026-10-16.json) for actual
+filtered/labeled/Follow menus, captured patch ranges, failed-load restoration,
+held Combine read and retained popup/history/streaming checks. Core code and the
+existing `FormatPatchPreset.hasHiddenRows` policy are unchanged. Full physical
+menu tracking, all rollup/filter/Follow combinations, visual/VoiceOver behavior,
+signed Finder and App Store acceptance remain open.
