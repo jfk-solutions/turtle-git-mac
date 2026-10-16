@@ -886,6 +886,7 @@
         "docs/qa/browser-revisions-2026-10-16.json",
         "docs/qa/browser-tree-comparisons-2026-10-15.json",
         "docs/qa/help-book-2026-10-15.json",
+        "docs/qa/prepared-submodule-2026-10-16.json",
         "docs/qa/repository-browser-2026-10-05.json",
         "docs/qa/repository-browser-actions-2026-10-13.json",
         "docs/qa/repository-browser-export-2026-10-05.json",
@@ -1593,6 +1594,7 @@
         "docs/qa/log-tag-dates-2026-10-06.json",
         "docs/qa/log-tag-search-2026-10-06.json",
         "docs/qa/log-working-commands-2026-10-15.json",
+        "docs/qa/prepared-submodule-2026-10-16.json",
         "docs/qa/primary-live-presentation-2026-10-16.json",
         "docs/qa/repository-presentation-2026-10-15.json",
         "docs/qa/shared-unversioned-2026-10-07.json",
@@ -3187,6 +3189,7 @@
       "qa_records": [
         "docs/qa/changed-files-actions-2026-10-15.json",
         "docs/qa/changed-files-recovery-2026-10-16.json",
+        "docs/qa/prepared-submodule-2026-10-16.json",
         "docs/qa/submodule-handoffs-2026-10-14.json"
       ]
     },

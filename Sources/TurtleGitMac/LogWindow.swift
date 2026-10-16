@@ -17,6 +17,7 @@ struct PreparedFileComparisonMark {
     let path: String
     let revision: String
     var workingAccess: WorkingComparisonAccess? = nil
+    var isDirectory = false
     func label(for path: String) -> String {
         if let workingAccess { return workingAccess.file.path }
         if revision.isEmpty { return self.path == path ? "Working tree" : self.path + ":Working tree" }

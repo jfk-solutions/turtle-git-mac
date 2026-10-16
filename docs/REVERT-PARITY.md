@@ -247,8 +247,8 @@ only once per saved identity, preserving a later local mark.
 
 Comparison dispatch uses the existing owned prepared-file route. Marked file reads,
 source/default alternative-tool choice and Finder mark consumption retain that
-route's ownership. Directory/submodule prepared comparisons remain a separate gap;
-the new file actions do not pretend that gitlinks are ordinary disk files.
+route's ownership. The prepared-submodule continuation in [Submodule Diff parity](SUBMODULE-DIFF-PARITY.md)
+now handles gitlink marks through Submodule Diff; Save As remains a file action.
 
 Save As owns its NSSavePanel and copy worker through cancellation/retirement,
 including a held destination reply and forced owner close. The suggested working

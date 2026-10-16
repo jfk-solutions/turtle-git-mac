@@ -242,7 +242,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     func invalidate() { closed = true; cancelPendingInput();actionGeneration=UUID();fileActionToken?.cancel();cancelFilePicker();closeAfterFileAction=false; comparisonSessions.values.forEach { $0.cancel() }; patchTokens.values.forEach { $0.cancel() }; patchTokens.removeAll(); loadToken?.cancel(); loadToken = nil; patchGeneration += 1; busy = false }
     var onLog: (String?) -> Void = { _ in }
     var onFileLog: (String, String?) -> Void = { _, _ in }
-    var onSubmoduleCompare: (String, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _ in }
+    var onSubmoduleCompare: (String, String?, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _, _ in }
     var comparisonWindows: [String: FileComparisonWindowController] = [:]
     @Published var fileColumns: StatusListColumnSettings
     @Published var focusedFile: String?
@@ -423,7 +423,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         for file in files {
             guard !closed, !token.isCancelled else { return }
             if let openComparedFile { openComparedFile(snapshot, file); continue }
-            if file.isSubmodule { onSubmoduleCompare(file.path, snapshot.from, snapshot.to); continue }
+            if file.isSubmodule { onSubmoduleCompare(file.path, file.oldPath, snapshot.from, snapshot.to); continue }
             let key = file.path + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey
             let controller = comparisonWindows[key] ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
             controller.onClosed = { [weak self] in self?.comparisonWindows.removeValue(forKey: key) }

@@ -1506,9 +1506,10 @@ import UniformTypeIdentifiers
         controller.model.setScope(paths)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil) {
-        let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree")
-        let controller = submoduleDiffWindows[key] ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to)
+    var submoduleDiffPresentation:((SubmoduleDiffWindowController)->Void)?
+    private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false) {
+        let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree") + "\0" + (fromPath ?? path) + "\0" + String(fromIndex)
+        let controller = submoduleDiffWindows[key] ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to, fromPath:fromPath,fromIndex:fromIndex,preferences:fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.submoduleDiffWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] child, hash in self?.showLog(repository: child, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
         controller.model.onStatus = { [weak self] child in self?.showStatus(repository: child, access: access) }
@@ -1526,7 +1527,8 @@ import UniformTypeIdentifiers
         }
         controller.onBisect = { [weak self] in self?.showBisect(repository: repository, access: access, operation: $0) }
         submoduleDiffWindows[key] = controller
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.load()
+        if let submoduleDiffPresentation {submoduleDiffPresentation(controller)} else {controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)}
+        controller.model.load()
     }
     private func showRevisionComparison(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = []) {
         let baseKey = repository.root.path + "\0" + from.label + "\0" + to.label + "\0scope\0" + paths.joined(separator: "\0")
@@ -1611,10 +1613,10 @@ import UniformTypeIdentifiers
         }
         model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
         model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
-        model.onSubmoduleCompare = { [weak self] path, old, new in
+        model.onSubmoduleCompare = { [weak self] path, oldPath, old, new in
             let from = old == .emptyTree ? "" : old == .workingTree ? "Working tree" : old.label
             let to = new == .emptyTree ? "" : new == .workingTree ? nil : new.label
-            self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: from, to: to)
+            self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: from, to: to,fromPath:oldPath)
         }
     }
     var fileComparisonPreferences: UserDefaults = .standard
@@ -1690,6 +1692,15 @@ import UniformTypeIdentifiers
     }
     func showPreparedFileComparison(repository: GitRepository, access: RepositoryAccessLease?, marked: PreparedFileComparisonMark, current: PreparedFileComparisonMark, owner: NSWindow? = nil) {
         prepareFileComparisons(repository: repository, access: access, selectedCount: 2, owner: owner) { [self] token in
+            if current.isDirectory || marked.isDirectory {
+                guard current.isDirectory,marked.workingAccess == nil else {throw SubmoduleComparisonFailure.unsupported}
+                try token.check()
+                showSubmoduleDiff(repository:repository,access:access,path:current.path,
+                    from:marked.revision.isEmpty ? "Working tree":marked.revision,
+                    to:current.revision.isEmpty ? nil:current.revision,
+                    fromPath:marked.path,fromIndex:marked.revision.isEmpty && current.revision.isEmpty)
+                return
+            }
             if let workingAccess = marked.workingAccess {
                 if GitRuntime.isAppStoreBuild && (!workingAccess.permission.hasSecurityScope || !workingAccess.permission.contains(workingAccess.file)) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 guard !token.isCancelled, !confirmingQuit else { return }
@@ -1746,7 +1757,7 @@ import UniformTypeIdentifiers
             guard !confirmingQuit, !cancellation.isCancelled else { return }
             if let fileComparisonPresentation { fileComparisonPresentation(snapshot, file); continue }
             if file.isSubmodule {
-                showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label)
+                showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label,fromPath:file.oldPath)
                 continue
             }
             let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey
@@ -2484,8 +2495,8 @@ import UniformTypeIdentifiers
         revisionFiles.onFileLog={ [weak self] path,revision in self?.showLog(repository:repository,access:access,paths:[path],endRevision:revision) }
         revisionFiles.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
         revisionFiles.onSubmoduleLog={ [weak self] child,revision in self?.showLog(repository:GitRepository(root:child,executable:repository.executable),access:access,paths:[],endRevision:revision) }
-        revisionFiles.onSubmoduleCompare={ [weak self] path,from,to in
-            self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:from == .emptyTree ? "" : from.label,to:to == .workingTree ? nil : to.label)
+        revisionFiles.onSubmoduleCompare={ [weak self] path,oldPath,from,to in
+            self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:from == .emptyTree ? "" : from.label,to:to == .workingTree ? nil : to == .emptyTree ? "":to.label,fromPath:oldPath)
         }
         let revisionLog = controller.model.revisionMenuLog
         revisionLog.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }

@@ -328,7 +328,7 @@ are not ordinary editor Undo actions.
 
 Submodule Add asks for the repository, destination path and optional branch.
 Update works on the selected submodules and offered init/recursive/update choices.
-A submodule is a separate repository. Inspect its own status and commit pointer
+Revert can mark a submodule for comparison. With working-copy marks, Submodule Diff compares its indexed commit with the checkout and labels the From group **Index**. Historical renamed gitlinks retain both paths. A submodule is a separate repository. Inspect its own status and commit pointer
 when the superproject reports a change.
 
 New Worktree creates another checkout attached to the same repository storage.

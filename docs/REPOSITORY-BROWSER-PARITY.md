@@ -576,3 +576,15 @@ native divider/reopen/private-domain, production Reset sheet, stale header,
 keyboard and retained revision/table/lifecycle checks. Physical mouse/keyboard,
 minimum-size/DPI, VoiceOver, signed Finder/sandbox and complete Browser/application
 acceptance remain open. No whole-dialog visual certification is claimed.
+
+
+### Hosted compiler compatibility — October 16, 2026
+
+The actual Xcode 16.4/Swift 6.1.2 run failed at divider restoration because the
+saved Double width and native CGFloat bounds made generic min/max subtraction
+ambiguous. The native restore now explicitly converts into CGFloat before
+clamping and positioning. Local Debug compilation and both retained native
+presentation engine cases pass, including saved width/reopen, clamps, Reset,
+viewport and command ownership. The newer local SDK does not prove the repaired
+hosted build; that confirmation remains pending. See
+[the connected batch record](qa/prepared-submodule-2026-10-16.json).

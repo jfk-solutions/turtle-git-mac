@@ -30,14 +30,17 @@ import TurtleGitCore
 
 private final class SubmoduleDiffNativeWindow: NSWindow {
     var refresh: () -> Void = {}
+    var commandKeyWindow: () -> NSWindow? = {NSApp.keyWindow}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.keyCode == 96 { refresh(); return true }
+        if event.window === self,commandKeyWindow() === self,attachedSheet == nil,event.keyCode == 96,
+           event.modifierFlags.intersection([.command,.control,.option,.shift]).isEmpty { refresh(); return true }
         return super.performKeyEquivalent(with: event)
     }
 }
 @MainActor final class SubmoduleDiffWindowController: NSWindowController, NSWindowDelegate {
     let model: SubmoduleDiffWindowModel
     var onClosed: () -> Void = {}
+    var commandKeyWindow: () -> NSWindow? = {NSApp.keyWindow}
     private var closed = false
     private(set) var updateOptions: SubmoduleUpdateWindowController?
     private(set) var updateProgress: SubmoduleUpdateProgressWindowController?
@@ -45,13 +48,13 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     var onBisect: (BisectOperation) -> Void = { _ in }
     private var pendingSheetAction: (() -> Void)?
     private let preferences: UserDefaults
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String? = nil, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults = .standard) {
         self.preferences = preferences
-        model = SubmoduleDiffWindowModel(repository: repository, access: access, path: path, from: from, to: to)
-        let size = NSSize(width: 900, height: 320)
+        model = SubmoduleDiffWindowModel(repository: repository, access: access, path: path, from: from, to: to, fromPath: fromPath, fromIndex: fromIndex)
+        let size = NSSize(width: 900, height: fromPath != nil && fromPath != path && !fromIndex ? 360:320)
         let window = SubmoduleDiffNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Submodule Diff", preferences: preferences); window.isReleasedWhenClosed = false
-        window.contentMinSize = NSSize(width: 800, height: 320)
+        window.contentMinSize = NSSize(width: 800, height: size.height)
         window.contentViewController = NSHostingController(rootView: SubmoduleDiffDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         model.close = { [weak window] in window?.close() }
@@ -59,6 +62,7 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
         NotificationCenter.default.addObserver(self, selector: #selector(sheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         window.setContentSize(size); window.center()
         window.refresh = { [weak model] in model?.load() }
+        window.commandKeyWindow = { [weak self] in self?.commandKeyWindow() }
 
         DialogGeometry.attach(window, identifier: "SubmoduleDiffDialog", legacyName: "SubmoduleDiffDialog")
     }
@@ -140,6 +144,8 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     let access: RepositoryAccessLease?
     let path: String
     let from: String
+    let fromPath: String
+    let fromIndex: Bool
     let to: String?
     @Published var details: SubmoduleComparison?
     @Published var busy = false
@@ -149,7 +155,12 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     var onStatus: (GitRepository) -> Void = { _ in }
     var onCompare: (GitRepository, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _ in }
     var onUpdate: (@escaping () -> Void) -> Void = { _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String?) { self.repository = repository; self.access = access; self.path = path; self.from = from; self.to = to; readCommand = { try await repository.prepareSubmoduleComparison($0, action: $1, cancellation: $2) }; readDetails = { try await repository.submoduleComparison(path: path, from: from, to: to, cancellation: $0) } }
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String?, fromPath: String? = nil, fromIndex: Bool = false) {
+        self.repository = repository; self.access = access; self.path = path; self.from = from; self.to = to
+        self.fromPath = fromPath ?? path; self.fromIndex = fromIndex
+        readCommand = {try await repository.prepareSubmoduleComparison($0,action:$1,cancellation:$2)}
+        readDetails = {try await repository.submoduleComparison(path:path,from:from,to:to,fromPath:fromPath,fromIndex:fromIndex,cancellation:$0)}
+    }
     @discardableResult func cancelRead() -> Bool { guard let token else { return false }; token.cancel(); return true }
     func invalidate() { retired = true; generation = UUID(); token?.cancel(); updateTicket = nil; hasUpdateChild = false }
     func requestClose() -> Bool { if hasUpdateChild { return false }; if cancelRead() { closeAfterRead = true; return false }; return !confirmingQuit }
@@ -223,7 +234,7 @@ private struct SubmoduleDiffDialog: View {
         }
     }
     private func section(_ side: SubmoduleComparisonSide, details: SubmoduleComparison, to: Bool) -> some View {
-        GroupBox(to ? "To" + (details.toWorkingTree ? " (Working tree)" : "") : "From") {
+        GroupBox(to ? "To" + (details.toWorkingTree ? " (Working tree)" : "") : "From" + (model.fromIndex ? " (Index)":"")) {
             VStack(alignment: .leading, spacing: 9) {
                 if to {
                     HStack {
@@ -259,7 +270,8 @@ private struct SubmoduleDiffDialog: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Submodule \"\(model.path)\"").textSelection(.enabled).lineLimit(1).truncationMode(.middle)
+            Text("Submodule " + String(reflecting:model.path)).textSelection(.enabled).lineLimit(1).truncationMode(.middle).help(model.path)
+            if model.fromPath != model.path && !model.fromIndex {Text("Renamed from " + String(reflecting:model.fromPath)).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)}
             if let details = model.details { section(details.from, details: details, to: false); section(details.to, details: details, to: true) }
             else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
         }.padding(12).disabled(model.busy || model.confirmingQuit || model.retired || model.hasUpdateChild)

@@ -1,0 +1,146 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "18b98ba60e885d50c38a9903f31c23b79862ad4a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "GitStatusListCtrl.cpp PREPAREDIFF/PREPAREDIFF_COMPARE and CGitDiff::Diff/SubmoduleDiff working-copy index baseline",
+    "SubmoduleDiffDlg.cpp From/To metadata, Log/Compare/Update and refresh ownership"
+  ],
+  "scope": [
+    "Revert gitlink Mark/Compare with file-only Save As and mixed-target error",
+    "Index-to-current checkout metadata rather than HEAD; unborn index, dirty state and pinned child command objects",
+    "Historical old/current gitlink paths through Changed Files, Rebase Revision Files and shared comparison routing; read-only staged direct rename discovery",
+    "Renamed path/native header height, visible quoted control characters and unchanged literal Git arguments",
+    "Owning unmodified F5 and existing cancellation/close-after-drain/Update lifetime",
+    "Repository Browser CGFloat divider conversion for the actual hosted Xcode 16.4 compiler failure"
+  ],
+  "core": {
+    "log": "build/qa/prepared-submodule-core-2026-10-16.log",
+    "filter": "SubmoduleComparisonTests",
+    "tests": 17,
+    "failures": 0,
+    "repeat_after_native_only_repairs": false
+  },
+  "builds": [
+    {
+      "log": "build/qa/prepared-submodule-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3
+    },
+    {
+      "log": "build/qa/prepared-submodule-ci-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/prepared-submodule-display-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "engines": [
+      "/usr/bin/git",
+      "build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/prepared-submodule-native-2026-10-16.log",
+        "exit": 1,
+        "receivers_reaped": [],
+        "prepared_passes": 0,
+        "handoff_passes": 0,
+        "revert_passes": 0,
+        "browser_passes": 0
+      },
+      {
+        "log": "build/qa/prepared-submodule-native-fixture-2026-10-16.log",
+        "exit": 0,
+        "receivers_reaped": [
+          70539,
+          70645,
+          70765,
+          70905,
+          71053,
+          71100
+        ],
+        "prepared_passes": 2,
+        "handoff_passes": 2,
+        "revert_passes": 2,
+        "browser_passes": 0
+      },
+      {
+        "log": "build/qa/prepared-submodule-affected-native-2026-10-16.log",
+        "exit": 0,
+        "receivers_reaped": [
+          71270,
+          71373,
+          71484,
+          71521
+        ],
+        "prepared_passes": 2,
+        "handoff_passes": 0,
+        "revert_passes": 0,
+        "browser_passes": 2
+      }
+    ],
+    "all_owned_receiver_pids_absent": true,
+    "owned_receiver_pids": [
+      70539,
+      70645,
+      70765,
+      70905,
+      71053,
+      71100,
+      71270,
+      71373,
+      71484,
+      71521
+    ],
+    "final_scope": "Six prepared/handoff/Revert family runs pass. Native-only display and CI CGFloat repairs then pass two affected prepared runs and two retained Browser presentation runs; no complete family or Core rerun."
+  },
+  "repairs": [
+    "Initial receiver used revisionFileComparison without its required paths argument. Use whole-range revisionComparison for the actual R100 fixture; compilation failed before any receiver launched.",
+    "Capture review found the single-line title truncating a newline filename. Quoted visible control characters repair the display while Git targets remain unchanged; rechecked only prepared native consumers.",
+    "Hosted job 117193081745 failed at RepositoryBrowserWindow.swift:601 with ambiguous Double/CGFloat subtraction on Swift 6.1.2/Xcode 16.4. Explicitly convert saved width and arithmetic to CGFloat; local build and affected Browser presentation pass. Hosted confirmation remains pending."
+  ],
+  "hosted_failure": {
+    "run": 38965937356,
+    "job": 117193081745,
+    "commit": "18b98ba60e885d50c38a9903f31c23b79862ad4a",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/38965937356",
+    "compiler": "Apple Swift 6.1.2; Xcode 16.4 (16F6)",
+    "error": "RepositoryBrowserWindow.swift:601:128: ambiguous use of operator '-'",
+    "new_commit_confirmed": false
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/submodule-renamed-light.png",
+      "sha256": "0b3d1bc65b78c4214357dffa67bcd8bd04eaeaa399e96d65416a17a65b7de817",
+      "width": 1800,
+      "height": 704,
+      "review": "Actual passive native compositor capture. Complete quoted control-character paths, From/To revisions and subjects, type, Log/Compare controls fit in light/dark. Inactive title/buttons retain current user focus. Historical identical gitlinks remain identical despite a dirty newer checkout."
+    },
+    {
+      "path": "docs/site/assets/submodule-renamed-dark.png",
+      "sha256": "5b93a9158b974ff6aecf9a7bb392d2cb7a749940483c949d991e4be6f264be82",
+      "width": 1800,
+      "height": 704,
+      "review": "Actual passive native compositor capture. Complete quoted control-character paths, From/To revisions and subjects, type, Log/Compare controls fit in light/dark. Inactive title/buttons retain current user focus. Historical identical gitlinks remain identical despite a dirty newer checkout."
+    }
+  ],
+  "documentation": {
+    "help_source_files": 50,
+    "help_source_bytes": 1967310,
+    "built_help_matches_source": true,
+    "site_documents": 259,
+    "site_unresolved_fragments": 0
+  },
+  "limitations": [
+    "Prepared directory actions retain the source submodule interpretation; arbitrary directory inventories are not introduced.",
+    "Exhaustive copy/rename/deinitialized and foreign-object gitlink combinations remain open.",
+    "Physical menus/keyboard/Finder, minimum-OS and signed sandbox acceptance remain unverified.",
+    "The local newer SDK cannot certify the repaired older hosted compiler build or a full hosted integration pass.",
+    "Light/dark captures prove this renamed-dialog layout, not all upstream windows or App Store readiness."
+  ]
+}

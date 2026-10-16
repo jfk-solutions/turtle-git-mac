@@ -329,21 +329,25 @@ private final class RevertNativeWindow:NSWindow {
     func canPrepareFile(_ snapshot:StatusFileMenuSnapshot)->Bool {
         !snapshot.entries.isEmpty && !snapshot.markIsDirectory && snapshot.mark.map{$0.index != "D"} == true
     }
+    func canMarkForComparison(_ snapshot:StatusFileMenuSnapshot)->Bool {
+        guard !snapshot.entries.isEmpty,let mark = snapshot.mark,mark.index != "D" else {return false}
+        return !snapshot.markIsDirectory || commands.submodules.contains(mark.path)
+    }
     func importWorkingComparisonMark(_ access:WorkingComparisonAccess?) {
         guard !retired,let access,access.mark.id != lastImportedWorkingMark else {return}
         lastImportedWorkingMark = access.mark.id;comparisonGeneration = UUID()
         comparisonMark = PreparedFileComparisonMark(path:access.file.path,revision:"",workingAccess:access)
     }
     func markForComparison(_ snapshot:StatusFileMenuSnapshot) {
-        guard canInteract,canPrepareFile(snapshot),let path = snapshot.mark?.path else {return}
+        guard canInteract,canMarkForComparison(snapshot),let path = snapshot.mark?.path else {return}
         commands.withFileMenu(snapshot) {
-            comparisonGeneration = UUID();comparisonMark = PreparedFileComparisonMark(path:path,revision:"")
+            comparisonGeneration = UUID();comparisonMark = PreparedFileComparisonMark(path:path,revision:"",isDirectory:snapshot.markIsDirectory)
         }
     }
     func compareWithMarkedFile(_ menu:PreparedMenu) {
-        guard canInteract,canPrepareFile(menu.file),comparisonGeneration == menu.generation,
+        guard canInteract,canMarkForComparison(menu.file),comparisonGeneration == menu.generation,
               let marked = menu.marked,let current = menu.file.mark,let onPreparedFileCompare else {return}
-        commands.withFileMenu(menu.file) {onPreparedFileCompare(marked,PreparedFileComparisonMark(path:current.path,revision:""))}
+        commands.withFileMenu(menu.file) {onPreparedFileCompare(marked,PreparedFileComparisonMark(path:current.path,revision:"",isDirectory:menu.file.markIsDirectory))}
     }
     func captureColumnCopy(_ ids:[String],column:StatusListColumn)->(() -> Void)? {
         guard canInteract else {return nil};let snapshot = commands.fileMenu(Set(ids))
@@ -444,7 +448,7 @@ private struct RevertDialog:View {
                         ForEach(snapshot.commands.filter{![StatusFileCommand.editor,.open,.openWith,.reveal,.delete].contains($0)},id:\.self) {command in fileCommand(command,snapshot:snapshot)}
                         if model.canPrepareFile(snapshot) {Button {model.saveAs(snapshot)} label:{CommandLabel(title:"Save As…",icon:.saveAs)}}
                         ForEach(snapshot.commands.filter{[StatusFileCommand.editor,.open,.openWith,.reveal].contains($0)},id:\.self) {command in fileCommand(command,snapshot:snapshot)}
-                        if model.canPrepareFile(snapshot) {
+                        if model.canMarkForComparison(snapshot) {
                             Button {model.markForComparison(snapshot)} label:{CommandLabel(title:"Mark for comparison",icon:.compare)}
                             if let mark = prepared.marked {
                                 Button {model.compareWithMarkedFile(prepared)} label:{CommandLabel(title:"Compare with " + mark.label(for:snapshot.mark?.path ?? ""),icon:.compare)}.disabled(model.onPreparedFileCompare == nil)

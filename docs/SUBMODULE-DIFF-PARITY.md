@@ -640,3 +640,42 @@ new Core/native cases from retained Changed Files and Rebase workflows, includin
 actual native error/result sheets and the corrected old root-action expectation.
 Physical gestures, all copy/type/gitlink combinations, actual Trash behavior,
 signed grants and full FileDiffDlg/Rebase/App Store parity remain open.
+
+## Prepared gitlinks and renamed comparison paths — October 16, 2026
+
+Pinned `GitStatusListCtrl::IDGITLC_PREPAREDIFF_COMPARE` dispatches through
+`CGitDiff::Diff`; directories enter `SubmoduleDiff`, whose working-copy branch
+uses the current path's indexed gitlink rather than HEAD. Revert now enables
+Mark/Compare for indexed submodules, preserving file-only Save As. Prepared
+marks carry their directory kind through the repository-bound presenter; mixed
+submodule-to-file targets report an error instead of opening a binary file viewer.
+With two live marks, the From side uses the current index and To uses the actual
+initialized child HEAD plus dirty state. Submodule Diff explicitly labels
+**From (Index)**. The source does not compare two arbitrary directory inventories;
+this port retains the submodule interpretation of that status-list action.
+
+Changed Files, Rebase Revision Files and shared historical comparison dispatch
+now pass `CommitFile.oldPath` into the submodule metadata reader. Historical From
+gitlinks are read at the old tree path; To and child metadata use the current
+path. Directly invoked staged renames can recover the old path through existing
+read-only rename detection. Unsafe old paths are rejected before Git access.
+The renamed path is displayed in a secondary header with additional native
+window height, while Update continues to target the current path.
+
+The existing Submodule Diff owner retains cancellable metadata/command reads,
+pinned Log/Compare objects, captured Shift, child-checkout validation and Update
+options/progress. The new identity fields also distinguish reused windows. F5
+requires the active owning window, its own event and no modifiers or attached
+sheet. The same source preference domain now reaches the common presenter.
+
+Seventeen focused Core cases and six grouped native case/engine runs pass.
+After the native-only filename display repair, the two affected prepared cases
+pass again; the hosted-compiler repair also passes two retained Browser
+presentation runs. All ten owned receivers are absent. Reviewed actual
+[light](site/assets/submodule-renamed-light.png) /
+[dark](site/assets/submodule-renamed-dark.png) captures show complete old/new
+paths and revision groups. [Batch evidence](qa/prepared-submodule-2026-10-16.json)
+records exact repair scope and the separate hosted compilation failure.
+Exhaustive copied/renamed/deinitialized combinations, physical layout/keyboard/Finder,
+minimum-OS and signed sandbox acceptance remain open. This does not certify the
+complete Submodule Diff port.

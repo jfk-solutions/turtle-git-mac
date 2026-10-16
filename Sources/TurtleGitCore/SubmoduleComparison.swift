@@ -112,10 +112,15 @@ extension GitRepository {
 
     /// `from` and `to` are revisions of this superproject; nil `to` compares
     /// against the actual child HEAD (or indexed gitlink if uninitialized).
-    public func submoduleComparison(path: String, from: String = "HEAD", to: String? = nil, cancellation: OperationCancellation? = nil) throws -> SubmoduleComparison {
+    /// A renamed gitlink reads its historical From path while using the current
+    /// checkout. Two working-copy prepared marks use the current index as From,
+    /// like GitStatusListCtrl/CGitDiff's working-copy submodule comparison.
+    public func submoduleComparison(path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, cancellation: OperationCancellation? = nil) throws -> SubmoduleComparison {
         try cancellation?.check()
         let location = try restoreLocation(path)
-        func gitlink(_ revision: String) throws -> String? {
+        let oldPath = fromPath ?? path
+        _ = try restoreLocation(oldPath)
+        func gitlink(_ revision: String, path: String) throws -> String? {
             if revision.isEmpty { return nil }
             let tree = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{tree}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             let records = try run(["ls-tree", "--full-tree", "-z", tree, "--", path], cancellation: cancellation).stdout.split(separator: 0)
@@ -140,8 +145,16 @@ extension GitRepository {
             }
             return hash
         }
-        var fromHash = try from == "Working tree" ? workingGitlink() : gitlink(from)
-        var toHash = try to.map(gitlink) ?? workingGitlink()
+        var fromHash = try fromIndex || from == "Working tree" ? workingGitlink() : gitlink(from, path: oldPath)
+        var toHash = try to.map { try gitlink($0, path: path) } ?? workingGitlink()
+        // A directly invoked renamed checkout has no caller-supplied old path.
+        // Reuse the existing read-only rename detection instead of treating its
+        // historical gitlink as an addition. Never refresh/publish the index.
+        if fromHash == nil,fromPath == nil,!fromIndex,from != "Working tree",to == nil,
+           let rename = try workingTreeFiles(cancellation:cancellation).first(where:{$0.path == path && $0.isSubmodule}),
+           let original = rename.oldPath {
+            fromHash = try gitlink(from,path:original)
+        }
         guard fromHash != nil || toHash != nil else { throw SubmoduleComparisonFailure.unsupported }
         var checkout: URL?
         if FileManager.default.fileExists(atPath: location.appendingPathComponent(".git").path) {
@@ -153,7 +166,7 @@ extension GitRepository {
             guard discovered == location.resolvingSymlinksInPath().standardizedFileURL else { throw SubmoduleComparisonFailure.unsafeCheckout }
             checkout = location
             if to == nil, toHash != nil { toHash = try run(["-C", location.path, "rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
-            if from == "Working tree", fromHash != nil { fromHash = try run(["-C", location.path, "rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+            if !fromIndex, from == "Working tree", fromHash != nil { fromHash = try run(["-C", location.path, "rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
         }
         let dirty = try to == nil && checkout != nil && !run(["-C", location.path, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout.isEmpty
         func metadata(_ hash: String?) throws -> (SubmoduleComparisonSide, Int64) {

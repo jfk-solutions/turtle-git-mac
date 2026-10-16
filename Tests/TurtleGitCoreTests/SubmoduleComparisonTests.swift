@@ -303,4 +303,58 @@ final class SubmoduleComparisonTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root); try? FileManager.default.removeItem(at: source) }
         do { _ = try await parent.submoduleComparison(path: path); XCTFail("Accepted unresolved index") } catch SubmoduleComparisonFailure.conflicted {}
     }
+    func testPreparedWorkingGitlinksUseIndexInsteadOfSuperprojectHEAD() async throws {
+        let (root,parent,child,path,base) = try await fixture();defer {try? FileManager.default.removeItem(at:root)}
+        try Data("first child advance\n".utf8).write(to:child.root.appendingPathComponent("file.txt"));try await child.stage(["file.txt"]);_ = try await child.commit(message:"indexed child")
+        let indexed = try await child.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _ = try await parent.run(["update-index","--cacheinfo","160000," + indexed + "," + path])
+        try Data("second child advance\n".utf8).write(to:child.root.appendingPathComponent("file.txt"));try await child.stage(["file.txt"]);_ = try await child.commit(message:"working child")
+        let current = try await child.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        try Data("dirty working bytes\n".utf8).write(to:child.root.appendingPathComponent("file.txt"))
+        let parentIndex = try Data(contentsOf:root.appendingPathComponent(".git/index")),childIndex = try Data(contentsOf:child.root.appendingPathComponent(".git/index"))
+        let head = try await parent.submoduleComparison(path:path),index = try await parent.submoduleComparison(path:path,fromIndex:true)
+        XCTAssertEqual(head.from.revision,base);XCTAssertEqual(index.from.revision,indexed);XCTAssertEqual(index.to.revision,current)
+        XCTAssertTrue(index.dirty);XCTAssertEqual(index.change,.fastForward)
+        let prepared = try await parent.prepareSubmoduleComparison(index,action:.compareRevisions)
+        guard case .compare(.revision(let from),.revision(let to)) = prepared.command else {return XCTFail("Index baseline lost")}
+        XCTAssertEqual(from,indexed);XCTAssertEqual(to,current)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),parentIndex)
+        XCTAssertEqual(try Data(contentsOf:child.root.appendingPathComponent(".git/index")),childIndex)
+        XCTAssertEqual(try Data(contentsOf:child.root.appendingPathComponent("file.txt")),Data("dirty working bytes\n".utf8))
+    }
+
+    func testRenamedGitlinksRetainHistoricalOldPathAndReadOnlyDirectDiscovery() async throws {
+        let (root,parent,child,old,base) = try await fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let before = try await parent.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines),new = ":(literal) renamed 雪\nmodule"
+        try FileManager.default.moveItem(at:child.root,to:root.appendingPathComponent(new))
+        let moved = GitRepository(root:root.appendingPathComponent(new))
+        _ = try await parent.run(["update-index","--force-remove","--",old]);_ = try await parent.run(["update-index","--add","--cacheinfo","160000," + base + "," + new])
+        var index = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let direct = try await parent.submoduleComparison(path:new)
+        XCTAssertEqual(direct.from.revision,base,"Direct staged rename became an addition");XCTAssertEqual(direct.to.revision,base)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        try Data("new child\n".utf8).write(to:moved.root.appendingPathComponent("file.txt"));try await moved.stage(["file.txt"]);_ = try await moved.commit(message:"new child after move")
+        let next = try await moved.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let working = try await parent.submoduleComparison(path:new,fromPath:old)
+        XCTAssertEqual(working.from.revision,base);XCTAssertEqual(working.to.revision,next);XCTAssertEqual(working.change,.fastForward)
+        _ = try await parent.run(["update-index","--cacheinfo","160000," + next + "," + new]);_ = try await parent.commit(message:"rename child")
+        let after = try await parent.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines);index = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let historical = try await parent.submoduleComparison(path:new,from:before,to:after,fromPath:old)
+        XCTAssertEqual(historical.from.revision,base);XCTAssertEqual(historical.to.revision,next)
+        XCTAssertEqual(historical.checkout,moved.root);XCTAssertFalse(historical.toWorkingTree)
+        do {_ = try await parent.submoduleComparison(path:new,from:before,to:after,fromPath:"../escape");XCTFail("Unsafe historical path accepted")} catch is WorkingFileRestoreFailure {}
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+
+    func testIndexGitlinkBaselineDoesNotRequireHEADAndRetainsCancellation() async throws {
+        let (root,parent,_,path,base) = try await fixture();defer {try? FileManager.default.removeItem(at:root)}
+        _ = try await parent.run(["update-ref","-d","refs/heads/main"])
+        let index = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let details = try await parent.submoduleComparison(path:path,fromIndex:true)
+        XCTAssertEqual(details.from.revision,base);XCTAssertEqual(details.to.revision,base);XCTAssertEqual(details.change,.identical)
+        let token = OperationCancellation();token.cancel()
+        do {_ = try await parent.submoduleComparison(path:path,fromIndex:true,cancellation:token);XCTFail("Cancelled index comparison accepted")} catch is OperationCancellationFailure {}
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+
 }

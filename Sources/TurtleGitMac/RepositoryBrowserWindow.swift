@@ -598,7 +598,10 @@ private final class RepositoryBrowserSplitController:NSSplitViewController {
             guard let self else {return};defer {self.restoreScheduled = false}
             guard !self.retired,!self.restored,self.splitView.window != nil,self.splitView.bounds.width >= 461 else {return}
             self.restoring = true
-            if let width = self.model?.dividerWidth {self.splitView.setPosition(min(max(160,width),self.splitView.bounds.width - 301),ofDividerAt:0)}
+            if let width = self.model?.dividerWidth {
+                let position:CGFloat = min(max(CGFloat(160),CGFloat(width)),self.splitView.bounds.width - CGFloat(301))
+                self.splitView.setPosition(position,ofDividerAt:0)
+            }
             self.restoring = false;self.restored = true;self.saveDivider()
         }
     }

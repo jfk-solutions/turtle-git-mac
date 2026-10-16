@@ -1624,3 +1624,15 @@ the recorded fixture correction. Light/dark captures are reviewed and published;
 all owned receivers are closed. Full gitlink, physical and signed acceptance remain
 open. [Batch evidence](qa/revert-file-commands-2026-10-16.json). See
 [Revert saved-file commands](REVERT-PARITY.md#saved-comparison-save-as-and-list-artwork--october-16-2026).
+
+### Prepared and renamed submodule comparison family — October 16, 2026
+
+Revert's marked gitlinks now use the native Submodule Diff route with the source
+index-to-checkout baseline, file-only Save As and mixed-target rejection. Old tree
+paths survive Changed Files/Rebase/shared historical handoffs and staged direct
+rename discovery. Native From (Index), rename headers, owner-scoped F5 and common
+preferences connect the existing Log/Compare/Update lifecycle. Seventeen Core
+cases and six native case/engine runs pass; two affected prepared and two Browser
+presentation runs pass after display/compiler repairs. All owned receivers are
+closed. Light/dark captures are published; exhaustive gitlink/copy cases, physical
+and signed acceptance remain open. [Batch evidence](qa/prepared-submodule-2026-10-16.json). See [Submodule Diff parity](SUBMODULE-DIFF-PARITY.md#prepared-gitlinks-and-renamed-comparison-paths--october-16-2026).
