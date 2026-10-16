@@ -4,12 +4,13 @@ import SwiftUI
 import TurtleGitCore
 
 enum BlameMenuAction:String,CaseIterable {
-    case find,findNext,findPrevious,goTo,nextChange,previousChange
+    case find,findNext,findPrevious,goTo,nextChange,previousChange,nextPane,previousPane
     case toolbar,log,properties,statusBar,logID,author,date,filename,original
     case ignoreWhitespace,completeLog,followRenames,firstParent,colorAge,syntax,dark,wrap
     var title:String {
         switch self {
         case .find:return "Find…";case .findNext:return "Find Next";case .findPrevious:return "Find Previous";case .goTo:return "Go To Line…"
+        case .nextPane:return "Next Pane";case .previousPane:return "Previous Pane"
         case .nextChange:return "Next Change";case .previousChange:return "Previous Change"
         case .toolbar:return "Toolbar";case .log:return "Log";case .properties:return "Properties";case .statusBar:return "Status Bar"
         case .logID:return "Show log ID instead of SHA-1";case .author:return "Show author";case .date:return "Show date";case .filename:return "Show file name";case .original:return "Show original line number"
@@ -20,7 +21,7 @@ enum BlameMenuAction:String,CaseIterable {
     var icon:MenuIcon {
         switch self {
         case .find:return .mergeFind;case .findNext,.nextChange:return .jumpDown;case .findPrevious,.previousChange:return .jumpUp
-        case .goTo,.log,.logID:return .log;case .properties:return .imageInfo
+        case .goTo,.log,.logID:return .log;case .nextPane,.previousPane:return .imageInfo;case .properties:return .imageInfo
         default:return .settings
         }
     }
@@ -63,7 +64,7 @@ private struct BlameMenuState:Equatable {
         }
         var next=BlameMenuState();next.owner=owner.map(ObjectIdentifier.init);next.model=model.map(ObjectIdentifier.init)
         if let model,let owner {
-            next.enabled=model.canFind && owner.window?.attachedSheet==nil
+            next.enabled=owner.commandsAvailable
             next.encoding=model.sourceEncoding;next.detection=model.detectionMode
             next.checked=[.toolbar:model.showToolbar,.log:model.showLog,.properties:model.showProperties,.statusBar:model.showStatusBar,.ignoreWhitespace:model.ignoreWhitespace,.completeLog:model.canShowCompleteLog && model.showCompleteLog,.followRenames:model.canShowCompleteLog && model.showCompleteLog && model.followRenames,.firstParent:model.onlyFirstParent,.colorAge:model.colorAge,.syntax:model.syntaxEnabled,.wrap:model.wrapLongLines,.dark:owner.window?.effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua]
             for (action,field) in [(BlameMenuAction.logID,BlameMarginField.logID),(.author,.author),(.date,.date),(.filename,.filename),(.original,.original)] { next.checked[action]=model.marginFields.contains(field) }
@@ -75,6 +76,7 @@ private struct BlameMenuState:Equatable {
         refresh();guard allowed(action),let owner else { return };let model=owner.model
         switch action {
         case .find:model.onFind?();case .findNext:model.findLine(previous:false);case .findPrevious:model.findLine(previous:true);case .goTo:model.onGoTo?()
+        case .nextPane:owner.focusNextPane(previous:false);case .previousPane:owner.focusNextPane(previous:true)
         case .nextChange:model.navigateChange(previous:false);case .previousChange:model.navigateChange(previous:true)
         case .toolbar:model.showToolbar.toggle();case .log:model.showLog.toggle();case .properties:model.showProperties.toggle();case .statusBar:model.showStatusBar.toggle()
         case .logID:model.setMargin(.logID,visible:!model.marginFields.contains(.logID));case .author:model.setMargin(.author,visible:!model.marginFields.contains(.author));case .date:model.setMargin(.date,visible:!model.marginFields.contains(.date));case .filename:model.setMargin(.filename,visible:!model.marginFields.contains(.filename));case .original:model.setMargin(.original,visible:!model.marginFields.contains(.original))
@@ -106,6 +108,9 @@ struct BlameCommands:Commands {
                 item(.findNext).keyboardShortcut("g",modifiers:.command)
                 item(.findPrevious).keyboardShortcut("g",modifiers:[.command,.shift])
                 item(.goTo).keyboardShortcut("l",modifiers:.command)
+                Divider()
+                item(.nextPane).keyboardShortcut(KeyEquivalent("\u{F709}"),modifiers:[])
+                item(.previousPane).keyboardShortcut(KeyEquivalent("\u{F709}"),modifiers:.shift)
                 BlameEncodingMenu(selection: Binding(get: { context.encoding }, set: { context.setEncoding($0) })).disabled(!context.available)
             }
         }

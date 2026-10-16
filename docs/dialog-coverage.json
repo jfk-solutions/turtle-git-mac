@@ -145,6 +145,7 @@
         "docs/BLAME-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/blame-command-family-2026-10-16.json",
         "docs/qa/blame-history-family-2026-10-15.json",
         "docs/qa/blame-lexilla-2026-10-13.json",
         "docs/qa/blame-metadata-load-2026-10-15.json",

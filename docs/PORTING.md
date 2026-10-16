@@ -1484,3 +1484,12 @@ marker race is repaired through atomic readiness publication with all original
 cleanup assertions retained. See [agent lifecycle](SSH-AGENT-PARITY.md) and
 [transport ownership](SSH-TRANSPORT-PARITY.md). Full hosted and signed acceptance
 remain open.
+
+## Blame commands and native Go To — October 16, 2026
+
+The connected Blame navigation batch supplies source F3 and Control aliases,
+native Command conventions, F6 source/Log focus across docked/tabbed/floating
+panes, shared menu availability and an owned native Go To Line sheet. Validation,
+Cancel, accepted focus and forced closure use the actual document lifetime.
+See [Blame parity](BLAME-PARITY.md#native-command-and-line-navigation-family--october-16-2026)
+for source references and remaining physical/signed acceptance.

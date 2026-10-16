@@ -1357,3 +1357,53 @@ the rename fixture repair and receiver cleanup. Core Git implementation is
 unchanged and was not rerun. No new screenshot or complete physical popup,
 keyboard/VoiceOver, exact Windows default-item styling, all command-artwork mapping
 or signed/App Store acceptance is claimed. Full Blame/application parity remains open.
+
+## Native command and line-navigation family — October 16, 2026
+
+The pinned Blame resource accelerators and `OnFindNext`/`OnFindPrev` now connect
+F3 and Shift-F3 to the existing applied search. Control-F/G/O retain source Find,
+Go To and File Open aliases; Command-F/O, Command-G/Shift-Command-G and Command-L
+retain native macOS conventions. Recognized disabled shortcuts are consumed.
+Escape closes the active viewer or floating pane through its ordinary close
+policy, while native field editors retain Escape. No application-wide event
+monitor or Command-Q override is added.
+
+F6/Shift-F6 and Edit's Next/Previous Pane commands move between the native source
+and interactive revision Log, including a floating Log. Hidden or auto-hidden
+Log stays hidden; entering an existing tab group selects Log. This adapts MFC's
+pane accelerator to the native interactive panes; property text remains selectable
+through normal pointer/accessibility navigation. Deferred focus is tied to the
+owning document/request and active window, so it cannot focus a replaced viewer.
+
+Go To Line now has a controller-owned native AppKit sheet and field, with source
+zero-through-forty-million decimal validation. Zero accepts without navigation;
+a valid line beyond the file clamps to its last line. Invalid input remains in
+the sheet with accessible validation, and Cancel preserves selection. Accepted
+navigation restores source focus. Owner closure retires the sheet and rejects
+late acceptance; document replacement binds a fresh callback independently of
+transient SwiftUI appearances. Find remains modeless and keeps source selection
+prefill and reuse. Main-menu commands share the controller's child/sheet/operation
+availability guard with these native keyboard routes.
+
+Source references: `TortoiseGitBlameENG.rc` main-frame accelerators and
+`IDD_GOTODLG`, `TortoiseGitBlameView.cpp::OnEditFind`, `OnEditGoto`, `OnFindNext`
+and `OnFindPrev`, plus `EditGotoDlg.cpp`. The source viewer's read-only clipboard
+and application-global Cut/Paste/Exit behavior use native macOS conventions.
+Physical keyboard layouts, every docking gesture, VoiceOver and signed sandbox
+acceptance remain open; this is not complete Blame certification.
+
+Both Debug builds and all eight grouped native case/engine runs passed. The
+affected system-Git capture case passed again after removing forced activation;
+the original captures with unexpected keyboard text were excluded. All nine owned
+receivers were reaped and independently absent. Core sources were unchanged and
+its tests were not repeated. [Batch evidence](qa/blame-command-family-2026-10-16.json)
+records source mappings, retained checks, capture handling and exact limitations.
+
+These raw compositor captures show the native sheet in an inactive test app,
+including macOS's modal dimming, with a four-line private fixture. They establish
+the displayed controls and appearances, not physical keyboard/VoiceOver or full
+Windows equivalence.
+
+![Native Blame Go To Line in light appearance](site/assets/blame-go-to-light.png)
+
+![Native Blame Go To Line in dark appearance](site/assets/blame-go-to-dark.png)

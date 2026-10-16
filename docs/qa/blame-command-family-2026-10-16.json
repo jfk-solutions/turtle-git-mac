@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "1795698a2780c19bee5a306f218fc36ffdb5e605",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected native Blame source accelerators, interactive pane focus, menu ownership and Go To Line sheet",
+  "source": [
+    "Resources/TortoiseGitBlameENG.rc main-frame accelerators and IDD_GOTODLG",
+    "TortoiseGitBlame/TortoiseGitBlameView.cpp OnEditFind, OnEditGoto, OnFindNext, OnFindPrev",
+    "TortoiseGitBlame/EditGotoDlg.cpp"
+  ],
+  "implementation": [
+    "Owner/window-scoped F3/Shift-F3, Control-F/G/O and native Command-F/G/L/O routes; no global keyboard monitor or Command-Q override",
+    "F6 and Edit Next/Previous Pane route source and interactive revision Log, docked/tabbed/floating; hidden/auto-hidden Log remains hidden",
+    "Owner and document/request fences protect deferred focus; background/retired and disabled commands cannot redirect",
+    "Controller-owned native Go To sheet validates source zero-through-40000000 decimal, Cancel/zero/clamp/accepted source focus and late/forced-close retirement",
+    "Shared modal state disables modeless Find submission and main menu commands until Go To closes; document replacement supplies a new callback without transient SwiftUI onAppear ownership"
+  ],
+  "core": {
+    "source_changes": false,
+    "suite_repeated": false,
+    "reason": "Native dispatch, field/sheet/focus and shared availability only; existing Core search/line parser/navigation reused"
+  },
+  "debug": [
+    {
+      "log": "build/qa/blame-command-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3
+    },
+    {
+      "log": "build/qa/blame-command-build-modal-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3,
+      "reason": "Final review gates modeless Find during owned Go To and packages updated Help"
+    }
+  ],
+  "native": {
+    "grouped_log": "build/qa/blame-command-native-2026-10-16.log",
+    "grouped_exit": 0,
+    "distinct_case_engine_runs": 8,
+    "cases": {
+      "commands": 2,
+      "source-menu": 2,
+      "menus": 2,
+      "source-editor": 2
+    },
+    "git_engines": [
+      "system",
+      "bundled"
+    ],
+    "failed_cases": 0,
+    "capture_followup": {
+      "log": "build/qa/blame-command-passive-capture-2026-10-16.log",
+      "exit": 0,
+      "runs": 1,
+      "engine": "system",
+      "reason": "Original screenshot capture explicitly activated QA and picked up keyboard input; images rejected. Remove activation, verify initial zero and capture inactive native sheet. Only the affected command/capture case repeated."
+    },
+    "owned_receivers_reaped_and_independently_absent": [
+      43115,
+      43146,
+      43179,
+      43299,
+      43435,
+      43745,
+      44047,
+      44075,
+      44148
+    ],
+    "owned_windows_closed": true,
+    "head_index_working_bytes_preserved": true,
+    "menu_focus_window_injection": "Private commandKeyWindow fixture; physical foreground keyboard behavior not certified"
+  },
+  "images": [
+    {
+      "path": "docs/site/assets/blame-go-to-light.png",
+      "width": 2240,
+      "height": 1464,
+      "sha256": "82665a004e3cc753ad89a7e5ecdf9c69c8b514132a850baaeb589bec1281665d",
+      "reviewed": true,
+      "capture": "Raw macOS compositor; inactive app, default zero, native modal dimming; no image edits"
+    },
+    {
+      "path": "docs/site/assets/blame-go-to-dark.png",
+      "width": 2240,
+      "height": 1464,
+      "sha256": "7c3d1e995f5e83f03f1f726e93e55096896c2cbab741837335aed062a569fc2e",
+      "reviewed": true,
+      "capture": "Raw macOS compositor; inactive app, default zero, native modal dimming; no image edits"
+    }
+  ],
+  "documentation": {
+    "help_files": 50,
+    "help_bytes": 1961206,
+    "source_built_equal": true,
+    "coverage": "regenerated; partial reviews remain partial"
+  },
+  "hosted_observation": {
+    "macos_run": 38938237741,
+    "head": "2ee986c3",
+    "status": "in_progress",
+    "pending_run": 38940758397,
+    "pending_head": "1795698a",
+    "pages_run": 38940758399,
+    "pages_head": "1795698a",
+    "pages_conclusion": "success"
+  },
+  "limits": [
+    "Properties text is outside the F6 interactive source/Log cycle and retains normal selection/accessibility navigation",
+    "Native sheets and Command keyboard conventions adapt Windows modal/Control accelerators",
+    "Full physical keyboard/menu/VoiceOver, every dock gesture, minimum OS, full dialog fidelity and signed Finder/App Store acceptance remain open",
+    "No complete hosted CI pass claimed"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

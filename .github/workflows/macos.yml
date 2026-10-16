@@ -394,7 +394,7 @@ jobs:
       - name: Native RefLog refresh and deletion lifetime
         run: python3 scripts/test-reflog-lifecycle.py --only lifecycle --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Blame captured source menus
-        run: python3 scripts/test-blame-source-menu.py --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+        run: python3 scripts/test-blame-source-menu.py --only commands --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Commit staging activation and preference lifetime
         run: python3 scripts/test-commit-staging-mode.py --only list --only mode --only checkbox --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Rebase action controls and structural row behavior

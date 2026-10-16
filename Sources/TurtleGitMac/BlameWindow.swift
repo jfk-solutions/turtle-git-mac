@@ -6,6 +6,9 @@ import TurtleGitCore
 @MainActor final class BlameWindowController: NSWindowController, NSWindowDelegate {
     private(set) var model: BlameWindowModel
     var onClosed: () -> Void = {}
+    private(set) var goToWindow: BlameGoToLineWindowController?
+    var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
+    private var focusGeneration = 0
     private(set) var findWindow: BlameFindWindowController?
     private(set) var findAlert:NSAlert?
     private var feedbackGeneration=0
@@ -29,12 +32,12 @@ import TurtleGitCore
         self.preferences=preferences;self.recentDocuments=recentDocuments
         documentOpener=BlameDocumentOpener(requireScope:requireScope,provider:provider,factory:{ GitRepository(root:$0,executable:repository.executable) });self.requireScope=requireScope;self.scopeProvider=provider
         model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options:options,labelDefaults:preferences,historyRegexExecutable:regexExecutable)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        let window = BlameCommandWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) at \(revision.prefix(7)) – Blame – TurtleGit"
         window.minSize = NSSize(width: 820, height: 400); window.isReleasedWhenClosed = false
         window.acceptsMouseMovedEvents = true
         window.contentViewController = NSHostingController(rootView: BlameDialog(model: model))
-        super.init(window: window); window.delegate = self; TurtleGitHelp.attach(window, topic: .blame); window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.onFind = { [weak self] in self?.showFind() }; model.onFindFeedback = { [weak self] in self?.feedback($0) };model.onOpenDocument={ [weak self] in self?.openDocument() };model.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };model.onOpenRecent={ [weak self] in self?.openRecent($0) };model.recentDocuments=recentDocuments;model.onLoaded={ [weak self] in
+        super.init(window: window); window.delegate = self; TurtleGitHelp.attach(window, topic: .blame); window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.onGoTo = { [weak self] in self?.showGoToLine() }; model.onFind = { [weak self] in self?.showFind() }; model.onFindFeedback = { [weak self] in self?.feedback($0) };model.onOpenDocument={ [weak self] in self?.openDocument() };model.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };model.onOpenRecent={ [weak self] in self?.openRecent($0) };model.recentDocuments=recentDocuments;model.onLoaded={ [weak self] in
             guard let self,revision=="HEAD",let recentDocuments=self.recentDocuments else { return }
             let lease=self.model.repositoryAccess ?? RepositoryAccessLease(url:self.model.repository.root,provider:self.scopeProvider)
             do { try recentDocuments.remember(root:self.model.repository.root,path:self.model.path,lease:lease) } catch { self.model.error=error.localizedDescription }
@@ -92,10 +95,11 @@ import TurtleGitCore
             do {
                 let document=try await documentOpener.prepare(file:file,scope:scope,options:options,regexExecutable:old.historyRegexExecutable)
                 guard openingGeneration==identity,!old.retired else { return }
+                cancelGoToLine();focusGeneration += 1
                 old.retireSourceView?();old.onFind=nil;old.onFindFeedback=nil;old.retire()
                 let replacement=BlameWindowModel(repository:document.repository,access:document.access,path:document.snapshot.path,revision:"HEAD",options:document.options,labelDefaults:preferences,historyRegexExecutable:old.historyRegexExecutable)
                 replacement.install(document.snapshot,history:document.history,options:document.options,details:document.details);replacement.recentHistoryError=old.recentHistoryError
-                retireFloatingPanes();model=replacement;replacement.onFind={ [weak self] in self?.showFind() };replacement.onFindFeedback={ [weak self] in self?.feedback($0) };replacement.onOpenDocument={ [weak self] in self?.openDocument() };replacement.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };replacement.onOpenRecent={ [weak self] in self?.openRecent($0) };replacement.recentDocuments=recentDocuments
+                retireFloatingPanes();model=replacement;replacement.onGoTo={ [weak self] in self?.showGoToLine() };replacement.onFind={ [weak self] in self?.showFind() };replacement.onFindFeedback={ [weak self] in self?.feedback($0) };replacement.onOpenDocument={ [weak self] in self?.openDocument() };replacement.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };replacement.onOpenRecent={ [weak self] in self?.openRecent($0) };replacement.recentDocuments=recentDocuments
                 window?.contentViewController=NSHostingController(rootView:BlameDialog(model:replacement))
                 Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
                 Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:]
@@ -197,7 +201,7 @@ import TurtleGitCore
         if let owner=focusedOwner(window) { owner.openDocument() } else { fallback() }
     }
     private func showFind() {
-        guard model.canFind else { return }
+        guard commandsAvailable else { return }
         if let findWindow,findWindow.window?.isVisible==true { findWindow.showWindow(nil);findWindow.window?.makeKeyAndOrderFront(nil);return }
         let selected=model.selectedSourceText?()
         let draft=BlameFindDraft(text:selected?.isEmpty==false ? selected! : model.find,matchCase:model.matchCase)
@@ -223,6 +227,7 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy && !model.openingDocument && !model.resettingHistoryColumns && !hasBlockingHistoryChild }
     func windowWillClose(_ notification:Notification) {
+        cancelGoToLine();focusGeneration += 1
         model.onPaneLayoutChanged={};model.onPaneFloatRequested={_,_ in};retireFloatingPanes()
         feedbackGeneration += 1;openingGeneration += 1;documentOpener.cancel()
         if let alert=columnAlert { alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close();columnAlert=nil }
@@ -518,7 +523,8 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     var recentDocuments:BlameRecentDocuments?
     @Published var searchFeedbackBusy=false
     private(set) var retired=false
-    var canFind:Bool { !retired && !busy && !searchFeedbackBusy && !openingDocument && !resettingHistoryColumns }
+    @Published var navigationSheetPresented = false
+    var canFind:Bool { !retired && !busy && !navigationSheetPresented && !searchFeedbackBusy && !openingDocument && !resettingHistoryColumns }
     var onFindFeedback:((BlameFindFeedback)->Void)?
     var ranks: [String: Int] = [:]
     private var origins: [String: GitBlameLine] = [:]
@@ -783,7 +789,6 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
 
 private struct BlameDialog: View {
     @ObservedObject var model: BlameWindowModel
-    @State private var showingGoToLine = false
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if model.showToolbar { HStack(spacing:8) {
@@ -804,7 +809,7 @@ private struct BlameDialog: View {
                     Button { model.onFind?() } label: { CommandLabel(title:"Find…",icon:.mergeFind) }
                     Button { model.findLine(previous:false) } label: { CommandLabel(title:"Find Next",icon:.jumpDown) }.keyboardShortcut("g",modifiers:.command)
                     Button { model.findLine(previous:true) } label: { CommandLabel(title:"Find Previous",icon:.jumpUp) }.keyboardShortcut("g",modifiers:[.command,.shift])
-                    Button { showingGoToLine=true } label: { CommandLabel(title:"Go To Line…",icon:.log) }.keyboardShortcut("l",modifiers:.command)
+                    Button { model.onGoTo?() } label: { CommandLabel(title:"Go To Line…",icon:.log) }.keyboardShortcut("l",modifiers:.command)
                     Divider()
                     BlameEncodingMenu(selection: Binding(get: { model.sourceEncoding }, set: { model.setEncoding($0) }))
                 }
@@ -854,10 +859,7 @@ private struct BlameDialog: View {
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
             }
             Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary) }
-        }.padding(12).onAppear { model.onGoTo = { showingGoToLine = true } }
-        .onDisappear { model.onGoTo = nil }.sheet(isPresented: $showingGoToLine) {
-            BlameGoToLineDialog { requested in model.goToLine(requested) }
-        }.onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
+        }.padding(12).onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
     }
 }
 
@@ -929,34 +931,42 @@ private struct BlameFindDialog:View {
     }
 }
 
-private struct BlameGoToLineDialog: View {
-    let apply: (Int) -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var line = "0"
-    @State private var error: String?
-    @FocusState private var focused: Bool
-    private func accept() {
-        guard let requested = GitBlameNavigation.requestedLine(line) else {
-            error = "Enter a whole number from 0 to \(GitBlameNavigation.maximumGoToLine)."
-            focused = true; return
+/// Source EditGotoDlg validation with a native, owner-scoped sheet.
+@MainActor final class BlameGoToLineWindowController: NSWindowController {
+    let line = NSTextField(string: "0")
+    let validation = NSTextField(wrappingLabelWithString: "")
+    private(set) var requested: Int?
+    private(set) var retired = false
+    private var submitted = false
+    let ok = NSButton(title: "OK", target: nil, action: nil)
+    init() {
+        let panel = NSPanel(contentRect: NSRect(x:0,y:0,width:340,height:160),styleMask:[.titled],backing:.buffered,defer:false)
+        panel.title = "Go to line"; panel.isReleasedWhenClosed = false
+        super.init(window:panel)
+        line.setAccessibilityLabel("Blame line number")
+        let label = NSTextField(labelWithString:"Line number:")
+        let row = NSStackView(views:[label,line]); row.orientation = .horizontal; row.spacing = 10
+        validation.textColor = .systemRed; validation.setAccessibilityLabel("Line number validation")
+        ok.target = self; ok.action = #selector(accept); ok.keyEquivalent = "\r"
+        let cancel = NSButton(title:"Cancel",target:self,action:#selector(Self.cancel));cancel.keyEquivalent = "\u{1b}"
+        let spacer = NSView()
+        let buttons = NSStackView(views:[spacer,ok,cancel]);buttons.orientation = .horizontal;buttons.spacing = 10
+        let content = NSStackView(views:[row,validation,buttons]);content.orientation = .vertical;content.alignment = .leading;content.spacing = 14
+        panel.contentView!.addSubview(content);content.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([content.leadingAnchor.constraint(equalTo:panel.contentView!.leadingAnchor,constant:20),content.trailingAnchor.constraint(equalTo:panel.contentView!.trailingAnchor,constant:-20),content.topAnchor.constraint(equalTo:panel.contentView!.topAnchor,constant:20),row.widthAnchor.constraint(equalTo:content.widthAnchor),validation.widthAnchor.constraint(equalTo:content.widthAnchor),buttons.widthAnchor.constraint(equalTo:content.widthAnchor),line.widthAnchor.constraint(greaterThanOrEqualToConstant:150)])
+        panel.defaultButtonCell = ok.cell as? NSButtonCell;panel.initialFirstResponder = line
+    }
+    @objc func accept() {
+        guard !retired,!submitted,let window,let parent = window.sheetParent else {return}
+        guard let value = GitBlameNavigation.requestedLine(line.stringValue) else {
+            validation.stringValue = "Enter a whole number from 0 to \(GitBlameNavigation.maximumGoToLine)."
+            window.makeFirstResponder(line);return
         }
-        apply(requested); dismiss()
+        requested = value;submitted = true;parent.endSheet(window,returnCode:.OK)
     }
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Go to line").font(.headline)
-            HStack {
-                Text("Line:")
-                TextField("Line number", text: $line).focused($focused).onSubmit { accept() }
-            }
-            if let error { Text(error).foregroundStyle(.red).font(.callout).fixedSize(horizontal: false, vertical: true) }
-            HStack {
-                Button("OK") { accept() }.keyboardShortcut(.defaultAction)
-                Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-            }
-        }.padding(20).frame(width: 300).onAppear { focused = true }
-    }
+    @objc func cancel() { guard !retired,let window else {return};submitted = true;requested = nil;window.sheetParent?.endSheet(window,returnCode:.cancel) }
+    func retire() { guard !retired else {return};retired = true;requested = nil;if let window { window.sheetParent?.endSheet(window,returnCode:.cancel);window.close() } }
+    required init?(coder:NSCoder) {fatalError("init(coder:) is not supported")}
 }
 
 private struct BlamePropertiesPane: View {
@@ -1234,7 +1244,7 @@ struct BlameHistoryTable:NSViewRepresentable {
         guard isEnabled else { return nil };let row=row(at:convert(event.locationInWindow,from:nil));guard row>=0 else { return nil }
         if !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false) };menu?.update();return menu
     }
-    override func keyDown(with event:NSEvent) { if isEnabled,event.keyCode==109,event.modifierFlags.contains(.shift) { showContext(event);return };if isEnabled,event.keyCode==36 || event.keyCode==76 { openSelection();return };super.keyDown(with:event) }
+    override func keyDown(with event:NSEvent) { if BlameWindowController.routeCommandKey(event,from:window) {return};if isEnabled,event.keyCode==109,event.modifierFlags.contains(.shift) { showContext(event);return };if isEnabled,event.keyCode==36 || event.keyCode==76 { openSelection();return };super.keyDown(with:event) }
     override func performKeyEquivalent(with event:NSEvent)->Bool {
         if isEnabled,event.modifierFlags.intersection([.command,.control,.option]) == .command,event.charactersIgnoringModifiers?.lowercased()=="c" { copySelection();return true };return super.performKeyEquivalent(with:event)
     }
@@ -1469,6 +1479,7 @@ private final class BlameTableView: NSTableView {
     }
     override func accessibilityPerformShowMenu()->Bool {showKeyboardContext()}
     override func keyDown(with event:NSEvent) {
+        if BlameWindowController.routeCommandKey(event,from:window) {return}
         if event.keyCode==109,event.modifierFlags.intersection([.shift,.command,.control,.option]) == .shift,showKeyboardContext() {return}
         super.keyDown(with:event)
     }
@@ -1912,6 +1923,7 @@ private final class BlameSourceTextView: NSTextView {
     }
     override func keyDown(with event: NSEvent) {
         guard !retired else { return }
+        if BlameWindowController.routeCommandKey(event,from:window) {return}
         let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
         if event.keyCode==109,flags == .shift,showKeyboardContext() {return}
         if flags.contains(.command), !flags.contains(.control), !flags.contains(.option) {
@@ -2275,7 +2287,7 @@ private struct BlamePaneWorkspace:View {
     private var frameKey:String { "Blame.Pane."+pane.rawValue+".FloatingFrame" }
     init(owner:BlameWindowController,pane:BlamePane,preferences:UserDefaults) {
         self.blameOwner=owner;self.pane=pane;self.preferences=preferences
-        let panel=NSPanel(contentRect:NSRect(x:0,y:0,width:pane == .log ? 700 : 330,height:350),styleMask:[.titled,.closable,.resizable,.utilityWindow],backing:.buffered,defer:false)
+        let panel=BlameCommandPanel(contentRect:NSRect(x:0,y:0,width:pane == .log ? 700 : 330,height:350),styleMask:[.titled,.closable,.resizable,.utilityWindow],backing:.buffered,defer:false)
         panel.title=pane.caption;panel.isReleasedWhenClosed=false;panel.hidesOnDeactivate=true;panel.minSize=NSSize(width:260,height:160)
         panel.contentViewController=NSHostingController(rootView:BlamePaneContent(model:owner.model,pane:pane))
         super.init(window:panel)
@@ -2479,5 +2491,122 @@ private struct BlameNativeDockWorkspace:NSViewControllerRepresentable {
             let value=split.isVertical ? group.frame.width : group.frame.height
             if value.isFinite,value>0 { model.labelDefaults.set(Double(value),forKey:extentKey(edge)) }
         }
+    }
+}
+
+/// Native root and floating panes share the active Blame document's accelerators.
+@MainActor private final class BlameCommandWindow: NSWindow {
+    override func performKeyEquivalent(with event:NSEvent)->Bool {
+        BlameWindowController.routeCommandKey(event,from:self) || super.performKeyEquivalent(with:event)
+    }
+    override func keyDown(with event:NSEvent) {
+        if !BlameWindowController.routeCommandKey(event,from:self) {super.keyDown(with:event)}
+    }
+}
+@MainActor private final class BlameCommandPanel: NSPanel {
+    override func performKeyEquivalent(with event:NSEvent)->Bool {
+        BlameWindowController.routeCommandKey(event,from:self) || super.performKeyEquivalent(with:event)
+    }
+    override func keyDown(with event:NSEvent) {
+        if !BlameWindowController.routeCommandKey(event,from:self) {super.keyDown(with:event)}
+    }
+}
+
+extension BlameWindowController {
+    var commandsAvailable:Bool {
+        model.canFind && !hasBlockingHistoryChild && window?.attachedSheet == nil && goToWindow == nil
+    }
+    private func showGoToLine() {
+        guard commandsAvailable,let window else {return}
+        let original = model,controller = BlameGoToLineWindowController()
+        goToWindow = controller;model.navigationSheetPresented = true;controller.window?.appearance = window.appearance
+        guard let panel = controller.window else {goToWindow = nil;model.navigationSheetPresented = false;return}
+        window.beginSheet(panel) { [weak self,weak controller,weak original] response in
+            guard let self,let controller,self.goToWindow === controller else {return}
+            self.goToWindow = nil;original?.navigationSheetPresented = false
+            let requested = controller.requested
+            controller.retire()
+            guard response == .OK,let original,self.model === original,self.commandsAvailable,let requested else {return}
+            original.goToLine(requested);self.focusSource()
+        }
+        panel.makeFirstResponder(controller.line)
+    }
+    private func cancelGoToLine() {
+        let controller = goToWindow;goToWindow = nil;model.navigationSheetPresented = false;controller?.retire()
+    }
+    private static func commandViews(_ root:NSView?)->[NSView] {
+        guard let root else {return []};return [root]+root.subviews.flatMap {commandViews($0)}
+    }
+    func focusSource() {
+        focusGeneration += 1
+        guard commandsAvailable,let window,
+              let source = Self.commandViews(window.contentView).first(where:{$0 is BlameSourceContainer}) as? BlameSourceContainer else {return}
+        window.makeKeyAndOrderFront(nil);window.makeFirstResponder(source.editor)
+    }
+    /// F6 cycles the interactive source and revision Log, including a floating Log.
+    /// Hidden/auto-hidden Log panes remain hidden; tabbed Log is selected on entry.
+    func focusNextPane(previous:Bool) {
+        guard commandsAvailable,let window else {return}
+        let key = commandKeyWindow(),responding = key?.firstResponder
+        let onLog = responding is BlameHistoryNativeTable
+        let onSource = (responding as? NSView).map {view in Self.commandViews(window.contentView).contains{$0 is BlameSourceContainer && view.isDescendant(of:$0)}} ?? false
+        guard model.showLog,!model.paneAutoHidden(.log),!onLog,(onSource || previous) else {focusSource();return}
+        if model.panesAreTabbed {model.selectPaneTab(.log)}
+        focusGeneration += 1
+        let identity = focusGeneration,original = model
+        func focusLog() -> Bool {
+            guard focusGeneration == identity,model === original,Self.focusedOwner(commandKeyWindow()) === self,commandsAvailable,model.showLog,!model.paneAutoHidden(.log) else {return true}
+            let host = floatingPaneWindow(.log) ?? window
+            host.contentView?.layoutSubtreeIfNeeded()
+            guard let table = Self.commandViews(host.contentView).first(where:{$0 is BlameHistoryNativeTable}) else {return false}
+            host.makeKeyAndOrderFront(nil);return host.makeFirstResponder(table)
+        }
+        if !focusLog() {
+            Task { @MainActor [weak self] in
+                await Task.yield()
+                guard let self,self.focusGeneration == identity,self.model === original else {return}
+                _ = focusLog()
+            }
+        }
+    }
+    @discardableResult static func routeCommandKey(_ event:NSEvent,from source:NSWindow?)->Bool {
+        guard let source,let owner = focusedOwner(source),!owner.model.retired,
+              owner.commandKeyWindow() === source,
+              source === owner.window || owner.floatingPanes.values.contains(where:{$0.window === source}),
+              event.windowNumber == source.windowNumber else {return false}
+        let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        enum Action {case find,next,previous,goTo,open,nextPane,previousPane,close}
+        let action:Action
+        if event.keyCode == 99,flags == [] || flags == .shift {action = flags == .shift ? .previous:.next}
+        else if event.keyCode == 97,flags == [] || flags == .shift {action = flags == .shift ? .previousPane:.nextPane}
+        else if event.keyCode == 53,flags.isEmpty {
+            guard (source.firstResponder as? NSTextView)?.isFieldEditor != true else {return false}
+            action = .close
+        } else if flags == .control || flags == .command || flags == [.command,.shift] {
+            switch (event.charactersIgnoringModifiers ?? "").lowercased() {
+            case "f" where flags == .control || flags == .command:action = .find
+            case "g" where flags == .control:action = .goTo
+            case "g" where flags == .command:action = .next
+            case "g" where flags == [.command,.shift]:action = .previous
+            case "l" where flags == .command:action = .goTo
+            case "o" where flags == .control || flags == .command:action = .open
+            case "q" where flags == .control:action = .close
+            default:return false
+            }
+        } else {return false}
+        // Recognized commands stay consumed when disabled; they cannot fall
+        // through into field editing, a second document, or another menu target.
+        guard owner.commandsAvailable else {return true}
+        switch action {
+        case .find:owner.model.onFind?()
+        case .next:owner.model.findLine(previous:false)
+        case .previous:owner.model.findLine(previous:true)
+        case .goTo:owner.model.onGoTo?()
+        case .open:owner.openDocument()
+        case .nextPane:owner.focusNextPane(previous:false)
+        case .previousPane:owner.focusNextPane(previous:true)
+        case .close:source.performClose(nil)
+        }
+        return true
     }
 }

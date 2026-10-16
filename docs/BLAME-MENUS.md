@@ -107,3 +107,25 @@ All four owned native receivers were reaped. [Evidence](qa/blame-encoding-2026-1
 
 [Pane grouping and drag evidence](qa/blame-pane-tabs-2026-10-15.json) records
 the native interaction scope and remaining physical/signed checks.
+
+## Search, line navigation and pane focus
+
+Use **F3 / Shift-F3** or **Command-G / Shift-Command-G** to repeat the last
+applied search forward/backward. **Command-F** (also source **Control-F**) opens
+the modeless Find panel, prefilling the selected source text. Opening Find again
+reuses the panel and its draft.
+
+**Command-L** or source **Control-G** opens **Go To Line**. Enter a decimal from
+0 through 40,000,000. Zero closes without moving; a line beyond the file ends at
+its last line. Invalid input stays in the sheet. **Cancel** preserves selection;
+**OK** returns focus to the source. Other viewer commands and modeless Find
+searches wait until this sheet closes. Closing its viewer also closes the sheet.
+
+**F6 / Shift-F6**, also **Edit → Next/Previous Pane**, move between source text
+and the revision Log. A floating Log keeps its own native window; a tabbed Log
+becomes selected. Hidden/auto-hidden Log panes stay hidden. Native field editors
+retain their Escape behavior; Escape in the viewer closes its active window
+through the normal operation/child-window guards.
+
+These are native adaptations of the source keyboard commands. Full physical
+keyboard, accessibility and signed acceptance remain in progress.
