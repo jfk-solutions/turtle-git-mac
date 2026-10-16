@@ -483,6 +483,7 @@ struct ReferencePopup: NSViewRepresentable {
     @Binding var selection: String
     var accessibilityLabel: String? = nil
     var displaysIcons = false
+    var tooltip:String? = nil
     var focusRequest = 0
     var onFocus: ((NSPopUpButton) -> Void)? = nil
     @Environment(\.isEnabled) private var enabled
@@ -510,6 +511,7 @@ struct ReferencePopup: NSViewRepresentable {
         context.coordinator.names = names
         context.coordinator.live = true
         if let index = names.firstIndex(where: { GitReferenceName.equal($0, selection) }) { button.selectItem(at: index) }
+        if let tooltip {button.toolTip=tooltip}
         button.isEnabled = enabled && !references.isEmpty
         context.coordinator.change = { selection = $0 }
         if focusRequest > 0, let onFocus { DispatchQueue.main.async { [weak button, weak coordinator = context.coordinator] in if let button, coordinator?.live == true, button.isEnabled { onFocus(button) } } }

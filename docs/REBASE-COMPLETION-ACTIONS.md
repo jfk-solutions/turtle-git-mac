@@ -6,7 +6,8 @@ The pinned `Commands/RebaseCommand.cpp` configures Show Log and Restart Rebase.
 are at `7338078f8ddd924b8cddee35f512f2286072136d`.
 
 TurtleGit now offers those command sets in a native split control at the left of
-the completion row. The main button opens Show Log; its menu includes all choices
+the completion row. The main segment initially opens Show Log; choosing another menu action updates
+the repeated primary action, following CMenuButton. Its menu includes all choices
 with original icons. Done remains the primary closing button. The original
 `menusendmail.ico` is included unchanged with exact provenance and license notice.
 
@@ -45,3 +46,10 @@ Force and Preserve Merges. Legacy/malformed context falls back without preventin
 recovery. Git removes the metadata when the session completes or aborts.
 See [session recovery](REBASE-SESSION-CONTEXT.md).
 Full application and Rebase parity are still incomplete.
+
+
+The completion split control is now shared with the source-ordered bulk action
+control. Captured menu callbacks are one-use and reject changed completion phases
+or targets. Successful new completion resets the primary command to Show log.
+See [action controls](REBASE-ACTION-CONTROLS.md) for the connected implementation
+and actual grouped evidence; full physical/signed acceptance remains open.

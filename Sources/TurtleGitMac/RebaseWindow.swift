@@ -307,7 +307,11 @@ struct RebaseReferenceRequest {
     private let messageDefaults: UserDefaults
     lazy var clientHooks = ClientHookSession(preferences: messageDefaults)
     var repositoryAccess: RepositoryAccessLease? { access }
-    @Published var options = RebaseOptions()
+    private var controlMenuGeneration=UUID()
+    @Published var options = RebaseOptions() {didSet{controlMenuGeneration=UUID()}}
+    @Published private(set) var bulkAction:RebaseBulkAction = .pickAll
+    @Published private(set) var completionAction:RebaseCompletionAction = .log
+    @Published private(set) var referenceTooltips:[String:String]=[:]
     @Published var ontoEnabled = false
     @Published private(set) var showsIssueColumn = false
     @Published private(set) var hasGitSVN = false
@@ -321,12 +325,12 @@ struct RebaseReferenceRequest {
     static private(set) var activeStashRestorations = 0
     var readColumnMetadata: ([LogEntry],OperationCancellation) async throws -> ReplayColumnMetadata
     @Published var references: [CheckoutReference] = []
-    @Published var plan: RebasePlan?
+    @Published var plan: RebasePlan? {didSet{controlMenuGeneration=UUID()}}
     @Published var recovered: [RebaseEntry] = []
     @Published var replayRows: [RebaseEntry] = []
     @Published var draftEntries: [RebaseEntry] = []
     @Published var state: RebaseState?
-    @Published var selection = Set<String>()
+    @Published var selection = Set<String>() {didSet{if selection != oldValue {controlMenuGeneration=UUID()}}}
     @Published var files: [CommitFile] = []
     let revisionFiles:RevisionComparisonWindowModel
     private var revisionFilesObservation:AnyCancellable?
@@ -449,8 +453,8 @@ struct RebaseReferenceRequest {
     @Published private(set) var issueProperties = IssueTrackerProperties()
     @Published var output = ""
     @Published var tab = 0
-    @Published var busy = false
-    @Published var finished = false
+    @Published var busy = false {didSet{if busy != oldValue {controlMenuGeneration=UUID()}}}
+    @Published var finished = false {didSet{if finished != oldValue {controlMenuGeneration=UUID()}}}
     @Published var completedSuccessfully = false
     var completionAfterFetch = false
     var completionFromLog = false
@@ -953,7 +957,7 @@ struct RebaseReferenceRequest {
         return completionAfterFetch ? [.log, .push, .mail, .rebase] : [.log, .restart]
     }
     func canPerformCompletionAction(_ action: RebaseCompletionAction) -> Bool {
-        guard !busy, !pickingCommits, !selectingSplit, revisionMenuAvailable, completionActions.contains(action) else { return false }
+        guard !busy, !pickingCommits, !selectingSplit, revisionMenuAvailable,revisionMenuLog.window?.attachedSheet==nil, completionActions.contains(action) else { return false }
         switch action {
         case .log: return onCompletedLog != nil
         case .push: return onCompletedPush != nil
@@ -1138,7 +1142,12 @@ struct RebaseReferenceRequest {
                 let branch = try await preparedRead(token) { try await repository.branch(cancellation: token) }; options.branch = branch.isEmpty ? "HEAD" : "refs/heads/" + branch
                 let defaults = try await preparedRead(token) { try await repository.pullDefaults(cancellation: token) }
                 options.upstream = upstream ?? (defaults.trackedRemote.isEmpty || defaults.trackedBranch.isEmpty ? "" : "refs/remotes/" + defaults.trackedRemote + "/" + defaults.trackedBranch)
-                if !options.upstream.isEmpty { plan = try await preparedRead(token) { try await readPlan(options, token) }; selection = Set(entries.first.map { [$0.id] } ?? []); selectCommit() }
+                if !options.upstream.isEmpty {
+                    let value=try await preparedRead(token) {try await readPlan(options,token)}
+                    let summaries=try await readReferenceTooltips(value,cancellation:token)
+                    guard !retired,!token.isCancelled else{return}
+                    plan=value;referenceTooltips=summaries;selection=Set(entries.first.map {[$0.id]} ?? []);selectCommit()
+                }
                 busy = false
                 if autoStart && canStart { started = true; execute("start") }
             } catch { if !retired, !token.isCancelled { self.error = error.localizedDescription } }
@@ -1161,10 +1170,70 @@ struct RebaseReferenceRequest {
             }
             do {
                 try requireAccess(); let value = try await readPlan(snapshot, token)
+                let summaries=try await readReferenceTooltips(value,cancellation:token)
                 guard !retired, request == planGeneration, planCancellation === token, !token.isCancelled, editable else { return }
-                plan = value; selection = Set(entries.first.map { [$0.id] } ?? []); selectCommit()
+                plan = value;referenceTooltips=summaries; selection = Set(entries.first.map { [$0.id] } ?? []); selectCommit()
             } catch RebaseFailure.revision { /* Incomplete or unavailable reference: keep Start unavailable. */ }
             catch { if !retired, request == planGeneration, !token.isCancelled { self.error = error.localizedDescription } }
+        }
+    }
+    func referenceTooltip(branch:Bool)->String {
+        let name=branch ? options.branch:options.upstream
+        guard let plan,GitReferenceName.equal(plan.options.branch,options.branch),GitReferenceName.equal(plan.options.upstream,options.upstream) else{return name}
+        return referenceTooltips[branch ? plan.branchHash:plan.upstreamHash] ?? name
+    }
+    private func readReferenceTooltips(_ plan:RebasePlan,cancellation:OperationCancellation) async throws -> [String:String] {
+        var result:[String:String]=[:]
+        let dates=HistoryDateSettings(shortDate:false,relative:false,useSystemLocale:HistoryDateSettings.load(defaults:messageDefaults).useSystemLocale)
+        for hash in [plan.branchHash,plan.upstreamHash] where result[hash]==nil {
+            try cancellation.check()
+            do {
+                let commit=try await repository.rebaseCommit(hash,cancellation:cancellation)
+                try cancellation.check()
+                let text="Revision: "+commit.hash+"\nAuthor: "+commit.author+" <"+commit.email+">\nDate: "+dates.format(commit.date,absolute:true)+"\nMessage:\n"+commit.message
+                var units=Array(text.utf16.prefix(8000))
+                if let last=units.last,(0xD800...0xDBFF).contains(last) {units.removeLast()}
+                result[hash]=String(decoding:units,as:UTF16.self)
+            } catch {try cancellation.check();result[hash]="Revision: "+hash+"\nMetadata unavailable: "+error.localizedDescription}
+        }
+        return result
+    }
+    var canUseBulkActions:Bool {editable && !loadingPlan && revisionMenuAvailable && revisionMenuLog.window?.attachedSheet==nil}
+    func chooseBulkAction(_ action:RebaseBulkAction) {
+        guard canUseBulkActions else{return}
+        bulkAction=action
+        var values=plan?.entries ?? draftEntries
+        for index in values.indices {
+            if action.unselected && selection.contains(values[index].id) {continue}
+            if action.action == .squash {
+                if index==0 || (!isCherryPick && values[index].commit.parents.count != 1) {continue}
+            }
+            values[index].action=action.action
+        }
+        if plan != nil {plan?.entries=values} else {draftEntries=values}
+    }
+    func captureBulkAction()->((String)->Void)? {
+        guard canUseBulkActions else{return nil}
+        let generation=planGeneration,epoch=controlMenuGeneration,selected=selection,rows=entries.map {[$0.id,$0.action.rawValue]}
+        let branch=options.branch,upstream=options.upstream,onto=options.onto,force=options.force,preserve=options.preserveMerges
+        var consumed=false
+        return { [weak self] raw in
+            guard let self,!consumed,self.canUseBulkActions,self.controlMenuGeneration==epoch,self.planGeneration==generation,self.selection==selected,
+                  self.entries.map({[$0.id,$0.action.rawValue]})==rows,
+                  GitReferenceName.equal(self.options.branch,branch),GitReferenceName.equal(self.options.upstream,upstream),GitReferenceName.equal(self.options.onto,onto),self.options.force==force,self.options.preserveMerges==preserve,
+                  let action=RebaseBulkAction(rawValue:raw) else{return}
+            consumed=true;self.chooseBulkAction(action)
+        }
+    }
+    func captureCompletionAction()->((String)->Void)? {
+        guard !completionActions.isEmpty else{return nil}
+        let generation=planGeneration,epoch=controlMenuGeneration,actions=completionActions,branch=options.branch,upstream=options.upstream
+        var consumed=false
+        return { [weak self] raw in
+            guard let self,!consumed,self.controlMenuGeneration==epoch,self.planGeneration==generation,self.completionActions==actions,
+                  GitReferenceName.equal(self.options.branch,branch),GitReferenceName.equal(self.options.upstream,upstream),
+                  let action=RebaseCompletionAction(rawValue:raw),self.canPerformCompletionAction(action) else{return}
+            consumed=true;self.completionAction=action;self.performCompletionAction(action)
         }
     }
     private func requireAccess() throws {
@@ -1230,7 +1299,7 @@ struct RebaseReferenceRequest {
         var values = plan?.entries ?? draftEntries
         let targets = ids ?? selection
         for index in values.indices where targets.contains(values[index].id) {
-            guard !options.preserveMerges || action != .squash || values[index].commit.parents.count == 1 else { continue }
+            if action == .squash && (index==0 || !isCherryPick && values[index].commit.parents.count > 1) {continue}
             values[index].action = action
         }
         if plan != nil { plan?.entries = values } else { draftEntries = values }
@@ -1426,7 +1495,7 @@ struct RebaseReferenceRequest {
                     return result
                 }
                 guard !retired else { return }
-                try preparation.check(); state = result.state; finished = result.exitCode == 0 && !result.state.active; completedSuccessfully = finished && action != "abort"; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
+                try preparation.check(); state = result.state; finished = result.exitCode == 0 && !result.state.active; completedSuccessfully = finished && action != "abort";if completedSuccessfully {completionAction = .log}; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
                 if result.exitCode == 0, let skippedID { replayRows = replayRows.map { var row = $0; if row.id == skippedID { row.action = .skip }; return row } }
                 if finished, action != "abort" { replayRows = replayRows.map { var row = $0; row.progress = .completed; return row } }
                 try await loadConflictFiles()
@@ -1447,7 +1516,7 @@ struct RebaseReferenceRequest {
             }
         }
     }
-    var canSplit: Bool { !busy && !selectingSplit && state?.canSplit == true }
+    var canSplit: Bool { !busy && !revisionFiles.busy && !selectingSplit && state?.canSplit == true }
     func beginSplitSelection() {
         guard canSplit else { return }; busy = true; Self.beginReplayWork()
         Task {
@@ -1492,6 +1561,78 @@ struct RebaseReferenceRequest {
 
 
 }
+/// Source order and labels of IDC_SPLITALLOPTIONS. The remembered action belongs
+/// to this window, exactly like CMenuButton's current entry.
+enum RebaseBulkAction:String,CaseIterable {
+    case pickAll="Pick ALL",squashAll="Squash ALL",editAll="Edit ALL"
+    case skipUnselected="Skip unselected",squashUnselected="Squash unselected",editUnselected="Edit unselected"
+    var unselected:Bool {self == .skipUnselected || self == .squashUnselected || self == .editUnselected}
+    var action:RebaseAction {
+        switch self {case .pickAll:return .pick;case .squashAll,.squashUnselected:return .squash;case .editAll,.editUnselected:return .edit;case .skipUnselected:return .skip}
+    }
+}
+
+/// Native split control: the main segment repeats the chosen command, while
+/// the arrow exposes source-ordered commands with their original artwork.
+struct RebaseSplitControl:NSViewRepresentable {
+    let title:String
+    let items:[(String,MenuIcon)]
+    let label:String
+    let enabled:Bool
+    let primary:()->Void
+    let captureMenu:()->((String)->Void)?
+    @Environment(\.isEnabled) private var environmentEnabled
+    func makeCoordinator()->Coordinator {Coordinator()}
+    func makeNSView(context:Context)->NSSegmentedControl {
+        let control=NSSegmentedControl(labels:[title,""],trackingMode:.momentary,target:context.coordinator,action:#selector(Coordinator.clicked(_:)))
+        control.segmentStyle = .rounded;control.setWidth(130,forSegment:0);control.setWidth(24,forSegment:1)
+        control.setShowsMenuIndicator(true,forSegment:1);control.setAccessibilityLabel(label)
+        context.coordinator.control=control;return control
+    }
+    func updateNSView(_ control:NSSegmentedControl,context:Context) {
+        let coordinator=context.coordinator
+        coordinator.live=true;coordinator.primary=primary;coordinator.captureMenu=captureMenu
+        control.isEnabled=enabled && environmentEnabled;control.setLabel(title,forSegment:0)
+        control.toolTip=title
+        let names=items.map{$0.0}
+        if coordinator.names != names || control.menu(forSegment:1)==nil {
+            coordinator.invoke=nil;coordinator.names=names
+            let menu=NSMenu();menu.delegate=coordinator;menu.autoenablesItems=false
+            for (name,icon) in items {
+                let item=NSMenuItem(title:name,action:#selector(Coordinator.chosen(_:)),keyEquivalent:"")
+                item.target=coordinator;item.representedObject=name;item.image=icon.image();menu.addItem(item)
+            }
+            control.setMenu(menu,forSegment:1)
+        }
+        for item in control.menu(forSegment:1)?.items ?? [] {item.state=item.title==title ? .on:.off;item.isEnabled=control.isEnabled}
+    }
+    static func dismantleNSView(_ control:NSSegmentedControl,coordinator:Coordinator) {
+        coordinator.live=false;coordinator.invoke=nil;coordinator.primary={};coordinator.captureMenu={nil}
+        control.menu(forSegment:1)?.delegate=nil;control.setMenu(nil,forSegment:1);control.target=nil;control.action=nil;control.isEnabled=false
+    }
+    @MainActor final class Coordinator:NSObject,NSMenuDelegate {
+        weak var control:NSSegmentedControl?
+        var live=true,names:[String]=[]
+        var primary:()->Void = {}
+        var captureMenu:()->((String)->Void)? = {nil}
+        var invoke:((String)->Void)?
+        @objc func clicked(_ sender:NSSegmentedControl) {
+            guard live,sender===control,sender.isEnabled,sender.window != nil,sender.selectedSegment==0 else{return}
+            primary()
+        }
+        func menuWillOpen(_ menu:NSMenu) {
+            guard live,let control,control.isEnabled,control.window != nil,control.menu(forSegment:1)===menu else {invoke=nil;return}
+            invoke=captureMenu()
+            for item in menu.items {item.isEnabled=invoke != nil}
+        }
+        @objc func chosen(_ sender:NSMenuItem) {
+            guard live,let control,control.isEnabled,control.window != nil,sender.isEnabled,
+                  sender.menu===control.menu(forSegment:1),let value=sender.representedObject as? String,let invoke else{return}
+            self.invoke=nil;invoke(value)
+        }
+    }
+}
+
 enum RebaseCompletionAction: String, CaseIterable {
     case log = "Show log", restart = "Restart rebase", push = "Push…", mail = "Send Mail…", rebase = "Rebase…"
     var icon: MenuIcon {
@@ -1545,9 +1686,9 @@ struct RebaseDialog: View {
                     Text("Upstream:"); TextField("", text: .constant("HEAD")).disabled(true)
                     Button("…") {}.disabled(true); Toggle("Onto", isOn: .constant(false)).toggleStyle(.button).disabled(true)
                 } else {
-                Text("Branch:"); ReferencePopup(references: model.referenceChoices(nil), selection: Binding(get: { model.options.branch }, set: model.chooseBranch), accessibilityLabel: "Branch", displaysIcons: true)
+                Text("Branch:"); ReferencePopup(references: model.referenceChoices(nil), selection: Binding(get: { model.options.branch }, set: model.chooseBranch), accessibilityLabel: "Branch", displaysIcons: true, tooltip:model.referenceTooltip(branch:true))
                 Button { model.reverseReferences() } label: { Image(nsImage: MenuIcon.reverse.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }.accessibilityLabel("Reverse branch and upstream")
-                Text("Upstream:"); ReferencePopup(references: model.referenceChoices(.upstream), selection: Binding(get: { model.options.upstream }, set: model.chooseUpstream), accessibilityLabel: "Upstream", displaysIcons: true)
+                Text("Upstream:"); ReferencePopup(references: model.referenceChoices(.upstream), selection: Binding(get: { model.options.upstream }, set: model.chooseUpstream), accessibilityLabel: "Upstream", displaysIcons: true, tooltip:model.referenceTooltip(branch:false))
                 Button("…") { model.pickReference(.upstream) }.accessibilityLabel("Browse upstream references")
                 Toggle("Onto", isOn: Binding(get: { model.ontoEnabled }, set: { _ in model.pickReference(.onto) })).toggleStyle(.button).help(model.options.onto)
                 }
@@ -1557,18 +1698,13 @@ struct RebaseDialog: View {
                     RebaseReplayTable(model: model, dates: dates)
                         .background(RebaseColumnLayout(model: model)).background(RebaseListInteraction(model: model))
                     HStack {
-                        Button("Pick ALL") { model.setAction(.pick, ids: Set(model.entries.map(\.id))) }.disabled(!model.editable)
-                        Menu("Options") {
-                            ForEach(RebaseAction.allCases.filter { $0 != .skip }, id: \.self) { action in Button { model.setAction(action, ids: Set(model.entries.map(\.id))) } label: { CommandLabel(title: "Select all: " + action.rawValue.capitalized, icon: action.icon) } }
-                            Divider()
-                            ForEach([RebaseAction.skip, .squash, .edit], id: \.self) { action in Button { model.setAction(action, ids: Set(model.entries.map(\.id)).subtracting(model.selection)) } label: { CommandLabel(title: "Unselected: " + (action == .skip ? "Skip" : action.rawValue.capitalized), icon: action.icon) } }
-                        }.disabled(!model.editable)
+                        RebaseSplitControl(title:model.bulkAction.rawValue,items:RebaseBulkAction.allCases.map {($0.rawValue,$0.action.icon)},label:"Rebase bulk actions",enabled:model.canUseBulkActions,primary:{model.chooseBulkAction(model.bulkAction)},captureMenu:model.captureBulkAction).frame(width:158,height:24)
                         Button("Up") { model.move(up: true, toEnd: NSEvent.modifierFlags.contains(.shift)) }.disabled(!model.canMove(up: true, toEnd: true))
                         Button("Down") { model.move(up: false, toEnd: NSEvent.modifierFlags.contains(.shift)) }.disabled(!model.canMove(up: false, toEnd: true))
                         Button { model.pickAdditionalCommits() } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canAdd)
                         Spacer()
                         if model.isCherryPick { Toggle("add \"cherry picked from\"", isOn: $model.options.addCherryPickedFrom) }
-                        else { Toggle("Preserve merges", isOn: $model.options.preserveMerges); Toggle("Force Rebase", isOn: $model.options.force) }
+                        else { Toggle("Preserve merges", isOn: $model.options.preserveMerges).help("Preserve merge commits while replaying the branch; see Help for structural rebase behavior."); Toggle("Force Rebase", isOn: $model.options.force).help("Force replay even if the branch is already a descendant of the upstream commit.") }
                     }.disabled(!model.editable)
                 }.frame(minHeight: 180)
                 TabView(selection: $model.tab) {
@@ -1596,25 +1732,18 @@ struct RebaseDialog: View {
             }
             if model.active {
                 HStack { Button("Open Working Tree") { model.onShowStatus() }; Button("Refresh State") { model.refreshState() }; Spacer(); Button("Skip") { model.request("skip") } }
-                HStack { if model.state?.canSplit == true { Toggle("Split commit", isOn: $model.splitCommit).disabled(!model.canSplit || model.state?.split != nil) } }
             }
             if model.busy { ProgressView().progressViewStyle(.linear) }
             else { ProgressView(value: model.finished ? 1 : Double(model.state?.currentStep ?? 0), total: model.finished ? 1 : Double(max(model.state?.total ?? 1, 1))) }
             HStack {
                 if model.completionActions.isEmpty { Text(model.status).font(.caption) }
                 else {
-                    HStack(spacing: 0) {
-                        Button { model.performCompletionAction(.log) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(!model.canPerformCompletionAction(.log))
-                        Menu {
-                            ForEach(model.completionActions, id: \.self) { action in
-                                Button { model.performCompletionAction(action) } label: { CommandLabel(title: action.rawValue, icon: action.icon) }.disabled(!model.canPerformCompletionAction(action))
-                            }
-                        } label: { Image(systemName: "chevron.down") }.menuStyle(.borderlessButton).fixedSize()
-                    }
+                    RebaseSplitControl(title:model.completionAction.rawValue,items:model.completionActions.map {($0.rawValue,$0.icon)},label:"Rebase completion actions",enabled:model.canPerformCompletionAction(model.completionAction),primary:{model.performCompletionAction(model.completionAction)},captureMenu:model.captureCompletionAction).frame(width:158,height:24)
                 }
                 Spacer()
+                if model.state?.canSplit == true {Toggle("Edit/Split commit",isOn:$model.splitCommit).disabled(!model.canSplit || model.state?.split != nil)}
                 Button(model.primaryActionTitle) { if model.finished { model.finishReplay() } else { model.request(model.active ? "continue" : "start") } }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
-                Button(model.active || model.isCherryPick ? "Abort" : "Cancel") { if model.active { model.request("abort") } else { model.finishReplay() } }.keyboardShortcut(.cancelAction)
+                Button(model.active || model.isCherryPick ? "Abort" : "Cancel") { if model.active { model.request("abort") } else { model.finishReplay() } }.keyboardShortcut(.cancelAction).help(model.active ? "Recover to the status before rebase":"Close this dialog")
                 Button("Help") { TurtleGitHelp.show(model.isCherryPick ? .cherryPick : .rebase) }
             }
         }.padding(12).disabled(model.busy || model.selectingSplit || model.pickingReference != nil)

@@ -162,6 +162,9 @@ work that remains.
 
 ## Screenshots and website
 
+The [Rebase action-control review](docs/REBASE-ACTION-CONTROLS.md) includes native
+light/dark captures of the remembered bulk split action and Edit/Split footer.
+
 Rebase's Revision Files tab now includes historical file actions and shared
 native column controls. See the [implementation and limits](docs/REBASE-REVISION-FILES.md).
 

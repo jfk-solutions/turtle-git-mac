@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "7f84368f0ee6c3b81b4b9fdd5e2f013b5ac38ea7",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/Resources/TortoiseProcENG.rc IDD_REBASE, bulk labels and control help",
+    "src/TortoiseProc/RebaseDlg.cpp SetAllRebaseAction, OnBnClickedSplitAllOptions, AddBranchToolTips, SetControlEnable",
+    "src/TortoiseProc/GitLogListAction.cpp SetSelectedRebaseAction/SetUnselectedRebaseAction",
+    "src/Utils/MiscUI/MenuButton.cpp current-entry repeat semantics"
+  ],
+  "implementation": [
+    "Source-ordered native remembered bulk split control replaces separate Pick ALL/Options buttons",
+    "Oldest and ordinary non-single-parent Squash exclusions; selected/unselected occurrence preservation",
+    "Menu control generation, plan generation/order/actions and options fences; away/return and busy changes cannot revive a stale captured request",
+    "Canonical plan hashes supply owned cancellable Branch/Upstream author/date/message tooltips with UTF-16 limit",
+    "Edit/Split commit checkbox moves to continuation footer; control help",
+    "Completion shares remembered native split control, one-use captured callbacks and successful-completion default reset"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/rebase-action-controls-build.log",
+      "exit": 0,
+      "anomalous_exit_zero_diagnostics": 2
+    },
+    {
+      "log": "build/qa/rebase-action-controls-build-repair.log",
+      "exit": 0,
+      "anomalous_exit_zero_diagnostics": 2
+    }
+  ],
+  "core": "Native-only implementation; no Core implementation or Core suite rerun.",
+  "native": {
+    "runner": "scripts/test-rebase-action-controls.py",
+    "final_log": "build/qa/rebase-action-controls-native-reopen.log",
+    "exit": 0,
+    "cases": 6,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "fixtures": [
+      "rebase-action-controls-native-2026-10-16.swift",
+      "rebase-row-drag-native-2026-10-13.swift",
+      "rebase-references-native-2026-10-14.swift"
+    ],
+    "receivers_reaped": [
+      93322,
+      93802,
+      94192,
+      94870,
+      95550,
+      95938
+    ],
+    "checks": [
+      "Actual native source-ordered menu labels/icons and remembered bulk/main dispatch",
+      "All six bulk actions, oldest/selected/unselected rules and Start eligibility",
+      "One-use, changed selection, selection-away/return, busy and retired callbacks refused",
+      "Native Branch/Upstream tooltip properties contain exact captured hashes and metadata",
+      "Real Edit pause/footer and Abort restoring original HEAD/index, retiring owner; actual reopened native Rebase",
+      "Real bulk Squash replay produces one upstream..topic commit",
+      "After-Fetch completion menu chooses Push once, remembers/repeats HEAD action, rejects restarted callback",
+      "Retained native row drag/order and structural Pick/Skip/Edit/Squash/merge recovery/topology",
+      "Retained reference dropdown kinds/artwork, Upstream/Onto and old/new/closed preparation ownership"
+    ],
+    "notes": "Headless momentary main invocation temporarily selects a segment under selectOne tracking, sends the actual native target/action, then restores momentary tracking. This reproduces the state inside AppKit event dispatch; physical mouse/key dispatch is unverified. Retained hidden reference fixture emits zero-size NSSplitView warnings."
+  },
+  "initial_attempts": [
+    {
+      "log": "build/qa/rebase-action-controls-native.log",
+      "receiver_reaped": 92485,
+      "exit": 1,
+      "reason": "Fixture setSelected outside momentary native dispatch did not retain selectedSegment; repeat assertion failed."
+    },
+    {
+      "log": "build/qa/rebase-action-controls-native-repair.log",
+      "receiver_reaped": 92701,
+      "exit": 1,
+      "reason": "Explicit selectedSegment outside momentary dispatch also resets to -1. Menu generation fix was built; fixture dispatch still needed correct headless selection state."
+    },
+    {
+      "log": "build/qa/rebase-action-controls-native-dispatch.log",
+      "receiver_reaped": 92833,
+      "exit": 1,
+      "reason": "Native controls/tooltips/Edit/footer/Abort reached. Fixture reused the owner after Abort correctly closed/retired it, so later replay could not start."
+    },
+    {
+      "log": "build/qa/rebase-action-controls-native-reload-diagnostic.log",
+      "receiver_reaped": 93100,
+      "exit": 1,
+      "reason": "Focused diagnostic confirmed Abort owner remained finished/inactive; final fixture reopens actual native controller, asserts old retirement, then performs Squash/completion."
+    }
+  ],
+  "captures": {
+    "method": "Unaltered native screencapture -x -o -l, actual owning window in both appearances.",
+    "review": "All four final files viewed; split label/arrow and visible action controls, original action/status colors, disabled paused controls, Commit Message editor, Edit/Split checkbox and continuation footer checked. No menu-placement/whole-dialog certification.",
+    "files": [
+      {
+        "path": "docs/site/assets/rebase-action-controls-light.png",
+        "sha256": "5caa319a106d452d90af165e48dfe2fdec035bcf9178ceb69633e8e5d281dc2f"
+      },
+      {
+        "path": "docs/site/assets/rebase-action-controls-dark.png",
+        "sha256": "cbd9042857806d40038b3317bf477c6ead0d0b151ec493569c826a50864bcb53"
+      },
+      {
+        "path": "docs/site/assets/rebase-edit-footer-light.png",
+        "sha256": "55e28b837317a8a30a024626f026a8613a8c0ff5b97dc7793c1356424df4629c"
+      },
+      {
+        "path": "docs/site/assets/rebase-edit-footer-dark.png",
+        "sha256": "4a2c782c02b802c8d4f80b3d00804c829b001a7c21d966086935f3bfc27886d1"
+      }
+    ]
+  },
+  "limits": [
+    "Physical keyboard/pointer/menu/VoiceOver and all minimum-size/long-label combinations remain open",
+    "Tooltips verified as native control properties; no physical hover interaction claim",
+    "Preserve merges help describes native structural engine instead of repeating obsolete Windows reorder limitation",
+    "Full signed sandbox/Finder/App Store and full hosted CI acceptance remain open"
+  ]
+}

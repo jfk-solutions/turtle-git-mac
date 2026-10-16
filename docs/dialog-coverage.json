@@ -2558,6 +2558,7 @@
       "parity_documents": [
         "docs/HELP-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
+        "docs/REBASE-ACTION-CONTROLS.md",
         "docs/REBASE-PARITY.md",
         "docs/REBASE-REFERENCE-PREPARATION-PARITY.md",
         "docs/REBASE-REVISION-FILES.md",
@@ -2570,6 +2571,7 @@
         "docs/qa/log-canonical-integration-2026-10-16.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
+        "docs/qa/rebase-action-controls-2026-10-16.json",
         "docs/qa/rebase-columns-2026-10-13.json",
         "docs/qa/rebase-compositor-2026-10-15.json",
         "docs/qa/rebase-conditional-2026-10-13.json",

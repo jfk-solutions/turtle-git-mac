@@ -3,6 +3,13 @@
 *A macOS fork of TortoiseGit*
 
 
+Rebase's action row now has the source-ordered sticky bulk split button, corrected
+oldest-commit Squash rules, canonical reference metadata tooltips and footer
+Edit/Split placement. Completion also remembers its chosen command through the
+shared native control. See [action controls](REBASE-ACTION-CONTROLS.md).
+Full physical, visual and signed acceptance remain open.
+
+
 Rebase's Revision Files pane now connects the Changed Files inspection family:
 comparison/unified, Revert, history, Blame, historical Open/Save/export,
 clipboard and independently saved native column layouts. Original status colors

@@ -585,3 +585,15 @@ operation/cancellation/Quit ownership are part of the same batch. Conflict
 recovery keeps the checked Conflict Files pane. See the
 [Revision Files implementation and native captures](REBASE-REVISION-FILES.md).
 Full source-menu, physical, accessibility and signed acceptance remain open.
+
+
+## Connected bulk/reference/footer controls — October 16, 2026
+
+One native split control now supplies source-ordered sticky bulk choices, with
+oldest/non-single-parent Squash guards and unselected occurrence preservation.
+The completion split control also remembers the chosen command. Canonical plan
+hashes supply cancellable Branch/Upstream metadata tooltips. Edit/Split commit
+moves beside Continue in the source footer position. Plan/selection/child/busy
+and retirement fences accompany the native callbacks. See
+[action controls](REBASE-ACTION-CONTROLS.md) for source comparison, grouped
+verification and remaining physical/visual/signed acceptance.
