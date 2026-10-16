@@ -301,3 +301,28 @@ final class SSHTransportPreparationTests: XCTestCase {
         let recorded = await events.snapshot(); XCTAssertFalse(FileManager.default.fileExists(atPath: recorded.1[0].path))
     }
 }
+
+extension SSHTransportPreparationTests {
+    func testCompletedCloneRetainsSSHConfigurationFailureAsWarning() async throws {
+        let f=try await fixture();defer {try? FileManager.default.removeItem(at:f.root)}
+        let original=try String(contentsOf:f.wrapper)
+        let reject="""
+        for argument in "$@"; do
+          case "$argument" in remote.*.turtlegitsshkeyfile) printf '%s\\n' 'fixture denied SSH setting' >&2; exit 67;; esac
+        done
+        """
+        try original.replacingOccurrences(of:"#!/bin/sh\n",with:"#!/bin/sh\n"+reject+"\n").write(to:f.wrapper,atomically:true,encoding:.utf8)
+        try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:f.wrapper.path)
+        let before=try await f.source.run(["rev-parse","HEAD"]).stdout
+        var options=CloneOptions();options.source=f.source.root.path;options.sshKey=f.key;options.loadSSHKeyWithAgent=true;options.origin="custom"
+        let destination=f.root.appendingPathComponent("clone-with-warning")
+        let value=try await f.repo.cloneOutcome(options,to:destination,prepareTransport:{_,token in try f.agent(token)})
+        XCTAssertEqual(value.warnings.count,1);XCTAssertTrue(value.warnings.first?.contains("fixture denied SSH setting") == true);XCTAssertTrue(value.summary.contains("Clone completed"))
+        let cloned=GitRepository(root:destination,executable:f.realGit)
+        let head=try await cloned.run(["rev-parse","HEAD"]).stdout,settings=try await cloned.remoteSettings(name:"custom")
+        XCTAssertEqual(head,before);XCTAssertTrue(settings.sshKeyFile.isEmpty)
+        XCTAssertEqual(try Data(contentsOf:destination.appendingPathComponent("file")),Data("base\n".utf8))
+        let after=try await f.source.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(after,before)
+        XCTAssertEqual(try String(contentsOf:f.log),"clone\n")
+    }
+}

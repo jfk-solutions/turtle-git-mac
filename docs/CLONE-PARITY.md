@@ -209,3 +209,12 @@ case were not repeated for the native-only repair. All receivers were reaped. Se
 [creation batch evidence](qa/repository-creation-owned-2026-10-14.json). Physical permission,
 warning and confirmation sheets, live transports, signed grants, full dialog
 parity and App Store acceptance remain open.
+
+## Completed-command and history family — October 17, 2026
+
+The [completion/history continuation](CLONE-COMPLETION-PARITY.md) separates SSH
+configuration warnings from successful transport, retains successful actions,
+retries opening without recloning, and supplies native saved-history deletion.
+Accepted failed submissions now retain captured history, matching source OnOK;
+this supersedes earlier success-only history and failed-result descriptions for
+post-clone key configuration. Physical and signed acceptance remain open.

@@ -1670,3 +1670,15 @@ selection/reading position. See [source mapping and limits](REFLOG-COMMAND-FAMIL
 Twelve native case/engine combinations pass after the recorded fixture repairs.
 All sixteen owned receivers, including failed attempts, were reaped and absent.
 Core sources were unchanged and its suite was not repeated. See [batch evidence](qa/reflog-command-family-2026-10-16.json).
+
+### Clone completed-command and history family — October 17, 2026
+
+Clone now separates transport success from later SSH-setting warnings and opening
+failures. Successful warning results retain Log/Finder actions for review; opening
+retries cannot reclone a populated destination. Native histories support exact
+saved deletion and source submission timing after read-only validation. See
+[source rules and acceptance limits](CLONE-COMPLETION-PARITY.md).
+
+Twenty distinct focused Core cases and eight grouped native case/engine runs
+pass. The Core fixture repair and private cleanup are recorded; all eight owned
+receivers were reaped and absent. See [batch evidence](qa/clone-completion-2026-10-17.json).

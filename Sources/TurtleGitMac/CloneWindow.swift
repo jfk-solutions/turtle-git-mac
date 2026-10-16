@@ -93,6 +93,9 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     @Published var busy = false
     @Published var output: String?
     @Published var completed: URL?
+    @Published private(set) var completionWarning:String?
+    private var pendingInspection:(CloneOutcome,CloneOptions,URL,RepositoryAccessLease,RepositoryAccessLease?)?
+    var canShowLog:Bool {clonedRepository != nil}
     @Published var error: String?
     var identities = SSHIdentityAccessStore()
     var makeSSHCoordinator: SSHCloneTransportFactory?
@@ -115,14 +118,14 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     func finish(_ result: CloneProgressWindowModel) {
         guard progress === result, !result.busy, !result.confirmingCancellation else { return }
         progress = nil; result.invalidate(); busy = false
-        guard !invalidated else { return }; if result.success { finished = true; close() }
+        guard !invalidated else { return }; if result.commandCompleted { finished = true; close() }
     }
     private var destinationAccess: RepositoryAccessLease?
     private var sourceAccess: RepositoryAccessLease?
     private var keyAccess: RepositoryAccessLease?
     private var automaticDirectory: String?
-    let urls: [String]
-    let keys: [String]
+    @Published private(set) var urls: [String]
+    @Published private(set) var keys: [String]
     var close: () -> Void = {}
     var onCloned: (GitRepository, RepositoryAccessLease, RepositoryAccessLease?, Bool, String) -> Void = { _, _, _, _, _ in }
     var onLog: (GitRepository, RepositoryAccessLease) -> Void = { _, _ in }
@@ -132,8 +135,8 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         let defaults = preferences
         self.directory = directory?.path ?? defaults.string(forKey: "Clone.Directory") ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].path
         recursive = defaults.bool(forKey: "Clone.Recursive")
-        urls = defaults.stringArray(forKey: "Clone.URLHistory") ?? []
-        keys = defaults.stringArray(forKey: "Clone.KeyHistory") ?? []
+        urls = FetchDialogHistory.load(defaults,key:"Clone.URLHistory",caseSensitive:true)
+        keys = FetchDialogHistory.load(defaults,key:"Clone.KeyHistory",caseSensitive:true)
         destinationAccess = access
         key = keys.first ?? ""; useKey = sshAvailable && (defaults.object(forKey: "Clone.UseSSHKey") as? Bool ?? true)
     }
@@ -143,6 +146,21 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     var supportsKey: Bool {
         let url = source.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return url.hasPrefix("svn+ssh://") || url.hasPrefix("ssh://") || (!url.contains("://") && !url.hasPrefix("/") && url.contains(":"))
+    }
+    func deleteURLHistory(at index:Int) {
+        guard pathCompletionAvailable,let result=FetchDialogHistory.removing(index,entries:urls,preferences:preferences,key:"Clone.URLHistory") else {return}
+        urls=result.entries;source=result.selection;sourceChanged()
+    }
+    func deleteKeyHistory(at index:Int) {
+        guard pathCompletionAvailable,let result=FetchDialogHistory.removing(index,entries:keys,preferences:preferences,key:"Clone.KeyHistory") else {return}
+        keys=result.entries;key=result.selection
+    }
+    private func recordSubmission(_ options:CloneOptions,destination:URL,keyText:String) {
+        urls=FetchDialogHistory.save(options.source,entries:urls,preferences:preferences,key:"Clone.URLHistory",caseSensitive:true)
+        keys=FetchDialogHistory.save(keyText,entries:keys,preferences:preferences,key:"Clone.KeyHistory",caseSensitive:true)
+        preferences.set(destination.deletingLastPathComponent().path,forKey:"Clone.Directory")
+        preferences.set(options.recursive,forKey:"Clone.Recursive")
+        preferences.set(options.sshKey != nil,forKey:"Clone.UseSSHKey")
     }
     func sourceChanged() {
         let value = source.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/\\"))
@@ -219,10 +237,11 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
             }
             if useKey { guard key.hasPrefix("/"), supportsKey else { throw CloneFailure.value }; guard sshAvailable else { throw CloneFailure.keyRuntime }; options.sshKey = URL(fileURLWithPath: key); options.loadSSHKeyWithAgent = true }
             _ = try options.arguments(destination: destination)
-            let capturedOptions = options
+            let capturedOptions = options,capturedKeyText=key,preparationToken=OperationCancellation()
+            operationCancellation=preparationToken
             Self.activeOperations += 1
             Task { [self] in
-                defer { granting = false; Self.activeOperations -= 1 }
+                defer { granting = false; Self.activeOperations -= 1;if operationCancellation === preparationToken {operationCancellation=nil} }
                 guard !invalidated, !finished else { return }
                 do {
                     let options = capturedOptions
@@ -240,8 +259,10 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
             let executable = try self.executable ?? GitRuntime.executable(), snapshot = options
             let capturedSourceAccess = sourceAccess, capturedKeyAccess = keyAccess
             let sshFactory = options.loadSSHKeyWithAgent ? captureSSHFactory() : nil
-            preferences.set(snapshot.sshKey != nil, forKey: "Clone.UseSSHKey")
-            guard !invalidated, !finished else { return }
+            let preflight=GitRepository(root:cwd,executable:executable)
+            try await preflight.validateClone(snapshot,to:destination,cancellation:preparationToken)
+            try preparationToken.check();guard !invalidated,!finished else {return}
+            recordSubmission(snapshot,destination:destination,keyText:capturedKeyText)
             busy = true; output = nil; error = nil
             if let onProgress {
                 let result = CloneProgressWindowModel(options: snapshot, destination: destination, executable: executable, destinationAccess: access, sourceAccess: capturedSourceAccess, keyAccess: capturedKeyAccess, preferences: preferences)
@@ -260,25 +281,41 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
                         let runner = GitRepository(root: cwd, executable: executable)
                         let coordinator = sshFactory?(runner); defer { coordinator?.close() }
                         if snapshot.svn { _ = try await runner.run(["svn", "--version"], cancellation: token) }
-                        let output = try await runner.clone(snapshot, to: destination, cancellation: token, prepareTransport: snapshot.sshKey.flatMap { coordinator?.explicitPreparation(path: $0.path) })
-                        let candidate = GitRepository(root: destination, executable: executable)
-                        let repo = snapshot.bare ? candidate : GitRepository(root: try await candidate.discoverRoot(cancellation: token), executable: executable)
-                        try token.check(); guard !invalidated else { return }
-                        recordClone(repo, output: output, options: snapshot, destination: destination, access: access, keyAccess: capturedKeyAccess)
-                    } catch { if !invalidated, !token.isCancelled { self.output = error.localizedDescription; self.error = error.localizedDescription } }
+                        let outcome = try await runner.cloneOutcome(snapshot,to:destination,cancellation:token,prepareTransport:snapshot.sshKey.flatMap {coordinator?.explicitPreparation(path:$0.path)})
+                        guard !invalidated else {return}
+                        output=outcome.summary;pendingInspection=(outcome,snapshot,destination,access,capturedKeyAccess)
+                        try await finishDirectInspection(cancellation:token)
+                    } catch { if !invalidated {
+                        if pendingInspection != nil {completed=destination;completionWarning="Clone completed, but the repository could not be opened.\n" + error.localizedDescription}
+                        else if !token.isCancelled {self.output=error.localizedDescription;self.error=error.localizedDescription}
+                    } }
                 }
             }
                 } catch { if !invalidated { self.error = error.localizedDescription } }
             }
         } catch { granting = false; if !invalidated { self.error = error.localizedDescription } }
     }
+    private func finishDirectInspection(cancellation token:OperationCancellation) async throws {
+        guard let (outcome,options,destination,access,keyAccess)=pendingInspection else {return}
+        let candidate=GitRepository(root:destination,executable:try executable ?? GitRuntime.executable())
+        let repo=options.bare ? candidate:GitRepository(root:try await candidate.discoverRoot(cancellation:token),executable:candidate.executable)
+        try token.check();guard !invalidated else {return}
+        if GitRuntime.isAppStoreBuild && !access.contains(repo.root) {throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path)}
+        pendingInspection=nil;completionWarning=outcome.warnings.isEmpty ? nil:outcome.warnings.joined(separator:"\n")
+        recordClone(repo,output:outcome.summary,options:options,destination:destination,access:access,keyAccess:keyAccess)
+    }
+    func retryOpeningRepository() {
+        guard !invalidated,!activeOperation,pendingInspection != nil else {return}
+        let token=OperationCancellation();operationCancellation=token;busy=true;Self.activeOperations += 1
+        Task { [self] in
+            defer {Self.activeOperations -= 1;if operationCancellation === token {operationCancellation=nil;busy=false}}
+            do {try await finishDirectInspection(cancellation:token)}
+            catch {if !invalidated {completionWarning="Clone completed, but the repository could not be opened.\n" + error.localizedDescription}}
+        }
+    }
     private func recordClone(_ repo: GitRepository, output: String, options: CloneOptions, destination: URL, access: RepositoryAccessLease, keyAccess: RepositoryAccessLease?) {
         guard !invalidated else { return }
         clonedRepository = repo; completed = repo.root; self.output = output
-        preferences.set(destination.deletingLastPathComponent().path, forKey: "Clone.Directory")
-        preferences.set(options.recursive, forKey: "Clone.Recursive")
-        preferences.set(([options.source] + urls.filter { $0 != options.source }).prefix(25).map { $0 }, forKey: "Clone.URLHistory")
-        if let key = options.sshKey { preferences.set(([key.path] + keys.filter { $0 != key.path }).prefix(25).map { $0 }, forKey: "Clone.KeyHistory") }
         onCloned(repo, access, options.loadSSHKeyWithAgent ? nil : keyAccess, options.bare, output)
     }
     func showLog() { if let repo = clonedRepository, let access = destinationAccess { onLog(repo, access) } }
@@ -291,16 +328,18 @@ struct CloneDialog: View {
             if let destination = model.completed {
                 Text("Clone completed").font(.headline)
                 Text(destination.path).textSelection(.enabled)
+                if let warning=model.completionWarning {Label(warning,systemImage:"exclamationmark.triangle.fill").foregroundStyle(.orange).textSelection(.enabled)}
                 OutputView(text: model.output ?? "").frame(maxHeight: .infinity)
                 HStack {
-                    Button { model.showLog() } label: { CommandLabel(title: "Show Log", icon: .log) }
+                    Button { model.showLog() } label: { CommandLabel(title: "Show Log", icon: .log) }.disabled(!model.canShowLog)
+                    if !model.canShowLog {Button("Retry opening repository") {model.retryOpeningRepository()}}
                     Button { NSWorkspace.shared.activateFileViewerSelecting([destination]) } label: { CommandLabel(title: "Show in Finder", icon: .explore) }
                     Spacer(); Button("Close") { model.close() }.keyboardShortcut(.defaultAction)
                 }
             } else {
                 GroupBox("Clone Existing Repository") {
                     VStack(spacing: 12) {
-                        HStack { Text("URL:").frame(width: 70, alignment: .leading); CloneHistoryCombo(value: $model.source, choices: model.urls, label: "Repository URL")
+                        HStack { Text("URL:").frame(width: 70, alignment: .leading); CloneHistoryCombo(value: $model.source, choices: model.urls, label: "Repository URL",onDelete:model.deleteURLHistory)
                             Button("Browse…") { model.browseSource() }
                             Menu {
                                 Button { if let url = URL(string: model.source), ["https", "http"].contains(url.scheme ?? "") { NSWorkspace.shared.open(url) } } label: { CommandLabel(title: "Open URL", icon: .open) }
@@ -323,7 +362,7 @@ struct CloneDialog: View {
                 }
                 HStack {
                     Toggle("Auto-load SSH key", isOn: $model.useKey).disabled(!model.supportsKey || !model.sshAvailable).help(model.sshAvailable ? "Load an OpenSSH key into a private agent for this clone." : "SSH key loading is unavailable in this build.")
-                    CloneHistoryCombo(value: $model.key, choices: model.keys, label: "OpenSSH private key").disabled(!model.useKey || !model.supportsKey || !model.sshAvailable)
+                    CloneHistoryCombo(value: $model.key, choices: model.keys, label: "OpenSSH private key",onDelete:model.deleteKeyHistory).disabled(!model.useKey || !model.supportsKey || !model.sshAvailable)
                     Button("…") { model.browseKey() }.disabled(!model.useKey || !model.supportsKey || !model.sshAvailable).help("Select an OpenSSH private key.")
                 }
                 GroupBox("From SVN Repository") {
@@ -361,20 +400,28 @@ struct CloneHistoryCombo: NSViewRepresentable {
     let choices: [String]
     let label: String
     var onEndEditing: () -> Void = {}
+    var onDelete: ((Int)->Void)? = nil
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
-        let combo = NSComboBox(); combo.delegate = context.coordinator; combo.completes = true
+        let combo: NSComboBox = onDelete == nil ? NSComboBox():EditableHistoryCombo(); combo.delegate = context.coordinator; combo.completes = true
         combo.setContentHuggingPriority(.defaultLow, for: .horizontal); return combo
     }
     func updateNSView(_ combo: NSComboBox, context: Context) {
         let coordinator = context.coordinator; coordinator.updating = true; defer { coordinator.updating = false }
         coordinator.change = { value = $0 }; coordinator.endEditing = onEndEditing
-        if coordinator.choices != choices { combo.removeAllItems(); combo.addItems(withObjectValues: choices); coordinator.choices = choices }
+        (combo as? EditableHistoryCombo)?.deleteHistory=onDelete
+        if !coordinator.choices.elementsEqual(choices,by:{$0.utf16.elementsEqual($1.utf16)}) {
+            if let editable=combo as? EditableHistoryCombo {editable.replaceHistory(choices)} else {combo.removeAllItems();combo.addItems(withObjectValues:choices)}
+            coordinator.choices=choices
+        }
         if combo.stringValue != value { combo.stringValue = value }
         combo.isEnabled = enabled; combo.setAccessibilityLabel(label)
     }
+    static func dismantleNSView(_ combo:NSComboBox,coordinator:Coordinator) {combo.delegate=nil;(combo as? EditableHistoryCombo)?.deleteHistory=nil}
     final class Coordinator: NSObject, NSComboBoxDelegate {
+        func comboBoxWillPopUp(_ notification:Notification) {(notification.object as? EditableHistoryCombo)?.historyPopupOpen=true}
+        func comboBoxWillDismiss(_ notification:Notification) {(notification.object as? EditableHistoryCombo)?.historyPopupOpen=false}
         var endEditing: () -> Void = {}
         func controlTextDidEndEditing(_ notification: Notification) { guard !updating else { return }; endEditing() }
         var choices: [String] = []; var updating = false; var change: (String) -> Void = { _ in }
@@ -384,9 +431,9 @@ struct CloneHistoryCombo: NSViewRepresentable {
 }
 
 enum ClonePostAction: String, Hashable {
-    case retry, log, explore
-    var title: String { switch self { case .retry: return "Retry"; case .log: return "Show Log"; case .explore: return "Show in Finder" } }
-    var icon: MenuIcon { switch self { case .retry: return .refresh; case .log: return .log; case .explore: return .explore } }
+    case retry, inspect, log, explore
+    var title: String { switch self { case .retry: return "Retry"; case .inspect: return "Retry opening repository"; case .log: return "Show Log"; case .explore: return "Show in Finder" } }
+    var icon: MenuIcon { switch self { case .retry,.inspect: return .refresh; case .log: return .log; case .explore: return .explore } }
 }
 @MainActor final class CloneProgressWindowModel: ObservableObject {
     static var activeOperations = 0
@@ -402,6 +449,15 @@ enum ClonePostAction: String, Hashable {
     private var repository: GitRepository?
     @Published private(set) var busy = true
     @Published private(set) var success = false
+    @Published private(set) var commandCompleted=false
+    @Published private(set) var warnings:[String]=[]
+    private var completedOutcome:CloneOutcome?
+    private var adopted=false
+    var inspectRepository:(GitRepository,Bool,OperationCancellation) async throws -> GitRepository = {candidate,bare,token in
+        try token.check()
+        return bare ? candidate:GitRepository(root:try await candidate.discoverRoot(cancellation:token),executable:candidate.executable)
+    }
+    var statusText:String {busy ? cancelling ? "Cancelling…":commandCompleted ? "Opening cloned repository…":"Cloning…" : success ? warnings.isEmpty ? "Finished":"Clone completed with warnings" : commandCompleted ? "Clone completed; repository could not be opened" : cancelled ? "Cancelled":"Clone failed"}
     @Published private(set) var cancelled = false
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
@@ -446,28 +502,44 @@ enum ClonePostAction: String, Hashable {
             let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
             let operation = Task {
                 defer { continuation.finish() }
-                return try await runner.clone(options, to: destination, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: preparation)
+                return try await runner.cloneOutcome(options, to: destination, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: preparation)
             }
             for await _ in updates { if !invalidated { consume(parser.processPending(), parser: parser) } }
             consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
-            let resultOutput = try await operation.value
-            if !invalidated { currentWork = "Inspecting cloned repository…"; percentage = nil }
-            let candidate = GitRepository(root: destination, executable: executable)
-            let repo = options.bare ? candidate : GitRepository(root: try await candidate.discoverRoot(cancellation: cancellation), executable: executable)
-            if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
-            if GitRuntime.isAppStoreBuild && !destinationAccess.contains(repo.root) { throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path) }
-            guard !invalidated, !abandoned else { busy = false; cancelling = false; return }
-            repository = repo; success = true; postActions = [.log, .explore]
-            onCloned(repo, resultOutput)
+            let outcome=try await operation.value
+            guard !invalidated,!abandoned else {busy=false;cancelling=false;return}
+            completedOutcome=outcome;commandCompleted=true;warnings=outcome.warnings
+            try await inspectCompletedRepository(outcome)
         } catch {
             guard !invalidated else { busy = false; cancelling = false; return }
             let message: String
             if let failure = error as? GitFailure, !displayedBytes.isEmpty, (failure.arguments.first == "clone" || failure.arguments.starts(with: ["svn", "clone"])) { message = "Git command failed (\(failure.code))." }
             else { message = error.localizedDescription }
-            output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message; postActions = [.retry]
+            output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message;postActions=commandCompleted ? [.inspect,.explore]:[.retry]
         }
         cancelled = cancellation.isCancelled; busy = false; cancelling = false
         finishAutomaticClose()
+    }
+    private func inspectCompletedRepository(_ outcome:CloneOutcome) async throws {
+        currentWork="Opening cloned repository…";percentage=nil
+        let repo=try await inspectRepository(GitRepository(root:destination,executable:executable),options.bare,cancellation)
+        try cancellation.check()
+        if GitRuntime.isAppStoreBuild && !destinationAccess.contains(repo.root) {throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path)}
+        guard !invalidated,!abandoned else {return}
+        repository=repo;success=true;postActions=[.log,.explore];currentWork=""
+        if !adopted {adopted=true;onCloned(repo,outcome.summary)}
+    }
+    private func retryInspection() {
+        guard let outcome=completedOutcome,!busy,!invalidated else {return}
+        cancellation=OperationCancellation();busy=true;cancelled=false;cancelling=false;postActions=[]
+        Self.activeOperations += 1
+        Task { [self] in
+            defer {Self.activeOperations -= 1;withExtendedLifetime((destinationAccess,sourceAccess,keyAccess)){}}
+            do {try await inspectCompletedRepository(outcome)}
+            catch {if !invalidated {output += "\n" + error.localizedDescription;postActions=[.inspect,.explore]}}
+            guard !invalidated else {busy=false;return}
+            cancelled=cancellation.isCancelled;busy=false;cancelling=false;finishAutomaticClose()
+        }
     }
     private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
         guard !invalidated, !displayTruncated else { return }
@@ -487,7 +559,7 @@ enum ClonePostAction: String, Hashable {
             output += "\n\n...\n" + currentWork
         }
     }
-    private func finishAutomaticClose() { if !busy, !confirmingCancellation, !invalidated, abandoned || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
+    private func finishAutomaticClose() { if !busy, !confirmingCancellation, !invalidated, abandoned || warnings.isEmpty && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
     func cancel() {
         guard canCancel, !invalidated else { return }; let token = cancellation
         if preferences.bool(forKey: "ConfirmKillProcess") {
@@ -501,12 +573,13 @@ enum ClonePostAction: String, Hashable {
     }
     func perform(_ action: ClonePostAction) {
         guard !busy, !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
+        if action == .inspect {retryInspection();return}
         if action == .retry {
             ProgressActionLog.nextAttempt(self);
-            busy = true; success = false; cancelled = false; cancelling = false; output = ""; displayedBytes.removeAll(); displayTruncated = false; percentage = nil; currentWork = ""; postActions = []; repository = nil; cancellation = OperationCancellation()
+            busy = true; success = false;commandCompleted=false;completedOutcome=nil;warnings=[];adopted=false; cancelled = false; cancelling = false; output = ""; displayedBytes.removeAll(); displayTruncated = false; percentage = nil; currentWork = ""; postActions = []; repository = nil; cancellation = OperationCancellation()
             Task { await execute() }; return
         }
-        guard let repository, let onPostAction else { return }; dispatched = true; close(); onPostAction(action, repository)
+        guard let target=repository ?? (action == .explore && commandCompleted ? GitRepository(root:destination,executable:executable):nil),let onPostAction else {return};dispatched=true;close();onPostAction(action,target)
     }
 }
 @MainActor final class CloneProgressWindowController: NSWindowController, NSWindowDelegate {
@@ -539,9 +612,10 @@ struct CloneProgressDialog: View {
                 ScrollView { VStack(alignment: .leading, spacing: 0) { Text(model.output).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading); Color.clear.frame(height: 1).id("clone-output-end") } }
                     .onChange(of: model.output) { _ in reader.scrollTo("clone-output-end", anchor: .bottom) }
             }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
+            ForEach(Array(model.warnings.enumerated()),id:\.offset) { _,warning in Label(warning,systemImage:"exclamationmark.triangle.fill").foregroundStyle(.orange).textSelection(.enabled) }
             if model.busy, let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100).tint(.green) }
             if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
-            HStack { if model.busy && model.percentage == nil { GitCommandActivity(animate: model.progressPresentation.animateActivity) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Cloning…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Clone failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            HStack { if model.busy && model.percentage == nil { GitCommandActivity(animate: model.progressPresentation.animateActivity) }; Text(model.statusText).foregroundStyle(model.busy ? Color.primary : model.success ? model.warnings.isEmpty ? Color.green:Color.orange : model.commandCompleted ? Color.orange:Color.red); Spacer() }
             HStack { if let first = model.postActions.first { Button { model.perform(first) } label: { CommandLabel(title:first.title,icon:first.icon) }; Menu { ForEach(model.postActions,id:\.self) { action in Button { model.perform(action) } label: { CommandLabel(title:action.title,icon:action.icon) } } } label: { Image(systemName:"chevron.down").accessibilityLabel("Clone post-actions") }.menuStyle(.borderlessButton).fixedSize() }; Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }

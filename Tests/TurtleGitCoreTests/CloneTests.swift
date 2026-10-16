@@ -121,3 +121,20 @@ final class CloneTests: XCTestCase {
     }
 
 }
+
+extension CloneTests {
+    func testReadOnlyCloneValidationRejectsNamesAndKeepsCancellationType() async throws {
+        let (parent,source,repo)=try await fixture();defer {try? FileManager.default.removeItem(at:parent)}
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:source.appendingPathComponent(".git/index")),destination=parent.appendingPathComponent("validate-only")
+        let runner=GitRepository(root:parent);var options=CloneOptions();options.source=source.path
+        try await runner.validateClone(options,to:destination)
+        options.branch="bad..branch"
+        do {try await runner.validateClone(options,to:destination);XCTFail("Bad branch accepted")}catch CloneFailure.value {}
+        options.branch=nil;options.origin="bad..remote"
+        do {try await runner.validateClone(options,to:destination);XCTFail("Bad origin accepted")}catch CloneFailure.value {}
+        let token=OperationCancellation();token.cancel()
+        do {try await runner.validateClone(options,to:destination,cancellation:token);XCTFail("Cancelled validation accepted")}catch OperationCancellationFailure.cancelled {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath:destination.path))
+        let after=try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(after,head);XCTAssertEqual(try Data(contentsOf:source.appendingPathComponent(".git/index")),index)
+    }
+}

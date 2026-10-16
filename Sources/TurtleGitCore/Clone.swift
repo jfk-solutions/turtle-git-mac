@@ -88,22 +88,42 @@ public enum CloneFailure: LocalizedError {
     }
 }
 
+public struct CloneOutcome: Sendable {
+    public let output:String
+    public let warnings:[String]
+    public var summary:String {output + (warnings.isEmpty ? "" : (output.hasSuffix("\n") ? "" : "\n") + warnings.joined(separator:"\n"))}
+}
+
 extension GitRepository {
-    public func clone(_ options: CloneOptions, to destination: URL, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> String {
-        let token = cancellation ?? OperationCancellation(); try token.check()
-        let args = try options.arguments(destination: destination)
+    public func validateClone(_ options: CloneOptions, to destination: URL, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        _ = try options.arguments(destination: destination)
         if let branch = options.branch {
-            guard !branch.hasPrefix("-"), (try? run(["check-ref-format", "refs/heads/" + branch], cancellation: token)) != nil else { throw CloneFailure.value }
+            let valid = !branch.hasPrefix("-") && (try? run(["check-ref-format", "refs/heads/" + branch], cancellation: cancellation)) != nil
+            try cancellation?.check();guard valid else {throw CloneFailure.value}
         }
         if !options.svn, let origin = options.origin {
-            guard !origin.hasPrefix("-"), (try? run(["check-ref-format", "refs/remotes/" + origin + "/test"], cancellation: token)) != nil else { throw CloneFailure.value }
+            let valid = !origin.hasPrefix("-") && (try? run(["check-ref-format", "refs/remotes/" + origin + "/test"], cancellation: cancellation)) != nil
+            try cancellation?.check();guard valid else {throw CloneFailure.value}
         }
+    }
+    public func clone(_ options: CloneOptions, to destination: URL, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> String {
+        try await cloneOutcome(options,to:destination,cancellation:cancellation,onOutput:onOutput,prepareTransport:prepareTransport).summary
+    }
+    /// Git command failure throws; post-clone configuration failure is retained
+    /// separately, matching CloneCommand's StorePuttyKey acknowledgment.
+    public func cloneOutcome(_ options: CloneOptions, to destination: URL, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> CloneOutcome {
+        let token=cancellation ?? OperationCancellation();try token.check()
+        try validateClone(options,to:destination,cancellation:token)
+        let args=try options.arguments(destination:destination)
         let session = try await prepareSSHTransport([], cancellation: token, preparation: prepareTransport)
         defer { withExtendedLifetime(session) {} }
         if options.loadSSHKeyWithAgent && session == nil { throw CloneFailure.keyRuntime }
         var environment = session?.transportEnvironment ?? [:]
         if let command = try options.sshCommand() { environment["GIT_SSH_COMMAND"] = command }
         let output = try run(args, environmentOverrides: environment, literalPathspecs: false, cancellation: token, onOutput: onOutput).text
+        var warnings:[String]=[]
+        do {
         if options.svn, let command = try options.sshCommand() {
             _ = try run(["-C", destination.path, "config", "--local", "core.sshCommand", command], cancellation: token, onOutput: onOutput)
         }
@@ -111,6 +131,9 @@ extension GitRepository {
             let remote = options.origin.flatMap { $0.isEmpty ? nil : $0 } ?? "origin"
             _ = try run(["-C", destination.path, "-c", "core.precomposeunicode=false", "config", "--local", "remote." + remote + ".turtlegitsshkeyfile", key.path], cancellation: token, onOutput: onOutput)
         }
-        return output
+        } catch {
+            warnings.append("Clone completed, but its SSH setting could not be saved.\n" + error.localizedDescription)
+        }
+        return CloneOutcome(output:output,warnings:warnings)
     }
 }
