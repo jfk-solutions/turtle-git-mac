@@ -542,3 +542,11 @@ saved elsewhere leaves the original conflict unresolved. Backup original file
 applies to later normal saves. Initial Save As keeps an empty file; normal Save
 asks whether to delete or keep it. Closing an editor while a save choice is
 pending does not apply a late answer.
+
+### Allowing an editor to save in a folder
+
+In the Store build, a save may ask you to choose the folder containing its output.
+This allows replacement saves, backups and recreating a deleted file. Existing
+folder access is reused. Choose the containing folder and Allow Save, or Cancel
+to keep your draft and existing files. Source Save As and unified patch output
+use the same rule.

@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "6c183e05708c9013a9e692ce85efcece06dd119b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Owned containing-folder authorization for normal Compare/Merge saves, Save As, source/result export and unified patch output",
+  "implementation": [
+    "Directory-only owned NSOpenPanel when no live scope covers both destination and its parent; existing and related scopes reused. Unrestricted builds keep their normal flow.",
+    "File-only or sibling-folder grants cannot authorize temporary/backup sibling writes; grant returned after cancellation is refused before acquisition or writing.",
+    "Compare Save/Save All/Quit-approved Save, rebound targets, read-only Save As, pane Save As/export and unified patch generation share the authorization owner.",
+    "Merged results and source/result exports retain acquired/covering scopes through completion and with rebound files. Pending folder decisions retain existing Close/Quit/duplicate/export operation ownership.",
+    "Selected-file startAccessing returning false does not reject a valid covering folder scope. Related scopes use permits rather than primary containment. Repository identity/root-ownership checks remain separate.",
+    "Selected-target read/save guards use the same injectable scope policy, so unsigned native tests exercise the policy used by Store builds."
+  ],
+  "core": {
+    "source_changes": false,
+    "suite_repeated": false,
+    "reason": "Native-only authorization and ownership changes; existing Core lease containment API reused."
+  },
+  "debug": [
+    {
+      "log": "build/qa/merge-save-access-build-2026-10-16.log",
+      "exit": 65,
+      "exit_zero_no_output_diagnostics": 0
+    },
+    {
+      "log": "build/qa/merge-save-access-build-repair-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 4
+    },
+    {
+      "log": "build/qa/merge-save-access-related-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/merge-save-access-policy-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    }
+  ],
+  "repairs": [
+    "Initial build required two explicit self references in the nested source-export Task closure.",
+    "After initial native passes, Store-path review found redundant leaf-only checks rejecting valid covering/related folder grants. Replaced them with authoritative folder authorization and permits checks; made selected-target gates share the injected policy. Only the two affected access runs repeated."
+  ],
+  "native": {
+    "distinct_passing_case_engine_runs": 9,
+    "total_passing_case_engine_runs": 11,
+    "failed_native_runs": 0,
+    "initial": {
+      "log": "build/qa/merge-save-access-native-2026-10-16.log",
+      "exit": 0,
+      "runs": 7,
+      "cases": [
+        "access with both Git versions (unified diff uses selected Git)",
+        "retained save ownership with both Git versions",
+        "retained source/Review/three-pane targets with both Git versions",
+        "source/result export tools"
+      ]
+    },
+    "import": {
+      "log": "build/qa/merge-save-access-import-2026-10-16.log",
+      "exit": 0,
+      "runs": 2,
+      "case": "full import/editor/output/format ownership with both Git versions"
+    },
+    "final_affected": {
+      "log": "build/qa/merge-save-access-policy-native-2026-10-16.log",
+      "exit": 0,
+      "runs": 2,
+      "case": "access with both Git versions on final selected-target/related-scope policy"
+    },
+    "coverage": [
+      "File-only grant requires containing folder; related parent reused; sibling refused",
+      "Actual owned directory panel properties and cancellation",
+      "Normal Save Cancel/retry with backup, Save As rebinding and parent reuse",
+      "Unified patch grant Cancel and selected-Git output",
+      "Merged output grant Cancel/save/reuse",
+      "Source Save As retains parent as a related scope, reused for a sibling merged output",
+      "Held folder decisions keep duplicate/Close/Quit gates; late replies after retirement neither acquire a grant nor write output"
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      29758,
+      29769,
+      29781,
+      29834,
+      29887,
+      29940,
+      29994,
+      30079,
+      31270,
+      32551,
+      32568
+    ],
+    "owned_windows_closed": true,
+    "scope_provider": "Injected RepositoryBookmarkProvider; does not certify OS-enforced access",
+    "physical_positive_folder_selection_or_signed_acceptance_claimed": false
+  },
+  "help": {
+    "files": 50,
+    "bytes": 1959031,
+    "built_source_counterparts_equal": true
+  },
+  "site": {
+    "log": "build/qa/merge-save-access-site-2026-10-16.log",
+    "exit": 0,
+    "documents": 256,
+    "unresolved_fragments": 0
+  },
+  "coverage_ledger": {
+    "dialogs": 130,
+    "partial_family_audits": 120,
+    "pending_family_reviews": 10,
+    "certified_complete": 0,
+    "mapped_static_controls": 987,
+    "pending_static_controls": 672
+  },
+  "remaining": [
+    "Signed Store panel/bookmark and entitlement acceptance, minimum-OS runtime",
+    "Physical positive folder selection/keyboard/VoiceOver acceptance",
+    "Persistent folder-grant/session-restoration review beyond existing repository permissions",
+    "Complete source/application parity, signed Finder installation and App Store distribution",
+    "Latest complete hosted macOS CI pass; local checks do not prove it"
+  ]
+}

@@ -252,7 +252,8 @@ private enum MergeSourceSide {
     @Published var patchResultCompleted = false
     var repositoryResolutionAllowed:Bool {workingMerge == nil && patchComparison == nil && mergedResultTarget == nil}
     func cancelPatchOperation() {if patchComparison != nil {cancelSaveOperation()}}
-    func cancelSaveOperation() {loadCancellation?.cancel();saveChoices.cancel()}
+    func cancelSaveOperation() {loadCancellation?.cancel();saveChoices.cancel();saveFolderAccess.cancel()}
+    let saveFolderAccess=MergeSaveFolderAccess()
     private let saveChoices=MergeSaveChoices()
     private(set) var mergedResultTarget:SavedMergePane?
     var resultPath:String {mergedResultTarget?.url.path ?? workingMergeOutput?.path ?? path}
@@ -269,7 +270,6 @@ private enum MergeSourceSide {
         else {url=await saveChoices.output(window:window,name:"merged-" + (resultPath as NSString).lastPathComponent,directory:repository.root)}
         guard !retired,let url else {return nil}
         let lease=RepositoryAccessLease(url:url)
-        guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else {error=RepositoryAccessFailure.securityScopeUnavailable.localizedDescription;return nil}
         workingMergePermissions.append(lease);return url
     }
     let path: String
@@ -339,6 +339,7 @@ private enum MergeSourceSide {
     lazy var sourceExporter: MergeSourceExport = {
         let value = MergeSourceExport()
         value.stateChanged = { [weak self] in self?.exportingSource = $0 }
+        value.permissions = { [weak self] in self?.openPermissions ?? [] }
         value.failure = { [weak self] in self?.error = $0 }
         return value
     }()
@@ -513,7 +514,7 @@ private enum MergeSourceSide {
     }
     func retire() {
         retireFormatChoice()
-        saveChoices.cancel()
+        saveChoices.cancel();saveFolderAccess.cancel()
         sourceExporter.retire()
         folding.retire(); resultFolding.retire()
         lineWrapping.retire()
@@ -841,9 +842,9 @@ private enum MergeSourceSide {
             let prefer = ComparisonTextEncoding.preferUTF8(from:comparisonDefaults)
             next = try await Task.detached {try patchComparison.patchMergeDocument(engine:engine,preferUTF8:prefer,cancellation:cancellation)}.value
         } else if let workingMerge {
-            if GitRuntime.isAppStoreBuild {
+            if saveFolderAccess.requireScope {
                 for url in [workingMerge.baseURL, workingMerge.theirsURL, workingMerge.mineURL] {
-                    guard workingMergePermissions.contains(where: { $0.hasSecurityScope && $0.contains(url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    guard workingMergePermissions.contains(where: { $0.permits(url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 }
             }
             next = try await workingMerge.read(engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), cancellation: cancellation)
@@ -1095,6 +1096,10 @@ private enum MergeSourceSide {
                 for target in sourceTargets.values {try target.validate()}
                 let choosingRepositoryCopy=workingMerge==nil && patchComparison==nil && (needsNewOutput || mergedResultTarget != nil)
                 if !choosingRepositoryCopy,workingMerge==nil,GitRuntime.isAppStoreBuild,(access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                if patchComparison==nil,let chosenOutput {
+                    guard let acquired=try await saveFolderAccess.authorize(file:chosenOutput,permissions:openPermissions,window:window,cancellation:token) else {return}
+                    try ensureSave(token);workingMergePermissions.append(contentsOf:acquired)
+                }
                 let choice:MergeEmptyResult
                 // Save As saves the selected zero-byte file; ordinary FileSave
                 // asks Delete/Keep. Automatic PatchSave retains zero-line delete.
@@ -1110,13 +1115,13 @@ private enum MergeSourceSide {
                     let next=try await patchResultSaver(text,outputEncoding,token);try ensureSave(token);self.document=next
                 } else if let workingMerge {
                     guard let chosenOutput else {return}
-                    if GitRuntime.isAppStoreBuild,!workingMergePermissions.contains(where:{$0.hasSecurityScope && $0.contains(chosenOutput)}) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                    if saveFolderAccess.requireScope,!workingMergePermissions.contains(where:{$0.permits(chosenOutput)}) {throw RepositoryAccessFailure.securityScopeUnavailable}
                     let next=try await workingMerge.saveTo(chosenOutput,document:document,result:text,encoding:outputEncoding,options:options,cancellation:token)
                     try ensureSave(token);self.document=next
                     workingMergeOutput=chosenOutput;standaloneSavedResult=text;standaloneSavedEncoding=outputEncoding
                     window?.title=chosenOutput.lastPathComponent + " – TurtleGitMerge"
                 } else if choosingRepositoryCopy,let chosenOutput {
-                    if GitRuntime.isAppStoreBuild,!workingMergePermissions.contains(where:{$0.hasSecurityScope && $0.contains(chosenOutput)}) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                    if saveFolderAccess.requireScope,!workingMergePermissions.contains(where:{$0.permits(chosenOutput)}) {throw RepositoryAccessFailure.securityScopeUnavailable}
                     let content:ComparisonFileContent
                     if !needsNewOutput,let target=mergedResultTarget {
                         content=try FileComparisonEditing.saveWorkingContent(at:target.url,original:target.content,text:text,encoding:outputEncoding,options:options)

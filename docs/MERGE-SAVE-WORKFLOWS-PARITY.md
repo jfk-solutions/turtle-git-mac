@@ -139,3 +139,43 @@ Only affected cases were repeated; no product guard or state assertion was
 removed. All nineteen owned receiver processes were reaped and independently
 absent. Both Debug builds passed. These checks do not certify complete hosted CI,
 physical UI parity or signed deployment.
+
+## Containing-folder authorization — October 16, 2026
+
+Store editor writes now require a live grant covering both the destination and
+its containing folder. A selected-file grant is sufficient for reading that file;
+it does not establish permission for a temporary replacement sibling, `.bak` or
+recreation after deletion. Existing repository/folder grants are reused, including
+related scopes retained with a source Save As target. An ordinary unrestricted
+build does not show this additional panel.
+
+Compare normal Save/Save All/owner-approved Quit Save, read-only Save As, pane
+Save As/export and unified patch output use the same folder-access owner. Merged
+results and source/result exports use that owner too. If no existing grant covers
+the folder, an owned directory-only panel asks for it during the explicit save.
+The selected folder must cover the intended destination and its parent; a sibling
+folder or leaf-file selection cannot authorize the write. Cancel retains the draft
+or existing destination and permits retry. This is a macOS sandbox adaptation;
+upstream FileSave/FileSaveAs/PatchSave backup and empty-file rules stay distinct.
+
+The operation retains its old and newly acquired grants through pending choices,
+writing and completion. Busy, duplicate Save, Open/Reload, ordinary close and Quit
+share the existing save/export fences. Cancellation or forced retirement dismisses
+only the owned panel and checks the captured token before acquiring a late grant,
+writing, rebinding a pane or publishing an error. Source exports retain covering
+folder grants with the returned file lease for later saves.
+
+Injected scope-provider checks can prove containment, lifetime and action routing
+in the unsigned app. They do not prove the OS will grant access in a signed Store
+build. Actual signed panel/bookmark behavior, entitlement acceptance, minimum-OS
+and full Finder/App Store distribution remain required.
+
+The [folder-access checkpoint](qa/merge-save-access-2026-10-16.json) records nine
+distinct passing native case/engine runs: the new access workflow, retained save
+and target ownership, source exports and full import output/format ownership.
+Two access runs repeated after correcting older Store checks to honor covering
+and related folder scopes. The final tests enable the same selected-target policy
+used in Store builds, with injected grants. All eleven owned receiver processes
+were reaped and independently absent. Core sources were unchanged, so its suite
+was not repeated. Build repairs and the signed/physical acceptance limits are
+recorded separately; no full hosted or signed Store pass is claimed.

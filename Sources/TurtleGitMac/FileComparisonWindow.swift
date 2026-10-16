@@ -917,7 +917,7 @@ private extension FileComparisonDocument {
     }
     func cancelOutput() {
         guard let request = outputRequest else { return }
-        request.cancellation.cancel()
+        request.cancellation.cancel();saveFolderAccess.cancel()
         if let panel = request.panel {
             panel.sheetParent?.endSheet(panel, returnCode: .cancel)
             panel.orderOut(nil)
@@ -961,9 +961,9 @@ private extension FileComparisonDocument {
                 guard acceptsOutput(request), let url = await chooser(window, name, directory), acceptsOutput(request) else { return }
                 let permission = RepositoryAccessLease(url: url)
                 do {
-                    guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
                     if rebind, let sourceSnapshotRoot,
                        url.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(sourceSnapshotRoot.path + "/") { throw FileComparisonEditFailure.unsupported }
+                    guard try await authorizeWorkingReplacement(at:url,cancellation:request.cancellation),acceptsOutput(request) else {return}
                     try withExtendedLifetime(permission) { try MergePaneSaveAs.write(bytes,to:url) }
                     if rebind, acceptsOutput(request) {
                         let target = try SavedMergePane(url: url, writtenBytes: bytes, encoding: selectedEncoding)
@@ -994,13 +994,13 @@ private extension FileComparisonDocument {
             do {
                 guard acceptsOutput(request), let target = await chooser(window, label(document.destination) + ".diff", directory), acceptsOutput(request) else { return }
                 let permission = RepositoryAccessLease(url: target)
-                guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let executable = try generator ?? GitRuntime.executable()
                 func savedContent(_ content: ComparisonFileContent) throws -> ComparisonFileContent {
                     guard content.revision == .workingTree, !content.isDeleted else { return content }
                     let file = content.path.hasPrefix("/") ? URL(fileURLWithPath: content.path) : directory.appendingPathComponent(content.path)
                     return try WorkingFileComparison.workingContent(at: file)
                 }
+                guard try await authorizeWorkingReplacement(at:target,cancellation:request.cancellation),acceptsOutput(request) else {return}
                 let savedBase = try savedContent(document.base), savedDestination = try savedContent(document.destination)
                 let bytes = try await MergeUnifiedPatch.create(base: savedBase, destination: savedDestination,
                     baseLabel: label(document.base), destinationLabel: label(document.destination), contextLines: context,
@@ -1222,7 +1222,7 @@ private extension FileComparisonDocument {
                 try await session.run(selectedCount: 0) { [self] token in
                     var replacements: [Bool: ComparisonFileContent] = [:]
                     for (base, target) in paneTargets {
-                        guard !GitRuntime.isAppStoreBuild || openPermissions.contains(where: { $0.hasSecurityScope && $0.contains(target.url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                        guard !saveFolderAccess.requireScope || openPermissions.contains(where: { $0.permits(target.url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                         replacements[base] = try target.read()
                     }
                     let storageReplacements = Dictionary(uniqueKeysWithValues:replacements.map { (storageSide($0.key),$0.value) })
@@ -1344,20 +1344,11 @@ private extension FileComparisonDocument {
             }
         }
     }
-    /// Replacement uses a temporary sibling. A file bookmark alone is retained
-    /// for reads; ask for its folder only when the user explicitly saves.
-    private func authorizeWorkingReplacement(at file: URL) throws -> Bool {
-        guard GitRuntime.isAppStoreBuild else { return true }
-        let parent = file.deletingLastPathComponent()
-        if workingPermissions.contains(where: { $0.hasSecurityScope && $0.contains(file) && $0.contains(parent) }) { return true }
-        let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true
-        panel.directoryURL = parent; panel.prompt = "Allow Save"
-        panel.message = "Choose the folder containing “" + file.lastPathComponent + "” to allow TurtleGit to replace the edited file."
-        guard panel.runModal() == .OK, let folder = panel.url else { return false }
-        let permission = RepositoryAccessLease(url: folder)
-        guard permission.hasSecurityScope, permission.contains(file), permission.contains(parent) else { throw RepositoryAccessFailure.securityScopeUnavailable }
-        workingPermissions.append(permission)
-        return true
+    let saveFolderAccess=MergeSaveFolderAccess()
+    private func authorizeWorkingReplacement(at file:URL,cancellation:OperationCancellation) async throws -> Bool {
+        guard let acquired=try await saveFolderAccess.authorize(file:file,permissions:openPermissions,window:window,cancellation:cancellation) else {return false}
+        try cancellation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
+        retainPermissions(acquired);return true
     }
     func save(completion: ((Bool) -> Void)? = nil) {
         guard let base = editableBase else { completion?(false); return }
@@ -1375,7 +1366,7 @@ private extension FileComparisonDocument {
     private var paneSave: OperationCancellation?
     private let saveChoices=MergeSaveChoices()
     private var updatingSaveDecision = false
-    func cancelPaneSave() {paneSave?.cancel();saveChoices.cancel()}
+    func cancelPaneSave() {paneSave?.cancel();saveChoices.cancel();saveFolderAccess.cancel()}
     private func ensurePaneSave(_ request: OperationCancellation) throws {
         guard !retired, paneSave === request else { throw OperationCancellationFailure.cancelled }
         try request.check()
@@ -1395,10 +1386,11 @@ private extension FileComparisonDocument {
         guard let url=await chooseExportLocation(window,(content.path as NSString).lastPathComponent,directory) else {return false}
         try ensurePaneSave(request)
         let permission=RepositoryAccessLease(url:url)
-        guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope else {throw RepositoryAccessFailure.securityScopeUnavailable}
         if let sourceSnapshotRoot,url.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(sourceSnapshotRoot.path + "/") {throw FileComparisonEditFailure.unsupported}
         let encoding=drafts?.encoding(base:base) ?? content.encoding
         let bytes=try encoding?.encode(text) ?? FileComparisonEditing.encoded(text,like:content)
+        guard try await authorizeWorkingReplacement(at:url,cancellation:request) else {return false}
+        try ensurePaneSave(request)
         try withExtendedLifetime(permission) {try MergePaneSaveAs.write(bytes,to:url)}
         let target=try SavedMergePane(url:url,writtenBytes:bytes,encoding:encoding)
         if originalPaneDocument==nil {originalPaneDocument=document}
@@ -1438,6 +1430,8 @@ private extension FileComparisonDocument {
                         guard try await saveReadOnlyPane(base:base,document:document,text:text,request:request) else {return}
                         continue
                     }
+                    guard try await authorizeWorkingReplacement(at:file,cancellation:request) else {return}
+                    try ensurePaneSave(request)
                     let choice: MergeEmptyResult
                     if text.isEmpty {
                         let savePath = base ? document.base.path : document.destination.path
@@ -1450,7 +1444,7 @@ private extension FileComparisonDocument {
                     let result: FileComparisonDocument
                     let context = oriented(savingContext(document)), physicalBase = storageSide(base)
                     if let target = paneTargets[base] {
-                        guard !GitRuntime.isAppStoreBuild || openPermissions.contains(where: { $0.hasSecurityScope && $0.contains(target.url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                        guard !saveFolderAccess.requireScope || openPermissions.contains(where: { $0.permits(target.url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                         result = try target.save(document, base: base, text: text, encoding: drafts?.encoding(base: base), options: options)
                     } else if let conflictBaseEntry, let repository {
                         guard !physicalBase else { throw FileComparisonEditFailure.unsupported }
@@ -1459,11 +1453,9 @@ private extension FileComparisonDocument {
                     } else if let historicalWorkingComparison {
                         try validateHistoricalWorkingAccess(historicalWorkingComparison)
                         guard physicalBase else { throw FileComparisonEditFailure.unsupported }
-                        guard try authorizeWorkingReplacement(at: historicalWorkingComparison.workingFile) else { return }
                         result = oriented(try historicalWorkingComparison.saveBase(context, text: text, encoding: drafts?.encoding(base: base), options: options))
                     } else if let workingComparison {
                         try validateWorkingAccess(workingComparison)
-                        guard try authorizeWorkingReplacement(at: physicalBase ? workingComparison.base : workingComparison.destination) else { return }
                         result = oriented(try workingComparison.save(context, base: physicalBase, text: text, encoding: drafts?.encoding(base: base), options: options))
                     } else if let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }

@@ -1455,3 +1455,12 @@ index and disable resolution of a different target. Marked/empty/unresolved save
 questions and output panels share cancellation and forced-retirement fences; late
 choices cannot write or publish stale errors. PatchSave keeps its distinct
 no-backup/zero-line deletion semantics. See [save workflows](MERGE-SAVE-WORKFLOWS-PARITY.md).
+
+## Editor save folder scopes — October 16, 2026
+
+Compare and Merge normal saves, read-only and explicit Save As, source/result
+exports and unified patch output now share owned containing-folder authorization
+in Store builds. Existing and related scopes are reused; file-only/sibling grants
+do not authorize temporary/backup siblings. Cancellation and retirement retain
+operation ownership while refusing late grants and writes. The unsigned injected
+scope checks cannot certify signed sandbox acceptance. See [save workflows](MERGE-SAVE-WORKFLOWS-PARITY.md#containing-folder-authorization--october-16-2026).

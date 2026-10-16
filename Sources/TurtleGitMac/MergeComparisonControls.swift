@@ -847,3 +847,37 @@ struct MergeTypingModeControl: View {
         return !cancelled && answer == .OK ? panel.url : nil
     }
 }
+
+/// Atomic saves and .bak files need the containing folder, not just a leaf-file
+/// grant. Acquire it only for an explicit save, under that save's existing owner.
+@MainActor final class MergeSaveFolderAccess {
+    var requireScope=GitRuntime.isAppStoreBuild
+    var chooseFolder:((NSWindow?,URL) async -> URL?)?
+    var makeLease:(URL)->RepositoryAccessLease = {RepositoryAccessLease(url:$0)}
+    private(set) var panel:NSOpenPanel?
+    func cancel() {
+        if let panel {panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil)}
+    }
+    func authorize(file:URL,permissions:[RepositoryAccessLease],window:NSWindow?,cancellation:OperationCancellation) async throws -> [RepositoryAccessLease]? {
+        try cancellation.check()
+        guard requireScope else {return []}
+        let file=file.standardizedFileURL,parent=file.deletingLastPathComponent()
+        if permissions.contains(where:{$0.permits(file) && $0.permits(parent)}) {return []}
+        let selected:URL?
+        if let chooseFolder {selected=await chooseFolder(window,parent)}
+        else {
+            guard let window,window.attachedSheet==nil,panel==nil else {return nil}
+            let panel=NSOpenPanel();panel.canChooseFiles=false;panel.canChooseDirectories=true;panel.allowsMultipleSelection=false
+            panel.directoryURL=parent;panel.prompt="Allow Save";panel.title="Allow saving in this folder"
+            panel.message="Choose the folder containing “" + file.lastPathComponent + "” to allow saving and backups."
+            self.panel=panel
+            let answer=await withCheckedContinuation {continuation in panel.beginSheetModal(for:window) {continuation.resume(returning:$0)}}
+            self.panel=nil;selected=answer == .OK ? panel.url : nil
+        }
+        try cancellation.check()
+        guard let selected else {return nil}
+        let permission=makeLease(selected)
+        guard permission.permits(file),permission.permits(parent) else {throw RepositoryAccessFailure.securityScopeUnavailable}
+        return [permission]
+    }
+}

@@ -9,6 +9,9 @@ import TurtleGitCore
     private(set) var question: NSAlert?
     private weak var window: NSWindow?
     private var retired = false, writing = false
+    let saveFolderAccess=MergeSaveFolderAccess()
+    var permissions:()->[RepositoryAccessLease] = {[]}
+    private var writeCancellation:OperationCancellation?
     var stateChanged: (Bool) -> Void = { _ in }
     var failure: (String) -> Void = { _ in }
     var present: (NSSavePanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, owner, completion in panel.beginSheetModal(for: owner, completionHandler: completion) }
@@ -37,14 +40,20 @@ import TurtleGitCore
             self.panel = nil
             guard response == .OK, let url = self.selectedURL(panel) else { self.stateChanged(false); return }
             let lease = RepositoryAccessLease(url: url)
-            guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { self.failure(RepositoryAccessFailure.securityScopeUnavailable.localizedDescription); self.stateChanged(false); return }
+            let token=OperationCancellation(),existing=self.permissions();self.writeCancellation=token
             self.writing = true; Self.activeExports += 1
-            Task { [self, lease] in
-                defer { self.writing = false; Self.activeExports -= 1; withExtendedLifetime(lease) {}; if !self.retired { self.stateChanged(false) } }
+            Task { [self, lease, existing] in
+                defer { self.writing = false;self.writeCancellation=nil; Self.activeExports -= 1; withExtendedLifetime(lease) {}; if !self.retired { self.stateChanged(false) } }
                 guard !self.retired else { return }
                 do {
-                    try bytes.write(to: url, options: .atomic)
-                    if !self.retired { try await didSave?(url, lease) }
+                    guard let acquired=try await self.saveFolderAccess.authorize(file:url,permissions:existing+[lease],window:owner,cancellation:token) else {return}
+                    try token.check();guard !self.retired else {return}
+                    // The rebound pane keeps both the selected file and its
+                    // containing-folder permission for later Save/backup writes.
+                    let covering=existing.filter {$0.permits(url) && $0.permits(url.deletingLastPathComponent())}
+                    let retained=lease.retainingRelatedScopes(acquired+covering)
+                    try withExtendedLifetime(retained) {try bytes.write(to:url,options:.atomic)}
+                    if !self.retired {try await didSave?(url,retained)}
                 }
                 catch { if !self.retired { self.failure(error.localizedDescription) } }
             }
@@ -52,6 +61,7 @@ import TurtleGitCore
     }
     func retire() {
         guard !retired else { return }; retired = true
+        writeCancellation?.cancel();saveFolderAccess.cancel()
         if let question { window?.endSheet(question.window, returnCode: .alertFirstButtonReturn); question.window.orderOut(nil) }; question = nil
         if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
         stateChanged = { _ in }; failure = { _ in }
