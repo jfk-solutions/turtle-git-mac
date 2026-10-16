@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "67a34176846fc60860432c32a7c2b0fb088d6ab5",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "CommitDlg.cpp PrepareStagingSupport and OnBnClickedStagingSupport: preview closure, checkbox semantics, staging hint and refresh",
+    "TortoiseProcENG.rc IDS_TIPSTAGINGMODE and HintStagingMode saved decision",
+    "Existing Commit preference keys tgit.commitstagingsupport and tgit.commitshowpatch"
+  ],
+  "implementation": [
+    "Owned staging activation refresh retains message, checked paths, scope and index; staged paths outside scope remain visible",
+    "Actual native three-state informational sheet with remembered suppression and existing Saved Data reset key",
+    "Deferred invisible/blocked hint, initial enabled-mode hint, no repeat after ordinary Refresh, retired reply suppression fence",
+    "Serialized/coalescing mode and preview preference writes with cancellation, scoped access validation and Quit ownership",
+    "Latest queued visibility wins; config failure keeps requested live mode and permits retry",
+    "Commit/file check/action and native staging-checkbox transition gates",
+    "Cancel drains current preference worker; forced closure drops pending writes and settles hint without late UI/config handoff",
+    "Preference bool reads separate stdout from warnings; user guide/offline Help and CI entry updated"
+  ],
+  "build": {
+    "initial_exit": 65,
+    "initial_log": "build/qa/commit-staging-mode-build.log",
+    "initial_failure": "Swift typechecker assertion in queuePreferences catch: unqualified error assignment targeted the implicit catch binding instead of the model property.",
+    "repair": "Qualified self.error; staging checkboxes also consume input/environment enabled state.",
+    "final_exit": 0,
+    "final_log": "build/qa/commit-staging-mode-build-repair.log",
+    "final_anomalous_exit_zero_diagnostics": 5
+  },
+  "core": {
+    "exit": 0,
+    "tests": 5,
+    "failures": 0,
+    "log": "build/qa/commit-staging-mode-core.log",
+    "scope": "CommitPatchTests only; no full Core rerun",
+    "checks": [
+      "Pre-cancelled paired preference save preserves exact config/index and HEAD",
+      "Boolean reads tolerate warning diagnostics",
+      "Retained unborn preferences, repository reopen, selected patch direction, rename and staged/working preservation"
+    ]
+  },
+  "native": {
+    "exit": 0,
+    "log": "build/qa/commit-staging-mode-native.log",
+    "runner": "scripts/test-commit-staging-mode.py",
+    "engines": ["system Git", "bundled Git"],
+    "passing_cases": 6,
+    "receivers_reaped": [17539, 18187, 18831, 19157, 19491, 19714],
+    "result": "All six engine/family cases passed on the first grouped run; no native fixture repair or rerun.",
+    "checks": [
+      "Actual View Patch closes on staging activation; native hint OK/suppression and private store/reopen behavior",
+      "Mixed native staging checkbox, hint/input/Commit guards and unchanged index during activation",
+      "Scoped checked paths/message retained; unrelated staged path outside scope visible in staging mode",
+      "Real whole-file unstage/stage preserves unrelated staged bytes and working content",
+      "Held actual config processes verify coalesced visibility, Commit/Quit ownership, release, Cancel drain and forced-close cancellation",
+      "Real config-lock failure retains live mode and reports error; retry succeeds",
+      "Forced hint closure refuses an unaccepted suppression choice",
+      "Retained partial line stage/hunk unstage, raw legacy patch bytes/export/Find, cancellation/retirement, parent/Quit and helper ownership",
+      "Retained Commit private controls, submodule/Keep/format/font/completion preferences, external template authorization/Cancel/retirement and ReCommit",
+      "HEAD and working bytes preserved; index mutations limited to explicitly tested stage/unstage actions"
+    ],
+    "ownership": "All six receivers reaped; three held helper/sleep pairs per engine asserted absent after release/cancellation. Final independent scan found no matching receiver/helper. Private windows/preferences/repositories cleaned up."
+  },
+  "limits": [
+    "Native individual staging actions still refresh groups/status; exact source incremental regrouping remains open",
+    "No new screenshot or full physical hint/checkbox/partial gesture certification",
+    "Broader cancellation-decline, amend/root/linked-worktree combinations and external config races remain acceptance work",
+    "Signed scopes/App Store, complete hosted CI and full Commit/application parity remain unverified"
+  ]
+}

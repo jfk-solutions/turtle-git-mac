@@ -2,6 +2,25 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitPatchTests: XCTestCase {
+    func testCancelledPreferenceSavePreservesConfigurationAndIndex() async throws {
+        let helper=CommitSelectionTests(),(root,repo)=try await helper.fixture();defer{try? FileManager.default.removeItem(at:root)}
+        try helper.write(root,"file","base\n");try await repo.stage(["file"]);_ = try await repo.commit(message:"base")
+        try await repo.saveCommitPreferences(staging:false,showPatch:false)
+        let configuration=try Data(contentsOf:root.appendingPathComponent(".git/config")),index=try Data(contentsOf:root.appendingPathComponent(".git/index")),head=try await repo.run(["rev-parse","HEAD"]).stdout
+        let token=OperationCancellation();token.cancel()
+        do {_ = try await repo.saveCommitPreferences(staging:true,showPatch:true,cancellation:token);XCTFail("Cancelled preferences written")} catch is OperationCancellationFailure {}
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/config")),configuration);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        let after=try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(after,head)
+    }
+    func testPreferenceReadSeparatesWarningsFromBooleanOutput() async throws {
+        let helper=CommitSelectionTests(),(root,repo)=try await helper.fixture();defer{try? FileManager.default.removeItem(at:root)}
+        try await repo.saveCommitPreferences(staging:true,showPatch:true)
+        let executable=root.appendingPathComponent("warning-git"),quoted="'"+repo.executable.path.replacingOccurrences(of:"'",with:"'\\''")+"'"
+        try Data(("#!/bin/sh\nprintf 'warning: preference diagnostic\\n' >&2\nexec "+quoted+" \"$@\"\n").utf8).write(to:executable)
+        try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:executable.path)
+        let settings=try await GitRepository(root:root,executable:executable).commitPreferences()
+        XCTAssertTrue(settings.staging);XCTAssertTrue(settings.showPatch)
+    }
     func testWorkingTreePatchIncludesStagedAndUnstagedChangesWithoutMutation() async throws {
         let helper = CommitSelectionTests(), (root, repo) = try await helper.fixture()
         defer { try? FileManager.default.removeItem(at: root) }

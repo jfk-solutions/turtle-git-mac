@@ -53,6 +53,16 @@ Staging support (EXPERIMENTAL) enables the index-based workflow. The file list
 retains its place; partial staging opens in a separate window to the right.
 Review staged content as well as working-tree content before committing.
 
+Enabling staging closes the current patch companion and refreshes the file list.
+An explanation describes checked, unchecked and mixed states; choose **Do not show
+this message again** to remember that choice. Changing modes keeps the message,
+checked paths and Git index. In staging mode, Commit includes the whole index,
+including staged files outside the displayed scope.
+
+Mode and patch visibility are saved per repository. If saving fails, the error is
+shown and the current view stays usable; the next window uses the last saved
+settings. Cancel waits for an active preference write to stop before continuing.
+
 The Commit split button offers Commit, ReCommit, and Commit & Push. ReCommit
 continues the commit workflow; Commit & Push hands the result to Push. A commit
 or push failure is reported in its owning workflow. Read the output before retrying.

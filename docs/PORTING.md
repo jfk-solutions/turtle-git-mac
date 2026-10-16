@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+Commit staging activation now closes the old preview, refreshes in the new mode
+and presents the owned three-state explanation with the source's remembered hint
+choice. Serialized mode/preview preference writes own cancellation, error/retry,
+input and Quit lifetimes while preserving the draft, checks and index. See
+[staging activation](COMMIT-PARITY.md#staging-activation-and-preview-preferences--october-16-2026).
+Full physical, incremental-group, amend and signed acceptance remain open.
+
 Blame's annotation menus now capture line/text/parent/rename targets, honor owner
 icon preferences and support Shift-F10/accessibility menu requests in both source
 and gutter. Source and embedded Log invocations dispatch once and reject stale

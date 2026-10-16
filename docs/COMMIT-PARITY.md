@@ -2338,3 +2338,43 @@ generation and cancellation fences. See [Working Tree command family](STATUS-PAR
 for the companion context Commit/Add progress/index-flag changes and limits.
 
 See [grouped native evidence](qa/primary-file-menus-2026-10-16.json) for exact checks, the scope-fixture repair and acceptance limits.
+
+## Staging activation and preview preferences — October 16, 2026
+
+`PrepareStagingSupport` closes the companion patch window, changes checkbox
+semantics, explains staging and refreshes the list. Native mode activation now
+owns that sequence. Existing draft text, checked paths and Finder scope survive;
+the index is unchanged by mode activation. Staged paths outside the requested
+scope become visible using the existing staging-mode policy. View Patch and the
+partial Staging/Unstaging controls retain their existing mutually exclusive layout.
+
+The source `HintStagingMode` choice now has an owned native informational sheet
+with OK and Do not show this message again. It explains the three checkbox states,
+whole-file checkbox actions, partial controls and whole-index Commit behavior.
+The choice uses the owning preference store and the existing Saved Data reset key.
+It appears on an enabled initial mode or activation; a normal Refresh does not
+repeat an acknowledged hint. An invisible/presently blocked owner defers it until
+the window can present it. Forced closure settles its continuation and refuses a
+late suppression write. The native list continues to refresh status/groups after
+individual staging actions; the source's performance note about stale group/status
+labels is therefore omitted. Exact source incremental regrouping remains open.
+
+Mode and patch visibility writes now share a serialized, coalescing owned queue.
+The latest queued visibility request wins. Each write revalidates Store access,
+passes cancellation to Git and retains its repository lease and Quit count until
+the worker returns. Commit, file checks and file actions are gated during writes
+and the hint. Cancel waits for the writer to drain before its ordinary confirmation
+flow. Owner retirement cancels the current process and drops queued writes without
+publishing late errors or reopening the view. Completed config writes are retained;
+no rollback of a completed setting or Git index mutation is implied.
+
+A persistence failure reports the error but retains the requested live mode and
+draft, matching the source's independent in-memory checkbox mode. A later activation
+can retry; reopening uses the actual saved repository config. Preview closure and
+mode changes serialize their two config keys rather than racing Git's config lock.
+Preference reads now parse stdout separately from warning diagnostics.
+
+[Grouped evidence](qa/commit-staging-mode-2026-10-16.json) records build/Core/native
+scope and repairs. Full physical hint/checkbox/partial gestures, all amend and
+linked-worktree combinations, exact incremental group behavior, signed scopes and
+App Store acceptance remain open. This does not certify complete Commit parity.

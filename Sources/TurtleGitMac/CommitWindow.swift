@@ -18,6 +18,8 @@ import UniformTypeIdentifiers
     let model: CommitWindowModel
     var onClosed: () -> Void = {}
     private(set) var partial: PatchWindowController?
+    private(set) var stagingHintAlert:NSAlert?
+    private var stagingHintAnswer:((Bool?)->Void)?
     private var previousPartialParentFrame: NSRect?
     private var positioningPartial = false
     var partialPlacementScreens: () -> [NSRect] = { NSScreen.screens.map(\.visibleFrame) }
@@ -47,6 +49,21 @@ import UniformTypeIdentifiers
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults))
         super.init(window: window); model.comparisonWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
+        model.presentStagingHint={ [weak self,weak window] in
+            guard let self,!self.closingCommit,let window,window.isVisible,window.attachedSheet==nil else {return nil}
+            let alert=NSAlert();alert.alertStyle = .informational;alert.messageText="Staging support";alert.informativeText=CommitWindowModel.stagingHint
+            alert.addButton(withTitle:"OK");alert.showsSuppressionButton=true;alert.suppressionButton?.title="Do not show this message again"
+            self.stagingHintAlert=alert
+            return await withCheckedContinuation { continuation in
+                var answered=false
+                let answer:(Bool?)->Void = {value in guard !answered else {return};answered=true;continuation.resume(returning:value)}
+                self.stagingHintAnswer=answer
+                alert.beginSheetModal(for:window) { [weak self] response in
+                    if self?.stagingHintAlert === alert {self?.stagingHintAlert=nil;self?.stagingHintAnswer=nil}
+                    answer(response == .alertFirstButtonReturn ? alert.suppressionButton?.state == .on:nil)
+                }
+            }
+        }
         model.authorizeTemplateFile = { [weak self, weak window] file in
             guard let self, let window, !self.closingCommit, window.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
             let panel = NSOpenPanel(); self.templatePanel = panel
@@ -222,6 +239,7 @@ import UniformTypeIdentifiers
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) {
+        let hintAnswer=stagingHintAnswer;stagingHintAnswer=nil;stagingHintAlert=nil;hintAnswer?(nil)
         templatePanel?.cancel(nil); templatePanel = nil
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
         closingCommit = true;preflightAlert=nil; model.invalidateForClose(); issueProviderOwner?.retire(); issueProviderOwner = nil; lfsOperation?.close(); lfsOperation = nil
@@ -343,7 +361,7 @@ import UniformTypeIdentifiers
     func windowDidResize(_ notification: Notification) { followPartial() }
     func windowWillMiniaturize(_ notification: Notification) { partial?.window?.orderOut(nil) }
     func windowDidDeminiaturize(_ notification: Notification) { showPartialWithoutActivation() }
-    func windowDidBecomeKey(_ notification: Notification) { showPartialWithoutActivation() }
+    func windowDidBecomeKey(_ notification: Notification) {showPartialWithoutActivation();model.offerStagingHint()}
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -772,7 +790,7 @@ import UniformTypeIdentifiers
         return StatusFileMenuSnapshot(generation: fileMenuGeneration, entries: selected, mark: focused, commands: commands, markIsDirectory: focused.map(directory) ?? false)
     }
     private func acceptsFileMenu(_ snapshot: StatusFileMenuSnapshot, duringOperation: Bool = false) -> Bool {
-        guard messageFocusAvailable, !confirmingQuit, !pendingReloadCancel, duringOperation || !busy,
+        guard messageFocusAvailable,!savingPreferences,!stagingHintVisible,!confirmingQuit,!pendingReloadCancel,duringOperation || !busy,
               snapshot.generation == fileMenuGeneration, !snapshot.entries.isEmpty else { return false }
         let current = Dictionary(entries.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         return snapshot.entries.allSatisfy { current[$0.path] == $0 } && (snapshot.mark.map { current[$0.path] == $0 } ?? true)
@@ -1060,7 +1078,7 @@ import UniformTypeIdentifiers
         return changelists.assignments[entry.path].map { origin + (origin.isEmpty ? "" : "\n") + "Changelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: Set<String> { Set(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
-    var canCommit: Bool { messageFocusAvailable && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { messageFocusAvailable && !savingPreferences && !stagingHintVisible && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -1134,13 +1152,13 @@ import UniformTypeIdentifiers
         if let paths { scopePaths = paths.contains(".") ? [] : paths; showWholeProject = scopePaths.isEmpty }
         reloadTask = Task {
             defer {
-                if reloadCancellation === token { reloadCancellation = nil; reloadTask = nil; busy = false }
+                if reloadCancellation === token {reloadCancellation=nil;reloadTask=nil;busy=false;offerStagingHint()}
             }
             do {
                 var restorePatch = false
                 if !loadedPreferences {
                     let preferences = try await readReload(token) { try await repository.commitPreferences(cancellation: token) }
-                    persistedStaging = preferences.staging; stagingEnabled = preferences.staging; restorePatch = preferences.showPatch; loadedPreferences = true
+                    persistedStaging=preferences.staging;stagingEnabled=preferences.staging;appliedStagingMode=preferences.staging;stagingHintPending=preferences.staging; restorePatch = preferences.showPatch; loadedPreferences = true
                 }
                 operation = try await readReload(token) { try await repository.commitOperation(cancellation: token) }
                 if operation != nil { createBranch = false; amend = false }
@@ -1269,28 +1287,88 @@ import UniformTypeIdentifiers
         guard messageFocusAvailable, reloadCancellation === token, !token.isCancelled, !Task.isCancelled else { throw OperationCancellationFailure.cancelled }
         return value
     }
-    func savePatchPreference(_ visible: Bool) {
-        Task { do { try await repository.saveCommitPreferences(showPatch: visible) } catch { self.error = error.localizedDescription } }
+    private(set) static var activePreferenceOperations=0
+    @Published private(set) var savingPreferences=false
+    @Published private(set) var stagingHintVisible=false
+    private var preferenceTask:Task<Void,Never>?
+    private var preferenceCancellation:OperationCancellation?
+    private var pendingStagingPreference:Bool?,pendingPatchPreference:Bool?
+    private var appliedStagingMode=false
+    private var stagingHintPending=false
+    private var stagingHintRequest=UUID()
+    var presentStagingHint:(() async -> Bool?)?
+    static let stagingHint="""
+    The file checkboxes now show what is staged for commit:
+    • Checked: all changes in the file are staged.
+    • Unchecked: the changes are unstaged.
+    • Mixed (a square): only some changes are staged.
+
+    Clicking a checkbox immediately stages or unstages the whole file. Clicking a mixed checkbox stages its remaining working changes.
+
+    Use Partial Staging or Partial Unstaging to open the selected file's patch and choose individual hunks or lines. Commit includes the whole index, including staged files outside the displayed scope.
+    """
+    func offerStagingHint() {
+        guard stagingHintPending else {return}
+        guard stagingEnabled,!dialogDefaults.bool(forKey:"HintStagingMode") else {stagingHintPending=false;return}
+        guard messageFocusAvailable,!inputsBlocked,let presentStagingHint else {return}
+        let request=UUID();stagingHintRequest=request;stagingHintVisible=true;Self.activePreferenceOperations += 1
+        Task { [self,access] in
+            defer {Self.activePreferenceOperations -= 1;withExtendedLifetime(access){};if stagingHintRequest==request {stagingHintVisible=false}}
+            let suppress=await presentStagingHint()
+            guard messageFocusAvailable,stagingHintRequest==request,stagingEnabled else {return}
+            if let suppress {stagingHintPending=false;if suppress {dialogDefaults.set(true,forKey:"HintStagingMode")}}
+        }
+    }
+    func setStagingEnabled(_ enabled:Bool) {
+        guard messageFocusAvailable,!inputsBlocked,loadedPreferences,stagingEnabled != enabled else {return}
+        stagingEnabled=enabled;stagingChanged()
+    }
+    func savePatchPreference(_ visible:Bool) {
+        guard messageFocusAvailable else {return};queuePreferences(showPatch:visible)
     }
     func stagingChanged() {
-        guard loadedPreferences, persistedStaging != stagingEnabled else { return }
-        closePartial()
-        let enabled = stagingEnabled; persistedStaging = enabled
-        Task { do { try await repository.saveCommitPreferences(staging: enabled) } catch { self.error = error.localizedDescription } }
+        guard messageFocusAvailable,loadedPreferences,!busy,!confirmingQuit,!stagingHintVisible,appliedStagingMode != stagingEnabled else {return}
+        appliedStagingMode=stagingEnabled;closePartial();stagingHintPending=stagingEnabled
+        queuePreferences(staging:stagingEnabled)
+    }
+    private func queuePreferences(staging:Bool? = nil,showPatch:Bool? = nil) {
+        if let staging {pendingStagingPreference=staging}
+        if let showPatch {pendingPatchPreference=showPatch}
+        guard preferenceTask==nil else {return}
+        let token=OperationCancellation();preferenceCancellation=token;savingPreferences=true;Self.activePreferenceOperations += 1
+        preferenceTask=Task { [self,repository,access] in
+            var refresh=false
+            defer {
+                Self.activePreferenceOperations -= 1;withExtendedLifetime(access){}
+                preferenceTask=nil;preferenceCancellation=nil;savingPreferences=false
+                if messageFocusAvailable,!token.isCancelled {if refresh {reload()} else {offerStagingHint()}}
+            }
+            while messageFocusAvailable,!token.isCancelled,pendingStagingPreference != nil || pendingPatchPreference != nil {
+                let mode=pendingStagingPreference,patch=pendingPatchPreference;pendingStagingPreference=nil;pendingPatchPreference=nil
+                if mode != nil {refresh=true}
+                do {
+                    try validateRestoreAccess()
+                    try await repository.saveCommitPreferences(staging:mode,showPatch:patch,cancellation:token)
+                    guard messageFocusAvailable,!token.isCancelled else {return}
+                    if let mode {persistedStaging=mode}
+                } catch {if messageFocusAvailable,!token.isCancelled {self.error=error.localizedDescription}}
+            }
+        }
     }
     func check(_ predicate: (StatusEntry) -> Bool) {
+        guard messageFocusAvailable,!inputsBlocked else {return}
         let paths = Set(visibleEntries.filter { $0.state != .conflicted && predicate($0) }.map(\.id))
         if stagingEnabled { moveToStage(paths, staged: true) } else { checked.formUnion(paths) }
     }
     func setGroupChecked(_ files: [StatusEntry], checked value: Bool) {
-        guard !busy, !confirmingQuit else { return }
+        guard messageFocusAvailable,!inputsBlocked else {return}
         let paths = Set(files.map(\.id))
         if stagingEnabled { moveToStage(paths, staged: value) }
         else if value { checked.formUnion(paths) }
         else { checked.subtract(paths) }
     }
     func setFileChecked(_ entry: StatusEntry, files: [StatusEntry], highlighted: Set<String>, checked value: Bool) {
-        guard !busy, !confirmingQuit, entry.state != .conflicted else { return }
+        guard messageFocusAvailable,!inputsBlocked,entry.state != .conflicted else {return}
         let targets = StatusListSelection.checkboxEntries(entry: entry, entries: files, highlighted: highlighted)
         let paths = Set(targets.map(\.id))
         if stagingEnabled { moveToStage(paths, staged: value) }
@@ -1298,6 +1376,7 @@ import UniformTypeIdentifiers
         else { checked.subtract(paths) }
     }
     func uncheckAll() {
+        guard messageFocusAvailable,!inputsBlocked else {return}
         if stagingEnabled { moveToStage(Set(visibleEntries.filter(\.staged).map(\.id)), staged: false) }
         else { checked.subtract(visibleEntries.map(\.id)) }
     }
@@ -1348,6 +1427,8 @@ import UniformTypeIdentifiers
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
+        preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
+        stagingHintRequest=UUID();stagingHintVisible=false;stagingHintPending=false
         preflightRequest=UUID();preflightCancellation?.cancel();preflightCancellation=nil
         if let progress=commitProgress { progress.invalidate();if !progress.busy { progress.choose(nil) } }
         issueProviderGeneration = UUID(); issueProviderBusy = false
@@ -1668,13 +1749,23 @@ import UniformTypeIdentifiers
             return label.padding(toLength: max(10, label.count), withPad: " ", startingAt: 0) + " " + entry.path + "\n"
         }.joined()
     }
-    var inputsBlocked: Bool { busy || issueProviderBusy || confirmingQuit || pendingReloadCancel }
-    var canCancel: Bool { messageFocusAvailable && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil) }
+    var inputsBlocked:Bool {busy || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || stagingHintVisible}
+    var canCancel: Bool { messageFocusAvailable && !stagingHintVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil) }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
         cancel(closeWindow: closeWindow, completion: completion, confirmationAccepted: false)
     }
     private func cancel(closeWindow: Bool, completion: ((Bool) -> Void)?, confirmationAccepted: Bool) {
         guard messageFocusAvailable else { completion?(false); return }
+        guard !stagingHintVisible else {completion?(false);return}
+        if let task=preferenceTask {
+            preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
+            Task { [weak self] in
+                await task.value
+                guard let self,self.messageFocusAvailable else {completion?(false);return}
+                self.cancel(closeWindow:closeWindow,completion:completion,confirmationAccepted:confirmationAccepted)
+            }
+            return
+        }
         if cancelFileOperation() { completion?(false); return }
         if let token = reloadCancellation, let task = reloadTask {
             guard !pendingReloadCancel, !confirmingQuit || !closeWindow else { completion?(false); return }
@@ -1931,7 +2022,6 @@ struct CommitDialog: View {
         .onChange(of: model.setAuthor) { _ in model.authorChanged() }
         .onChange(of: model.setAuthorDate) { _ in model.dateChanged() }
         .onChange(of: model.selection) { _ in model.refreshPartial() }
-        .onChange(of: model.stagingEnabled) { _ in model.stagingChanged() }
         .alert("TurtleGit", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
@@ -1983,7 +2073,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                         fileTable(model.visibleEntries, selection: $model.selection, staged: model.stagingEnabled ? model.stagedDiff : nil).frame(minHeight: 120).disabled(model.messageOnly)
                         HStack {
                             VStack(alignment: .leading, spacing: 6) {
-                                Toggle("Staging support (EXPERIMENTAL)", isOn: $model.stagingEnabled)
+                                Toggle("Staging support (EXPERIMENTAL)",isOn:Binding(get:{model.stagingEnabled},set:{model.setStagingEnabled($0)}))
                                 Toggle("Show Unversioned Files", isOn: Binding(get: { model.showUnversioned }, set: { model.setShowUnversioned($0) }))
                                 Toggle("Do not autoselect submodules", isOn: Binding(get: { model.doNotAutoselectSubmodules }, set: model.setDoNotAutoselectSubmodules)).disabled(model.stagingEnabled)
                             }.toggleStyle(.checkbox)
@@ -2014,7 +2104,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             TableColumn("") { (row: CommitSortableRow) in
                 if let entry = row.entry {
                     if staged != nil {
-                        StagingCheckbox(entry: entry, enabled: !model.busy && !model.confirmingQuit) { model.setFileChecked(entry, files: entries, highlighted: selection.wrappedValue, checked: $0) }.frame(width: 20, height: 20)
+                        StagingCheckbox(entry:entry,enabled:!model.inputsBlocked) { model.setFileChecked(entry, files: entries, highlighted: selection.wrappedValue, checked: $0) }.frame(width: 20, height: 20)
                     } else {
                         Toggle("Include \(entry.path)", isOn: Binding(get: { model.checked.contains(entry.id) }, set: { model.setFileChecked(entry, files: entries, highlighted: selection.wrappedValue, checked: $0) }))
                             .labelsHidden().toggleStyle(.checkbox).disabled(entry.state == .conflicted)
@@ -2303,7 +2393,7 @@ private struct StagingCheckbox: NSViewRepresentable {
         context.coordinator.change = change
         context.coordinator.nextStaged = !(entry.staged && entry.worktree == " ")
         button.state = entry.staged ? (entry.worktree == " " ? .on : .mixed) : .off
-        button.isEnabled = enabled && entry.state != .conflicted
+        button.isEnabled=enabled && context.environment.isEnabled && entry.state != .conflicted
         button.setAccessibilityLabel("Stage \(entry.path)")
         button.toolTip = entry.staged ? "Click to change staging; a mixed state stages the remaining working-tree changes." : "Click to stage the current file contents."
     }
