@@ -338,3 +338,9 @@ filter matches, and Colors 3 the graph lanes. Each color swatch has an
 Blame, Unified Diff and Merge Colors also offer separate Light/Dark palettes.
 The palette being edited is independent of the window appearance. Changes stay
 in the Settings draft until **Apply**; **Cancel** restores saved choices.
+
+Settings keeps its page heading and **OK / Cancel / Apply / Help** visible when
+you resize the window. Scroll the page to reach lower controls; narrower pages
+can also scroll horizontally. Returning to a visited page restores its scroll
+position. Hover a shortened sidebar caption for its complete name. A validation
+error selects its page and expands the required sidebar parents.

@@ -86,7 +86,7 @@ enum TwoPaneEngineVerification {
                 try require(view.choices.items.map(\.title) == ["Automatic","","More colors…"] && view.choices.items[0].image != nil,"Missing source menu/default swatch")
                 try require(view.well.isEnabled && view.arrow.isEnabled,"Visible swatch disabled")
                 let rect = view.convert(view.bounds,to:navigation.view)
-                try require(rect.minX >= 0 && rect.maxX <= navigation.view.bounds.width + 1 && view.well.bounds.width > 0,"Swatch horizontal overflow")
+                try require(rect.minX >= 0 && rect.maxX <= navigation.view.bounds.width + 1 && view.well.bounds.width > 0,"Swatch horizontal overflow: page=\(title) id=\(view.identifier?.rawValue ?? "none") rect=\(rect) root=\(navigation.view.bounds) viewports=\(views(navigation.view).compactMap { $0 as? SettingsPageViewport }.map { "clip=\($0.contentView.bounds) doc=\($0.pageDocument.frame)" })")
             }
             let target = try choice(id)
             try send(target.choices.items[0]); try await Task.sleep(nanoseconds:30_000_000)

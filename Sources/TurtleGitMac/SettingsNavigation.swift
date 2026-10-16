@@ -9,11 +9,23 @@ import Combine
 enum SettingsPageID: String {
     case general, dialogs, dialogs2, dialogs3, colors1, colors2, colors3, commit, alternativeEditor, git, remote, email, diff
     case hooks, issueProviders, issueTracker, credential, network, contextMenu, contextMenu2, overlays, overlayHandlers, overlayIcons, watchedRepositories, mergeTool, mergeEditor, mergeColors, savedData, blame, unifiedDiff, advanced
+    var minimumPageWidth:CGFloat {
+        switch self {
+        case .colors1, .colors2, .colors3, .mergeColors, .blame, .unifiedDiff: return 600
+        default: return 730
+        }
+    }
     var applyOrder: Int { let pages: [SettingsPageID] = [.general, .contextMenu, .contextMenu2, .dialogs, .dialogs2, .dialogs3, .colors1, .colors2, .colors3, .commit, .alternativeEditor, .overlays, .overlayHandlers, .overlayIcons, .git, .remote, .hooks, .issueProviders, .issueTracker, .credential, .network, .email, .diff, .mergeTool, .mergeEditor, .mergeColors, .savedData, .blame, .unifiedDiff, .advanced]; return pages.firstIndex(of: self)! }
 }
 private final class SettingsPageNode: NSObject {
     let id: SettingsPageID, title: String, icon: MenuIcon
     let children: [SettingsPageNode]
+    var descendants:[SettingsPageNode] { [self] + children.flatMap(\.descendants) }
+    func path(to target:SettingsPageID) -> [SettingsPageNode]? {
+        if id == target { return [self] }
+        for child in children { if let path = child.path(to:target) { return [self] + path } }
+        return nil
+    }
     init(_ id: SettingsPageID, _ title: String, _ icon: MenuIcon, children: [SettingsPageNode] = []) {
         self.id = id; self.title = title; self.icon = icon; self.children = children
     }
@@ -34,7 +46,10 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private let emailDraft: EmailSettingsModel
     private let contextMenuDraft: FinderContextMenuSettingsModel
     private let outline = NSOutlineView()
-    private let content = NSView()
+    private let content = SettingsPageViewport()
+    private let pageSplit = NSSplitView()
+    private var positionedDivider = false
+    private var pageOrigins:[SettingsPageID:CGPoint] = [:]
     private let busyShield = SettingsBusyShield()
     private let heading = NSTextField(labelWithString: "General")
     let transaction = SettingsTransaction()
@@ -52,6 +67,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var hooks: HookSettingsModel?
     private var delegateProxy: SettingsWindowDelegate?
     private var updating = false
+    private var retired = false
     init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false, preferences: UserDefaults = .standard, initialPage: SettingsPageID = .general, smtpCredentials: any SMTPCredentialStore = SMTPKeychainStore()) {
         overlayDraft = FinderOverlaySettingsModel(preferences:preferences)
         emailDraft = EmailSettingsModel(preferences:preferences,credentials:smtpCredentials)
@@ -59,53 +75,66 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         self.selected = initialPage; self.preferences = preferences; self.workspace = workspace; self.appearance = appearance; self.globalOnly = globalOnly; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func loadView() {
-        view = NSView(); view.setAccessibilityLabel("TurtleGit settings")
-        let column = NSTableColumn(identifier: .init("page")); outline.addTableColumn(column); outline.outlineTableColumn = column
+        // NSWindow adopts the controller view’s current size on assignment.
+        // A real initial frame must not depend on the page’s minimum constraints.
+        view = NSView(frame:NSRect(x:0,y:0,width:1040,height:740)); view.setAccessibilityLabel("TurtleGit settings")
+        let column = NSTableColumn(identifier:.init("page")); column.minWidth = 0; column.resizingMask = .autoresizingMask
+        outline.addTableColumn(column); outline.outlineTableColumn = column; outline.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         outline.headerView = nil; outline.dataSource = self; outline.delegate = self; outline.rowHeight = 28
         outline.allowsMultipleSelection = false; outline.allowsEmptySelection = false; outline.selectionHighlightStyle = .sourceList
         outline.setAccessibilityLabel("Settings pages")
         let sidebar = NSScrollView(); sidebar.documentView = outline; sidebar.hasVerticalScroller = true; sidebar.autohidesScrollers = true
         sidebar.drawsBackground = false
-        heading.font = .systemFont(ofSize: 17, weight: .semibold)
+        heading.font = .systemFont(ofSize:17,weight:.semibold)
+        heading.identifier = .init("Settings.PageHeading"); heading.lineBreakMode = .byTruncatingTail
+        heading.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        errorLabel.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
         for (button, action) in [(okButton, #selector(acceptSettings)), (cancelButton, #selector(cancelSettings)), (applyButton, #selector(applySettings)), (helpButton, #selector(showPageHelp))] {
             button.target = self; button.action = action; button.bezelStyle = .rounded
+            button.setContentCompressionResistancePriority(.required,for:.horizontal)
         }
         okButton.keyEquivalent = "\r"; cancelButton.keyEquivalent = "\u{1b}"
         errorLabel.textColor = .systemRed
         let footer = NSStackView(views: [errorLabel, NSView(), okButton, cancelButton, applyButton, helpButton]); footer.orientation = .horizontal; footer.spacing = 8
-        let right = NSStackView(views: [heading, NSBox(), content, footer]); right.orientation = .vertical; right.alignment = .leading; right.spacing = 8
+        let right = NSStackView(views: [heading, NSBox(), content, footer]); right.orientation = .vertical; right.alignment = .leading; right.spacing = 8; right.distribution = .fill
+        content.setContentHuggingPriority(.defaultLow,for:.vertical)
+        heading.setContentHuggingPriority(.required,for:.vertical); footer.setContentHuggingPriority(.required,for:.vertical)
+        heading.widthAnchor.constraint(lessThanOrEqualTo:right.widthAnchor).isActive = true
         footer.widthAnchor.constraint(equalTo: right.widthAnchor).isActive = true
         transaction.changed = { [weak self] in self?.renderFooter() }
         transaction.failed = { [weak self] page in
-            guard let self else { return }; self.show(page)
-            if let node = self.nodes.first(where: { $0.id == page }) { let row = self.outline.row(forItem: node); if row >= 0 { self.outline.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) } }
+            guard let self, !self.retired else { return }; self.show(page)
+            if self.selected == page { self.reveal(page) }
         }
         transaction.completed = { [weak self] close in if close { self?.view.window?.performClose(nil) } }
         (right.arrangedSubviews[1] as? NSBox)?.boxType = .separator
-        let split = NSSplitView(); split.isVertical = true; split.dividerStyle = .thin
+        let split = pageSplit; split.isVertical = true; split.dividerStyle = .thin
         split.addArrangedSubview(sidebar); split.addArrangedSubview(right)
         split.translatesAutoresizingMaskIntoConstraints = false; view.addSubview(split)
         NSLayoutConstraint.activate([
             split.leadingAnchor.constraint(equalTo: view.leadingAnchor), split.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             split.topAnchor.constraint(equalTo: view.topAnchor), split.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            sidebar.widthAnchor.constraint(greaterThanOrEqualToConstant: 190), sidebar.widthAnchor.constraint(lessThanOrEqualToConstant: 280),
-            content.widthAnchor.constraint(equalTo: right.widthAnchor), right.widthAnchor.constraint(greaterThanOrEqualToConstant: 730),
-            content.heightAnchor.constraint(greaterThanOrEqualToConstant: 640)
+            sidebar.widthAnchor.constraint(greaterThanOrEqualToConstant:190), sidebar.widthAnchor.constraint(lessThanOrEqualToConstant:320),
+            content.widthAnchor.constraint(equalTo:right.widthAnchor), right.widthAnchor.constraint(greaterThanOrEqualToConstant:520)
         ])
-        split.setPosition(220, ofDividerAt: 0)
         rebuildTree(); show(selected); renderFooter()
+    }
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        guard !positionedDivider, pageSplit.bounds.width >= 710 else { return }
+        positionedDivider = true; pageSplit.setPosition(270,ofDividerAt:0)
     }
     override func viewDidAppear() {
         super.viewDidAppear()
-        guard let window = view.window, delegateProxy == nil else { return }
+        guard !retired, let window = view.window, delegateProxy == nil else { return }
         let proxy = SettingsWindowDelegate(owner: self, original: window.delegate); delegateProxy = proxy; window.delegate = proxy
         transaction.window = window
         TurtleGitHelp.attach(window, topic: TurtleGitHelp.settingsTopic(selected))
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
-    var canDismiss: Bool { workspace.finderWatches?.busy != true && !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && view.window?.attachedSheet == nil }
+    var canDismiss: Bool { !retired && workspace.finderWatches?.busy != true && !emailDraft.busy && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSaves == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
-        guard !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
+        guard !retired, !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
         hooks?.invalidate(); hooks = nil; cache.removeValue(forKey: .hooks); transaction.unregister("hooks")
         remote?.invalidate()
@@ -122,6 +151,8 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         rebuildTree()
     }
     private func rebuildTree() {
+        let initial = roots.isEmpty
+        let expanded = Set(nodes.filter { outline.isItemExpanded($0) }.map(\.id))
         repositoryPath = workspace.root?.path
         roots = [
             SettingsPageNode(.general, "General", .settingsGeneral, children: [
@@ -145,11 +176,18 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             SettingsPageNode(.savedData, "Saved Data", .settingsSavedData), SettingsPageNode(.blame, "TurtleGitBlame", .blame),
             SettingsPageNode(.unifiedDiff, "Unified Diff", .settingsUnifiedDiff), SettingsPageNode(.advanced, "Advanced", .settingsGeneral)
         ]
-        updating = true; outline.reloadData(); roots.forEach { outline.expandItem($0) }
-        if let node = nodes.first(where: { $0.id == selected }) { let row = outline.row(forItem: node); if row >= 0 { outline.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) } }
-        updating = false
+        updating = true; outline.reloadData()
+        for node in nodes where initial ? roots.contains(node) : expanded.contains(node.id) { outline.expandItem(node) }
+        updating = false; reveal(selected)
     }
-    private var nodes: [SettingsPageNode] { roots.flatMap { [$0] + $0.children } }
+    private var nodes:[SettingsPageNode] { roots.flatMap(\.descendants) }
+    private func reveal(_ page:SettingsPageID) {
+        guard !retired, let path = roots.compactMap({ $0.path(to:page) }).first, let node = path.last else { return }
+        let previous = updating; updating = true; defer { updating = previous }
+        for ancestor in path.dropLast() { outline.expandItem(ancestor) }
+        let row = outline.row(forItem:node)
+        if row >= 0 { outline.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false); outline.scrollRowToVisible(row) }
+    }
     private func renderFooter() {
         applyButton.isEnabled = !transaction.busy && transaction.modified
         okButton.isEnabled = !transaction.busy; cancelButton.isEnabled = !transaction.busy
@@ -164,7 +202,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     @objc private func cancelSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.cancel(); view.window?.performClose(nil) }
     private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction).defaultAppStorage(preferences)) }
     private func show(_ page: SettingsPageID) {
-        guard !emailDraft.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0, IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 else { return }
+        guard !retired, !emailDraft.busy, !transaction.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0, NetworkSettingsModel.activeSaves == 0, IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 else { return }
         if current != nil && selected == page { return }
         view.window?.makeFirstResponder(nil)
         let controller: NSViewController
@@ -223,24 +261,29 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             }
             cache[page] = controller
         }
+        if current != nil { pageOrigins[selected] = content.contentView.bounds.origin }
         current?.view.removeFromSuperview(); current?.removeFromParent()
-        addChild(controller); content.addSubview(controller.view)
+        addChild(controller); content.pageDocument.addSubview(controller.view)
         controller.view.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([controller.view.leadingAnchor.constraint(equalTo: content.leadingAnchor), controller.view.trailingAnchor.constraint(equalTo: content.trailingAnchor), controller.view.topAnchor.constraint(equalTo: content.topAnchor), controller.view.bottomAnchor.constraint(equalTo: content.bottomAnchor)])
+        NSLayoutConstraint.activate([controller.view.leadingAnchor.constraint(equalTo:content.pageDocument.leadingAnchor), controller.view.trailingAnchor.constraint(equalTo:content.pageDocument.trailingAnchor), controller.view.topAnchor.constraint(equalTo:content.pageDocument.topAnchor), controller.view.bottomAnchor.constraint(equalTo:content.pageDocument.bottomAnchor)])
         if busyShield.superview == nil {
             busyShield.translatesAutoresizingMaskIntoConstraints = false; busyShield.isHidden = !transaction.busy
             content.addSubview(busyShield)
             NSLayoutConstraint.activate([busyShield.leadingAnchor.constraint(equalTo: content.leadingAnchor), busyShield.trailingAnchor.constraint(equalTo: content.trailingAnchor), busyShield.topAnchor.constraint(equalTo: content.topAnchor), busyShield.bottomAnchor.constraint(equalTo: content.bottomAnchor)])
-        } else { content.addSubview(busyShield, positioned: .above, relativeTo: controller.view) }
-        current = controller; selected = page; TurtleGitHelp.attach(view.window, topic: TurtleGitHelp.settingsTopic(page)); heading.stringValue = nodes.first(where: { $0.id == page })?.title ?? page.rawValue
+        } else { content.addSubview(busyShield,positioned:.above,relativeTo:nil) }
+        current = controller; selected = page; content.minimumPageWidth = page.minimumPageWidth; content.restoreOrigin(pageOrigins[page] ?? .zero)
+        TurtleGitHelp.attach(view.window,topic:TurtleGitHelp.settingsTopic(page))
+        heading.stringValue = nodes.first(where:{ $0.id == page })?.title ?? "Settings"
+        heading.toolTip = roots.compactMap { $0.path(to:page) }.first?.map(\.title).joined(separator:" › ")
     }
     func invalidate() {
+        guard !retired else { return }; retired = true
         transaction.invalidate(); emailDraft.invalidate(); hooks?.invalidate(); hooks = nil
         remote?.invalidate(); remote = nil
         if let window = view.window, let delegateProxy, window.delegate === delegateProxy { window.delegate = delegateProxy.original }
         delegateProxy = nil; current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil; cache.removeAll()
     }
-    @objc private func showPageHelp() { TurtleGitHelp.show(TurtleGitHelp.settingsTopic(selected)) }
+    @objc private func showPageHelp() { guard !retired else { return }; TurtleGitHelp.show(TurtleGitHelp.settingsTopic(selected)) }
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int { (item as? SettingsPageNode)?.children.count ?? roots.count }
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any { (item as? SettingsPageNode)?.children[index] ?? roots[index] }
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool { (item as? SettingsPageNode)?.children.isEmpty == false }
@@ -248,8 +291,13 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         guard let node = item as? SettingsPageNode else { return nil }
         let image = NSImageView(); image.image = node.icon.image(); image.imageScaling = .scaleProportionallyDown
         image.widthAnchor.constraint(equalToConstant: 18).isActive = true; image.heightAnchor.constraint(equalToConstant: 18).isActive = true
-        let text = NSTextField(labelWithString: node.title); text.lineBreakMode = .byTruncatingTail
-        let row = NSStackView(views: [image, text]); row.orientation = .horizontal; row.spacing = 7
+        let text = NSTextField(labelWithString:node.title); text.lineBreakMode = .byTruncatingTail
+        text.maximumNumberOfLines = 1; text.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        let row = NSTableCellView(); row.imageView = image; row.textField = text
+        image.translatesAutoresizingMaskIntoConstraints = false; text.translatesAutoresizingMaskIntoConstraints = false
+        row.addSubview(image); row.addSubview(text)
+        NSLayoutConstraint.activate([image.leadingAnchor.constraint(equalTo:row.leadingAnchor,constant:2),image.centerYAnchor.constraint(equalTo:row.centerYAnchor),text.leadingAnchor.constraint(equalTo:image.trailingAnchor,constant:7),text.trailingAnchor.constraint(equalTo:row.trailingAnchor,constant:-4),text.centerYAnchor.constraint(equalTo:row.centerYAnchor)])
+        row.identifier = .init("Settings.Page." + node.id.rawValue); row.toolTip = node.title; text.toolTip = node.title
         row.setAccessibilityLabel(node.title); return row
     }
     func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool { updating || canDismiss }
@@ -296,7 +344,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         let navigation = SettingsNavigationController(workspace: workspace, appearance: appearance, globalOnly: globalOnly)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 740), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "Settings – TurtleGit for Mac"; window.isReleasedWhenClosed = false
-        window.contentMinSize = NSSize(width: 980, height: 700)
+        window.contentMinSize = NSSize(width:860,height:540)
         window.delegate = self; window.contentViewController = navigation
         let controller = NSWindowController(window: window)
         self.navigation = navigation; self.controller = controller
@@ -331,8 +379,36 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     override func forwardingTarget(for selector: Selector!) -> Any? { original }
 }
 
-/// Captures pointer and keyboard input while a property-sheet save is in flight.
-/// Owned confirmation sheets remain interactive above the Settings window.
+/// Keep the property-sheet heading and actions visible on smaller screens.
+/// Individual pages retain their normal layout and any existing inner scrolling.
+@MainActor final class SettingsPageViewport:NSScrollView {
+    final class Document:NSView { override var isFlipped:Bool { true } }
+    let pageDocument = Document()
+    private var pendingOrigin:CGPoint?
+    var minimumPageWidth:CGFloat = 730 { didSet { if minimumPageWidth != oldValue { needsLayout = true } } }
+    override init(frame:NSRect) {
+        super.init(frame:frame)
+        drawsBackground = false; borderType = .noBorder
+        hasVerticalScroller = true; hasHorizontalScroller = true; autohidesScrollers = true
+        pageDocument.autoresizingMask = []; documentView = pageDocument
+        identifier = .init("Settings.PageViewport"); setAccessibilityLabel("Settings page content")
+    }
+    required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
+    func restoreOrigin(_ origin:CGPoint) { pendingOrigin = origin; needsLayout = true }
+    override func layout() {
+        super.layout()
+        let visible = contentView.bounds.size
+        let size = NSSize(width:max(minimumPageWidth,visible.width),height:max(640,visible.height))
+        if pageDocument.frame.size != size { pageDocument.setFrameSize(size) }
+        if let origin = pendingOrigin {
+            pendingOrigin = nil
+            contentView.scroll(to:CGPoint(x:min(max(0,origin.x),max(0,size.width - visible.width)),y:min(max(0,origin.y),max(0,size.height - visible.height))))
+            reflectScrolledClipView(contentView)
+        }
+    }
+}
+
+/// Captures input during a property-sheet save; owned sheets remain interactive.
 @MainActor private final class SettingsBusyShield: NSView {
     override var acceptsFirstResponder: Bool { true }
     override func mouseDown(with event: NSEvent) {}

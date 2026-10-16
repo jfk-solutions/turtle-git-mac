@@ -1,0 +1,218 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "a25fda42",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/Settings/Settings.cpp AddPropPage/SetActivePage/parent relationships",
+    "Previously reviewed native/source color-page resources and screenshots",
+    "Local AppKit NSWindow.h contentViewController contract: assignment resizes using controller view current size"
+  ],
+  "scope": [
+    "Recursive descendant lookup for initial selection, headings, breadcrumb tooltips, rebuild and failed-Apply reveal",
+    "Retain unrelated tree collapse/expansion across repository-context rebuild",
+    "Native bounded sidebar cells with original icons, ellipsis, full tooltips and accessibility captions",
+    "Sticky property-sheet heading/footer and scrolling page viewport with per-page origins",
+    "600-point minimum widths for six color-related pages, 730 for other pages; 640 minimum page height; 860x540 app-window content minimum",
+    "Actual 1040x740 initial controller frame independent of minimum constraints; initial divider position after real layout",
+    "Retired navigation refuses page/context/help dispatch and cannot recreate children"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/settings-navigation-layout-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/settings-navigation-layout-width-build.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/settings-navigation-layout-initial-frame-build.log",
+      "exit": 0
+    }
+  ],
+  "build_notes": "Existing warnings/anomalous command-failed-with-exit-code-0/no-output diagnostics were emitted. Overall commands exited 0 and current Debug object freshness guards passed.",
+  "core": "No Core implementation changes or Core suite rerun.",
+  "native": {
+    "runner": "scripts/test-settings-navigation-layout.py",
+    "log": "build/qa/settings-navigation-layout-initial-frame-native.log",
+    "exit": 0,
+    "receivers_reaped": [
+      84336,
+      84355,
+      84376,
+      84384
+    ],
+    "cases": [
+      "Navigation/layout/private context; no Git operations",
+      "Six color pages and retained 17-channel Merge Colors regression; no Git operations",
+      "Cached Settings Apply/Cancel/ownership with system Git",
+      "Cached Settings Apply/Cancel/ownership with bundled Git"
+    ],
+    "assertions": [
+      "Initial nested selection and exact heading/breadcrumb",
+      "Nested validation error expands collapsed ancestors/selects row",
+      "Repository tree retains nested selection and unrelated collapse",
+      "Footer bounds and normal canvas at constrained size",
+      "Valid native scroll origins retained per page",
+      "Native lower Merge control and native Colors 1 Restore Default reachable",
+      "Long caption bounds, ellipsis and full tooltips",
+      "No page recreation after retirement",
+      "Retained private-domain settings/role isolation and owner cleanup"
+    ]
+  },
+  "earlier_attempts": [
+    {
+      "log": "build/qa/settings-navigation-layout-native.log",
+      "result": "Fixture SIGTRAP from assuming a SwiftUI Restore Default button is an NSButton. It had already passed navigation/rebuild/error/footer/scroll checks. Exact owned preference domain deleted after crash.",
+      "receivers_reaped": [
+        83918
+      ]
+    },
+    {
+      "log": "build/qa/settings-navigation-layout-native-repair.log",
+      "result": "Informal accessibility traversal did not expose SwiftUI virtual button; normal throw/cleanup. Fixture uses lower actual native Merge control and Colors 1 native Restore Default, with compositor review of Merge lower controls.",
+      "receivers_reaped": [
+        83995
+      ]
+    },
+    {
+      "log": "build/qa/settings-navigation-layout-native-final.log",
+      "result": "Navigation passed; retained color geometry exposed candidate ordinary-screen horizontal scrolling. Added narrower minimums for color pages and deferred initial divider positioning.",
+      "receivers_reaped": [
+        84042,
+        84062
+      ]
+    },
+    {
+      "log": "build/qa/settings-navigation-layout-width-native.log",
+      "result": "Fixture injected an out-of-range clip origin after width change; corrected input using NSClipView.constrainBoundsRect rather than expecting illegal overscroll to persist.",
+      "receivers_reaped": [
+        84163
+      ]
+    },
+    {
+      "log": "build/qa/settings-navigation-layout-width-native-repair.log",
+      "receivers_reaped": [
+        84199,
+        84219
+      ],
+      "result": "Navigation passed; retained color still failed. Diagnostic follow-up required."
+    },
+    {
+      "log": "build/qa/settings-navigation-layout-retained-diagnostic.log",
+      "result": "Color geometry measured root 711x69, viewport height 0. AppKit adopted the zero-sized controller view; corrected product initial frame. No assertions removed.",
+      "receivers_reaped": [
+        84257
+      ]
+    }
+  ],
+  "cleanup": {
+    "all_receivers_absence_checked": true,
+    "crashed_preference_domain_removed": "TurtleGit.SettingsNavigationLayout.3B649703-128B-4B8F-A70E-61926E146636",
+    "owned_windows_panels_closed": true,
+    "receivers_checked": [
+      83918,
+      83995,
+      84042,
+      84062,
+      84163,
+      84199,
+      84219,
+      84257,
+      84336,
+      84355,
+      84376,
+      84384
+    ]
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/settings-layout-merge-colors-dark.png",
+      "width": 2160,
+      "height": 1704,
+      "sha256": "80a946d3ec7fa90fef51b29cfa9e07fb5f5966f5dfde9015ea8f133d558824f9",
+      "reviewed": true,
+      "altered": false
+    },
+    {
+      "path": "docs/site/assets/settings-layout-merge-colors-light.png",
+      "width": 2160,
+      "height": 1704,
+      "sha256": "042e6477ccfeea467de104b2ceb43d0a8fcc0967c12e19bfe2887b4c88af96ba",
+      "reviewed": true,
+      "altered": false
+    },
+    {
+      "path": "docs/site/assets/settings-layout-small-bottom-dark.png",
+      "width": 1720,
+      "height": 1144,
+      "sha256": "94c746edafc5f3be13af03fca684abea61a4ad4eb7672ede6e33f4f3051493e7",
+      "reviewed": true,
+      "altered": false
+    },
+    {
+      "path": "docs/site/assets/settings-layout-small-bottom-light.png",
+      "width": 1720,
+      "height": 1144,
+      "sha256": "dca96cc35622a972cd4430502850f5daa15713beb3971e7f522576db10e6b25b",
+      "reviewed": true,
+      "altered": false
+    },
+    {
+      "path": "docs/site/assets/settings-layout-small-top-dark.png",
+      "width": 1720,
+      "height": 1144,
+      "sha256": "a799a9decbbde2df825707130880a910155cf83f6683195d3d0e266af0b86733",
+      "reviewed": true,
+      "altered": false
+    },
+    {
+      "path": "docs/site/assets/settings-layout-small-top-light.png",
+      "width": 1720,
+      "height": 1144,
+      "sha256": "fadea8c7a3699f013dcdfc2e43ff201856ea2436dc19e22e3b41ec7497f98133",
+      "reviewed": true,
+      "altered": false
+    }
+  ],
+  "capture_notes": "Unaltered native window compositor frames. Full Merge Colors frames contain the corrected heading and all channels/Restore Default. Small top/bottom frames document scrolling with persistent footer; inner page scroll state is retained between appearances. Existing color gallery captures from a25fda42 remain historical.",
+  "hosted": {
+    "macos": {
+      "run": 38833185006,
+      "sha": "a25fda42",
+      "last_observed": "pending"
+    },
+    "pages": {
+      "run": 38833184990,
+      "sha": "a25fda42",
+      "conclusion": "success"
+    },
+    "full_current_macos_pass": false
+  },
+  "limitations": [
+    "Full physical divider/keyboard/VoiceOver and every page-specific minimum-size combination remain unverified",
+    "SwiftUI virtual Restore Default accessibility traversal was not established by this fixture; actual lower action is visible in reviewed captures",
+    "Signed Finder, minimum-OS deployment and App Store acceptance remain open"
+  ],
+  "documentation": {
+    "bundled_help": {
+      "documents": 26,
+      "topics": 47,
+      "files": 32,
+      "bytes": 198740
+    },
+    "site": {
+      "documents": 235,
+      "unresolved_fragments": 0
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 986,
+      "pending_control_reviews": 673
+    },
+    "mapping_note": "Twelve existing Blame static groups/labels reviewed and mapped; these are audit mappings, not twelve new features."
+  }
+}

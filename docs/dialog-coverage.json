@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 685,
-    "mapped_controls": 974,
+    "pending_control_reviews": 673,
+    "mapped_controls": 986,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -388,6 +388,7 @@
         "docs/qa/merge-colors-2026-10-12.json",
         "docs/qa/merge-colors-controls-2026-10-12.json",
         "docs/qa/settings-color-choices-2026-10-16.json",
+        "docs/qa/settings-navigation-layout-2026-10-16.json",
         "docs/qa/status-color-settings-2026-10-09.json",
         "docs/qa/status-colors-2026-10-09.json"
       ]
@@ -1403,6 +1404,7 @@
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/settings-navigation-layout-2026-10-16.json",
         "docs/qa/tool-settings-family-2026-10-13.json"
       ]
     },
@@ -1433,6 +1435,7 @@
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/settings-navigation-layout-2026-10-16.json",
         "docs/qa/tool-settings-family-2026-10-13.json"
       ]
     },
@@ -1602,6 +1605,7 @@
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/settings-navigation-layout-2026-10-16.json",
         "docs/qa/status-color-settings-2026-10-09.json",
         "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/tool-settings-family-2026-10-13.json"
@@ -1756,8 +1760,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 25,
-      "mapped_controls": 13,
-      "pending_control_reviews": 12,
+      "mapped_controls": 25,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -1787,6 +1791,7 @@
         "docs/qa/log-search-walk-2026-10-09.json",
         "docs/qa/log-status-colors-2026-10-09.json",
         "docs/qa/settings-color-choices-2026-10-16.json",
+        "docs/qa/settings-navigation-layout-2026-10-16.json",
         "docs/qa/status-color-settings-2026-10-09.json",
         "docs/qa/status-colors-2026-10-09.json"
       ]
@@ -2439,6 +2444,7 @@
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/settings-navigation-layout-2026-10-16.json",
         "docs/qa/status-color-settings-2026-10-09.json",
         "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/tool-settings-family-2026-10-13.json"
@@ -2480,6 +2486,7 @@
         "docs/qa/settings-dialogs-tools-batch-2026-10-11.json",
         "docs/qa/settings-family-2026-10-13.json",
         "docs/qa/settings-history-batch-2026-10-11.json",
+        "docs/qa/settings-navigation-layout-2026-10-16.json",
         "docs/qa/status-color-settings-2026-10-09.json",
         "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/tool-settings-family-2026-10-13.json"
@@ -3533,6 +3540,7 @@
         "docs/qa/log-search-walk-2026-10-09.json",
         "docs/qa/log-status-colors-2026-10-09.json",
         "docs/qa/settings-color-choices-2026-10-16.json",
+        "docs/qa/settings-navigation-layout-2026-10-16.json",
         "docs/qa/status-color-settings-2026-10-09.json",
         "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/udiff-input-readiness-2026-10-15.json",

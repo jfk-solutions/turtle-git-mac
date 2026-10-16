@@ -260,3 +260,5 @@ edited remains independently selected.
 ![settings unified colors dark](site/assets/settings-unified-colors-dark.png)
 
 ![settings unified colors light](site/assets/settings-unified-colors-light.png)
+
+The [navigation/layout batch evidence](qa/settings-navigation-layout-2026-10-16.json) records the initial-size repair, fixture failures, final four-case pass and visual scope. Older color-gallery frames predate the new navigation layout.

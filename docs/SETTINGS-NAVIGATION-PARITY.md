@@ -389,3 +389,57 @@ page selection; long sidebar captions are clipped at the captured screen width.
 Merge Colors also requires scrolling to its lower controls at that height. These
 remain explicit navigation/layout work; the successful color-control workflow
 does not certify them.
+
+## Nested navigation and constrained-screen layout — October 16, 2026
+
+The page catalogue now traverses descendants recursively. Initial selection,
+repository-tree rebuild, heading/breadcrumb tooltip and failed-Apply routing can
+resolve Merge Editor's nested Colors page. Revealing a failed page expands its
+ancestor chain and scrolls its selected row into view. Unrelated expansion and
+collapse choices survive a repository-context rebuild. Cached page owners and
+Settings registration tokens retain their existing semantics.
+
+Sidebar rows now use bounded native table cells with trailing ellipsis, full
+caption tooltips and the original icons/accessibility captions. The divider has
+room to widen the sidebar; a narrow sidebar preserves full hover text. Native
+page headings and property-sheet actions remain outside a scrollable page
+viewport. The viewport retains the normal 600- or 730-point wide, 640-point high page layout when a
+smaller window needs horizontal/vertical scrolling; existing page-local scroll
+views remain usable. Returning to a cached page restores its outer scroll
+position. The app-owned Settings window permits 860×540-point content, instead
+of demanding a size larger than some screens. No page controls are removed to
+fit the smaller frame.
+
+Retired navigation refuses new page/context/help dispatch and cannot recreate
+cached children after closure. This continuation supersedes the descendant/raw
+heading gap above; broader physical resize, assistive-technology navigation and
+all page-specific minimum-size acceptance remain open.
+
+The six color-related pages use a 600-point native minimum width; other pages
+retain 730 points. The initial sidebar divider is positioned after real layout,
+so a zero-size controller does not accidentally expand it to its maximum width.
+
+The controller begins with a real 1040×740-point frame: AppKit adopts the current
+controller view size when assigning a window content controller. This keeps the
+normal initial size independent of the smaller resize constraints and avoids a
+heading/footer-only initial window.
+
+The [navigation/layout batch evidence](qa/settings-navigation-layout-2026-10-16.json) records the initial-size repair, fixture failures, final four-case pass and visual scope. Older color-gallery frames predate the new navigation layout.
+
+The normal-size Merge Colors frames below show the corrected nested heading and
+all color channels plus Restore Default. The smaller frames show different scroll
+positions while the heading and OK/Cancel/Apply/Help stay visible. Inner page
+scrolling retains its own position between appearance switches. These captures
+do not certify every Settings page or VoiceOver behavior.
+
+![settings layout merge colors dark](site/assets/settings-layout-merge-colors-dark.png)
+
+![settings layout merge colors light](site/assets/settings-layout-merge-colors-light.png)
+
+![settings layout small bottom dark](site/assets/settings-layout-small-bottom-dark.png)
+
+![settings layout small bottom light](site/assets/settings-layout-small-bottom-light.png)
+
+![settings layout small top dark](site/assets/settings-layout-small-top-dark.png)
+
+![settings layout small top light](site/assets/settings-layout-small-top-light.png)

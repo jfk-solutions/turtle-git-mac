@@ -2280,3 +2280,11 @@ objects. Optional `--capture-dir PATH` records unaltered compositor frames. The
 workflow uses a private preference suite and SMTP fixture, no Git operations or
 network requests, and closes all owned windows/panels. Native-only control changes
 do not require rerunning the Core suite.
+
+`python3 scripts/test-settings-navigation-layout.py --git /usr/bin/git --git PATH_TO_BUNDLED_GIT`
+checks recursive initial/rebuild/failed-page selection, caption bounds and tooltips,
+constrained-screen scrolling/footer reachability and retired navigation, followed
+by retained color controls and Settings Apply/Cancel/cache workflows. Optional
+`--capture-dir PATH` captures actual native windows; `--only` reruns an affected
+family without repeating successful families. This batch changes native layout
+and dispatch only; no Core suite rerun is required.
