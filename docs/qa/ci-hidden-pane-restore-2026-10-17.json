@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "65f9e20dead77a796b80188c403e6746f55f8d32",
+  "hosted": {
+    "run_id": 38967919455,
+    "job_id": 117199386162,
+    "conclusion": "failure",
+    "step": "Moved blocks and wrapped editor navigation family",
+    "observed_failure": "Combined view has one attached editor and settled model but pending alignmentSelections=[true]; invisible left pane cannot consume that restore. Timeout at merge-margin-native-2026-10-16.swift:64.",
+    "receiver_reaped_in_hosted_log": 89270,
+    "excerpt": "build/qa/ci-margin-hosted-failure-2026-10-17.txt"
+  },
+  "repair": [
+    "Reject registration from retired models and left panes absent from current combined/single-file mode.",
+    "Capture engine selection restoration only for current visible sides whose native view remains attached to the owning window.",
+    "Inject the outgoing-left registration immediately after mode switch and retain existing settling, added/removed symbols and no-whitespace combined-margin assertions."
+  ],
+  "local": {
+    "unmodified_timing_case": "Passed on local SDK before repair; hosted timing race still supported by recorded orphan left restore.",
+    "post_repair_cases": [
+      "margin with deterministic late registration",
+      "wrapped navigation/reflow",
+      "view switching and saved split owners"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/ci-margin-current-2026-10-17.log",
+        "owned_receivers_reaped": [
+          98609
+        ],
+        "exit": 0
+      },
+      {
+        "log": "build/qa/ci-margin-native-2026-10-17.log",
+        "owned_receivers_reaped": [
+          98884,
+          98888
+        ],
+        "exit": 0
+      },
+      {
+        "log": "build/qa/ci-margin-view-2026-10-17.log",
+        "owned_receivers_reaped": [
+          98901
+        ],
+        "exit": 0
+      }
+    ],
+    "independently_absent_receiver_pids": [
+      98609,
+      98884,
+      98888,
+      98901
+    ],
+    "build": {
+      "log": "build/qa/ci-margin-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    "core_repeated": false,
+    "email_repeated": false,
+    "reason": "Only native comparison pane registration/selection capture changed."
+  },
+  "limits": [
+    "A local focused pass does not turn the previous hosted run green; a subsequent hosted workflow must verify the repair.",
+    "The original settling assertion remains; no timeout increase or assertion removal masks the failure.",
+    "Full physical/signed merge-editor and all-dialog parity remain incomplete."
+  ]
+}

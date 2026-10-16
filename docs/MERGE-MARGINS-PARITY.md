@@ -127,3 +127,26 @@ signed acceptance.
 ![Native merge-margin-selection-dark](site/assets/merge-margin-selection-dark.png)
 
 ![Native merge-margin-selection-light](site/assets/merge-margin-selection-light.png)
+
+## Hosted hidden-pane selection repair — October 17, 2026
+
+Hosted run `38967919455`, job `117199386162`, failed in the wrapped-editor
+margin case. The model had completed its comparison and displayed one combined
+editor, but an orphan left-pane selection (`alignmentSelections=[true]`) could
+never settle. An outgoing split child can register after the mode switch has
+removed its slot; capturing all retained scroll views queued work for that child.
+
+Comparison registration now refuses a left pane absent from combined/single-file
+mode and a retired model. Engine publication captures selections only for visible
+sides whose native text view still belongs to the owning window. The native
+margin fixture injects this late left registration explicitly and retains the
+original settling and combined added/removed/no-whitespace assertions. No timeout
+increase or relaxed readiness predicate hides the failure.
+
+The unmodified timing case passed locally before repair. After repair, the
+injected margin case, wrapped-navigation family and view-switching family pass.
+The Debug build passed; all four local receivers, including the earlier normal
+case, were reaped and independently absent. Core and unrelated Email checks were
+not repeated. See [focused evidence](qa/ci-hidden-pane-restore-2026-10-17.json).
+A new hosted workflow must still verify this repair; the failed run remains a
+failed run. Physical/signed and complete merge-editor acceptance remain open.

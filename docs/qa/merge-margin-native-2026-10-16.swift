@@ -61,7 +61,15 @@ struct MergeMarginVerification {
         try await wait {rr.symbol(at:2) == .edited}
         model.undo();try await wait {rr.symbol(at:2) == .added && !model.dirty}
         model.showLineNumbers=true;try await wait {lr.showNumbers && lr.ruleThickness>20}
-        model.switchPaneMode(true);try await TwoPaneEngineVerification.settled(model)
+        var hiddenRegistrations=0
+        model.onRegisterScroll={_,base in if base {hiddenRegistrations += 1}}
+        model.switchPaneMode(true)
+        // Reproduce the hosted interleaving: an outgoing split child registers
+        // after One Pane has already removed its visible slot.
+        model.register(left.enclosingScrollView!,base:true)
+        try await TwoPaneEngineVerification.settled(model)
+        try require(hiddenRegistrations == 0 && model.alignmentSelections.isEmpty,"Hidden left pane registered/restored after combined switch")
+        model.onRegisterScroll={_,_ in}
         try await wait {views().count==1 && (views()[0].enclosingScrollView?.verticalRulerView as? MergeLineRuler)?.presentation.symbols.contains(.added)==true}
         let combined=views()[0].enclosingScrollView!.verticalRulerView as! MergeLineRuler
         try require(combined.presentation.symbols.contains(.removed) && !combined.presentation.symbols.contains(.whitespace),"Combined margin invented an opposite pane")

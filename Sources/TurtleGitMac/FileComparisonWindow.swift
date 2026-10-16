@@ -1327,8 +1327,10 @@ private extension FileComparisonDocument {
                 let value = presentation.alignment
                 movedBlockRecords = presentation.movedBlocks
                 var selections: [Bool: AlignmentSelection] = [:]
-                for (side, scroll) in scrolls {
-                    if let text = scroll.documentView as? FileComparisonTextView,
+                for (side, scroll) in scrolls where !side || !onePaneActive && !singleFileMode {
+                    // An outgoing native split child can register after the
+                    // mode switch. Never queue a restore for a hidden pane.
+                    if let owner=window,let text = scroll.documentView as? FileComparisonTextView,text.window === owner,
                        let source = try? FileComparisonEditing.sourceRange(text.selectedRange(), cells: text.sourceCells) {
                         selections[side] = .init(sourceRange: source)
                     }
@@ -1501,7 +1503,10 @@ private extension FileComparisonDocument {
         if let view = scrolls[base]?.documentView as? NSTextView { window?.makeFirstResponder(view) }
         selectDifferenceBlock(target,base:base,advanceInline:true)
     }
-    func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll; onRegisterScroll(scroll,base); refreshLocatorViewport() }
+    func register(_ scroll: NSScrollView, base: Bool) {
+        guard !retired,!base || !onePaneActive && !singleFileMode else {return}
+        scrolls[base] = scroll;onRegisterScroll(scroll,base);refreshLocatorViewport()
+    }
     func scrolled(_ source: NSScrollView) {
         defer {
             refreshLocatorViewport()

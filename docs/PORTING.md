@@ -1732,3 +1732,12 @@ Both native families pass after a readiness-fixture repair. Four individually
 reviewed passive light/dark captures are published; all three owned receivers
 were reaped and absent. Sixteen source controls now have explicit native mappings.
 Physical/signed acceptance remains open. See [batch evidence](qa/email-credential-editor-2026-10-17.json).
+
+### Hosted combined-pane selection repair — October 17, 2026
+
+The observed wrapped-editor CI failure retained a left-pane restore after switching
+to combined view. Native registration/capture now refuses the absent pane and
+checks actual owner attachment. A deterministic late-registration regression,
+wrapped navigation and view switching pass locally; all owned receivers are
+closed. Hosted verification remains pending. See
+[the repair record](qa/ci-hidden-pane-restore-2026-10-17.json).
