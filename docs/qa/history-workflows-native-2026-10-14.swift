@@ -55,8 +55,12 @@ import TurtleGitCore
         revert.cancel();try await wait { !revert.busy && HistoryRevertWindowModel.activeOperations == 0 }
         try require(revert.cancelled && revert.completed == 2 && raw.contains("Work: 10%") && !FileManager.default.fileExists(atPath:root.appendingPathComponent("c").path) && FileManager.default.fileExists(atPath:root.appendingPathComponent("b").path),"Cancellation lost original callback/partial Revert state")
         let retained=try String(contentsOf:root.appendingPathComponent(".git/MERGE_MSG"),encoding:.utf8);try require(retained.contains(entries[0].hash),"Cancellation discarded successful Revert message");revertController.close();_ = try await repo.run(["reset","--hard","HEAD"])
-        // Skip a root failure, process the next revision, and dispatch Commit only once after close.
-        gate("disabled");let skip=HistoryRevertWindowModel(repository:repo,access:nil,entries:[entries.last!,entries[0]],mainline:nil,preferences:prefs)
+        // Batch roots are eligible. Use a real merge without a mainline for the
+        // source Skip failure, then dispatch Commit only once after close.
+        let mergeObject=try await repo.run(["commit-tree",String(decoding:tree,as:UTF8.self).trimmingCharacters(in:.whitespacesAndNewlines),"-p",head,"-p",entries[1].hash,"-m","Skip requires a merge mainline"])
+        let mergeHash=String(decoding:mergeObject.stdout,as:UTF8.self).trimmingCharacters(in:.whitespacesAndNewlines)
+        let merge=try await repo.rebaseCommit(mergeHash)
+        gate("disabled");let skip=HistoryRevertWindowModel(repository:repo,access:nil,entries:[merge,entries[0]],mainline:nil,preferences:prefs)
         var questions:[String]=[],events:[String]=[]
         skip.ask={title,_,_,_ in questions.append(title);return true};skip.close={events.append("close")};skip.onCommit={events.append("commit")};skip.start();try await wait {!skip.busy && HistoryRevertWindowModel.activeOperations == 0}
         try require(skip.success && skip.completed == 2 && questions.count == 3 && events == ["close","commit"],"Skip/Commit handoff was not ordered/once-only")

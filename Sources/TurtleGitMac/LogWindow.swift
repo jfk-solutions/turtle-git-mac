@@ -580,6 +580,15 @@ private enum LogIntegrationFailure: LocalizedError {
     }
 }
 
+/// Source progress and error policy use the original row count, including the
+/// working-tree placeholder. Only nonempty commit IDs are handed to Git.
+struct LogRevertSelection {
+    let rows:[LogEntry]
+    let mainline:Int?
+    var commits:[LogEntry] {rows.filter{!$0.hash.isEmpty}}
+    var multiple:Bool {rows.count>1}
+}
+
 enum LogRevisionCommand: String, Identifiable {
     case branch = "Create branch at this version…"
     case tag = "Create tag at this version…"
@@ -780,17 +789,20 @@ struct LogCommandRequest: Identifiable {
     var onPreparedRebase: ((LogIntegrationPreparation) -> Void)?
     var onCombineRevisions: (([LogEntry], Int, String) -> Void)?
     var onRevertRevisions: (([LogEntry], Int?) -> Void)?
-    func revertCaptured(_ entries: [LogEntry], mainline: Int?) {
-        guard !isInvalidated, !busy, !bare, !mergeActive, !jumping, !loadingNote, !savingNote, noteRequest == nil,
-              !findBlocked, !orderingBlocked, !copyingDetails, !unifiedViewerBusy, window?.attachedSheet == nil,
-              !entries.isEmpty, let onRevertRevisions else { return }
-        if entries.count == 1 {
-            let entry = entries[0]
-            guard !entry.hash.isEmpty, !entry.parents.isEmpty, !entry.references.contains(where: { $0.name == "refs/stash" }) else { return }
-            if entry.parents.count > 1 { guard let mainline, (1...entry.parents.count).contains(mainline) else { return } }
-            else if mainline != nil { return }
-        } else if mainline != nil { return }
-        onRevertRevisions(entries, mainline)
+    var onPreparedRevert:((LogRevertSelection)->Void)?
+    func revertCaptured(_ entries:[LogEntry],mainline:Int?,selectedRows:[LogEntry]? = nil) {
+        guard !isInvalidated,!busy,!bare,!mergeActive,!jumping,!loadingNote,!savingNote,noteRequest==nil,
+              !findBlocked,!orderingBlocked,!copyingDetails,!unifiedViewerBusy,window?.attachedSheet==nil,
+              !entries.isEmpty,onRevertRevisions != nil || onPreparedRevert != nil else{return}
+        let selection=LogRevertSelection(rows:selectedRows ?? entries,mainline:mainline)
+        guard selection.commits.map(\.hash)==entries.map(\.hash),selection.rows.filter({$0.hash.isEmpty}).count<=1 else{return}
+        if !selection.multiple {
+            guard let entry=selection.commits.first,!entry.parents.isEmpty,!entry.references.contains(where:{$0.name=="refs/stash"}) else{return}
+            if entry.parents.count>1 {guard let mainline,(1...entry.parents.count).contains(mainline) else{return}}
+            else if mainline != nil {return}
+        } else if mainline != nil {return}
+        if let onPreparedRevert {onPreparedRevert(selection)}
+        else {onRevertRevisions?(selection.commits,mainline)}
     }
     var onBisect: ((LogBisectRequest) -> Void)?
     func bisectAvailable(_ command: LogBisectCommand) -> Bool {
@@ -3480,12 +3492,12 @@ struct RevisionTable: NSViewRepresentable {
         private var combineMenuCancellation: OperationCancellation?
         private var menuActionTarget:HistoryMenuActionTarget?
         private final class RevertTarget: NSObject {
-            let entries: [LogEntry], mainline: Int?
-            init(_ entries: [LogEntry], mainline: Int? = nil) { self.entries = entries; self.mainline = mainline }
+            let entries:[LogEntry],mainline:Int?,selectedRows:[LogEntry]
+            init(_ entries:[LogEntry],mainline:Int? = nil,selectedRows:[LogEntry]? = nil) {self.entries=entries;self.mainline=mainline;self.selectedRows=selectedRows ?? entries}
         }
         @objc func revertCaptured(_ sender: NSMenuItem) {
             guard let target = sender.representedObject as? RevertTarget else { return }
-            model.revertCaptured(target.entries, mainline: target.mainline)
+            model.revertCaptured(target.entries,mainline:target.mainline,selectedRows:target.selectedRows)
         }
         private final class CombineTarget: NSObject {
             let entries: [LogEntry], offset: Int, head: String
@@ -3810,12 +3822,13 @@ struct RevisionTable: NSViewRepresentable {
                 item(model.integrationTitle(.rebase), #selector(rebaseRevision), icon: .rebase, enabled: model.canIntegrate(.rebase))
             }
             if one { item("Export this version…", #selector(exportRevision), icon: .export, enabled: model.canExportRevision) }
-            if model.onRevertRevisions != nil {
+            if model.onRevertRevisions != nil || model.onPreparedRevert != nil {
+                let selectedRows=model.entries.filter{model.selected.contains($0.hash)}
                 let chosen = model.entries.filter { !$0.hash.isEmpty && model.selected.contains($0.hash) }
                 let available = !model.isInvalidated && !model.busy && !model.bare && !model.mergeActive && !model.findBlocked && !model.orderingBlocked && model.window?.attachedSheet == nil
-                if model.selected.count>1,chosen.count>1,chosen.count == model.selected.count - (model.includesWorkingTree ? 1:0) {
-                    item("Revert changes by these commits", #selector(revertCaptured(_:)), icon: .revert, enabled: available).representedObject = RevertTarget(chosen)
-                } else if chosen.count==1,let revision=chosen.first,!revision.parents.isEmpty,!model.selectedIsStash,!revision.references.contains(where:{$0.name=="refs/stash"}),model.revertAvailable || model.includesWorkingTree {
+                if selectedRows.count>1,!chosen.isEmpty,selectedRows.count==model.selected.count {
+                    item("Revert changes by these commits",#selector(revertCaptured(_:)),icon:.revert,enabled:available).representedObject=RevertTarget(chosen,selectedRows:selectedRows)
+                } else if model.revertAvailable,let revision=model.revision {
                     if revision.parents.count > 1 {
                         let parent = NSMenuItem(title: "Revert change by this commit", action: nil, keyEquivalent: "")
                         parent.image = MenuIcon.revert.contextImage(defaults: model.colorPreferences); parent.isEnabled = available && model.canRevertRevision

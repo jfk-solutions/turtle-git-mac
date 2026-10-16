@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+Log Revert now preserves the original selected rows through its native workflow.
+Mixed working-tree/root selections can undo the root; merge/stash batches keep
+source Skip/Abort policy without guessing a mainline. Empty working-tree hashes
+are skipped before Git, and earlier inverses/messages survive Abort. See
+[Revert selection context](LOG-REVERT-PARITY.md#original-selection-context--october-16-2026).
+Physical, complete caller, visual and signed acceptance remain open.
+
 
 Log revision popups now follow source single/root/merge/multi-selection and
 bare/working-tree command groups. The common Find/clipboard tail, captured Find

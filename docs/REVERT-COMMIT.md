@@ -17,12 +17,27 @@ it reverses the changes introduced relative to that parent. Each submenu item
 shows the parent commit's title and abbreviated hash to help you choose. Check
 those values rather than assuming which branch a parent represents.
 
-Revert is unavailable for root commits, stash rows, bare repositories and active
-merges. If Git reports conflicts, resolve them before finishing the operation.
+The single-row command is unavailable for root commits and stash rows. Revert
+also requires a working tree without an active merge. If Git reports conflicts,
+resolve them before finishing the operation.
 The app leaves conflict state available; it does not silently roll back changes.
 Unrelated changes can remain in your working tree, but overlapping edits may
 prevent Git from applying the reverse patch.
 
-Only one selected commit is supported by this native workflow so far. See
-[Log Revert parity](LOG-REVERT-PARITY.md) for remaining workflows and verification.
+## Reverting several selected commits
+
+Select the rows and choose **Revert changes by these commits**. Revert processes
+them in displayed order and leaves the inverse changes uncommitted. A root commit
+can be included in this batch. A selected working-tree row contributes to the
+progress count but has no commit to reverse.
+
+A batch does not choose merge parents. Merge commits, including stash commits,
+therefore offer **Skip** or **Abort** when a mainline is required. Use the
+single-commit parent submenu to reverse a particular merge against its chosen
+parent. **Skip** proceeds to the next row; **Abort** stops further attempts.
+Earlier successful changes and their accumulated commit messages remain available
+for review. Cancelling also retains changes already applied; inspect the working
+tree before another operation.
+
+See [Log Revert parity](LOG-REVERT-PARITY.md) for remaining workflows and verification.
 Displayed macOS screenshots for this workflow are still pending.

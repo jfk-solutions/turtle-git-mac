@@ -213,8 +213,8 @@ import TurtleGitCore
                     if entry.hash.isEmpty { continue }
                     self.append(entry.hash + " " + entry.subject + "\n")
                     do {
-                        let repository=self.repository,token=self.cancellation,parent=self.entries.count == 1 ? self.mainline:nil
-                        let result=try await self.stream { emit in try await repository.revertLogRevision(revision:entry.hash,mainline:parent,cancellation:token,onOutput:emit) }
+                        let repository=self.repository,token=self.cancellation,parent=self.entries.count == 1 ? self.mainline:nil,allowsRoot=self.entries.count>1
+                        let result=try await self.stream { emit in try await repository.revertLogRevision(revision:entry.hash,mainline:parent,allowRoot:allowsRoot,cancellation:token,onOutput:emit) }
                         self.originalOutput += result.text
                         changed = true
                         if let message = try? String(contentsOf: messageURL, encoding: .utf8) {

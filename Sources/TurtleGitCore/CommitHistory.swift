@@ -924,13 +924,15 @@ extension GitRepository {
         return choices
     }
     /// Source GitRevert: reverse the chosen mainline into index/worktree without committing.
-    public func revertLogRevision(revision: String, mainline: Int? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+    /// Source multi-selection may include a root even though its single-row menu
+    /// is omitted. Keep that allowance explicit; ordinary callers remain strict.
+    public func revertLogRevision(revision: String, mainline: Int? = nil, allowRoot:Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
         try cancellation?.check()
         guard try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) != "true" else { throw LogRevertFailure.bare }
         guard try !logMergeActive(cancellation: cancellation) else { throw LogRevertFailure.mergeActive }
         let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         let parents = try run(["show", "-s", "--no-notes", "--format=%P", hash, "--"], cancellation: cancellation).text.split(whereSeparator: \.isWhitespace)
-        guard !parents.isEmpty else { throw LogRevertFailure.root }
+        guard allowRoot || !parents.isEmpty else { throw LogRevertFailure.root }
         if parents.count > 1 { guard let mainline, (1...parents.count).contains(mainline) else { throw LogRevertFailure.parent } }
         else if mainline != nil { throw LogRevertFailure.parent }
         var arguments = ["revert", "--no-edit", "--no-commit"]

@@ -17,7 +17,7 @@ parent menus, clipboard/Find tail, and `GitLogListAction.cpp`'s comparison and
 | Three or more contiguous revisions | Endpoint comparison; unified two-revision command omitted |
 | Three or more discontinuous revisions | Endpoint comparison and Format Patch omitted; other eligible multi-selection commands remain |
 | Working-tree row | Commit/operation commands, HEAD comparisons when HEAD exists, shared clipboard and Find tail |
-| Working tree plus a contiguous range | Comparison uses the oldest selected commit and live working tree; the synthetic row is excluded from Revert targets |
+| Working tree plus a contiguous range | Comparison uses the oldest selected commit and live working tree; Revert retains the original row count but skips the synthetic row before Git |
 | Bare repository | Revision/parent comparison retained; working-tree and unified commands omitted according to the source masks |
 
 Existing branch/ref targeting, transport, Rebase/Merge, Revert, Combine,
@@ -56,6 +56,8 @@ synthetic-row exclusion and unchanged HEAD/index/working contents.
 
 No new popup screenshot or physical tracking/VoiceOver claim is made. All
 consumer-specific masks, minimum-size/long-label positioning, signed Finder and
-full application parity remain open. Mixed working-tree/root or stash Revert
-variants and incomplete/discontinuous Follow history still need further source
-comparison and acceptance; the synthetic row is never passed to Git as a commit.
+full application parity remain open. The connected
+[Revert selection continuation](LOG-REVERT-PARITY.md#original-selection-context--october-16-2026)
+preserves mixed working-tree/root, merge and stash batch semantics. Incomplete/
+discontinuous Follow history still needs further source comparison and acceptance;
+the synthetic row is never passed to Git as a commit.

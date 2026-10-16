@@ -110,3 +110,28 @@ presets/Git amendment/replay, forced pending-child rollback and retired Log/Sync
 reads. Both receivers were reaped. See [batch evidence](qa/history-workflows-2026-10-14.json).
 No full Core or legacy Sync suite was repeated. Actual Commit-button and all
 physical/nested-menu interactions remain outside this evidence.
+
+## Original selection context — October 16, 2026
+
+The source counts every selected Log row, including the working-tree placeholder,
+when choosing progress and error policy. It skips an empty commit hash only inside
+the operation loop. Multiple selections pass no mainline to Git. Unlike the
+single-root menu exclusion, a root commit in a batch is eligible for Revert.
+Merge and stash entries in a batch therefore fail without a guessed parent and
+offer Skip/Abort; choosing Abort retains earlier inverses and their messages.
+
+The native Log now captures both the original rows and real commit targets.
+The shared repository adapter passes original rows to the owned Revert workflow
+for primary and configured picker Logs. Core root eligibility is explicitly
+enabled by the batch caller; ordinary single-revision callers still reject it.
+The synthetic row contributes to the attempt count but is never resolved by Git.
+Legacy callbacks continue receiving only commit entries.
+
+[Dated evidence](qa/log-revert-selection-2026-10-16.json) covers actual native
+No/Yes, Abort/Skip and OK result prompts, their defaults, root inverse with
+unrelated working contents, stash Skip/root continuation, and Abort after a
+successful earlier inverse with preserved MERGE_MSG and HEAD. The receiver checks
+the production adapter is installed, then supplies a private-preference native
+child factory; it does not certify every production caller or grant path.
+Physical keyboard/focus, all caller masks, linked worktrees, VoiceOver, visual
+parity and signed sandbox acceptance remain open.

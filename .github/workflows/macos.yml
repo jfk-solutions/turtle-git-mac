@@ -373,6 +373,8 @@ jobs:
         run: python3 scripts/test-submodule-progress-output.py
       - name: Native Log revision popup variants
         run: python3 scripts/test-log-popup-variants.py --only variants --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+      - name: Native Log Revert original selection context
+        run: python3 scripts/test-log-revert-selection.py --only selection --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Rebase action controls and structural row behavior
         run: python3 scripts/test-rebase-action-controls.py --only controls --only row-drag --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Rebase Revision Files and shared Changed Files workflows

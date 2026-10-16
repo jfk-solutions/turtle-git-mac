@@ -1717,6 +1717,34 @@ final class CommitHistoryTests: XCTestCase {
         let independent = try await repo.editableCommitNote(revision: entry.hash); XCTAssertEqual(independent.text, "cancel read note")
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
     }
+    func testBatchRootRevertIsExplicitAndPreservesUnrelatedChanges() async throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        defer{try? FileManager.default.removeItem(at:root)}
+        let repo=GitRepository(root:root)
+        _ = try await repo.run(["init","-b","main"])
+        for(key,value) in [("user.name","Root Revert"),("user.email","root@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
+        try Data("initial\n".utf8).write(to:root.appendingPathComponent("initial.txt"));try await repo.stage(["initial.txt"]);_ = try await repo.commit(message:"initial root")
+        let initial=try await repo.rebaseCommit("HEAD")
+        try Data("unrelated base\n".utf8).write(to:root.appendingPathComponent("unrelated.txt"));try await repo.stage(["unrelated.txt"]);_ = try await repo.commit(message:"later file")
+        try Data("staged unrelated\n".utf8).write(to:root.appendingPathComponent("unrelated.txt"));try await repo.stage(["unrelated.txt"])
+        try Data("working unrelated\n".utf8).write(to:root.appendingPathComponent("unrelated.txt"))
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try await repo.run(["write-tree"]).stdout
+        let unrelatedIndex=try await repo.run(["ls-files","--stage","-z","--","unrelated.txt"]).stdout
+        do {_ = try await repo.revertLogRevision(revision:initial.hash);XCTFail("Single-root policy bypassed")} catch LogRevertFailure.root {}
+        do {_ = try await repo.revertLogRevision(revision:initial.hash,mainline:1,allowRoot:true);XCTFail("Root mainline accepted")} catch LogRevertFailure.parent {}
+        let stopped=OperationCancellation();stopped.cancel()
+        do {_ = try await repo.revertLogRevision(revision:initial.hash,allowRoot:true,cancellation:stopped);XCTFail("Cancelled batch root changed repository")} catch is OperationCancellationFailure {}
+        let before=try await repo.run(["write-tree"]).stdout;XCTAssertEqual(before,index)
+        _ = try await repo.revertLogRevision(revision:initial.hash,allowRoot:true)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent("initial.txt").path))
+        let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try await repo.run(["ls-files","--stage","-z","--","unrelated.txt"]).stdout
+        XCTAssertEqual(afterHead,head);XCTAssertEqual(afterIndex,unrelatedIndex)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("unrelated.txt")),Data("working unrelated\n".utf8))
+        let deletion=try await repo.run(["diff","--cached","--name-status","--","initial.txt"]).text
+        XCTAssertTrue(deletion.contains("D\tinitial.txt"))
+    }
+
     func testMergeRevertEachMainlinePreservesUnrelatedChangesAndDoesNotCommit() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

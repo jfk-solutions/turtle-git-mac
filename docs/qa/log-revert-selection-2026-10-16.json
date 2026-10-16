@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "78bcdd065ea70295697e51fa6e296ec11b04b4b9",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "GitLogListAction.cpp RevertSelectedCommits: original selected count, empty-hash skip, Skip/Abort and retained successful results",
+    "GitLogListAction.cpp ID_REVERTREV: only single selections use chosen mainline",
+    "Git.cpp GitRevert: root allowed, --no-edit --no-commit, explicit mainline only"
+  ],
+  "implementation": [
+    "Captured typed Log Revert context preserves original rows through shared primary/picker repository adapter",
+    "Root eligible for batch Revert; single root/stash menu exclusions retained",
+    "Working placeholder counted for progress/error policy but never passed to Git",
+    "Merge/stash batch failures retain Skip/Abort without guessing a parent",
+    "User guide corrects obsolete single-only description; included in offline Help"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/log-revert-selection-build.log",
+    "anomalous_exit_zero_diagnostics": 4
+  },
+  "core": {
+    "exit": 0,
+    "tests": 2,
+    "failures": 0,
+    "log": "build/qa/log-revert-selection-core.log",
+    "checks": [
+      "Explicit batch root eligibility, default root rejection, invalid mainline and pre-cancelled refusal",
+      "Exact root deletion with unrelated index/working bytes and HEAD preserved",
+      "Retained both merge mainlines, invalid parent, bare/active-merge/conflict behavior and unrelated preservation"
+    ]
+  },
+  "native": {
+    "runner": "scripts/test-log-revert-selection.py",
+    "engines": ["system Git", "bundled Git"],
+    "passing_cases": 6,
+    "initial_log": "build/qa/log-revert-selection-native.log",
+    "initial_exit": 1,
+    "initial_receivers_reaped": [4031, 4170, 4301],
+    "initial_result": "New selection cases passed both engines. Retained history/system failed because it expected batch root rejection; later cases had not run.",
+    "repair": "Retained Skip/Commit case now creates an actual merge object with two parents and no mainline. It retains all three question and close-before-Commit assertions. An intermediate fixture-only compile failed due to treating stdout Data as String; corrected with explicit UTF-8 decoding, no receiver launched.",
+    "compile_failure_log": "build/qa/log-revert-selection-native-continuation.log",
+    "final_log": "build/qa/log-revert-selection-native-repair.log",
+    "final_exit": 0,
+    "final_receivers_reaped": [5830, 7533, 9134, 9249],
+    "checks": [
+      "Actual captured native multi-selection menu and private-preference child workflow",
+      "Actual No/Yes, Skip/Abort and OK buttons with native default-button assertions",
+      "Working/root No does not mutate; Yes applies exact root inverse while preserving unrelated working bytes",
+      "Working/merge Abort does not guess a mainline or submit an empty hash",
+      "Working/stash/root Skip continues to eligible root",
+      "Abort after earlier success preserves partial inverse and MERGE_MSG without reaching later root or moving HEAD",
+      "Retained Revert streaming/copy/cancellation/Commit ordering, Combine amendment/replay/recovery and retired Log/Sync ownership",
+      "Retained source-shaped popup variants, clipboard, captured Find, stale/one-use guards and repository preservation"
+    ],
+    "ownership": "All seven receivers reaped; private repositories/preferences/clipboard and owned native windows cleaned up."
+  },
+  "hosted_observed": {
+    "sha": "78bcdd065ea70295697e51fa6e296ec11b04b4b9",
+    "macos_run": 38852442307,
+    "macos_status": "in_progress",
+    "pages_run": 38852442304,
+    "pages_conclusion": "success"
+  },
+  "limits": [
+    "Production adapter installation asserted; native child factory injected for private preferences, not every production caller/grant path certified",
+    "No new screenshots or physical keyboard/focus/VoiceOver acceptance",
+    "Full caller masks, linked worktrees, all-dialog visual parity and signed Finder/sandbox/App Store acceptance remain open",
+    "Focused local results do not certify complete hosted CI or the full port"
+  ]
+}
