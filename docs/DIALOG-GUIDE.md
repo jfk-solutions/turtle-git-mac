@@ -76,6 +76,14 @@ Repository Browser reads the tree at a pinned revision. Navigate folders, inspec
 files, and use Open or Save to work with a historical copy. A historical file is
 not the current working file. Review a Revert action carefully before accepting it.
 
+The **Revision** button opens a single-selection Log for the displayed snapshot.
+Choose a commit and press **OK** to browse it; **Cancel** keeps the current revision.
+The picker hides the working-tree row and offers the configured Log actions.
+When an exact object ID has a matching reference, the button can show that
+reference name; its tooltip also shows the pinned object ID. Folder navigation
+and file actions continue to use that snapshot until you choose a revision or
+refresh. Selecting another revision retains the folder when it still exists.
+
 Browse References lists branches, tags and remote-tracking references. Use the
 filter and selected reference for the offered actions. Picking a reference in a
 child dialog returns it to the caller; it does not itself check out that reference.

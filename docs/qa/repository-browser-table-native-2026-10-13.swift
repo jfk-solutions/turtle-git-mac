@@ -80,12 +80,12 @@ import TurtleGitCore
         try require(menu.items.first?.title=="Open" && menu.items.contains { $0.title=="Blame" } && menu.items.contains { $0.title=="Save revision to…" },"File menu conditions")
         var logReply:(String,String)?
         model.onLog={ logReply=($0,$1) }
-        let log=menu.items.first { $0.title=="Show log" }!;try require(NSApplication.shared.sendAction(log.action!,to:log.target,from:log),"Native Log dispatch")
-        try require(logReply?.0==model.selected.first?.path && logReply?.1==hash,"Pinned context target")
-        let originalLogPath=logReply!.0
+        let log=menu.items.first { $0.title=="Show log" }!,originalLogPath=model.selected.first!.path
         table.selectRowIndexes(IndexSet(integer:2),byExtendingSelection:false)
+        try require(NSApplication.shared.sendAction(log.action!,to:log.target,from:log),"Native Log dispatch")
+        try require(logReply?.0==originalLogPath && logReply?.1==hash,"Retained menu followed a new selection")
         logReply=nil;_ = NSApplication.shared.sendAction(log.action!,to:log.target,from:log)
-        try require(logReply?.0==originalLogPath,"Retained menu followed a new selection")
+        try require(logReply==nil,"Captured menu dispatched more than once")
         let privateBoard=NSPasteboard(name:.init("TurtleGit.BrowserActions."+UUID().uuidString));defer { privateBoard.releaseGlobally() }
         model.selection=Set(model.entries.filter { $0.kind != .directory }.map(\.id))
         model.copy(pasteboard:privateBoard)

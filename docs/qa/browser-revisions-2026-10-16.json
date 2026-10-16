@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "48deac0a84f2843f6a2fb1f8b4c1fa4b96f73ea9",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RepositoryBrowser.cpp OnBnClickedButtonRevision: single-select Log, initial revision, working-tree exclusion and modal result",
+    "RepositoryBrowser.cpp ReadTree: exact-hash friendly label, sorted GetMapHashToFriendName metadata",
+    "RepositoryBrowser.cpp UpdateInfoLabel, ShowContextMenu and pinned tree/list actions"
+  ],
+  "implementation": [
+    "Owned single revision picker with initial pinned scope before first load, private owner preferences and inherited theme/opacity",
+    "Shared selectable Log factory connects Format Patch, Browse Repository, containing Log, marked/file-pair/grouped comparisons, file/submodule history, Blame and mutation refresh",
+    "Duplicate/modal guards across Browser navigation, refresh, column changes, copy and file actions; generation/identity fence on replies and owner retirement",
+    "Source-friendly reference labels with annotated-tag suffixes, fallback and pinned object tooltip; display metadata does not replace pinned historical identity",
+    "Named folder summary and single-use captured tree/contents menu invocations",
+    "Owner pasteboard for tree/list Copy; updated Mac guide and offline Help"
+  ],
+  "build": {
+    "initial_exit": 0,
+    "initial_log": "build/qa/browser-revisions-build.log",
+    "initial_anomalous_exit_zero_diagnostics": 2,
+    "final_exit": 0,
+    "final_log": "build/qa/browser-revisions-build-repair.log",
+    "final_anomalous_exit_zero_diagnostics": 2
+  },
+  "core": {
+    "exit": 0,
+    "tests": 2,
+    "failures": 0,
+    "log": "build/qa/browser-revisions-core.log",
+    "checks": [
+      "Source reference order, symbolic label retention, changed reference metadata without snapshot mutation",
+      "Annotated standalone tree label, missing-reference fallback, cancelled read and foreign-snapshot refusal",
+      "Unchanged HEAD, index tree and working bytes"
+    ],
+    "scope": "Only new label tests; no full Core rerun. Native-only factory repair did not rerun Core."
+  },
+  "native": {
+    "runner": "scripts/test-browser-revisions.py",
+    "engines": ["system Git", "bundled Git"],
+    "initial_log": "build/qa/browser-revisions-native.log",
+    "initial_exit": 1,
+    "initial_receivers_reaped": [10217],
+    "initial_result": "New revision/system case found missing Browse Repository callback in the existing shared selectable Log factory; remaining cases had not run.",
+    "repair": "Completed the shared factory's missing historical inspection, patch, file comparison and mutation refresh routes; retained and expanded the callback assertions.",
+    "final_log": "build/qa/browser-revisions-native-repair.log",
+    "final_exit": 0,
+    "passing_cases": 6,
+    "final_receivers_reaped": [10361, 10432, 10510, 10575, 10648, 10855],
+    "checks": [
+      "Actual configured native single-selection Log, initial scope, no working row, owner preferences/theme/opacity and connected callback registration",
+      "Duplicate picker and parent modal guards; actual model accept/cancel, existing-folder retention and historical bytes",
+      "Forced owner closure cancels Log reads and rejects retained late selection completion",
+      "Friendly reference display with unchanged pinned identity and named folder summary",
+      "Private tree/list Copy and unchanged HEAD/raw index/working bytes",
+      "Retained native table/menu/icons, captured selection-before-dispatch and duplicate refusal, column persistence/reset/fitting, sort and historical file/folder promises",
+      "Retained navigation/fallback, multi-file Revert Continue/Cancel, blocked Git process cancellation/reaping, Quit ownership, Save/Open With/error-sheet retirement and standalone tree comparisons"
+    ],
+    "fixture_update": "Retained table test changes selection before first captured Log dispatch and separately asserts a second dispatch is refused; original pinned-target assertion retained.",
+    "ownership": "All seven owned receivers reaped; native windows closed and private preferences/clipboards/repositories cleaned up."
+  },
+  "hosted_observed": {
+    "sha": "48deac0a84f2843f6a2fb1f8b4c1fa4b96f73ea9",
+    "macos_run": 38854136506,
+    "macos_status": "pending",
+    "pages_run": 38854136445,
+    "pages_conclusion": "success",
+    "prior_macos_run": 38852442307,
+    "prior_macos_status": "in_progress"
+  },
+  "limits": [
+    "Callback registration checked; not every downstream production route exercised",
+    "Native model/delegate checks do not establish physical picker/menu/keyboard/VoiceOver acceptance",
+    "No new screenshots; existing Browser captures remain historical evidence",
+    "Signed Finder/sandbox/App Store acceptance and full hosted CI remain unverified",
+    "Complete Browser and application parity remain open"
+  ]
+}

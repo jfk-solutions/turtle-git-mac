@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+Repository Browser's revision picker now inherits its owner preferences/theme,
+connects the shared selectable-Log actions and owns one modal selection lifetime.
+The header shows source-style friendly reference labels while preserving pinned
+objects; folder summaries include names and captured tree/file menu actions run
+once. See [Browser revision selection](REPOSITORY-BROWSER-PARITY.md#revision-picker-labels-and-captured-actions--october-16-2026).
+Full physical, visual, Finder and signed acceptance remain open.
+
 Log Revert now preserves the original selected rows through its native workflow.
 Mixed working-tree/root selections can undo the root; merge/stash batches keep
 source Skip/Abort policy without guessing a mainline. Empty working-tree hashes

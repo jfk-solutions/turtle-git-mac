@@ -2,6 +2,34 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RepositoryBrowserTests: XCTestCase {
+    func testRevisionLabelUsesSourceReferenceOrderWithoutChangingSnapshot() async throws {
+        let (root,repo,path)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let hash=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["branch","aaa-label",hash]);_ = try await repo.run(["tag","-a","release-label","-m","annotated",hash])
+        let snapshot=try await repo.browseRepository(revision:hash)
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try await repo.run(["write-tree"]).stdout,bytes=try Data(contentsOf:root.appendingPathComponent(path))
+        let label=try await repo.repositoryBrowserRevisionLabel(snapshot);XCTAssertEqual(label,"refs/heads/aaa-label")
+        let symbolic=try await repo.browseRepository(revision:"HEAD"),symbolicLabel=try await repo.repositoryBrowserRevisionLabel(symbolic)
+        XCTAssertEqual(symbolicLabel,"HEAD")
+        _ = try await repo.run(["branch","-D","aaa-label"])
+        let nextLabel=try await repo.repositoryBrowserRevisionLabel(snapshot);XCTAssertEqual(nextLabel,"refs/heads/main")
+        XCTAssertEqual(snapshot.objectID,hash);XCTAssertEqual(snapshot.revision,hash)
+        let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try await repo.run(["write-tree"]).stdout
+        XCTAssertEqual(afterHead,head);XCTAssertEqual(afterIndex,index);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(path)),bytes)
+    }
+    func testRevisionLabelAnnotatedTreeFallbackCancellationAndForeignScope() async throws {
+        let (root,repo,_)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let tree=try await repo.run(["rev-parse","HEAD^{tree}"]).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["tag","-a","tree-label","-m","annotated tree",tree])
+        let snapshot=try await repo.browseRepository(revision:tree)
+        let label=try await repo.repositoryBrowserRevisionLabel(snapshot);XCTAssertEqual(label,"refs/tags/tree-label^{}")
+        _ = try await repo.run(["tag","-d","tree-label"])
+        let fallback=try await repo.repositoryBrowserRevisionLabel(snapshot);XCTAssertEqual(fallback,tree)
+        let token=OperationCancellation();token.cancel()
+        do {_ = try await repo.repositoryBrowserRevisionLabel(snapshot,cancellation:token);XCTFail("Cancelled label read accepted")} catch is OperationCancellationFailure {}
+        let foreign=GitRepository(root:root.appendingPathComponent("foreign"))
+        do {_ = try await foreign.repositoryBrowserRevisionLabel(snapshot);XCTFail("Foreign snapshot accepted")} catch RepositoryBrowserFailure.selection {}
+    }
     func testBytePathCollectionsAndEntryIdentity() throws {
         let a="caf\u{e9}",b="cafe\u{301}"
         XCTAssertEqual(a,b) // Swift canonical equality is the regression trigger.

@@ -151,10 +151,12 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         private final class MenuInvocation: NSObject {
             let target: RepositoryBrowserWindowModel.MenuTarget
             let command: Selector
+            var used=false
             init(target: RepositoryBrowserWindowModel.MenuTarget, command: Selector) { self.target=target; self.command=command }
         }
         @objc func invokeBrowserMenu(_ sender: NSMenuItem) {
-            guard available, let invocation=sender.representedObject as? MenuInvocation, model.acceptsMenu(invocation.target) else { return }
+            guard available, let invocation=sender.representedObject as? MenuInvocation,!invocation.used, model.acceptsMenu(invocation.target) else { return }
+            invocation.used=true
             let entries=invocation.target.entries
             if invocation.command == #selector(revert) { model.revert(entries); return }
             if invocation.command == #selector(copyNames) { model.copy(entries:entries); return }

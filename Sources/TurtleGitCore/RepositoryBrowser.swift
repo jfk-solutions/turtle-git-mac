@@ -133,6 +133,19 @@ public enum RepositoryBrowserListing {
     }
 }
 extension GitRepository {
+    /// RepositoryBrowser::ReadTree labels an exact object ID with the first
+    /// friendly reference (including the annotated-tag dereference suffix).
+    /// Keep this display metadata separate from the immutable browser snapshot.
+    public func repositoryBrowserRevisionLabel(_ snapshot:RepositoryBrowserSnapshot,cancellation:OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
+        guard snapshot.root == root else { throw RepositoryBrowserFailure.selection }
+        guard let object=snapshot.objectID,snapshot.revision == object else { return snapshot.revision }
+        let names=try historyReferenceObjects(cancellation:cancellation).compactMap { reference -> String? in
+            guard reference.target == object else { return nil }
+            return reference.name + (reference.peeled == nil ? "" : "^{}")
+        }
+        return names.sorted { $0.utf16.lexicographicallyPrecedes($1.utf16) }.first ?? snapshot.revision
+    }
     public func browseRepository(revision: String = "HEAD", directory: String = "", cancellation: OperationCancellation? = nil) throws -> RepositoryBrowserSnapshot {
         try cancellation?.check()
         guard RepositoryBrowserListing.validPath(directory, allowRoot: true) else { throw RepositoryBrowserFailure.directory }

@@ -26,7 +26,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
 @MainActor final class RepositoryBrowserWindowController: NSWindowController, NSWindowDelegate {
     let model: RepositoryBrowserWindowModel
     var onClosed: () -> Void = {}
-    private var picker: LogWindowController?
+    private(set) var picker: LogWindowController?
+    private var pickerIdentity:UUID?
+    var configureLogPicker:(LogWindowModel)->Void = { _ in }
     private var ownedSheet: NSWindow?
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences:UserDefaults = .standard) {
         model = RepositoryBrowserWindowModel(repository: repository, access: access, revision: revision, preferences:preferences)
@@ -90,15 +92,21 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         DialogGeometry.attach(window, identifier: "TurtleGit.RepositoryBrowser", legacyName: "TurtleGit.RepositoryBrowser")
     }
     private func chooseRevision() {
-        guard model.active, let window, window.attachedSheet == nil else { return }
-        let controller = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak self] entry in
-            guard let self, self.model.active else { return }
-            self.picker = nil
-            if let entry { self.model.revision = entry.hash; self.model.refresh() }
-        })
-        controller.model.endRevision = model.snapshot?.objectID; controller.model.reload()
-        picker = controller
-        if let child = controller.window { window.beginSheet(child) }
+        guard model.canUseMenu,picker == nil,let window,window.attachedSheet == nil else { return }
+        let identity=UUID(),generation=model.generation
+        pickerIdentity=identity;model.choosingRevision=true
+        let controller=LogWindowController(repository:model.repository,access:model.access,onChoose:{ [weak self] entry in
+            guard let self,self.pickerIdentity==identity else { return }
+            self.pickerIdentity=nil;self.picker=nil;self.model.choosingRevision=false
+            guard self.model.active,self.model.generation==generation else { return }
+            if let entry { self.model.revision=entry.hash;self.model.refresh() }
+        },labelDefaults:model.preferences,initialRevision:model.snapshot?.objectID)
+        configureLogPicker(controller.model)
+        picker=controller
+        if let child=controller.window {
+            child.appearance=window.appearance;child.alphaValue=window.alphaValue
+            window.beginSheet(child)
+        } else {pickerIdentity=nil;picker=nil;model.choosingRevision=false}
     }
     private func presentFile(_ content: ComparisonFileContent, action: RepositoryBrowserWindowModel.FileAction) {
         guard model.active, let window, window.attachedSheet == nil else { return }
@@ -148,6 +156,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.mutating && !model.confirmingQuit }
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
+        pickerIdentity=nil;model.choosingRevision=false
         if let sheet=ownedSheet, window?.attachedSheet === sheet { window?.endSheet(sheet,returnCode:.cancel); sheet.orderOut(nil) }
         ownedSheet = nil
         if let picker {
@@ -162,6 +171,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     let repository: GitRepository
     let access: RepositoryAccessLease?
     @Published var revision: String
+    @Published private(set) var revisionLabel:String
+    @Published var choosingRevision=false
+    var clipboard:NSPasteboard = .general
     @Published private(set) var snapshot: RepositoryBrowserSnapshot?
     @Published private(set) var directories: RepositoryBrowserPathMap<[RepositoryBrowserEntry]> = [:]
     @Published var expanded: RepositoryBrowserPathSet = [""]
@@ -203,7 +215,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     @Published private(set) var columns:RepositoryBrowserColumns
     @Published private(set) var confirmingColumns=false
     var confirmResetColumns: () async -> Bool = { false }
-    var canEditColumns:Bool { active && !busy && !mutating && !confirmingQuit && !confirmingColumns }
+    var canEditColumns:Bool { canUseMenu }
     func saveColumns(_ value:RepositoryBrowserColumns) {
         guard canEditColumns else { return }
         columns=RepositoryBrowserColumns(visible:value.visible,order:value.order,widths:value.widths);columns.save(preferences)
@@ -225,7 +237,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
     enum FileAction { case open, openWith, alternativeEditor, save }
     var presentFile: (ComparisonFileContent, FileAction) -> Void = { _, _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences:UserDefaults = .standard) { self.repository = repository; self.access = access; self.revision = revision; self.preferences=preferences;self.columns = .load(preferences) }
+    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences:UserDefaults = .standard) { self.repository = repository; self.access = access; self.revision = revision;self.revisionLabel=revision; self.preferences=preferences;self.columns = .load(preferences) }
     var entries: [RepositoryBrowserEntry] {
         let first = sortOrder.first
         let column: RepositoryBrowserSort = first?.keyPath == \RepositoryBrowserEntry.fileExtension ? .fileExtension : first?.keyPath == \RepositoryBrowserEntry.sizeSort ? .size : .name
@@ -240,18 +252,19 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             return entry.name + "\nSize " + sizeText(entry)
         }
         let values = snapshot?.entries ?? []
-        return "Showing \(values.filter { ![.directory, .submodule].contains($0.kind) }.count) files, \(values.filter { $0.kind == .submodule }.count) submodules and \(values.filter { $0.kind == .directory }.count) folders, \(values.count) items in total"
+        let name=snapshot?.directory.isEmpty == false ? (snapshot!.directory as NSString).lastPathComponent : repository.root.lastPathComponent
+        return "\(name): Showing \(values.filter { ![.directory, .submodule].contains($0.kind) }.count) files, \(values.filter { $0.kind == .submodule }.count) submodules and \(values.filter { $0.kind == .directory }.count) folders, \(values.count) items in total"
     }
     func sizeText(_ entry: RepositoryBrowserEntry) -> String { entry.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "" }
     func invalidate() { active = false; generation = UUID(); cancelRequests() }
     func canReuseForRevision(_ requestedRevision: String) -> Bool {
-        active && !busy && !mutating && !confirmingQuit && revision == requestedRevision && snapshot?.revision == requestedRevision && snapshot?.directory == ""
+        canUseMenu && revision == requestedRevision && snapshot?.revision == requestedRevision && snapshot?.directory == ""
     }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func refresh() {
-        guard active, !mutating, !confirmingQuit, !confirmingColumns else { return }
+        guard active,!mutating,!confirmingQuit,!confirmingColumns,!choosingRevision else { return }
         cancelRequests()
         let identity = UUID(); generation = identity; busy = true; error = nil; loads = []
         let value = revision, directory = snapshot?.directory ?? "", retainedSelection = selection
@@ -269,6 +282,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             do {
                 try validateAccess()
                 let root = try await repository.browseRepository(revision:value, cancellation:cancellation)
+                var label=value,labelError:String?
+                do {label=try await repository.repositoryBrowserRevisionLabel(root,cancellation:cancellation)}
+                catch {if cancellation.isCancelled {throw OperationCancellationFailure.cancelled};labelError=error.localizedDescription}
                 var restored:RepositoryBrowserPathMap<RepositoryBrowserSnapshot> = ["":root]
                 if root.treeID != nil {
                     for path in ordered where !path.isEmpty {
@@ -285,13 +301,13 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
                 while restored[currentPath] == nil && !currentPath.isEmpty { currentPath = (currentPath as NSString).deletingLastPathComponent }
                 let current = restored[currentPath] ?? root
                 directories = restored.mapValues(\.entries); listings = restored; requestedDirectory = current.directory
-                snapshot = current; expanded = wanted.intersection(restored.keys); expanded.insert("")
+                snapshot = current;revisionLabel=label;error=labelError; expanded = wanted.intersection(restored.keys); expanded.insert("")
                 selection = retainedSelection.intersection(Set(current.entries.map(\.id)))
             } catch { if active && generation == identity && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func loadDirectory(_ path: String, select: Bool) {
-        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns, let snapshot, snapshot.treeID != nil else { return }
+        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns,!choosingRevision, let snapshot, snapshot.treeID != nil else { return }
         let identity = generation
         if select { menuGeneration = UUID(); requestedDirectory = path }
         if let cached = listings[path] {
@@ -313,7 +329,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func open(_ entry: RepositoryBrowserEntry, action: FileAction = .open) {
-        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns, let snapshot, snapshot.entries.contains(entry) else { return }
+        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns,!choosingRevision, let snapshot, snapshot.entries.contains(entry) else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
         if entry.kind == .directory { expanded.insert(entry.path); loadDirectory(entry.path,select:true); return }
         if entry.kind == .submodule && action == .open && !snapshot.bare { loadSubmodule(snapshot,entry:entry,showLog:false); return }
@@ -332,7 +348,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func dragProvider(_ entry: RepositoryBrowserEntry? = nil, directory: String? = nil) -> NSItemProvider? {
-        guard active, !busy, !confirmingQuit, !confirmingColumns, let snapshot, snapshot.objectID != nil,
+        guard active, !busy, !confirmingQuit, !confirmingColumns,!choosingRevision, let snapshot, snapshot.objectID != nil,
               entry.map({ snapshot.entries.contains($0) && $0.kind != .submodule }) ?? true else { return nil }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return nil }
         let folder = directory != nil || entry == nil || entry?.kind == .directory
@@ -340,7 +356,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         return RepositoryBrowserDrag.provider(repository: repository, access: access, snapshot: snapshot, entry: entry, directory: directory, name: name, folder: folder)
     }
     func showSubmoduleLog(_ entry: RepositoryBrowserEntry) {
-        guard active, !busy, !confirmingQuit, !confirmingColumns, let snapshot, snapshot.entries.contains(entry), entry.kind == .submodule else { return }
+        guard active, !busy, !confirmingQuit, !confirmingColumns,!choosingRevision, let snapshot, snapshot.entries.contains(entry), entry.kind == .submodule else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
         guard !snapshot.bare else { error = "This bare repository has no child working checkout. Open an initialized working repository to show submodule history."; return }
         loadSubmodule(snapshot,entry:entry,showLog:true)
@@ -359,7 +375,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func revert(_ entries: [RepositoryBrowserEntry]) {
-        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns, let snapshot, !snapshot.bare, !entries.isEmpty,
+        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns,!choosingRevision, let snapshot, !snapshot.bare, !entries.isEmpty,
               Set(entries.map(\.id)).count == entries.count,
               entries.allSatisfy({ snapshot.entries.contains($0) && ![.directory,.submodule].contains($0.kind) }) else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
@@ -394,12 +410,12 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         comparisonMark = PreparedFileComparisonMark(path: access.file.path, revision: "", workingAccess: access)
     }
     func markForComparison(_ entry: RepositoryBrowserEntry) {
-        guard active, !busy, !confirmingQuit, !confirmingColumns, let snapshot, let revision = snapshot.objectID,
+        guard active, !busy, !confirmingQuit, !confirmingColumns,!choosingRevision, let snapshot, let revision = snapshot.objectID,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
         comparisonMark = PreparedFileComparisonMark(path: entry.path, revision: revision)
     }
     func compareWithMarkedFile(_ entry: RepositoryBrowserEntry, capturedMark: PreparedFileComparisonMark? = nil) {
-        guard active, !busy, !confirmingQuit, !confirmingColumns, let snapshot, let revision = snapshot.objectID, let comparisonMark = capturedMark ?? comparisonMark,
+        guard active, !busy, !confirmingQuit, !confirmingColumns,!choosingRevision, let snapshot, let revision = snapshot.objectID, let comparisonMark = capturedMark ?? comparisonMark,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
         onPreparedFileCompare?(comparisonMark, PreparedFileComparisonMark(path: entry.path, revision: revision))
     }
@@ -422,7 +438,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         target.revision == snapshot?.objectID && snapshot.map { RepositoryBrowserPathIdentity.equal(target.directory,$0.directory) } == true &&
         target.entries.allSatisfy { snapshot?.entries.contains($0) == true }
     }
-    var canUseMenu: Bool { active && !busy && !mutating && !confirmingQuit && !confirmingColumns }
+    var canUseMenu: Bool { active && !busy && !mutating && !confirmingQuit && !confirmingColumns && !choosingRevision }
     func folderObjectID(_ path: String) -> String? {
         guard canUseMenu, let snapshot, snapshot.objectID != nil else { return nil }
         if path.isEmpty { return snapshot.treeID }
@@ -443,9 +459,10 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         guard snapshot?.treeID != revision else { error = "Tree objects contain file snapshots, but have no commit history or blame information. Choose a commit or tag to view history."; return }
         onLog(path,revision)
     }
-    func copyFolder(_ path: String, hashes: Bool = false, pasteboard: NSPasteboard = .general) {
+    func copyFolder(_ path: String, hashes: Bool = false, pasteboard:NSPasteboard? = nil) {
         guard let hash = folderObjectID(path) else { return }
         let name = path.isEmpty ? repository.root.lastPathComponent : (path as NSString).lastPathComponent
+        let pasteboard=pasteboard ?? clipboard
         pasteboard.clearContents(); pasteboard.setString(hashes ? hash : name + "\r\n",forType:.string)
     }
     func showEntryLog(_ entry: RepositoryBrowserEntry) {
@@ -474,10 +491,11 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             } catch {if active,generation==identity,!cancellation.isCancelled {self.error=error.localizedDescription}}
         }
     }
-    func copy(hashes: Bool = false, pasteboard: NSPasteboard = .general, entries: [RepositoryBrowserEntry]? = nil) {
-        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns else { return }
+    func copy(hashes: Bool = false, pasteboard:NSPasteboard? = nil, entries: [RepositoryBrowserEntry]? = nil) {
+        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns,!choosingRevision else { return }
         let values = entries ?? selected
         guard let snapshot, !values.isEmpty, values.allSatisfy({ snapshot.entries.contains($0) }) else { return }
+        let pasteboard=pasteboard ?? clipboard
         pasteboard.clearContents()
         pasteboard.setString(hashes ? values.map(\.objectID).joined(separator:"\r\n") : values.map { $0.name + "\r\n" }.joined(), forType: .string)
     }
@@ -492,7 +510,7 @@ private struct RepositoryBrowserDialog: View {
                 Text(model.repository.root.path + (model.snapshot?.directory.isEmpty == false ? "/" + model.snapshot!.directory : "")).textSelection(.enabled).lineLimit(1).truncationMode(.middle)
                 Spacer()
                 Text("Revision:")
-                Button(model.revision) { model.chooseRevision() }.lineLimit(1).frame(minWidth: 180).disabled(model.busy)
+                Button(model.revisionLabel) { model.chooseRevision() }.lineLimit(1).frame(minWidth:180,maxWidth:300).help(model.revisionLabel + ((model.snapshot?.objectID).map { "\n" + $0 } ?? "")).disabled(!model.canUseMenu)
             }
             RepositoryBrowserSplit {
                 RepositoryBrowserFolderTree(model:model)
@@ -506,7 +524,7 @@ private struct RepositoryBrowserDialog: View {
                 Button("Cancel", action: model.close).keyboardShortcut(.cancelAction).disabled(model.mutating)
                 Button("Help") { TurtleGitHelp.show(.browser) }
             }
-        }.padding(12).disabled(model.confirmingQuit).alert("Repository Browser", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
+        }.padding(12).disabled(model.confirmingQuit || model.choosingRevision).alert("Repository Browser", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
     }
@@ -647,6 +665,7 @@ private struct RepositoryBrowserSplit<Left: View, Right: View>: NSViewController
         }
         private final class Invocation:NSObject {
             let path:String,target:RepositoryBrowserWindowModel.MenuTarget,command:Int
+            var used=false
             init(path:String,target:RepositoryBrowserWindowModel.MenuTarget,command:Int) { self.path=path;self.target=target;self.command=command }
         }
         func menuNeedsUpdate(_ menu:NSMenu) {
@@ -659,7 +678,8 @@ private struct RepositoryBrowserSplit<Left: View, Right: View>: NSViewController
             }
         }
         @objc func invoke(_ sender:NSMenuItem) {
-            guard available,let action=sender.representedObject as? Invocation,model.acceptsMenu(action.target) else { return }
+            guard available,let action=sender.representedObject as? Invocation,!action.used,model.acceptsMenu(action.target) else { return }
+            action.used=true
             switch action.command { case 0:model.openFolder(action.path);case 1:model.showFolderLog(action.path);case 2:model.copyFolder(action.path);case 3:model.copyFolder(action.path,hashes:true);default:break }
         }
         func outlineView(_ outlineView:NSOutlineView, pasteboardWriterForItem item:Any) -> NSPasteboardWriting? {

@@ -502,3 +502,42 @@ scope and App Store acceptance remain unverified.
 [Path identity evidence](qa/repository-browser-paths-2026-10-16.json) records the
 15 passing Core tests, native cases on both Git engines, initial fixture API/argv
 failures and focused repairs, actual receiver cleanup and hosted CI gate progress.
+
+## Revision picker, labels and captured actions — October 16, 2026
+
+The source Revision button opens a single-selection Log without a working-tree
+row. The native picker now receives the initial pinned object before its first
+load, the browser's own preferences and inherited appearance/opacity. The shared
+repository configuration connects its Log inspection, comparison, transport,
+reference and history-operation callbacks just as for other selectable Logs.
+The shared selectable-Log factory also now supplies previously absent Format
+Patch, Browse Repository, containing-reference Log, historical/marked/file-pair
+comparisons, file/submodule Log and Blame routes. Mutations refresh repository
+Logs, Working Tree, Commit and Rebase consumers. Other configured picker consumers
+receive those same routes; each comparison retains its owning Log window and
+repository lease. Callback registration is covered by the native check; every
+downstream route is not separately exercised by this batch.
+One owned picker may exist at a time. Parent navigation, refresh, file actions,
+columns and copying are blocked while it is open. Cancel retains the snapshot;
+OK refreshes at the captured commit and retains an existing folder. A generation
+and picker-identity fence rejects replies after forced closure or replacement.
+
+ReadTree replaces an exact hash label with the first sorted friendly reference.
+The native header now displays the same metadata, including annotated-tag
+dereference suffixes. Symbolic input labels remain symbolic; missing references
+fall back to the original hash. This label does not rewrite the snapshot's pinned
+identity or its stored revision request. The tooltip includes the pinned object.
+That separation retains historical bytes if a branch/tag moves while the browser
+is open. Reference reads use the same cancellation/request/Quit lifetime as tree
+refresh; a failed read reports its error while retaining the successfully read tree.
+
+Folder information now includes the current folder name alongside source-style
+file/submodule/folder totals. Tree and contents popup invocations are captured,
+single-use actions, retaining the displayed target even if selection changes before
+dispatch. Navigation/reload/closure still reject stale captures. Both clipboard
+routes use the owner's pasteboard, permitting private native verification without
+changing system clipboard contents.
+
+[Grouped evidence](qa/browser-revisions-2026-10-16.json) records the validation and
+any repairs. No new screenshot, physical picker/menu/keyboard/VoiceOver claim,
+signed scope acceptance or full Browser parity is inferred from these checks.

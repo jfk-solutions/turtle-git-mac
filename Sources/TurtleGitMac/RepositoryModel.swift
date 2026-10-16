@@ -1527,6 +1527,33 @@ import UniformTypeIdentifiers
         log.onCherryPick = { [weak self] revisions in self?.showRebase(repository: repository, access: access, cherryPick: revisions) }
         log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
         configureLogRevert(log,repository:repository,access:access)
+        log.onFormatPatch={ [weak self] preset in self?.showFormatPatch(repository:repository,access:access,preset:preset) }
+        log.onBrowseRepository={ [weak self] hash in self?.showRepositoryBrowser(repository:repository,access:access,revision:hash) }
+        log.onContainingLog={ [weak self] name,select,range in
+            self?.showLog(repository:repository,access:access,paths:[],endRevision:name,selectedRevision:select ? name:nil,revisionRange:range)
+        }
+        log.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope:GitRuntime.isAppStoreBuild))
+        log.onPreparedFileCompare={ [weak self,weak log] marked,current in
+            guard let owner=log?.window else {return};self?.showPreparedFileComparison(repository:repository,access:access,marked:marked,current:current,owner:owner)
+        }
+        log.onFilePairCompare={ [weak self,weak log] revision,files in
+            guard let owner=log?.window else {return};self?.showHistoricalFilePair(repository:repository,access:access,revision:revision,files:files,owner:owner)
+        }
+        log.onFileCompare={ [weak self,weak log] from,to,paths in
+            guard let owner=log?.window else {return};self?.showHistoricalFiles(repository:repository,access:access,from:from,to:to,paths:paths,owner:owner)
+        }
+        log.onFileComparisons={ [weak self,weak log] requests in
+            guard let owner=log?.window else {return};self?.showGroupedHistoricalFiles(repository:repository,access:access,requests:requests,owner:owner)
+        }
+        log.onFileLog={ [weak self] path,hash in self?.showLog(repository:repository,access:access,paths:[path],endRevision:hash) }
+        log.onSubmoduleFileLog={ [weak self] checkout,hash in self?.showLog(repository:GitRepository(root:checkout,executable:repository.executable),access:access,paths:[],endRevision:hash,selectedRevision:hash) }
+        log.onBlame={ [weak self] path,hash in self?.showBlame(repository:repository,access:access,path:path,revision:hash) }
+        log.onRevisionChanged={ [weak self] output in
+            guard let self else {return}
+            self.refreshRepositoryLogs(repository.root)
+            self.statusWindows[repository.root.path]?.model.requestReload();self.commitWindows[repository.root.path]?.model.reload();self.rebaseWindows[repository.root.path]?.model.refreshState()
+            if self.root==repository.root {self.output=output;Task{await self.refresh()}}
+        }
     }
     private func configureRevisionComparisonInteractions(_ model: RevisionComparisonWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
         model.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
@@ -1927,6 +1954,9 @@ import UniformTypeIdentifiers
         formatPatchWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    func configureBrowserRevisionPicker(_ controller:RepositoryBrowserWindowController,repository:GitRepository,access:RepositoryAccessLease?) {
+        controller.configureLogPicker={ [weak self] log in self?.configureSelectableLog(log,repository:repository,access:access) }
+    }
     private func showRepositoryBrowser(repository: GitRepository, access: RepositoryAccessLease?, revision: String = "HEAD") {
         let baseKey = repository.root.path + "\0" + revision
         let reusable = browserWindows.first { _, controller in
@@ -1935,6 +1965,7 @@ import UniformTypeIdentifiers
         }
         let key = reusable?.key ?? (browserWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? RepositoryBrowserWindowController(repository: repository, access: access, revision: revision)
+        configureBrowserRevisionPicker(controller,repository:repository,access:access)
         controller.onClosed = { [weak self] in self?.browserWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash) }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
