@@ -202,3 +202,8 @@ The [moved-block continuation](MERGE-MOVED-BLOCKS-PARITY.md) adds source detecti
 original margin icons, double-click and native context navigation, two/combined
 peer selection and editing/history ownership. Its source oracle and grouped native
 evidence are separate from ordinary difference/conflict navigation above.
+
+
+[Margin selection](MERGE-MARGINS-PARITY.md#margin-selection-and-capture--october-16-2026)
+adds native gutter text/peer-row selection, fixed Shift/drag origins, wrapped
+fragment entry, folded marker expansion and owned autoscroll/retirement.

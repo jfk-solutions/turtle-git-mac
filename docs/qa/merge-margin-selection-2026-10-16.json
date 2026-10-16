@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "381ce8c6077c277421a683b2dcf341761626aeb4",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Merge gutter click/Shift/drag, all-pane boundary selection, wrapped anchors, folded markers and owned autoscroll",
+  "source": [
+    "BaseView.cpp OnLButtonDown/OnMouseMove/OnLButtonUp/OnTimer",
+    "OnLButtonDblClk, AdjustSelection, SetupAllViewSelection and GetSelectedText"
+  ],
+  "implementation": [
+    "Keep native text selection independent of all-pane block boundaries; ordinary gutter click selects a complete logical line excluding its ending",
+    "Fixed caret origin for Shift and drag, reverse extension and wrapped-fragment origin; original view rows for aligned removed/conflict slots",
+    "Owned AppKit autoscroll timer stops on Mouse Up, invalidation and explicit owner close; no global event monitor or input posting",
+    "Capture model/input/folding revisions, text, viewport size and font; reject sheet/busy/retired owners and stale drag state",
+    "Retain moved-block double-click and expand folded markers using shared folding owners",
+    "Explicit selection retains ordinary clipboard/editor/Undo paths and exact original source ending provenance"
+  ],
+  "core": {
+    "source_changes": false,
+    "suite_repeated": false,
+    "reason": "Native AppKit selection/gesture and existing source-coordinate consumers; actual editing/clipboard tested through native receivers"
+  },
+  "debug": [
+    {
+      "log": "build/qa/merge-margin-selection-build-2026-10-16.log",
+      "exit": 65,
+      "repair": "Removed stray closing brace after replaced mouseUp method."
+    },
+    {
+      "log": "build/qa/merge-margin-selection-build-syntax-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 10
+    }
+  ],
+  "native": {
+    "passing_log": "build/qa/merge-margin-selection-native-ready-2026-10-16.log",
+    "exit": 0,
+    "distinct_cases": [
+      "margin-selection",
+      "margin",
+      "moved",
+      "wrapped",
+      "three-pane",
+      "navigation"
+    ],
+    "successful_receivers": 7,
+    "failed_receivers": 1,
+    "fixture_compile_failures": 1,
+    "repairs": [
+      {
+        "log": "build/qa/merge-margin-selection-native-2026-10-16.log",
+        "issue": "Fixture beginSheet selected async overload; explicitly use native completion handler. No receiver launched and no app rebuild."
+      },
+      {
+        "log": "build/qa/merge-margin-selection-native-sheet-2026-10-16.log",
+        "issue": "Autoscroll began before actual folded text attributes were removed; wait for real unfolded layout before starting drag. All earlier selection/edit/fold assertions passed. Added failure state diagnostic; no product change or removed scroll assertion."
+      }
+    ],
+    "capture_log": "build/qa/merge-margin-selection-capture-2026-10-16.log",
+    "capture_exit": 0,
+    "owned_receivers_reaped_and_independently_absent": [
+      53518,
+      53599,
+      53608,
+      53616,
+      53625,
+      53632,
+      53639,
+      53672
+    ],
+    "capture_helpers": "Two synchronous screencapture calls exited 0 and were waited; passive inactive windows, no application activation.",
+    "actual_checks": [
+      "Single-click text/peer rows/focus; Unicode Copy using private native context target",
+      "Shift origin, direction reversal and upward drag with exact text offsets and endpoint block row",
+      "Gutter-selected CRLF line replacement and Undo; late drag after actual edit refused",
+      "Owned sheet refusal, wrapped logical-line selection and screen-fragment origin",
+      "Real folded marker expansion, viewport autoscroll, immediate Mouse Up/Close cleanup",
+      "Three-pane source/result row boundaries, removed Base payload Copy, result edit/Undo and blank conflict slot",
+      "Retained icons/moved/wrapped/three-pane/block navigation in separate receivers"
+    ],
+    "git_engine_repetition": "Standalone native file editor/geometry work; no duplicate Git-engine run needed."
+  },
+  "documentation": {
+    "help_files": 50,
+    "help_bytes": 1963650,
+    "source_built_equal": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/merge-margin-selection-dark.png",
+        "width": 2400,
+        "height": 1766,
+        "sha256": "3afc4f3571c2a6bd8073c24bec013678bcc83e2053b2cb5d30c2f8a31e887e0a"
+      },
+      {
+        "path": "docs/site/assets/merge-margin-selection-light.png",
+        "width": 2400,
+        "height": 1766,
+        "sha256": "f817957b15b5d233babf0065f897892654908a839c678c8b0e0f4e0b347554fb"
+      }
+    ],
+    "visual_review": "Both full native compositor images individually inspected. Source and aligned blank result slot have matching row boundary lines; actual state icons and line numbers remain visible in light/dark; inactive native toolbar dimming retained.",
+    "site_log": "build/qa/merge-margin-selection-site-2026-10-16.log",
+    "coverage_ledger": "regenerated",
+    "site_exit": 0,
+    "site_documents": 257,
+    "unresolved_fragments": 0
+  },
+  "hosted_observation": {
+    "macos_run": 38950297849,
+    "head": "381ce8c6",
+    "status": "pending",
+    "pages_run": 38950297661,
+    "pages_conclusion": "success"
+  },
+  "limits": [
+    "Constructed native NSEvents dispatched directly to owned rulers do not prove physical mouse/trackpad/VoiceOver input",
+    "Exact Windows virtual padding/column geometry and non-move double-click word selection remain open",
+    "Large-file performance, every concurrent geometry/input transition and minimum-OS acceptance remain open",
+    "No full hosted CI, signed Finder/sandbox, App Store or complete application certification"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

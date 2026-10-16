@@ -152,6 +152,7 @@ private extension FileComparisonDocument {
     }
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow, closing === window else { return }
+        MergeLineRuler.retire(in:window?.contentView)
         imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu()
         if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.stopAllPlayback(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
         editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retireImageLoader(); model.resetHistory(); onClosed()
@@ -1525,6 +1526,18 @@ private extension FileComparisonDocument {
         selectedRows = nil
     }
     private(set) var selectingDifferenceBlock = false
+    func selectMargin(rows: Range<Int>, selection: NSRange, caret: Int, base: Bool) {
+        guard contextCommandsAllowed, !filtering, let active = scrolls[base]?.documentView as? FileComparisonTextView,
+              MergeMarginGeometry.range(rows:rows,in:active) != nil, NSMaxRange(selection) <= active.string.utf16.count else { return }
+        selectingDifferenceBlock = true
+        defer { selectingDifferenceBlock = false; lineWrapping.recordViewportIntent() }
+        activeBase = base; selectionRequest = nil
+        for (side,scroll) in scrolls where !onePaneActive || !side {
+            guard let view = scroll.documentView as? FileComparisonTextView, let block = MergeMarginGeometry.range(rows:rows,in:view) else { continue }
+            view.blockSelection.install(block,caret:side == base ? caret:block.location,selection:side == base ? selection:nil,in:view)
+        }
+        updateSelection(selection,cells:displayCells(base:base));objectWillChange.send()
+    }
     private func differenceTarget(_ step: Int) -> (MergeBlockNavigation.Target, Bool)? {
         guard contextCommandsAllowed, !filtering, alignment != nil,
               let view = activeFindText else { return nil }
@@ -2017,7 +2030,15 @@ struct FileComparisonEditor: NSViewRepresentable {
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting, MergeTypingProviding {
+private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+    var marginSelectionAllowed: Bool { navigationAllowed && window?.attachedSheet == nil }
+    var marginSelectionStamp: MergeMarginStamp { .init(values:[model?.alignmentGeneration ?? -1,model?.folding.revision ?? -1,navigationIntentRevision],text:string) }
+    func beginMarginSelection() { beginUserNavigation();model?.activatePane(base:baseSide) }
+    func selectMargin(rows:Range<Int>,selection:NSRange,caret:Int) { model?.selectMargin(rows:rows,selection:selection,caret:caret,base:baseSide) }
+    func expandMarginFold(row:Int) -> Bool {
+        guard marginSelectionAllowed,let controller = foldLayout.controller,let screen = controller.projection.screenRow(containing:row) else { return false }
+        return controller.expand(screenRow:screen)
+    }
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     var navigationCells: [MergeSourceCell]? { sourceCells }

@@ -237,7 +237,7 @@ private enum MergeSourceSide {
         default: return false
         }
     }
-    func windowWillClose(_ notification: Notification) { guard let closing = notification.object as? NSWindow, closing === window else { return }; editorCommandMenu?.retire();editorToolbar?.retire(); editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire(); onClosed() }
+    func windowWillClose(_ notification: Notification) { guard let closing = notification.object as? NSWindow, closing === window else { return }; MergeLineRuler.retire(in:window?.contentView); editorCommandMenu?.retire();editorToolbar?.retire(); editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire(); onClosed() }
     func installEditorToolbar() {
         editorCommandMenu?.retire();editorToolbar?.retire();editorToolbar = MergeEditorToolbar.conflict(self)
         editorCommandMenu = MergeEditorCommandMenu.conflict(self)
@@ -970,6 +970,24 @@ private enum MergeSourceSide {
         return blocks.firstIndex { NSIntersectionRange($0.range,range).length > 0 || range.length == 0 && NSLocationInRange(range.location,$0.range) }
     }
     var canChooseConflict: Bool { !blocks.isEmpty && (!navigationOwnsChoice || conflictIndex(in:navigationChoiceRange) != nil) }
+    fileprivate func selectMargin(in active: MergeTextView, rows:Range<Int>, selection:NSRange, caret:Int) {
+        guard sourceToolsAllowed, active.mergeSourceRowsReady, let activeBlock = navigationRange(rows:rows,in:active), NSMaxRange(selection) <= active.string.utf16.count else { return }
+        selectingNavigationBlock = true
+        defer { selectingNavigationBlock = false; lineWrapping.recordViewportIntent() }
+        selectionRequest = nil
+        let sourceRows = active.sourceCells != nil ? rows:resultPresentation.navigationMap.sourceRows(resultRange:activeBlock)
+        let mapped = active.mergeEditable ? active.serializedSelection(activeBlock):resultPresentation.navigationMap.resultRange(sourceRows:rows)
+        for view in navigationViews {
+            let block = view === active ? activeBlock:view.mergeEditable && view.sourceCells == nil ? mapped:sourceRows.flatMap { navigationRange(rows:$0,in:view) }
+            if let block, NSMaxRange(block) <= view.string.utf16.count {
+                view.blockSelection.install(block,caret:view === active ? caret:block.location,selection:view === active ? selection:nil,in:view)
+            } else { view.blockSelection.clear(in:view) }
+        }
+        navigationOwnsChoice = true; navigationChoiceRange = mapped
+        if let index = conflictIndex(in:mapped) { selectedConflict = index }
+        if active.mergeEditable { self.caret = active.serializedSelection(selection) ?? selection }
+        objectWillChange.send()
+    }
     func navigateBlock(_ direction: Int, conflictsOnly: Bool) {
         activeNavigationView?.beginUserNavigation()
         guard let (active,target) = navigationTarget(direction,conflictsOnly:conflictsOnly) else { return }
@@ -1490,7 +1508,15 @@ private struct MergeEditor: NSViewRepresentable {
     var mergeSourceRowsReady:Bool { get }
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding {
+private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+    var marginSelectionAllowed: Bool { navigationAllowed && window?.attachedSheet == nil }
+    var marginSelectionStamp: MergeMarginStamp { .init(values:[model?.navigationGeneration ?? -1,model?.sourceLayoutRevision ?? -1,model?.folding.revision ?? -1,model?.resultFolding.revision ?? -1,navigationIntentRevision],text:model?.result ?? string) }
+    func beginMarginSelection() { beginUserNavigation();model?.focusNavigation(self) }
+    func selectMargin(rows:Range<Int>,selection:NSRange,caret:Int) { model?.selectMargin(in:self,rows:rows,selection:selection,caret:caret) }
+    func expandMarginFold(row:Int) -> Bool {
+        guard marginSelectionAllowed,let controller = foldLayout.controller,let screen = controller.projection.screenRow(containing:row) else { return false }
+        return controller.expand(screenRow:screen)
+    }
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     @objc private func expandFoldedSection(_ sender: Any?) { _ = foldLayout.expandSelection(in: self) }
@@ -1647,6 +1673,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
                 blockRows:mergeSelectedBlockRange.flatMap { MergeBlockSelection.rows($0,cells:cells) })
         }
         if let block = mergeSelectedBlockRange {
+            if selectedRange().length > 0 { return try? MergeClipboard.documentText(selection:selectedRange(),document:string) }
             // Native blocks already exclude the final row's ending; a trailing
             // LF can instead represent a selected empty final row.
             return try? MergeClipboard.documentText(selection:block,document:string)
@@ -1978,12 +2005,58 @@ final class MergeLineRuler: NSRulerView {
     private var visibleSymbols: [(NSRect,Int)] = []
     private var records: [MergeSourceCell] = [], peers: [MergeSourceCell]?
     private(set) var presentation = MergeMarginPresentation(cells: [])
+    private struct Anchor {
+        let stamp: MergeMarginStamp
+        let offset: Int, row: Int
+    }
+    private struct Gesture {
+        let anchor: Anchor
+        let text: String
+        let size: NSSize
+        let font: NSFont?
+        var event: NSEvent
+    }
+    private var anchor: Anchor?, gesture: Gesture?, dragTimer: Timer?
+    var marginDragging: Bool { gesture != nil }
+    var marginAutoScrolling: Bool { dragTimer != nil }
+    static func retire(in root: NSView?) {
+        guard let root else { return }
+        if let ruler = root as? MergeLineRuler { ruler.stopDragging();ruler.anchor = nil }
+        root.subviews.forEach { retire(in:$0) }
+    }
+    private var editor: NSTextView? { clientView as? NSTextView ?? scrollView?.documentView as? NSTextView }
+    private func hit(_ event: NSEvent, clamp: Bool = false) -> (row:Int,offset:Int,marker:Bool)? {
+        guard let view = editor, let layout = view.layoutManager, let container = view.textContainer else { return nil }
+        layout.ensureLayout(for:container)
+        let point = view.convert(event.locationInWindow,from:nil), origin = view.textContainerOrigin
+        let ranges = MergeLineEndings.lineRanges(in:view.string)
+        var nearest: (Int,Int,Bool)?, distance = CGFloat.greatestFiniteMagnitude
+        for (row,range) in ranges.enumerated() where range.length > 0 {
+            if view.textStorage?.attribute(.mergeFoldHidden,at:range.location,effectiveRange:nil) != nil { continue }
+            let glyphs = layout.glyphRange(forCharacterRange:range,actualCharacterRange:nil)
+            let frame = layout.boundingRect(forGlyphRange:glyphs,in:container).offsetBy(dx:origin.x,dy:origin.y)
+            let marker = view.textStorage?.attribute(.mergeFoldMarker,at:range.location,effectiveRange:nil) != nil
+            let y = min(max(point.y,frame.minY),max(frame.minY,frame.maxY - 0.01))
+            let offset = layout.characterIndex(for:NSPoint(x:0,y:y - origin.y),in:container,fractionOfDistanceBetweenInsertionPoints:nil)
+            let value = (row,min(max(offset,range.location),NSMaxRange(range) - 1),marker)
+            if point.y >= frame.minY && point.y < frame.maxY { return value }
+            let delta = abs(point.y - y)
+            if clamp, delta < distance { nearest = value; distance = delta }
+        }
+        return nearest
+    }
+    private func stopDragging() { dragTimer?.invalidate();dragTimer = nil;gesture = nil }
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow !== window { stopDragging();anchor = nil }
+        super.viewWillMove(toWindow:newWindow)
+    }
+    deinit { dragTimer?.invalidate() }
     func updateRecords(_ next: [MergeSourceCell], peers nextPeers: [MergeSourceCell]?) {
         func same(_ a: [MergeSourceCell], _ b: [MergeSourceCell]) -> Bool {
             a.count == b.count && zip(a,b).allSatisfy { $0.state == $1.state && $0.text.utf8.elementsEqual($1.text.utf8) }
         }
         guard !same(records,next) || (peers == nil) != (nextPeers == nil) || !same(peers ?? [],nextPeers ?? []) else { return }
-        records = next; peers = nextPeers
+        stopDragging();anchor = nil;records = next; peers = nextPeers
         presentation = MergeMarginPresentation(cells:next,peers:nextPeers); needsDisplay = true
     }
     func symbol(at row: Int) -> MergeMarginSymbol? { presentation.symbol(at:row,moved:movedRows[row] != nil,marked:markedRows.contains(row)) }
@@ -1992,10 +2065,49 @@ final class MergeLineRuler: NSRulerView {
         return icons.compactMapValues { $0.image(size:16) }
     }()
     override func mouseDown(with event: NSEvent) {
-        let point = convert(event.locationInWindow,from:nil)
-        if event.clickCount == 2,let row = visibleMovedRows.first(where:{$0.0.contains(point)})?.1 { followMovedRow(row);return }
-        super.mouseDown(with:event)
+        stopDragging()
+        guard event.window === window, let view = editor, let target = view as? MergeMarginSelecting,
+              target.marginSelectionAllowed, let hit = hit(event) else { return }
+        let previous = anchor?.stamp == target.marginSelectionStamp ? anchor:nil
+        let ranges = MergeSourceComparison.navigationRanges(text:view.string)
+        guard ranges.indices.contains(hit.row) else { return }
+        let oldCaret = min(view.selectionAffinity == .upstream ? NSMaxRange(view.selectedRange()):view.selectedRange().location,view.string.utf16.count)
+        let oldRow = ranges.lastIndex(where: { $0.location <= oldCaret }) ?? hit.row
+        target.beginMarginSelection();view.window?.makeFirstResponder(view)
+        if event.clickCount == 2 {
+            if movedRows[hit.row] != nil { anchor = nil;followMovedRow(hit.row);return }
+            if hit.marker, target.expandMarginFold(row:hit.row) { anchor = nil;return }
+        }
+        let extending = event.modifierFlags.contains(.shift)
+        let start = extending ? (previous.map { ($0.offset,$0.row) } ?? (oldCaret,oldRow)):(hit.offset,hit.row)
+        anchor = Anchor(stamp:target.marginSelectionStamp,offset:start.0,row:start.1)
+        guard let anchor else { return }
+        let selection = extending ? NSRange(location:min(start.0,hit.offset),length:abs(hit.offset - start.0)):ranges[hit.row]
+        target.selectMargin(rows:min(start.1,hit.row)..<(max(start.1,hit.row) + 1),selection:selection,caret:hit.offset)
+        gesture = Gesture(anchor:anchor,text:view.string,size:scrollView?.contentSize ?? .zero,font:view.font,event:event)
     }
+    override func mouseDragged(with event: NSEvent) {
+        guard event.window === window, var gesture else { return }
+        gesture.event = event;self.gesture = gesture;updateDrag()
+    }
+    private func updateDrag() {
+        guard let gesture, let view = editor, let target = view as? MergeMarginSelecting,
+              window?.isVisible == true, target.marginSelectionAllowed, target.marginSelectionStamp == gesture.anchor.stamp,
+              gesture.text.utf8.elementsEqual(view.string.utf8),gesture.size == scrollView?.contentSize,gesture.font == view.font else { stopDragging();anchor = nil;return }
+        let point = view.convert(gesture.event.locationInWindow,from:nil)
+        let outside = point.y < view.visibleRect.minY || point.y >= view.visibleRect.maxY
+        if outside {
+            _ = view.autoscroll(with:gesture.event)
+            if dragTimer == nil {
+                let timer = Timer(timeInterval:0.05,repeats:true) { [weak self] _ in Task { @MainActor in self?.updateDrag() } }
+                dragTimer = timer;RunLoop.main.add(timer,forMode:.common)
+            }
+        } else { dragTimer?.invalidate();dragTimer = nil }
+        guard let hit = hit(gesture.event,clamp:true) else { return }
+        let start = gesture.anchor
+        target.selectMargin(rows:min(start.row,hit.row)..<(max(start.row,hit.row) + 1),selection:NSRange(location:min(start.offset,hit.offset),length:abs(hit.offset - start.offset)),caret:hit.offset)
+    }
+    override func mouseUp(with event: NSEvent) { stopDragging() }
     @objc func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData data: UnsafeMutableRawPointer?) -> String {
         guard let row = visibleSymbols.first(where:{$0.0.contains(point)})?.1 else { return "" }
         return symbol(at:row) == .moved ? movedRows[row] ?? "Moved block" : symbol(at:row)?.title ?? ""

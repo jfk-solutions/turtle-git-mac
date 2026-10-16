@@ -12,6 +12,7 @@ import TurtleGitCore
     private var unchanged: [Bool] = []
     private var contextLines: Int
     private var retired = false
+    private(set) var revision = 0
     var geometryChanged: () -> Void = {}
     var expanded: (Range<Int>) -> Void = { _ in }
     var actionsAllowed: () -> Bool = { true }
@@ -54,6 +55,7 @@ import TurtleGitCore
     }
     func retire() { retired = true; geometryChanged = {}; expanded = { _ in }; actionsAllowed = { false } }
     private func refresh() {
+        revision &+= 1
         projection = MergeFoldProjection(folding: folding, collapsed: collapsed)
         geometryChanged()
     }

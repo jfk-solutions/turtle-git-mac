@@ -509,6 +509,9 @@ Text comparison and merge margins use the original colored line-change icons.
 Hover an icon for its meaning: added, removed, conflicted, ignored conflict,
 edited, identical or whitespace-only changes. Hiding line numbers keeps the
 icon margin visible. Marked blocks take precedence over moved/change symbols.
+Click the margin to select a line, or Shift-click/drag to extend from the caret
+origin. Matching row boundaries appear in the other panes. Double-click a folded
+marker in the margin to expand it; moved icons retain their counterpart jump.
 
 In two-file text comparison, **View → Moved blocks** marks relocated lines in
 the margins. Hover a move icon for its destination/source line; double-click

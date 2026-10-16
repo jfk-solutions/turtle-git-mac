@@ -45,7 +45,7 @@ scrolling use the resulting document width.
 
 The source caches icons as screen rows are drawn; the native projection classifies
 view records in a deterministic forward pass before drawing. Exact virtual wrapped
-padding/icon repetition, margin selection/drag gestures, physical hover and
+padding/icon repetition, physical margin/hover input and
 VoiceOver traversal, large-file performance, minimum-OS and signed installed
 acceptance remain open. This does not certify complete Merge or app parity.
 
@@ -71,3 +71,59 @@ Core checks, four native family cases, the capture follow-up, the initial
 preference failure and two fixture corrections. All test-owned receivers and
 capture helpers were reaped. Complete physical, signed and hosted acceptance
 remain open.
+
+
+## Margin selection and capture — October 16, 2026
+
+The gutter now handles native single-click, Shift-click and drag in the two-file,
+combined and three-way editors. A normal click focuses the owning pane and selects
+the entire logical line without its final ending. All participating panes retain
+matching row boundaries separately from the active text selection. Copy and Cut
+use explicit selected text; block choices retain the complete selected row range.
+Removed records and blank conflict slots keep their view coordinates rather than
+selecting serialized marker text. The two/three-pane mapping follows the same
+authoritative alignment used by existing navigation. Unmapped serialized-result
+fallbacks do not invent peer coordinates.
+
+Shift and drag keep a fixed caret origin. As in BaseView::AdjustSelection, the
+endpoint in a margin is the beginning of the clicked screen fragment: the endpoint
+row remains in the block selection even when its text is not selected. Reversing
+direction preserves that origin. Clicking a wrapped fragment selects its whole
+logical line, while later extension retains the clicked fragment's origin. Native
+selection affinity supplies the direction when extending a pre-existing text
+selection. Source line endings and Unicode payloads are retained by the existing
+clipboard/editing paths; selection does not modify files or create Undo entries.
+
+Double-click preserves moved-block navigation and expands a folded marker through
+the existing shared folding controller. An owned drag can autoscroll using AppKit
+while the pointer is outside its editor viewport. Mouse Up cancels its timer;
+owner closure explicitly retires every ruler. No global event monitor, pointer
+posting or other application's input is used. Timer callbacks hold only a weak
+owner and revalidate their captured gesture before applying.
+
+Captured text, model/input revisions, folding revisions, viewport size and font
+validate later drag events. Editing, Undo/reload, changed folding/geometry, an
+owned sheet, busy or retired models reject stale gestures. Another native user
+input revokes the retained origin through the editor's existing input revision.
+The shared boundary renderer now supports a nonempty native text selection as
+well as its previous caret-only navigation blocks. Existing Copy/block navigation
+semantics remain available.
+
+Sources: BaseView::OnLButtonDown/OnMouseMove/OnLButtonUp/OnTimer,
+OnLButtonDblClk, AdjustSelection and SetupAllViewSelection. Native autoscroll
+and TextKit fragment hit testing adapt Windows capture/screen coordinates. Exact
+Windows virtual padding/column positioning, non-move double-click word semantics,
+physical trackpad/drag/VoiceOver and signed/minimum-OS acceptance remain open.
+
+
+[Grouped selection evidence](qa/merge-margin-selection-2026-10-16.json) records
+six passing native cases plus the light/dark capture follow-up. Core was unchanged
+and not repeated. The build syntax repair, fixture sheet overload and actual
+unfolded-layout readiness correction are recorded, retaining all behavioral
+assertions. All eight receivers, including the failed run, were reaped and
+independently absent. Native event checks are distinct from physical input and
+signed acceptance.
+
+![Native merge-margin-selection-dark](site/assets/merge-margin-selection-dark.png)
+
+![Native merge-margin-selection-light](site/assets/merge-margin-selection-light.png)

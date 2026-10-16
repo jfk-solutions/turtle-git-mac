@@ -639,21 +639,44 @@ struct MergeLineStatisticsView: View {
     func selectContextBlock(at displayOffset: Int)
 }
 
+struct MergeMarginStamp: Equatable {
+    let values: [Int]
+    let text: String
+    static func == (a: Self, b: Self) -> Bool { a.values == b.values && a.text.utf8.elementsEqual(b.text.utf8) }
+}
+@MainActor protocol MergeMarginSelecting: AnyObject {
+    var marginSelectionAllowed: Bool { get }
+    var marginSelectionStamp: MergeMarginStamp { get }
+    func beginMarginSelection()
+    func selectMargin(rows: Range<Int>, selection: NSRange, caret: Int)
+    func expandMarginFold(row: Int) -> Bool
+}
+
+enum MergeMarginGeometry {
+    static func range(rows: Range<Int>, in view: NSTextView) -> NSRange? {
+        let ranges = MergeSourceComparison.navigationRanges(text:view.string)
+        guard !rows.isEmpty, ranges.indices.contains(rows.lowerBound), ranges.indices.contains(rows.upperBound - 1) else { return nil }
+        return NSRange(location:ranges[rows.lowerBound].location,length:NSMaxRange(ranges[rows.upperBound - 1]) - ranges[rows.lowerBound].location)
+    }
+}
+
 @MainActor final class MergeBlockSelection {
     private var savedRange: NSRange?
     private var savedText = ""
-    private var caret = 0
+    private var expectedSelection = NSRange(location:0,length:0)
     func range(in view: NSTextView) -> NSRange? {
         guard let range = savedRange else { return nil }
-        guard view.selectedRange() == NSRange(location:caret,length:0),
+        guard view.selectedRange() == expectedSelection,
               savedText.utf8.elementsEqual(view.string.utf8) else { clear(in:view); return nil }
         return range
     }
-    func install(_ range: NSRange, caret: Int, in view: NSTextView) {
+    func install(_ range: NSRange, caret: Int, selection: NSRange? = nil, in view: NSTextView) {
+        let selected = selection ?? NSRange(location:caret,length:0)
         guard range.location >= 0, range.length >= 0, NSMaxRange(range) <= view.string.utf16.count,
-              caret >= 0, caret <= view.string.utf16.count else { clear(in:view); return }
-        savedRange = range; savedText = view.string; self.caret = caret
-        view.setSelectedRange(NSRange(location:caret,length:0)); view.needsDisplay = true
+              caret >= 0, caret <= view.string.utf16.count, selected.location >= 0, selected.length >= 0,
+              NSMaxRange(selected) <= view.string.utf16.count else { clear(in:view); return }
+        savedRange = range; savedText = view.string; expectedSelection = selected
+        view.setSelectedRange(selected,affinity:caret == selected.location ? .upstream:.downstream,stillSelecting:false); view.needsDisplay = true
     }
     func moveCaret(_ offset: Int, in view: NSTextView) {
         guard let range = range(in:view) else { view.setSelectedRange(NSRange(location:offset,length:0)); return }

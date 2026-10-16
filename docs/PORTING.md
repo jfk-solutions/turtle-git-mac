@@ -1529,3 +1529,11 @@ connects to two/combined/three-pane view records and live history. Source
 bounded whitespace-block classification, marked-before-moved priority, hover
 labels and icon-only margins are retained. See [Merge margins](MERGE-MARGINS-PARITY.md)
 for source limits and remaining physical/signed acceptance.
+
+
+## Merge gutter interaction family — October 16, 2026
+
+Native margin click/Shift/drag now keeps active text selection and peer row
+boundaries distinct across comparison and aligned conflict panes. Wrapped entry,
+fold/move double-click, autoscroll capture, stale/sheet rejection and owner cleanup
+share the existing navigation/editing lifetimes. See [Merge margins](MERGE-MARGINS-PARITY.md).
