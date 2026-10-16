@@ -38,7 +38,7 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>TurtleGit compares and prepares merges of your selected documents in Microsoft Word and prepares drafts in Apple Mail. You review comparison results and send any mail yourself.</string>
+	<string>TurtleGit compares and prepares merges of your selected documents in Microsoft Word, compares selected workbooks in Microsoft Excel and prepares drafts in Apple Mail. You review comparison results and send any mail yourself.</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The [Excel comparison family](EXCEL-COMPARISON.md) now connects full/fast workbook
+comparison, source-style value highlighting and worksheet handling, protected-sheet
+warnings, private copies, Settings associations and serialized Automation ownership.
+Thirty-one Core cases and six grouped native case/engine pairs pass after a fixture
+return repair and a native warning-window sizing repair. Light/dark warning captures
+are published. Live Excel rendering/security/locales, synchronized scrolling and
+signed acceptance remain open; see [the batch record](qa/excel-comparison-2026-10-16.json).
+
 The [Word merge family](WORD-MERGE.md) now connects three-way stage preparation,
 owned instructions, Word handoff and explicit reviewed-result resolution. Merge
 Settings/defaults and both Word handlers share automatic-macro suppression with

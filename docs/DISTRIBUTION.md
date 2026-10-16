@@ -455,8 +455,18 @@ The Word document-diff adapter adds a `com.microsoft.Word` Apple-event temporary
 exception to AppStore preparation. The inspected Word scripting dictionary has no
 access groups; Apple's target-specific temporary-exception mechanism is used
 instead. Apple Mail retains its compose-only scripting target. The package audit
-allows only this Word exception and refuses unexpected/suffixed Apple-event keys.
+allows only the explicit Word and Excel targets (see below) and refuses unexpected/suffixed Apple-event keys.
 The usage description covers both operations. Provide the exception's comparison
 use case with the eventual App Store submission; no Apple acceptance is claimed.
 See [Word comparison](WORD-COMPARISON.md) for failure/permission/worker ownership
 and remaining actual Word and signed sandbox acceptance.
+
+## Excel comparison Automation target
+
+The Excel adapter adds `com.microsoft.Excel` to the same target-specific AppStore
+Apple-event exception used for Word. Both inspected Office dictionaries lack
+scripting access groups. The audit permits exactly those two targets, preserves
+Mail's compose-only group, and rejects unexpected/suffixed exception keys. The
+usage description now covers workbook comparison as well. Actual Excel/TCC/file
+grants, signed sandbox execution and eventual exception-review acceptance remain
+open; see [Excel comparison](EXCEL-COMPARISON.md).

@@ -1523,3 +1523,11 @@ The modern three-way comparison/merge sequence, usage instructions and automatic
 macro suppression are adapted to Word's macOS scripting dictionary. Private
 stage snapshots, scoped native questions, security restoration and explicit Git
 resolution ownership are implemented for macOS.
+
+ExcelComparison.swift and ExcelComparisonAutomation.swift adapt diff-xls.js,
+copyright (C) 2004-2008, 2012-2015, 2019 the TortoiseSVN team, under the same GPL
+license as TortoiseSVN. Script contributors include Hiroki Najima, Michael Joras
+and Suraj Barkale. Native workbook snapshots, literal Apple-event arguments,
+full/fast comparison, formatting/tab colors, protected-workbook warnings and
+macro-security restoration adapt Windows COM/WScript behavior to Excel's macOS
+scripting dictionary. Microsoft Excel and its dictionary are not redistributed.

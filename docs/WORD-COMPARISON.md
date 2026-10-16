@@ -5,7 +5,8 @@ tracked text and formatting changes. It ports the modern Word branch of
 TortoiseGit's `diff-doc.js`; it does not flatten a document to plain text.
 Word must be installed separately. The adapter is offered for `.doc`, `.docx`,
 `.docm`, `.dot`, `.dotx` and `.odt`. Actual format conversion is performed by Word.
-Excel/PowerPoint and LibreOffice fallback remain separate port work.
+PowerPoint and LibreOffice fallback remain separate port work.
+[Excel comparison](EXCEL-COMPARISON.md) has its own native adapter.
 [Word merge](WORD-MERGE.md) now has its own three-way workflow.
 
 New unsaved Diff Viewer defaults include these associations. Existing saved

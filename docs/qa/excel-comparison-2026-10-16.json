@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "c65ee5fa601f1990123db9a362fc96cca39efbc8",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Full/fast Excel workbook comparison family, Settings, private copies, Automation, warning UI and ownership",
+  "core": {
+    "cases": 31,
+    "exit": 0,
+    "log": "build/qa/excel-comparison-core.log",
+    "first_attempt_pass": true
+  },
+  "builds": [
+    {
+      "log": "build/qa/excel-comparison-debug.log",
+      "exit": 0,
+      "anomalous_exit_zero_diagnostics": 8
+    },
+    {
+      "log": "build/qa/excel-comparison-window-debug.log",
+      "exit": 0,
+      "anomalous_exit_zero_diagnostics": 1
+    }
+  ],
+  "native": {
+    "case_engine_pairs": 6,
+    "logs": [
+      "build/qa/excel-comparison-native.log",
+      "build/qa/excel-comparison-native-repaired.log",
+      "build/qa/excel-comparison-window-native.log"
+    ],
+    "receivers_reaped_and_independently_absent": [
+      67572,
+      67761,
+      67785,
+      67800,
+      67987,
+      68213,
+      68301
+    ],
+    "repairs": [
+      "Initial Excel fixture missed return in held callback; corrected fixture only.",
+      "Initial actual warning screenshots exposed collapsed window; set initial/minimum content bounds, then rebuilt and reran only Excel."
+    ],
+    "excel_execution": "Fixed handler compiled against installed terminology; workbook executor intercepted. No actual Excel workbook or TCC operation executed.",
+    "checks": [
+      "Retained ZIP, binary/notebook, Word comparison and both Git-engine Word merge cases passed.",
+      "Full/fast literal descriptors, exact read-only inputs, raw Shift, permission cleanup, successful retention, warning ownership and retired worker Quit lifetime passed.",
+      "Repaired warning window geometry and actual owned-window light/dark captures passed."
+    ],
+    "office_processes_after": []
+  },
+  "package_audit": {
+    "exit": 0,
+    "log": "build/qa/excel-comparison-bundle-audit.log",
+    "scope": "Debug runtime/Finder/licenses/311 icons and exact configured Office exception targets"
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/excel-comparison-warning-light.png",
+      "sha256": "615a06fcd1806651de4ea1bc8a0d0ccaf4af43ed54773c652c7f8beb15551b1f",
+      "scope": "Shipping native warning window; injected warnings, no live Excel output"
+    },
+    {
+      "path": "docs/site/assets/excel-comparison-warning-dark.png",
+      "sha256": "e117f8d8b40f57ccfc689e6ab673799136a1519d4a3782985ae9fd14b42a790a",
+      "scope": "Shipping native warning window; injected warnings, no live Excel output"
+    }
+  ],
+  "limits": [
+    "Live Excel output/formula localization/macro restoration/protected sheets and all five formats unverified.",
+    "Windows synchronized scrolling remains open.",
+    "Signed AppStore/Finder/TCC/file grants, physical UI and VoiceOver acceptance remain open.",
+    "No complete hosted CI or full upstream port certification."
+  ],
+  "documentation": {
+    "help": "33 guides, 47 topics, 43 files, 598432 bytes",
+    "site": "246 documents, zero unresolved fragments"
+  },
+  "resource_copy": {
+    "exit": 0,
+    "log": "build/qa/excel-comparison-resources-debug.log",
+    "scope": "Documentation/resource-only build; built HTML/PNG/JSON Help resources and NOTICE byte-equal to source; no behavior tests repeated"
+  },
+  "installed_excel_dictionary": {
+    "version": "16.114",
+    "sha256": "65791dab8b9f94a66e22dbd582ed49acc70f1d9f8e9efe3bcfee7434fe76c0f9",
+    "access_groups_present": false
+  }
+}

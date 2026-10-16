@@ -367,3 +367,22 @@ conflicts checked No, retired questions/workers, actual reviewed-result staging,
 unchanged HEAD and both engines. [Dated evidence](qa/word-merge-2026-10-16.json)
 records the intercepted-executor boundary and open live Word/macro/Save As/signed
 acceptance. All five receivers were reaped and independently absent.
+
+## Excel full/fast comparison family — October 16, 2026
+
+The [Excel workbook family](EXCEL-COMPARISON.md) adapts `diff-xls.js` with exact
+private workbook copies, full/fast program kinds, ordinal sheet pairing, gray
+copied reference sheets, green unhidden tabs, red conditional-value comparisons,
+locale conversion through an owned scratch book, protected-sheet warnings and
+security restoration attempts. References quote sheet/workbook names; source
+paths/mode are Apple-event arguments rather than script text. Native stacking is
+limited to comparison windows; Windows synchronized scrolling remains open.
+
+Worker/Quit ownership survives caller closure. Confirmed unopened/denied failure
+removes copies; successful/uncertain receipts keep accepted inputs through normal
+app cleanup. Protection/layout warnings have an independent native read-only
+window, capped to ten messages plus a remaining count, and are suppressed for
+retired/cancelled owners. Five source workbook extensions use full mode by default;
+fast mode is explicit. Saved settings/other associations stay authoritative.
+Excel is added to the narrowly targeted AppStore exception allowlist and usage
+description; signed/runtime/review acceptance is not inferred from that declaration.

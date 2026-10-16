@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C81640000000000000000001 /* ExcelComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81640000000000000000002 /* ExcelComparison.swift */; };
+		C81640000000000000000003 /* ExcelComparisonAutomation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81640000000000000000004 /* ExcelComparisonAutomation.swift */; };
 		C81630000000000000000001 /* WordComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81630000000000000000002 /* WordComparison.swift */; };
 		C81630000000000000000003 /* WordComparisonAutomation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81630000000000000000004 /* WordComparisonAutomation.swift */; };
 		C81620000000000000000001 /* BundledComparisonTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81620000000000000000002 /* BundledComparisonTools.swift */; };
@@ -501,6 +503,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C81640000000000000000002 /* ExcelComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcelComparison.swift; sourceTree = "<group>"; };
+		C81640000000000000000004 /* ExcelComparisonAutomation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcelComparisonAutomation.swift; sourceTree = "<group>"; };
 		C81630000000000000000002 /* WordComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordComparison.swift; sourceTree = "<group>"; };
 		C81630000000000000000004 /* WordComparisonAutomation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordComparisonAutomation.swift; sourceTree = "<group>"; };
 		C81620000000000000000002 /* BundledComparisonTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledComparisonTools.swift; sourceTree = "<group>"; };
@@ -1131,6 +1135,7 @@
 				C210101600000000000001B1 /* PathEntryField.swift */,
 				C81620000000000000000004 /* BinaryComparisonWindow.swift */,
 				C81630000000000000000004 /* WordComparisonAutomation.swift */,
+				C81640000000000000000004 /* ExcelComparisonAutomation.swift */,
 				5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */,
 				9B6A308CF3E486ADD7497BD1 /* WorktreeListTable.swift */,
 				1669C286FA69F91FFFF7C002 /* WorktreeListWindow.swift */,
@@ -1232,6 +1237,7 @@
 				C81610000000000000000002 /* ZIPInventory.swift */,
 				C81620000000000000000002 /* BundledComparisonTools.swift */,
 				C81630000000000000000002 /* WordComparison.swift */,
+				C81640000000000000000002 /* ExcelComparison.swift */,
 				181B9FE19CD19EA7DAB1E824 /* Fetch.swift */,
 				7428B46131B5378475891E94 /* FileComparison.swift */,
 				FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */,
@@ -1786,6 +1792,7 @@
 				C81610000000000000000001 /* ZIPInventory.swift in Sources */,
 				C81620000000000000000001 /* BundledComparisonTools.swift in Sources */,
 				C81630000000000000000001 /* WordComparison.swift in Sources */,
+				C81640000000000000000001 /* ExcelComparison.swift in Sources */,
 				96858E5400FE448CEE799A09 /* Fetch.swift in Sources */,
 				4CCA62C8CECAD2B41E2E888A /* FileComparison.swift in Sources */,
 				7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */,
@@ -2124,6 +2131,7 @@
 				C210101600000000000001B0 /* PathEntryField.swift in Sources */,
 				C81620000000000000000003 /* BinaryComparisonWindow.swift in Sources */,
 				C81630000000000000000003 /* WordComparisonAutomation.swift in Sources */,
+				C81640000000000000000003 /* ExcelComparisonAutomation.swift in Sources */,
 				37FF0ADA08C102C423B8A3C0 /* WorktreeCreateWindow.swift in Sources */,
 				2B851665B4C4A9C890BF3324 /* WorktreeListTable.swift in Sources */,
 				83F67572608DE1A6E12AC47E /* WorktreeListWindow.swift in Sources */,

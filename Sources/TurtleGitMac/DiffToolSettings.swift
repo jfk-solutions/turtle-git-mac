@@ -157,7 +157,7 @@ struct DiffToolAssociations: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Advanced " + model.tool + " settings").font(.headline)
             ToolAssociationsTable(model: model).frame(minHeight: 240)
-            if model.tool == "diff" { Text("Restore Defaults restores bundled archive, binary, Mathematica and Word document comparisons, preserving other associations. Word and Mathematica comparisons require those applications.").font(.caption).foregroundStyle(.secondary) }
+            if model.tool == "diff" { Text("Restore Defaults restores bundled archive, binary, Mathematica, Word and Excel comparisons, preserving other associations. Office and Mathematica comparisons require those applications.").font(.caption).foregroundStyle(.secondary) }
             if model.tool == "merge" { Text("Restore Defaults restores Word document merging for .doc/.docx/.docm, preserving other associations. Review changes in Word and Save As the original conflicting file.").font(.caption).foregroundStyle(.secondary) }
             HStack {
                 Button("Add…", action: model.add)
@@ -269,6 +269,9 @@ private struct DiffToolAssociationEditor: View {
 @MainActor enum DiffToolApplication {
     private static var previews: [URL] = []
     private static var inventoryWindows: [UUID: FileComparisonWindowController] = [:]
+    private static var excelWarnings: [UUID: ExcelComparisonWarningController] = [:]
+    static var presentExcelWarning: (ExcelComparisonWarningController) -> Bool = { controller in controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil);return true }
+    static var compareExcel: (ExcelComparisonPreview,OperationCancellation) async throws -> ExcelComparisonOutcome = { try await ExcelComparisonAutomation.compare($0,cancellation:$1) }
     private static var binaryWindows: [UUID: BinaryComparisonWindowController] = [:]
     static var presentBinary: (BinaryComparisonWindowController) -> Bool = { controller in controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return true }
     static var openNotebook: (URL) async throws -> Void = { file in
@@ -282,7 +285,7 @@ private struct DiffToolAssociationEditor: View {
     static var presentInventory: (FileComparisonWindowController) -> Bool = { controller in controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return true }
     static var compareWord: (WordComparisonPreview, OperationCancellation) async throws -> Void = { try await WordComparisonAutomation.compare($0,cancellation:$1) }
     private(set) static var activeRequests = 0
-    static func discardAll() { let windows = Array(inventoryWindows.values); inventoryWindows = [:]; for window in windows { window.close() }; let reports = Array(binaryWindows.values); binaryWindows = [:]; for report in reports { report.close() }; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
+    static func discardAll() { let windows = Array(inventoryWindows.values); inventoryWindows = [:]; for window in windows { window.close() }; let reports = Array(binaryWindows.values); binaryWindows = [:]; for report in reports { report.close() };let warnings=Array(excelWarnings.values);excelWarnings=[:];for warning in warnings{warning.close()}; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
     static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool, preferences: UserDefaults = .standard, cancellation: OperationCancellation? = nil, owner: NSWindow? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> Void)? = nil) async throws -> Bool {
         try cancellation?.check()
         guard let program = try DiffToolPreferences.load(from: preferences).selected(base: document.base.path, destination: document.destination.path, alternate: alternate) else { return false }
@@ -334,6 +337,26 @@ private struct DiffToolAssociationEditor: View {
                 return true
             } catch {
                 if !dispatched || (error as? WordComparisonFailure)?.possiblyOpened == false { preview.discard() }
+                throw error
+            }
+        }
+        if program.builtIn == .excelWorkbook || program.builtIn == .excelWorkbookFast {
+            let token=cancellation ?? OperationCancellation()
+            activeRequests += 1;defer { activeRequests -= 1;withExtendedLifetime(permissions) {} }
+            let root=try TurtleGitTemporaryStorage.root,fast=program.builtIn == .excelWorkbookFast
+            let preview=try await Task.detached { try ExcelComparisonPreview.prepare(document,in:root,fast:fast,cancellation:token) }.value
+            var dispatched=false
+            do {
+                try token.check();dispatched=true
+                let outcome=try await compareExcel(preview,token)
+                if !token.isCancelled,!outcome.warnings.isEmpty {
+                    let controller=ExcelComparisonWarningController(outcome:outcome);controller.window?.appearance=owner?.appearance
+                    let identity=UUID();excelWarnings[identity]=controller;controller.onClosed={excelWarnings.removeValue(forKey:identity)}
+                    if !presentExcelWarning(controller) { excelWarnings.removeValue(forKey:identity);controller.close() }
+                }
+                return true
+            } catch {
+                if !dispatched || (error as? ExcelComparisonFailure)?.possiblyOpened == false {preview.discard()}
                 throw error
             }
         }

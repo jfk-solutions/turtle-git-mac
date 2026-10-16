@@ -60,7 +60,8 @@ Core and native checks distinguish local binary parsing and generated notebook
 handoff from actually executing Mathematica. The latter, physical popup/keyboard/
 VoiceOver, all PE resource languages, exotic Mach-O slices, real receiver grants,
 signed Finder/App Store access and full source dialog parity remain open. Word comparison is documented in [its native adapter guide](WORD-COMPARISON.md).
-Excel, PowerPoint and LibreOffice/OpenDocument automation remain open.
+The [Excel adapter](EXCEL-COMPARISON.md) now covers workbook comparisons.
+PowerPoint and LibreOffice/OpenDocument automation remain open.
 
 ## Native captures
 

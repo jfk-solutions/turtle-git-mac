@@ -71,4 +71,5 @@ against the installed Word dictionary without executing Word operations.
 Live Word output and exact tracked-change direction, macro suppression/restoration,
 Save As interaction, all document formats, actual TCC/file grants, physical native
 questions, signed Finder/AppStore and full source parity remain unverified.
-LibreOffice/OpenDocument merge and Excel/PowerPoint workflows remain open.
+LibreOffice/OpenDocument merge and PowerPoint workflows remain open. See
+[Excel comparison](EXCEL-COMPARISON.md) for its separate adapter/acceptance scope.

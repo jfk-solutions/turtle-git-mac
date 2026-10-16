@@ -28,7 +28,7 @@ for name in ['App.entitlements', 'AppStore.entitlements']:
         entitlements = plistlib.load(stream)
     assert entitlements['com.apple.security.automation.apple-events'] is True
     assert entitlements['com.apple.security.scripting-targets'] == {'com.apple.mail': ['com.apple.mail.compose']}
-    expected = ['com.microsoft.Word'] if name == 'AppStore.entitlements' else None
+    expected = ['com.microsoft.Word', 'com.microsoft.Excel'] if name == 'AppStore.entitlements' else None
     assert entitlements.get('com.apple.security.temporary-exception.apple-events') == expected
     keys = {key for key in entitlements if key.startswith('com.apple.security.temporary-exception.apple-events')}
     assert keys == ({'com.apple.security.temporary-exception.apple-events'} if expected else set())

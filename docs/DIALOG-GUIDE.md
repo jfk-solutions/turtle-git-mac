@@ -422,3 +422,7 @@ keeps the ordinary internal comparison; the originals remain unchanged.
 [Word merge](WORD-MERGE.md) prepares a private three-way document. Review it in
 Word and Save As the original conflicting path. Blocking mode offers an explicit
 Mark Resolved/No question; Word has no trusted exit status.
+
+[Excel comparison](EXCEL-COMPARISON.md) uses full or fast workbook modes with red
+changed-value highlighting, reference/hidden-sheet colors and protection warnings.
+It requires Excel; original workbook bytes remain unchanged.

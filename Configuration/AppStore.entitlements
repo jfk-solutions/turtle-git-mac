@@ -21,6 +21,7 @@
 	<key>com.apple.security.temporary-exception.apple-events</key>
 	<array>
 		<string>com.microsoft.Word</string>
+		<string>com.microsoft.Excel</string>
 	</array>
 	<key>com.apple.security.scripting-targets</key>
 	<dict>

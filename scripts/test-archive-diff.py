@@ -3,7 +3,7 @@
 import argparse, os, tempfile, zipfile
 from pathlib import Path
 from native_receiver import build_receiver, run_receiver
-parser=argparse.ArgumentParser(description=__doc__); parser.add_argument('--only',choices=['archive','scripts','word','word-merge'],action='append'); parser.add_argument('--git',type=Path,action='append'); args=parser.parse_args()
+parser=argparse.ArgumentParser(description=__doc__); parser.add_argument('--only',choices=['archive','scripts','word','word-merge','excel'],action='append'); parser.add_argument('--git',type=Path,action='append'); args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 with tempfile.TemporaryDirectory(prefix='TurtleGitArchiveDiff-') as temporary:
     directory=Path(temporary)
@@ -16,10 +16,17 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitArchiveDiff-') as temporary:
         with zipfile.ZipFile(directory/name,'w',compression=zipfile.ZIP_DEFLATED) as document:
             document.writestr('[Content_Types].xml','<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
             document.writestr('word/document.xml','<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>'+text+'</w:t></w:r></w:p></w:body></w:document>')
+    for name,text in [('old " 雪.xlsx','old'),('new.xlsx','new')]:
+        with zipfile.ZipFile(directory/name,'w',compression=zipfile.ZIP_DEFLATED) as workbook:
+            workbook.writestr('[Content_Types].xml','<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>')
+            workbook.writestr('_rels/.rels','<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')
+            workbook.writestr('xl/workbook.xml','<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>')
+            workbook.writestr('xl/_rels/workbook.xml.rels','<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>')
+            workbook.writestr('xl/worksheets/sheet1.xml','<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>'+text+'</t></is></c></row></sheetData></worksheet>')
     library=root/'build/Build/Products/Debug/TurtleGitCore.framework/TurtleGitCore'
     binary=library.read_bytes(); (directory/'old.dylib').write_bytes(binary)
     changed=bytearray(binary); changed[-1] ^= 1; (directory/'new.dylib').write_bytes(changed)
-    for case,source,marker in [('archive','zip-inventory-native-2026-10-16.swift','PASS: actual ZIP association routing'),('scripts','bundled-comparison-native-2026-10-16.swift','PASS: real Mach-O binary native reports'),('word','word-comparison-native-2026-10-16.swift','PASS: shipping Word comparison route'),('word-merge','word-merge-native-2026-10-16.swift','PASS: Word three-way stage copies')]:
+    for case,source,marker in [('archive','zip-inventory-native-2026-10-16.swift','PASS: actual ZIP association routing'),('scripts','bundled-comparison-native-2026-10-16.swift','PASS: real Mach-O binary native reports'),('word','word-comparison-native-2026-10-16.swift','PASS: shipping Word comparison route'),('word-merge','word-merge-native-2026-10-16.swift','PASS: Word three-way stage copies'),('excel','excel-comparison-native-2026-10-16.swift','PASS: shipping full/fast Excel dispatch')]:
         if args.only and case not in args.only: continue
         executable=build_receiver(root,[root/'docs/qa'/source],directory)
         env=os.environ.copy(); env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
