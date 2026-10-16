@@ -413,7 +413,9 @@ import TurtleGitCore
             let endingView = markedTextView(endingHost)!
             for _ in 0..<1000 { if endingView.isEditable { break }; try await Task.sleep(nanoseconds: 10_000_000) }
             precondition(endingView.string == "mine\ntail\n")
-            let navigation = endingView as! MergeLineNavigationProviding
+            let navigation = endingView as! (NSTextView & MergeLineNavigationProviding)
+            for _ in 0..<1000 { if navigation.canNavigateToSourceLine { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            if !navigation.canNavigateToSourceLine {print("Ending navigation readiness: filtering=\(endingModel.filtering), busy=\(endingModel.busy), allowed=\(navigation.navigationAllowed), limit=\(String(describing:navigation.navigationLimit))");fflush(stdout)}
             let goto = (endingView as! ComparisonContextMenuProviding).comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard).item(withTitle: "Go to Line…")!
             precondition(goto.isEnabled)
             navigation.chooseNavigationLine = { owner, limit in precondition(owner === navigationWindow && limit == 2); return 2 }

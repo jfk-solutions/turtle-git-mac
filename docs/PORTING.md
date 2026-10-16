@@ -1420,3 +1420,11 @@ typing, caret/mode feedback, source keys and Edit commands, exact row/Unicode
 transformations, combined-view materialization and existing Save/Undo ownership.
 Ctrl-M exposes existing comparison marks. Grouped evidence and remaining physical
 input, appearance and signed limitations are recorded with that family.
+
+## Native patch file panel — October 16, 2026
+
+[The connected panel batch](PATCH-FILE-PANEL-PARITY.md) ports source selection,
+explicit preview, native context/keyboard actions, captured-menu lifetimes, file
+state presentation and hiding/restoration. It uses the existing owned per-file
+application and comparison flows and shares the Merge main-menu owner. Initial
+failed-hunk/conflict counts and complete patch-engine/source acceptance remain open.

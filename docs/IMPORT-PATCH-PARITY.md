@@ -598,3 +598,12 @@ continue. Full upstream editable history after saving remains unverified.
 The subsequent [source target batch](qa/save-as-targets-2026-10-15.json) records
 source Save As rebinding, later Save/Reload and owner-approved Quit Save checks,
 with remaining acceptance limits.
+
+## Native file-panel interaction — October 16, 2026
+
+The [AppKit file-panel batch](PATCH-FILE-PANEL-PARITY.md) replaces the SwiftUI table
+and separates highlighting from explicit preview, matching the source notification
+handlers. It adds native Return/context-key routing, captured menus and file-list
+hiding/restoration with scoped Review main-menu commands. Existing per-file
+application, draft/export and plain-directory/real-index rules are retained.
+See the linked audit for grouped evidence and remaining full-family acceptance.

@@ -122,6 +122,7 @@ private enum MergeSourceSide {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if let owner = delegate as? TextConflictWindowController,owner.editorCommandMenu?.performKeyEquivalent(event) == true { return true }
         if let patchModel {
+            if let owner = delegate as? WorkingTreePatchWindowController,owner.editorCommandMenu?.performKeyEquivalent(event) == true {return true}
             let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
             #if DEBUG
             if flags == [.command, .option, .shift], event.charactersIgnoringModifiers?.lowercased() == "s", Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true { DocumentationCapture.saveWindow(); return true }

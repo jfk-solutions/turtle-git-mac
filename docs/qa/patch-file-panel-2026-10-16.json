@@ -1,0 +1,110 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "c42ebc1a945b4e8b30def6a09c5faaef5dd0b87b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native FilePatches panel selection/preview/context/keyboard and view visibility, row presentation and scoped Review menus, retained per-file/import/editor workflows",
+  "source": [
+    "FilePatchesDlg.cpp Init, OnLvnItemchangedFilelist, OnNMDblclkFilelist, OnNMRclickFilelist, PatchAll, PatchSelected.",
+    "MainFrm.cpp OnUpdateViewShowfilelist and OnViewShowfilelist."
+  ],
+  "implementation": [
+    "AppKit Path/State table, original patch order, multiple selection, native file icons, current-row bold, muted patched rows, red errors and full target/error tooltips.",
+    "Highlight changes only selection; double-click, Return/keypad Enter and explicit Preview open one eligible file. Errors retain their existing inline diagnostic and applied rows refuse reopening.",
+    "Right-click preserves existing multi-selection; Shift-F10 opens native menu at selected row. Source Preview/All/Selected order and shared icon preferences.",
+    "Captured context commands bind IDs/generation and revalidate before dispatch; hidden/dismantled table coordinators retire.",
+    "Per-window View/menu and Hide/Show button retain highlighted IDs and move focus out of the hidden list.",
+    "Shared Merge command owner provides scoped Review File/Edit/View/Help contributions, reconstruction/tracking and stale target fences; unsupported regex/empty created roots excluded.",
+    "User notice updated from obsolete checkbox wording to highlighted/remaining-file actions."
+  ],
+  "core": "Not rerun: no Core code or behavior changes. Existing real-Git native per-file/application suites retained.",
+  "debug": [
+    {
+      "log": "build/qa/patch-file-panel-debug.log",
+      "exit": 65,
+      "reason": "Wrong Help topic enum member; corrected to existing patches topic.",
+      "exit_zero_no_output_diagnostics": 0
+    },
+    {
+      "log": "build/qa/patch-file-panel-debug-repair.log",
+      "exit": 0,
+      "reason": "Connected native panel and menus compiled, with updated bundled Help.",
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/patch-file-panel-copy-debug.log",
+      "exit": 0,
+      "reason": "Correct obsolete checkbox wording after actual capture inspection.",
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/patch-file-panel-menu-debug.log",
+      "exit": 0,
+      "reason": "Exclude empty newly created menu roots for unsupported Review commands.",
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "initial_log": "build/qa/patch-file-panel-native.log",
+    "initial_exit": 1,
+    "completed_before_failure": [
+      "new native panel with system Git",
+      "new native panel with bundled Git",
+      "retained ordered per-file patching with system Git",
+      "retained ordered per-file patching with bundled Git"
+    ],
+    "failure": "Retained Import fixture checked Go to Line while waiting only for native editability. It now waits for canNavigateToSourceLine itself, with the original enabled/range/byte assertions retained. No source navigation gate weakened.",
+    "final": {
+      "logs": [
+        "build/qa/patch-file-panel-native-menu-repair.log",
+        "build/qa/patch-file-panel-native-retained.log"
+      ],
+      "exit": 0,
+      "passing_case_engine_runs_including_initial_retained_passes": 8,
+      "distinct_case_engine_pairs": 7,
+      "cases": [
+        "panel with system and bundled Git",
+        "ordered per-file application with system and bundled Git",
+        "full import/editor/lifecycle/output ownership with system and bundled Git",
+        "scoped comparison/merge menus with system Git"
+      ],
+      "focused_menu_recheck": "After excluding empty created roots and correcting notice text, only the affected native panel repeated on system Git. The earlier two per-file application and bundled-panel passes were retained. The previously failed/not-yet-run import and menu cases then passed.",
+      "owned_receivers_reaped_and_independently_absent": [
+        4040,
+        4141,
+        4236,
+        4327,
+        4418,
+        5197,
+        5309,
+        6440,
+        7563
+      ]
+    },
+    "fixture_compile_repair": {
+      "log": "build/qa/patch-file-panel-native-final.log",
+      "exit": 1,
+      "reason": "Readiness helper is an NSTextView-constrained protocol extension; the fixture existential now retains that NSTextView constraint. No receiver launched and no app rebuild repeated for this fixture correction."
+    }
+  },
+  "documentation": {
+    "captures_reviewed": [
+      "build/qa/patch-file-panel-captures/patch-file-panel-light.png",
+      "build/qa/patch-file-panel-captures/patch-file-panel-dark.png",
+      "build/qa/patch-file-panel-captures/patch-file-panel-results-light.png",
+      "build/qa/patch-file-panel-captures/patch-file-panel-results-dark.png"
+    ],
+    "captures_published": [
+      "docs/site/assets/file-patches-light.png",
+      "docs/site/assets/file-patches-dark.png"
+    ],
+    "review": "Actual 2200x1504 light/dark captures show native table, file icons, bold preview, result/error rows and colored original patch. Before/after candidates also show populated, unclipped initial viewports. A stale checkbox notice visible only in initial candidates was corrected; published result captures show the unchanged actual error notice. No popup/physical keyboard certification.",
+    "help": "50 source files, 1956406 bytes; built counterparts byte-equal, generated Help index expected.",
+    "site": "254 documents, zero unresolved fragments; build/qa/patch-file-panel-site.log",
+    "ledger": "130 dialogs, 120 partial family audits, 10 pending family reviews, zero certified; 987 mapped/672 pending static controls unchanged."
+  },
+  "limits": [
+    "Initial failed-hunk/conflict counts and complete source hunk/conflict application remain open.",
+    "Full editor/ribbon/menu catalogue and physical keyboard, Shift-F10 popup/VoiceOver, panel width/geometry acceptance remain open.",
+    "No complete hosted CI, installed signed Finder, sandbox, minimum OS or App Store acceptance claim."
+  ]
+}

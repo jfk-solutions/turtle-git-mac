@@ -78,3 +78,7 @@ explicit clipboard review, exact-byte Copy Patch and source-ordered target
 suggestions with confirmation. Its audit supersedes the earlier path-guessing
 and basic clipboard gaps for those implemented routes; broader source Open/
 Finder clipboard, format and physical/signed acceptance remain incomplete.
+
+The [native file-panel continuation](PATCH-FILE-PANEL-PARITY.md) uses highlighted
+rows for explicit preview and selected/all application. It supersedes the earlier
+checkbox description for the Review UI; the checked backend API remains separate.

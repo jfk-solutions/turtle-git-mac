@@ -595,13 +595,15 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
 
 @MainActor final class WorkingTreePatchWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     private let editorFileMenu = MergeEditorFileMenu()
+    var editorCommandMenu: MergeEditorCommandMenu?
+    var commandsAvailable:Bool { !retired && !preparingReplacement && editorOpenWorkflow == nil }
     var editorOpenWorkflow: MergeEditorOpenWorkflow?
     var replacementOwner: MergeEditorReplacementOwner?
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
     var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
-    func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:))) }
-    func windowDidResignKey(_ notification: Notification) { editorFileMenu.remove() }
-    func detachForReplacement() { editorFileMenu.remove(); model.retire(); model.window = nil }
+    func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.remove();editorCommandMenu?.install() }
+    func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove();editorFileMenu.remove() }
+    func detachForReplacement() { editorCommandMenu?.retire();editorFileMenu.remove(); model.retire(); model.window = nil }
     func validateMenuItem(_ item: NSMenuItem) -> Bool { !retired && !activeOperation && !preparingReplacement && (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) }
     @objc func reloadEditor(_ sender: Any?) {
         guard !activeOperation, !preparingReplacement else { return }
@@ -645,6 +647,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             let response = await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
             return response == .alertFirstButtonReturn ? .save : response == .alertSecondButtonReturn ? .discard : .cancel
         }
+        editorCommandMenu = MergeEditorCommandMenu.patchReview(self)
         if automaticallyRefresh { model.refresh() }
     }
     func setQuitConfirmation(_ value: Bool) { model.confirmingQuit = value; model.previewDocument.confirmingQuit = value }
@@ -656,7 +659,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         return true
     }
     func windowWillClose(_ notification: Notification) {
-        guard !retired else { return }; retired = true; editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire()
+        guard !retired else { return }; retired = true; editorCommandMenu?.retire();editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire()
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }
         onClosed()
     }
@@ -686,10 +689,32 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private(set) var fileListGeneration = UUID()
     private var comparisonRead = false
     var canPatchFiles: Bool { canReplaceComparison && !requiresRefresh && review?.files.contains(where: { !appliedPaths.contains($0.pathBytes) }) == true }
+    @Published private(set) var fileListVisible = true
+    var canToggleFileList:Bool { !retired && review?.files.isEmpty == false && !confirmingQuit && !draftDecisionPending && window?.attachedSheet == nil }
+    func toggleFileList() {
+        guard canToggleFileList else {return}
+        fileListVisible.toggle()
+        if !fileListVisible,let table = window?.firstResponder as? NSTableView,table.identifier?.rawValue == "TurtleGit.Patch.Files",let destination = afterScroll?.documentView {
+            window?.makeFirstResponder(destination)
+        }
+    }
+    var canHighlightFiles:Bool { !retired && editor?.hasPendingEditorChoice != true && (!busy || comparisonRead) && !dirty && !editingEnabled && !confirmingQuit && !draftDecisionPending && !requiresRefresh }
     func highlightFiles(_ ids: Set<Int>) {
-        guard !retired, editor?.hasPendingEditorChoice != true, (!busy || comparisonRead), !dirty, !editingEnabled, !confirmingQuit, !draftDecisionPending, !requiresRefresh, let review else { return }
+        guard canHighlightFiles,let review else {return}
+        // Source LVN_ITEMCHANGED changes selection only; preview is explicit.
         highlightedFiles = ids.intersection(Set(review.files.map(\.id)))
-        if highlightedFiles.count == 1 { focusFile(review.files.first(where: { highlightedFiles.contains($0.id) })?.id) }
+    }
+    func canPreviewFiles(_ ids:Set<Int>,generation:UUID) -> Bool {
+        generation == fileListGeneration && canReplaceComparison && !requiresRefresh && ids.count == 1 && review?.files.contains(where:{ ids.contains($0.id) && !appliedPaths.contains($0.pathBytes) }) == true
+    }
+    func previewFiles(_ ids:Set<Int>,generation:UUID) {
+        guard canPreviewFiles(ids,generation:generation) else {return}
+        focusFile(ids.first)
+    }
+    func fileState(_ file:WorkingTreePatchReview.File) -> String {
+        if appliedPaths.contains(file.pathBytes) {return "patched"}
+        if fileResults[file.pathBytes]?.success == false {return "error"}
+        return ""
     }
     func patchFiles(_ ids: Set<Int>, generation: UUID) {
         guard generation == fileListGeneration, canPatchFiles, let review else { return }
@@ -832,7 +857,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         guard let review, !selected.isEmpty else { notice = appliedPaths.isEmpty ? "Select files to apply." : "Selected files have been applied."; return }
         let next = try await repository.reviewWorkingTreePatchFiles(review, fileIDs: selected, cancellation: token)
         try ensure(token)
-        selectedReview = next; notice = next.validationError ?? "Checked files can be applied to the working tree."
+        selectedReview = next; notice = next.validationError ?? "Choose files to patch, or patch all remaining files."
     }
     func focusFile(_ id: Int?) {
         guard canReplaceComparison, !requiresRefresh else { return }
@@ -1015,29 +1040,10 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
 
 private struct WorkingTreePatchFileList: View {
     @ObservedObject var model: WorkingTreePatchWindowModel
-    private func status(_ file: WorkingTreePatchReview.File) -> String {
-        if model.appliedPaths.contains(file.pathBytes) { return "patched" }
-        if let result = model.fileResults[file.pathBytes], !result.success { return "error" }
-        return ""
-    }
     var body: some View {
         VStack(alignment: .leading) {
                     Text("Files to patch:")
-                    Table(model.review?.files ?? [], selection: Binding(get: { model.highlightedFiles }, set: { model.highlightFiles($0) })) {
-                        TableColumn("Path") { (file: WorkingTreePatchReview.File) in
-                            WorkingTreePatchPathCell(file: file, shown: model.focusedFile == file.id, state: status(file))
-                        }
-                        TableColumn("State") { (file: WorkingTreePatchReview.File) in
-                            Text(status(file))
-                                .foregroundStyle(model.appliedPaths.contains(file.pathBytes) ? Color.secondary : Color.red)
-                                .help(model.fileResults[file.pathBytes]?.output ?? "")
-                        }.width(65)
-                    }.contextMenu(forSelectionType: Int.self) { ids in
-                        let generation = model.fileListGeneration
-                        Button { if generation == model.fileListGeneration, ids.count == 1 { model.focusFile(ids.first) } } label: { CommandLabel(title: "Preview patched file", icon: .compare) }.disabled(!model.canReplaceComparison || model.requiresRefresh || ids.count != 1)
-                        Button { model.patchFiles(Set(model.review?.files.map(\.id) ?? []), generation: generation) } label: { CommandLabel(title: "Patch all files", icon: .patch) }.disabled(!model.canPatchFiles)
-                        Button { model.patchFiles(ids, generation: generation) } label: { CommandLabel(title: "Patch selected files", icon: .patch) }.disabled(!model.canPatchFiles || ids.isEmpty)
-                    } primaryAction: { ids in if ids.count == 1 { model.focusFile(ids.first) } }
+                    WorkingTreePatchNativeFileList(model:model)
                     Button { model.patchFiles(model.highlightedFiles, generation: model.fileListGeneration) } label: {
                         Text("Patch selected item").frame(maxWidth: .infinity)
                     }.disabled(!model.canPatchFiles || model.highlightedFiles.isEmpty)
@@ -1048,31 +1054,20 @@ private struct WorkingTreePatchFileList: View {
     }
 }
 
-private struct WorkingTreePatchPathCell: View {
-    let file: WorkingTreePatchReview.File
-    let shown: Bool
-    let state: String
-    private var color: Color { state == "error" ? .red : state == "patched" ? .secondary : .primary }
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(nsImage: NSWorkspace.shared.icon(for: UTType(filenameExtension: (file.path as NSString).pathExtension) ?? .data)).resizable().frame(width: 16, height: 16)
-            Text((file.path as NSString).lastPathComponent).fontWeight(shown ? .bold : .regular).foregroundStyle(color)
-        }.help(file.path)
-    }
-}
-
 struct WorkingTreePatchDialog: View {
     @ObservedObject var model: WorkingTreePatchWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(model.repository.root.path).lineLimit(1).help(model.repository.root.path)
-                Spacer(); Toggle("Reverse patch", isOn: Binding(get: { model.reversed }, set: { model.setReversed($0) }))
+                Spacer()
+                Button(model.fileListVisible ? "Hide file list" : "Show file list") {model.toggleFileList()}.disabled(!model.canToggleFileList)
+                Toggle("Reverse patch", isOn: Binding(get: { model.reversed }, set: { model.setReversed($0) }))
                 Text("Strip paths:"); TextField("Strip paths", value: Binding(get: { model.stripCount }, set: { model.setStripCount($0) }), formatter: NumberFormatter()).frame(width: 45)
                 Button("Refresh") { model.refresh() }
             }.disabled(!model.canReplaceComparison)
             HSplitView {
-                WorkingTreePatchFileList(model: model)
+                if model.fileListVisible { WorkingTreePatchFileList(model: model) }
                 TabView(selection: $model.previewTab) {
                     WorkingTreePatchComparisonView(model: model).tabItem { Text("Compare") }.tag(0)
                     VStack(alignment: .leading) { Text("Original patch:"); PatchTextView(model: model.previewDocument) }.tabItem { Text("Original patch") }.tag(1)
@@ -1162,5 +1157,127 @@ private struct WorkingTreePatchPreparedEditor: View {
             MergeFormatControls(label: base ? "Before" : "After", encoding: editor.encoding(base: base), text: editor.document == nil ? nil : editor.draftText(base: base), editable: editor.canTransfer(toBase: base), changeEncoding: { editor.changeEncoding($0, base: base) }, changeEnding: { editor.changeLineEnding($0, base: base) })
             if let error = editor.error { Text(error).foregroundStyle(.orange).font(.caption) }
         }
+    }
+}
+
+/// Source FilePatchesDlg selection and preview are separate operations. AppKit
+/// owns row selection, keyboard navigation and context-menu positioning.
+struct WorkingTreePatchNativeFileList: NSViewRepresentable {
+    @ObservedObject var model:WorkingTreePatchWindowModel
+    func makeCoordinator() -> Coordinator {Coordinator(model)}
+    func makeNSView(context:Context) -> NSScrollView {
+        let table = PatchReviewFileTable();table.coordinator = context.coordinator
+        table.identifier = NSUserInterfaceItemIdentifier("TurtleGit.Patch.Files")
+        table.setAccessibilityLabel("Files to patch")
+        table.allowsMultipleSelection = true;table.allowsEmptySelection = true
+        table.allowsColumnReordering = false;table.rowHeight = 22
+        table.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
+        for (name,width) in [("Path",235.0),("State",65.0)] {
+            let column = NSTableColumn(identifier:NSUserInterfaceItemIdentifier(name));column.title = name;column.width = width;column.minWidth = name == "Path" ? 100 : 45;table.addTableColumn(column)
+        }
+        table.delegate = context.coordinator;table.dataSource = context.coordinator
+        table.target = context.coordinator;table.doubleAction = #selector(Coordinator.preview(_:))
+        let scroll = NSScrollView();scroll.borderType = .bezelBorder;scroll.hasVerticalScroller = true;scroll.documentView = table
+        context.coordinator.table = table;context.coordinator.update();return scroll
+    }
+    func updateNSView(_ scroll:NSScrollView,context:Context) {context.coordinator.update()}
+    static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {
+        (scroll.documentView as? PatchReviewFileTable)?.coordinator = nil
+        coordinator.table?.delegate = nil;coordinator.table?.dataSource = nil;coordinator.table?.target = nil;coordinator.table = nil;coordinator.retired = true
+    }
+    @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate,NSMenuItemValidation {
+        let model:WorkingTreePatchWindowModel
+        weak var table:NSTableView?
+        var retired = false,updating = false
+        private var rows:[WorkingTreePatchReview.File] = []
+        private struct RowState:Equatable {let id:Int,path:Data,state:String,shown:Bool,diagnostic:String}
+        private var rendered:[RowState] = []
+        private final class Invocation {
+            enum Action {case preview,selected,all}
+            let action:Action,ids:Set<Int>,generation:UUID
+            init(_ action:Action,_ ids:Set<Int>,_ generation:UUID) {self.action = action;self.ids = ids;self.generation = generation}
+        }
+        init(_ model:WorkingTreePatchWindowModel) {self.model = model}
+        func update() {
+            guard !retired,let table else {return}
+            updating = true;defer {updating = false}
+            rows = model.review?.files ?? []
+            let next = rows.map {RowState(id:$0.id,path:$0.pathBytes,state:model.fileState($0),shown:model.focusedFile == $0.id,diagnostic:model.fileResults[$0.pathBytes]?.output ?? "")}
+            if next != rendered {
+                let origin = table.enclosingScrollView?.contentView.bounds.origin
+                rendered = next;table.reloadData()
+                if let origin {table.enclosingScrollView?.contentView.scroll(to:origin)}
+            }
+            let selected = IndexSet(rows.indices.filter {model.highlightedFiles.contains(rows[$0].id)})
+            if table.selectedRowIndexes != selected {table.selectRowIndexes(selected,byExtendingSelection:false)}
+        }
+        func numberOfRows(in tableView:NSTableView) -> Int {rows.count}
+        func tableView(_ tableView:NSTableView,viewFor tableColumn:NSTableColumn?,row:Int) -> NSView? {
+            guard rows.indices.contains(row) else {return nil};let file = rows[row],state = model.fileState(file)
+            let cell = NSTableCellView(),label = NSTextField(labelWithString:tableColumn?.identifier.rawValue == "State" ? state : (file.path as NSString).lastPathComponent)
+            label.lineBreakMode = .byTruncatingTail
+            label.font = model.focusedFile == file.id ? .boldSystemFont(ofSize:NSFont.systemFontSize) : .systemFont(ofSize:NSFont.systemFontSize)
+            label.textColor = state == "error" ? .systemRed : state == "patched" ? .secondaryLabelColor : .labelColor
+            label.translatesAutoresizingMaskIntoConstraints = false;cell.addSubview(label);cell.textField = label
+            cell.toolTip = model.repository.root.appendingPathComponent(file.path).path + (state == "error" ? "\n" + (model.fileResults[file.pathBytes]?.output ?? "") : "")
+            if tableColumn?.identifier.rawValue == "Path" {
+                let image = NSImageView();image.image = NSWorkspace.shared.icon(for:UTType(filenameExtension:(file.path as NSString).pathExtension) ?? .data);image.translatesAutoresizingMaskIntoConstraints = false;cell.addSubview(image);cell.imageView = image
+                NSLayoutConstraint.activate([image.leadingAnchor.constraint(equalTo:cell.leadingAnchor,constant:4),image.centerYAnchor.constraint(equalTo:cell.centerYAnchor),image.widthAnchor.constraint(equalToConstant:16),image.heightAnchor.constraint(equalToConstant:16),label.leadingAnchor.constraint(equalTo:image.trailingAnchor,constant:4)])
+            } else {label.leadingAnchor.constraint(equalTo:cell.leadingAnchor,constant:4).isActive = true}
+            NSLayoutConstraint.activate([label.trailingAnchor.constraint(equalTo:cell.trailingAnchor,constant:-4),label.centerYAnchor.constraint(equalTo:cell.centerYAnchor)])
+            return cell
+        }
+        func selectionShouldChange(in tableView:NSTableView) -> Bool {updating || !retired && model.canHighlightFiles}
+        func tableViewSelectionDidChange(_ notification:Notification) {
+            guard !retired,!updating,let table else {return}
+            model.highlightFiles(Set(table.selectedRowIndexes.compactMap {rows.indices.contains($0) ? rows[$0].id : nil}))
+        }
+        var selectedIDs:Set<Int> {Set((table?.selectedRowIndexes ?? []).compactMap {rows.indices.contains($0) ? rows[$0].id : nil})}
+        @objc func preview(_ sender:Any?) {guard !retired else {return};model.previewFiles(selectedIDs,generation:model.fileListGeneration)}
+        func contextMenu() -> NSMenu {
+            let menu = NSMenu();let ids = selectedIDs,generation = model.fileListGeneration
+            let commands:[(String,Invocation.Action,MenuIcon)] = [("Preview patched file",.preview,.compare),("Patch all files",.all,.patch),("Patch selected files",.selected,.patch)]
+            for (title,action,icon) in commands {
+                let item = NSMenuItem(title:title,action:#selector(invoke(_:)),keyEquivalent:"");item.target = self;item.representedObject = Invocation(action,ids,generation)
+                item.image = MenuPresentationSettings.applicationContextIcons(defaults:model.openPreferences) ? icon.image() : nil
+                item.isEnabled = validateMenuItem(item);menu.addItem(item)
+            }
+            return menu
+        }
+        func validateMenuItem(_ item:NSMenuItem) -> Bool {
+            guard !retired,let invocation = item.representedObject as? Invocation,invocation.generation == model.fileListGeneration else {return false}
+            switch invocation.action {
+            case .preview:return model.canPreviewFiles(invocation.ids,generation:invocation.generation)
+            case .all:return model.canPatchFiles
+            case .selected:return model.canPatchFiles && model.review?.files.contains(where:{invocation.ids.contains($0.id) && !model.appliedPaths.contains($0.pathBytes)}) == true
+            }
+        }
+        @objc private func invoke(_ item:NSMenuItem) {
+            guard validateMenuItem(item),let invocation = item.representedObject as? Invocation else {return}
+            switch invocation.action {
+            case .preview:model.previewFiles(invocation.ids,generation:invocation.generation)
+            case .all:model.patchFiles(Set(model.review?.files.map(\.id) ?? []),generation:invocation.generation)
+            case .selected:model.patchFiles(invocation.ids,generation:invocation.generation)
+            }
+        }
+    }
+}
+
+private final class PatchReviewFileTable:NSTableView {
+    weak var coordinator:WorkingTreePatchNativeFileList.Coordinator?
+    override func menu(for event:NSEvent) -> NSMenu? {
+        let row = self.row(at:convert(event.locationInWindow,from:nil))
+        if row >= 0,!selectedRowIndexes.contains(row),coordinator?.model.canHighlightFiles == true {selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false)}
+        return coordinator?.contextMenu()
+    }
+    override func keyDown(with event:NSEvent) {
+        let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if flags.isEmpty,(event.keyCode == 36 || event.keyCode == 76) {coordinator?.preview(nil);return}
+        if flags == .shift,event.keyCode == 109,let menu = coordinator?.contextMenu() {
+            let row = selectedRow >= 0 ? selectedRow : 0
+            let point = numberOfRows > row ? NSPoint(x:bounds.minX + 12,y:rect(ofRow:row).midY) : NSPoint(x:bounds.midX,y:bounds.midY)
+            menu.popUp(positioning:nil,at:point,in:self);return
+        }
+        super.keyDown(with:event)
     }
 }

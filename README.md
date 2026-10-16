@@ -307,3 +307,7 @@ shortcuts are available alongside macOS bindings; see [command menus](docs/MERGE
 Compare/Merge also provide Insert/Overwrite, current-line ending cycling and
 source block-mark shortcuts, with Unicode-aware typing and Undo. See
 [typing behavior](docs/MERGE-TYPING-PARITY.md).
+
+Patch review has a [native file panel](docs/PATCH-FILE-PANEL-PARITY.md) with separate
+highlight/preview actions, multiple-selection context commands and a Hide/Show
+file-list menu. Per-file application retains individual success/error results.

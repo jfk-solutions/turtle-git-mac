@@ -343,6 +343,7 @@ extension MergeEditorToolbar {
     enum Command: Hashable {
         case toolbar(MergeToolbarCommand), saveAs, enableEdit, useFile, useBothFirst, useBothLast
         case nextInline, previousInline, nextPane, previousPane, gotoLine, findNext, findPrevious, findSelectionNext, findSelectionPrevious, clearSearch
+        case patchPreview, patchSelected, patchAll, patchFileList
         case overwrite, cycleEnding, markBlock
         case toolbarVisible, statusVisible, lineDiff, lineNumbers, moved, locator, fishEye
         case whitespace(MergeWhitespaceComparison), ignoreEndings, ignoreCase, ignoreComments
@@ -425,16 +426,20 @@ extension MergeEditorToolbar {
         mainMenu = main
         append([.toolbar(.open),.toolbar(.save),.saveAs,.toolbar(.resolved),.toolbar(.patch),.toolbar(.reload),.enableEdit],to:root("File",in:main))
         append([.useFile,.toolbar(conflict ? .useTheirs : .useLeft),.toolbar(.useMine),.useBothFirst,.useBothLast,
-                .toolbar(.theirsThenMine),.toolbar(.mineThenTheirs),.toolbar(.find),.findNext,.findPrevious,.findSelectionNext,.findSelectionPrevious,.clearSearch,.gotoLine,.overwrite,.cycleEnding,.markBlock],to:root("Edit",in:main))
+                .toolbar(.theirsThenMine),.toolbar(.mineThenTheirs),.toolbar(.find),.findNext,.findPrevious,.findSelectionNext,.findSelectionPrevious,.clearSearch,.gotoLine,.overwrite,.cycleEnding,.markBlock,.patchPreview,.patchAll,.patchSelected],to:root("Edit",in:main))
         append([.toolbar(.nextDifference),.toolbar(.previousDifference),.toolbar(.nextConflict),.toolbar(.previousConflict),.nextInline,.previousInline,.nextPane,.previousPane],to:root("Navigate",in:main))
         let view = root("View",in:main)
         append([.toolbarVisible,.statusVisible,.lineDiff,.locator,.fishEye,.toolbar(.wrap),.moved,.toolbar(.inline),.toolbar(.inlineWord),
                 .whitespace(.compare),.whitespace(.ignoreChanges),.whitespace(.ignoreAll),.ignoreEndings,.ignoreCase,.ignoreComments,
-                .toolbar(.whitespace),.lineNumbers,.toolbar(.onePane),.toolbar(.switchSides),.toolbar(.collapsed),.toolbar(.showBase),.settings],to:view)
+                .toolbar(.whitespace),.lineNumbers,.toolbar(.onePane),.toolbar(.switchSides),.toolbar(.collapsed),.toolbar(.showBase),.patchFileList,.settings],to:view)
+        if state(.regex(nil)) != nil || state(.configureRegex) != nil {
         let filters = NSMenuItem(title:"Filter Regexes",action:nil,keyEquivalent:"")
         filters.submenu = NSMenu(title:"Filter Regexes");view.addItem(filters);contributed.append(filters)
         rebuildFilters(filters.submenu!)
+        }
         append([.toolbar(.help),.about],to:root("Help",in:main))
+        for item in createdRoots where item.submenu?.items.isEmpty == true { main.removeItem(item) }
+        createdRoots.removeAll { $0.submenu?.items.isEmpty == true }
         refresh()
     }
     private func root(_ name: String, in main: NSMenu) -> NSMenu {
@@ -527,6 +532,7 @@ extension MergeEditorToolbar {
         case .toolbar(.help):return "TurtleGitMerge Help"
         case .toolbar(let value):return value.title
         case .saveAs:return "Save As…";case .enableEdit:return "Enable editing"
+        case .patchPreview:return "Preview patched file";case .patchSelected:return "Patch selected files";case .patchAll:return "Patch all files";case .patchFileList:return "Patch file list"
         case .overwrite:return "Overwrite mode";case .cycleEnding:return "Cycle current line ending";case .markBlock:return "Mark block"
         case .useFile:return "Use left file";case .useBothFirst:return "Use block from left before right";case .useBothLast:return "Use block from right before left"
         case .nextInline:return "Next inline difference";case .previousInline:return "Previous inline difference"
@@ -543,6 +549,7 @@ extension MergeEditorToolbar {
     private func icon(_ command: Command) -> MenuIcon? {
         switch command {
         case .toolbar(let value):return value.icon
+        case .patchPreview:return .compare;case .patchSelected,.patchAll,.patchFileList:return .patch
         case .overwrite:return .editor;case .cycleEnding:return .compare;case .markBlock:return .mergeMarked
         case .saveAs:return .mergeSaveAs;case .enableEdit:return .editor;case .useFile:return .mergeUseTheirs
         case .useBothFirst:return .mergeTheirsThenMine;case .useBothLast:return .mergeMineThenTheirs
@@ -628,6 +635,7 @@ extension MergeEditorCommandMenu {
                 case .ignoreCase:return .init(enabled:document,checked:model.comparisonOptions.ignoreCase)
                 case .ignoreComments:return .init(enabled:document && model.supportsComments,checked:model.comparisonOptions.ignoreComments)
                 case .regex(let name):return .init(enabled:document && (name == nil || model.regexFilters.contains{$0.name == name}),checked:model.regexFilterName == name)
+                case .patchPreview,.patchSelected,.patchAll,.patchFileList:return nil
                 case .configureRegex,.settings,.about:return .init(enabled:enabled)
                 }
             },action:{ [weak owner,weak model,weak bar,weak window] command in
@@ -665,6 +673,7 @@ extension MergeEditorCommandMenu {
                 case .configureRegex:model.manageRegexFilters()
                 case .settings:SettingsPresentationService.shared.show(globalOnly:true,initialPage:.mergeEditor)
                 case .about:TurtleGitAboutService.shared.show(.merge)
+                case .patchPreview,.patchSelected,.patchAll,.patchFileList:break
                 }
                 withExtendedLifetime(owner) {}
             })
@@ -705,6 +714,7 @@ extension MergeEditorCommandMenu {
                 case .ignoreCase:return .init(enabled:enabled,checked:model.comparisonOptions.ignoreCase)
                 case .ignoreComments:return .init(enabled:enabled && model.supportsComments,checked:model.comparisonOptions.ignoreComments)
                 case .regex(let name):return .init(enabled:enabled && (name == nil || model.regexFilters.contains{$0.name == name}),checked:model.regexFilterName == name)
+                case .patchPreview,.patchSelected,.patchAll,.patchFileList:return nil
                 case .configureRegex,.settings,.about:return .init(enabled:enabled)
                 }
             },action:{ [weak model,weak bar,weak window] command in
@@ -735,5 +745,49 @@ extension MergeEditorCommandMenu {
                 }
             })
         menu.filterNames = { [weak model] in model?.regexFilters.map(\.name) ?? [] };return menu
+    }
+}
+
+
+extension MergeEditorCommandMenu {
+    static func patchReview(_ owner:WorkingTreePatchWindowController) -> MergeEditorCommandMenu? {
+        guard let window = owner.window else {return nil}
+        let model = owner.model
+        let ready = { [weak owner,weak window] in owner?.commandsAvailable == true && owner?.activeOperation == false && window?.attachedSheet == nil && (window?.firstResponder as? NSTextView)?.isFieldEditor != true }
+        return MergeEditorCommandMenu(window:window,conflict:false,changes:model.objectWillChange,
+            available:{ [weak owner,weak model,weak window] in owner?.window === window && model?.retired == false },
+            state:{ [weak model] command in
+                guard let model else {return nil};let enabled = ready()
+                switch command {
+                case .toolbar(.open),.toolbar(.reload),.toolbar(.help),.settings,.about:return .init(enabled:enabled)
+                case .toolbar(.save):return .init(enabled:enabled && model.canSaveDraft)
+                case .toolbar(.undo):return .init(enabled:enabled && model.editor?.canUndo == true)
+                case .toolbar(.redo):return .init(enabled:enabled && model.editor?.canRedo == true)
+                case .toolbar(.find):return .init(enabled:enabled && model.alignment != nil)
+                case .patchPreview:return .init(enabled:enabled && model.canPreviewFiles(model.highlightedFiles,generation:model.fileListGeneration))
+                case .patchAll:return .init(enabled:enabled && model.canPatchFiles)
+                case .patchSelected:return .init(enabled:enabled && model.canPatchFiles && model.review?.files.contains(where:{model.highlightedFiles.contains($0.id) && !model.appliedPaths.contains($0.pathBytes)}) == true)
+                case .patchFileList:return .init(enabled:enabled && model.canToggleFileList,checked:model.fileListVisible)
+                default:return nil
+                }
+            },action:{ [weak owner,weak model] command in
+                guard let owner,let model,ready() else {return}
+                switch command {
+                case .toolbar(.open):owner.openMergeDocument(nil)
+                case .toolbar(.reload):owner.reloadEditor(nil)
+                case .toolbar(.save):model.saveDraft()
+                case .toolbar(.undo):model.editor?.undo()
+                case .toolbar(.redo):model.editor?.redo()
+                case .toolbar(.find):model.findComparison()
+                case .toolbar(.help):TurtleGitHelp.show(.patches)
+                case .settings:SettingsPresentationService.shared.show(globalOnly:true,initialPage:.mergeEditor)
+                case .about:TurtleGitAboutService.shared.show(.merge)
+                case .patchPreview:model.previewFiles(model.highlightedFiles,generation:model.fileListGeneration)
+                case .patchAll:model.patchFiles(Set(model.review?.files.map(\.id) ?? []),generation:model.fileListGeneration)
+                case .patchSelected:model.patchFiles(model.highlightedFiles,generation:model.fileListGeneration)
+                case .patchFileList:model.toggleFileList()
+                default:break
+                }
+            })
     }
 }

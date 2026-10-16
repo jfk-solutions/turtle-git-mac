@@ -510,3 +510,10 @@ character; paste, Tab and Return keep inserting. **Ctrl-Enter** cycles only the
 current line ending through CRLF, CR and LF, with Undo; an unended final line is
 unchanged. **Ctrl-M** toggles a selected comparison block’s mark. See
 [typing and line endings](MERGE-TYPING-PARITY.md) for behavior and limitations.
+
+In patch review, highlighting files changes the selection only. Double-click or
+press Return to preview one file. Right-click offers **Preview patched file**,
+**Patch all files** and **Patch selected files**; Shift-F10 opens that menu from
+the keyboard. **View → Patch file list** and the Hide/Show file list button restore
+or hide the panel without losing the selection. See
+[the native patch panel](PATCH-FILE-PANEL-PARITY.md) for behavior and current limits.
