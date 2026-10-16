@@ -353,33 +353,111 @@ struct MergeLocatorBar: NSViewRepresentable {
     }
 }
 
+/// Screen-line entry positions remain UTF-16 offsets into the unchanged buffer.
+/// TextKit, rather than an estimated character width, owns Unicode/tab wrapping.
+@MainActor enum MergeWrappedCaret {
+    static func starts(in view: NSTextView, row: NSRange) -> [Int] {
+        let length = view.string.utf16.count
+        guard row.location >= 0, row.location < length, NSMaxRange(row) <= length,
+              let layout = view.layoutManager, let container = view.textContainer else { return [min(max(0,row.location),length)] }
+        guard view.textStorage?.attribute(.mergeFoldHidden, at: row.location, effectiveRange: nil) == nil else { return [row.location] }
+        layout.ensureLayout(for: container)
+        let range = NSRange(location: row.location, length: max(1,row.length))
+        let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+        var result: [Int] = []
+        layout.enumerateLineFragments(forGlyphRange: glyphs) { _, _, _, fragment, _ in
+            let characters = layout.characterRange(forGlyphRange: fragment, actualGlyphRange: nil)
+            let start = max(row.location,characters.location)
+            if start <= NSMaxRange(row), result.last != start { result.append(start) }
+        }
+        return result.isEmpty ? [row.location] : result
+    }
+    static func subline(in starts: [Int], containing offset: Int) -> Int {
+        starts.lastIndex(where: { $0 <= offset }) ?? 0
+    }
+    static func offset(in view: NSTextView, row: NSRange, reverse: Bool, subline: Int? = nil) -> Int {
+        let values = starts(in: view, row: row)
+        if let subline { return values[min(max(0,subline),values.count - 1)] }
+        return reverse ? values.last! : values[0]
+    }
+}
+
+@MainActor final class MergeReadingScroller: NSScroller {
+    var beforeTracking: () -> Void = {}, afterTracking: () -> Void = {}
+    override func mouseDown(with event: NSEvent) {
+        beforeTracking(); defer { afterTracking() }; super.mouseDown(with:event)
+    }
+}
+
 /// TextKit wrapping with source-style shared row heights across aligned panes.
 @MainActor final class MergeLineWrapping {
+    private struct Anchor {
+        let row: Int, fraction: CGFloat
+    }
     private final class Entry {
         weak var scroll: NSScrollView?
         var aligned: Bool
         var enabled: Bool
         var applied: Bool?
         var leadingInset: CGFloat?
+        var measuredWidth: CGFloat?
+        var text = "", tops: [CGFloat] = [], bottom: CGFloat = 0
+        var anchor: Anchor?
+        var geometryDirty = true
         var observers: [NSObjectProtocol] = []
         init(scroll: NSScrollView, aligned: Bool, enabled: Bool) { self.scroll = scroll; self.aligned = aligned; self.enabled = enabled }
         deinit { for observer in observers { NotificationCenter.default.removeObserver(observer) } }
     }
     private var entries: [String: Entry] = [:]
     private var queued = false, applying = false, retired = false
+    private var inputDepth = 0
     var geometryChanged: () -> Void = {}
     private(set) var alignedHeights: [CGFloat] = []
+    var isGeometryPending: Bool {
+        applying || queued || entries.values.contains { $0.geometryDirty && $0.scroll?.window != nil }
+    }
+    #if DEBUG
+    var viewportDiagnostics: String {
+        entries.sorted { $0.key < $1.key }.map { key, entry in
+            "\(key):row=\(entry.anchor?.row.description ?? "nil"),fraction=\(entry.anchor?.fraction.description ?? "nil"),dirty=\(entry.geometryDirty),queued=\(queued)"
+        }.joined(separator:"; ")
+    }
+    #endif
     func update(_ scroll: NSScrollView, key: String, aligned: Bool, enabled: Bool) {
         guard !retired else { return }
         if entries[key]?.scroll !== scroll {
             let entry = Entry(scroll: scroll, aligned: aligned, enabled: enabled)
+            for vertical in [true,false] {
+                guard let old = vertical ? scroll.verticalScroller : scroll.horizontalScroller,
+                      !(old is MergeReadingScroller) else { continue }
+                let scroller = MergeReadingScroller(frame:old.frame)
+                scroller.controlSize = old.controlSize; scroller.scrollerStyle = old.scrollerStyle
+                scroller.beforeTracking = { [weak self] in self?.beginViewportInput() }
+                scroller.afterTracking = { [weak self] in self?.endViewportInput() }
+                if vertical { scroll.verticalScroller = scroller } else { scroll.horizontalScroller = scroller }
+            }
             scroll.contentView.postsFrameChangedNotifications = true
-            for (name, object) in [(NSView.frameDidChangeNotification, scroll.contentView as AnyObject), (NSTextStorage.didProcessEditingNotification, (scroll.documentView as? NSTextView)?.textStorage as AnyObject?)] {
+            for (name, object) in [(NSView.frameDidChangeNotification, scroll.contentView as AnyObject), (NSTextStorage.willProcessEditingNotification, (scroll.documentView as? NSTextView)?.textStorage as AnyObject?)] {
                 guard let object else { continue }
-                entry.observers.append(NotificationCenter.default.addObserver(forName: name, object: object, queue: .main) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.schedule() }
+                entry.observers.append(NotificationCenter.default.addObserver(forName: name, object: object, queue: nil) { [weak self, weak entry] _ in
+                    MainActor.assumeIsolated {
+                        guard let self, !self.applying else { return }
+                        entry?.geometryDirty = true; self.schedule()
+                    }
                 })
             }
+            // Capture reading position against the last settled geometry. A
+            // frame notification can arrive after TextKit has already reflowed.
+            scroll.contentView.postsBoundsChangedNotifications = true
+            entry.observers.append(NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: scroll.contentView, queue: nil) { [weak self, weak entry] _ in
+                MainActor.assumeIsolated {
+                    guard let self, let entry, self.inputDepth > 0, !self.retired, !self.isGeometryPending,
+                          let scroll = entry.scroll, let width = entry.measuredWidth else { return }
+                    let insets = self.clipInsets(scroll)
+                    guard abs(scroll.contentView.bounds.width - insets.left - insets.right - width) < 0.5 else { return }
+                    self.captureAnchor(entry)
+                }
+            })
             entries[key] = entry
         }
         entries[key]?.aligned = aligned; entries[key]?.enabled = enabled
@@ -387,14 +465,74 @@ struct MergeLocatorBar: NSViewRepresentable {
     }
     private func schedule() {
         guard !retired, !queued, !applying else { return }; queued = true
-        DispatchQueue.main.async { [weak self] in guard let self else { return }; self.queued = false; self.apply() }
+        DispatchQueue.main.async { [weak self] in guard let self, self.queued else { return }; self.queued = false; self.apply() }
+    }
+    /// Input owns the next viewport/caret. Drain an older queued reflow before
+    /// accepting that input, so its saved anchor cannot overwrite the new intent.
+    func prepareForInput() {
+        guard !retired, !applying, queued else { return }
+        queued = false; apply()
+    }
+    func beginViewportInput() { prepareForInput(); if !retired { inputDepth += 1 } }
+    func endViewportInput() { inputDepth = max(0,inputDepth - 1); recordViewportIntent() }
+    /// Automatic TextKit caret visibility is not a new reading-position choice.
+    /// Only an input scope or an explicitly completed navigation records one.
+    func recordViewportIntent() {
+        guard !retired, !applying else { return }
+        prepareForInput()
+        for entry in entries.values { captureAnchor(entry) }
     }
     private func clipInsets(_ scroll: NSScrollView) -> NSEdgeInsets { scroll.contentView.contentInsets }
+    private func captureAnchor(_ entry: Entry) {
+        guard let scroll = entry.scroll, let view = scroll.documentView as? NSTextView, !entry.tops.isEmpty,
+              entry.text.utf8.elementsEqual(view.string.utf8) else { entry.anchor = nil; return }
+        let y = scroll.contentView.bounds.minY - view.textContainerOrigin.y
+        var low = 0, high = entry.tops.count
+        while low < high {
+            let middle = (low + high) / 2
+            if entry.tops[middle] <= y { low = middle + 1 } else { high = middle }
+        }
+        let row = max(0,low - 1), end = row + 1 < entry.tops.count ? entry.tops[row + 1] : entry.bottom
+        entry.anchor = Anchor(row: row, fraction: min(0.999999,max(0,(y - entry.tops[row]) / max(0.01,end - entry.tops[row]))))
+    }
+    private func cacheGeometry(_ entry: Entry, view: NSTextView) {
+        guard let layout = view.layoutManager, let container = view.textContainer else { return }
+        layout.ensureLayout(for: container)
+        entry.text = view.string
+        entry.tops = MergeLineEndings.lineRanges(in: view.string).map { range in
+            let glyph = layout.glyphIndexForCharacter(at: range.location)
+            return glyph < layout.numberOfGlyphs ? layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY : layout.extraLineFragmentRect.minY
+        }
+        entry.bottom = layout.usedRect(for: container).maxY
+        entry.geometryDirty = false
+    }
+    private func restore(_ anchor: Anchor, entry: Entry, scroll: NSScrollView, view: NSTextView) {
+        guard entry.tops.indices.contains(anchor.row) else { return }
+        let ranges = MergeLineEndings.lineRanges(in: view.string)
+        guard ranges.indices.contains(anchor.row), view.textStorage?.attribute(.mergeFoldHidden, at: ranges[anchor.row].location, effectiveRange: nil) == nil else { return }
+        let start = entry.tops[anchor.row], end = anchor.row + 1 < entry.tops.count ? entry.tops[anchor.row + 1] : entry.bottom
+        var proposed = scroll.contentView.bounds
+        proposed.origin.y = start + anchor.fraction * max(0.01,end - start) + view.textContainerOrigin.y
+        let target = scroll.contentView.constrainBoundsRect(proposed).origin
+        guard abs(target.y - scroll.contentView.bounds.minY) > 0.01 || abs(target.x - scroll.contentView.bounds.minX) > 0.01 else { return }
+        scroll.contentView.scroll(to: target)
+        scroll.reflectScrolledClipView(scroll.contentView)
+    }
     private func apply() {
-        guard !retired, !applying else { return }; applying = true; defer { applying = false }
+        guard !retired, !applying else { return }; applying = true; defer { applying = false; geometryChanged() }
         let visible = entries.values.compactMap { entry -> (Entry, NSScrollView, NSTextView)? in
             guard let scroll = entry.scroll, let view = scroll.documentView as? NSTextView, view.window != nil else { return nil }
             return (entry, scroll, view)
+        }
+        // An edit/replacement invalidates the old text-coordinate anchors for
+        // the entire aligned group. Typing and model caret requests keep ownership.
+        let aligned = visible.filter { $0.0.aligned }
+        let alignedChanged = aligned.contains { !$0.0.text.utf8.elementsEqual($0.2.string.utf8) }
+        let master = aligned.first { $0.2.window?.firstResponder === $0.2 } ?? aligned.first
+        let sharedAnchor = alignedChanged ? nil : master?.0.anchor
+        let saved = visible.map { entry, _, view -> Anchor? in
+            guard entry.text.utf8.elementsEqual(view.string.utf8) else { return nil }
+            return entry.aligned ? sharedAnchor : entry.anchor
         }
         var measured: [(NSTextView, [NSRange], [CGFloat])] = []
         alignedHeights = []
@@ -402,6 +540,7 @@ struct MergeLocatorBar: NSViewRepresentable {
             guard let storage = view.textStorage, let layout = view.layoutManager, let container = view.textContainer else { continue }
             let clip = scroll.contentView, insets = clipInsets(scroll)
             let width = clip.bounds.width - insets.left - insets.right; guard width > 32 else { continue }
+            entry.measuredWidth = width
             let previousInset = entry.leadingInset
             let wrappingChanged = entry.applied != entry.enabled; entry.applied = entry.enabled; entry.leadingInset = insets.left
             scroll.hasHorizontalScroller = !entry.enabled
@@ -452,9 +591,29 @@ struct MergeLocatorBar: NSViewRepresentable {
                 storage.endEditing(); view.layoutManager?.ensureLayout(for: view.textContainer!); view.needsDisplay = true
             }
         }
-        geometryChanged()
+        // Complete the common geometry before restoring any scroll position:
+        // peer scroll observers must see the new row heights in every pane.
+        for (entry, scroll, view) in visible {
+            guard let layout = view.layoutManager, let container = view.textContainer else { continue }
+            layout.ensureLayout(for: container)
+            let height = max(scroll.contentSize.height, layout.usedRect(for: container).maxY + 2 * view.textContainerInset.height)
+            if abs(view.frame.height - height) > 0.1 { view.setFrameSize(NSSize(width: view.frame.width, height: height)) }
+            cacheGeometry(entry, view: view)
+        }
+        for (index, item) in visible.enumerated() {
+            if let anchor = saved[index] { restore(anchor, entry: item.0, scroll: item.1, view: item.2) }
+        }
+        for (entry, _, _) in visible { captureAnchor(entry) }
+        // A scroller appearing/disappearing can change the usable width during
+        // layout. Reconcile that one real geometry change after this pass.
+        if visible.contains(where: { entry, scroll, _ in
+            let insets = clipInsets(scroll), width = scroll.contentView.bounds.width - insets.left - insets.right
+            return entry.measuredWidth.map { abs($0 - width) > 0.5 && width > 32 } ?? false
+        }) {
+            DispatchQueue.main.async { [weak self] in self?.schedule() }
+        }
     }
-    func retire() { retired = true; entries = [:]; alignedHeights = []; geometryChanged = {} }
+    func retire() { retired = true; queued = false; inputDepth = 0; entries = [:]; alignedHeights = []; geometryChanged = {} }
 }
 
 

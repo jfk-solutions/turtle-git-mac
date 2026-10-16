@@ -434,6 +434,7 @@ private enum MergeSourceSide {
     }
     func registerLocatorResult(_ scroll: NSScrollView) { locatorResultScroll = scroll }
     func refreshLocatorViewport(from scroll: NSScrollView? = nil) {
+        guard !retired, !lineWrapping.isGeometryPending else { return }
         let primary = scroll ?? sourceScrolls.first { $0.key.hasPrefix("Theirs") }?.value.view ?? locatorResultScroll
         var value = MergeLocatorScrolling.viewport(primary)
         if primary === locatorResultScroll, (primary?.documentView as? MergeTextView)?.sourceCells == nil, let projection = alignedResultProjection {
@@ -444,6 +445,7 @@ private enum MergeSourceSide {
     }
     func scrollLocator(to row: Int) {
         guard !retired, !busy, !confirmingQuit else { return }
+        lineWrapping.prepareForInput()
         for reference in sourceScrolls.values { if let scroll = reference.view { MergeLocatorScrolling.scroll(scroll, to: row) } }
         if let locatorResultScroll {
             let rawRow: Int
@@ -452,7 +454,7 @@ private enum MergeSourceSide {
             } else { rawRow = row }
             MergeLocatorScrolling.scroll(locatorResultScroll, to:rawRow)
         }
-        refreshLocatorViewport()
+        lineWrapping.recordViewportIntent(); refreshLocatorViewport()
     }
     private var pendingComparisonOptions: MergeComparisonOptions?
     var commentProfileURL = MergeCommentProfileFile.url
@@ -645,7 +647,8 @@ private enum MergeSourceSide {
             guard peer !== scroll else { continue }
             let clip = peer.contentView
             let desired = NSRect(origin: NSPoint(x: clip.bounds.minX, y: scroll.contentView.bounds.minY), size: clip.bounds.size)
-            clip.scroll(to: clip.constrainBoundsRect(desired).origin); peer.reflectScrolledClipView(clip)
+            let target = clip.constrainBoundsRect(desired).origin
+            if target != clip.bounds.origin { clip.scroll(to: target); peer.reflectScrolledClipView(clip) }
             peer.verticalRulerView?.needsDisplay = true
         }
     }
@@ -858,7 +861,7 @@ private enum MergeSourceSide {
     }
     fileprivate func focusNavigation(_ view: MergeTextView) {
         guard view.mergeEditable || view.sourceSide != nil else { return }
-        lastNavigationView = view; objectWillChange.send()
+        if lastNavigationView !== view { lastNavigationView = view; objectWillChange.send() }
     }
     private func navigationStates(_ view: MergeTextView) -> [MergeSourceState] {
         guard view.sourceCells == nil || view.sourceLayoutRevision == sourceLayoutRevision else { return [] }
@@ -897,7 +900,10 @@ private enum MergeSourceSide {
     fileprivate func navigationSelectionChanged(_ view: MergeTextView) {
         guard !retired, !selectingNavigationBlock, window?.firstResponder === view,
               view.sourceCells == nil || view.sourceLayoutRevision == sourceLayoutRevision else { return }
-        if view.mergeEditable { caret = view.serializedSelection(view.selectedRange()) ?? view.selectedRange() }
+        if view.mergeEditable {
+            let nextCaret = view.serializedSelection(view.selectedRange()) ?? view.selectedRange()
+            if caret != nextCaret { caret = nextCaret }
+        }
         let selected = view.mergeSelectedBlockRange ?? view.selectedRange()
         if view.mergeSelectedBlockRange == nil {
             for peer in navigationViews { peer.blockSelection.clear(in:peer) }
@@ -910,9 +916,10 @@ private enum MergeSourceSide {
             let end = ranges.lastIndex(where: { $0.location <= NSMaxRange(selection) }) ?? start
             mapped = resultPresentation.navigationMap.resultRange(sourceRows:start..<(end + 1))
         } else { return }
+        let changed = !navigationOwnsChoice || navigationChoiceRange != mapped
         navigationOwnsChoice = true; navigationChoiceRange = mapped
-        if let index = conflictIndex(in:mapped) { selectedConflict = index }
-        objectWillChange.send()
+        if let index = conflictIndex(in:mapped), index != selectedConflict { selectedConflict = index }
+        if changed { objectWillChange.send() }
     }
     private func conflictIndex(in range: NSRange?) -> Int? {
         guard let range else { return nil }
@@ -922,7 +929,7 @@ private enum MergeSourceSide {
     func navigateBlock(_ direction: Int, conflictsOnly: Bool) {
         activeNavigationView?.beginUserNavigation()
         guard let (active,target) = navigationTarget(direction,conflictsOnly:conflictsOnly) else { return }
-        selectNavigationBlock(in:active,target:target)
+        selectNavigationBlock(in:active,target:target,reverseEntry:direction < 0)
     }
     fileprivate func selectContextBlock(at offset: Int, in view: MergeTextView) {
         guard sourceToolsAllowed else { return }
@@ -930,14 +937,20 @@ private enum MergeSourceSide {
         guard let row = ranges.lastIndex(where: { $0.location <= offset }),
               let block = MergeBlockNavigation.block(states:navigationStates(view),containing:row) else { return }
         clearNavigationBlockSelection(clearTextSelections:true)
-        selectNavigationBlock(in:view,target:block)
+        selectNavigationBlock(in:view,target:block,contextOffset:offset)
     }
-    private func selectNavigationBlock(in active: MergeTextView, target: MergeBlockNavigation.Target) {
+    private func selectNavigationBlock(in active: MergeTextView, target: MergeBlockNavigation.Target, reverseEntry: Bool = false, contextOffset: Int? = nil) {
         guard let activeRange = navigationRange(rows:target.rows,in:active) else { return }
+        lineWrapping.prepareForInput()
         selectionRequest = nil
-        selectingNavigationBlock = true; defer { selectingNavigationBlock = false }
+        selectingNavigationBlock = true; defer { selectingNavigationBlock = false; lineWrapping.recordViewportIntent() }
         let sourceRows = active.sourceCells != nil ? target.rows : resultPresentation.navigationMap.sourceRows(resultRange:activeRange)
         let resultRange = active.mergeEditable ? active.serializedSelection(activeRange) : resultPresentation.navigationMap.resultRange(sourceRows:target.rows)
+        let activeRanges = navigationRanges(active)
+        let clickedSubline = contextOffset.flatMap { offset -> Int? in
+            guard activeRanges.indices.contains(target.caret) else { return nil }
+            return MergeWrappedCaret.subline(in:MergeWrappedCaret.starts(in:active,row:activeRanges[target.caret]),containing:offset)
+        }
         for view in navigationViews {
             let range: NSRange?
             if view === active { range = activeRange }
@@ -948,12 +961,14 @@ private enum MergeSourceSide {
                 view.blockSelection.clear(in:view); continue
             }
             let ranges = navigationRanges(view)
-            let row = view === active ? target.caret : ranges.lastIndex(where: { $0.location <= range.location }) ?? 0
+            let peerEdge = reverseEntry ? max(range.location,NSMaxRange(range) - 1) : range.location
+            let row = view === active ? target.caret : ranges.lastIndex(where: { $0.location <= peerEdge }) ?? 0
             if ranges.indices.contains(row) {
-                view.installBlock(range,caret:ranges[row].location,trimFinalEnding:view.mergeEditable && view.sourceCells == nil && view !== active)
-                view.blockSelection.centerCaret(in:view)
+                let offset = MergeWrappedCaret.offset(in:view,row:ranges[row],reverse:reverseEntry,subline:clickedSubline)
+                view.installBlock(range,caret:offset,trimFinalEnding:view.mergeEditable && view.sourceCells == nil && view !== active)
             }
         }
+        active.blockSelection.centerCaret(in:active)
         navigationOwnsChoice = true; navigationChoiceRange = resultRange
         if let index = conflictIndex(in:resultRange) { selectedConflict = index }
         if let view = locatorResultScroll?.documentView as? NSTextView { caret = (view as? MergeTextView)?.serializedSelection(view.selectedRange()) ?? view.selectedRange() }
@@ -1399,7 +1414,9 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     var navigationAllowed: Bool { model?.sourceToolsAllowed == true && mergeSourceRowsReady }
     private(set) var navigationIntentRevision = 0
     func invalidateNavigationRevision() { navigationIntentRevision &+= 1 }
-    func beginUserNavigation() { invalidateNavigationRevision(); model?.selectionRequest = nil }
+    func beginUserNavigation() { model?.lineWrapping.prepareForInput(); invalidateNavigationRevision(); model?.selectionRequest = nil }
+    override func scrollWheel(with event: NSEvent) { beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }; super.scrollWheel(with:event) }
+    func didNavigateViewport() { model?.lineWrapping.recordViewportIntent() }
     @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
@@ -1483,9 +1500,9 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         if model?.selectingNavigationBlock != true { foldLayout.reveal(selection: range, in: self, includeMarker: true) }
         super.scrollRangeToVisible(range)
     }
-    override func keyDown(with event: NSEvent) { beginUserNavigation(); model?.clearNavigationBlockSelection(); super.keyDown(with:event) }
+    override func keyDown(with event: NSEvent) { beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }; model?.clearNavigationBlockSelection(); super.keyDown(with:event) }
     override func mouseDown(with event: NSEvent) {
-        beginUserNavigation()
+        beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }
         model?.clearNavigationBlockSelection()
         if MergeMarkedWordInterface.mouse(event, in: self) { window?.makeFirstResponder(self); return }
         if model?.busy == false, model?.confirmingQuit == false, foldLayout.expand(at: event, in: self) { return }

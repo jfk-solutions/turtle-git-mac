@@ -185,3 +185,14 @@ returns to the same bytes.
 All-pane block-choice evidence: [October 16 grouped verification](qa/merge-both-blocks-2026-10-16.json).
 
 Aligned result-format evidence: [October 16 grouped verification](qa/merge-result-format-2026-10-16.json).
+
+
+## Wrapped screen-fragment entry — October 16, 2026
+
+The connected [wrapping continuation](MERGE-WRAPPING-PARITY.md#wrapped-navigation-and-viewport-reflow--october-16-2026)
+adds native reverse/forward/context fragment entry and coordinated peer centering,
+alongside source-row reading anchors during resize/font/wrap changes. Earlier
+wrapped-row gaps above are superseded within that scope. The logical source
+state search, hidden-row projection, independent block range and two-pane inline
+entry advance remain in place. Exact virtual-padding caret geometry and full
+Windows/TextKit equivalence remain open.

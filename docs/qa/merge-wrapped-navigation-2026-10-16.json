@@ -1,0 +1,167 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "3f5d277d999dcb0cc94f6355bf1fc8f50711a034",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected two/three-pane wrapped navigation, input ownership, reading-position reflow, shared locator/selection stability, documentation/captures and CI",
+  "source": [
+    "src/TortoiseMerge/BaseView.cpp: SelectNextBlock, SetupAllSelection, CountMultiLines and screen-to-view line mapping."
+  ],
+  "implementation": [
+    "Actual TextKit fragment entry for reverse/forward difference/conflict and fresh context selection, peer subline clamping, logical block ranges and one active-pane center.",
+    "Settled row/fraction anchors across width, font and wrap changes; shared three-pane result alignment preexisted and is retained. Text replacement invalidates group anchors; hidden folded rows reject obsolete anchors.",
+    "Explicit wheel/key/mouse/scroller input scopes; completed block/locator/Find/Go to Line record viewport intent. Pending reflow drains before input; automatic caret visibility cannot overwrite intent.",
+    "Synchronous frame/will-process-storage observers, settled document extents, transient locator freeze, no-op selection/viewport and peer-scroll suppression, bounded real scroller-width follow-up and retirement."
+  ],
+  "core": "Not rerun: existing native-only editor changes; no Core implementation changes.",
+  "debug": [
+    {
+      "log": "build/qa/merge-wrapped-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/merge-wrapped-group-anchor-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/merge-wrapped-input-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3
+    },
+    {
+      "log": "build/qa/merge-wrapped-intent-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/merge-wrapped-locator-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/merge-wrapped-observers-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/merge-wrapped-scroll-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/merge-wrapped-selection-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    }
+  ],
+  "native": {
+    "exit": 0,
+    "cases": 7,
+    "log": "build/qa/merge-wrapped-native-baseline.log",
+    "groups": [
+      "wrapped",
+      "wrapping",
+      "navigation",
+      "three-pane",
+      "initial",
+      "folding",
+      "find"
+    ],
+    "evidence": [
+      "Actual Unicode/tab glyph-fragment positions and logical peer mapping.",
+      "Exact source-row/fraction restoration across resize/font/wrap in both editor families; checks wait for settled owner geometry. Early diagnostic after=59 is transient, not the accepted assertion.",
+      "No unchanged semantic selection/viewport publication after warmup; stale delayed Go to Line refused after owned wheel input.",
+      "Retained block boundaries/F8/source choices, initial navigation, Undo/Redo, folded geometry, Find/Count/Replace All and one-step undo, readonly/async/Quit and retired guards.",
+      "Text, result records, selection/history baseline and original disk bytes retained."
+    ],
+    "earlier_failures": [
+      {
+        "log": "build/qa/merge-wrapped-native.log",
+        "reason": "Context fixture clicked within an existing block; source correctly retains that block/caret. Fixture now checks retention, then clears the block before testing a fresh click."
+      },
+      {
+        "log": "build/qa/merge-wrapped-native-context-repair.log",
+        "reason": "Fixture required text in unresolved aligned result cells, which are intentionally empty. Added a unilateral insertion for actual result wrapping; conflict navigation checks source text."
+      },
+      {
+        "log": "build/qa/merge-wrapped-native-result-fixture.log",
+        "reason": "Real three-pane resize reading-position loss."
+      },
+      {
+        "log": "build/qa/merge-wrapped-native-anchor-diagnostic.log",
+        "reason": "Two-pane resize exposed the same stale/transient geometry problem."
+      },
+      {
+        "log": "build/qa/merge-wrapped-native-input-repair.log",
+        "reason": "Three-pane anchor did not survive queued layout."
+      },
+      {
+        "log": "build/qa/merge-wrapped-native-observers.log",
+        "reason": "Captured anchor was correct but transient TextKit geometry and publication remained unstable."
+      },
+      {
+        "log": "build/qa/merge-wrapped-native-locator.log",
+        "reason": "Owned receiver was CPU-bound in native render feedback; sampled and terminated only its verified process group."
+      },
+      {
+        "log": "build/qa/merge-wrapped-native-selection.log",
+        "reason": "Owned receiver still showed render feedback; sampled and terminated only its verified process group."
+      },
+      {
+        "log": "build/qa/merge-wrapped-native-scroll.log",
+        "reason": "Redundant publications/scroll repair stopped the CPU loop, but resize anchor still failed."
+      },
+      {
+        "log": "build/qa/merge-wrapped-native-settled.log",
+        "reason": "Automatic TextKit caret visibility overwrote the peer reading anchor."
+      },
+      {
+        "log": "build/qa/merge-wrapped-native-group-anchor.log",
+        "reason": "Group-pending guard alone was insufficient. This diagnostic started before the preceding build had fully returned; final build/check were sequential."
+      },
+      {
+        "log": "build/qa/merge-wrapped-native-intent.log",
+        "reason": "All exact reading-position checks passed. Fixture incorrectly assumed a newly generated standalone merge was clean; it now checks the actual captured dirty/Undo baseline."
+      }
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      90762,
+      90823,
+      90917,
+      91010,
+      91157,
+      91277,
+      91442,
+      91612,
+      91752,
+      91841,
+      91972,
+      92244,
+      92317,
+      92324,
+      92341,
+      92351,
+      92355,
+      92362,
+      92366
+    ],
+    "capture_helpers": "Two synchronous screencapture processes exited 0 and were waited; no unrelated application termination."
+  },
+  "documentation": {
+    "captures": [
+      "docs/site/assets/merge-wrapped-navigation-light.png",
+      "docs/site/assets/merge-wrapped-navigation-dark.png"
+    ],
+    "visual_review": "Actual compositor images inspected in both appearances. Long sources are wrapped/colored; unresolved result cells at the captured conflict are intentionally blank. Captures do not certify all-dialog parity.",
+    "help": "50 source files, 1953442 bytes; all built counterparts byte-equal. Built bundle additionally contains its generated Help index.",
+    "help_check_repair": "Initial exact file-set assertion omitted the expected generated .helpindex; inspected sets showed this was the sole extra and all common bytes matched.",
+    "site": "249 documents, zero unresolved fragments; build/qa/merge-wrapped-site.log",
+    "ledger": "130 dialogs, 120 partial family audits, 10 pending, zero certified; 987 mapped/672 pending static controls, unchanged."
+  },
+  "limits": [
+    "TextKit Unicode boundaries and caret placement inside virtual padding are not certified identical to Windows.",
+    "Physical scrollbar/trackpad momentum, keyboard/IME, VoiceOver, extreme sizes/performance, arbitrary custom paragraphs and minimum OS remain open.",
+    "Unsigned local checks do not prove full hosted CI, signed Finder/scopes, notarization/App Store or complete application parity."
+  ]
+}

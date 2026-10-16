@@ -347,10 +347,12 @@ import TurtleGitCore
     }
     func scrollLocator(to row: Int) {
         guard !retired, !busy, !filtering, !confirmingQuit else { return }
+        lineWrapping.prepareForInput()
         for scroll in scrolls.values { MergeLocatorScrolling.scroll(scroll, to: row) }
-        refreshLocatorViewport()
+        lineWrapping.recordViewportIntent(); refreshLocatorViewport()
     }
     func refreshLocatorViewport() {
+        guard !retired, !lineWrapping.isGeometryPending else { return }
         let value = MergeLocatorScrolling.viewport(onePaneActive ? scrolls[false] : scrolls[true] ?? scrolls[false])
         if value != locatorViewport { locatorViewport = value }
     }
@@ -485,8 +487,8 @@ import TurtleGitCore
     }
     func previewLine(atRow index: Int?) {
         guard !retired, !singleFileMode, !onePaneActive, !filtering, let index, let alignment,
-              alignment.rows.indices.contains(index) else { previewRow = nil; return }
-        previewRow = index
+              alignment.rows.indices.contains(index) else { if previewRow != nil { previewRow = nil }; return }
+        if previewRow != index { previewRow = index }
     }
     @Published var showInlineDiff = true
     @Published var inlineWordDiff = false
@@ -728,25 +730,25 @@ import TurtleGitCore
         editorActions[base]?.replace(MergeLineEndings.converting(draftText(base: base), to: ending), 0, nil)
     }
     func updateSelection(_ range: NSRange, cells: [MergeSourceCell]) {
-        guard let alignment else { return }
+        guard !retired, let alignment else { return }
         let active = scrolls[activeBase]?.documentView as? FileComparisonTextView
         let block = active?.mergeSelectedBlockRange
-        selectedRows = block.flatMap { MergeBlockSelection.rows($0,cells:cells) }
+        var nextRows = block.flatMap { MergeBlockSelection.rows($0,cells:cells) }
             ?? (try? FileComparisonEditing.selectedRows(range,cells:cells))
         if !selectingDifferenceBlock, block == nil {
             for scroll in scrolls.values { if let view = scroll.documentView as? FileComparisonTextView { view.blockSelection.clear(in:view) } }
         }
-        if onePaneActive, let selection = selectedRows, let combined {
+        if onePaneActive, let selection = nextRows, let combined {
             let mapped = selection.compactMap { combined.rows.indices.contains($0) ? combined.rows[$0].alignmentRow : nil }
-            selectedRows = mapped.min().flatMap { start in mapped.max().map { start..<($0 + 1) } }
+            nextRows = mapped.min().flatMap { start in mapped.max().map { start..<($0 + 1) } }
         }
-        previewLine(atRow: selectedRows?.lowerBound)
+        if selectedRows != nextRows { selectedRows = nextRows }
+        previewLine(atRow: nextRows?.lowerBound)
         var cursor = 0, row = cells.count
         for (index, cell) in cells.enumerated() { cursor += (cell.displayText as NSString).length + 1; if range.location < cursor { row = index; break } }
         if onePaneActive, let combined, combined.rows.indices.contains(row) { row = combined.rows[row].alignmentRow }
         let index = alignment.differences.firstIndex { $0.contains(row) } ?? -1
         if difference != index { difference = index }
-        else { objectWillChange.send() }
     }
     @Published private(set) var exporting = false { didSet { onExportStateChanged() } }
     // Includes held output/format choices after their owner has retired.
@@ -1352,12 +1354,18 @@ import TurtleGitCore
     }
     func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll; onRegisterScroll(scroll,base); refreshLocatorViewport() }
     func scrolled(_ source: NSScrollView) {
-        defer { refreshLocatorViewport(); previewHorizontalOffsets = scrolls.mapValues { $0.contentView.bounds.minX } }
+        defer {
+            refreshLocatorViewport()
+            let next = scrolls.mapValues { $0.contentView.bounds.minX }
+            if next != previewHorizontalOffsets { previewHorizontalOffsets = next }
+        }
         guard !synchronizing else { return }; synchronizing = true; defer { synchronizing = false }
         for target in scrolls.values where target !== source {
             var point = target.contentView.bounds.origin; point.y = source.contentView.bounds.origin.y
-            target.contentView.scroll(to: target.contentView.constrainBoundsRect(NSRect(origin: point, size: target.contentView.bounds.size)).origin)
-            target.reflectScrolledClipView(target.contentView)
+            let constrained = target.contentView.constrainBoundsRect(NSRect(origin: point, size: target.contentView.bounds.size)).origin
+            if constrained != target.contentView.bounds.origin {
+                target.contentView.scroll(to: constrained); target.reflectScrolledClipView(target.contentView)
+            }
         }
     }
     func clearNavigationBlockSelection(clearTextSelections: Bool = false) {
@@ -1389,7 +1397,7 @@ import TurtleGitCore
     func navigate(_ step: Int) {
         (activeFindText as? MergeLineNavigationProviding)?.beginUserNavigation()
         guard let (target,base) = differenceTarget(step) else { return }
-        selectDifferenceBlock(target,base:base,advanceInline:true)
+        selectDifferenceBlock(target,base:base,advanceInline:true,reverseEntry:step < 0)
     }
     func selectContextBlock(at offset: Int, base: Bool) {
         guard contextCommandsAllowed, !filtering else { return }
@@ -1398,13 +1406,22 @@ import TurtleGitCore
               let block = MergeBlockNavigation.block(states:cells.map(\.state),containing:row) else { return }
         activatePane(base:base)
         clearNavigationBlockSelection(clearTextSelections:true)
-        selectDifferenceBlock(block,base:base,advanceInline:false)
+        selectDifferenceBlock(block,base:base,advanceInline:false,contextOffset:offset)
     }
-    private func selectDifferenceBlock(_ target: MergeBlockNavigation.Target, base: Bool, advanceInline: Bool) {
+    private func selectDifferenceBlock(_ target: MergeBlockNavigation.Target, base: Bool, advanceInline: Bool, reverseEntry: Bool = false, contextOffset: Int? = nil) {
+        lineWrapping.prepareForInput()
         selectingDifferenceBlock = true
-        defer { selectingDifferenceBlock = false }
+        defer { selectingDifferenceBlock = false; lineWrapping.recordViewportIntent() }
         activeBase = base
         selectionRequest = nil
+        var clickedSubline: Int?
+        if let contextOffset, let view = scrolls[base]?.documentView as? NSTextView {
+            let cells = displayCells(base:base)
+            if cells.indices.contains(target.caret) {
+                let start = cells.prefix(target.caret).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
+                clickedSubline = MergeWrappedCaret.subline(in:MergeWrappedCaret.starts(in:view,row:NSRange(location:start,length:cells[target.caret].displayText.utf16.count)),containing:contextOffset)
+            }
+        }
         for (side, scroll) in scrolls {
             guard let text = scroll.documentView as? NSTextView else { continue }
             let cells = displayCells(base: side)
@@ -1413,15 +1430,19 @@ import TurtleGitCore
             let length = cells[target.rows].reduce(0) { $0 + $1.displayText.utf16.count + 1 } - 1
             let range = NSRange(location: start, length: max(0, length))
             guard NSMaxRange(range) <= text.string.utf16.count else { continue }
-            let caret = cells.prefix(target.caret).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
+            let rowStart = cells.prefix(target.caret).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
+            let rowRange = NSRange(location:rowStart,length:cells[target.caret].displayText.utf16.count)
+            let caret = MergeWrappedCaret.offset(in:text,row:rowRange,reverse:reverseEntry,subline:clickedSubline)
             if let view = text as? FileComparisonTextView {
                 view.blockSelection.install(range,caret:caret,in:view)
-                view.blockSelection.centerCaret(in:view)
             }
         }
         // Source SelectNextBlock advances within the entry line after setting
         // the block, and only when inline navigation is available.
         if advanceInline { (scrolls[base]?.documentView as? FileComparisonTextView)?.navigateInline(forward:true) }
+        // One active-pane center keeps the linked viewports aligned when peer
+        // lines wrap into different numbers of actual TextKit fragments.
+        if let view = scrolls[base]?.documentView as? FileComparisonTextView { view.blockSelection.centerCaret(in:view) }
         if let text = scrolls[base]?.documentView as? NSTextView {
             updateSelection(text.selectedRange(), cells: displayCells(base: base))
         }
@@ -1820,7 +1841,9 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     var navigationAllowed: Bool { model?.contextCommandsAllowed == true && model?.filtering == false }
     private(set) var navigationIntentRevision = 0
     func invalidateNavigationRevision() { navigationIntentRevision &+= 1 }
-    func beginUserNavigation() { invalidateNavigationRevision(); model?.cancelDeferredNavigation() }
+    func beginUserNavigation() { model?.lineWrapping.prepareForInput(); invalidateNavigationRevision(); model?.cancelDeferredNavigation() }
+    override func scrollWheel(with event: NSEvent) { beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }; super.scrollWheel(with:event) }
+    func didNavigateViewport() { model?.lineWrapping.recordViewportIntent() }
     @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
     @objc private func expandFoldedSection(_ sender: Any?) { _ = foldLayout.expandSelection(in: self) }
     private func inlineTarget(forward: Bool) -> Int? {
@@ -1929,9 +1952,9 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
         window.makeFirstResponder(self)
         setAccessibilityFocused(true)
     }
-    override func keyDown(with event: NSEvent) { beginUserNavigation(); model?.clearNavigationBlockSelection(); super.keyDown(with:event) }
+    override func keyDown(with event: NSEvent) { beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }; model?.clearNavigationBlockSelection(); super.keyDown(with:event) }
     override func mouseDown(with event: NSEvent) {
-        beginUserNavigation()
+        beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }
         model?.clearNavigationBlockSelection()
         model?.activatePane(base: baseSide)
         if MergeMarkedWordInterface.mouse(event, in: self) { window?.makeFirstResponder(self); return }
@@ -2177,10 +2200,12 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     var navigationAllowed: Bool { get }
     var navigationIntentRevision: Int { get }
     func beginUserNavigation()
+    func didNavigateViewport()
 }
 extension MergeLineNavigationProviding where Self: NSTextView {
     var navigationIntentRevision: Int { 0 }
     func beginUserNavigation() {}
+    func didNavigateViewport() {}
     var navigationLimit: Int? {
         if let cells = navigationCells { return MergeSourceComparison.navigationLimit(cells: cells) }
         let count = MergeSourceComparison.navigationRanges(text: string).count
@@ -2203,7 +2228,7 @@ extension MergeLineNavigationProviding where Self: NSTextView {
             if let cells = navigationCells { range = MergeSourceComparison.navigationRange(line: line, cells: cells) }
             else { range = MergeSourceComparison.navigationRanges(text: string)[line - 1] }
             guard let range, NSMaxRange(range) <= (string as NSString).length else { return }
-            window.makeFirstResponder(self); setSelectedRange(range); scrollRangeToVisible(range)
+            window.makeFirstResponder(self); setSelectedRange(range); scrollRangeToVisible(range); didNavigateViewport()
         }
     }
 }

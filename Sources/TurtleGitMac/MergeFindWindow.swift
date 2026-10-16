@@ -158,7 +158,7 @@ extension NSTextView {
         options.matchCase = false; options.modifiedOnly = false; options.wholeWord = false
         target.mergeFindHighlights.set(query, options: options, in: text)
         guard !query.isEmpty, let match = MergeFind.next(in: target.mergeFindHighlights.ranges, selection: selected, upwards: upwards) else { return }
-        text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range)
+        text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range); (text as? MergeLineNavigationProviding)?.didNavigateViewport()
     }
     static func performKey(_ event: NSEvent, in text: NSTextView?) -> Bool {
         guard let text, !text.isFieldEditor, text is MergeFindProviding else { return false }
@@ -194,7 +194,7 @@ extension NSTextView {
             let state = target.mergeFindHighlights; state.refresh(in: text)
             let upwards = action == .previousMatch
             guard let match = MergeFind.next(in: state.ranges, selection: text.selectedRange(), upwards: upwards) else { return }
-            text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range)
+            text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range); (text as? MergeLineNavigationProviding)?.didNavigateViewport()
             target.mergeFindController?.reportNavigation(wrapped: match.wrapped, upwards: upwards)
             return
         }
@@ -321,7 +321,7 @@ private final class MergeFindNativeWindow: NSWindow {
         guard let match = MergeFind.next(in: matches, selection: text.selectedRange(), upwards: upwards ?? options.searchUp) else {
             status.stringValue = "\"\(search.stringValue)\" not found."; status.textColor = .systemRed; return
         }
-        text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range)
+        text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range); (text as? MergeLineNavigationProviding)?.didNavigateViewport()
         reportNavigation(wrapped: match.wrapped, upwards: upwards ?? options.searchUp)
     }
     func reportNavigation(wrapped: Bool, upwards: Bool) {

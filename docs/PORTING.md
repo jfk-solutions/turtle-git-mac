@@ -2,6 +2,15 @@
 
 *A macOS fork of TortoiseGit*
 
+The [wrapped editor navigation family](MERGE-WRAPPING-PARITY.md#wrapped-navigation-and-viewport-reflow--october-16-2026)
+now enters actual first/last wrapped fragments, retains context-click sublines and
+restores shared reading positions through width/font/wrap changes. Explicit input
+and completed Find/Go to Line own reading intent; transient locator/selection
+publication and redundant scroll feedback are suppressed. All seven grouped native
+cases pass after repairs, with reviewed light/dark captures and all owned receivers
+closed. Physical gestures, full TextKit/Windows equivalence and signed acceptance
+remain open; [batch evidence](qa/merge-wrapped-navigation-2026-10-16.json).
+
 The [checkbox Commit index family](COMMIT-CHECKBOX-INDEX.md) now resets unchecked
 ordinary rows to the comparison base and optionally restores unchecked additions,
 deletions and renames after the Git attempt. Native Commit captures the source

@@ -470,3 +470,9 @@ cancellation effects.
 [LibreOffice comparison and merge](LIBREOFFICE-COMPARISON.md) use tracked changes
 for ODT/ODS/SXW documents. Merges retain Save As and explicit Mark Resolved/No.
 An installed LibreOffice Python runtime is required; live/signed acceptance remains open.
+
+In Compare and Merge, Wrap long lines keeps each input's logical text unchanged.
+Previous difference/conflict enters the last wrapped screen row; Next enters the
+first. A context block retains the clicked wrapped subline. Resizing, font changes
+and wrapping retain the visible source row and reading position, while linked
+panes keep their common row heights.
