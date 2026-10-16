@@ -2754,3 +2754,45 @@ multi-tip/range, fresh FETCH_HEAD, picker and cancellation/Quit assertions.
 No product behavior or assertion was removed to accommodate the hosted failure.
 See [focused evidence](qa/log-reference-checkbox-ready-2026-10-16.json) for local
 results and hosted/minimum-OS acceptance limits.
+
+
+## Connected selection-history and clipboard navigation — October 16, 2026
+
+`LogDlg::GoBackForward`, `OnPasteGitHash`, `JumpToGitHash`, PreTranslateMessage
+and the resource accelerators now connect to native Log navigation. Option-Left/
+Right selects the prior/next history target. Adding Shift scrolls/highlights it
+without replacing selection. Cmd-[ / Cmd-] provide native aliases, with Shift
+retaining the scroll-only variant. Mouse buttons 4/5 route Back/Forward, with
+Shift for scroll-only navigation. Option-Up/Down invokes the existing Jump kind.
+The existing Jump chooser's context menu exposes the same commands with original
+Jump artwork, plus Go to copied commit hash, without widening the source toolbar.
+
+Navigation selection retains the history cursor and future entries instead of
+recording itself as a new user choice. An ordinary new selection still branches
+history. A target hidden by the current projection advances the history cursor,
+retains selection and reports the existing not-visible notice. Scroll-only moves
+set the native highlight/scroll request and leave revision/file/message selection
+unchanged. Selection History Jump uses this same route, including when a synthetic
+working-tree row is selected; other Jump kinds retain their working-row restriction.
+
+Ctrl-V, Cmd-V and Shift-Insert outside editable controls read the owning pasteboard,
+trim whitespace and accept a lowercase hex prefix from the configured hyperlink
+minimum through 40 characters. Search starts below the marked selected row,
+wraps, and excludes it, using the existing hash-link matcher. Multi-selection
+retains its latest added native mark. Invalid clipboard text does nothing; a valid
+unmatched prefix uses the existing suppressible not-found response. The native
+adapter deliberately accepts only the complete trimmed hash prefix; it does not
+forward trailing non-hex text accepted by the source's LookLikeGitHash probe into
+its hex decoder.
+
+New window keyboard/side-button routing requires the owning event/key window.
+Editable text/field responders keep native paste and Option-arrow word navigation.
+Child/sheet, busy, preparation and retired owners cannot navigate. No global event
+monitor or clipboard write is introduced. The existing Log table consumes the
+selection/highlight/scroll changes; detail reads retain their normal cancellation.
+
+See [navigation evidence](qa/log-navigation-2026-10-16.json) for grouped native
+history, clipboard, focus/owner, retained message-link and repository-invariant
+checks. Physical keyboard layouts, side-button event delivery, context-menu
+tracking, VoiceOver, signed Finder/App Store access and complete Log parity remain
+open. No new screenshot certifies the whole window.

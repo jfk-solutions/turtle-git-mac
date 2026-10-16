@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "15ae8ccac63382cbfddd60f39e60974fe0c6e7ba",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "LogDlg.cpp GoBackForward and navigation-with-select history fence",
+    "LogDlg.cpp OnPasteGitHash/JumpToGitHash and LookLikeGitHash",
+    "PreTranslateMessage and ID_GO_BACKWARD/ID_GO_FORWARD resource accelerators"
+  ],
+  "implementation": [
+    "Option-Left/Right and Cmd-bracket Back/Forward; Shift scroll-only/highlight variants including shifted brace characters",
+    "Window-owned mouse side-button and Option-Up/Down Jump routing",
+    "History navigation selects without recording itself, preserving future/cursor; manual selection branches existing history",
+    "Hidden target notice preserves selection while advancing history cursor; existing Jump Selection History shares route",
+    "Private/owning pasteboard lowercase trimmed SHA prefix navigation from multi-selection mark, below-first wrap and configured minimum",
+    "Active event/key window and editable/field-editor/busy/child/sheet/retired gates",
+    "Jump chooser context menu exposes native routes with original Jump/copy artwork"
+  ],
+  "core": {
+    "run": false,
+    "reason": "Existing Core selection-history and message-hash matcher used unchanged; native model/window/table only"
+  },
+  "builds": [
+    {
+      "log": "build/qa/log-navigation-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3
+    },
+    {
+      "log": "build/qa/log-navigation-build-brackets-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    }
+  ],
+  "build_continuation": "Inspection before native execution corrected shifted Cmd-bracket characters ({/}) alongside unshifted brackets and added actual key assertions; affected Debug build completed before receiver compilation.",
+  "native": {
+    "runs": [
+      {
+        "log": "build/qa/log-navigation-native-2026-10-16.log",
+        "receivers_reaped": [],
+        "final_case_pass_markers": 0
+      },
+      {
+        "log": "build/qa/log-navigation-native-final-2026-10-16.log",
+        "receivers_reaped": [
+          61511
+        ],
+        "final_case_pass_markers": 0
+      },
+      {
+        "log": "build/qa/log-navigation-native-short-prefix-2026-10-16.log",
+        "receivers_reaped": [
+          61607,
+          61679,
+          61760,
+          61837
+        ],
+        "final_case_pass_markers": 4
+      }
+    ],
+    "final_exit": 0,
+    "case_engine_passes": 4,
+    "cases": [
+      "navigation",
+      "message"
+    ],
+    "engines": [
+      "system Git",
+      "bundled universal Git arm64 execution"
+    ],
+    "fixture_compile_failure": "First compile called nonexistent model.load; removed it because the actual controller already owns initial loading. No application edit or rebuild.",
+    "failed_receivers": 1,
+    "runtime_failure": "The short-prefix fixture selected the current commit, which source JumpToGitHash deliberately excludes. The resulting not-found sheet prevented its later hidden-history assertion. Corrected to a distinct uniquely prefixed visible target; unchanged product and preserved assertions.",
+    "owned_receivers_reaped_and_independently_absent": [
+      61511,
+      61607,
+      61679,
+      61760,
+      61837
+    ],
+    "new_checks": [
+      "Actual native window/table key routes, selected and scroll-only targets, shifted Cmd-brackets and future history retention",
+      "Clipboard trimmed prefix, wrap, explicit multiple-selection mark, invalid/uppercase/URL/mail/short input refusal and configured three-character minimum",
+      "Editable text, background key-window, blocking child and retired model refusal",
+      "Hidden-history target notice/selection preservation and manual history branching",
+      "Constructed source mouse side-button model dispatcher; no global event posting",
+      "Byte-exact HEAD/index/working-file preservation"
+    ],
+    "retained_scope": "Existing rich message traits, source hash/URL/issue/file links, styles/highlights, selection and stale-menu guards, private preferences and retired styling worker lifetime",
+    "activation": "No captures requested or global input posted; new navigation receiver hidden/prohibited, retained message receiver keeps its existing accessory policy."
+  },
+  "documentation": {
+    "help_log": "build/qa/log-navigation-help-2026-10-16.log",
+    "help_files": 50,
+    "help_bytes": 1965792,
+    "source_built_equal": true,
+    "captures": "No new screenshots in this batch.",
+    "site_log": "build/qa/log-navigation-site-2026-10-16.log",
+    "site_exit": 0,
+    "site_documents": 259,
+    "unresolved_fragments": 0,
+    "coverage_ledger": "regenerated"
+  },
+  "limits": [
+    "Physical keyboard layouts, native context-menu tracking and accessibility/VoiceOver",
+    "Mouse side-button window event delivery and platform-specific browser keys",
+    "Strict complete clipboard prefix is a native adaptation of source probe/decoder behavior",
+    "Minimum OS, signed Finder/sandbox/App Store and complete Log/application acceptance",
+    "Full hosted CI not established by grouped local checks"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

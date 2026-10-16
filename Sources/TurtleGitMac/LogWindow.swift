@@ -82,8 +82,17 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
 final class LogHistoryWindow: NSWindow {
     var find: () -> Void = {}
     var blocksInteraction: () -> Bool = { false }
+    var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
+    var navigationCommand: (NSEvent) -> Bool = { _ in false }
+    private func routeNavigation(_ event:NSEvent) -> Bool {
+        guard commandKeyWindow() === self,event.window === self,
+              (firstResponder as? NSTextView)?.isEditable != true,
+              (firstResponder as? NSTextView)?.isFieldEditor != true else {return false}
+        return navigationCommand(event)
+    }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if blocksInteraction() { return true }
+        if routeNavigation(event) {return true}
         if event.type == .keyDown, event.charactersIgnoringModifiers?.lowercased() == "f",
            event.modifierFlags.intersection([.command, .option, .control, .shift]) == .command { find(); return true }
         if let table=firstResponder as? HistoryTableView,table.performRevisionReturn(with:event) { return true }
@@ -91,6 +100,7 @@ final class LogHistoryWindow: NSWindow {
     }
     override func sendEvent(_ event: NSEvent) {
         if blocksInteraction(), [.keyDown, .keyUp, .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp, .scrollWheel].contains(event.type) { return }
+        if event.type == .otherMouseUp,routeNavigation(event) {return}
         super.sendEvent(event)
     }
 }
@@ -134,6 +144,7 @@ final class LogHistoryWindow: NSWindow {
         super.init(window: window)
         model.window = window
         window.find = { [weak self] in self?.showFind() }
+        window.navigationCommand = { [weak model] event in model?.handleNavigation(event) ?? false }
         window.blocksInteraction = { [weak model] in model?.findBlocked == true || model?.orderingBlocked == true || model?.referencePickerBlocked == true }
         findAvailability = model.$busy.sink { [weak self] _ in DispatchQueue.main.async { self?.find?.updateAvailability() } }
         notePresenter = CommitNotePresenter(parent: window, model: model, preferences: labelDefaults)
@@ -1300,21 +1311,55 @@ struct LogCommandRequest: Identifiable {
     @Published var scrollRequest = 0
     @Published var navigationNotice: String?
     var selectionNavigation = HistorySelectionNavigation()
+    private(set) var selectionMark: String?
+    var canNavigateLog: Bool { canFollowMessageLink && jumpAlert == nil }
+    func canMoveHistory(up:Bool) -> Bool {
+        canNavigateLog && !selectionNavigation.hashes.isEmpty && (up ? selectionNavigation.location > 0:selectionNavigation.location + 1 < selectionNavigation.hashes.count)
+    }
+    func moveSelectionHistory(up:Bool,selectTarget:Bool) {
+        guard canNavigateLog else {return}
+        highlightedRevision = nil;navigationNotice = nil
+        guard let hash = selectionNavigation.move(up:up) else {return}
+        guard entries.contains(where:{$0.hash == hash}) else {navigationNotice = "The revision \(hash) is not visible in the current log.";return}
+        if selectTarget {select([hash],recordNavigation:false)} else {highlightedRevision = hash}
+        scrollRevision = hash;scrollRequest += 1
+    }
+    func pasteGitHash() {
+        guard canNavigateLog,let text = clipboard.string(forType:.string)?.trimmingCharacters(in:.whitespacesAndNewlines),
+              text.count >= HistoryMessageOptions(defaults:labelDefaults).minimumHashLength,text.count <= 40,
+              text.utf8.allSatisfy({(48...57).contains($0) || (97...102).contains($0)}),
+              let current = selectionMark.flatMap({selected.contains($0) ? $0:nil}) ?? entries.first(where:{selected.contains($0.hash)})?.hash else {return}
+        guard let hash = HistoryMessageHash.target(prefix:text,hashes:entries.map(\.hash),current:current) else {showJumpNotFound();return}
+        select([hash]);scrollRevision = hash;scrollRequest += 1
+    }
+    func handleNavigation(_ event:NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if event.type == .otherMouseUp,[3,4].contains(event.buttonNumber),flags.isEmpty || flags == .shift {
+            moveSelectionHistory(up:event.buttonNumber == 3,selectTarget:flags.isEmpty);return true
+        }
+        guard event.type == .keyDown else {return false}
+        if [123,124].contains(event.keyCode),flags == .option || flags == [.option,.shift] {
+            moveSelectionHistory(up:event.keyCode == 123,selectTarget:!flags.contains(.shift));return true
+        }
+        if flags == .command || flags == [.command,.shift],let key = event.charactersIgnoringModifiers,["[", "]", "{", "}"].contains(key) {
+            moveSelectionHistory(up:key == "[" || key == "{",selectTarget:!flags.contains(.shift));return true
+        }
+        if [125,126].contains(event.keyCode),flags == .option {
+            if canNavigateLog {jump(up:event.keyCode == 126)};return true
+        }
+        if event.keyCode == 9,flags == .control || flags == .command {pasteGitHash();return true}
+        if event.keyCode == 114,flags == .shift {pasteGitHash();return true}
+        return false
+    }
     private var jumpCancellation: OperationCancellation?
     private var jumpGeneration = 0
     private func cancelJump() {
         jumpCancellation?.cancel(); jumpCancellation = nil; jumping = false; jumpGeneration += 1
     }
     func jump(up: Bool) {
-        guard !busy, !jumping, !includesWorkingTree else { return }
-        if jumpKind == .selectionHistory {
-            highlightedRevision = nil
-            if let hash = selectionNavigation.move(up: up) {
-                if entries.contains(where: { $0.hash == hash }) { highlightedRevision = hash; scrollRevision = hash; scrollRequest += 1 }
-                else { navigationNotice = "The revision \(hash) is not visible in the current log." }
-            }
-            return
-        }
+        guard canNavigateLog else { return }
+        if jumpKind == .selectionHistory {moveSelectionHistory(up:up,selectTarget:false);return}
+        guard !includesWorkingTree else {return}
         let snapshot = entries.filter { !$0.hash.isEmpty }, selection = selected, kind = jumpKind
         guard kind.candidates(entries: snapshot, selected: selection, up: up) != nil else { return }
         select([])
@@ -1924,12 +1969,15 @@ struct LogCommandRequest: Identifiable {
             } catch { if request == generation { restoreHistorySnapshot(); historyCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription }; busy = false } }
         }
     }
-    func select(_ hashes: Set<String>) {
+    func select(_ hashes: Set<String>,mark:String? = nil,recordNavigation:Bool = true) {
+        selectionMark = mark.flatMap {hashes.contains($0) ? $0:nil} ?? selectionMark.flatMap {hashes.contains($0) ? $0:nil} ?? entries.first(where:{hashes.contains($0.hash)})?.hash
         messageLinkGeneration = UUID()
         if hashes != selected { cancelWorkingCommandRead(); cancelFollowedComparison(); cancelIntegrationRead() }
         cancelNoteRead()
         cancelJump(); highlightedRevision = nil
-        for entry in entries where !entry.hash.isEmpty && hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
+        if recordNavigation {
+            for entry in entries where !entry.hash.isEmpty && hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
+        }
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
         selected = hashes; branchRevisionNumber = nil; describedRevision = nil; refreshGravatar(); selectedFiles = []; fileSelectionMark = nil;focusedChangedFile=nil; files = []; fileGroups = []
@@ -2891,7 +2939,16 @@ struct LogDialog: View {
                 LogFilterField(model: model).frame(minWidth: 140, maxWidth: .infinity).layoutPriority(1)
                 Picker("Jump", selection: $model.jumpKind) {
                     ForEach(HistoryJumpKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                }.labelsHidden().frame(width: 150).help("Jump to revision")
+                }.labelsHidden().frame(width: 150).help("Jump to revision · Option-Left/Right goes Back/Forward")
+                .contextMenu { TurtleGitContextMenu {
+                    Button {model.moveSelectionHistory(up:true,selectTarget:true)} label: {CommandLabel(title:"Back",icon:.jumpUp)}.disabled(!model.canMoveHistory(up:true))
+                    Button {model.moveSelectionHistory(up:false,selectTarget:true)} label: {CommandLabel(title:"Forward",icon:.jumpDown)}.disabled(!model.canMoveHistory(up:false))
+                    Divider()
+                    Button {model.moveSelectionHistory(up:true,selectTarget:false)} label: {CommandLabel(title:"Back without selecting",icon:.jumpUp)}.disabled(!model.canMoveHistory(up:true))
+                    Button {model.moveSelectionHistory(up:false,selectTarget:false)} label: {CommandLabel(title:"Forward without selecting",icon:.jumpDown)}.disabled(!model.canMoveHistory(up:false))
+                    Divider()
+                    Button {model.pasteGitHash()} label: {CommandLabel(title:"Go to copied commit hash",icon:.copy)}.disabled(!model.canNavigateLog)
+                } }
                 Button { model.jump(up: true) } label: { CommandLabel(title: "", icon: .jumpUp) }.help("Jump up").accessibilityLabel("Jump up").disabled(model.busy || model.jumping)
                 Button { model.jump(up: false) } label: { CommandLabel(title: "", icon: .jumpDown) }.help("Jump down").accessibilityLabel("Jump down").disabled(model.busy || model.jumping)
 
@@ -3683,7 +3740,8 @@ struct RevisionTable: NSViewRepresentable {
         func tableViewSelectionDidChange(_ notification: Notification) {
             guard !updating, !model.loadingHistory, let table else { return }
             let hashes = Set(table.selectedRowIndexes.compactMap { model.entries.indices.contains($0) ? model.entries[$0].hash : nil })
-            if hashes != model.selected { model.select(hashes) }
+            let mark = table.selectedRowIndexes.last(where:{model.entries.indices.contains($0) && !model.selected.contains(model.entries[$0].hash)}).map {model.entries[$0].hash}
+            if hashes != model.selected { model.select(hashes,mark:mark) }
         }
         private func applySearchHighlights(_ text: NSMutableAttributedString, hash: String, column: String) {
             for range in searchHighlights[hash]?[column] ?? [] where range.length > 0 && range.location >= 0 && NSMaxRange(range) <= text.length {

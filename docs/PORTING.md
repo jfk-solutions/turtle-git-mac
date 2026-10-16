@@ -1577,3 +1577,13 @@ preview distinction. Shared metadata/tooltips now include zoom and both overlay
 inputs. See [image comparison parity](IMAGE-COMPARISON-PARITY.md) and
 [batch evidence](qa/image-drops-2026-10-16.json). Physical Finder drops and signed
 sandbox/App Store acceptance remain open.
+
+
+### Log selection-history navigation family — October 16, 2026
+
+Connected source Back/Forward/select-versus-highlight, side-button, Jump and
+clipboard-hash routes to the native window. Navigation preserves the history
+cursor/future; manual selection branches it. Native text-editor and active-window
+ownership gates retain normal editing, and hidden targets preserve selection.
+See [Log parity](LOG-PARITY.md) and [batch evidence](qa/log-navigation-2026-10-16.json).
+Physical input and signed acceptance remain open.

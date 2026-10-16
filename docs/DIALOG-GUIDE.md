@@ -622,3 +622,14 @@ Double-click a column boundary to fit contents; hold Shift to include the title.
 F5 refreshes, Ctrl-E/Cmd-E focuses Filter, and Escape clears its current text.
 Ctrl-A/Cmd-A selects every row in a multi-select list. F2 renames the first
 selected local branch; Return accepts and Escape cancels the inline edit.
+
+
+### Log navigation history
+
+Use Option-Left/Right or Cmd-[ / Cmd-] to go Back/Forward through selected
+revisions. Add Shift to highlight and scroll to the revision while retaining the
+current selection. Mouse side buttons use the same Back/Forward behavior. The
+Jump chooser’s context menu exposes these actions and **Go to copied commit hash**.
+Outside editable fields, Cmd-V or Ctrl-V jumps to a copied lowercase commit hash
+or prefix; text fields retain normal paste. Option-Up/Down uses the selected
+Jump category.
