@@ -96,3 +96,8 @@ Merge Colors workflow is part of the connected color-settings validation.
 The shared source color-button family passed native Settings draft/panel checks; see [dated evidence](qa/settings-color-choices-2026-10-16.json) for fixture repairs, exact scope and remaining navigation/physical acceptance.
 
 The [navigation/layout batch evidence](qa/settings-navigation-layout-2026-10-16.json) records the initial-size repair, fixture failures, final four-case pass and visual scope. Older color-gallery frames predate the new navigation layout.
+
+
+[Line-change margins](MERGE-MARGINS-PARITY.md) now complement the state palette
+with the original colored status icons. Palette edits retain the original icon
+artwork; they do not recolor or rewrite those assets.

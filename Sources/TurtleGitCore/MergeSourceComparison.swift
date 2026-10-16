@@ -1,5 +1,93 @@
 import Foundation
 
+/// BaseView::DrawMargin symbols are independent of the editable color palette.
+public enum MergeMarginSymbol: String, Sendable, Equatable, CaseIterable {
+    case added, removed, conflict, ignoredConflict, edited, equal, whitespace, moved, marked
+    public var title: String {
+        switch self {
+        case .added: return "Added line"
+        case .removed: return "Removed line"
+        case .conflict: return "Conflicted line"
+        case .ignoredConflict: return "Ignored conflict"
+        case .edited: return "Edited line"
+        case .equal: return "Identical block"
+        case .whitespace: return "Whitespace-only changes"
+        case .moved: return "Moved block"
+        case .marked: return "Marked block"
+        }
+    }
+}
+
+/// Port of BaseView's bounded GetWhitespaceBlock/GetWhitespaceString and
+/// IsBlockWhitespaceOnly. Use original view records, never synthetic display LFs.
+/// Only the paired source panes have peers; combined/result views do not.
+public struct MergeMarginPresentation: Sendable {
+    public let symbols: [MergeMarginSymbol?]
+    public init(cells: [MergeSourceCell], peers: [MergeSourceCell]? = nil) {
+        func ordinary(_ state: MergeSourceState) -> MergeMarginSymbol? {
+            if state.isAddition { return .added }
+            if state.isRemoval { return .removed }
+            switch state {
+            case .conflicted: return .conflict
+            case .conflictedIgnored: return .ignoredConflict
+            case .edited: return .edited
+            default: return nil
+            }
+        }
+        func equal(_ a: String, _ b: String) -> Bool { a.utf8.elementsEqual(b.utf8) }
+        func stripped(_ value: String) -> String {
+            String(String.UnicodeScalarView(value.unicodeScalars.filter { ![9,10,13,32].contains($0.value) }))
+        }
+        func block(_ records: [MergeSourceCell], _ row: Int) -> ClosedRange<Int> {
+            var state = records[row].state, start = row, end = row
+            while start > 0 && start > row - 8 {
+                let previous = records[start - 1].state
+                if state == .empty && previous != .normal { state = previous }
+                guard previous == state || previous == .empty else { break }
+                start -= 1
+            }
+            while end < records.count - 1 && end < row + 8 {
+                let next = records[end + 1].state
+                if state == .empty && next != .normal { state = next }
+                guard next == state || next == .empty else { break }
+                end += 1
+            }
+            return start...end
+        }
+        func payload(_ records: [MergeSourceCell], _ range: ClosedRange<Int>) -> String {
+            guard range.reduce(0, { $0 + records[$1].displayText.utf16.count + 2 }) <= 8 * 256 else { return "" }
+            return range.map { records[$0].text }.joined()
+        }
+        var result = cells.map { ordinary($0.state) }
+        if let peers, !peers.isEmpty {
+            // One forward pass also paints the bounded same-state block, as the
+            // source's icon cache does, without doing string work while drawing.
+            var classified = Set<Int>()
+            for row in cells.indices where !classified.contains(row) && cells[row].state != .edited {
+                let peer = min(row, peers.count - 1)
+                let a = cells[row].displayText, b = peers[peer].displayText
+                if cells[row].state == .normal && equal(a,b) || a.isEmpty && b.isEmpty { continue }
+                if equal(a,b) { result[row] = .equal; continue }
+                if equal(stripped(a),stripped(b)) { result[row] = .whitespace; continue }
+                let range = block(cells,row), other = block(peers,peer)
+                let mine = payload(cells,range), theirs = payload(peers,other)
+                if !mine.isEmpty && equal(stripped(mine),stripped(theirs)) {
+                    let symbol: MergeMarginSymbol = equal(mine,theirs) ? .equal : .whitespace
+                    for index in range { result[index] = symbol; classified.insert(index) }
+                }
+            }
+        }
+        symbols = result
+    }
+    public func symbol(at row: Int, moved: Bool = false, marked: Bool = false) -> MergeMarginSymbol? {
+        guard symbols.indices.contains(row) else { return nil }
+        // DrawMargin applies these overrides after the whitespace classification.
+        if marked { return .marked }
+        if moved { return .moved }
+        return symbols[row]
+    }
+}
+
 public enum MergeSourceState: Sendable, Equatable, CaseIterable {
     case normal, removed, added, conflicted, resolved, resolvedEmpty, edited, empty, filtered
     case identicalRemoved, identicalAdded, theirsRemoved, theirsAdded, yoursRemoved, yoursAdded

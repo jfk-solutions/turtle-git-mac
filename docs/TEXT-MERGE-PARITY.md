@@ -643,3 +643,8 @@ The [typing family](MERGE-TYPING-PARITY.md) adds per-view Insert/Overwrite and
 current-row ending cycling to the native editors, retaining existing conflict
 metadata, output encoding and one-step Undo; physical input/caret acceptance remains
 open.
+
+
+The [line-change margin continuation](MERGE-MARGINS-PARITY.md) now retains
+original state/whitespace icons in two/three-pane views and an icon-only margin
+when numbers are disabled. This supersedes the earlier no-rulers behavior.

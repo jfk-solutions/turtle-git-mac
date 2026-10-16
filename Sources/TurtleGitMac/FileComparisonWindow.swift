@@ -350,6 +350,8 @@ private extension FileComparisonDocument {
         didSet { if document == nil { comparisonOptions = .load(from:comparisonDefaults); showMovedBlocks = MergeMovedBlock.enabled(defaults:comparisonDefaults)
             showToolbar = MergeEditorChrome.visible("Toolbar",defaults:comparisonDefaults)
             showStatusBar = MergeEditorChrome.visible("StatusBar",defaults:comparisonDefaults)
+            editorPreferences = .load(from:comparisonDefaults); showLineNumbers = editorPreferences.showLineNumbers
+            editorConfigEnabled = [true:editorPreferences.enableEditorConfig,false:editorPreferences.enableEditorConfig]
         } }
     }
     @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
@@ -709,7 +711,7 @@ private extension FileComparisonDocument {
         whitespaceDisplay = .load(from: comparisonDefaults)
         let options = MergeComparisonOptions.load(from: comparisonDefaults)
         if options != comparisonOptions { setComparisonOptions(options) }
-        let next = MergeEditorPreferences.load()
+        let next = MergeEditorPreferences.load(from: comparisonDefaults)
         if next.tabWidth != editorPreferences.tabWidth || next.useSpaces != editorPreferences.useSpaces || next.smartTab != editorPreferences.smartTab {
             tabWidths = [:]; spacePanes = [:]; smartTabPanes = [:]
             editorPreferences = next
@@ -1824,11 +1826,12 @@ struct FileComparisonEditor: NSViewRepresentable {
         model.lineWrapping.geometryChanged = { [weak model] in DispatchQueue.main.async { model?.applyViewportNavigation(); model?.refreshLocatorViewport() } }
         model.lineWrapping.update(scroll, key: base ? "Base" : "Mine", aligned: !model.onePaneActive && !model.singleFileMode, enabled: model.wrapLines)
         let moved = model.movedRowLinks(base:base), generation = model.alignmentGeneration
-        scroll.rulersVisible = model.showLineNumbers || !moved.isEmpty
+        scroll.rulersVisible = true
         if let ruler = scroll.verticalRulerView as? MergeLineRuler {
             ruler.showNumbers = model.showLineNumbers
             ruler.movedRows = moved.mapValues(\.tooltip)
             ruler.followMovedRow = { [weak model] row in model?.followMovedBlock(row:row,base:base,generation:generation) }
+            ruler.updateRecords(cells,peers:model.onePaneActive || model.singleFileMode ? nil : model.displayCells(base:!base))
         }
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)

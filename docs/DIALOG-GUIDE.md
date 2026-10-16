@@ -505,6 +505,11 @@ and wrapping retain the visible source row and reading position, while linked
 panes keep their common row heights.
 
 
+Text comparison and merge margins use the original colored line-change icons.
+Hover an icon for its meaning: added, removed, conflicted, ignored conflict,
+edited, identical or whitespace-only changes. Hiding line numbers keeps the
+icon margin visible. Marked blocks take precedence over moved/change symbols.
+
 In two-file text comparison, **View → Moved blocks** marks relocated lines in
 the margins. Hover a move icon for its destination/source line; double-click
 the margin or use **Go to moved block** in the text context menu to select the

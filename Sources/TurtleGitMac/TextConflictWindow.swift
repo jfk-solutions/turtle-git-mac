@@ -383,6 +383,8 @@ private enum MergeSourceSide {
         didSet { if document == nil {
             showToolbar = MergeEditorChrome.visible("Toolbar",defaults:comparisonDefaults)
             showStatusBar = MergeEditorChrome.visible("StatusBar",defaults:comparisonDefaults)
+            editorPreferences = .load(from:comparisonDefaults)
+            initialEditorConfigDefault = editorPreferences.enableEditorConfig
         } }
     }
     @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
@@ -579,7 +581,7 @@ private enum MergeSourceSide {
     @Published var editorConfigLoading: Set<String> = []
     private var editorConfigRequests: [String: UUID] = [:]
     @Published var overwriteMode = false
-    private let initialEditorConfigDefault = MergeEditorPreferences.load().enableEditorConfig
+    private var initialEditorConfigDefault = MergeEditorPreferences.load().enableEditorConfig
     func setEditorConfig(_ enabled: Bool, pane: String) {
         guard document != nil, !confirmingQuit else { return }
         let request = UUID(); editorConfigRequests[pane] = request
@@ -778,7 +780,7 @@ private enum MergeSourceSide {
         self.repository = repository; self.access = access; self.path = path
         preferencesSubscription = NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged).sink { [weak self] _ in
             guard let self else { return }
-            let next = MergeEditorPreferences.load()
+            let next = MergeEditorPreferences.load(from:self.comparisonDefaults)
             self.locatorPreferences = .load(from: self.comparisonDefaults)
             self.wrapLines = self.comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
             self.whitespaceDisplay = .load(from: self.comparisonDefaults)
@@ -1362,7 +1364,7 @@ private struct MergeEditor: NSViewRepresentable {
             scroll.contentView.postsBoundsChangedNotifications = true
             NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.locatorScrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         }
-        scroll.hasVerticalRuler = true; scroll.rulersVisible = model.editorPreferences.showLineNumbers; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
+        scroll.hasVerticalRuler = true; scroll.rulersVisible = true; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
@@ -1371,7 +1373,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.insertionPointColor = MergePalette.foreground(.normal)
         view.font = model.generalPreferences.nativeFont
         if !model.wrapLines { DispatchQueue.main.async { model.refreshLocatorViewport() } }
-        scroll.rulersVisible = model.editorPreferences.showLineNumbers
+        scroll.rulersVisible = true
         view.setMergeTabWidth(tabWidth)
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
@@ -1428,6 +1430,13 @@ private struct MergeEditor: NSViewRepresentable {
         model.refreshLocatorHighlights()
         view.needsDisplay = true
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = sourceCells?.map(\.lineNumber)
+        if let ruler = scroll.verticalRulerView as? MergeLineRuler {
+            ruler.showNumbers = model.editorPreferences.showLineNumbers
+            let records = sourceCells ?? zip(MergeRegexFilters.lines(text), model.resultStates).enumerated().map {
+                MergeSourceCell(text:$0.element.0,lineNumber:$0.offset + 1,state:$0.element.1)
+            }
+            ruler.updateRecords(records, peers: other)
+        }
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
         scroll.verticalRulerView?.needsDisplay = true
     }
@@ -1966,14 +1975,30 @@ final class MergeLineRuler: NSRulerView {
     var movedRows: [Int:String] = [:]
     var followMovedRow: (Int) -> Void = { _ in }
     private var visibleMovedRows: [(NSRect,Int)] = []
+    private var visibleSymbols: [(NSRect,Int)] = []
+    private var records: [MergeSourceCell] = [], peers: [MergeSourceCell]?
+    private(set) var presentation = MergeMarginPresentation(cells: [])
+    func updateRecords(_ next: [MergeSourceCell], peers nextPeers: [MergeSourceCell]?) {
+        func same(_ a: [MergeSourceCell], _ b: [MergeSourceCell]) -> Bool {
+            a.count == b.count && zip(a,b).allSatisfy { $0.state == $1.state && $0.text.utf8.elementsEqual($1.text.utf8) }
+        }
+        guard !same(records,next) || (peers == nil) != (nextPeers == nil) || !same(peers ?? [],nextPeers ?? []) else { return }
+        records = next; peers = nextPeers
+        presentation = MergeMarginPresentation(cells:next,peers:nextPeers); needsDisplay = true
+    }
+    func symbol(at row: Int) -> MergeMarginSymbol? { presentation.symbol(at:row,moved:movedRows[row] != nil,marked:markedRows.contains(row)) }
+    private static let artwork: [MergeMarginSymbol:NSImage] = {
+        let icons: [MergeMarginSymbol:MenuIcon] = [.added:.mergeLineAdded,.removed:.mergeLineRemoved,.conflict:.mergeLineConflict,.ignoredConflict:.mergeLineIgnored,.edited:.mergeLineEdited,.equal:.mergeLineEqual,.whitespace:.mergeLineWhitespace,.moved:.mergeMoved,.marked:.mergeMarked]
+        return icons.compactMapValues { $0.image(size:16) }
+    }()
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow,from:nil)
         if event.clickCount == 2,let row = visibleMovedRows.first(where:{$0.0.contains(point)})?.1 { followMovedRow(row);return }
         super.mouseDown(with:event)
     }
     @objc func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData data: UnsafeMutableRawPointer?) -> String {
-        guard let row = visibleMovedRows.first(where:{$0.0.contains(point)})?.1 else { return "" }
-        return movedRows[row] ?? ""
+        guard let row = visibleSymbols.first(where:{$0.0.contains(point)})?.1 else { return "" }
+        return symbol(at:row) == .moved ? movedRows[row] ?? "Moved block" : symbol(at:row)?.title ?? ""
     }
     func updateMetrics(for view: NSTextView) {
         let count = sourceNumbers?.compactMap { $0 }.max() ?? MergeLineEndings.lineRanges(in: view.string).count
@@ -1982,11 +2007,11 @@ final class MergeLineRuler: NSRulerView {
         let next = showNumbers ? max(45, ceil(width)) : 20
         if ruleThickness != next { ruleThickness = next }
     }
-    override init(scrollView: NSScrollView?, orientation: NSRulerView.Orientation) { super.init(scrollView: scrollView, orientation: orientation); ruleThickness = 45 }
+    override init(scrollView: NSScrollView?, orientation: NSRulerView.Orientation) { super.init(scrollView: scrollView, orientation: orientation); ruleThickness = 45; setAccessibilityLabel("Line changes and line numbers") }
     required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func drawHashMarksAndLabels(in rect: NSRect) {
         guard let view = clientView as? NSTextView ?? scrollView?.documentView as? NSTextView, let manager = view.layoutManager, let container = view.textContainer else { return }
-        removeAllToolTips();visibleMovedRows = []
+        removeAllToolTips();visibleMovedRows = [];visibleSymbols = []
         NSColor.controlBackgroundColor.setFill(); bounds.fill()
         let text = view.string as NSString, visible = view.visibleRect
         let visibleInRuler = convert(visible, from: view)
@@ -2000,19 +2025,21 @@ final class MergeLineRuler: NSRulerView {
             let glyph = manager.glyphRange(forCharacterRange: NSRange(location: location, length: 1), actualCharacterRange: nil)
             let frame = manager.boundingRect(forGlyphRange: glyph, in: container).offsetBy(dx: view.textContainerInset.width, dy: view.textContainerInset.height)
             let folded = view.textStorage?.attribute(.mergeFoldHidden, at: location, effectiveRange: nil) != nil || view.textStorage?.attribute(.mergeFoldMarker, at: location, effectiveRange: nil) != nil
-            if !folded, movedRows[line - 1] != nil {
+            if !folded, symbol(at:line - 1) != nil {
                 let paragraph = manager.boundingRect(forGlyphRange:manager.glyphRange(forCharacterRange:range,actualCharacterRange:nil),in:container).offsetBy(dx:view.textContainerOrigin.x,dy:view.textContainerOrigin.y)
                 let area = NSRect(x:bounds.minX,y:convert(paragraph.origin,from:view).y,width:ruleThickness,height:max(14,paragraph.height)).intersection(bounds)
-                if !area.isEmpty { visibleMovedRows.append((area,line - 1));addToolTip(area,owner:self,userData:nil) }
+                if !area.isEmpty {
+                    visibleSymbols.append((area,line - 1));addToolTip(area,owner:self,userData:nil)
+                    if movedRows[line - 1] != nil { visibleMovedRows.append((area,line - 1)) }
+                }
             }
             if !folded && frame.maxY >= visible.minY && frame.minY <= visible.maxY {
                 let number = sourceNumbers == nil ? line : (sourceNumbers!.indices.contains(line - 1) ? sourceNumbers![line - 1] : nil)
                 let value = number.map(String.init) as NSString? ?? ""
                 if showNumbers { value.draw(at: NSPoint(x: ruleThickness - value.size(withAttributes: attrs).width - 6, y: convert(frame.origin, from: view).y), withAttributes: attrs) }
-                if movedRows[line - 1] != nil {
-                    MenuIcon.mergeMoved.image(size:14)?.draw(in:NSRect(x:2,y:convert(frame.origin,from:view).y,width:14,height:14))
+                if let symbol = symbol(at:line - 1) {
+                    Self.artwork[symbol]?.draw(in:NSRect(x:2,y:convert(frame.origin,from:view).y,width:16,height:16))
                 }
-                if movedRows[line - 1] == nil && markedRows.contains(line - 1) { MenuIcon.mergeMarked.image(size: 12)?.draw(in: NSRect(x: 2, y: convert(frame.origin, from: view).y, width: 12, height: 12)) }
             }
             if frame.minY > visible.maxY { break }
             location = NSMaxRange(range); line += 1

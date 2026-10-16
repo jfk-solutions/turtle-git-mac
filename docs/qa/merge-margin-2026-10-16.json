@@ -1,0 +1,134 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "cd004b6bc29c4cf45c6dddfdd0ce104ef79e7f6f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Two/combined/three-pane Merge line-change margin family",
+  "source": [
+    "BaseView.cpp DrawMargin/GetMarginWidth/GetWhitespaceBlock/GetWhitespaceString/IsBlockWhitespaceOnly/FilterWhitespaces",
+    "TortoiseMergeENG.rc original seven line icons"
+  ],
+  "implementation": [
+    "Original seven additional icons, pinned byte provenance, cached native drawing and semantic hover labels",
+    "Bounded whitespace/reflow and identical block classification from original records; exact space/tab/CR/LF filter and UTF-16 allocation cutoff",
+    "Source/result state aliases, current edited annotations and mark-before-move priority",
+    "Retain icon gutter with line numbers disabled; live editing/history/pane projection invalidation",
+    "Initial editor preferences and Apply notifications consistently use owning window supplied store"
+  ],
+  "core": {
+    "log": "build/qa/merge-margin-core-2026-10-16.log",
+    "exit": 0,
+    "tests": 11,
+    "failures": 0,
+    "suites": [
+      "MergeMarginPresentationTests",
+      "MenuIconTests"
+    ],
+    "full_suite_repeated": false
+  },
+  "debug": [
+    {
+      "log": "build/qa/merge-margin-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 9
+    },
+    {
+      "log": "build/qa/merge-margin-build-preferences-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3,
+      "reason": "Actual initial captured-preference failure"
+    }
+  ],
+  "native": {
+    "passing_group_log": "build/qa/merge-margin-native-selection-2026-10-16.log",
+    "group_exit": 0,
+    "distinct_cases": [
+      "margin",
+      "moved",
+      "wrapped",
+      "three-pane"
+    ],
+    "capture_log": "build/qa/merge-margin-capture-2026-10-16.log",
+    "capture_exit": 0,
+    "successful_receivers": 5,
+    "failed_receivers": 3,
+    "repairs": [
+      {
+        "log": "build/qa/merge-margin-native-2026-10-16.log",
+        "issue": "Initial supplied preference store did not initialize line numbers; fixed editor preference adoption and notification store in both editors."
+      },
+      {
+        "log": "build/qa/merge-margin-native-preferences-2026-10-16.log",
+        "issue": "Fixture assumed standalone unresolved merge starts clean; now requires exact initial presentation and initial dirty state after Undo."
+      },
+      {
+        "log": "build/qa/merge-margin-native-final-2026-10-16.log",
+        "issue": "Fixture applied Mine while caret/navigation selected normal text after Undo; explicitly selectConflict(0) before choosing, retaining actual conflict/state assertions."
+      }
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      51883,
+      52010,
+      52108,
+      52184,
+      52191,
+      52204,
+      52213,
+      52241
+    ],
+    "capture_helpers": "Four synchronous screencapture processes waited, exit 0. No application activation, global input posting or unrelated-app termination.",
+    "git_engine_repetition": "Standalone file editing/state/geometry; no duplicated Git-engine cases."
+  },
+  "documentation": {
+    "help_files": 50,
+    "help_bytes": 1963411,
+    "source_built_equal": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/merge-margin-compare-dark.png",
+        "width": 2200,
+        "height": 1466,
+        "sha256": "f33ae59727be5ddafd36dab1acab2041390f54fa0981af1a636e59ccfde08cfa"
+      },
+      {
+        "path": "docs/site/assets/merge-margin-conflict-light.png",
+        "width": 2400,
+        "height": 1766,
+        "sha256": "43f4b1822ef078aae011b354ab3b52ced27b8ba13cc59c5bd245c997b87aca8a"
+      },
+      {
+        "path": "docs/site/assets/merge-margin-conflict-dark.png",
+        "width": 2400,
+        "height": 1766,
+        "sha256": "dc7f513882bf3ecf1c65e21c3604b4537ed1456a055a83edc79710ac416ad9db"
+      },
+      {
+        "path": "docs/site/assets/merge-margin-compare-light.png",
+        "width": 2200,
+        "height": 1466,
+        "sha256": "a94baf212db47e77786e967b406607c0ce0c2c9d3cdd43cf13f63509545116ff"
+      }
+    ],
+    "visual_review": "All four compositor PNGs individually inspected. Colored original gutter icons, conflict/source row colors, and icon-only margins visible; inactive toolbar dimming retained.",
+    "site_log": "build/qa/merge-margin-site-2026-10-16.log",
+    "coverage_ledger": "regenerated",
+    "site_exit": 0,
+    "site_documents": 257,
+    "unresolved_fragments": 0
+  },
+  "hosted_observation": {
+    "macos_run": 38948627662,
+    "head": "cd004b6b",
+    "status": "in_progress",
+    "pages_run": 38948627686,
+    "conclusion": "success"
+  },
+  "limits": [
+    "Native deterministic forward record classification adapts source draw-time icon cache; exact virtual wrapped padding/repeated icon geometry remains open",
+    "Physical margin selection/drag, hover and VoiceOver traversal, large files and minimum OS remain open",
+    "No whole hosted CI pass, signed Finder/grants, App Store or complete port certification"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

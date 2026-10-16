@@ -1571,6 +1571,41 @@
       "asset": "Switch.bmp",
       "source": "src/Resources/ribbon/Switch.bmp",
       "sha256": "07f0e6984c45c6fc723438b991a14055399801dacccbc10dacd7e0f4e6ad817a"
+    },
+    {
+      "asset": "lineadded.ico",
+      "source": "src/Resources/lineadded.ico",
+      "sha256": "778095e19ac38c53a0bfbeafdf4e764b96e0fa1f754b2f0340c883ce5dba84b5"
+    },
+    {
+      "asset": "lineremoved.ico",
+      "source": "src/Resources/lineremoved.ico",
+      "sha256": "026d3553dc3c76ab5546a386d1fdff7076450db3f3c0a463b7f8b3f4a0ce844e"
+    },
+    {
+      "asset": "lineconflicted.ico",
+      "source": "src/Resources/lineconflicted.ico",
+      "sha256": "7e9cf049cd18326ea5b6772f6d9c7424bb1ec96fd037d043c5193c78612eeb34"
+    },
+    {
+      "asset": "lineconflictedignored.ico",
+      "source": "src/Resources/lineconflictedignored.ico",
+      "sha256": "756d29e1eddd0e8a92ca727108848a6cdd3ac4dd770da312d3f0266b21d2af9e"
+    },
+    {
+      "asset": "lineedited.ico",
+      "source": "src/Resources/lineedited.ico",
+      "sha256": "72c4e0e22e2222381654eccdfedae0a8f23310309ad1d20951fc2d503b803185"
+    },
+    {
+      "asset": "lineequal.ico",
+      "source": "src/Resources/lineequal.ico",
+      "sha256": "26bba96a4ec6c07cb196c54c37b8a0586b812455331c57bf1b1566d8c4692a2a"
+    },
+    {
+      "asset": "linewhitespace.ico",
+      "source": "src/Resources/linewhitespace.ico",
+      "sha256": "d3dc64388553e238b5690cfd24a2fd934f8a81476c5a8521c1b51a1acd5e0ecd"
     }
   ]
 }

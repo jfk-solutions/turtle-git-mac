@@ -1520,3 +1520,12 @@ updates, actual post-operation list reads and the submodule comparison handoff.
 Captured selection marks are observed within the owning table and retired on
 Close. See [Resolve mutations](RESOLVE-PARITY.md#revert-and-missing-file-delete--october-16-2026)
 for remaining action-mask, physical and signed acceptance.
+
+
+## Merge line-change margin family — October 16, 2026
+
+Original added/removed/conflict/ignored/edited/equal/whitespace artwork now
+connects to two/combined/three-pane view records and live history. Source
+bounded whitespace-block classification, marked-before-moved priority, hover
+labels and icon-only margins are retained. See [Merge margins](MERGE-MARGINS-PARITY.md)
+for source limits and remaining physical/signed acceptance.
