@@ -250,8 +250,12 @@ private enum MergeSourceSide {
     var patchComparison:WorkingTreePatchFileComparison?
     var patchResultSaver:((String,ComparisonTextEncoding,OperationCancellation?) async throws -> TextConflictDocument)?
     @Published var patchResultCompleted = false
-    var repositoryResolutionAllowed:Bool {workingMerge == nil && patchComparison == nil}
-    func cancelPatchOperation() {if patchComparison != nil {loadCancellation?.cancel()}}
+    var repositoryResolutionAllowed:Bool {workingMerge == nil && patchComparison == nil && mergedResultTarget == nil}
+    func cancelPatchOperation() {if patchComparison != nil {cancelSaveOperation()}}
+    func cancelSaveOperation() {loadCancellation?.cancel();saveChoices.cancel()}
+    private let saveChoices=MergeSaveChoices()
+    private(set) var mergedResultTarget:SavedMergePane?
+    var resultPath:String {mergedResultTarget?.url.path ?? workingMergeOutput?.path ?? path}
     var workingMerge: WorkingTextMerge?
     var workingMergePermissions: [RepositoryAccessLease] = []
     var openPermissions: [RepositoryAccessLease] { workingMergePermissions + [access].compactMap { $0 } }
@@ -260,15 +264,13 @@ private enum MergeSourceSide {
     private var standaloneSavedEncoding: ComparisonTextEncoding?
     var chooseStandaloneOutput: ((NSWindow?, String) async -> URL?)?
     private func chooseMergeOutput() async -> URL? {
-        if let chooseStandaloneOutput { return await chooseStandaloneOutput(window, path) }
-        guard !retired, let window, window.attachedSheet == nil else { return nil }
-        let panel = NSSavePanel(); panel.nameFieldStringValue = "merged-" + (path as NSString).lastPathComponent
-        panel.title = "Save merged result"; panel.canCreateDirectories = true
-        let answer = await withCheckedContinuation { continuation in panel.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
-        guard !retired, answer == .OK, let url = panel.url else { return nil }
-        let lease = RepositoryAccessLease(url: url)
-        guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return nil }
-        workingMergePermissions.append(lease); return url
+        let url:URL?
+        if let chooseStandaloneOutput {url=await chooseStandaloneOutput(window,resultPath)}
+        else {url=await saveChoices.output(window:window,name:"merged-" + (resultPath as NSString).lastPathComponent,directory:repository.root)}
+        guard !retired,let url else {return nil}
+        let lease=RepositoryAccessLease(url:url)
+        guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else {error=RepositoryAccessFailure.securityScopeUnavailable.localizedDescription;return nil}
+        workingMergePermissions.append(lease);return url
     }
     let path: String
     private let access: RepositoryAccessLease?
@@ -353,9 +355,10 @@ private enum MergeSourceSide {
                 if let workingMerge = self.workingMerge { try await workingMerge.bindSource(mine: mine, target: target) }
                 guard !self.retired else { return }
                 self.sourceTargets[mine] = target; self.workingMergePermissions.append(lease)
-                let output = self.workingMerge == nil ? self.repository.root.appendingPathComponent(self.path).standardizedFileURL : self.workingMergeOutput
+                let output = self.mergedResultTarget?.url ?? (self.workingMerge == nil ? self.repository.root.appendingPathComponent(self.path).standardizedFileURL : self.workingMergeOutput)
                 if output?.standardizedFileURL.path == target.url.path, let current = self.document {
                     self.document = try current.recordingOwnedWorkingWrite(target.content)
+                    if self.mergedResultTarget != nil {self.mergedResultTarget=target}
                     if self.workingMerge != nil { self.standaloneSavedResult = target.content.text; self.standaloneSavedEncoding = target.content.encoding }
                 }
                 self.objectWillChange.send()
@@ -510,6 +513,7 @@ private enum MergeSourceSide {
     }
     func retire() {
         retireFormatChoice()
+        saveChoices.cancel()
         sourceExporter.retire()
         folding.retire(); resultFolding.retire()
         lineWrapping.retire()
@@ -602,7 +606,7 @@ private enum MergeSourceSide {
     private func reloadEditorConfig() {
         guard let document else { return }
         let panes = ["Base", document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine",
-                     document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", "Merged · \(path)"]
+                     document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", "Merged · \(resultPath)"]
         for pane in panes {
             if editorConfigEnabled[pane] == nil { editorConfigEnabled[pane] = initialEditorConfigDefault }
             if editorConfigEnabled[pane] == true { setEditorConfig(true, pane: pane) }
@@ -684,11 +688,7 @@ private enum MergeSourceSide {
     }
     var blocks: [MergeConflictBlock] { resultPresentation.conflicts(document: document) }
     var hasUnresolvedConflicts: Bool { !blocks.isEmpty || MergeText.hasMarkers(result) }
-    var confirmUnresolvedSave: (String) -> Bool = { message in
-        let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = message
-        alert.addButton(withTitle:"Cancel"); alert.addButton(withTitle:"Save")
-        return alert.runModal() == .alertSecondButtonReturn
-    }
+    var confirmUnresolvedSave: ((String) -> Bool)?
     var dirty: Bool {
         document.map { document in
             let previous: String
@@ -833,7 +833,11 @@ private enum MergeSourceSide {
         let profiles = try MergeCommentProfileFile.load(at: commentProfileURL)
         engine.filter = filter; engine.options = options; engine.commentTokens = profiles.tokens(paths: [path])
         var next: TextConflictDocument
-        if let patchComparison {
+        if mergedResultTarget != nil,workingMerge==nil,let current=document {
+            // Once Save As owns the result, the captured source panes remain
+            // usable even after the original repository conflict is resolved.
+            next=try current.replacingSources(mine:sourceTargets[true]?.read(),theirs:sourceTargets[false]?.read(),engine:engine,cancellation:cancellation)
+        } else if let patchComparison {
             let prefer = ComparisonTextEncoding.preferUTF8(from:comparisonDefaults)
             next = try await Task.detached {try patchComparison.patchMergeDocument(engine:engine,preferUTF8:prefer,cancellation:cancellation)}.value
         } else if let workingMerge {
@@ -845,10 +849,14 @@ private enum MergeSourceSide {
             next = try await workingMerge.read(engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), cancellation: cancellation)
         }
         else { next = try await repository.textConflictDocument(path: path, engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), identityOptions: ConflictIdentityOptions(defaults: comparisonDefaults), cancellation: cancellation) }
-        if workingMerge == nil, !sourceTargets.isEmpty {
+        if workingMerge == nil, mergedResultTarget == nil, !sourceTargets.isEmpty {
             next = try next.replacingSources(mine: sourceTargets[true]?.read(), theirs: sourceTargets[false]?.read(), engine: engine, cancellation: cancellation)
         }
         for (mine, target) in sourceTargets { sourceTargets[mine] = try target.recording(target.read()) }
+        if let target=mergedResultTarget {
+            let content=try target.read();next=try next.recordingOwnedWorkingWrite(content)
+            mergedResultTarget=try target.recording(content)
+        }
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
         resetHistory()
@@ -1054,67 +1062,89 @@ private enum MergeSourceSide {
         guard confirmingQuit else { completion(false); return }
         save(markResolved: false, quitApproved: true, completion: completion)
     }
+    private func ensureSave(_ token:OperationCancellation) throws {
+        guard !retired,loadCancellation === token else {throw OperationCancellationFailure.cancelled}
+        try token.check()
+    }
     func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, chooseNewOutput: Bool = false, quitApproved: Bool = false, completion: ((Bool) -> Void)? = nil) {
-        guard !patchResultCompleted, !busy, !preparing, !formatPending, !exportingSource, (!confirmingQuit || quitApproved), !retired, !markResolved || repositoryResolutionAllowed && !hasUnresolvedConflicts, window?.attachedSheet == nil, let document else { completion?(false); return }
-        if !markResolved && hasUnresolvedConflicts {
-            let message = resultPresentation.ignoredConflicts.isEmpty ? "Save with unresolved conflict markers?" : "Save with unresolved conflicts ignored by comparison options?"
-            let warningText = result
-            busy = true; MergeRegexOperations.activeRequests += 1
-            let accepted = confirmUnresolvedSave(message)
-            busy = false; MergeRegexOperations.activeRequests -= 1
-            guard accepted, !retired, result.utf8.elementsEqual(warningText.utf8) else { completion?(false); return }
-        }
-        let text = result, outputEncoding = encoding, ignoredResolved = resultPresentation.ignoredConflicts.isEmpty, ignoredSnapshot = resultPresentation.ignoredConflicts, choiceSnapshot = resultPresentation.sourceChoiceRevision, endingSnapshot = resultLineEnding; busy = true
-        loadCancellation = OperationCancellation(); MergeRegexOperations.activeRequests += 1
-        Task {
-            var saved = false
-            defer { busy = false; loadCancellation = nil; MergeRegexOperations.activeRequests -= 1; completion?(saved) }
+        guard !patchResultCompleted,!busy,!preparing,!formatPending,!exportingSource,(!confirmingQuit || quitApproved),!retired,!markResolved || repositoryResolutionAllowed && !hasUnresolvedConflicts,window?.attachedSheet==nil,let document else {completion?(false);return}
+        let text=result,outputEncoding=encoding,ignoredResolved=resultPresentation.ignoredConflicts.isEmpty,ignoredSnapshot=resultPresentation.ignoredConflicts,choiceSnapshot=resultPresentation.sourceChoiceRevision,endingSnapshot=resultLineEnding
+        let unresolved=hasUnresolvedConflicts,permissions=openPermissions,token=OperationCancellation()
+        busy=true;error=nil;loadCancellation=token;saveChoices.reset();MergeRegexOperations.activeRequests += 1
+        Task { [self] in
+            var saved=false
+            defer {busy=false;if loadCancellation === token {loadCancellation=nil};MergeRegexOperations.activeRequests -= 1;withExtendedLifetime(permissions) {};completion?(saved)}
             do {
-                let standaloneOutput: URL?
-                if workingMerge != nil {
-                    if let workingMergeOutput, !chooseNewOutput { standaloneOutput = workingMergeOutput }
-                    else { standaloneOutput = await chooseMergeOutput() }
-                    guard !retired, standaloneOutput != nil else { return }
-                } else { standaloneOutput = nil }
-                for target in sourceTargets.values { try target.validate() }
-                if workingMerge == nil && GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let choice: MergeEmptyResult
+                try ensureSave(token)
+                if !markResolved,unresolved {
+                    let message=ignoredResolved ? "Save with unresolved conflict markers?" : "Save with unresolved conflicts ignored by comparison options?"
+                    let accepted:Bool
+                    if let confirmUnresolvedSave {accepted=confirmUnresolvedSave(message)}
+                    else {accepted=await saveChoices.unresolved(window:window,message:message)}
+                    try ensureSave(token)
+                    guard accepted,result.utf8.elementsEqual(text.utf8),encoding==outputEncoding else {return}
+                }
+                let existingOutput=mergedResultTarget?.url ?? workingMergeOutput ?? (workingMerge==nil ? repository.root.appendingPathComponent(path) : nil)
+                let outputPermissions=mergedResultTarget?.content.permissions ?? document.permissions
+                let absent=mergedResultTarget?.content.isDeleted ?? (document.workingContents==nil)
+                let readOnly=patchComparison==nil && existingOutput.map {MergePaneSaveAs.requiresSaveAs(at:$0,permissions:outputPermissions,absent:absent)} == true
+                let needsNewOutput=chooseNewOutput || readOnly || workingMerge != nil && workingMergeOutput==nil
+                let chosenOutput:URL?
+                if needsNewOutput {chosenOutput=await chooseMergeOutput();try ensureSave(token);guard chosenOutput != nil else {return}}
+                else {chosenOutput=existingOutput}
+                for target in sourceTargets.values {try target.validate()}
+                let choosingRepositoryCopy=workingMerge==nil && patchComparison==nil && (needsNewOutput || mergedResultTarget != nil)
+                if !choosingRepositoryCopy,workingMerge==nil,GitRuntime.isAppStoreBuild,(access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                let choice:MergeEmptyResult
+                // Save As saves the selected zero-byte file; ordinary FileSave
+                // asks Delete/Keep. Automatic PatchSave retains zero-line delete.
                 if text.isEmpty,patchComparison != nil {choice = .delete}
-                else if text.isEmpty {
-                    if let chooseEmptyResult { choice = await chooseEmptyResult(path) }
-                    else { choice = await MergeEmptyResultPrompt.choose(window: window, path: path) }
-                }
-                else { choice = .keep }
-                let options = MergeFileSaveOptions(backupOriginal: MergeFileSaveOptions.backupEnabled(from: comparisonDefaults), emptyResult: choice)
+                else if text.isEmpty,!needsNewOutput {
+                    if let chooseEmptyResult {choice=await chooseEmptyResult(resultPath)}
+                    else {guard let answer=await saveChoices.empty(window:window,path:resultPath) else {return};choice=answer}
+                } else {choice = .keep}
+                try ensureSave(token)
+                guard result.utf8.elementsEqual(text.utf8),encoding==outputEncoding else {throw FileComparisonEditFailure.changed}
+                let options=MergeFileSaveOptions(backupOriginal:!needsNewOutput && MergeFileSaveOptions.backupEnabled(from:comparisonDefaults),emptyResult:choice)
                 if let patchResultSaver {
-                    let next = try await patchResultSaver(text,outputEncoding,loadCancellation)
-                    guard !retired,loadCancellation?.isCancelled != true else {return}
-                    self.document = next
+                    let next=try await patchResultSaver(text,outputEncoding,token);try ensureSave(token);self.document=next
                 } else if let workingMerge {
-                    if GitRuntime.isAppStoreBuild {
-                        let target = standaloneOutput!
-                        guard workingMergePermissions.contains(where: { $0.hasSecurityScope && $0.contains(target) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    guard let chosenOutput else {return}
+                    if GitRuntime.isAppStoreBuild,!workingMergePermissions.contains(where:{$0.hasSecurityScope && $0.contains(chosenOutput)}) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                    let next=try await workingMerge.saveTo(chosenOutput,document:document,result:text,encoding:outputEncoding,options:options,cancellation:token)
+                    try ensureSave(token);self.document=next
+                    workingMergeOutput=chosenOutput;standaloneSavedResult=text;standaloneSavedEncoding=outputEncoding
+                    window?.title=chosenOutput.lastPathComponent + " – TurtleGitMerge"
+                } else if choosingRepositoryCopy,let chosenOutput {
+                    if GitRuntime.isAppStoreBuild,!workingMergePermissions.contains(where:{$0.hasSecurityScope && $0.contains(chosenOutput)}) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                    let content:ComparisonFileContent
+                    if !needsNewOutput,let target=mergedResultTarget {
+                        content=try FileComparisonEditing.saveWorkingContent(at:target.url,original:target.content,text:text,encoding:outputEncoding,options:options)
+                        mergedResultTarget=try target.recording(content)
+                    } else {
+                        let bytes=try outputEncoding.encode(text);try MergePaneSaveAs.write(bytes,to:chosenOutput)
+                        let target=try SavedMergePane(url:chosenOutput,writtenBytes:bytes,encoding:outputEncoding)
+                        mergedResultTarget=target;content=target.content
                     }
-                    self.document = try await workingMerge.saveTo(standaloneOutput!, document: document, result: text, encoding: outputEncoding, options: options)
-                    workingMergeOutput = standaloneOutput; standaloneSavedResult = text; standaloneSavedEncoding = outputEncoding
-                    window?.title = standaloneOutput!.lastPathComponent + " – TurtleGitMerge"
+                    self.document=try document.recordingOwnedWorkingWrite(content)
+                    window?.title=chosenOutput.lastPathComponent + " – TurtleGitMerge"
                 } else {
-                    self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved, encoding: outputEncoding, options: options, ignoredConflictsResolved: ignoredResolved)
+                    let next=try await repository.saveTextConflict(document,result:text,markResolved:markResolved,encoding:outputEncoding,options:options,ignoredConflictsResolved:ignoredResolved,cancellation:token)
+                    try ensureSave(token);self.document=next
                 }
-                savedIgnoredConflicts = ignoredSnapshot
-                savedSourceChoiceRevision = choiceSnapshot; savedResultLineEnding = endingSnapshot
-                onChanged(markResolved ? "Resolved: " + path : "Saved merged result: " + (workingMergeOutput?.path ?? path))
-                if markResolved || closeAfter { close() }
-                else if reloadAfter { try await reloadDocument(filterName: regexFilterName, cancellation: loadCancellation) }
-                saved = true
+                savedIgnoredConflicts=ignoredSnapshot;savedSourceChoiceRevision=choiceSnapshot;savedResultLineEnding=endingSnapshot
+                onChanged(markResolved && !choosingRepositoryCopy ? "Resolved: " + path : "Saved merged result: " + resultPath)
+                if markResolved && !choosingRepositoryCopy || closeAfter {close()}
+                else if reloadAfter {try await reloadDocument(filterName:regexFilterName,cancellation:token)}
+                saved=true
             } catch let failure as TextConflictSaveFailure {
-                self.document = failure.savedDocument; self.error = failure.localizedDescription; onChanged(failure.localizedDescription)
-            } catch { self.error = error.localizedDescription }
+                if !retired,!token.isCancelled {self.document=failure.savedDocument;self.error=failure.localizedDescription;onChanged(failure.localizedDescription)}
+            } catch {if !retired,!token.isCancelled {self.error=error.localizedDescription}}
         }
     }
     func export() {
         guard sourceToolsAllowed, let window else { return }
-        if workingMerge != nil { save(markResolved: false, chooseNewOutput: true); return }
+        if workingMerge != nil || mergedResultTarget != nil { save(markResolved: false, chooseNewOutput: true); return }
         do { sourceExporter.save(try encoding.encode(result), name: (path as NSString).lastPathComponent, owner: window, warning: hasUnresolvedConflicts ? "Save with unresolved conflicts?" : nil) }
         catch { self.error = error.localizedDescription }
     }
@@ -1244,7 +1274,7 @@ private struct TextConflictDialog: View {
                         pane(document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine", text: document.mine, caption: model.sourceCaption(mine: true), cells: model.sourceComparison?.rows.map(\.mine), side: .mine)
                         if model.showBase { pane("Base", text: document.base) }
                     }
-                    pane("Merged · \(model.path)", text: model.result, editable: true)
+                    pane("Merged · \(model.resultPath)", text: model.result, editable: true)
                     }
                 }
                 if model.showStatusBar {

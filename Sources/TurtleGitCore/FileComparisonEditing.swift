@@ -379,11 +379,12 @@ public enum FileComparisonEditing {
 
 }
 extension GitRepository {
-    public func saveComparisonFile(_ snapshot: RevisionComparisonSnapshot, document: FileComparisonDocument, base: Bool, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> FileComparisonDocument {
+    public func saveComparisonFile(_ snapshot: RevisionComparisonSnapshot, document: FileComparisonDocument, base: Bool, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init(), cancellation:OperationCancellation? = nil) throws -> FileComparisonDocument {
+        try cancellation?.check()
         let original = base ? document.base : document.destination
         guard snapshot.root == root, snapshot.files.contains(where: { $0.path == document.destination.path }),
               original.revision == .workingTree, ["100644", "100755"].contains(original.mode ?? ""), original.permissions != nil else { throw FileComparisonEditFailure.unsupported }
-        let saved = try FileComparisonEditing.saveWorkingContent(at: restoreLocation(original.path), original: original, text: text, encoding: encoding, options: options)
+        let saved = try FileComparisonEditing.saveWorkingContent(at: restoreLocation(original.path), original: original, text: text, encoding: encoding, options: options,cancellation:cancellation)
         return FileComparisonDocument(base: base ? saved : document.base, destination: base ? document.destination : saved)
     }
 }
@@ -391,12 +392,14 @@ extension GitRepository {
 
 extension FileComparisonEditing {
     /// Same byte/permission checks for repository and standalone working files.
-    public static func saveWorkingContent(at location: URL, original: ComparisonFileContent, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> ComparisonFileContent {
+    public static func saveWorkingContent(at location: URL, original: ComparisonFileContent, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init(),cancellation:OperationCancellation? = nil) throws -> ComparisonFileContent {
+        try cancellation?.check()
         guard location.isFileURL, original.revision == .workingTree,
               ["100644", "100755"].contains(original.mode ?? ""), let permissions = original.permissions else { throw FileComparisonEditFailure.unsupported }
         guard options.emptyResult != .delete || text.isEmpty else { throw MergeFileSaveFailure.nonemptyDeletion }
         let manager = FileManager.default
         func validate() throws {
+            try cancellation?.check()
             if original.isDeleted {
                 do { _ = try manager.attributesOfItem(atPath: location.path); throw FileComparisonEditFailure.changed }
                 catch let failure as CocoaError where failure.code == .fileNoSuchFile || failure.code == .fileReadNoSuchFile { return }

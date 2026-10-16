@@ -241,24 +241,6 @@ struct MergeLocatorBar: NSViewRepresentable {
     override func accessibilityPerformDecrement() -> Bool { guard enabled, map.lineCount > 0 else { return false }; navigate(max(0, viewport.rows.lowerBound - max(1, viewport.rows.count))); return true }
 }
 
-@MainActor enum MergeEmptyResultPrompt {
-    static func choose(window: NSWindow?, path: String) async -> MergeEmptyResult {
-        let alert = NSAlert(); alert.alertStyle = .warning
-        alert.messageText = "File is empty."
-        alert.informativeText = "Delete “\((path as NSString).lastPathComponent)” or keep the empty file?"
-        alert.addButton(withTitle: "Delete")
-        alert.addButton(withTitle: "Cancel — Keep Empty File")
-        alert.buttons.last?.keyEquivalent = "\u{1b}"
-        let response: NSApplication.ModalResponse
-        if let window {
-            response = await withCheckedContinuation { continuation in
-                alert.beginSheetModal(for: window) { continuation.resume(returning: $0) }
-            }
-        } else { response = alert.runModal() }
-        return response == .alertFirstButtonReturn ? .delete : .keep
-    }
-}
-
 @MainActor protocol MergeWhitespaceDisplaying { var whitespaceRenderer: MergeWhitespaceRenderer { get } }
 /// Draws source whitespace symbols over glyphs. No attributed-string characters,
 /// selection offsets, clipboard values or original ending metadata are replaced.
@@ -808,5 +790,60 @@ struct MergeTypingModeControl: View {
         if block.width < 3 {block.size.width = (" " as NSString).size(withAttributes:[.font:view.font ?? NSFont.monospacedSystemFont(ofSize:12,weight:.regular)]).width}
         guard on else {view.setNeedsDisplay(block);return}
         color.withAlphaComponent(0.35).setFill();block.fill()
+    }
+}
+
+/// One editor owns each save question and output panel. Programmatic cancellation
+/// aborts saving; the visible empty-file Cancel button still means Keep, upstream.
+@MainActor final class MergeSaveChoices {
+    private(set) var question:NSAlert?
+    private(set) var panel:NSSavePanel?
+    private weak var owner:NSWindow?
+    private var cancelled=false
+    func reset() {cancelled=false}
+    func cancel() {
+        cancelled=true
+        if let question,question.window.sheetParent === owner {owner?.endSheet(question.window,returnCode:.abort);question.window.orderOut(nil)}
+        if let panel,panel.sheetParent === owner {owner?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil)}
+    }
+    private func ask(_ alert:NSAlert,window:NSWindow?) async -> NSApplication.ModalResponse? {
+        guard !cancelled,let window,window.attachedSheet==nil,question==nil,panel==nil else {return nil}
+        owner=window;question=alert
+        let answer=await withCheckedContinuation {continuation in alert.beginSheetModal(for:window) {continuation.resume(returning:$0)}}
+        question=nil;owner=nil
+        return cancelled ? nil : answer
+    }
+    func empty(window:NSWindow?,path:String) async -> MergeEmptyResult? {
+        let alert=NSAlert();alert.alertStyle = .warning;alert.messageText="File is empty."
+        alert.informativeText="Delete “\((path as NSString).lastPathComponent)” or keep the empty file?"
+        alert.addButton(withTitle:"Delete");alert.addButton(withTitle:"Cancel — Keep Empty File").keyEquivalent="\u{1b}"
+        guard let answer=await ask(alert,window:window) else {return nil}
+        return answer == .alertFirstButtonReturn ? .delete : .keep
+    }
+    func unresolved(window:NSWindow?,message:String) async -> Bool {
+        let alert=NSAlert();alert.alertStyle = .warning;alert.messageText=message
+        let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r"
+        alert.addButton(withTitle:"Save").keyEquivalent="";alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        return await ask(alert,window:window) == .alertSecondButtonReturn
+    }
+    func marked(window:NSWindow?) async -> FileComparisonEditing.MarkedSaveChoice? {
+        let alert=NSAlert();alert.alertStyle = .warning;alert.messageText="Marked Blocks"
+        alert.informativeText="You have marked changed blocks. How should those blocks be saved? Manual edits are retained with every choice."
+        for title in ["Save and Include","Save and Exclude","Save Only Manual Edits","Cancel"] {alert.addButton(withTitle:title)}
+        guard let answer=await ask(alert,window:window) else {return nil}
+        switch answer {
+        case .alertFirstButtonReturn:return .include
+        case .alertSecondButtonReturn:return .exclude
+        case .alertThirdButtonReturn:return .manualEditsOnly
+        default:return nil
+        }
+    }
+    func output(window:NSWindow?,name:String,directory:URL? = nil) async -> URL? {
+        guard !cancelled,let window,window.attachedSheet==nil,question==nil,panel==nil else {return nil}
+        let panel=NSSavePanel();panel.title="Save merged result";panel.nameFieldStringValue=name;panel.canCreateDirectories=true;panel.directoryURL=directory
+        owner=window;self.panel=panel
+        let answer=await withCheckedContinuation {continuation in panel.beginSheetModal(for:window) {continuation.resume(returning:$0)}}
+        self.panel=nil;owner=nil
+        return !cancelled && answer == .OK ? panel.url : nil
     }
 }

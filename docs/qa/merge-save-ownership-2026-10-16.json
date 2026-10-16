@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "e6da8fe7d4e8fb9c896961b8bf97da0954ea7f91",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Read-only normal Save As, selected-result ownership and Reload, guarded save destinations, owned marked/empty/unresolved sheets, cancellation and failure/retry",
+  "source": [
+    "TortoiseMerge/MainFrm.cpp FileSave, FileSaveAs, PatchSave and SaveFile",
+    "TortoiseMergeENG.rc Backup original file and empty-file choices"
+  ],
+  "implementation": [
+    "Compare Save/Save All/Quit-approved Save redirect read-only targets to Save As and bind successful selections.",
+    "Three-pane read-only conflict result copies own subsequent Save/Reload/backups without changing the original conflict index; resolution disabled for the selected copy. Reload retains captured sources after the old conflict ends.",
+    "Explicit pane Save As preserves existing regular output mode and refuses symbolic-link/read-only destinations.",
+    "Normal Save uses backups and Delete/Keep; initial Save As keeps an empty file without backup. Automatic PatchSave keeps zero-line deletion/no-backup behavior.",
+    "Owned async marked/empty/unresolved/output sheets; tokens and retained grants cover choices and work. Programmatic cancellation and retirement dismiss only owned sheets and fence late replies.",
+    "Cancellation reaches repository/standalone save entry and write-validation boundaries. Permission bits also protect read-only files for elevated processes.",
+    "Failed backup preparation preserves current file/draft and permits retry. Rebound result deletions record absence and can recreate without replacing the earlier backup."
+  ],
+  "core": {
+    "log": "build/qa/merge-save-ownership-core-2026-10-16.log",
+    "exit": 0,
+    "tests": 50,
+    "filter": "SavedMergePaneTests|MergePaneSaveAsTests|FileComparisonEditingTests|TextConflictTests|DeleteConflictTests",
+    "new_cases": 4,
+    "rerun_after_native_fixture_changes": false
+  },
+  "debug": [
+    {
+      "log": "build/qa/merge-save-ownership-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 10
+    },
+    {
+      "log": "build/qa/merge-save-ownership-reload-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "pre_native_review_repair": "Rebound repository result Reload initially still required the original conflict. The second incremental build makes Reload use captured sources and the selected target; native fixture resolves the old index conflict before Reload.",
+  "native": {
+    "passing_distinct_case_engine_runs": 12,
+    "failed_case_engine_runs": 7,
+    "total_owned_receivers": 19,
+    "passing": [
+      {
+        "log": "build/qa/merge-save-ownership-native-utf8-2026-10-16.log",
+        "passed": [
+          "new save ownership with system Git",
+          "new save ownership with bundled Git"
+        ],
+        "note": "This group then failed its first retained targets case."
+      },
+      {
+        "log": "build/qa/merge-save-targets-undo-2026-10-16.log",
+        "exit": 0,
+        "passed": [
+          "retained source/Review/three-pane targets with system Git",
+          "retained targets with bundled Git"
+        ]
+      },
+      {
+        "log": "build/qa/merge-save-ownership-conflicts-ready-2026-10-16.log",
+        "exit": 0,
+        "passed": [
+          "ignored-conflict save workflow with both Git versions",
+          "retained native three-pane engine/navigation/history/colors",
+          "result formatting and save ownership"
+        ]
+      },
+      {
+        "log": "build/qa/merge-save-ownership-patches-2026-10-16.log",
+        "exit": 0,
+        "passed": [
+          "recorded-base patch recovery with both Git versions",
+          "full import/editor/output/format ownership with both Git versions"
+        ]
+      }
+    ],
+    "fixture_failures_and_repairs": [
+      {
+        "logs": [
+          "build/qa/merge-save-ownership-native-2026-10-16.log",
+          "build/qa/merge-save-ownership-native-diagnostic-2026-10-16.log"
+        ],
+        "reason": "New fixture inserted Unicode into the default legacy encoding. Explicit UTF-8 selection fixes the fixture; the app correctly refused unrepresentable bytes."
+      },
+      {
+        "logs": [
+          "build/qa/merge-save-ownership-native-utf8-2026-10-16.log",
+          "build/qa/merge-save-targets-retry-2026-10-16.log"
+        ],
+        "reason": "Retained target fixture assumed retyping identical bytes restores the saved edit state. It now waits for actual native readiness and uses Undo, preserving source edit-revision/dirty semantics and asserting restored text."
+      },
+      {
+        "logs": [
+          "build/qa/merge-save-ownership-conflicts-2026-10-16.log",
+          "build/qa/merge-save-ownership-conflicts-selection-2026-10-16.log",
+          "build/qa/merge-save-ownership-conflicts-diagnostic-2026-10-16.log"
+        ],
+        "reason": "Ignored-conflict fixture assumed a synchronous warning and immediate native re-enablement. Diagnostic proved model ready/canChoose=true while native isEditable=false. It now waits for callback and editable view, and explicitly selects the current conflict through Continue Resolving. All choice/content/Undo/index assertions retained; no product guard weakened."
+      }
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      24990,
+      25057,
+      25101,
+      25154,
+      25211,
+      25288,
+      25322,
+      25385,
+      25473,
+      25601,
+      25690,
+      25796,
+      25860,
+      25923,
+      26223,
+      26285,
+      26478,
+      26666,
+      27829
+    ],
+    "new_native_coverage": [
+      "Read-only chooser Cancel and successful target binding",
+      "Actual empty Keep/Delete/programmatic-cancel sheets",
+      "Backup failure UI, retained draft and retry",
+      "Deletion/recreation and original-backup retention",
+      "Actual unresolved sheet with default Cancel",
+      "Read-only repository-copy original/index preservation, disabled resolution, later Save/backup",
+      "Reload selected result after original conflict ends",
+      "Held empty choice keeps Close/Quit ownership; forced close and late Delete refuse writes"
+    ],
+    "physical_ui_acceptance_claimed": false
+  },
+  "help": {
+    "files": 50,
+    "bytes": 1958591,
+    "built_source_counterparts_equal": true
+  },
+  "site": {
+    "log": "build/qa/merge-save-ownership-site-2026-10-16.log",
+    "exit": 0,
+    "documents": 256,
+    "unresolved_fragments": 0
+  },
+  "coverage": {
+    "dialogs": 130,
+    "partial_family_audits": 120,
+    "pending_family_reviews": 10,
+    "certified_complete": 0,
+    "mapped_static_controls": 987,
+    "pending_static_controls": 672
+  },
+  "hosted_observation": {
+    "macos_run": 38930685497,
+    "head": "e6da8fe7",
+    "status": "in_progress",
+    "pages_run": 38930685493,
+    "pages_conclusion": "success",
+    "earlier_failed_run": 38922360712,
+    "earlier_failed_step": "Git integration tests",
+    "full_hosted_pass_claimed": false
+  },
+  "remaining": [
+    "Signed parent-folder authorization for rebound temporary/backup sibling writes",
+    "Physical keyboard/sheet/menu/VoiceOver and minimum-OS acceptance",
+    "Complete unification of repository merged-result export copies and bound-target commands",
+    "No multi-file atomicity, crash-durable fsync or exclusive external-writer guarantee; cancellation cannot undo a save already written",
+    "Complete source/application parity, signed Finder acceptance and App Store distribution"
+  ]
+}

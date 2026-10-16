@@ -83,3 +83,59 @@ separate behavior. See [target semantics](SAVE-AS-TARGETS.md).
 The subsequent [source target batch](qa/save-as-targets-2026-10-15.json) records
 source Save As rebinding, later Save/Reload and owner-approved Quit Save checks,
 with remaining acceptance limits.
+
+## Read-only Save As and owned save decisions — October 16, 2026
+
+The pinned FileSave redirects a read-only output to FileSaveAs. Compare now does
+that within its normal Save transaction, including Save All and owner-approved
+Quit Save. Cancel leaves the draft dirty. A successful selection binds only that
+pane to the new file; later Save/Reload and backup behavior use the selected file.
+Original permissions are preserved, and read-only or symbolic-link output targets
+are refused rather than made writable or followed. Explicit Save As retains an
+existing regular destination's executable mode.
+
+Three-pane Save likewise redirects a read-only working result or selected output.
+A repository conflict saved to a different file retains its original worktree and
+index conflict. The new result target gets later Save/Reload, backup, empty-file
+Delete/Keep and recreation behavior; Mark as resolved is disabled for that target.
+The window and result caption name the chosen file. Ordinary repository result
+export remains a separate copy until a result target has been rebound; complete
+unification of all explicit result-export commands remains open.
+
+Initial Save As writes an empty regular file without Delete/Keep or backup. Normal
+saves ask the existing empty-file question and honor Backup original file. Automatic
+PatchSave retains its separate zero-line deletion/no-backup path. This distinction
+comes from upstream FileSaveAs, FileSave and PatchSave rather than a new global
+empty-file policy.
+
+Marked-block, empty-result and unresolved-conflict questions are now owned sheets.
+An operation token and retained grants cover each pending decision and write.
+Programmatic cancellation dismisses only that operation's sheet/panel and aborts
+the save; the visible empty-file Cancel button still means Keep Empty File, as in
+the source. A forced close fences late choices before writing and suppresses stale
+failure UI. Close, Quit, duplicate Save, Open/Reload and editor changes stay gated
+until the pending operation settles. Normal failure retains the draft and permits
+retry after the underlying problem is fixed. No exclusive external-writer or
+multi-file atomicity guarantee is added.
+
+The read-only Core checks include captured permission bits even for a process
+whose effective privileges would otherwise make the path appear writable.
+Physical sheet keyboard handling, signed sandbox/Keychain/Finder acceptance,
+minimum-OS runtime and full application parity remain open.
+
+A rebound repository result also reloads independently after the original index
+conflict has ended, retaining the captured source panes. Signed Store builds
+still need acceptance of parent-folder authorization for temporary/backup sibling
+writes at rebound destinations; retaining a selected-file lease alone is not
+evidence that every such write is permitted.
+
+The [save ownership checkpoint](qa/merge-save-ownership-2026-10-16.json) records
+50 passing focused Core cases and twelve passing native case/engine runs. New
+save and retained target checks, ignored-conflict workflows, patch recovery and
+full import ownership ran with both Git versions; retained engine/history/colors
+and formatting also passed. Seven failed fixture/diagnostic runs are recorded,
+including legacy encoding, saved edit-state and native readiness assumptions.
+Only affected cases were repeated; no product guard or state assertion was
+removed. All nineteen owned receiver processes were reaped and independently
+absent. Both Debug builds passed. These checks do not certify complete hosted CI,
+physical UI parity or signed deployment.

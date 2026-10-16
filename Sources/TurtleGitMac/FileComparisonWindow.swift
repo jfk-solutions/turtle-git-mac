@@ -924,6 +924,7 @@ private extension FileComparisonDocument {
         }
     }
     private func chooseOutput(_ window: NSWindow, name: String, directory: URL, patch: Bool) async -> URL? {
+        if outputRequest == nil, let paneSave, (try? ensurePaneSave(paneSave)) != nil {return await saveChoices.output(window:window,name:name,directory:directory)}
         guard let request = outputRequest, acceptsOutput(request), window.attachedSheet == nil else { return nil }
         let panel = NSSavePanel(); panel.nameFieldStringValue = name
         panel.canCreateDirectories = true; panel.directoryURL = directory
@@ -963,7 +964,7 @@ private extension FileComparisonDocument {
                     guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
                     if rebind, let sourceSnapshotRoot,
                        url.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(sourceSnapshotRoot.path + "/") { throw FileComparisonEditFailure.unsupported }
-                    try withExtendedLifetime(permission) { try bytes.write(to: url, options: .atomic) }
+                    try withExtendedLifetime(permission) { try MergePaneSaveAs.write(bytes,to:url) }
                     if rebind, acceptsOutput(request) {
                         let target = try SavedMergePane(url: url, writtenBytes: bytes, encoding: selectedEncoding)
                         if originalPaneDocument == nil { originalPaneDocument = document }
@@ -1372,8 +1373,9 @@ private extension FileComparisonDocument {
         save(sides: [false], ownerInitiated: true, completion: completion)
     }
     private var paneSave: OperationCancellation?
+    private let saveChoices=MergeSaveChoices()
     private var updatingSaveDecision = false
-    func cancelPaneSave() { paneSave?.cancel() }
+    func cancelPaneSave() {paneSave?.cancel();saveChoices.cancel()}
     private func ensurePaneSave(_ request: OperationCancellation) throws {
         guard !retired, paneSave === request else { throw OperationCancellationFailure.cancelled }
         try request.check()
@@ -1382,30 +1384,35 @@ private extension FileComparisonDocument {
     var chooseEmptyResult: ((String) async -> MergeEmptyResult)?
     func installMarkedSavePrompt() {
         chooseMarkedSave = { [weak self] in
-            guard let window = self?.window, window.attachedSheet == nil else { return nil }
-            let alert = NSAlert(); alert.alertStyle = .warning
-            alert.messageText = "Marked Blocks"
-            alert.informativeText = "You have marked changed blocks. How should those blocks be saved? Manual edits are retained with every choice."
-            alert.addButton(withTitle: "Save and Include")
-            alert.addButton(withTitle: "Save and Exclude")
-            alert.addButton(withTitle: "Save Only Manual Edits")
-            alert.addButton(withTitle: "Cancel")
-            let response = await withCheckedContinuation { continuation in
-                alert.beginSheetModal(for: window) { continuation.resume(returning: $0) }
-            }
-            switch response {
-            case .alertFirstButtonReturn: return .include
-            case .alertSecondButtonReturn: return .exclude
-            case .alertThirdButtonReturn: return .manualEditsOnly
-            default: return nil
-            }
+            guard let self else {return nil}
+            return await self.saveChoices.marked(window:self.window)
         }
+    }
+    private func saveReadOnlyPane(base:Bool,document:FileComparisonDocument,text:String,request:OperationCancellation) async throws -> Bool {
+        guard let window else {return false}
+        let content=base ? document.base : document.destination
+        let directory=paneTargets[base]?.url.deletingLastPathComponent() ?? snapshot.root
+        guard let url=await chooseExportLocation(window,(content.path as NSString).lastPathComponent,directory) else {return false}
+        try ensurePaneSave(request)
+        let permission=RepositoryAccessLease(url:url)
+        guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope else {throw RepositoryAccessFailure.securityScopeUnavailable}
+        if let sourceSnapshotRoot,url.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(sourceSnapshotRoot.path + "/") {throw FileComparisonEditFailure.unsupported}
+        let encoding=drafts?.encoding(base:base) ?? content.encoding
+        let bytes=try encoding?.encode(text) ?? FileComparisonEditing.encoded(text,like:content)
+        try withExtendedLifetime(permission) {try MergePaneSaveAs.write(bytes,to:url)}
+        let target=try SavedMergePane(url:url,writtenBytes:bytes,encoding:encoding)
+        if originalPaneDocument==nil {originalPaneDocument=document}
+        paneTargets[base]=target;retainPermissions([permission])
+        self.document=document.replacingPane(base:base,content:target.content)
+        try drafts?.didSaveAs(target.content,base:base)
+        selectEditorActions();rebuildAlignment();reloadEditorConfig()
+        return true
     }
     private func save(sides: [Bool], ownerInitiated: Bool = false, completion: ((Bool) -> Void)?) {
         let choiceAllowed = !hasPendingEditorChoice || ownerInitiated && projectionChange != nil && !exporting && formatRequest == nil && paneSave == nil
         guard paneSave == nil, (!busy && !confirmingQuit || ownerInitiated), choiceAllowed, !retired, window?.attachedSheet == nil, document != nil else { completion?(false); return }
         let request = OperationCancellation(), permissions = openPermissions
-        paneSave = request; Self.activePaneExports += 1; busy = true
+        paneSave = request;saveChoices.reset();error=nil; Self.activePaneExports += 1; busy = true
         Task {
             var saved = false
             defer {
@@ -1425,11 +1432,17 @@ private extension FileComparisonDocument {
                         updatingSaveDecision = true; actions.resolveForSave(text); updatingSaveDecision = false
                     }
                     guard let document, let text = drafts?.text(base: base) else { throw FileComparisonEditFailure.unsupported }
+                    let content=base ? document.base : document.destination
+                    let file=content.path.hasPrefix("/") ? URL(fileURLWithPath:content.path) : snapshot.root.appendingPathComponent(content.path)
+                    if MergePaneSaveAs.requiresSaveAs(at:file,permissions:content.permissions,absent:content.isDeleted) {
+                        guard try await saveReadOnlyPane(base:base,document:document,text:text,request:request) else {return}
+                        continue
+                    }
                     let choice: MergeEmptyResult
                     if text.isEmpty {
                         let savePath = base ? document.base.path : document.destination.path
                         if let chooseEmptyResult { choice = await chooseEmptyResult(savePath) }
-                        else { choice = await MergeEmptyResultPrompt.choose(window: window, path: savePath) }
+                        else {guard let answer=await saveChoices.empty(window:window,path:savePath) else {return};choice=answer}
                     }
                     else { choice = .keep }
                     try ensurePaneSave(request)
@@ -1442,7 +1455,7 @@ private extension FileComparisonDocument {
                     } else if let conflictBaseEntry, let repository {
                         guard !physicalBase else { throw FileComparisonEditFailure.unsupported }
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                        result = oriented(try await repository.saveConflictBaseComparison(conflictBaseEntry, document: context, text: text, encoding: drafts?.encoding(base: base), options: options))
+                        result = oriented(try await repository.saveConflictBaseComparison(conflictBaseEntry, document: context, text: text, encoding: drafts?.encoding(base: base), options: options,cancellation:request))
                     } else if let historicalWorkingComparison {
                         try validateHistoricalWorkingAccess(historicalWorkingComparison)
                         guard physicalBase else { throw FileComparisonEditFailure.unsupported }
@@ -1454,7 +1467,7 @@ private extension FileComparisonDocument {
                         result = oriented(try workingComparison.save(context, base: physicalBase, text: text, encoding: drafts?.encoding(base: base), options: options))
                     } else if let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                        result = oriented(try await repository.saveComparisonFile(snapshot, document: context, base: physicalBase, text: text, encoding: drafts?.encoding(base: base), options: options))
+                        result = oriented(try await repository.saveComparisonFile(snapshot, document: context, base: physicalBase, text: text, encoding: drafts?.encoding(base: base), options: options,cancellation:request))
                     } else { throw RevisionComparisonFailure.selection }
                     try ensurePaneSave(request)
                     var combined = result

@@ -53,21 +53,26 @@ import TurtleGitCore
             return false
         }
         model.save(markResolved:false) { cancelled = $0 }
+        try await wait {cancelled != nil && !model.busy && view.isEditable}
         try require(cancelled == false && warningOwned && asked.contains("ignored by comparison options") && !model.busy,"Ignored Save did not warn/cancel")
         var blocked:Bool?;model.save(markResolved:true){blocked = $0}
         try require(blocked == false && Data(contentsOf:file) == original && Data(contentsOf:root.appendingPathComponent(".git/index")) == index,"Mark resolved bypassed ignored conflict")
-        model.selectConflict(0);try require(model.selectionRequest == model.blocks[0].range,"Ignored navigation has wrong range")
-        model.choose(.mine);try await wait {model.blocks.isEmpty && model.canUndo && view.string == mine}
+        model.continueResolving();try await wait {model.canChooseConflict};try require(model.selectionRequest == model.blocks[0].range,"Ignored navigation has wrong range")
+        try require(view.isEditable,"Result view still disabled after cancelled Save: editable=\(view.isEditable), sourceTools=\(model.sourceToolsAllowed), canChoose=\(model.canChooseConflict), busy=\(model.busy)")
+        model.choose(.mine)
+        do {try await wait {model.blocks.isEmpty && model.canUndo && view.string == mine}}
+        catch {throw Failure(description:"Mine choice failed: blocks=\(model.blocks.count), undo=\(model.canUndo), editable=\(view.isEditable), result=\(model.result.debugDescription), view=\(view.string.debugDescription)")}
+
         try require(model.resultStates.contains(.resolved) && model.dirty,"Identical-byte Mine choice lost source modified state")
         model.undo();try await wait {model.blocks.first?.isIgnored == true && !model.dirty}
         model.redo();try await wait {model.blocks.isEmpty && model.dirty}
-        var savedMine:Bool?;model.save(markResolved:false){savedMine = $0};try await wait {savedMine != nil && !model.busy}
+        var savedMine:Bool?;model.save(markResolved:false){savedMine = $0};try await wait {savedMine != nil && !model.busy && view.isEditable}
         try require(savedMine == true && !model.dirty && Data(contentsOf:file) == Data(mine.utf8) && Data(contentsOf:root.appendingPathComponent(".git/index")) == index,"Same-byte resolution Save lost savepoint or staged early")
         model.undo();try await wait {model.blocks.first?.isIgnored == true && model.dirty}
         // Undo clears selections. Select the restored conflict explicitly
         // before exercising the next footer choice, rather than relying on a
         // delayed native selection callback to revive the old footer target.
-        model.selectConflict(0);try require(model.canChooseConflict,"Restored ignored conflict cannot be selected")
+        model.continueResolving();try await wait {model.canChooseConflict};try require(model.canChooseConflict,"Restored ignored conflict cannot be selected")
         model.choose(.theirs);try await wait {model.blocks.isEmpty && model.result == theirs && view.string == theirs}
         model.undo();try await wait {model.blocks.first?.isIgnored == true && model.result == mine}
         model.redo();try await wait {model.blocks.isEmpty && model.result == theirs}

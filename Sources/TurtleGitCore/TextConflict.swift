@@ -185,7 +185,8 @@ extension GitRepository {
         guard try conflictIsRebase(cancellation: cancellation) == rebase else { throw ResolveFailure.stale }
         try cancellation?.check(); return document
     }
-    public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init(), ignoredConflictsResolved: Bool = false) throws -> TextConflictDocument {
+    public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init(), ignoredConflictsResolved: Bool = false,cancellation:OperationCancellation? = nil) throws -> TextConflictDocument {
+        try cancellation?.check()
         try validateConflicts([document.entry], using: .current)
         if markResolved && (MergeText.hasMarkers(result) || !ignoredConflictsResolved && document.mergeSources?.ignoredConflicts.isEmpty == false) { throw TextConflictFailure.markers }
         guard !result.utf8.contains(0) else { throw TextConflictFailure.encoding }
@@ -194,13 +195,14 @@ extension GitRepository {
         do { (current, permissions) = try conflictWorkingSnapshot(location) }
         catch TextConflictFailure.unsupported { throw TextConflictFailure.changedWorkingFile }
         guard current == document.workingContents, permissions == nil || permissions == document.permissions else { throw TextConflictFailure.changedWorkingFile }
-        if current != nil && !FileManager.default.isWritableFile(atPath: location.path) { throw TextConflictFailure.readOnly }
+        if current != nil && MergePaneSaveAs.requiresSaveAs(at:location,permissions:permissions) { throw TextConflictFailure.readOnly }
         let selectedEncoding = encoding ?? document.encoding
         let contents = try selectedEncoding.encode(result)
         guard options.emptyResult != .delete || result.isEmpty else { throw MergeFileSaveFailure.nonemptyDeletion }
         let deleting = options.emptyResult == .delete
         try MergeWorkingFileSave.write(at: location, original: current, permissions: document.permissions, bytes: contents,
                                        delete: deleting, backup: options.backupOriginal) {
+            try cancellation?.check()
             let (bytes, mode) = try self.conflictWorkingSnapshot(location)
             guard bytes == current, mode == permissions else { throw TextConflictFailure.changedWorkingFile }
         }
@@ -286,11 +288,13 @@ public actor WorkingTextMerge {
     }
     /// Explicit output selection; own writes update aliases without accepting external changes.
     public func saveTo(_ output: URL, document: TextConflictDocument, result: String,
-                       encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> TextConflictDocument {
+                       encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init(),cancellation:OperationCancellation? = nil) throws -> TextConflictDocument {
+        try cancellation?.check()
         let output = output.standardizedFileURL
         guard output.isFileURL, !output.path.contains("\0"), !inputs.isEmpty else { throw TextConflictFailure.unsupported }
         let original = try outputs[output.path] ?? snapshot(output, absentPermissions: document.permissions)
         func validate() throws {
+            try cancellation?.check()
             for (path, expected) in inputs {
                 let current = try snapshot(URL(fileURLWithPath:path), absentPermissions:expected.permissions)
                 guard current.bytes == expected.bytes, current.permissions == expected.permissions else { throw TextConflictFailure.changedWorkingFile }
@@ -301,7 +305,7 @@ public actor WorkingTextMerge {
         guard !result.utf8.contains(0) else { throw TextConflictFailure.encoding }
         guard options.emptyResult != .delete || result.isEmpty else { throw MergeFileSaveFailure.nonemptyDeletion }
         try validate()
-        if original.bytes != nil && !FileManager.default.isWritableFile(atPath:output.path) { throw TextConflictFailure.readOnly }
+        if original.bytes != nil && MergePaneSaveAs.requiresSaveAs(at:output,permissions:original.permissions) { throw TextConflictFailure.readOnly }
         let selected = encoding ?? document.encoding, bytes = try selected.encode(result), deleting = options.emptyResult == .delete
         try MergeWorkingFileSave.write(at:output, original:original.bytes, permissions:original.permissions, bytes:bytes,
                                        delete:deleting, backup:options.backupOriginal, validate:validate)
@@ -377,7 +381,7 @@ extension TextConflictDocument {
     public func recordingOwnedWorkingWrite(_ content: ComparisonFileContent) throws -> Self {
         guard let text = content.text, let encoding = content.encoding, let permissions = content.permissions else { throw TextConflictFailure.encoding }
         var next = Self(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage,
-            initialResult: text, generatedResult: generatedResult, workingContents: content.bytes, permissions: permissions,
+            initialResult: text, generatedResult: generatedResult, workingContents: content.isDeleted ? nil : content.bytes, permissions: permissions,
             encoding: encoding, baseEncoding: baseEncoding, mineEncoding: mineEncoding, theirsEncoding: theirsEncoding)
         next.mergeSources = mergeSources; next.conflictTitles = conflictTitles
         return next

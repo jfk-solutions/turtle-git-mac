@@ -74,11 +74,12 @@ extension GitRepository {
         try cancellation?.check()
         return ConflictBaseComparison(entry: entry, snapshot: snapshot, document: FileComparisonDocument(base: content, destination: destination))
     }
-    public func saveConflictBaseComparison(_ entry: ConflictEntry, document: FileComparisonDocument, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> FileComparisonDocument {
+    public func saveConflictBaseComparison(_ entry: ConflictEntry, document: FileComparisonDocument, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init(),cancellation:OperationCancellation? = nil) throws -> FileComparisonDocument {
+        try cancellation?.check()
         guard document.destination.path == entry.path,
               let base = entry.stages.first(where: { $0.number == 1 }), document.base.revision == .revision(base.object) else { throw ResolveFailure.stale }
         try validateConflicts([entry], using: .current)
-        let destination = try FileComparisonEditing.saveWorkingContent(at: restoreLocation(entry.path), original: document.destination, text: text, encoding: encoding, options: options)
+        let destination = try FileComparisonEditing.saveWorkingContent(at: restoreLocation(entry.path), original: document.destination, text: text, encoding: encoding, options: options,cancellation:cancellation)
         return FileComparisonDocument(base: document.base, destination: destination)
     }
 }

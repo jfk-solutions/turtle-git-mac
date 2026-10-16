@@ -1445,3 +1445,13 @@ choices, side previews, original action icons and scoped shortcuts, with owned
 deletion confirmation and operation/retirement fences. The shared guarded save
 validates all captured endpoints; batch application leaves these conflicts for
 explicit choice. See [special-file recovery](PATCH-SPECIAL-RECOVERY-PARITY.md).
+
+## Merge save ownership and read-only targets — October 16, 2026
+
+Normal Compare and three-pane Save now redirect read-only outputs into an owned
+Save As flow, retain the dirty draft on Cancel/failure and bind later saves and
+backups to the selected target. Repository conflict copies preserve the original
+index and disable resolution of a different target. Marked/empty/unresolved save
+questions and output panels share cancellation and forced-retirement fences; late
+choices cannot write or publish stale errors. PatchSave keeps its distinct
+no-backup/zero-line deletion semantics. See [save workflows](MERGE-SAVE-WORKFLOWS-PARITY.md).

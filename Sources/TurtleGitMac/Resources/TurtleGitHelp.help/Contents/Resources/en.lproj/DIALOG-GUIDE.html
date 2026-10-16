@@ -418,4 +418,11 @@ select the complete file contents, type and paths. Link previews show their targ
 string without opening it. A deletion requires confirmation with Cancel as the
 default. Empty regular files remain files. Patch all leaves these conflicts for
 an explicit choice; refresh if a reviewed file has since changed.</p>
+<h3 id="saving-a-read-only-comparison-or-merged-result">Saving a read-only comparison or merged result</h3>
+<p>Save opens Save As when the current output is read-only. Cancel keeps your draft;
+a successful choice makes later saves use the selected file. A repository conflict
+saved elsewhere leaves the original conflict unresolved. Backup original file
+applies to later normal saves. Initial Save As keeps an empty file; normal Save
+asks whether to delete or keep it. Closing an editor while a save choice is
+pending does not apply a late answer.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

@@ -99,3 +99,59 @@ final class SavedMergePaneTests: XCTestCase {
         XCTAssertEqual(own.workingContents, bytes); XCTAssertEqual(own.initialResult, "new source\r\nlast")
     }
 }
+
+extension SavedMergePaneTests {
+    func testSaveAsPreservesExecutableModeAndRefusesReadOnlyOrLinkTargets() throws {
+        let root=try directory(),file=root.appendingPathComponent("existing"),outside=root.appendingPathComponent("outside"),link=root.appendingPathComponent("link")
+        try Data("old\n".utf8).write(to:file);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:file.path)
+        try MergePaneSaveAs.write(Data("chosen\n".utf8),to:file)
+        XCTAssertEqual(try Data(contentsOf:file),Data("chosen\n".utf8))
+        XCTAssertEqual((try FileManager.default.attributesOfItem(atPath:file.path)[.posixPermissions] as! NSNumber).intValue,0o755)
+        try FileManager.default.setAttributes([.posixPermissions:0o444],ofItemAtPath:file.path)
+        XCTAssertTrue(MergePaneSaveAs.requiresSaveAs(at:file,permissions:0o444))
+        XCTAssertThrowsError(try MergePaneSaveAs.write(Data("forbidden".utf8),to:file))
+        XCTAssertEqual(try Data(contentsOf:file),Data("chosen\n".utf8))
+        try Data("sentinel".utf8).write(to:outside);try FileManager.default.createSymbolicLink(at:link,withDestinationURL:outside)
+        XCTAssertThrowsError(try MergePaneSaveAs.write(Data("forbidden".utf8),to:link))
+        XCTAssertEqual(try Data(contentsOf:outside),Data("sentinel".utf8))
+        XCTAssertFalse(MergePaneSaveAs.requiresSaveAs(at:file,permissions:0o444,absent:true))
+    }
+    func testSaveAsEmptyFileThenGuardedBackupDeleteRecreate() throws {
+        let root=try directory(),file=root.appendingPathComponent("chosen")
+        try MergePaneSaveAs.write(Data(),to:file)
+        let target=try SavedMergePane(url:file,writtenBytes:Data(),encoding:.utf8)
+        let document=FileComparisonDocument(base:target.content,destination:target.content)
+        let deleted=try target.save(document,base:false,text:"",encoding:.utf8,options:.init(backupOriginal:true,emptyResult:.delete))
+        XCTAssertFalse(FileManager.default.fileExists(atPath:file.path))
+        XCTAssertEqual(try Data(contentsOf:URL(fileURLWithPath:file.path+".bak")),Data())
+        let absent=try target.recording(deleted.destination)
+        let recreated=try absent.save(deleted,base:false,text:"recreated 🐢\n",encoding:.utf16LEBOM,options:.init(backupOriginal:true))
+        XCTAssertEqual(try Data(contentsOf:file),try ComparisonTextEncoding.utf16LEBOM.encode("recreated 🐢\n"))
+        XCTAssertFalse(recreated.destination.isDeleted)
+        XCTAssertEqual(try Data(contentsOf:URL(fileURLWithPath:file.path+".bak")),Data())
+    }
+    func testRecordedMergedDeletionRetainsAbsentSnapshotAndSourceIdentity() async throws {
+        let root=try directory(),base=root.appendingPathComponent("base"),mine=root.appendingPathComponent("mine"),theirs=root.appendingPathComponent("theirs"),chosen=root.appendingPathComponent("chosen")
+        for (file,text) in [(base,"base\n"),(mine,"mine\n"),(theirs,"theirs\n")] {try Data(text.utf8).write(to:file)}
+        let merge=try WorkingTextMerge(base:base,theirs:theirs,mine:mine),document=try await merge.read(engine:configuration())
+        try MergePaneSaveAs.write(Data("saved\n".utf8),to:chosen)
+        let target=try SavedMergePane(url:chosen,writtenBytes:Data("saved\n".utf8),encoding:.utf8)
+        let comparison=FileComparisonDocument(base:target.content,destination:target.content)
+        let deleted=try target.save(comparison,base:false,text:"",encoding:.utf8,options:.init(emptyResult:.delete))
+        let rebound=try document.recordingOwnedWorkingWrite(deleted.destination)
+        XCTAssertNil(rebound.workingContents);XCTAssertEqual(rebound.initialResult,"")
+        XCTAssertEqual(rebound.entry,document.entry);XCTAssertEqual(rebound.mine,document.mine);XCTAssertEqual(rebound.theirs,document.theirs)
+    }
+}
+
+extension SavedMergePaneTests {
+    func testCancelledActorSaveRefusesBeforeBackupOrWrite() async throws {
+        let root=try directory(),base=root.appendingPathComponent("base"),mine=root.appendingPathComponent("mine"),theirs=root.appendingPathComponent("theirs")
+        for (file,text) in [(base,"base\n"),(mine,"mine\n"),(theirs,"theirs\n")] {try Data(text.utf8).write(to:file)}
+        let merge=try WorkingTextMerge(base:base,theirs:theirs,mine:mine),document=try await merge.read(engine:configuration())
+        let token=OperationCancellation();token.cancel()
+        do {_=try await merge.saveTo(mine,document:document,result:"forbidden\n",options:.init(backupOriginal:true),cancellation:token);XCTFail("Cancelled save wrote")} catch OperationCancellationFailure.cancelled {}
+        XCTAssertEqual(try Data(contentsOf:mine),Data("mine\n".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath:mine.path+".bak"))
+    }
+}

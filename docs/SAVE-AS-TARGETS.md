@@ -43,3 +43,8 @@ checks, failures and repairs. The affected 55 Core cases passed cumulatively;
 the final Debug build and both target-binding/native Import Patch Git-engine
 runs passed. Ninety focused rebase/Fetch checks passed with the corrected CI
 headless-editor path. A hosted green run remains unverified.
+
+Read-only normal saves now redirect to Save As and establish a target in both
+Compare and the merged-result editor. A repository conflict saved elsewhere keeps
+its original index conflict; later normal saves, backups and Reload use the new
+file. See [save ownership](MERGE-SAVE-WORKFLOWS-PARITY.md#read-only-save-as-and-owned-save-decisions--october-16-2026).

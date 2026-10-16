@@ -80,7 +80,9 @@ import TurtleGitCore
         type(view, "must refuse"); try await wait([window]) { !model.filtering }
         saved = nil; model.save { saved = $0 }; try await wait([window]) { saved != nil }
         let external = try Data(contentsOf: chosen); precondition(saved == false && model.dirty && model.error != nil && external == Data("external\n".utf8))
-        model.error = nil; type(view, "later\nno final newline"); try await wait([window]) { !model.filtering && !model.dirty }
+        model.error = nil; try await wait([window]) {window.attachedSheet==nil && view.isEditable && model.contextCommandsAllowed}
+        model.undo(); try await wait([window]) { !model.filtering && !model.dirty }
+        precondition(model.draftText(base:false)=="later\nno final newline")
         try FileManager.default.removeItem(at: right)
         model.load(); try await wait([window]) { !model.busy && !model.filtering }
         precondition(model.document!.destination.bytes == external && model.document!.destination.path == chosen.path)
