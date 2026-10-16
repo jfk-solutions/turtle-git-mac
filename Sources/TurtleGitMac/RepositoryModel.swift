@@ -1474,6 +1474,11 @@ import UniformTypeIdentifiers
         controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
         controller.model.onAccepted = { [weak self] entries in self?.showRevertProgress(repository: repository, access: access, entries: entries) }
         controller.model.onCompare = { [weak self,weak controller] paths in self?.showWorkingFiles(repository:repository,access:access,paths:paths,owner:controller?.window) }
+        controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope:GitRuntime.isAppStoreBuild))
+        controller.model.onPreparedFileCompare = { [weak self,weak controller] marked,current in
+            guard let controller,!controller.model.retired else {return}
+            self?.showPreparedFileComparison(repository:repository,access:access,marked:marked,current:current,owner:controller.window)
+        }
         controller.model.commands.onBlame = { [weak self] path in self?.showBlame(repository:repository,access:access,path:path,revision:"HEAD") }
         controller.model.commands.onCompareTwoFiles = { [weak self,weak controller] paths in self?.showWorkingFilePair(repository:repository,access:access,paths:paths,owner:controller?.window) }
         controller.model.commands.onSubmoduleLog = { [weak self] child in self?.showLog(repository:child,access:access,paths:[]) }
@@ -2734,6 +2739,7 @@ import UniformTypeIdentifiers
             if let access { workingComparisonMark = access.mark }
             for controller in logWindows.values { controller.model.importWorkingComparisonMark(access) }
             for controller in rebaseWindows.values {controller.model.importConflictComparisonMark(access)}
+            for controller in revertWindows.values {controller.model.importWorkingComparisonMark(access)}
         }
         if try WorkingComparisonMarkSnapshot.publish(workingComparisonMark) {
             DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil)

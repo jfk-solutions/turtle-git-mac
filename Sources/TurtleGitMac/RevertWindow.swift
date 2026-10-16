@@ -21,7 +21,7 @@ private final class RevertNativeWindow:NSWindow {
     var onClosed:()->Void = {}
     var commandKeyWindow:()->NSWindow? = {NSApp.keyWindow}
     private var question:(NSAlert,CheckedContinuation<Bool,Never>)?
-    private var panel:(NSOpenPanel,CheckedContinuation<URL?,Never>)?
+    private var panel:(NSSavePanel,CheckedContinuation<URL?,Never>)?
     private var lfsOperation:LFSFileOperationController?
     private var sheetObserver:NSObjectProtocol?
     private(set) var revertProgress:RevertProgressWindowController?
@@ -40,6 +40,7 @@ private final class RevertNativeWindow:NSWindow {
         model.close = { [weak window] in window?.performClose(nil) }
         window.commandKeyWindow = { [weak self] in self?.commandKeyWindow() }
         window.refresh = { [weak model] in model?.reload() };window.accept = { [weak model] in model?.apply() }
+        model.chooseSaveFile = { [weak self] path in await self?.chooseSave(path:path) }
         model.commands.chooseApplication = { [weak self] in await self?.choose(application:true) }
         model.commands.chooseExportFolder = { [weak self] in await self?.choose(application:false) }
         model.commands.confirmDeletion = { [weak self] paths,permanent in
@@ -86,7 +87,18 @@ private final class RevertNativeWindow:NSWindow {
             picker.beginSheetModal(for:window) { [weak self] response in self?.finishPanel(picker,response:response) }
         }
     }
-    private func finishPanel(_ picker:NSOpenPanel,response:NSApplication.ModalResponse) {
+    private func chooseSave(path:String) async -> URL? {
+        guard !model.retired,panel == nil,question == nil,let window,window.attachedSheet == nil else {return nil}
+        let picker = NSSavePanel(),file = URL(fileURLWithPath:path)
+        picker.title = "Save As";picker.canCreateDirectories = true
+        picker.nameFieldStringValue = file.deletingPathExtension().lastPathComponent + "-" + (file.pathExtension.isEmpty ? "":"." + file.pathExtension)
+        picker.directoryURL = model.repository.root.appendingPathComponent(path).deletingLastPathComponent()
+        return await withCheckedContinuation {continuation in
+            panel = (picker,continuation)
+            picker.beginSheetModal(for:window) { [weak self] response in self?.finishPanel(picker,response:response) }
+        }
+    }
+    private func finishPanel(_ picker:NSSavePanel,response:NSApplication.ModalResponse) {
         guard let pending = panel,pending.0 === picker else {return};panel = nil
         if picker.sheetParent === window {window?.endSheet(picker)};picker.orderOut(nil)
         pending.1.resume(returning:!model.retired && response == .OK ? picker.url:nil)
@@ -139,7 +151,7 @@ private final class RevertNativeWindow:NSWindow {
     @Published private(set) var hasUnversionedItems = false
     @Published private(set) var cancelling = false
     @Published var hasChild = false
-    private var choosingColumns = false
+    private var exclusiveAction = false
     private var pendingDrops:[URL] = []
     @Published private(set) var fileColumns:StatusListColumnSettings
     @Published var sortOrder = [StatusFileSort(column:.path)] {didSet {commands.sortOrder = sortOrder}}
@@ -163,6 +175,13 @@ private final class RevertNativeWindow:NSWindow {
     var confirmRevert:([StatusEntry]) async -> Bool = {_ in false}
     var onRevert:([StatusEntry])->Void = {_ in}
     var onCompare:(([String])->Void)?
+    @Published private(set) var comparisonMark:PreparedFileComparisonMark?
+    private var comparisonGeneration = UUID()
+    private var lastImportedWorkingMark:UUID?
+    var onPreparedFileCompare:((PreparedFileComparisonMark,PreparedFileComparisonMark)->Void)?
+    var chooseSaveFile:(String) async -> URL? = {_ in nil}
+    var saveWorkingFile:(String,URL,OperationCancellation) async throws -> Void
+
     var canInteract:Bool {!retired && !busy && !commands.busy && !confirmingQuit && !hasChild && !commands.unifiedViewerBusy && window?.attachedSheet == nil}
     var canApply:Bool {canInteract && entries.contains{checked.contains($0.path)}}
     var rows:[StatusRow] {commands.sortedRows}
@@ -175,6 +194,7 @@ private final class RevertNativeWindow:NSWindow {
         fileColumns = preferences.integer(forKey:Self.columnKey + ".Version") == 1 ? .load(from:preferences,key:Self.columnKey):Self.defaultColumns
         readStatus = {try await repository.workingTreeStatus(refreshIndex:false,cancellation:$0)}
         readStatistics = {try await repository.workingTreeFiles(cancellation:$0)}
+        saveWorkingFile = {try await repository.saveWorkingFile(path:$0,to:$1,cancellation:$2)}
         validateDrop = {url,token in
             let attributes = try? FileManager.default.attributesOfItem(atPath:url.path)
             let folder = attributes?[.type] as? FileAttributeType == .typeDirectory ? url:url.deletingLastPathComponent()
@@ -199,14 +219,14 @@ private final class RevertNativeWindow:NSWindow {
         }
     }
     func setScope(_ paths:[String]) {
-        guard !retired,!confirmingQuit,!commands.busy,!hasChild,!choosingColumns,!closeAfterRead,window?.attachedSheet == nil else {return}
+        guard !retired,!confirmingQuit,!commands.busy,!hasChild,!exclusiveAction,!closeAfterRead,window?.attachedSheet == nil else {return}
         pendingDrops = [];self.paths = paths.isEmpty ? ["."]:paths;hasLoaded = false;checked = [];highlighted = [];reload()
     }
     func didRename(_ old:String,to new:String) {
         guard !retired else {return}
         func moved(_ path:String)->String {path == old ? new:path.hasPrefix(old + "/") ? new + path.dropFirst(old.count):path}
         paths = paths.map(moved);checked = Set(checked.map(moved));highlighted = Set(highlighted.map(moved))
-        if busy && !choosingColumns {reload()} else {requestReload()}
+        if busy && !exclusiveAction {reload()} else {requestReload()}
     }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
@@ -219,7 +239,7 @@ private final class RevertNativeWindow:NSWindow {
     }
     func reload(forceChecked:Set<String> = []) {start(forceChecked:forceChecked,drops:pendingDrops)}
     private func start(forceChecked:Set<String>,drops:[URL]) {
-        guard !retired,!confirmingQuit,!hasChild,!choosingColumns,!closeAfterRead else {return}
+        guard !retired,!confirmingQuit,!hasChild,!exclusiveAction,!closeAfterRead else {return}
         if commands.busy {refreshRequested = true;queuedForce.formUnion(forceChecked);return}
         refreshRequested = false;request?.cancel();let token = OperationCancellation(),identity = UUID(),scope = paths
         request = token;generation = identity;busy = true;cancelling = false;error = nil
@@ -278,7 +298,7 @@ private final class RevertNativeWindow:NSWindow {
         if let onCompare {onCompare(snapshot.entries.map(\.path))} else {commands.unifiedDiff(ids,alternate:ComparisonToolInvocation.capture)}
     }
     @discardableResult func addDropped(_ urls:[URL])->Bool {
-        guard !retired,!commands.busy,!confirmingQuit,!hasChild,!choosingColumns,!closeAfterRead,window?.attachedSheet == nil,!urls.isEmpty else {return false}
+        guard !retired,!commands.busy,!confirmingQuit,!hasChild,!exclusiveAction,!closeAfterRead,window?.attachedSheet == nil,!urls.isEmpty else {return false}
         let values = FinderRequest(action:.revert,paths:urls).paths
         guard values.count > 0,values.allSatisfy({$0.isFileURL && RepositoryAccessLease.pathIsContained($0,by:repository.root)}) else {return false}
         var seen = Set<String>();pendingDrops = (pendingDrops + values).filter{seen.insert($0.path).inserted}
@@ -288,13 +308,70 @@ private final class RevertNativeWindow:NSWindow {
         guard canInteract,snapshot.offersRevert else {return}
         var valid = false;commands.withFileMenu(snapshot){valid = true};guard valid else {return}
         let rows = snapshot.entries,token = OperationCancellation(),identity = generation
-        request = token;busy = true;choosingColumns = true;Self.activeOperations += 1
+        request = token;busy = true;exclusiveAction = true;Self.activeOperations += 1
         Task { [self] in
-            defer {Self.activeOperations -= 1;choosingColumns = false;if request === token {request = nil;busy = false;cancelling = false;if closeAfterRead {closeAfterRead = false;if !retired {close()}} else {resumePendingRefresh()}}}
+            defer {Self.activeOperations -= 1;exclusiveAction = false;if request === token {request = nil;busy = false;cancelling = false;if closeAfterRead {closeAfterRead = false;if !retired {close()}} else {resumePendingRefresh()}}}
             let needsQuestion = rows.contains{entry in commands.files.contains{$0.id == entry.path && $0.state == .modified} && commands.fileMetadata[entry.path]?.isDirectory != true && !commands.submodules.contains(entry.path)}
             let accepted = needsQuestion ? await confirmRevert(rows):true
             guard accepted,!retired,request === token,!token.isCancelled,generation == identity,rows.allSatisfy({entries.contains($0)}) else {return}
-            request = nil;busy = false;choosingColumns = false;onRevert(rows)
+            request = nil;busy = false;exclusiveAction = false;onRevert(rows)
+        }
+    }
+    struct PreparedMenu {
+        fileprivate let file:StatusFileMenuSnapshot
+        fileprivate let generation:UUID
+        let marked:PreparedFileComparisonMark?
+    }
+    func preparedMenu(_ snapshot:StatusFileMenuSnapshot)->PreparedMenu {
+        PreparedMenu(file:snapshot,generation:comparisonGeneration,marked:comparisonMark)
+    }
+    // These commands use the source selection mark, independently of the highlighted set.
+    func canPrepareFile(_ snapshot:StatusFileMenuSnapshot)->Bool {
+        !snapshot.entries.isEmpty && !snapshot.markIsDirectory && snapshot.mark.map{$0.index != "D"} == true
+    }
+    func importWorkingComparisonMark(_ access:WorkingComparisonAccess?) {
+        guard !retired,let access,access.mark.id != lastImportedWorkingMark else {return}
+        lastImportedWorkingMark = access.mark.id;comparisonGeneration = UUID()
+        comparisonMark = PreparedFileComparisonMark(path:access.file.path,revision:"",workingAccess:access)
+    }
+    func markForComparison(_ snapshot:StatusFileMenuSnapshot) {
+        guard canInteract,canPrepareFile(snapshot),let path = snapshot.mark?.path else {return}
+        commands.withFileMenu(snapshot) {
+            comparisonGeneration = UUID();comparisonMark = PreparedFileComparisonMark(path:path,revision:"")
+        }
+    }
+    func compareWithMarkedFile(_ menu:PreparedMenu) {
+        guard canInteract,canPrepareFile(menu.file),comparisonGeneration == menu.generation,
+              let marked = menu.marked,let current = menu.file.mark,let onPreparedFileCompare else {return}
+        commands.withFileMenu(menu.file) {onPreparedFileCompare(marked,PreparedFileComparisonMark(path:current.path,revision:""))}
+    }
+    func captureColumnCopy(_ ids:[String],column:StatusListColumn)->(() -> Void)? {
+        guard canInteract else {return nil};let snapshot = commands.fileMenu(Set(ids))
+        guard !snapshot.entries.isEmpty else {return nil}
+        let value = commands.clipboardText(Set(ids),copy:.column(column))
+        return { [weak self] in
+            guard let self,self.canInteract else {return}
+            self.commands.withFileMenu(snapshot) {self.commands.clipboard.clearContents();self.commands.clipboard.setString(value,forType:.string)}
+        }
+    }
+    func saveAs(_ snapshot:StatusFileMenuSnapshot) {
+        guard canInteract,canPrepareFile(snapshot),let path = snapshot.mark?.path else {return}
+        var valid = false;commands.withFileMenu(snapshot){valid = true};guard valid else {return}
+        let token = OperationCancellation();request = token;busy = true;exclusiveAction = true;Self.activeOperations += 1
+        Task { [self] in
+            defer {
+                Self.activeOperations -= 1;withExtendedLifetime(access) {}
+                if request === token {request = nil;exclusiveAction = false;busy = false;cancelling = false
+                    if closeAfterRead {closeAfterRead = false;if !retired {close()}} else {resumePendingRefresh()}
+                }
+            }
+            do {
+                try validateAccess()
+                guard let target = await chooseSaveFile(path),!retired,request === token,!token.isCancelled else {return}
+                // Busy input fences preserve this captured mark through destination selection.
+                let scoped = target.startAccessingSecurityScopedResource();defer {if scoped {target.stopAccessingSecurityScopedResource()}}
+                try await saveWorkingFile(path,target,token)
+            } catch {if !retired,request === token,!token.isCancelled {self.error = error.localizedDescription}}
         }
     }
     func setChecked(_ ids:Set<String>,value:Bool) {guard canInteract else {return};if value {checked.formUnion(ids.intersection(Set(entries.map(\.path))))} else {checked.subtract(ids)}}
@@ -307,9 +384,9 @@ private final class RevertNativeWindow:NSWindow {
     }
     private func persistColumns() {fileColumns.save(to:preferences,key:Self.columnKey);commands.fileColumns = fileColumns}
     func resetColumns(choose:@escaping () async -> Bool,accepted:@escaping ()->Void) {
-        guard canInteract else {return};let token = OperationCancellation();request = token;busy = true;choosingColumns = true;Self.activeOperations += 1
+        guard canInteract else {return};let token = OperationCancellation();request = token;busy = true;exclusiveAction = true;Self.activeOperations += 1
         Task { [self] in
-            defer {Self.activeOperations -= 1;choosingColumns = false;if request === token {request = nil;busy = false;cancelling = false;if closeAfterRead {closeAfterRead = false;if !retired {close()}} else {resumePendingRefresh()}}}
+            defer {Self.activeOperations -= 1;exclusiveAction = false;if request === token {request = nil;busy = false;cancelling = false;if closeAfterRead {closeAfterRead = false;if !retired {close()}} else {resumePendingRefresh()}}}
             guard await choose(),!retired,request === token,!token.isCancelled else {return}
             fileColumns = Self.defaultColumns;persistColumns();accepted()
         }
@@ -320,6 +397,9 @@ private struct RevertDialog:View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model:RevertWindowModel
     @State private var focusedPath:String?
+    private func fileCommand(_ command:StatusFileCommand,snapshot:StatusFileMenuSnapshot)->some View {
+        Button {model.commands.fileAction(command,snapshot:snapshot,permanently:NSEvent.modifierFlags.contains(.shift))} label:{CommandLabel(title:command.rawValue,icon:command.icon)}
+    }
     var body:some View {
         let rows = model.rows,byID = Dictionary(uniqueKeysWithValues:rows.map{($0.id,$0)})
         VStack(spacing:10) {
@@ -334,7 +414,7 @@ private struct RevertDialog:View {
                 TableColumn("Modification date",sortUsing:StatusFileSort(column:.lastModified)) {row in Text(row.metadata?.dateText ?? "–")}.width(min:100,ideal:150)
                 TableColumn("File size",sortUsing:StatusFileSort(column:.fileSize)) {row in Text(row.sizeText)}.width(min:70,ideal:100)
             }.fileListFont().disabled(!model.canInteract)
-            .background(CommitFileInteraction(rows:rows.map{.file($0.file.entry)},nativeColumns:StatusListColumn.allCases.filter{$0 != .lfsOwner},preferences:model.preferences,
+            .background(CommitFileInteraction(rows:rows.map{.file($0.file.entry)},nativeColumns:StatusListColumn.allCases.filter{$0 != .lfsOwner},captureColumnCopy:{model.captureColumnCopy($0,column:$1)},watermarkIcon:.revertBackdrop,preferences:model.preferences,
                 visibleColumns:Set(model.fileColumns.order.filter{model.fileColumns.visible.contains($0)}),availableColumns:model.availableColumns,
                 columnText:{entry,column in byID[entry.path].map{model.commands.columnText($0,column)} ?? ""},savedOrder:model.fileColumns.order,savedWidths:model.fileColumns.widths,
                 saveLayout:{model.saveColumns(order:$0,widths:$1)},setColumnVisible:{model.setColumn($0,visible:$1)},resetColumns:{model.resetColumns(choose:$0,accepted:$1)},focusedPath:$focusedPath,
@@ -343,6 +423,7 @@ private struct RevertDialog:View {
                 toggleCheck:{entries,mark in model.setChecked(Set(entries.map(\.path)),value:!model.checked.contains(mark.path))}))
             .contextMenu(forSelectionType:String.self) {ids in
                 let snapshot = model.commands.fileMenu(ids,mark:focusedPath)
+                let prepared = model.preparedMenu(snapshot)
                 TurtleGitContextMenu {
                     if !snapshot.entries.isEmpty {
                         if snapshot.offersResolve {ResolveSelectionMenu(paths:snapshot.entries.map(\.path),rebase:model.commands.conflictRebase,canEdit:snapshot.entries.count == 1,action:{action,paths in model.commands.withFileMenu(snapshot){model.onAction(action,paths)}});Divider()}
@@ -360,7 +441,16 @@ private struct RevertDialog:View {
                             if snapshot.entries.allSatisfy({![FileState.deleted,.untracked,.ignored].contains($0.state)}) {Button {model.commands.withFileMenu(snapshot){model.onAction(.move,snapshot.entries.map(\.path))}} label:{CommandLabel(title:"Move…",icon:.rename)}}
                             ForEach(model.commands.lfsActions(model.commands.files.filter{ids.contains($0.id)}),id:\.self) {action in Button {model.commands.withFileMenu(snapshot){model.commands.setLFSLocked(ids,locked:action == .lock)}} label:{CommandLabel(title:action.rawValue,icon:action == .lock ? .lock:.unlock)}}
                         }
-                        ForEach(snapshot.commands,id:\.self) {command in Button {model.commands.fileAction(command,snapshot:snapshot,permanently:NSEvent.modifierFlags.contains(.shift))} label:{CommandLabel(title:command.rawValue,icon:command.icon)}}
+                        ForEach(snapshot.commands.filter{![StatusFileCommand.editor,.open,.openWith,.reveal,.delete].contains($0)},id:\.self) {command in fileCommand(command,snapshot:snapshot)}
+                        if model.canPrepareFile(snapshot) {Button {model.saveAs(snapshot)} label:{CommandLabel(title:"Save As…",icon:.saveAs)}}
+                        ForEach(snapshot.commands.filter{[StatusFileCommand.editor,.open,.openWith,.reveal].contains($0)},id:\.self) {command in fileCommand(command,snapshot:snapshot)}
+                        if model.canPrepareFile(snapshot) {
+                            Button {model.markForComparison(snapshot)} label:{CommandLabel(title:"Mark for comparison",icon:.compare)}
+                            if let mark = prepared.marked {
+                                Button {model.compareWithMarkedFile(prepared)} label:{CommandLabel(title:"Compare with " + mark.label(for:snapshot.mark?.path ?? ""),icon:.compare)}.disabled(model.onPreparedFileCompare == nil)
+                            }
+                        }
+                        if snapshot.commands.contains(.delete) {fileCommand(.delete,snapshot:snapshot)}
                         Menu {
                             Button {model.commands.withFileMenu(snapshot){model.commands.copy(ids,information:.fullPaths)}} label:{CommandLabel(title:"Full paths",icon:.copy)}
                             Button {model.commands.withFileMenu(snapshot){model.commands.copy(ids)}} label:{CommandLabel(title:"Relative paths",icon:.copy)}

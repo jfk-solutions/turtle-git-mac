@@ -113,10 +113,37 @@ final class FileListGroupHeaders: NSView {
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
 }
 
-/// Observe the public AppKit table underlying a SwiftUI Table without replacing
-/// its selection, accessibility, checkbox or context-menu implementations.
+/// Original list artwork remains anchored to the viewport, below native cells.
+/// It never receives pointer or accessibility focus.
+final class FileListWatermark: NSView {
+    weak var table: NSTableView?
+    var preferences: UserDefaults = .standard
+    private(set) var icon: MenuIcon?
+    private(set) var image: NSImage?
+    override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    func setIcon(_ value: MenuIcon) {
+        if icon != value { icon = value; image = value.image(size: 128) }
+        needsDisplay = true
+    }
+    var artworkRect: NSRect? {
+        guard preferences.object(forKey: "ShowListBackgroundImage") as? Bool ?? true,
+              image != nil, let viewport = table?.visibleRect, viewport.width > 0, viewport.height > 0 else { return nil }
+        return NSRect(x: viewport.maxX - 128, y: viewport.maxY - 128, width: 128, height: 128)
+    }
+    override func draw(_ dirtyRect: NSRect) {
+        guard let rect = artworkRect, rect.intersects(dirtyRect), let viewport = table?.visibleRect else { return }
+        NSGraphicsContext.saveGraphicsState(); NSBezierPath(rect: viewport.intersection(dirtyRect)).addClip()
+        image?.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        NSGraphicsContext.restoreGraphicsState()
+    }
+}
+
+/// Observe the public AppKit table without replacing its selection, accessibility
+/// or context-menu implementation.
 struct CommitFileInteraction: NSViewRepresentable {
     @AppStorage("LogFontForFileListCtrl") private var useLogFont = false
+    @AppStorage("ShowListBackgroundImage") private var showListBackground = true
     @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
     @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     let rows: [StatusListRow]
@@ -130,6 +157,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     var captureColumnCopy: (([String], StatusListColumn) -> (() -> Void)?)? = nil
     var toggleCheckIDs: (([String], String) -> Void)? = nil
     var configureRefresh: ((Probe) -> Void)? = nil
+    var watermarkIcon: MenuIcon? = nil
     var preferences:UserDefaults = .standard
     let visibleColumns: Set<StatusListColumn>
     var availableColumns: Set<StatusListColumn> = Set(StatusListColumn.allCases)
@@ -157,6 +185,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         view.nativeColumns = nativeColumns; view.rowTexts = rowTexts; view.itemIDs = itemIDs
         view.copyIDs = copyIDs; view.copyColumnIDs = copyColumnIDs; view.captureColumnCopy = captureColumnCopy; view.toggleCheckIDs = toggleCheckIDs
         view.columnText = columnText
+        view.watermarkIcon = showListBackground ? watermarkIcon:nil
         view.savedOrder = savedOrder; view.savedWidths = savedWidths; view.saveLayout = saveLayout
         view.availableColumns = availableColumns; view.visibleColumns = visibleColumns; view.setColumnVisible = setColumnVisible; view.resetColumns = resetColumns
         view.rows = rows; view.focusedPath = $focusedPath
@@ -215,6 +244,8 @@ struct CommitFileInteraction: NSViewRepresentable {
         private var layoutObservers: [NSObjectProtocol] = []
         private var geometryObservers: [NSObjectProtocol] = []
         private(set) var groupHeaders: FileListGroupHeaders?
+        var watermarkIcon: MenuIcon?
+        private(set) var watermark: FileListWatermark?
         private var integrationActive = false
         private var integrationGeneration = UUID()
         private var configurationScheduled = false
@@ -355,6 +386,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             if configuredTable !== table || currentObjects != originalObjects || layoutObservers.isEmpty {
                 for observer in geometryObservers { NotificationCenter.default.removeObserver(observer) }; geometryObservers = []
                 groupHeaders?.removeFromSuperview(); groupHeaders = nil
+                watermark?.removeFromSuperview(); watermark = nil
                 configuredTable = table; originalColumns = table.tableColumns
                 columnDefinitions = Dictionary(uniqueKeysWithValues: zip(table.tableColumns.dropFirst(leadingColumnCount), nativeColumns).map { column, fallback in
                     let named = StatusListColumn(rawValue: column.headerCell.stringValue)
@@ -393,6 +425,12 @@ struct CommitFileInteraction: NSViewRepresentable {
             applyNativeColumnLayout()
             table.headerView?.menu = columnMenu()
             configureGroupHeadings(table)
+            if let watermarkIcon {
+                let layer = watermark ?? FileListWatermark(frame: table.bounds)
+                watermark = layer; layer.table = table; layer.preferences = preferences
+                layer.frame = table.bounds; layer.setIcon(watermarkIcon); layer.setAccessibilityElement(false)
+                table.addSubview(layer, positioned: .below, relativeTo: nil)
+            } else { watermark?.removeFromSuperview(); watermark = nil }
             if geometryObservers.isEmpty {
                 table.postsFrameChangedNotifications = true
                 var observations: [(Notification.Name, AnyObject)] = [(NSView.frameDidChangeNotification, table)]
@@ -480,6 +518,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             integrationActive = false; integrationGeneration = UUID(); configurationScheduled = false
             for observer in geometryObservers { NotificationCenter.default.removeObserver(observer) }; geometryObservers = []
             groupHeaders?.removeFromSuperview(); groupHeaders = nil
+            watermark?.removeFromSuperview(); watermark = nil
             cancelListPosition()
             if let monitor { NSEvent.removeMonitor(monitor) }
             monitor = nil
@@ -501,7 +540,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             let item = NSMenuItem(title: "column '\(column.rawValue)'", action: #selector(copyCurrentColumn(_:)), keyEquivalent: "")
             item.identifier = identifier; item.target = self
             if let captureColumnCopy {
-                guard let invoke = captureColumnCopy(contextIDs, column) else { return }
+                guard let invoke = captureColumnCopy(contextIDs.isEmpty ? contextEntries.map(\.path) : contextIDs, column) else { return }
                 item.representedObject = ColumnCopyInvocation(invoke)
             }
             if let image = MenuIcon.copy.contextImage(defaults:preferences)?.copy() as? NSImage { image.size = NSSize(width: 16, height: 16); item.image = image }

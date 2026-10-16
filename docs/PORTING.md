@@ -1609,6 +1609,18 @@ source default checks. Atomic owned reads, coalesced same-repository drops,
 confirmed context Revert/recovery children and related-dialog refresh replace
 its older standalone handling. Planning, retained progress and shared file-menu
 checks pass on both Git engines within the recorded repair scope; all owned
-receivers are closed. Full source masks, watermark, visual/physical and signed
+receivers are closed. Full source masks, visual/physical and signed
 acceptance remain open. [Batch evidence](qa/revert-planning-2026-10-16.json). See
 [Revert planning parity](REVERT-PARITY.md#revert-planning-family--october-16-2026).
+
+### Revert saved-file command family — October 16, 2026
+
+Revert now adds the source-enabled Save As/Mark/Compare commands, Finder mark/grant
+import, owned save-panel/copy cancellation and captured column clipboard targets.
+Original list-background artwork follows the current native viewport and source
+preference. Working Tree/Commit/Resolve keep their source-disabled menu masks.
+The Debug build, three icon checks and six native case/engine runs pass after
+the recorded fixture correction. Light/dark captures are reviewed and published;
+all owned receivers are closed. Full gitlink, physical and signed acceptance remain
+open. [Batch evidence](qa/revert-file-commands-2026-10-16.json). See
+[Revert saved-file commands](REVERT-PARITY.md#saved-comparison-save-as-and-list-artwork--october-16-2026).

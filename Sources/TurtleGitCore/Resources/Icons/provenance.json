@@ -1606,6 +1606,11 @@
       "asset": "linewhitespace.ico",
       "source": "src/Resources/linewhitespace.ico",
       "sha256": "d3dc64388553e238b5690cfd24a2fd934f8a81476c5a8521c1b51a1acd5e0ecd"
+    },
+    {
+      "asset": "RevertBackground.ico",
+      "source": "src/Resources/RevertBackground.ico",
+      "sha256": "1afbe1456bd2dc060022246ddbd255f67a32f8cbb8c7ea640af16d3afa09dd55"
     }
   ]
 }

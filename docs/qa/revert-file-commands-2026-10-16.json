@@ -1,0 +1,122 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "c260ab6233077feb24a397d088922e65fd87941c",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "RevertDlg.cpp popup mask; ChangedDlg.cpp/CommitDlg.cpp/ResolveDlg.cpp explicit Save As/Prepare Diff exclusions",
+    "GitStatusListCtrl.cpp IDGITLC_PREPAREDIFF/PREPAREDIFF_COMPARE, UpdateDiffWithFileFromReg and FileSaveAs",
+    "RevertBackground.ico original bytes with bundled provenance"
+  ],
+  "scope": [
+    "Source-mark Save As/Mark/Compare actions independent of highlighted rows; deleted/directory file gates",
+    "Local live-path marks, imported Finder mark/file/access lease, once-per-identity import and stale popup generation fences",
+    "Native Save As filename and Cancel, literal binary copy, destination security scope, cancelled question and forced worker retirement/drain",
+    "Captured clicked-column row identities/text and stale refresh rejection",
+    "Original 128-point viewport artwork, live ShowListBackgroundImage, input/accessibility transparency and detachment",
+    "Retained Revert planning and shared Working Tree file-action behavior"
+  ],
+  "core": {
+    "log": "build/qa/revert-file-commands-icons-2026-10-16.log",
+    "filter": "MenuIconTests",
+    "tests": 3,
+    "failures": 0,
+    "note": "Asset decoding/retina pixels only; no Git algorithm changes or full Core rerun."
+  },
+  "build": {
+    "log": "build/qa/revert-file-commands-build-2026-10-16.log",
+    "exit": 0,
+    "exit_zero_no_output_diagnostics": 4
+  },
+  "native": {
+    "engines": [
+      "/usr/bin/git",
+      "build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/revert-file-commands-native-2026-10-16.log",
+        "receivers_reaped": [
+          67656
+        ],
+        "exit": 1,
+        "commands_passes": 0,
+        "planning_passes": 0,
+        "shared_menu_passes": 0,
+        "appkit_reentrant_table_warnings": 0
+      },
+      {
+        "log": "build/qa/revert-file-commands-native-targets-2026-10-16.log",
+        "receivers_reaped": [
+          67711,
+          67762,
+          67813,
+          67971,
+          68124,
+          68190
+        ],
+        "exit": 0,
+        "commands_passes": 2,
+        "planning_passes": 2,
+        "shared_menu_passes": 2,
+        "appkit_reentrant_table_warnings": 2
+      }
+    ],
+    "all_owned_receiver_pids_absent": true,
+    "owned_receiver_pids": [
+      67656,
+      67711,
+      67762,
+      67813,
+      67971,
+      68124,
+      68190
+    ]
+  },
+  "repairs": [
+    "Initial fixture reused an earlier file-popup snapshot across asynchronous comparison reads and compared a bookmark-restored URL with its pre-bookmark spelling. It now captures a fresh action snapshot and asserts the exact imported URL plus access-lease identity. No product rebuild or repeated icon suite was needed."
+  ],
+  "artwork": {
+    "sha256": "1afbe1456bd2dc060022246ddbd255f67a32f8cbb8c7ea640af16d3afa09dd55",
+    "matches_pinned_source": true,
+    "bundled_framework_bytes_match": true
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/revert.png",
+      "sha256": "ddaa42c9d15987d68f5127272dfbb8bc187218c09ca450c027648c327a44f209",
+      "review": "Actual passive native compositor capture; original lower-right artwork, source five columns, status colors, checkbox/footer fit; inactive title/buttons are expected because activation/focus was not requested."
+    },
+    {
+      "path": "docs/site/assets/revert-dark.png",
+      "sha256": "d7f50851c3fefc3837f4cfc9a195be27ddd4153f77430b17fefc49997401881e",
+      "review": "Actual passive native compositor capture; original lower-right artwork, source five columns, status colors, checkbox/footer fit; inactive title/buttons are expected because activation/focus was not requested."
+    }
+  ],
+  "documentation": {
+    "help_source_files": 50,
+    "help_source_bytes": 1967082,
+    "built_help_matches_source": true,
+    "site_documents": 259,
+    "site_unresolved_fragments": 0
+  },
+  "hosted_observation": {
+    "commit": "c260ab6233077feb24a397d088922e65fd87941c",
+    "pages": {
+      "run": 38964269476,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 38964269400,
+      "status": "in_progress",
+      "conclusion": null
+    },
+    "note": "Observed before this batch push; does not certify the new commit."
+  },
+  "limitations": [
+    "Directory/submodule prepared comparisons and the full source popup masks remain open.",
+    "Physical menus/keyboard, cross-process Finder integration, minimum-OS and signed sandbox Save As/mark grants remain unverified.",
+    "Retained planning receivers still emit the recorded AppKit reentrant-table delegate warning; no assertion/crash occurred.",
+    "Captures prove this native layout/artwork in two appearances, not complete Windows visual parity or App Store readiness."
+  ]
+}

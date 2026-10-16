@@ -89,8 +89,9 @@ was closed and process absence verified before the next rebuilt preview opened.
 The final unsigned Xcode Debug build and app/extension/icon audit passed.
 
 The planning-family continuation below adds shared file commands, sortable saved
-columns, direct clean files and owned drop/read handling. Background artwork, full
-source popup masks, saved frame reopen and multi-display placement remain pending.
+columns, direct clean files and owned drop/read handling. The later saved-file
+family adds original background artwork. Full source popup masks, saved frame
+reopen and multi-display placement remain pending.
 The Finder request test does not prove signed Finder extension activation or
 actual Finder menu acceptance.
 
@@ -230,5 +231,48 @@ progress and shared Working Tree file-menu checks pass with system and bundled
 Git; the Revert-only queued-refresh repair passes its affected two-engine check.
 All ten receiver processes, including the two failed initial runs, are absent.
 See [batch evidence](qa/revert-planning-2026-10-16.json) for exact scope and the
-AppKit reentrant-table warning. These checks do not certify full source popup-mask, background watermark, physical keyboard/Finder,
+AppKit reentrant-table warning. These checks do not certify full source popup-mask, physical keyboard/Finder,
 all conflict/gitlink/rename combinations, visual or signed sandbox acceptance.
+
+## Saved comparison, Save As and list artwork — October 16, 2026
+
+`RevertDlg` enables `GITSLC_POPSAVEAS` and `GITSLC_POPPREPAREDIFF`; the pinned
+Working Tree, Commit and Resolve initializers explicitly disable them. Revert
+now offers the separate **Save As**, **Mark for comparison** and **Compare with…**
+actions with original icons. They use the source selection mark, independently
+of the highlighted set. A replacement mark or refreshed file snapshot invalidates
+an older comparison popup. Local marks retain live working paths; imported Finder
+Diff Later marks retain their exact file and repository-access grant and import
+only once per saved identity, preserving a later local mark.
+
+Comparison dispatch uses the existing owned prepared-file route. Marked file reads,
+source/default alternative-tool choice and Finder mark consumption retain that
+route's ownership. Directory/submodule prepared comparisons remain a separate gap;
+the new file actions do not pretend that gitlinks are ordinary disk files.
+
+Save As owns its NSSavePanel and copy worker through cancellation/retirement,
+including a held destination reply and forced owner close. The suggested working
+filename uses the source's empty-revision suffix (`name-.ext`). Choosing Cancel
+writes nothing. The chosen destination keeps its security scope during the actual
+copy, and Core's existing literal-path, regular-file, same-file and Git-metadata
+checks remain authoritative. Binary bytes are copied without altering HEAD/index.
+
+The original `RevertBackground.ico` is bundled byte-for-byte with provenance. Its
+128-point artwork stays anchored to the native table viewport, below native cells,
+without input/accessibility interception. The shared ShowListBackgroundImage
+preference controls it. Detachment and forced window closure retire the drawing
+layer. Other consumers leave the optional background unset.
+
+The native Copy to Clipboard column item now captures row identities even for
+entry-based lists; Revert also captures the displayed column text and rejects the
+item after refresh or owner retirement. The existing full/relative/name/all copy
+commands and source menus disabled in the other dialog families remain unchanged.
+
+The Debug build, three icon checks and all six grouped native case/engine runs
+pass after the recorded fixture correction. All seven receiver processes,
+including the initial failed fixture, are absent. Reviewed actual
+[light](site/assets/revert.png) / [dark](site/assets/revert-dark.png) captures
+show the native five-column layout, status colors and original artwork. See
+[batch evidence](qa/revert-file-commands-2026-10-16.json) for scope, repair and the
+retained planning-table warning. Full popup-mask/submodule, physical, minimum-OS
+and signed sandbox acceptance remain open.

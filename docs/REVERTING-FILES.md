@@ -10,6 +10,14 @@ baseline options and confirm. The progress table records Action and Path while
 Git output appears below it. The final result includes any error or cancellation
 and retains recovery locations.
 
+The selection window also offers **Save As…** for the current working file and
+**Mark for comparison** / **Compare with…** for comparing two working files.
+These actions use the file where the context menu was opened. Save As copies
+current bytes to your chosen destination; it does not revert or stage the file.
+A Finder **Diff later** mark can supply the other comparison file. The list keeps
+TortoiseGit's original translucent Revert artwork; Advanced Settings can hide it
+with **ShowListBackgroundImage**.
+
 **Cancel** requests a stop at an operation boundary. A filesystem or private-index
 Git step already running finishes first. Earlier working-file changes remain;
 cancellation before final publication leaves the original index in place. Review
