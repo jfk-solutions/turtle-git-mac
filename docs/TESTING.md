@@ -2241,3 +2241,11 @@ all-pane Undo/Redo and exact saved bytes. Retained navigation/colors and ordinar
 block workflows compare their native strings with the model's display projection;
 serialized result assertions remain independent. Whole-file/both-order fallback,
 IME, resolved-empty aliases and full large-file acceptance remain open.
+
+`scripts/test-merge-ignored.py --only copies` checks both-order footer choices,
+continued native result choices, source gaps/states/original line numbers,
+resolved-empty identity, exact UTF-8 Save, partial unresolved source choices,
+cleanup of rows empty in all three panes, captured-command layout ownership and
+complete all-pane Undo/Redo. Core tests check the same record operations with
+unequal source lengths, mixed endings and EOF without an ending. The default
+merge group includes this case in its single cached fixture compilation.

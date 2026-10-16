@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "7265028e",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "BottomView.cpp UseBlock, UseBothBlocks and UseViewFile",
+    "BaseView.cpp ResolveState, IsStateEmpty, CleanEmptyLines, UpdateViewLineNumbers and SaveFile",
+    "DiffColors.cpp ConflictResolvedEmpty light/dark aliases"
+  ],
+  "scope": [
+    "Mine/Theirs and both-order source/result/footer choices operate on all-pane aligned snapshots; explicit selections may resolve one unresolved slot",
+    "Both copies preserve original numbered source payloads and insert complementary source gaps with upstream first/second source color states",
+    "First block ending normalization, literal second-block endings and source final-no-ending join behavior",
+    "ResolvedEmpty retains resolved palette and absent result number, is excluded from saved bytes/unresolved counts and deliberately is not an IsStateEmpty gap",
+    "Shared typing/choice serialization cleans a row only when all three panes are Empty/ConflictEmpty",
+    "Source layout revisions fence old native row geometry and captured commands, including after Undo returns identical bytes",
+    "Whole-source choices consume current aligned view layouts after earlier block operations"
+  ],
+  "build": {
+    "log": "build/qa/merge-both-blocks-build.log",
+    "exit": 0,
+    "diagnostics": "Xcode emitted six anomalous SwiftCompile diagnostics saying command failed with exit code 0 but produced no further output; the overall build exited 0. Native fixture linking subsequently passed current-object freshness guards and all grouped workflows passed. No source compile error diagnostic was emitted."
+  },
+  "core": {
+    "log": "build/qa/merge-both-blocks-core.log",
+    "tests": 70,
+    "failures": 0,
+    "suites": [
+      "SubversionMergePresentationTests",
+      "MergeSourceBlockEditTests",
+      "MergeNavigationMapTests",
+      "MergeResultPresentationTests",
+      "MergeColorPreferencesTests",
+      "MergePaneSaveAsTests",
+      "FileComparisonInPlaceTests"
+    ],
+    "repeats": 0
+  },
+  "native": {
+    "log": "build/qa/merge-both-blocks-native.log",
+    "exit": 0,
+    "single_cached_fixture_compilation": true,
+    "case_families": 6,
+    "passed": [
+      "Ignored conflict workflow with system Git",
+      "Ignored conflict workflow with bundled Git",
+      "Retained three-pane source/result navigation, engine/regex/file reload/Save and colors/history",
+      "Ordinary and changed source/result choices, stale selection and mutation/close gates",
+      "Aligned result rendering, locator, conflict-slot/removed-row typing, multiline source gaps, Find/Undo and Save",
+      "New both-order footer choices, subsequent actual native result alternatives, source gap/state/original-number assertions, resolved-empty identity, exact UTF-8 Save, partial source conflict choice, all-pane empty cleanup, stale source-layout command/Undo ownership and complete all-pane Undo/Redo"
+    ],
+    "receivers_reaped": [
+      77092,
+      77153,
+      77214,
+      77509,
+      77515,
+      77517
+    ],
+    "all_owned_pids_absent": true,
+    "repeated_cases": 0,
+    "notes": [
+      "Source/align receivers wait for actual current source-row revisions before interpreting native selections",
+      "Swift emitted a confusable-trailing-closure warning in those readiness assertions; all behavioral assertions passed"
+    ]
+  },
+  "ci": {
+    "macos": {
+      "run": 38826903690,
+      "sha": "7265028e",
+      "last_observed": "pending"
+    },
+    "pages": {
+      "run": 38826903660,
+      "sha": "7265028e",
+      "conclusion": "success"
+    },
+    "full_current_macos_pass": false
+  },
+  "limitations": [
+    "Arbitrary serialized whole-file transforms may still invalidate precise row mapping and use the existing serialized editor fallback",
+    "No new physical visual parity capture, complete IME or large-file acceptance claimed",
+    "Exact source EOF joining behavior can display adjacent records whose saved payloads join without an ending; retained intentionally and covered by Core test",
+    "No complete upstream dialog/application certification, signed Finder acceptance or App Store readiness"
+  ],
+  "documentation": {
+    "bundled_help": {
+      "documents": 26,
+      "topics": 47,
+      "files": 32,
+      "bytes": 196428
+    },
+    "site": {
+      "documents": 235,
+      "unresolved_fragments": 0
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 974,
+      "pending_control_reviews": 685
+    }
+  }
+}

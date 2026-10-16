@@ -6,7 +6,8 @@ single-side marker resolution. Later source/result one-row choices can reuse
 those mappings. Whole-group mappings remain for both-order copies and fallback
 conflicts. The result now renders aligned records and uses the same row space
 for active-pane navigation, source peers, context choices and locator scrolling;
-both-order/unknown mappings still use serialized fallback.
+both-order choices now retain aligned source/result geometry and precise maps.
+Unknown mappings from serialized whole-file transforms retain fallback.
 
 ## Ordinary block choices — October 16, 2026
 
@@ -174,3 +175,11 @@ Edited records through input, history and Save; see [in-place editing](MERGE-ONE
 Aligned row-model evidence: [October 16 grouped verification](qa/merge-aligned-rows-2026-10-16.json).
 
 Native aligned editor evidence: [October 16 grouped verification](qa/merge-aligned-editor-2026-10-16.json).
+
+Both-order source choices now also retain source layout revisions and perform
+all-pane gap insertion/state changes, resolved-empty handling and cleanup. Explicit
+partial conflict selections resolve only their selected rows. Captured commands
+are invalid after any intervening source layout edit or Undo, even when file text
+returns to the same bytes.
+
+All-pane block-choice evidence: [October 16 grouped verification](qa/merge-both-blocks-2026-10-16.json).

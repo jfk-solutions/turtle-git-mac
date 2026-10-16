@@ -16,7 +16,7 @@ struct MergeSourceBlocksVerification {
         let owner = TextConflictWindowController(repository:GitRepository(root:root),access:nil,path:"mine",workingMerge:try WorkingTextMerge(base:base,theirs:theirs,mine:mine),preferences:prefs), model = owner.model
         defer { owner.close() }; model.chooseReload = { .discard }; owner.window!.alphaValue = 0; owner.window!.orderFront(nil); model.load()
         func wait(_ ready: () -> Bool) async throws {
-            for _ in 0..<2000 { owner.window?.contentView?.layoutSubtreeIfNeeded(); if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }
+            for _ in 0..<2000 { owner.window?.contentView?.layoutSubtreeIfNeeded(); if ready() && ThreePaneEngineVerification.textViews(owner.window?.contentView).compactMap { $0 as? MergeContextMenuProviding }.allSatisfy(\.mergeSourceRowsReady) { return }; try await Task.sleep(nanoseconds:10_000_000) }
             throw Failure(description:"Timed out waiting for source block operation")
         }
         try await wait { !model.busy && !model.preparing && model.document != nil && ThreePaneEngineVerification.textViews(owner.window?.contentView).filter { !$0.isFieldEditor }.count >= 3 }

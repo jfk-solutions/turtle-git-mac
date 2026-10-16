@@ -1,10 +1,14 @@
 import Foundation
 
 public enum MergeSourceState: Sendable, Equatable, CaseIterable {
-    case normal, removed, added, conflicted, resolved, edited, empty, filtered
+    case normal, removed, added, conflicted, resolved, resolvedEmpty, edited, empty, filtered
     case identicalRemoved, identicalAdded, theirsRemoved, theirsAdded, yoursRemoved, yoursAdded
     case conflictAdded, conflictEmpty, conflictedIgnored, removedWhitespace, addedWhitespace
     public var isRemoval: Bool { [.removed,.identicalRemoved,.theirsRemoved,.yoursRemoved].contains(self) }
+    /// BaseView::IsStateEmpty deliberately excludes ConflictResolvedEmpty.
+    public var isViewEmpty: Bool { self == .empty || self == .conflictEmpty }
+    public var isExcludedFromResult: Bool { isRemoval || isViewEmpty || self == .resolvedEmpty }
+    public var resolvedState: Self { self == .conflictEmpty ? .resolvedEmpty : isConflict ? .resolved : self }
     public var isAddition: Bool { [.added,.identicalAdded,.theirsAdded,.yoursAdded,.conflictAdded].contains(self) }
     public var isConflict: Bool { [.conflicted,.conflictAdded,.conflictEmpty,.conflictedIgnored].contains(self) }
     public var isUnchanged: Bool { self == .normal || self == .filtered }

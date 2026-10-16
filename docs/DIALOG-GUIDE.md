@@ -305,3 +305,10 @@ in alignment with Mine and Theirs. Typing in a blank conflict slot resolves that
 line while leaving neighboring conflict lines unresolved. Multiline paste inserts
 matching source gaps, and Undo/Redo restores all three layouts. Saving writes file
 content and remaining conflict markers; it omits untouched removed rows and gaps.
+
+“Mine then Theirs” and “Theirs then Mine” keep the result aligned and show matching
+gaps in both source panes. You can continue choosing or editing individual rows
+afterward. Selecting a single unresolved source row resolves only that row.
+Resolved conflict gaps stay visible in the resolved color without becoming saved
+blank lines. Rows disappear only when all three panes contain ordinary gaps;
+Undo/Redo restores the entire layout.

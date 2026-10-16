@@ -1,5 +1,41 @@
 # Merge resolved and edited presentation
 
+## All-pane block choices and empty records — October 16, 2026
+
+Mine/Theirs and both ordering choices now operate on aligned view records. The
+both-order commands replace the selected source rows with two complementary
+blocks: the first source occupies the first block opposite new gaps, and the
+second source occupies the second block opposite gaps. Original source payloads
+and numbered coordinates remain available in their respective source views.
+As in BottomView::UseBothBlocks, occupied first/second source rows acquire
+YoursAdded/TheirsAdded states (including the upstream asymmetry when Theirs is
+first). The first result copy normalizes endings, while the second preserves its
+source endings. The source's final-no-ending join behavior is retained.
+
+The result stays aligned after copying both sources, and each row has a precise
+result range for later choices and typing. Footer conflict choices select actual
+conflicted result slots, excluding preceding removed Base records. Explicit
+source/result text selections can resolve one slot within an unresolved group;
+neighboring slots keep their source payloads and unresolved state. Whole-source
+choices use the current source layout, including gaps introduced by earlier
+both-order commands.
+
+ConflictEmpty resolves to a distinct resolved-empty record, rendered with the
+resolved palette and no line number. It is omitted from saved bytes and no longer
+counts as unresolved. It deliberately does not satisfy BaseView::IsStateEmpty.
+Cleanup removes a record only if Mine, Theirs and result are all Empty or
+ConflictEmpty, preserving resolved-empty records, real empty text lines, removed
+records and rows with a real source peer. Typing, source choices and their Undo
+snapshots use the same cleanup/serialization path.
+
+Source views carry a layout revision. Menus and navigation refuse stale geometry
+until the current source rows reach the native view, and captured source commands
+cannot revive after an edit/Undo returns to identical file text. Undo/Redo restores
+all source states, gaps, result records, byte provenance and logical numbers.
+Unknown mappings after arbitrary serialized whole-file transforms still use the
+existing serialized editor fallback. Such transforms, complete IME behavior and
+large-file acceptance remain open; this is not full dialog certification.
+
 ## Native aligned result editor — October 16, 2026
 
 The result pane now renders aligned result records with removed Base text,
@@ -29,10 +65,9 @@ not become extra saved file content.
 The grouped receiver exercises actual native conflict-slot/removed-row typing,
 multiline source gaps, per-row alternatives, locator clicks, marker-free display,
 Save bytes, unchanged inputs and Undo/Redo. Core checks cover CRLF/UTF-16 offsets,
-empty documents and final empty edited records. Both-order choices and arbitrary
-whole-file transforms can still invalidate the precise row projection and use
-the existing serialized editor fallback. Full both-order source mutation,
-resolved-empty aliases, all-pane empty-row cleanup, IME and complete large-file
+empty documents and final empty edited records. The subsequent all-pane block batch above retains both-order alignment,
+resolved-empty aliases and all-pane cleanup. Arbitrary serialized whole-file
+transforms still use the existing fallback; IME and complete large-file
 acceptance remain open. No complete upstream dialog parity is claimed.
 
 ## Aligned result records and precise resolution — October 16, 2026
@@ -196,3 +231,5 @@ Undo/Redo. This remains a partial port of the fully aligned upstream result view
 Aligned row-model evidence: [October 16 grouped verification](qa/merge-aligned-rows-2026-10-16.json).
 
 Native aligned editor evidence: [October 16 grouped verification](qa/merge-aligned-editor-2026-10-16.json).
+
+All-pane block-choice evidence: [October 16 grouped verification](qa/merge-both-blocks-2026-10-16.json).

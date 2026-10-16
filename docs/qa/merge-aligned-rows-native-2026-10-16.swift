@@ -18,7 +18,7 @@ struct MergeAlignedRowsVerification {
         let owner = TextConflictWindowController(repository:GitRepository(root:root),access:nil,path:"mine",workingMerge:try WorkingTextMerge(base:base,theirs:theirs,mine:mine),preferences:prefs), model = owner.model
         defer { owner.close() }; owner.window!.alphaValue = 0; owner.window!.orderFront(nil); model.load()
         func wait(_ ready: () -> Bool, line: Int = #line) async throws {
-            for _ in 0..<2000 { owner.window?.contentView?.layoutSubtreeIfNeeded(); if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }
+            for _ in 0..<2000 { owner.window?.contentView?.layoutSubtreeIfNeeded(); if ready() && ThreePaneEngineVerification.textViews(owner.window?.contentView).compactMap { $0 as? MergeContextMenuProviding }.allSatisfy(\.mergeSourceRowsReady) { return }; try await Task.sleep(nanoseconds:10_000_000) }
             throw Failure(description:"Aligned rows wait at line \(line), error=\(String(describing:model.error))")
         }
         try await wait { !model.busy && !model.preparing && model.document != nil && ThreePaneEngineVerification.textViews(owner.window?.contentView).contains { $0.isEditable } }

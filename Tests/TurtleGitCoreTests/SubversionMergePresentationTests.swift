@@ -84,6 +84,86 @@ final class SubversionMergePresentationTests: XCTestCase {
         XCTAssertEqual(projection.displayRange(serializedRange:NSRange(location:4,length:3)),NSRange(location:7,length:3))
         XCTAssertEqual(projection.serializedRange(displayRange:NSRange(location:3,length:3)),NSRange(location:4,length:0))
     }
+    func testBothOrdersExpandAllThreeViewsAndRetainSourceCoordinates() throws {
+        let value = try presentation("head\nold\ntail\n","head\nmine1\nmine2\ntail\n","head\ntheirs\ntail\n"), initial = resultPresentation(value)
+        let projection = try XCTUnwrap(MergeAlignedResultProjection(comparison:value.sources,presentation:initial))
+        let first = try XCTUnwrap(projection.cells.firstIndex { $0.state == .conflicted }), rows = first..<(first + 2)
+        for choice in [MergeBlockChoice.mineThenTheirs,.theirsThenMine] {
+            let edit = try MergeAlignedSourceBlockEdit(comparison:value.sources,presentation:initial,rows:rows,choice:choice)
+            let result = try XCTUnwrap(MergeAlignedResultProjection(comparison:edit.comparison,presentation:edit.presentation))
+            XCTAssertEqual(result.cells.count,projection.cells.count + 2)
+            XCTAssertEqual(edit.selectedRows,first..<(first + 4))
+            XCTAssertEqual(edit.presentation.text,choice == .mineThenTheirs ? "head\nmine1\nmine2\ntheirs\ntail\n" : "head\ntheirs\nmine1\nmine2\ntail\n")
+            XCTAssertEqual(edit.comparison.rows.filter { $0.mine.hasSourceCoordinate }.map { $0.mine.text }.joined(),"head\nmine1\nmine2\ntail\n")
+            XCTAssertEqual(edit.comparison.rows.filter { $0.theirs.hasSourceCoordinate }.map { $0.theirs.text }.joined(),"head\ntheirs\ntail\n")
+            let a = edit.comparison.rows[first], b = edit.comparison.rows[first + 2]
+            XCTAssertEqual(choice == .mineThenTheirs ? a.mine.state : a.theirs.state,.yoursAdded)
+            XCTAssertEqual(choice == .mineThenTheirs ? b.theirs.state : b.mine.state,.theirsAdded)
+            XCTAssertTrue(choice == .mineThenTheirs ? a.theirs.state.isViewEmpty : a.mine.state.isViewEmpty)
+            XCTAssertEqual(result.cells.filter { $0.state == .resolvedEmpty }.count,1)
+            XCTAssertNil(result.cells.first { $0.state == .resolvedEmpty }?.lineNumber)
+            XCTAssertTrue(edit.presentation.conflicts().isEmpty)
+            // Exact row maps permit a subsequent alternative without replacing
+            // the other copy or leaving the aligned editor.
+            let again = try MergeAlignedSourceBlockEdit(comparison:edit.comparison,presentation:edit.presentation,rows:first..<(first + 1),choice:choice == .mineThenTheirs ? .theirs : .mine)
+            XCTAssertNotNil(MergeAlignedResultProjection(comparison:again.comparison,presentation:again.presentation))
+            XCTAssertEqual(again.presentation.text,choice == .mineThenTheirs ? "head\nmine2\ntheirs\ntail\n" : "head\nmine1\nmine2\ntail\n")
+        }
+    }
+    func testSourceChoiceCanResolveOneSlotInsideUnresolvedGroup() throws {
+        let value = try presentation("head\nold1\nold2\ntail\n","head\nmine1\nmine2\ntail\n","head\ntheirs1\ntheirs2\ntail\n"), initial = resultPresentation(value)
+        let projection = try XCTUnwrap(MergeAlignedResultProjection(comparison:value.sources,presentation:initial))
+        let row = try XCTUnwrap(projection.cells.firstIndex { $0.state == .conflicted })
+        let edit = try MergeAlignedSourceBlockEdit(comparison:value.sources,presentation:initial,rows:row..<(row + 1),choice:.mine)
+        XCTAssertTrue(edit.presentation.text.hasPrefix("head\nmine1\n<<<<<<< Mine\n"))
+        XCTAssertEqual(edit.presentation.conflicts().first?.mine,"mine2\n")
+        XCTAssertEqual(edit.presentation.conflicts().first?.theirs,"theirs2\n")
+        let result = try XCTUnwrap(MergeAlignedResultProjection(comparison:edit.comparison,presentation:edit.presentation))
+        XCTAssertEqual(result.cells[row].state,.resolved)
+        XCTAssertEqual(result.cells[row + 1].state,.conflicted)
+    }
+    func testResolvedEmptyIsExcludedButRemainsAResolvedViewRecord() throws {
+        let value = try presentation("head\nold\ntail\n","head\nmine1\nmine2\ntail\n","head\ntheirs\ntail\n"), initial = resultPresentation(value)
+        let row = try XCTUnwrap(value.sources.rows.firstIndex { $0.theirs.state == .conflictEmpty })
+        let edit = try MergeAlignedSourceBlockEdit(comparison:value.sources,presentation:initial,rows:row..<(row + 1),choice:.theirs)
+        let projected = try XCTUnwrap(MergeAlignedResultProjection(comparison:edit.comparison,presentation:edit.presentation))
+        XCTAssertEqual(projected.cells[row].state,.resolvedEmpty)
+        XCTAssertNil(projected.cells[row].lineNumber)
+        XCTAssertEqual(projected.cells[row].state.colorRole,.resolved)
+        XCTAssertFalse(MergeSourceState.resolvedEmpty.isViewEmpty)
+        XCTAssertFalse(MergeSourceState.resolvedEmpty.isConflict)
+        XCTAssertEqual(projected.serializedRanges[row].length,0)
+        XCTAssertFalse(edit.presentation.text.contains("mine2"))
+        XCTAssertEqual(edit.presentation.conflicts().first?.mine,"mine1\n")
+        XCTAssertEqual(MergeLineStatistics(states:projected.cells.map(\.state)).conflicted,1)
+        let typed = try MergeAlignedResultEdit(comparison:edit.comparison,presentation:edit.presentation,range:NSRange(location:projected.displayRanges[row].location,length:0),replacement:"restored")
+        XCTAssertEqual(try XCTUnwrap(MergeAlignedResultProjection(comparison:typed.comparison,presentation:typed.presentation)).cells[row].state,.edited)
+        XCTAssertTrue(typed.presentation.text.contains("restored\n"))
+    }
+    func testChoosingAnInsertedSourceGapCleansOnlyAllPaneEmptyRows() throws {
+        let value = try presentation("head\ntail\n","head\ntail\n","head\ntail\n"), initial = resultPresentation(value)
+        let paste = try MergeAlignedResultEdit(comparison:value.sources,presentation:initial,range:NSRange(location:4,length:0),replacement:"\ninserted")
+        XCTAssertEqual(paste.comparison.rows.count,3)
+        let restored = try MergeAlignedSourceBlockEdit(comparison:paste.comparison,presentation:paste.presentation,rows:1..<2,choice:.mine)
+        XCTAssertEqual(restored.comparison.rows.count,2)
+        XCTAssertEqual(restored.presentation.text,value.result)
+        XCTAssertEqual(restored.selectedRows,1..<1)
+        XCTAssertEqual(restored.comparison.rows.map { $0.mine.lineNumber },[1,2])
+        XCTAssertNotNil(MergeAlignedResultProjection(comparison:restored.comparison,presentation:restored.presentation))
+        let copy = try MergeAlignedSourceBlockEdit(comparison:value.sources,presentation:initial,rows:0..<1,choice:.mineThenTheirs)
+        let gap = try MergeAlignedSourceBlockEdit(comparison:copy.comparison,presentation:copy.presentation,rows:0..<1,choice:.theirs)
+        XCTAssertEqual(gap.comparison.rows.count,3,"A real source row must prevent cleanup")
+        XCTAssertEqual(gap.presentation.text,value.result)
+    }
+    func testBothOrdersNormalizeOnlyFirstBlockAndRetainEOF() throws {
+        let value = try presentation("old","mine\r\nlast","theirs\nend"), initial = resultPresentation(value)
+        let projected = try XCTUnwrap(MergeAlignedResultProjection(comparison:value.sources,presentation:initial))
+        let first = try XCTUnwrap(projected.cells.firstIndex { $0.state == .conflicted })
+        let edit = try MergeAlignedSourceBlockEdit(comparison:value.sources,presentation:initial,rows:first..<projected.cells.count,choice:.mineThenTheirs,lineEnding:.crlf)
+        XCTAssertEqual(edit.presentation.text,"mine\r\nlasttheirs\nend")
+        XCTAssertNotNil(MergeAlignedResultProjection(comparison:edit.comparison,presentation:edit.presentation))
+        XCTAssertEqual(edit.comparison.rows.filter { $0.theirs.hasSourceCoordinate }.map { $0.theirs.text }.joined(),"theirs\nend")
+    }
     func testAlignedResultRetainsRemovedRecordsAndLogicalNumbers() throws {
         let value = try presentation("head\nold\ntail\n","head\nold\ntail\n","head\nnew\ntail\n")
         let rows = try XCTUnwrap(value.sources.alignedResultRows)
