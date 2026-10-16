@@ -14,6 +14,6 @@ let package = Package(
         .target(name: "TurtleGitCore", dependencies: ["TurtleGitSMTP"], resources: [.copy("Resources/Icons"), .copy("Resources/Completion")]),
         .executableTarget(name: "TurtleGitWCRev", dependencies: ["TurtleGitCore"]),
         .testTarget(name: "TurtleGitCoreTests", dependencies: ["TurtleGitCore"], exclude: ["Fixtures/WorkingCopyRevision"], resources: [.copy("Fixtures/GitOutput"), .copy("Fixtures/Certificates"), .copy("Fixtures/smtp_server.py")])
-    ] + (coreOnly ? [] : [.executableTarget(name: "TurtleGitMac", dependencies: ["TurtleGitCore"], resources: [.copy("Resources/TurtleGitHelp.help")])]),
+    ] + (coreOnly ? [] : [.executableTarget(name: "TurtleGitMac", dependencies: ["TurtleGitCore"], exclude: ["Resources/ApplicationAssets.xcassets"], resources: [.copy("Resources/TurtleGitHelp.help"), .copy("Resources/Branding")])]),
     swiftLanguageModes: [.v5]
 )

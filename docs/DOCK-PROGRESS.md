@@ -57,3 +57,10 @@ Eight actual tile-view light/dark renders were inspected. They show the current
 unsigned app's generic macOS application icon; packaged branded AppIcon artwork
 remains an explicit distribution/UI gap. These renders are kept as QA artifacts,
 not advertised as a physical Dock screenshot or finished branding.
+
+
+The [application identity family](APPLICATION-IDENTITY.md) now supplies a real
+compiled application icon and patch-document icon. Its refreshed native tile
+renders load the packaged AppIcon directly; the generic-icon finding above
+describes the earlier bundle. Physical Dock/Launch Services acceptance remains
+open.

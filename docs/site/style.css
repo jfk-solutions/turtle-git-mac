@@ -3,3 +3,5 @@
 .locator-captures { display: flex; gap: 2rem; margin: 2rem 0; }
 .locator-captures figure { flex: 1; margin: 0; }
 .locator-captures img { width: 44px; height: auto; }
+
+.brand img{display:inline-block;width:36px;height:36px;vertical-align:middle;object-fit:contain}

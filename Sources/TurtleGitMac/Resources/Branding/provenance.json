@@ -1,0 +1,37 @@
+{
+  "commit" : "7338078f8ddd924b8cddee35f512f2286072136d",
+  "conversion" : "scripts/build-application-icons.swift; exact-size source frames when available, otherwise high-quality resampling of largest 256px frame; original artwork and transparency, no new design",
+  "license_choice" : "GNU GPL alternative in upstream src/Resources/license.txt",
+  "outputs" : {
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/Contents.json" : "60ee77b42345bc6095e2202ffec67ded6e1757150d2b7d87df00b9e3267c5dd4",
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_16x16.png" : "c21d7ad3462c5da7819ca02de96bd713c667401941033a2b2f78a5f6739739b9",
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_16x16@2x.png" : "bfa26f8173460a7cf1512ac9c8a1e43fb6c6aa1689158172a61502f7654a1bb5",
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_32x32.png" : "bfa26f8173460a7cf1512ac9c8a1e43fb6c6aa1689158172a61502f7654a1bb5",
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_32x32@2x.png" : "880820daac0b1772eb6272fd76589d7da8b5a57d9680114b93c1a416f2ab019b",
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_128x128.png" : "c7ed849127d869203b974afc0d96513c1dadbe6e941b0cadea8ef2edfe491cc0",
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" : "ecf7dc32958aa9c18a777eb8c96507aad321d91d9899adf25be85f0efd48cee7",
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_256x256.png" : "ecf7dc32958aa9c18a777eb8c96507aad321d91d9899adf25be85f0efd48cee7",
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_256x256@2x.png" : "5a1ab0da4d65699deb02d53eee0bd4bfbc7ad5a4e79e58b2c060f877ce8bb5d9",
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_512x512.png" : "5a1ab0da4d65699deb02d53eee0bd4bfbc7ad5a4e79e58b2c060f877ce8bb5d9",
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_512x512@2x.png" : "05fea8b1234673d11083fa7daf846f0a9062d038a6124eacdd7a9bc1ba049663",
+    "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/Contents.json" : "8bcf29db467c75f5ae82824429c3a9144fa82efc7efc2ed9a6e46ca71af73a44",
+    "Sources/TurtleGitMac/Resources/Branding/ApplicationIcon.png" : "ecf7dc32958aa9c18a777eb8c96507aad321d91d9899adf25be85f0efd48cee7",
+    "Sources/TurtleGitMac/Resources/Branding/TurtleGitPatch.icns" : "fd2ceb1dc3a1a6501214c46549bccbc3332c09a9c8c193e6b7f198092bc92c9f",
+    "Sources/TurtleGitMac/Resources/Branding/UPSTREAM-ICON-LICENSE.txt" : "125972bd83a6b8c0e6bb7205e467d428322b64ecc971a3af039436a6ba9027d9",
+    "Sources/TurtleGitMac/Resources/Branding/Upstream/Tortoise.ico" : "dd7d0bb42b72d565723cdaf0687ed3ce5afd30ef743248d35cac78532e4e6eac",
+    "Sources/TurtleGitMac/Resources/Branding/Upstream/TortoiseUDiff.ico" : "8678b929d02355e510b77adbcee99a4cbc5ced1673df952d6a50e8f70005b242"
+  },
+  "sources" : [
+    {
+      "asset" : "Upstream/Tortoise.ico",
+      "sha256" : "dd7d0bb42b72d565723cdaf0687ed3ce5afd30ef743248d35cac78532e4e6eac",
+      "source" : "src/Resources/Tortoise.ico"
+    },
+    {
+      "asset" : "Upstream/TortoiseUDiff.ico",
+      "sha256" : "8678b929d02355e510b77adbcee99a4cbc5ced1673df952d6a50e8f70005b242",
+      "source" : "src/TortoiseUDiff/TortoiseUDiff.ico"
+    }
+  ],
+  "upstream" : "https://github.com/TortoiseGit/TortoiseGit"
+}

@@ -2,6 +2,11 @@
 
 *A macOS fork of TortoiseGit*
 
+The [application identity/file-open family](APPLICATION-IDENTITY.md) now packages
+original app/document icons, full macOS icon slots, native patch/diff file-URL
+routing and scoped document Save/Undo ownership. The website uses the same
+artwork. Physical Finder/Launch Services and signed acceptance remain open.
+
 The native [Dock progress family](DOCK-PROGRESS.md) now connects transport,
 Commit, replay and shared local command progress, including unknown/paused/error
 states, simultaneous operations, reduced motion and closed-window retirement.

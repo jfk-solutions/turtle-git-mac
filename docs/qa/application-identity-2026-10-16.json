@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "deacd6954e29d1bcf38599408969f94626166029",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Application/document artwork, native patch/diff file-open and Save As routing, development/website branding and bundle declarations",
+  "implementation": [
+    "Ten macOS AppIcon slots from upstream Tortoise.ico, compiled catalog/ICNS and original UDiff document artwork",
+    "Raw original ICOs/resource license and conversion provenance in shipped Branding; copied bytes verified against pinned Git blobs",
+    "Debug/AppStore common icon/declaration wiring; SwiftPM development PNG fallback with catalog excluded from SwiftPM raw resources",
+    "Website header/favicon original application artwork",
+    "Alternate Editor registration for patch/diff plus filename/MIME tags on existing unified-diff UTI; no default-handler write",
+    "File-URL routing to independent native Unified Diff documents without changing active workspace; exact-byte path comparison",
+    "Current file URL governs duplicate-window focus after Save As; stable UUID window ownership prevents old path overwriting renamed document registration",
+    "Existing scoped/bounded reader, original bytes/encoding, Save/Undo, represented URL, Quit accounting and retired-read publication guards",
+    "Packaging audit integrated with existing bundle validator; CI adds affected native file-open case"
+  ],
+  "builds": {
+    "initial_debug": {
+      "exit": 0,
+      "log": "build/qa/application-identity-debug.log",
+      "anomalous_exit_zero_diagnostics": 13
+    },
+    "initial_appstore": {
+      "exit": 0,
+      "log": "build/qa/application-identity-store.log",
+      "anomalous_exit_zero_diagnostics": 2
+    },
+    "save_as_debug": {
+      "exit": 0,
+      "log": "build/qa/application-identity-save-as-debug.log",
+      "anomalous_exit_zero_diagnostics": 3
+    },
+    "save_as_appstore": {
+      "log": "build/qa/application-identity-save-as-store.log",
+      "exit": 0,
+      "anomalous_exit_zero_diagnostics": 1
+    }
+  },
+  "core": {
+    "changed": false,
+    "run": false,
+    "reason": "Native file-routing/lifecycle and artwork/packaging changes only; no complete or focused Core rerun"
+  },
+  "native": {
+    "initial_log": "build/qa/application-identity-native.log",
+    "initial_failed_receiver": 48819,
+    "initial_failure": "File-open/edit/Save passed, then Undo wait timed out. Fixture drove undo before native NSTextView re-enabled after Save.",
+    "fixture_repair": "Use the retained document fixture input-readiness wait, first responder and breakUndoCoalescing; all original Undo/Redo assertions retained. No app rebuild for this fixture-only repair.",
+    "repaired_group_log": "build/qa/application-identity-native-repair.log",
+    "repaired_group_exit": 0,
+    "repaired_group_passes": 6,
+    "source_review_followup": "Final source review found original-path-keyed window ownership did not follow Save As. This was source-derived, not claimed as an observed pre-fix runtime failure.",
+    "product_followup": "Stable UUID window ownership with current session file URL lookup. Added actual Save As/new-path reuse/old-path separate reopening assertions; rebuilt affected native code and reran only file-open cases.",
+    "followup_log": "build/qa/application-identity-save-as-native.log",
+    "followup_exit": 0,
+    "followup_passes": 2,
+    "distinct_case_engine_pairs": 6,
+    "total_passing_receivers": 8,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "families": [
+      "new file-URL/native document integration",
+      "retained complete standalone document session",
+      "retained Dock renderer/presentation with packaged app icon"
+    ],
+    "all_attempted_receivers_reaped_and_independently_absent": [
+      48819,
+      48911,
+      48927,
+      48950,
+      48964,
+      48984,
+      48999,
+      49289,
+      49308
+    ],
+    "checks": [
+      "Unicode/newline/uppercase patch name outside a Git repository opens while workspace busy; root and busy state preserved",
+      "Independent documents preserve UTF16 BOM/CRLF and exact original bytes",
+      "Actual native edit, Save to original file, Undo/Redo and dirty duplicate-open preservation",
+      "Actual Save As changes file identity; new name reuses renamed window; old filename opens separate without replacing it",
+      "Unsupported file and pending Quit guard; held read retains lease/counter until response drain; forced close cancels and refuses late data",
+      "Retained Save/Open/cancel/stale-file/original-encoding/source Find/native menu and retired read cases",
+      "Native Dock aggregate/timer/reduced motion/retained-window cleanup and observed shipping Push progress views remain passing"
+    ]
+  },
+  "packaging": {
+    "initial_debug_audit": "passed: build/qa/application-identity-debug-audit.log",
+    "initial_store_audit": "passed: build/qa/application-identity-store-audit.log",
+    "latest_debug_audit": "passed inside affected native runner",
+    "latest_store_audit": "passed: build/qa/application-identity-save-as-store-audit.log"
+  },
+  "visual": {
+    "captures_sha256": {
+      "build/qa/application-identity-dock-captures/dock-failed-dark.png": "077376496cd8574005759d0a705281e1530c8e33223b34bc8aff642ffdc61d4f",
+      "build/qa/application-identity-dock-captures/dock-failed-light.png": "4060e53ba1e679ff2b73e67d42eef86c95145174cb3ebea909272415ec92fe05",
+      "build/qa/application-identity-dock-captures/dock-running-dark.png": "5ed5513b2ad8aef707cc975124181f180740b78e6e7eb35b99b81efadd585bb4",
+      "build/qa/application-identity-dock-captures/dock-running-light.png": "f766536b904a40aa2cc5bc81fd1533d7095461f2aac842aa6360ce64e202c7c4",
+      "build/qa/application-identity-dock-captures/dock-unknown-dark.png": "31a27c6e991664fcedf975700d291e434a6ae7ab9c02f94af46016c32bde7462",
+      "build/qa/application-identity-dock-captures/dock-unknown-light.png": "4be5985319c728411533e36b29b7baf62cd5d2b5ac439f87383ed50646072452",
+      "build/qa/application-identity-dock-captures/dock-waiting-dark.png": "14772ecc23e4232464d40fbfcbe25b364db4e5a2f0e7c50a7b8c305016c2fdbc",
+      "build/qa/application-identity-dock-captures/dock-waiting-light.png": "7db1b46381e74df6a3153baf19ab4bbab995eb1307e3302987e154b3c51779df"
+    },
+    "review": "All eight branded native Dock view light/dark renders inspected; original turtle artwork, colored bar and waiting/error marks visible. Packaged document ICNS decoded with sips and visually inspected. These are render/artifact checks, not physical Dock/Finder screenshots.",
+    "resolution_limit": "Original maximum 256px source is resampled for larger macOS slots; no newly drawn high-resolution detail claimed."
+  },
+  "documentation": {
+    "help": {
+      "documents": 28,
+      "topics": 47,
+      "files": 34,
+      "bytes": 217056,
+      "mode": "write"
+    },
+    "site": "240 documents, no unresolved fragments",
+    "ledger": "130 dialogs; 120 partial audits; 10 pending; 0 certified; 986 mapped / 673 pending controls"
+  },
+  "limits": [
+    "No physical Finder Open With/proxy/Launch Services default-handler or install-cache acceptance",
+    "No signed AppStore file grants, Store submission/approval or complete hosted CI pass",
+    "SwiftPM fallback/resource declarations added; no duplicate full SwiftPM app compilation performed",
+    "All source controls/visual/VoiceOver/file-alias and external modification combinations remain incomplete acceptance",
+    "No complete TortoiseGit/application parity claim"
+  ]
+}

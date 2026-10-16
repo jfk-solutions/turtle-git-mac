@@ -6,3 +6,6 @@ Tests/TurtleGitCoreTests/Fixtures/GitOutput/*.txt -text -whitespace
 
 # Preserve both upstream WCRev templates byte-for-byte (CRLF and UTF-16).
 Tests/TurtleGitCoreTests/Fixtures/WorkingCopyRevision/*.tmpl -text -whitespace
+
+# Packaged application artwork carries the same unchanged upstream notice.
+Sources/TurtleGitMac/Resources/Branding/UPSTREAM-ICON-LICENSE.txt -text -whitespace

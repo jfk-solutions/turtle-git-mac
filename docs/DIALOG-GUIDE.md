@@ -387,3 +387,12 @@ result. Successful completion clears its indicator; close an inspected failed
 result to clear it. Other running windows keep their progress. Unknown work uses
 an animated segment, which stays still with macOS Reduce Motion enabled. See
 [Dock progress](DOCK-PROGRESS.md) for simultaneous-operation behavior.
+
+
+## Open patch documents from Finder
+
+Choose TurtleGit in **Open With** for a `.patch` or `.diff` file. It opens an
+independent Unified Diff window, preserving the active repository. You can edit,
+Undo and Save the document. Reopening the same file focuses its existing window
+and keeps unsaved edits. Applying it to a repository remains a separate command.
+See [application and document identity](APPLICATION-IDENTITY.md).

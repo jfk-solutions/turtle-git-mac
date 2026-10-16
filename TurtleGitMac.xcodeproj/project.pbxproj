@@ -383,6 +383,9 @@
 		C210101600000000000000F3 /* TurtleGitHelp.help in Resources */ = {isa = PBXBuildFile; fileRef = C210101600000000000000F4 /* TurtleGitHelp.help */; };
 		C21010170000000000000001 /* LFSProgressTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21010170000000000000002 /* LFSProgressTable.swift */; };
 		C21010180000000000000001 /* LFSLocksTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21010180000000000000002 /* LFSLocksTable.swift */; };
+		C210101600000000000001A0 /* ApplicationAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C210101600000000000001A1 /* ApplicationAssets.xcassets */; };
+		C210101600000000000001A2 /* Branding in Resources */ = {isa = PBXBuildFile; fileRef = C210101600000000000001A3 /* Branding */; };
+		C210101600000000000001A4 /* TurtleGitPatch.icns in Resources */ = {isa = PBXBuildFile; fileRef = C210101600000000000001A5 /* TurtleGitPatch.icns */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -864,6 +867,9 @@
 		C210101600000000000000F4 /* TurtleGitHelp.help */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources/TurtleGitHelp.help; sourceTree = "<group>"; };
 		C21010170000000000000002 /* LFSProgressTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSProgressTable.swift; sourceTree = "<group>"; };
 		C21010180000000000000002 /* LFSLocksTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSLocksTable.swift; sourceTree = "<group>"; };
+		C210101600000000000001A1 /* ApplicationAssets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = ApplicationAssets.xcassets; path = Resources/ApplicationAssets.xcassets; sourceTree = "<group>"; };
+		C210101600000000000001A3 /* Branding */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Branding; path = Resources/Branding; sourceTree = "<group>"; };
+		C210101600000000000001A5 /* TurtleGitPatch.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = TurtleGitPatch.icns; path = Resources/Branding/TurtleGitPatch.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -933,6 +939,9 @@
 		0B0ED7640D942B979726B592 /* TurtleGitMac */ = {
 			isa = PBXGroup;
 			children = (
+				C210101600000000000001A5 /* TurtleGitPatch.icns */,
+				C210101600000000000001A3 /* Branding */,
+				C210101600000000000001A1 /* ApplicationAssets.xcassets */,
 				1AB2F5FDA0673FDECA2C7F25 /* AddFileTable.swift */,
 				0492C8BA1A8FA506ECB53A3A /* AddProgressTable.swift */,
 				8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */,
@@ -1643,6 +1652,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C210101600000000000001A4 /* TurtleGitPatch.icns in Resources */,
+				C210101600000000000001A2 /* Branding in Resources */,
+				C210101600000000000001A0 /* ApplicationAssets.xcassets in Resources */,
 				DD16EA85352150A590AED3FB /* LICENSE in Resources */,
 				B325035DE8116D7F3CCCC3FD /* NOTICE in Resources */,
 				C210101600000000000000F3 /* TurtleGitHelp.help in Resources */,

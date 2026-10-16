@@ -49,7 +49,8 @@ import TurtleGitCore
         // never changes the installed application's Dock or shared preferences.
         let original = NSView(frame: .zero); var content: NSView? = original, redraws = 0, motion = false
         let app = URL(fileURLWithPath: CommandLine.arguments[3]).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let icon = NSWorkspace.shared.icon(forFile: app.path)
+        let iconFile = app.appendingPathComponent("Contents/Resources/AppIcon.icns")
+        guard let icon = NSImage(contentsOf: iconFile) else { throw Failure(description: "Packaged application icon unavailable") }
         let presenter = DockProgressPresenter(read: { content }, write: { content = $0 }, display: { redraws += 1 }, icon: { icon }, allowed: { true }, reduceMotion: { motion })
         defer { presenter.clear() }
         presenter.present(DockProgressState(.running)); try require(presenter.timer != nil && content === presenter.tile, "Indeterminate Dock animation not installed")

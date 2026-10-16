@@ -449,6 +449,8 @@ jobs:
         run: python3 scripts/test-save-as-targets.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native conflict identities
         run: python3 scripts/test-conflict-identities.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Native application identity and file-open routing
+        run: python3 scripts/test-application-identity.py --only identity --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Dock progress and window lifetime
         run: python3 scripts/test-dock-progress.py --only dock --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native transport presentation

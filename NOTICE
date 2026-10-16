@@ -1489,3 +1489,11 @@ paths and SHA-256 values in the icon provenance manifest. Native task ownership,
 clipboard capture, AppKit notifications and retained Mac folder grants replace
 Windows thread/message/dialog mechanisms. Full visual/signed acceptance remains
 in progress.
+
+Application and Unified Diff document icons reuse src/Resources/Tortoise.ico and
+src/TortoiseUDiff/TortoiseUDiff.ico at the pinned upstream revision. Original
+artwork and transparency are retained; macOS asset slots and ICNS are format
+conversions, with resampling above upstream's largest 256px representation.
+Sources, resource license and provenance accompany Contents/Resources/Branding.
+The website header uses the same application artwork. GPL alternative selected;
+no affiliation or endorsement by TortoiseGit or TortoiseSVN is claimed.

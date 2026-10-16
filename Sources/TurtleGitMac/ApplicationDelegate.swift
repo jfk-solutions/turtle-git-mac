@@ -1,7 +1,12 @@
 import AppKit
 
 @MainActor final class TurtleGitApplicationDelegate: NSObject, NSApplicationDelegate {
-    func applicationDidFinishLaunching(_ notification: Notification) { TurtleGitHelp.install() }
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        #if SWIFT_PACKAGE
+        if let file = Bundle.module.url(forResource: "ApplicationIcon", withExtension: "png", subdirectory: "Branding"), let icon = NSImage(contentsOf: file) { NSApp.applicationIconImage = icon }
+        #endif
+        TurtleGitHelp.install()
+    }
     @objc func showHelp(_ sender: Any?) { TurtleGitHelp.showContext() }
     weak var repositoryModel: RepositoryModel?
     private var confirmingQuit = false

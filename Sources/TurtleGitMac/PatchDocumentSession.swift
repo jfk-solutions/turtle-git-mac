@@ -107,6 +107,15 @@ import UniformTypeIdentifiers
             await session.load(url)
         }
     }
+    /// Finder/Launch Services already supplies the chosen file; retain the same
+    /// scoped read, save point and cancellation ownership as the Open panel.
+    func openFile(_ url: URL) {
+        launch { session in
+            session.pendingReplacement = nil
+            guard await session.resolveChanges(), !session.retired else { return }
+            await session.load(url)
+        }
+    }
     func saveDocument(as newFile: Bool = false) { launch { _ = await $0.save(as: newFile) } }
     func requestClose() { launch { if await $0.resolveChanges() { $0.owner?.close() } } }
     func replace(_ bytes: Data) { present(bytes, publish: {}) }
@@ -197,6 +206,7 @@ import UniformTypeIdentifiers
             let bytes = try await readFile(url, token)
             guard !retired, generation == request, !token.isCancelled else { return }
             documentIdentity = UUID(); fileURL = url; fileAccess = access; diskBytes = bytes
+            owner.window?.representedURL = url
             owner.model.setReadOnlyDiff(bytes, discardingEdits: true)
             owner.model.refreshAvailable = false; owner.model.customRefresh = nil
             owner.model.comparisonTitle = url.lastPathComponent

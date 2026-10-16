@@ -153,6 +153,10 @@ import UniformTypeIdentifiers
     private var lfsLocksWindows: [String: LFSLocksWindowController] = [:]
     private var lfsFileOperations: [UUID: LFSFileOperationController] = [:]
     private var reviewPatchWorkflows: [UUID: ReviewPatchWorkflow] = [:]
+    private(set) var patchDocumentWindows: [UUID: PatchWindowController] = [:]
+    private var patchDocumentOpeningPaths: [UUID: Data] = [:]
+    var patchDocumentPresentation: ((PatchWindowController) -> Void)?
+    var configurePatchDocument: (PatchWindowController) -> Void = { _ in }
     var reviewPatchPreferences: UserDefaults = .standard
     var reviewPatchPreparation: ((ReviewPatchWorkflow) -> Void)?
     var reviewPatchPresentation: ((WorkingTreePatchWindowController) -> Void)?
@@ -2758,9 +2762,45 @@ import UniformTypeIdentifiers
         } catch { self.error = error.localizedDescription }
     }
     func handle(_ url: URL) {
+        if url.isFileURL { openPatchDocument(url); return }
         guard !confirmingQuit, let request = FinderRequest(url: url) else { return }
         let choice=request.alternateTool ?? ComparisonToolInvocation.capture
         ComparisonToolInvocation.$alternate.withValue(choice) {handleFinderRequest(request)}
+    }
+    func openPatchDocument(_ url: URL) {
+        guard !confirmingQuit else { return }
+        guard url.isFileURL, ["patch", "diff"].contains(url.pathExtension.lowercased()) else {
+            error = "Choose a .patch or .diff document to open in Unified Diff."; return
+        }
+        let file = url.standardizedFileURL, key = Data(file.path.utf8)
+        if let entry = patchDocumentWindows.first(where: { id, controller in
+            if let current = controller.documentSession.fileURL { return Data(current.standardizedFileURL.path.utf8) == key }
+            return patchDocumentOpeningPaths[id] == key
+        }) {
+            let existing = entry.value
+            if existing.documentSession.fileURL == nil, !existing.model.busy, !existing.documentSession.dirty {
+                existing.model.error = nil; existing.documentSession.openFile(file)
+            }
+            if let patchDocumentPresentation { patchDocumentPresentation(existing) }
+            else { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil) }
+            return
+        }
+        do {
+            let id = UUID()
+            let context = GitRepository(root: file.deletingLastPathComponent(), executable: try GitRuntime.executable())
+            let controller = PatchWindowController(repository: context, access: nil, preferences: reviewPatchPreferences)
+            controller.presentDocument(Data(), title: file.lastPathComponent + " – Unified Diff – TurtleGit", comparison: file.lastPathComponent,
+                information: "Opening patch document…")
+            configurePatchDocument(controller)
+            controller.onClosed = { [weak self, weak controller] in
+                guard let self, let controller, self.patchDocumentWindows[id] === controller else { return }
+                self.patchDocumentWindows.removeValue(forKey: id); self.patchDocumentOpeningPaths.removeValue(forKey: id)
+            }
+            patchDocumentWindows[id] = controller; patchDocumentOpeningPaths[id] = key
+            if let patchDocumentPresentation { patchDocumentPresentation(controller) }
+            else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+            controller.documentSession.openFile(file)
+        } catch { self.error = error.localizedDescription }
     }
     private func handleFinderRequest(_ request:FinderRequest) {
         let action = request.action
