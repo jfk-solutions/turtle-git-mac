@@ -1401,3 +1401,14 @@ UNO tracked-change comparison and mine/theirs merge, literal private inputs,
 isolated profile/runtime ownership, Settings associations and native Save As/
 resolution flow. Live LibreOffice and signed sandbox acceptance remain open.
 See [grouped evidence](qa/libreoffice-family-2026-10-16.json) for exact checks, repairs and limits.
+
+## Merge menu lifecycle and source accelerators — October 16, 2026
+
+The connected native menu batch restores detached application/submenu contributions,
+defers structural changes while menus track, and adds source block/navigation and
+selected-text search shortcuts through existing checked commands and Undo. See
+[menu parity](MERGE-COMMAND-MENUS-PARITY.md#rebuilt-menus-and-source-accelerators--october-16-2026)
+and [grouped evidence](qa/merge-menu-lifecycle-2026-10-16.json). Toolbar fading remains
+a visual defect; enabled/full-opacity image diagnostics and public redraw/reset
+attempts did not resolve it. Full physical menu, accessibility and signed acceptance
+remain open.

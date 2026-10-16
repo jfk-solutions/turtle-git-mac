@@ -86,3 +86,14 @@ A hidden replacement toolbar receives saved visibility before attachment, with
 implicit transition animation disabled. The final affected menu workflow passes,
 but captured icons still fade even with Open enabled and an active window; this
 is not claimed as a rendering fix. See [diagnostics and exact scope](qa/merge-command-menus-2026-10-16.json).
+
+### Rendering investigation — October 16, 2026
+
+An owned initial/replacement capture diagnostic inspected original image pixels,
+native button enabled state, view alpha, layer opacity and presentation opacity.
+The replacement toolbar still appeared faded with full-opacity source images and
+enabled controls. Public style reset, toolbar reattachment and redraw did not
+restore the observed colors. These experiments are diagnostic-only; they add no
+product rendering workaround. The reproducible runner is
+`scripts/diagnose-merge-toolbar-rendering.py`; collection success does not certify
+appearance parity. See [the batch record](qa/merge-menu-lifecycle-2026-10-16.json).

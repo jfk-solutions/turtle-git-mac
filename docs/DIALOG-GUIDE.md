@@ -495,3 +495,11 @@ When a Compare or Merge window is active, its commands also appear in the native
 **File**, **Edit**, **Navigate**, **View** and **Help** menus, with icons and checked
 view choices. **F6** and **Shift-F6** cycle its visible panes. **Save As…** uses the
 active pane; commands remain available from the menu when the toolbar is hidden.
+
+
+Editor menus return when macOS rebuilds the menu bar. Additional source shortcuts
+include **F11** for the next difference, **Shift-F11/Ctrl-F11** for the previous,
+**F12/Alt-Right** to use the left block in comparison, and **Ctrl-F9/Ctrl-F10** to
+choose Theirs/Mine in a merge. Add **Shift** to those merge keys to keep both
+blocks in the corresponding order. **Ctrl-F3** searches the selected text;
+**Edit → Clear Search Highlights** clears that pane's search paint.

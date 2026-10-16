@@ -299,3 +299,7 @@ keeps the document and its labels/paths together through unsaved-change decision
 External Unified Diff viewers accept app bundles or executables and `%1`/`%title`
 argument templates. Alternative Editor also supports executable tools, with one
 literal filename argument. See [external tool configuration](docs/UNIFIED-DIFF-VIEWER-PARITY.md#external-viewer-arguments-and-executable-tools--october-15-2026).
+
+Compare/Merge menus restore their commands after application-menu rebuilding and
+defer structural changes during menu tracking. Source block-choice and navigation
+shortcuts are available alongside macOS bindings; see [command menus](docs/MERGE-COMMAND-MENUS-PARITY.md#rebuilt-menus-and-source-accelerators--october-16-2026).

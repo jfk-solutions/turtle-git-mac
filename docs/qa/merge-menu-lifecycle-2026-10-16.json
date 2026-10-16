@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "51fad39a0cc3ed3844a0e069afac00db12fd7f0b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Compare/Merge menu reconstruction and tracking lifecycle, source block/navigation/reload/selected-text search shortcuts; diagnostic-only toolbar rendering investigation",
+  "implementation": [
+    "Observe application updates and restore only detached or replaced native menu contributions; preserve external rows and unchanged identities.",
+    "Defer structural menu/filter changes during tracking; refresh latest definitions after tracking ends.",
+    "Reject detached root/submenu targets before queued repair; retire subscriptions and provider closures.",
+    "F11/reverse and Ctrl/Alt-arrow navigation, F12/Alt-Right comparison block choice, Ctrl-F9/F10 and shifted merge choices, Shift-F12 Mine; checked existing commands preserve Undo.",
+    "Reload aliases and selected-text search aliases share existing ownership and field/operation gates; Edit exposes selected search and clearing."
+  ],
+  "core": "Not rerun: native-only code, no Core behavior changes.",
+  "debug": {
+    "log": "build/qa/merge-menu-lifecycle-debug.log",
+    "state": "Build process terminal and current Debug objects linked successfully by native runner. Original final shell exit unavailable after output truncation; no new build run solely to recover it.",
+    "exit_zero_no_output_diagnostics": 1
+  },
+  "native": {
+    "log": "build/qa/merge-menu-lifecycle-native.log",
+    "exit": 0,
+    "case_engine_runs": 10,
+    "new_lifecycle_case": "Passed on first grouped attempt; injected main-menu provider and tracking notifications, actual NSWindow.performKeyEquivalent routing, exact input byte preservation and one-step Undo.",
+    "retained_cases": [
+      "scoped command menus",
+      "view switching with system Git",
+      "view switching with bundled Git",
+      "toolbar",
+      "File/Open",
+      "moved blocks",
+      "wrapped navigation",
+      "two-pane editor",
+      "three-pane editor"
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      99962,
+      99965,
+      99975,
+      152,
+      233,
+      240,
+      245,
+      257,
+      262,
+      288,
+      99084,
+      99186,
+      99322
+    ]
+  },
+  "rendering_diagnostic": {
+    "logs": [
+      "build/qa/merge-toolbar-rendering-diagnostic.log",
+      "build/qa/merge-toolbar-rendering-controls.log",
+      "build/qa/merge-toolbar-rendering-invalidation.log"
+    ],
+    "first_attempt": "Initial capture succeeded, replacement capture command failed and old fixture trapped. Capture failure was changed to reported status in diagnostic-only source.",
+    "completed_attempts": 2,
+    "finding": "Replacement icons visibly fade although native controls enabled, images have full-opacity colored pixels, and view/layer/presentation opacity is one. Style reset, reattachment and redraw did not restore appearance.",
+    "product_workaround": "None added; capture candidates are not accepted gallery screenshots."
+  },
+  "documentation": {
+    "help_files_byte_equal_to_built_app": 50,
+    "help_bytes": 1955210,
+    "site": "252 documents, zero unresolved fragments; build/qa/merge-menu-lifecycle-site.log",
+    "ledger": "130 dialogs, 120 partial family audits, 10 pending reviews, zero certified; 987 mapped/672 pending static controls unchanged."
+  },
+  "limits": [
+    "Injected notification tests do not prove physical menu tracking or every SwiftUI reconstruction path.",
+    "Complete upstream resource/accelerator catalogue, accessibility/system conflicts and minimum-OS acceptance remain open.",
+    "Toolbar fading remains unresolved.",
+    "No full hosted CI, installed signed Finder, sandbox or App Store acceptance claim."
+  ]
+}

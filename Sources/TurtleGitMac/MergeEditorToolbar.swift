@@ -342,7 +342,7 @@ extension MergeEditorToolbar {
 @MainActor final class MergeEditorCommandMenu: NSObject, NSMenuItemValidation {
     enum Command: Hashable {
         case toolbar(MergeToolbarCommand), saveAs, enableEdit, useFile, useBothFirst, useBothLast
-        case nextInline, previousInline, nextPane, previousPane, gotoLine, findNext, findPrevious
+        case nextInline, previousInline, nextPane, previousPane, gotoLine, findNext, findPrevious, findSelectionNext, findSelectionPrevious, clearSearch
         case toolbarVisible, statusVisible, lineDiff, lineNumbers, moved, locator, fishEye
         case whitespace(MergeWhitespaceComparison), ignoreEndings, ignoreCase, ignoreComments
         case regex(String?), configureRegex, settings, about
@@ -357,6 +357,10 @@ extension MergeEditorToolbar {
     private var epoch = UUID(), retired = false, queued = false
     private var renderedFilterNames: [String]?
     private var observation: AnyCancellable?
+    private var lifetimeObservations: [AnyCancellable] = []
+    private var trackedMenus = Set<ObjectIdentifier>()
+    private var synchronizing = false, synchronizationQueued = false
+    var applicationMenu: () -> NSMenu? = { NSApp.mainMenu }
     private var available: () -> Bool
     private var state: (Command) -> MergeToolbarState?
     private var action: (Command) -> Void
@@ -370,15 +374,57 @@ extension MergeEditorToolbar {
             guard let self,!self.queued,!self.retired else { return };self.queued = true
             DispatchQueue.main.async { [weak self] in guard let self else { return };self.queued = false;self.refresh() }
         }
+        lifetimeObservations.append(NotificationCenter.default.publisher(for:NSApplication.didUpdateNotification).sink { [weak self] _ in self?.scheduleSynchronizationIfNeeded() })
+        lifetimeObservations.append(NotificationCenter.default.publisher(for:NSMenu.didBeginTrackingNotification).sink { [weak self] note in
+            guard let self,let menu = note.object as? NSMenu,self.belongsToApplicationMenu(menu) else { return }
+            self.trackedMenus.insert(ObjectIdentifier(menu))
+        })
+        lifetimeObservations.append(NotificationCenter.default.publisher(for:NSMenu.didEndTrackingNotification).sink { [weak self] note in
+            guard let self,let menu = note.object as? NSMenu else { return }
+            self.trackedMenus.remove(ObjectIdentifier(menu));self.scheduleSynchronizationIfNeeded()
+            if self.trackedMenus.isEmpty {self.scheduleStateRefresh()}
+        })
     }
-    private var active: Bool { !retired && mainMenu != nil && keyWindow() === window && available() }
+    private func scheduleStateRefresh() {
+        guard !retired,!queued else {return};queued = true
+        DispatchQueue.main.async { [weak self] in guard let self else {return};self.queued = false;self.refresh() }
+    }
+    private var active: Bool {
+        guard !retired,let window,let mainMenu else { return false }
+        return mainMenu === applicationMenu() && keyWindow() === window && available()
+    }
+    private func belongsToApplicationMenu(_ candidate:NSMenu) -> Bool {
+        guard let mainMenu else { return false }
+        var current:NSMenu? = candidate,seen = Set<ObjectIdentifier>()
+        while let menu = current,seen.insert(ObjectIdentifier(menu)).inserted {
+            if menu === mainMenu { return true };current = menu.supermenu
+        }
+        return false
+    }
+    private func attached(_ item:NSMenuItem) -> Bool { item.menu.map(belongsToApplicationMenu) ?? false }
+    private var needsSynchronization: Bool {
+        guard !retired,let window,keyWindow() === window,available(),let current = applicationMenu() else { return false }
+        return mainMenu !== current || contributed.isEmpty || contributed.contains { !attached($0) }
+    }
+    private func scheduleSynchronizationIfNeeded() {
+        guard needsSynchronization,trackedMenus.isEmpty,!synchronizationQueued,!synchronizing else { return }
+        synchronizationQueued = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return };self.synchronizationQueued = false;self.synchronize()
+        }
+    }
+    func synchronize() {
+        guard needsSynchronization,trackedMenus.isEmpty,!synchronizing else { return }
+        synchronizing = true;defer { synchronizing = false }
+        install(in:applicationMenu())
+    }
     func install(in main: NSMenu? = nil) {
         remove()
-        guard !retired,available(),keyWindow() === window,let main = main ?? NSApp.mainMenu else { return }
+        guard !retired,let window,available(),keyWindow() === window,let main = main ?? applicationMenu() else { return }
         mainMenu = main
         append([.toolbar(.open),.toolbar(.save),.saveAs,.toolbar(.resolved),.toolbar(.patch),.toolbar(.reload),.enableEdit],to:root("File",in:main))
         append([.useFile,.toolbar(conflict ? .useTheirs : .useLeft),.toolbar(.useMine),.useBothFirst,.useBothLast,
-                .toolbar(.theirsThenMine),.toolbar(.mineThenTheirs),.toolbar(.find),.findNext,.findPrevious,.gotoLine],to:root("Edit",in:main))
+                .toolbar(.theirsThenMine),.toolbar(.mineThenTheirs),.toolbar(.find),.findNext,.findPrevious,.findSelectionNext,.findSelectionPrevious,.clearSearch,.gotoLine],to:root("Edit",in:main))
         append([.toolbar(.nextDifference),.toolbar(.previousDifference),.toolbar(.nextConflict),.toolbar(.previousConflict),.nextInline,.previousInline,.nextPane,.previousPane],to:root("Navigate",in:main))
         let view = root("View",in:main)
         append([.toolbarVisible,.statusVisible,.lineDiff,.locator,.fishEye,.toolbar(.wrap),.moved,.toolbar(.inline),.toolbar(.inlineWord),
@@ -417,15 +463,16 @@ extension MergeEditorToolbar {
     private func update(_ item: NSMenuItem) {
         guard let invocation = item.representedObject as? Invocation else { return }
         let value = state(invocation.command)
-        item.isEnabled = active && invocation.epoch == epoch && value?.enabled == true
+        item.isEnabled = active && attached(item) && invocation.epoch == epoch && value?.enabled == true
         item.state = value?.checked == true ? .on : .off
     }
     func refresh() {
         guard !retired else { return }
         if !available() { remove();return }
+        scheduleSynchronizationIfNeeded()
         for item in contributed {
             if item.title == "Filter Regexes",let submenu = item.submenu {
-                if renderedFilterNames != filterNames() { rebuildFilters(submenu) }
+                if renderedFilterNames != filterNames(),trackedMenus.isEmpty { rebuildFilters(submenu) }
                 for child in submenu.items { update(child) }
             }
             else { update(item) }
@@ -436,23 +483,42 @@ extension MergeEditorToolbar {
         func disable(_ item: NSMenuItem) { item.isEnabled = false;for child in item.submenu?.items ?? [] { disable(child) } }
         for item in contributed { disable(item);item.menu?.removeItem(item) }
         if let mainMenu { for item in createdRoots where item.submenu?.items.isEmpty == true && mainMenu.items.contains(item) { mainMenu.removeItem(item) } }
-        mainMenu = nil;contributed = [];createdRoots = [];renderedFilterNames = nil
+        mainMenu = nil;contributed = [];createdRoots = [];renderedFilterNames = nil;trackedMenus.removeAll()
     }
-    func retire() { remove();retired = true;observation = nil;available = {false};state = {_ in nil};action = {_ in};filterNames = {[]} }
+    func retire() { remove();retired = true;observation = nil;lifetimeObservations = [];available = {false};state = {_ in nil};action = {_ in};filterNames = {[]};applicationMenu = {nil};keyWindow = {nil} }
     func validateMenuItem(_ item: NSMenuItem) -> Bool { update(item);return item.isEnabled }
     @objc private func invokeEditorMenu(_ item: NSMenuItem) {
-        guard active,let invocation = item.representedObject as? Invocation,invocation.epoch == epoch,state(invocation.command)?.enabled == true else { return }
+        guard active,attached(item),let invocation = item.representedObject as? Invocation,invocation.epoch == epoch,state(invocation.command)?.enabled == true else { return }
         action(invocation.command);refresh()
     }
     func performKeyEquivalent(_ event: NSEvent) -> Bool {
+        synchronize()
         guard active,(window?.firstResponder as? NSTextView)?.isFieldEditor != true else { return false }
         let modifiers = event.modifierFlags.intersection([.command,.control,.option,.shift])
         guard let text = event.charactersIgnoringModifiers?.lowercased() else { return false }
-        for item in contributed where !item.keyEquivalent.isEmpty && item.keyEquivalent.lowercased() == text && item.keyEquivalentModifierMask == modifiers {
-            guard let invocation = item.representedObject as? Invocation,state(invocation.command)?.enabled == true else { return false }
+        for item in contributed {
+            guard attached(item),let invocation = item.representedObject as? Invocation else { continue }
+            let bindings = shortcut(invocation.command).map{[$0]} ?? []
+            guard (bindings + aliases(invocation.command)).contains(where:{$0.0.lowercased() == text && $0.1 == modifiers}) else { continue }
+            guard state(invocation.command)?.enabled == true else { return false }
             invokeEditorMenu(item);return true
         }
         return false
+    }
+    private func aliases(_ command:Command) -> [(String,NSEvent.ModifierFlags)] {
+        func key(_ value:Int) -> String {String(UnicodeScalar(value)!)}
+        switch command {
+        case .toolbar(.nextDifference):return [(key(NSF11FunctionKey),[]),(key(NSDownArrowFunctionKey),.control),(key(NSDownArrowFunctionKey),.option)]
+        case .toolbar(.previousDifference):return [(key(NSF11FunctionKey),.shift),(key(NSF11FunctionKey),.control),(key(NSUpArrowFunctionKey),.control),(key(NSUpArrowFunctionKey),.option)]
+        case .toolbar(.useLeft):return [(key(NSRightArrowFunctionKey),.option)]
+        case .toolbar(.useMine):return [(key(NSF12FunctionKey),.shift)]
+        case .toolbar(.reload):return [("r",.control),("r",.command)]
+        case .findNext:return [(key(NSF3FunctionKey),[])]
+        case .findPrevious:return [(key(NSF3FunctionKey),.shift)]
+        case .findSelectionNext:return [(key(NSF3FunctionKey),.control)]
+        case .findSelectionPrevious:return [(key(NSF3FunctionKey),[.control,.shift])]
+        default:return []
+        }
     }
     private func title(_ command: Command) -> String {
         switch command {
@@ -463,6 +529,7 @@ extension MergeEditorToolbar {
         case .nextInline:return "Next inline difference";case .previousInline:return "Previous inline difference"
         case .nextPane:return "Next pane";case .previousPane:return "Previous pane";case .gotoLine:return "Go to Line…"
         case .findNext:return "Find Next";case .findPrevious:return "Find Previous"
+        case .findSelectionNext:return "Find Next Selected Text";case .findSelectionPrevious:return "Find Previous Selected Text";case .clearSearch:return "Clear Search Highlights"
         case .toolbarVisible:return "Toolbar";case .statusVisible:return "Status Bar";case .lineDiff:return "Line diff bar";case .lineNumbers:return "Line numbers"
         case .moved:return "Moved blocks";case .locator:return "Locator bar";case .fishEye:return "Use fish-eye in locator bar"
         case .whitespace(let value):return value.title;case .ignoreEndings:return "Ignore line endings";case .ignoreCase:return "Ignore case changes";case .ignoreComments:return "Ignore Comments"
@@ -476,7 +543,8 @@ extension MergeEditorToolbar {
         case .saveAs:return .mergeSaveAs;case .enableEdit:return .editor;case .useFile:return .mergeUseTheirs
         case .useBothFirst:return .mergeTheirsThenMine;case .useBothLast:return .mergeMineThenTheirs
         case .nextInline:return .mergeNextInline;case .previousInline:return .mergePreviousInline
-        case .findNext,.findPrevious,.gotoLine:return .mergeFind
+        case .findNext,.findPrevious,.gotoLine,.clearSearch:return .mergeFind
+        case .findSelectionNext:return .jumpDown;case .findSelectionPrevious:return .jumpUp
         case .settings,.configureRegex:return .settings;case .about:return .merge
         case .moved:return .mergeMoved;case .whitespace,.ignoreComments,.ignoreEndings,.ignoreCase:return .compare
         default:return nil
@@ -488,6 +556,12 @@ extension MergeEditorToolbar {
         case .toolbar(.open):return ("o",.command);case .toolbar(.reload):return (key(NSF5FunctionKey),[])
         case .toolbar(.save):return ("s",.command);case .saveAs:return ("s",[.command,.shift])
         case .toolbar(.find):return ("f",.command);case .findNext:return ("g",.command);case .findPrevious:return ("g",[.command,.shift])
+        case .findSelectionNext:return ("g",[.command,.option]);case .findSelectionPrevious:return ("g",[.command,.option,.shift])
+        case .toolbar(.useLeft):return (key(NSF12FunctionKey),[])
+        case .toolbar(.useTheirs):return (key(NSF9FunctionKey),.control)
+        case .toolbar(.useMine):return (key(NSF10FunctionKey),.control)
+        case .toolbar(.theirsThenMine):return (key(NSF9FunctionKey),[.control,.shift])
+        case .toolbar(.mineThenTheirs):return (key(NSF10FunctionKey),[.control,.shift])
         case .gotoLine:return ("g",.control);case .nextPane:return (key(NSF6FunctionKey),[]);case .previousPane:return (key(NSF6FunctionKey),.shift)
         case .toolbar(.nextDifference):return (key(NSF7FunctionKey),[]);case .toolbar(.previousDifference):return (key(NSF7FunctionKey),.shift)
         case .toolbar(.nextConflict):return (key(NSF8FunctionKey),[]);case .toolbar(.previousConflict):return (key(NSF8FunctionKey),.shift)
@@ -532,6 +606,8 @@ extension MergeEditorCommandMenu {
                 case .nextPane,.previousPane:return .init(enabled:document && MergeMarkedWordInterface.panes(in:window?.contentView).filter{!$0.isHiddenOrHasHiddenAncestor}.count > 1)
                 case .gotoLine:return .init(enabled:document && (text() as? (NSTextView & MergeLineNavigationProviding))?.canNavigateToSourceLine == true)
                 case .findNext,.findPrevious:return .init(enabled:document && (text() as? MergeFindProviding)?.mergeFindHighlights.query.isEmpty == false)
+                case .findSelectionNext,.findSelectionPrevious:return .init(enabled:document && (text() as? MergeFindProviding)?.mergeFindAllowed == true)
+                case .clearSearch:return .init(enabled:document && (text() as? MergeFindProviding)?.mergeFindHighlights.query.isEmpty == false)
                 case .toolbarVisible:return .init(enabled:enabled,checked:model.showToolbar)
                 case .statusVisible:return .init(enabled:enabled,checked:model.showStatusBar)
                 case .lineDiff:return .init(enabled:document && !model.onePaneActive && !model.singleFileMode,checked:model.showLineDiffBar)
@@ -559,6 +635,8 @@ extension MergeEditorCommandMenu {
                 case .nextPane,.previousPane:if let window { cycle(window:window,forward:command == .nextPane) }
                 case .gotoLine:(text() as? (NSTextView & MergeLineNavigationProviding))?.navigateToSourceLine()
                 case .findNext,.findPrevious:model.find(command == .findNext ? .nextMatch : .previousMatch)
+                case .findSelectionNext,.findSelectionPrevious:if let text = text() {MergeFindInterface.selection(upwards:command == .findSelectionPrevious,in:text)}
+                case .clearSearch:text()?.turtleClearFindHighlights(nil)
                 case .toolbarVisible:model.setToolbarVisible(!model.showToolbar)
                 case .statusVisible:model.setStatusBarVisible(!model.showStatusBar)
                 case .lineDiff:model.showLineDiffBar.toggle()
@@ -600,6 +678,8 @@ extension MergeEditorCommandMenu {
                 case .nextPane,.previousPane:return .init(enabled:enabled && MergeMarkedWordInterface.panes(in:window?.contentView).filter{!$0.isHiddenOrHasHiddenAncestor}.count > 1)
                 case .gotoLine:return .init(enabled:enabled && (text() as? (NSTextView & MergeLineNavigationProviding))?.canNavigateToSourceLine == true)
                 case .findNext,.findPrevious:return .init(enabled:enabled && (text() as? MergeFindProviding)?.mergeFindHighlights.query.isEmpty == false)
+                case .findSelectionNext,.findSelectionPrevious:return .init(enabled:enabled && (text() as? MergeFindProviding)?.mergeFindAllowed == true)
+                case .clearSearch:return .init(enabled:enabled && (text() as? MergeFindProviding)?.mergeFindHighlights.query.isEmpty == false)
                 case .toolbarVisible:return .init(enabled:enabled,checked:model.showToolbar)
                 case .statusVisible:return .init(enabled:enabled,checked:model.showStatusBar)
                 case .locator:return .init(enabled:enabled,checked:model.locatorPreferences.visible)
@@ -619,6 +699,8 @@ extension MergeEditorCommandMenu {
                 case .nextPane,.previousPane:if let window { cycle(window:window,forward:command == .nextPane) }
                 case .gotoLine:(text() as? (NSTextView & MergeLineNavigationProviding))?.navigateToSourceLine()
                 case .findNext,.findPrevious:if let text = text() { MergeFindInterface.perform(command == .findNext ? .nextMatch : .previousMatch,in:text) }
+                case .findSelectionNext,.findSelectionPrevious:if let text = text() {MergeFindInterface.selection(upwards:command == .findSelectionPrevious,in:text)}
+                case .clearSearch:text()?.turtleClearFindHighlights(nil)
                 case .toolbarVisible:model.setToolbarVisible(!model.showToolbar)
                 case .statusVisible:model.setStatusBarVisible(!model.showStatusBar)
                 case .locator:var value = model.locatorPreferences;value.visible.toggle();model.setLocatorPreferences(value)
