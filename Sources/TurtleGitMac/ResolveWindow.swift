@@ -1,8 +1,10 @@
 import AppKit
 import SwiftUI
 import TurtleGitCore
+import UniformTypeIdentifiers
 
 @MainActor final class ResolveWindowController: NSWindowController, NSWindowDelegate {
+    var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
     let model: ResolveWindowModel
     var onClosed: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
@@ -17,7 +19,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice? = nil, preferences: UserDefaults = .standard) {
         model = ResolveWindowModel(repository: repository, access: access, paths: paths, quick: quick, preferences: preferences)
         let size = quick == nil ? NSSize(width: 780, height: 450) : NSSize(width: 480, height: 110)
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        let window = ResolveCommandWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Resolve", preferences: preferences)
         window.contentMinSize = quick == nil ? NSSize(width: 660, height: 340) : size
         window.isReleasedWhenClosed = false
@@ -97,12 +99,17 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?
     let preferences: UserDefaults
     let quick: ResolveChoice?
-    let paths: [String]
+    @Published private(set) var paths: [String]
     private(set) var active = true
     private(set) var generation = UUID()
     private var cancellation: OperationCancellation?
     private var refreshCancellation: OperationCancellation?
     private var loaded = false, reloadQueued = false
+    private var droppedProviders: [NSItemProvider] = []
+    private var dropTask: Task<Void,Never>?
+    @Published private(set) var readingDrops = false
+    var readDroppedURL: (NSItemProvider) async throws -> URL = CommitFileURLReader.read
+    var readDroppedConflicts: (([String], OperationCancellation) async throws -> ([ConflictEntry], Bool))?
     @Published var entries: [ConflictEntry] = []
     @Published var checked = Set<String>()
     @Published var selection = Set<String>()
@@ -142,6 +149,7 @@ import TurtleGitCore
         self.repository = repository; self.access = access; self.paths = paths; self.quick = quick; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences)
     }
     func invalidate() {
+        droppedProviders = [];dropTask?.cancel()
         if busy { cancelled = true }; saveActionLog(); active = false; generation = UUID(); cancellation?.cancel(); refreshCancellation?.cancel(); pendingResolution = nil; reloadQueued = false; patch = nil
     }
     private func begin() -> OperationCancellation {
@@ -154,6 +162,7 @@ import TurtleGitCore
         if cancellation === token {
             cancellation = nil; busy = false; cancelling = false; currentWork = ""; percentage = nil
             finishAutomaticClose()
+            if canReceiveFileDrop,!droppedProviders.isEmpty { startFileDrop(); return }
             if active, reloadQueued, !showingProgress, !hasChild, !hasQuestion { reloadQueued = false; load() }
         }
     }
@@ -166,8 +175,7 @@ import TurtleGitCore
         if let readConflicts { next = try await readConflicts(token) }
         else { next = try await (repository.conflicts(paths: paths, cancellation: token), repository.conflictIsRebase(cancellation: token)) }
         try token.check(); guard live(token) else { return }
-        let available = Set(next.0.map(\.path)); entries = next.0; rebase = next.1
-        checked = loaded ? checked.intersection(available) : available; loaded = true; selection.formIntersection(available)
+        publishConflicts(next.0,rebase:next.1)
     }
     func load() {
         guard active else { return }
@@ -258,7 +266,8 @@ import TurtleGitCore
     }
     func cancel() {
         guard canCancel, let token = cancellation else { return }
-        if !showingProgress || !preferences.bool(forKey: "ConfirmKillProcess") { cancelling = true; token.cancel(); refreshCancellation?.cancel(); return }
+        droppedProviders = []
+        if !showingProgress || !preferences.bool(forKey: "ConfirmKillProcess") { cancelling = true; token.cancel();dropTask?.cancel(); refreshCancellation?.cancel(); return }
         confirmingCancellation = true; var answered = false
         confirmCancellation { [weak self] accepted in
             guard !answered, let self, self.active else { return }; answered = true; self.confirmingCancellation = false
@@ -352,14 +361,14 @@ private struct ResolveDialog: View {
                         Text("Reminder: Commit your change after resolve").font(.caption).foregroundStyle(.secondary)
                     }
                     HStack {
-                        if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
+                        if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity);if model.readingDrops {Text("Reading dropped files…").font(.caption)} }
                         Spacer()
                         Button("OK") { model.resolveChecked() }.disabled(model.checked.isEmpty || !model.canInteract).keyboardShortcut(.defaultAction)
                         Button(model.busy ? "Cancel read" : "Cancel") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction)
                         Button { TurtleGitHelp.show(.resolve) } label: { CommandLabel(title: "Help", icon: .help) }
                     }
                 }.padding(12)
-                .background(Button("") { model.load() }.keyboardShortcut(KeyEquivalent("\u{f708}"), modifiers: []).hidden())
+                .onDrop(of:[UTType.fileURL.identifier],isTargeted:nil) { model.receiveFileDrop($0) }
             }
         }.onAppear { model.load() }
         .alert("Could not resolve conflicts", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
@@ -380,5 +389,93 @@ struct ResolveSelectionMenu: View {
         Button { action(.resolveCurrent, paths) } label: { CommandLabel(title: "Resolved", icon: .resolve) }.disabled(paths.isEmpty)
         Button { action(.resolveTheirs, paths) } label: { CommandLabel(title: rebase ? "Resolve using commit being replayed" : "Resolve conflict using ‘theirs’", icon: .resolve) }.disabled(paths.isEmpty)
         Button { action(.resolveMine, paths) } label: { CommandLabel(title: rebase ? "Resolve using branch being rebased onto" : "Resolve conflict using ‘mine’", icon: .resolve) }.disabled(paths.isEmpty)
+    }
+}
+
+/// Only explicit conflict-list callbacks are optional. Actual resolution,
+/// replay state, repository notifications and filesystem observers stay live.
+enum ConflictListRefreshPolicy {
+    static func perform(preferences:UserDefaults, _ refresh:()->Void) {
+        if ((preferences.object(forKey:"RefreshFileListAfterResolvingConflict") as? NSNumber)?.uint32Value ?? 1) == 1 { refresh() }
+    }
+}
+
+extension ResolveWindowModel {
+    var canReceiveFileDrop:Bool { active && quick == nil && !showingProgress && !hasQuestion && !hasChild && !cancelling && !confirmingCancellation }
+    @discardableResult func receiveFileDrop(_ providers:[NSItemProvider])->Bool {
+        guard canReceiveFileDrop,!providers.isEmpty,providers.allSatisfy({$0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)}) else {return false}
+        droppedProviders.append(contentsOf:providers)
+        if !busy {startFileDrop()}
+        return true
+    }
+    private func dropCheck(_ token:OperationCancellation)throws {
+        try token.check();guard live(token),readingDrops,!Task.isCancelled else {throw OperationCancellationFailure.cancelled}
+    }
+    private func publishConflicts(_ next:[ConflictEntry],rebase:Bool,dropped:[WorkingFileDropItem] = []) {
+        let prior = Set(entries.map(\.path)),available = Set(next.map(\.path))
+        var checks = loaded ? checked.intersection(available).union(available.subtracting(prior)) : available
+        for path in available where dropped.contains(where:{item in
+            item.path == "." || path.utf8.elementsEqual(item.path.utf8) || item.directory && path.utf8.starts(with:(item.path+"/").utf8)
+        }) {checks.insert(path)}
+        entries = next;self.rebase = rebase;checked = checks;loaded = true;selection.formIntersection(available)
+    }
+    private func startFileDrop() {
+        guard canReceiveFileDrop,!busy,!droppedProviders.isEmpty else {return}
+        let token = begin();readingDrops = true
+        dropTask = Task {
+            defer {dropTask = nil;readingDrops = false;finish(token);withExtendedLifetime(access) {}}
+            do {
+                try checkAccess()
+                var urls:[URL] = []
+                while true {
+                    let providers = droppedProviders;droppedProviders = []
+                    for provider in providers {
+                        try dropCheck(token);urls.append(try await readDroppedURL(provider));try dropCheck(token)
+                    }
+                    // ResolveDlg's REFRESHTIMER coalesces drops for 200 ms and
+                    // waits for the current status reader before replacing rows.
+                    try await Task.sleep(nanoseconds:200_000_000);try dropCheck(token)
+                    if !droppedProviders.isEmpty {continue}
+                    let items = try await repository.resolveWorkingFileDrops(urls,cancellation:token);try dropCheck(token)
+                    if !droppedProviders.isEmpty {continue}
+                    guard !items.isEmpty else {return}
+                    var scope = paths
+                    if items.contains(where:{$0.path == "."}) {scope = []}
+                    else if !scope.isEmpty {
+                        for item in items where !scope.contains(where:{item.path.utf8.elementsEqual($0.utf8) || item.path.utf8.starts(with:($0+"/").utf8)}) {scope.append(item.path)}
+                    }
+                    let next:([ConflictEntry],Bool)
+                    if let readDroppedConflicts {next = try await readDroppedConflicts(scope,token)}
+                    else {next = try await (repository.conflicts(paths:scope,cancellation:token),repository.conflictIsRebase(cancellation:token))}
+                    try dropCheck(token)
+                    if !droppedProviders.isEmpty {continue}
+                    paths = scope;publishConflicts(next.0,rebase:next.1,dropped:items);reloadQueued = false
+                    return
+                }
+            } catch {if active,!token.isCancelled,!Task.isCancelled {self.error = error.localizedDescription}}
+        }
+    }
+}
+
+@MainActor private final class ResolveCommandWindow:NSWindow {
+    override func performKeyEquivalent(with event:NSEvent)->Bool {
+        guard let owner = delegate as? ResolveWindowController else {return super.performKeyEquivalent(with:event)}
+        if owner.performCommandKey(event) {return true};return super.performKeyEquivalent(with:event)
+    }
+    override func keyDown(with event:NSEvent) {
+        if (delegate as? ResolveWindowController)?.performCommandKey(event) != true {super.keyDown(with:event)}
+    }
+}
+extension ResolveWindowController {
+    @discardableResult func performCommandKey(_ event:NSEvent)->Bool {
+        guard !retired,let window,commandKeyWindow() === window,event.windowNumber == window.windowNumber else {return false}
+        let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        let refresh = event.keyCode == 96 && flags.isEmpty
+        let accept = [36,76].contains(event.keyCode) && (flags == .control || flags == .command)
+        guard refresh || accept else {return false}
+        guard model.canInteract,window.attachedSheet == nil else {return true}
+        if refresh {model.load()}
+        else if !model.checked.isEmpty {model.resolveChecked()}
+        return true
     }
 }

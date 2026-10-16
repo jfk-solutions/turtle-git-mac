@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "fd36fef5f996bdae05b567c58e7bfabfb5422d81",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Resolve file/folder drops, owned scoped refresh/checks, source keyboard actions and optional conflict-list refresh callbacks",
+  "source": [
+    "TortoiseProc/ResolveDlg.cpp OnFileDropped, OnTimer, ResolveThread, PreTranslateMessage",
+    "Git/GitStatusListCtrl.cpp ResetChecked",
+    "TortoiseProc/AppUtils.cpp StartExtMerge",
+    "TortoiseProc/Commands/ResolveCommand.cpp silent resolve notification"
+  ],
+  "implementation": [
+    "Same-worktree file-URL membership via existing Core read-only resolver; reject foreign/nested/admin inputs; preserve literal bytes",
+    "Queue behind current status read and coalesce 200 ms; extend scope only when membership and conflict reads settle; root restores complete scope",
+    "Drop rechecks exact file/directory descendants; fresh conflicts default checked; existing manual unchecked paths and visible selection persist",
+    "Cancel cancels provider task/queued inputs, retirement rejects late publication and outstanding readers retain operation/Quit accounting until drain",
+    "Window-scoped F5 and Control/Command-Return, owned busy/sheet/background/empty-check/retired refusal; remove hidden SwiftUI F5 control",
+    "ConflictListRefreshPolicy source default true/exact DWORD==1 gates explicit parent status/Commit/Resolve list callbacks across native/external conflict routes; replay and Log/repository reads remain independent"
+  ],
+  "core": {
+    "source_changes": false,
+    "suite_repeated": false,
+    "reason": "Native ownership, scope/selection, keyboard and preference consumers; existing Core membership, conflict and resolve operations exercised by actual native receivers"
+  },
+  "debug": [
+    {
+      "log": "build/qa/resolve-interaction-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2,
+      "reason": "Initial complete interaction batch"
+    },
+    {
+      "log": "build/qa/resolve-interaction-build-cancel-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "reason": "Final provider-task cancellation and updated bundled Help before the native checkpoint"
+    }
+  ],
+  "native": {
+    "log": "build/qa/resolve-interaction-native-2026-10-16.log",
+    "exit": 0,
+    "distinct_passing_case_engine_runs": 4,
+    "cases": {
+      "drop": 2,
+      "progress": 2
+    },
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "failed_runs": 0,
+    "owned_receivers_reaped_and_independently_absent": [
+      45226,
+      45306,
+      45394,
+      45462
+    ],
+    "owned_windows_closed": true,
+    "actual_git_effect": "Control-Return resolved exactly one checked conflict; other unmerged entries, HEAD and working bytes unchanged",
+    "drop_reads_preserve_raw_index": true,
+    "policy_verification": "Preference controls a real Resolve list read; explicit F5 bypasses the automatic callback preference. RepositoryModel callsites share the same dispatch helper; every physical parent notification is not separately certified."
+  },
+  "documentation": {
+    "help_files": 50,
+    "help_bytes": 1962044,
+    "source_built_equal": true,
+    "coverage_ledger": "regenerated"
+  },
+  "hosted_observation": {
+    "macos_run": 38942471456,
+    "head": "fd36fef5",
+    "status": "pending",
+    "pages_run": 38942471421,
+    "pages_head": "fd36fef5",
+    "pages_conclusion": "success"
+  },
+  "limits": [
+    "Missing dropped leaf files ignored; containing-folder drops include their indexed conflicts",
+    "Physical Finder drag/keyboard/VoiceOver, all source status context menus and temporary merge artifact ownership remain open",
+    "No full hosted CI, minimum OS, signed Finder/sandbox or App Store acceptance claim",
+    "Independent filesystem/repository refreshes can still update lists when explicit automatic conflict-list callbacks are disabled"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

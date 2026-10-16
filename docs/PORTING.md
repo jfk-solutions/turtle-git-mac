@@ -1493,3 +1493,12 @@ panes, shared menu availability and an owned native Go To Line sheet. Validation
 Cancel, accepted focus and forced closure use the actual document lifetime.
 See [Blame parity](BLAME-PARITY.md#native-command-and-line-navigation-family--october-16-2026)
 for source references and remaining physical/signed acceptance.
+
+## Resolve interaction family — October 16, 2026
+
+Resolve now accepts same-worktree file/folder drops, coalesces scoped status reads,
+rechecks dropped conflicts and preserves manual unrelated checks. Owned provider
+reads, Close/Cancel/Quit and source F5/Control-Return share existing lifetime
+guards. Conflict-resolution parent list refreshes now consume the source Advanced
+preference. See [Resolve parity](RESOLVE-PARITY.md#file-drops-source-keys-and-parent-refresh--october-16-2026)
+for source behavior, native adaptations and remaining acceptance.

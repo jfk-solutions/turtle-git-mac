@@ -186,6 +186,18 @@ reviewing the remaining conflicts. [Conflict identities](CONFLICT-IDENTITIES.md)
 explains the side captions, and [Save As targets](SAVE-AS-TARGETS.md) explains
 how an exported copy differs from the actual merge result.
 
+In Resolve, drop files or folders from the same repository to extend the displayed
+conflicts. Dropping a folder includes its conflicted descendants; dropping the
+repository root shows all conflicts. Dropped conflicts become checked again,
+while unrelated manual unchecks remain. Drops do not stage or resolve anything.
+Other repositories and Git administrative files are ignored. Cancel stops pending
+drop reads. Use **F5** to refresh, or **Control-Return / Command-Return** to resolve
+only the checked files through the normal progress flow.
+
+Advanced **RefreshFileListAfterResolvingConflict** controls explicit parent file-
+list refresh callbacks after resolution. Its default is true. It does not suppress
+explicit F5, replay state or independent repository/filesystem observations.
+
 Comparison options can make different source lines compare equal. When Base,
 Mine and Theirs still differ in their original text or endings, the merge editor
 flags an **Ignored conflict**, retaining Mine text without inventing marker lines.

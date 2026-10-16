@@ -1484,6 +1484,7 @@
         "docs/qa/lfs-tristate-2026-10-08.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
+        "docs/qa/resolve-interaction-family-2026-10-16.json",
         "docs/qa/resolve-progress-2026-10-14.json",
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/temporary-files-2026-10-08.json"

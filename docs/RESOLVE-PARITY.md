@@ -132,3 +132,47 @@ partial; earlier generic-label gaps are superseded within this documented scope.
 
 [Grouped validation and visual review](qa/conflict-identities-2026-10-15.json)
 record actual coverage and remaining limits; no dialog is newly certified.
+
+## File drops, source keys and parent refresh — October 16, 2026
+
+ResolveDlg::OnFileDropped and its 200 ms REFRESHTIMER now have a native file-URL
+receiver. Files/folders must belong to the same worktree; nested repositories,
+Git administrative paths and outside files are ignored. Existing scope ancestors
+prevent duplicate child scope entries; dropping the root restores whole-repository
+scope. A dropped conflict is checked again; directory drops recheck descendant
+conflicts, preserving unrelated manual unchecks and highlighted rows. Newly
+discovered conflict rows receive the source's default check on ordinary refresh.
+Drops only read membership/status: they do not add/stage files or resolve them.
+
+A drop during an existing status read queues behind it. Closely spaced providers
+share a coalesced status read. URL/membership/status work retains the repository
+grant and existing Resolve/Quit ownership until settlement. Cancel clears queued
+providers; late cancelled/retired callbacks cannot publish scope, checks, rows or
+errors. Busy resolution/progress, quick Resolve, questions and child editors
+refuse drops. Native busy feedback identifies the drop read.
+
+Window-scoped F5 and Control-Return (also Command-Return) now dispatch to the
+existing refresh/checked resolution owners, with background, sheet, empty-check,
+busy and retired refusal. The transient hidden F5 button is removed.
+
+RefreshFileListAfterResolvingConflict now gates explicit parent status/Commit/
+Resolve list refresh callbacks from text/image/delete/submodule/external tools
+and Resolve completion. Source default true and exact DWORD == 1 semantics are
+retained. Replay state, Log/repository notifications, the resolving window's own
+result read, explicit F5 and independent filesystem observations remain active.
+This setting does not freeze the repository or disable validation before writes.
+
+Source references: ResolveDlg.cpp/.h, GitStatusListCtrl::ResetChecked,
+AppUtils.cpp::StartExtMerge and Commands/ResolveCommand.cpp at the pinned source.
+Missing dropped files are ignored by the native membership reader; dropping their
+containing directory includes their indexed conflict rows. Physical Finder drag,
+all source context menus, temporary merge artifacts and signed acceptance remain
+open. This batch does not certify full Resolve or application parity.
+
+Both Debug builds and all four native case/engine runs passed at the grouped
+checkpoint, with no failed native cases or reruns. The provider-cancellation
+refinement and Help were included in the second build before native verification.
+All four owned receivers were reaped and independently absent. Native fixtures
+use real local conflicts and injected held providers; physical drag/keyboard and
+signed acceptance remain separate. [Batch evidence](qa/resolve-interaction-family-2026-10-16.json)
+records exact effects, preference scope and retained progress assertions.

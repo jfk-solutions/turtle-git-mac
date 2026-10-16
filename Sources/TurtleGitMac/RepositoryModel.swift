@@ -901,8 +901,7 @@ import UniformTypeIdentifiers
                     if try await openExternalConflict(repository, access, path, alternate, owner, entry, token, { request.dismissProgress() }, tools) {
                         try token.check(); guard !confirmingQuit else { return }
                         let root = repository.root
-                        statusWindows[root.path]?.model.requestReload(); commitWindows[root.path]?.model.reload(); rebaseWindows[root.path]?.model.refreshState(); refreshRepositoryLogs(root)
-                        for resolve in resolveWindows.values where resolve.model.repository.root == root { resolve.model.load() }
+                        refreshAfterConflictChange(root)
                         if self.root == root { await refresh() }; return
                     }
                     let root = repository.root, key = root.path + "\0" + path
@@ -914,8 +913,7 @@ import UniformTypeIdentifiers
                         let controller = imageConflictWindows[key] ?? ImageConflictWindowController(repository: repository, access: access, document: document, preferences: fileComparisonPreferences)
                         controller.onClosed = { [weak self] in self?.imageConflictWindows.removeValue(forKey: key) }
                         controller.model.onChanged = { [weak self] output in
-                            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
-                            for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
+                            self?.refreshAfterConflictChange(root)
                             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                         }
                         imageConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return
@@ -926,8 +924,7 @@ import UniformTypeIdentifiers
                     let controller = (textConflictWindows[key]?.window != nil ? textConflictWindows[key] : nil) ?? TextConflictWindowController(repository: repository, access: access, path: path)
                     controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.textConflictWindows[key] === controller else { return }; self.textConflictWindows.removeValue(forKey: key) }
                     controller.model.onChanged = { [weak self] output in
-                        self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
-                        for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
+                        self?.refreshAfterConflictChange(root)
                         if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                     }
                     textConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return
@@ -939,8 +936,7 @@ import UniformTypeIdentifiers
                 let controller = submoduleConflictWindows[key] ?? SubmoduleConflictWindowController(repository: repository, access: access, path: path)
                 controller.onClosed = { [weak self] in self?.submoduleConflictWindows.removeValue(forKey: key) }
                 controller.model.onChanged = { [weak self] output in
-                    self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
-                    for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
+                    self?.refreshAfterConflictChange(root)
                     if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                 }
                 controller.model.onLog = { [weak self] child, revision in self?.showLog(repository: child, access: access, paths: [], endRevision: revision) }
@@ -955,8 +951,7 @@ import UniformTypeIdentifiers
         let controller = deleteConflictWindows[key] ?? DeleteConflictWindowController(repository: repository, access: access, path: path)
         controller.onClosed = { [weak self] in self?.deleteConflictWindows.removeValue(forKey: key) }
         controller.model.onChanged = { [weak self] output in
-            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
-            for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
+            self?.refreshAfterConflictChange(root)
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
         }
         controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [path], endRevision: revision) }
@@ -1001,12 +996,19 @@ import UniformTypeIdentifiers
         configureResetInteractions(controller, repository: repository, access: access, completion: completion)
         resetWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func refreshAfterConflictChange(_ root:URL) {
+        ConflictListRefreshPolicy.perform(preferences:fileComparisonPreferences) {
+            statusWindows[root.path]?.model.requestReload();commitWindows[root.path]?.model.reload()
+            for resolve in resolveWindows.values where resolve.model.repository.root == root {resolve.model.load()}
+        }
+        rebaseWindows[root.path]?.model.refreshState();refreshRepositoryLogs(root)
+    }
     private func showResolve(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?) {
         let root = repository.root, key = root.path + "\0" + String(quick?.rawValue ?? -1) + "\0" + paths.joined(separator: "\0")
-        let controller = resolveWindows[key] ?? ResolveWindowController(repository: repository, access: access, paths: paths, quick: quick)
+        let controller = resolveWindows[key] ?? ResolveWindowController(repository: repository, access: access, paths: paths, quick: quick, preferences:fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.resolveWindows.removeValue(forKey: key) }
         controller.onChanged = { [weak self] output in
-            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
+            self?.refreshAfterConflictChange(root)
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }

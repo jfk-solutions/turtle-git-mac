@@ -209,3 +209,12 @@ limits. Other dormant Advanced entries are not implied to have new consumers.
 The [checkbox index family](COMMIT-CHECKBOX-INDEX.md) now consumes the default-on
 ReaddUnselectedAddedFilesAfterCommit preference in native checkbox Commit attempts.
 Staging mode is unaffected. Other dormant preferences retain their existing status.
+
+## Conflict-list refresh consumer — October 16, 2026
+
+RefreshFileListAfterResolvingConflict now controls the explicit status/Commit/
+Resolve list callbacks after conflict-editor and Resolve outcomes, using the
+source default true and exact DWORD equality to 1. Actual resolution and its
+post-operation status read, Rebase state, Log/repository notifications and explicit
+F5 remain independent. The Advanced tooltip identifies the consumer. See
+[Resolve interaction](RESOLVE-PARITY.md#file-drops-source-keys-and-parent-refresh--october-16-2026).
