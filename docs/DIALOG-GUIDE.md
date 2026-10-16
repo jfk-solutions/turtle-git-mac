@@ -524,3 +524,12 @@ patched base. Resolve its blocks and Save; Mark as resolved is disabled here.
 **Patch all/selected** can save a clean recorded-base merge, while conflicts stay
 unwritten for review. Missing base versions remain errors. See
 [patch recovery](PATCH-RECOVERY-PARITY.md) for supported paths and limitations.
+
+### Patch conflicts involving binary files, links or deletions
+
+Review Patch shows Current working file and Patched recorded base side by side.
+Choose **Keep current file** (Control-F10) or **Use patched file** (Control-F9) to
+select the complete file contents, type and paths. Link previews show their target
+string without opening it. A deletion requires confirmation with Cancel as the
+default. Empty regular files remain files. Patch all leaves these conflicts for
+an explicit choice; refresh if a reviewed file has since changed.

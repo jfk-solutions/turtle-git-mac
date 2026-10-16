@@ -680,6 +680,16 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     static private(set) var activeOperations = 0
     private(set) var retired = false
     private var operation: OperationCancellation?
+    private var specialQuestion:NSAlert?
+    var chooseSpecialResolution:((WorkingTreePatchResolutionChoice,WorkingTreePatchFileComparison) async -> Bool)?
+    @Published private(set) var keptCurrentPaths:Set<Data> = []
+    @Published private(set) var specialSavedResult:WorkingTreePatchSaveResult?
+    @Published private(set) var specialResolutionChoice:WorkingTreePatchResolutionChoice?
+    var specialComparison:WorkingTreePatchFileComparison? {
+        guard let comparison,comparison.requiresMerge,comparison.recoveryKind != .text else {return nil}
+        return comparison
+    }
+    var canResolveSpecial:Bool {editable && !requiresRefresh && specialComparison.map {!appliedPaths.contains(Data($0.document.destination.path.utf8))} == true}
     enum DraftChoice { case save, discard, cancel }
     let repository: GitRepository
     let directoryMode: Bool
@@ -727,6 +737,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         focusFile(ids.first)
     }
     func fileState(_ file:WorkingTreePatchReview.File) -> String {
+        if keptCurrentPaths.contains(file.pathBytes) {return "kept current"}
         if appliedPaths.contains(file.pathBytes) {return "patched"}
         if let result = fileResults[file.pathBytes],!result.success {return result.requiresMerge ? "conflict" : "error"}
         switch fileInspections[file.pathBytes]?.state {case .error:return "error";case .conflict:return "conflict";default:return ""}
@@ -821,9 +832,14 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private func ensure(_ token: OperationCancellation) throws {
         guard !retired, operation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
     }
-    func cancelOperation() { operation?.cancel(); editor?.cancelOutput(); editor?.cancelPaneSave();conflictEditor?.cancelPatchOperation() }
+    func cancelOperation() {operation?.cancel();dismissSpecialQuestion();editor?.cancelOutput();editor?.cancelPaneSave();conflictEditor?.cancelPatchOperation()}
+    private func dismissSpecialQuestion() {
+        guard let question = specialQuestion else {return};specialQuestion = nil
+        if let window,question.window.sheetParent === window {window.endSheet(question.window,returnCode:.alertFirstButtonReturn)}
+        question.window.orderOut(nil)
+    }
     func retire() {
-        guard !retired else { return }; retired = true; operation?.cancel()
+        guard !retired else { return }; retired = true; operation?.cancel();dismissSpecialQuestion()
         fileListGeneration = UUID()
         previewDocument.retire(); editor?.retireImageLoader(); editorChanges = nil;conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil
         beforeScroll = nil; afterScroll = nil; close = {}; chooseDraft = { .cancel }; onBusyChanged = {}
@@ -848,7 +864,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func refresh(completion: (() -> Void)? = nil) {
-        guard canReplaceComparison, let token = begin() else { completion?(); return }; selectedReview = nil; appliedPaths = []; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil; beforeScroll = nil; afterScroll = nil
+        guard canReplaceComparison, let token = begin() else { completion?(); return }; selectedReview = nil; appliedPaths = []; keptCurrentPaths = []; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil; beforeScroll = nil; afterScroll = nil
         fileResults = [:];fileInspections = [:]
         let reverse = reversed, strip = stripCount
         Task {
@@ -893,7 +909,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     private func loadComparison(_ token: OperationCancellation) async {
         guard (try? ensure(token)) != nil else { return }
-        comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil; beforeScroll = nil; afterScroll = nil; comparisonNotice = ""; difference = -1
+        comparison = nil;specialSavedResult = nil;specialResolutionChoice = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil; beforeScroll = nil; afterScroll = nil; comparisonNotice = ""; difference = -1
         guard let review else { focusedFile = nil; return }
         let file: WorkingTreePatchReview.File?
         if let focusedFile { file = review.files.first(where: { $0.id == focusedFile }) }
@@ -907,7 +923,11 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             let value = try await repository.compareWorkingTreePatchFile(review, fileID: file.id, cancellation: token)
             try ensure(token)
             comparison = value
-            if value.requiresMerge {installConflict(value);return}
+            if value.requiresMerge {
+                if value.recoveryKind == .text {installConflict(value)}
+                else {onConflictEditorChanged(nil);comparisonNotice = "Choose the current or patched file state to complete this file."}
+                return
+            }
             let nextEditor = FileComparisonWindowModel(patchComparison: value, access: access, preferences: preferences)
             nextEditor.window = window; nextEditor.retainPermissions(openPermissions)
             nextEditor.onExportStateChanged = { [weak self] in self?.updateParentState(); self?.onBusyChanged() }
@@ -915,6 +935,43 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             editorChanges = nextEditor.objectWillChange.sink { [weak self] in self?.objectWillChange.send(); self?.onBusyChanged() }
             editor = nextEditor; updateParentState()
         } catch { if !retired && !token.isCancelled { comparisonNotice = error.localizedDescription } }
+    }
+    func resolveSpecial(_ choice:WorkingTreePatchResolutionChoice) {
+        guard canResolveSpecial,let comparison = specialComparison,let token = begin() else {return}
+        let generation = fileListGeneration
+        Task { [self] in
+            defer {finish(token)}
+            var reported = false
+            do {
+                let accepted:Bool
+                if let chooseSpecialResolution {accepted = await chooseSpecialResolution(choice,comparison)}
+                else if choice == .patched,comparison.document.destination.mode == nil {
+                    guard let window,window.attachedSheet == nil else {return}
+                    let question = NSAlert();question.alertStyle = .warning;question.messageText = "Delete “" + comparison.document.base.path + "”?"
+                    question.informativeText = "The patch deletes this file. Delete the reviewed current version?"
+                    let cancel = question.addButton(withTitle:"Cancel");cancel.keyEquivalent = "\r";question.addButton(withTitle:"Delete").keyEquivalent = ""
+                    question.window.defaultButtonCell = cancel.cell as? NSButtonCell
+                    specialQuestion = question
+                    let response = await withCheckedContinuation {continuation in question.beginSheetModal(for:window) {continuation.resume(returning:$0)}}
+                    if specialQuestion === question {specialQuestion = nil}
+                    accepted = response == .alertSecondButtonReturn
+                } else {accepted = true}
+                try ensure(token)
+                guard accepted,generation == fileListGeneration,self.comparison?.fileID == comparison.fileID else {return}
+                try checkAccess()
+                let saved = try await repository.resolveWorkingTreePatchFile(comparison,choice:choice,autoAddNewFiles:MergeEditorPreferences.load(from:preferences).autoAdd,cancellation:token)
+                onChanged(saved.output);reported = true
+                try ensure(token)
+                specialSavedResult = saved;specialResolutionChoice = choice
+                if choice == .current {keptCurrentPaths.insert(Data(comparison.document.destination.path.utf8))}
+                appliedPaths.insert(Data(comparison.document.destination.path.utf8));output += saved.output
+                comparisonNotice = choice == .current ? "Current working file and paths kept." : "Selected patched file state saved."
+                if let failure = saved.addError {notice = "Saved selected file state, but Add failed: " + failure}
+            } catch {
+                if !reported {onMutationStopped()}
+                if !retired,!token.isCancelled {notice = error.localizedDescription;output += notice + "\n"}
+            }
+        }
     }
     private func installConflict(_ comparison:WorkingTreePatchFileComparison) {
         let next = TextConflictWindowModel(repository:repository,access:access,path:comparison.document.destination.path)
@@ -1166,7 +1223,9 @@ struct WorkingTreePatchComparisonView: View {
     }
     var body: some View {
         VStack(alignment: .leading) {
-            if let conflict = model.conflictEditor {
+            if let special = model.specialComparison {
+                PatchSpecialRecoveryView(model:model,comparison:special)
+            } else if let conflict = model.conflictEditor {
                 PatchMergeEditor(model:conflict)
                 if conflict.dirty {Button("Discard edits") {model.discardDraft()}.disabled(!model.editable)}
             } else {
@@ -1273,7 +1332,7 @@ struct WorkingTreePatchNativeFileList: NSViewRepresentable {
             let cell = NSTableCellView(),label = NSTextField(labelWithString:tableColumn?.identifier.rawValue == "State" ? state : (file.path as NSString).lastPathComponent)
             label.lineBreakMode = .byTruncatingTail
             label.font = model.focusedFile == file.id ? .boldSystemFont(ofSize:NSFont.systemFontSize) : .systemFont(ofSize:NSFont.systemFontSize)
-            label.textColor = ["error","conflict"].contains(state) ? .systemRed : state == "patched" ? .secondaryLabelColor : .labelColor
+            label.textColor = ["error","conflict"].contains(state) ? .systemRed : ["patched","kept current"].contains(state) ? .secondaryLabelColor : .labelColor
             label.translatesAutoresizingMaskIntoConstraints = false;cell.addSubview(label);cell.textField = label
             cell.toolTip = model.repository.root.appendingPathComponent(file.path).path + (["error","conflict"].contains(state) ? "\n" + (model.fileResults[file.pathBytes]?.output ?? model.fileInspections[file.pathBytes]?.diagnostic ?? "") : "")
             if tableColumn?.identifier.rawValue == "Path" {
@@ -1335,5 +1394,66 @@ private final class PatchReviewFileTable:NSTableView {
             menu.popUp(positioning:nil,at:point,in:self);return
         }
         super.keyDown(with:event)
+    }
+}
+
+private struct PatchSpecialRecoveryView:View {
+    @ObservedObject var model:WorkingTreePatchWindowModel
+    let comparison:WorkingTreePatchFileComparison
+    var body:some View {
+        VStack(alignment:.leading,spacing:12) {
+            Text(title).font(.headline)
+            Text("Preview does not change files. Choose which complete file state to keep.").foregroundStyle(.secondary)
+            HSplitView {
+                PatchFileStatePreview(title:"Current working file",content:comparison.document.base)
+                PatchFileStatePreview(title:"Patched recorded base",content:comparison.document.destination)
+            }
+            if let choice = model.specialResolutionChoice {
+                Label(choice == .current ? "Current working file and paths kept." : "Selected patched file state saved.",systemImage:"checkmark.circle.fill").foregroundStyle(.green)
+            }
+            HStack {
+                Button {model.resolveSpecial(.current)} label: {CommandLabel(title:comparison.document.base.mode == nil ? "Keep current deletion" : "Keep current file",icon:.mergeUseMine)}
+                    .help("Keep the reviewed current files and paths without applying this patch record.")
+                Spacer()
+                Button {model.resolveSpecial(.patched)} label: {CommandLabel(title:comparison.document.destination.mode == nil ? "Use patched deletion…" : "Use patched file",icon:.mergeUseTheirs)}
+                    .help("Use the complete patched contents, file type and paths shown above.")
+            }.disabled(!model.canResolveSpecial)
+        }.padding(12)
+    }
+    private var title:String {
+        switch comparison.recoveryKind {
+        case .binary:return "Binary file conflict"
+        case .symbolicLink:return "Symbolic link or file-type conflict"
+        case .deletion:return "Deleted or modified file conflict"
+        default:return "File conflict"
+        }
+    }
+}
+private struct PatchFileStatePreview:View {
+    let title:String
+    let content:ComparisonFileContent
+    private var isLink:Bool {content.mode == "120000"}
+    private var image:NSImage? {
+        guard ["100644","100755"].contains(content.mode ?? ""),content.bytes.count <= 16 * 1024 * 1024,
+              UTType(filenameExtension:(content.path as NSString).pathExtension)?.conforms(to:.image) == true else {return nil}
+        return NSImage(data:content.bytes)
+    }
+    var body:some View {
+        VStack(alignment:.leading,spacing:8) {
+            Text(title).font(.headline)
+            Text(content.path).font(.caption).lineLimit(1).help(content.path)
+            Text(content.mode.map {isLink ? "Symbolic link · \(content.bytes.count) bytes" : "\($0) · \(content.bytes.count) bytes"} ?? "Absent / deleted").font(.caption).foregroundStyle(.secondary)
+            if content.mode == nil {
+                VStack {Spacer();Image(systemName:"doc.badge.minus").font(.system(size:32)).foregroundStyle(.orange);Text("No file on this side");Spacer()}.frame(maxWidth:.infinity,maxHeight:.infinity)
+            } else if isLink {
+                ScrollView {Text("Link target:\n" + String(decoding:content.bytes,as:UTF8.self)).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading)}
+            } else {
+                if let image {Image(nsImage:image).resizable().scaledToFit().frame(maxHeight:240)}
+                ScrollView {
+                    Text(content.bytes.prefix(4096).enumerated().map {($0.offset % 16 == 0 ? String(format:"\n%08X  ",$0.offset) : " ") + String(format:"%02X",$0.element)}.joined()).font(.system(.caption,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading)
+                }.accessibilityLabel(title + " byte preview")
+                if content.bytes.count > 4096 {Text("First 4096 bytes shown").font(.caption).foregroundStyle(.secondary)}
+            }
+        }.padding(10).frame(minWidth:200,maxWidth:.infinity,maxHeight:.infinity,alignment:.topLeading).background(Color(nsColor:.textBackgroundColor))
     }
 }

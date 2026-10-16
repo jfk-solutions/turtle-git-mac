@@ -411,4 +411,11 @@ patched base. Resolve its blocks and Save; Mark as resolved is disabled here.
 <strong>Patch all/selected</strong> can save a clean recorded-base merge, while conflicts stay
 unwritten for review. Missing base versions remain errors. See
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/PATCH-RECOVERY-PARITY.html">patch recovery</a> for supported paths and limitations.</p>
+<h3 id="patch-conflicts-involving-binary-files-links-or-deletions">Patch conflicts involving binary files, links or deletions</h3>
+<p>Review Patch shows Current working file and Patched recorded base side by side.
+Choose <strong>Keep current file</strong> (Control-F10) or <strong>Use patched file</strong> (Control-F9) to
+select the complete file contents, type and paths. Link previews show their target
+string without opening it. A deletion requires confirmation with Cancel as the
+default. Empty regular files remain files. Patch all leaves these conflicts for
+an explicit choice; refresh if a reviewed file has since changed.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

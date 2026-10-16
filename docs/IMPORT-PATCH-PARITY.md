@@ -613,3 +613,5 @@ Ready/Conflict/Error classification, versioned-base retry, an embedded native
 three-pane preview and clean-merge Patch all/selected continuation. Earlier text
 listing all initial-state and conflict preview behavior as absent is historical;
 the continuation records the implemented paths and remaining special-file scope.
+
+Binary, symbolic-link and deletion conflicts use [explicit patch recovery choices](PATCH-SPECIAL-RECOVERY-PARITY.md).

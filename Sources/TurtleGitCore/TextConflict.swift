@@ -387,7 +387,7 @@ extension TextConflictDocument {
 
 extension WorkingTreePatchFileComparison {
     public func patchMergeDocument(engine:SubversionMergeConfiguration,preferUTF8:Bool? = nil,cancellation:OperationCancellation? = nil) throws -> TextConflictDocument {
-        guard let recoveryBase else {throw WorkingTreePatchFailure.review}
+        guard let recoveryBase,recoveryKind == .text else {throw WorkingTreePatchFailure.review}
         func content(_ value:ComparisonFileContent)->ComparisonFileContent {preferUTF8.map {value.usingMergeEncoding(preferUTF8:$0)} ?? value}
         let base = content(recoveryBase),mine = content(document.base),theirs = content(document.destination)
         guard let baseText = base.text,let mineText = mine.text,let theirsText = theirs.text,let encoding = mine.encoding ?? theirs.encoding else {throw TextConflictFailure.encoding}

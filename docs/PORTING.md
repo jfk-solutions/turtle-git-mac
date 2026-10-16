@@ -1436,3 +1436,12 @@ preparation, initial per-file classification, embedded Subversion merge/native
 toolbar, guarded resolved Save and clean batch continuation. Missing-version and
 special-file recovery, complete physical/signed acceptance and full port
 certification remain open; the dated record distinguishes checks and repairs.
+
+## Special-file patch recovery — October 16, 2026
+
+Recorded-base recovery now prepares binary bytes, symbolic links and absent
+endpoints. The existing native review window presents exact Current/Patched
+choices, side previews, original action icons and scoped shortcuts, with owned
+deletion confirmation and operation/retirement fences. The shared guarded save
+validates all captured endpoints; batch application leaves these conflicts for
+explicit choice. See [special-file recovery](PATCH-SPECIAL-RECOVERY-PARITY.md).

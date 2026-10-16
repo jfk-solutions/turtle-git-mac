@@ -315,3 +315,5 @@ file-list menu. Per-file application retains individual success/error results.
 [Recorded-base patch recovery](docs/PATCH-RECOVERY-PARITY.md) provides initial
 file states, embedded three-pane conflict review and clean three-way continuation
 for Patch all/selected while preserving captured Save checks.
+
+Binary, symbolic-link and deletion conflicts use [explicit patch recovery choices](docs/PATCH-SPECIAL-RECOVERY-PARITY.md).

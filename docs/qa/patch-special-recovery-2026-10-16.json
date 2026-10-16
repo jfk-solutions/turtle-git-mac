@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "25c1aa7779488951dd93cb5ebd3c654be82b143a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Binary, symbolic-link, file-type and delete/modify recorded-base patch recovery with explicit native whole-file choices",
+  "implementation": [
+    "Exact recorded-base binary/link/absence preparation; no text reinterpretation or symlink target reads.",
+    "Native Current/Patched side previews, original action icons, scoped Control-F10/F9 commands and Cancel-default deletion sheet.",
+    "Shared captured-input validation and exact binary-capable save for all file/path states; empty regular files preserved.",
+    "Whole-file Current retains original paths; Patched chooses prepared path/type/content changes. Current never stages; new patched destinations observe optional Add.",
+    "Patch all leaves special conflicts for explicit choice and continues later files.",
+    "Retained operation/access lifetime, duplicate/Refresh/selection/close/Quit fences, owned-sheet dismissal and late-reply refusal.",
+    "Completed Current rows say kept current rather than patched."
+  ],
+  "core": {
+    "log": "build/qa/patch-special-core-2026-10-16.log",
+    "exit": 0,
+    "distinct_cases": 37,
+    "filter": "WorkingPatchBatchTests|WorkingTreePatchReviewTests|WorkingPatchCancellationTests|DirectoryPatchTests",
+    "new_cases": 6,
+    "coverage": [
+      "Binary Preview/current/patched, no implicit batch choice, HEAD/index preserved",
+      "Link pointers with outside sentinel target untouched",
+      "Empty regular and regular-to-link transitions",
+      "Delete/modify Keep/Delete and missing-current restoration",
+      "Reverse binary recorded-new-blob identity",
+      "Cancelled and stale link-pointer choices refused"
+    ],
+    "no_full_core_rerun": true
+  },
+  "debug": [
+    {
+      "log": "build/qa/patch-special-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 10
+    },
+    {
+      "log": "build/qa/patch-special-build-label-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    }
+  ],
+  "repair": {
+    "reason": "Product review after passing special native checks found Keep current rows mislabeled patched. Added retained-current row state and native assertion; repeated affected special cases in the final grouped native checkpoint. Core unchanged, so no repeated Core suite.",
+    "test_failures": 0
+  },
+  "native": {
+    "initial_log": "build/qa/patch-special-native-2026-10-16.log",
+    "initial_exit": 0,
+    "initial_case_engine_runs": 2,
+    "final_log": "build/qa/patch-special-native-final-2026-10-16.log",
+    "final_exit": 0,
+    "final_case_engine_runs": 11,
+    "distinct_case_engine_runs": 11,
+    "total_case_engine_runs": 13,
+    "cases": {
+      "special": 2,
+      "recovery": 2,
+      "panel": 2,
+      "files": 2,
+      "import": 2,
+      "menus": 1
+    },
+    "owned_receivers_reaped_and_independently_absent": [
+      17495,
+      17754,
+      18112,
+      18363,
+      18654,
+      18860,
+      19050,
+      19161,
+      19286,
+      19499,
+      19709,
+      20877,
+      22036
+    ],
+    "owned_windows_closed": true,
+    "physical_ui_acceptance_claimed": false
+  },
+  "captures": {
+    "files": [
+      "docs/site/assets/patch-special-recovery-light.png",
+      "docs/site/assets/patch-special-recovery-dark.png"
+    ],
+    "pixels": [
+      2200,
+      1504
+    ],
+    "visually_inspected": true,
+    "state": "Initial binary conflict before completed-row label repair. Initial state unchanged by repair. Not evidence for all link/deletion views."
+  },
+  "help": {
+    "files": 50,
+    "bytes": 1957605,
+    "built_source_counterparts_equal": true
+  },
+  "site": {
+    "log": "build/qa/patch-special-site-2026-10-16.log",
+    "exit": 0,
+    "documents": 256,
+    "unresolved_fragments": 0
+  },
+  "coverage": {
+    "dialogs": 130,
+    "partial_family_audits": 120,
+    "pending_family_reviews": 10,
+    "certified_complete": 0,
+    "static_controls": 1659,
+    "mapped_controls": 987,
+    "pending_control_reviews": 672
+  },
+  "remaining": [
+    "Full helper/image editor/source backup and empty-file policy parity",
+    "Non-UTF-8 link targets and gitlink/directory recovery",
+    "Physical menu/input/VoiceOver and full visual acceptance",
+    "Signed installed Finder, sandbox grants and App Store distribution",
+    "Latest complete hosted CI result; local checks do not prove it"
+  ]
+}

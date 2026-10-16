@@ -16,8 +16,9 @@ available blob bytes seed that workspace; only its files are patched. The caller
 retains current working-file snapshots for later Save validation. No application,
 index change, commit or remote fetch is part of Preview. Recorded-base text renames
 and executable modes use the same captured source/destination path machinery.
-Missing versions, unsupported binary/symlink/deletion recovery and unsafe paths
-remain errors rather than approximate merges.
+Missing versions and unsafe paths remain errors rather than approximate merges.
+[Special-file recovery](PATCH-SPECIAL-RECOVERY-PARITY.md) now provides explicit
+whole-file choices for binary, symbolic-link and deletion conflicts.
 
 The list now has initial Ready/Conflict/Error classification. Like the pinned
 source's `rejects` flag and nonempty base-path test, Conflict means recorded-base
@@ -51,8 +52,7 @@ forced retirement and late result fencing share the viewer/editor owners and gra
 
 [Grouped evidence](qa/patch-recovery-2026-10-16.json) records the actual build,
 Core/native scope, repairs and captures. This remains partial upstream parity:
-missing base objects require the appropriate local history, binary/symlink/delete
-conflict recovery needs its dedicated port, and full physical toolbar/menu/input,
+missing base objects require the appropriate local history, and full physical toolbar/menu/input,
 large-patch performance, signed Finder/sandbox and App Store acceptance remain open.
 
 The grouped checkpoint and focused repairs cover **31 distinct passing Core

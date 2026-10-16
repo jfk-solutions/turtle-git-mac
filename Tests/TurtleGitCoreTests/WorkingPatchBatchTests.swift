@@ -148,3 +148,107 @@ extension WorkingPatchBatchTests {
         XCTAssertEqual(try String(contentsOf:root.appendingPathComponent("file.txt")),current)
     }
 }
+
+extension WorkingPatchBatchTests {
+    private enum SpecialFile {
+        case bytes(Data), link(String), absent
+        func install(_ file:URL) throws {
+            if (try? FileManager.default.attributesOfItem(atPath:file.path)) != nil {try FileManager.default.removeItem(at:file)}
+            switch self {
+            case .bytes(let bytes):try bytes.write(to:file)
+            case .link(let target):try FileManager.default.createSymbolicLink(atPath:file.path,withDestinationPath:target)
+            case .absent:break
+            }
+        }
+    }
+    private func specialFixture(base:SpecialFile,patched:SpecialFile,current:SpecialFile,reverse:Bool=false) async throws -> (URL,GitRepository,WorkingTreePatchReview) {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let repo=GitRepository(root:root,executable:URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_PATCH_TEST_GIT"] ?? "/usr/bin/git"))
+        _=try await repo.run(["init","-b","main"])
+        for (key,value) in [("user.name","Special recovery QA"),("user.email","special@example.invalid"),("commit.gpgsign","false")] {_=try await repo.run(["config",key,value])}
+        let file=root.appendingPathComponent("file")
+        try base.install(file);try await repo.stage(["file"]);_=try await repo.commit(message:"base")
+        try patched.install(file);_=try await repo.run(["add","-A","--","file"])
+        let patch=try await repo.run(["diff","--cached","--binary","--full-index","--"]).stdout
+        _=try await repo.run(["reset","--hard","HEAD"])
+        try current.install(file)
+        return (root,repo,try await repo.reviewWorkingTreePatch(patch,reversed:reverse))
+    }
+    func testBinaryRecoveryRequiresExplicitChoiceAndPreservesIndexAndHead() async throws {
+        let current=Data([0,9,8,7]),patched=Data([0,4,5,6])
+        let (root,repo,review)=try await specialFixture(base:.bytes(Data([0,1,2,3])),patched:.bytes(patched),current:.bytes(current));defer{try? FileManager.default.removeItem(at:root)}
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let comparison=try await repo.compareWorkingTreePatchFile(review,fileID:review.files[0].id)
+        XCTAssertEqual(comparison.recoveryKind,.binary)
+        XCTAssertEqual(comparison.document.base.bytes,current);XCTAssertEqual(comparison.document.destination.bytes,patched)
+        XCTAssertThrowsError(try comparison.patchMergeDocument(engine:mergeEngine))
+        let batch=try await repo.applyWorkingTreePatchBatch(review,fileIDs:Set(review.files.map(\.id)),mergeConfiguration:mergeEngine)
+        XCTAssertTrue(batch.files[0].requiresMerge);XCTAssertFalse(batch.files[0].success)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("file")),current)
+        _=try await repo.resolveWorkingTreePatchFile(comparison,choice:.current)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("file")),current)
+        _=try await repo.resolveWorkingTreePatchFile(comparison,choice:.patched)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("file")),patched)
+        let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        XCTAssertEqual(afterHead,head);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+    func testSymbolicLinkRecoveryChoosesPointerWithoutFollowingTarget() async throws {
+        let outside=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data("outside sentinel".utf8).write(to:outside);defer{try? FileManager.default.removeItem(at:outside)}
+        let (root,repo,review)=try await specialFixture(base:.link("old missing"),patched:.link("patched 雪"),current:.link(outside.path));defer{try? FileManager.default.removeItem(at:root)}
+        let comparison=try await repo.compareWorkingTreePatchFile(review,fileID:review.files[0].id)
+        XCTAssertEqual(comparison.recoveryKind,.symbolicLink)
+        XCTAssertEqual(comparison.document.base.bytes,Data(outside.path.utf8))
+        _=try await repo.resolveWorkingTreePatchFile(comparison,choice:.patched)
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath:root.appendingPathComponent("file").path),"patched 雪")
+        XCTAssertEqual(try Data(contentsOf:outside),Data("outside sentinel".utf8))
+    }
+    func testSpecialRecoveryPreservesEmptyRegularFileAndChangesFileType() async throws {
+        for patched:SpecialFile in [.bytes(Data()),.link("missing target")] {
+            let (root,repo,review)=try await specialFixture(base:.bytes(Data([0,1,2])),patched:patched,current:.bytes(Data([0,9,8])));defer{try? FileManager.default.removeItem(at:root)}
+            let comparison=try await repo.compareWorkingTreePatchFile(review,fileID:review.files[0].id)
+            XCTAssertTrue(comparison.requiresMerge)
+            let saved=try await repo.resolveWorkingTreePatchFile(comparison,choice:.patched)
+            let mode=saved.document.destination.mode
+            XCTAssertNotNil(mode)
+            if mode=="120000" {XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath:root.appendingPathComponent("file").path),"missing target")}
+            else {XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("file")),Data());XCTAssertEqual(mode,"100644")}
+        }
+    }
+    func testDeletionRecoveryKeepsCurrentOrDeletesAndRestoresMissingFile() async throws {
+        let (root,repo,review)=try await specialFixture(base:.bytes(Data("old\n".utf8)),patched:.absent,current:.bytes(Data("local\n".utf8)));defer{try? FileManager.default.removeItem(at:root)}
+        let comparison=try await repo.compareWorkingTreePatchFile(review,fileID:review.files[0].id)
+        XCTAssertEqual(comparison.recoveryKind,.deletion)
+        _=try await repo.resolveWorkingTreePatchFile(comparison,choice:.current)
+        XCTAssertEqual(try String(contentsOf:root.appendingPathComponent("file")),"local\n")
+        _=try await repo.resolveWorkingTreePatchFile(comparison,choice:.patched)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent("file").path))
+        let (missingRoot,missingRepo,missingReview)=try await specialFixture(base:.bytes(Data("old\n".utf8)),patched:.bytes(Data("new\n".utf8)),current:.absent);defer{try? FileManager.default.removeItem(at:missingRoot)}
+        let missing=try await missingRepo.compareWorkingTreePatchFile(missingReview,fileID:missingReview.files[0].id)
+        XCTAssertEqual(missing.recoveryKind,.deletion)
+        _=try await missingRepo.resolveWorkingTreePatchFile(missing,choice:.current)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:missingRoot.appendingPathComponent("file").path))
+        _=try await missingRepo.resolveWorkingTreePatchFile(missing,choice:.patched,autoAddNewFiles:false)
+        XCTAssertEqual(try String(contentsOf:missingRoot.appendingPathComponent("file")),"new\n")
+    }
+    func testReverseBinaryRecoveryUsesRecordedNewBlob() async throws {
+        let old=Data([0,1,2]),new=Data([0,3,4])
+        let (root,repo,review)=try await specialFixture(base:.bytes(old),patched:.bytes(new),current:.bytes(Data([0,9,8])),reverse:true);defer{try? FileManager.default.removeItem(at:root)}
+        let comparison=try await repo.compareWorkingTreePatchFile(review,fileID:review.files[0].id)
+        XCTAssertEqual(comparison.recoveryBase?.bytes,new);XCTAssertEqual(comparison.document.destination.bytes,old)
+        _=try await repo.resolveWorkingTreePatchFile(comparison,choice:.patched)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("file")),old)
+    }
+    func testSpecialChoicesRejectStalePointerAndCancellation() async throws {
+        let (root,repo,review)=try await specialFixture(base:.link("old"),patched:.link("new"),current:.link("local"));defer{try? FileManager.default.removeItem(at:root)}
+        let comparison=try await repo.compareWorkingTreePatchFile(review,fileID:review.files[0].id)
+        let token=OperationCancellation();token.cancel()
+        do {_=try await repo.resolveWorkingTreePatchFile(comparison,choice:.patched,cancellation:token);XCTFail("Cancelled choice saved")} catch OperationCancellationFailure.cancelled {}
+        try SpecialFile.link("external").install(root.appendingPathComponent("file"))
+        for choice in WorkingTreePatchResolutionChoice.allCases {
+            do {_=try await repo.resolveWorkingTreePatchFile(comparison,choice:choice);XCTFail("Stale pointer accepted")} catch FileComparisonEditFailure.changed {}
+        }
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath:root.appendingPathComponent("file").path),"external")
+    }
+}
