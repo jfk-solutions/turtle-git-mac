@@ -51,6 +51,10 @@ before accepting. Message only is available for the corresponding commit flow.
 
 Staging support (EXPERIMENTAL) enables the index-based workflow. The file list
 retains its place; partial staging opens in a separate window to the right.
+Checkboxes update immediately after a whole-file or partial staging action. Status
+labels, colors, groups and line counts retain their loaded values, as in TortoiseGit;
+press **F5** to rebuild them. This keeps the row in place while staging. If a staging
+refresh fails or is cancelled, refresh with F5 before committing.
 Review staged content as well as working-tree content before committing.
 
 Enabling staging closes the current patch companion and refreshes the file list.

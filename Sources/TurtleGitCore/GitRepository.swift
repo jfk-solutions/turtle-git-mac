@@ -150,7 +150,7 @@ public actor GitRepository {
         try cancellation?.check()
         if head.exitCode == 0 {
             _ = try run(["restore", "--staged", "--"] + paths, cancellation: cancellation)
-        } else { _ = try run(["rm", "--cached", "--"] + paths, cancellation: cancellation) }
+        } else { _ = try run(["rm", "-f", "--cached", "--"] + paths, cancellation: cancellation) }
     }
     public func commit(message: String) throws -> String {
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {

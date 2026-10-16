@@ -2355,9 +2355,9 @@ The choice uses the owning preference store and the existing Saved Data reset ke
 It appears on an enabled initial mode or activation; a normal Refresh does not
 repeat an acknowledged hint. An invisible/presently blocked owner defers it until
 the window can present it. Forced closure settles its continuation and refuses a
-late suppression write. The native list continues to refresh status/groups after
-individual staging actions; the source's performance note about stale group/status
-labels is therefore omitted. Exact source incremental regrouping remains open.
+late suppression write. At this checkpoint, individual actions still refreshed status/groups; the
+incremental staging follow-up below replaces that behavior and restores the
+source performance explanation.
 
 Mode and patch visibility writes now share a serialized, coalescing owned queue.
 The latest queued visibility request wins. Each write revalidates Store access,
@@ -2376,5 +2376,51 @@ Preference reads now parse stdout separately from warning diagnostics.
 
 [Grouped evidence](qa/commit-staging-mode-2026-10-16.json) records build/Core/native
 scope and repairs. Full physical hint/checkbox/partial gestures, all amend and
-linked-worktree combinations, exact incremental group behavior, signed scopes and
+linked-worktree combinations, signed scopes and
 App Store acceptance remain open. This does not certify complete Commit parity.
+
+
+## Incremental staging list and whole-file targets — October 16, 2026
+
+The source `CGitStatusListCtrl::CheckEntry`, `UncheckEntry` and
+`UpdateSelectedFileStagingStatus` change staging state independently of `m_Action`.
+Native Commit now retains the loaded entries, status colors/text, group membership,
+line statistics and metadata after whole-file and partial actions. An independent
+index snapshot drives checked/mixed/off controls, Space-key direction, All/None,
+category/group/multi-row checks, staged counts, Commit eligibility, hook paths and
+message file lists. F5 uses the existing full refresh to rebuild source rows and
+reset that independent snapshot. A row staged outside the initial scope remains
+in place after unchecking, until a full refresh rebuilds visibility.
+
+A narrow cancellable refresh reads index/worktree path differences without
+rename pairing, unversioned status and staged/unstaged patch statistics without reloading preferences, metadata, hooks, completion scans or LFS
+locks. Its results publish together. Existing partial patch settlement refreshes
+the parent index state while the patch owns its own reload; whole-file actions
+also refresh the companion patch. List line counts use the retained whole-file
+statistics rather than switching between staged/unstaged counts. The staging hint
+now explains F5 and retained group/status values.
+
+Raw path differences also handle identical deleted/renamed contents: a new Git
+rename pairing cannot make the original deletion checkbox appear unchecked.
+
+The refresh holds input and Quit ownership through actual worker drain, including
+forced owner closure. Retired reads cannot publish. A failed or cancelled index
+refresh leaves Commit unavailable until a successful refresh, avoiding a commit
+based on stale checkbox state. Completed index mutations remain in place.
+
+Whole-file rename targets now include both destination and original path when
+staging or unstaging; copy targets do not include their source. This follows the
+source's two-part rename unstage intent while using modern Git restore. Unborn
+unstage removes the selected index entry with `rm -f --cached`, retaining working
+bytes even when they differ from the staged blob. Other index paths are retained.
+
+The new native fixture covers retained rows/groups/statistics/draft/scope,
+actual checkboxes, category/group/highlighted selections, None, partial hunk
+stage/unstage, the actual F5 window route, a failed-read Commit gate and forced
+retirement of a held read. The grouped run also retains activation/preferences
+and raw-byte partial patch workflows. See
+[the validation record](qa/commit-staging-list-2026-10-16.json) for actual results.
+Full physical input, all amend/linked-worktree combinations, large repositories,
+visual and signed acceptance remain open. Source unversioned rows retain their
+existing partial-preview exclusion until F5 changes their status. No full Commit
+parity certification is claimed.

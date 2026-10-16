@@ -39,6 +39,10 @@ allow explicit attribution. These options rewrite commit metadata; verify them
 before accepting. Message only is available for the corresponding commit flow.</p>
 <p>Staging support (EXPERIMENTAL) enables the index-based workflow. The file list
 retains its place; partial staging opens in a separate window to the right.
+Checkboxes update immediately after a whole-file or partial staging action. Status
+labels, colors, groups and line counts retain their loaded values, as in TortoiseGit;
+press <strong>F5</strong> to rebuild them. This keeps the row in place while staging. If a staging
+refresh fails or is cancelled, refresh with F5 before committing.
 Review staged content as well as working-tree content before committing.</p>
 <p>Enabling staging closes the current patch companion and refreshes the file list.
 An explanation describes checked, unchecked and mixed states; choose <strong>Do not show

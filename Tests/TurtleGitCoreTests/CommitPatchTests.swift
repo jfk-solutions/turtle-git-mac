@@ -2,6 +2,70 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitPatchTests: XCTestCase {
+    func testStagingStatesIgnoreAmbiguousRenamePairing() async throws {
+        let helper = CommitSelectionTests(), (root, repo) = try await helper.fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        for path in ["remove", "rename", "other"] { try helper.write(root, path, "identical content\n") }
+        try await repo.stage(["remove", "rename", "other"]); _ = try await repo.commit(message: "base")
+        try FileManager.default.removeItem(at: root.appendingPathComponent("remove")); _ = try await repo.run(["mv", "rename", "renamed"])
+        let rows = try await repo.status(), deletion = try XCTUnwrap(rows.first { $0.path == "remove" })
+        try await repo.setCommitFilesStaged([deletion], staged: true)
+        let states = try await repo.commitStagingStates(for: rows)
+        XCTAssertEqual(states["remove"], .staged); XCTAssertEqual(states["renamed"], .staged)
+        try await repo.setCommitFilesStaged(rows, staged: false)
+        let after = try await repo.commitStagingStates(for: rows), staged = try await repo.run(["diff", "--cached", "--name-only"]).stdout
+        XCTAssertTrue(after.values.allSatisfy { $0 == .unstaged }); XCTAssertTrue(staged.isEmpty)
+    }
+    func testWholeFileCopyDoesNotStageItsModifiedSource() async throws {
+        let helper = CommitSelectionTests(), (root, repo) = try await helper.fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try helper.write(root, "source", "base\n"); try await repo.stage(["source"]); _ = try await repo.commit(message: "base")
+        try helper.write(root, "copy", "base\n"); try helper.write(root, "source", "unrelated working\n")
+        let row = StatusEntry(path: "copy", originalPath: "source", index: "C", worktree: " ")
+        try await repo.setCommitFilesStaged([row], staged: true)
+        let names = try await repo.run(["diff", "--cached", "--name-only"]).stdout
+        XCTAssertEqual(names, Data("copy\n".utf8))
+        let states = try await repo.commitStagingStates(for: [row]); XCTAssertEqual(states["copy"], .staged)
+        let source = try await repo.run(["show", ":source"]).stdout; XCTAssertEqual(source, Data("base\n".utf8))
+    }
+    func testWholeFileStagingRetainsBothRenameSidesAndUnrelatedIndex() async throws {
+        let helper = CommitSelectionTests(), (root, repo) = try await helper.fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try helper.write(root, "old", "base\n"); try helper.write(root, "other", "other\n")
+        try await repo.stage(["old", "other"]); _ = try await repo.commit(message: "base")
+        try helper.write(root, "other", "unrelated staged\n"); try await repo.stage(["other"])
+        _ = try await repo.run(["mv", "old", "new"])
+        let status = try await repo.status()
+        let row = try XCTUnwrap(status.first { $0.path == "new" })
+        XCTAssertEqual(row.index, "R")
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        try await repo.setCommitFilesStaged([row], staged: false)
+        let names = try await repo.run(["diff", "--cached", "--name-only"]).stdout
+        XCTAssertEqual(names, Data("other\n".utf8))
+        try await repo.setCommitFilesStaged([row], staged: true)
+        let after = try await repo.status()
+        XCTAssertEqual(after.first { $0.path == "new" }?.index, "R")
+        let other = try await repo.run(["show", ":other"]).stdout, afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(other, Data("unrelated staged\n".utf8)); XCTAssertEqual(afterHead, head)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("new")), Data("base\n".utf8))
+    }
+    func testUnbornMixedWholeFileUnstageKeepsWorkingBytes() async throws {
+        let helper = CommitSelectionTests(), (root, repo) = try await helper.fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try helper.write(root, "new", "staged\n"); try helper.write(root, "other", "unrelated\n")
+        try await repo.stage(["new", "other"]); try helper.write(root, "new", "working\n")
+        let status = try await repo.status()
+        let row = try XCTUnwrap(status.first { $0.path == "new" })
+        let mixed = try await repo.commitStagingStates(for: [row]); XCTAssertEqual(mixed["new"], .partial)
+        try await repo.setCommitFilesStaged([row], staged: false)
+        let off = try await repo.commitStagingStates(for: [row]); XCTAssertEqual(off["new"], .unstaged)
+        let names = try await repo.run(["ls-files"]).stdout, other = try await repo.run(["show", ":other"]).stdout
+        XCTAssertEqual(names, Data("other\n".utf8)); XCTAssertEqual(other, Data("unrelated\n".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("new")), Data("working\n".utf8))
+        let token = OperationCancellation(); token.cancel()
+        do { try await repo.setCommitFilesStaged([row], staged: true, cancellation: token); XCTFail("Cancelled checkbox staged bytes") } catch is OperationCancellationFailure {}
+        let after = try await repo.run(["ls-files"]).stdout; XCTAssertEqual(after, names)
+    }
     func testCancelledPreferenceSavePreservesConfigurationAndIndex() async throws {
         let helper=CommitSelectionTests(),(root,repo)=try await helper.fixture();defer{try? FileManager.default.removeItem(at:root)}
         try helper.write(root,"file","base\n");try await repo.stage(["file"]);_ = try await repo.commit(message:"base")

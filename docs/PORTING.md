@@ -7,7 +7,11 @@ and presents the owned three-state explanation with the source's remembered hint
 choice. Serialized mode/preview preference writes own cancellation, error/retry,
 input and Quit lifetimes while preserving the draft, checks and index. See
 [staging activation](COMMIT-PARITY.md#staging-activation-and-preview-preferences--october-16-2026).
-Full physical, incremental-group, amend and signed acceptance remain open.
+The incremental staging follow-up now retains source rows/groups/status while
+refreshing independent index state and partial previews. Whole-file rename and
+unborn mixed-file unstage targets are corrected. See
+[incremental staging](COMMIT-PARITY.md#incremental-staging-list-and-whole-file-targets--october-16-2026).
+Full physical, amend and signed acceptance remain open.
 
 Blame's annotation menus now capture line/text/parent/rename targets, honor owner
 icon preferences and support Shift-F10/accessibility menu requests in both source

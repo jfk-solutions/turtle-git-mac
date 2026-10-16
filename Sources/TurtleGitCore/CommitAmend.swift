@@ -1,5 +1,9 @@
 import Foundation
 
+public enum CommitStagingState: Sendable, Equatable {
+    case unstaged, partial, staged
+}
+
 extension GitRepository {
     public func commitComparisonBase(amendToParent: Bool, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()
@@ -42,6 +46,40 @@ extension GitRepository {
             result.append(entry)
         }
         return Dictionary(result.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last }).values.sorted { $0.path < $1.path }
+    }
+
+    /// Read the index independently of rename pairing. Git may choose a
+    /// different identical source after staging a deletion; retained Commit rows
+    /// must still show that original deletion as staged.
+    public func commitStagingStates(for entries: [StatusEntry], base: String? = nil, cancellation: OperationCancellation? = nil) throws -> [String: CommitStagingState] {
+        try cancellation?.check()
+        let cached = try run(["diff", "--cached", "--no-renames", "--name-only", "-z"] + (base.map { [$0] } ?? []) + ["--"], cancellation: cancellation)
+        let working = try run(["diff", "--no-renames", "--name-only", "-z", "--"], cancellation: cancellation)
+        func paths(_ bytes: Data) -> Set<Data> { Set(bytes.split(separator: 0).map { Data($0) }) }
+        let stagedPaths = paths(cached.stdout), workingPaths = paths(working.stdout)
+        let unversioned = Set(try status(cancellation: cancellation).filter { $0.state == .untracked }.map { Data($0.path.utf8) })
+        try cancellation?.check()
+        return Dictionary(entries.map { entry in
+            var targets = [Data(entry.path.utf8)]
+            if (entry.index == "R" || entry.worktree == "R"), let old = entry.originalPath { targets.append(Data(old.utf8)) }
+            let staged = targets.contains { stagedPaths.contains($0) }
+            let unstaged = targets.contains { workingPaths.contains($0) || unversioned.contains($0) }
+            return (entry.path, staged ? (unstaged ? CommitStagingState.partial : .staged) : .unstaged)
+        }, uniquingKeysWith: { _, new in new })
+    }
+
+    /// Whole-file Commit checkboxes operate on both sides of a retained rename.
+    /// Copies retain their source in the index; staging a copy must not stage
+    /// unrelated changes in that source file.
+    public func setCommitFilesStaged(_ entries: [StatusEntry], staged: Bool, amendToParent: Bool = false, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        var paths: [String] = []
+        for entry in entries where entry.state != .conflicted {
+            paths.append(entry.path)
+            if (entry.index == "R" || entry.worktree == "R"), let old = entry.originalPath { paths.append(old) }
+        }
+        if staged { try stage(paths, cancellation: cancellation) }
+        else { try unstageCommitPaths(paths, amendToParent: amendToParent, cancellation: cancellation) }
     }
 
     public func unstageCommitPaths(_ paths: [String], amendToParent: Bool, cancellation: OperationCancellation? = nil) throws {

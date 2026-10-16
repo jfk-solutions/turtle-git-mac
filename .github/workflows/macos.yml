@@ -382,7 +382,7 @@ jobs:
       - name: Native Blame captured source menus
         run: python3 scripts/test-blame-source-menu.py --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Commit staging activation and preference lifetime
-        run: python3 scripts/test-commit-staging-mode.py --only mode --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+        run: python3 scripts/test-commit-staging-mode.py --only list --only mode --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Rebase action controls and structural row behavior
         run: python3 scripts/test-rebase-action-controls.py --only controls --only row-drag --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Rebase Revision Files and shared Changed Files workflows

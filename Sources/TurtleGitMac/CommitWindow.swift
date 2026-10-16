@@ -296,9 +296,9 @@ import UniformTypeIdentifiers
             guard let self, !self.closingCommit else { return }
             self.model.busy = busy
         }
-        controller.model.onSettled = { [weak self] succeeded in
-            guard succeeded, let self, !self.closingCommit else { return }
-            self.model.reload()
+        controller.model.onSettled = { [weak self] _ in
+            guard let self, !self.closingCommit else { return }
+            self.model.refreshStagingState(refreshPatch: false)
         }
         controller.model.onApplied = {}
         controller.model.readOnly = readOnly
@@ -393,6 +393,7 @@ import UniformTypeIdentifiers
     private var reloadCancellation: OperationCancellation?
     @Published private var pendingReloadCancel = false
     var queryCommitStatus: (Bool, OperationCancellation) async throws -> [StatusEntry]
+    var queryStagingStates: ([StatusEntry], String?, OperationCancellation) async throws -> [String: CommitStagingState]
     @Published var statistics: [String: CommitFile] = [:]
     @Published var checked = Set<String>()
     @Published var selection = Set<String>() { didSet { if selection != oldValue { fileMenuGeneration = UUID() } } }
@@ -688,6 +689,7 @@ import UniformTypeIdentifiers
         queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
         queryHistoryIssue = { try await repository.issueFieldValue(properties: $0, message: $1, cancellation: $2) }
         queryCommitStatus = { try await repository.commitDialogStatus(amendToParent: $0, cancellation: $1) }
+        queryStagingStates = { try await repository.commitStagingStates(for: $0, base: $1, cancellation: $2) }
         queryCommitAuthor = { amend, cancellation in
             if amend {
                 var options = HistoryOptions(); options.useMailmap = false; options.limit = 1
@@ -763,8 +765,52 @@ import UniformTypeIdentifiers
         // accumulating old columns as additional sorting priorities.
         fileSortOrder = Array(order.prefix(1))
     }
-    var stagedEntries: [StatusEntry] { visibleEntries.filter(\.staged) }
-    var unstagedEntries: [StatusEntry] { visibleEntries.filter { $0.worktree != " " && $0.worktree != "!" } }
+    // Upstream keeps m_Action, list groups and line statistics until F5, while
+    // m_stagingStatus changes independently. Do not replace the displayed rows
+    // with porcelain records after each checkbox or partial patch operation.
+    @Published private(set) var stagingStateNeedsRefresh = false
+    @Published private var stagingStates: [String: NSControl.StateValue]?
+    func stagingState(_ entry: StatusEntry) -> NSControl.StateValue {
+        if let stagingStates { return stagingStates[entry.path] ?? .off }
+        return entry.staged ? (entry.worktree == " " ? .on : .mixed) : .off
+    }
+    func isStaged(_ entry: StatusEntry) -> Bool { stagingState(entry) != .off }
+    var stagedEntries: [StatusEntry] { visibleEntries.filter { isStaged($0) } }
+    var unstagedEntries: [StatusEntry] { visibleEntries.filter { stagingState($0) != .on } }
+
+    /// Reuse the owned reload lifetime without reloading groups, metadata, hooks,
+    /// message completions, preferences or LFS locks. Publish one coherent index
+    /// snapshot only after every cancellable read has completed.
+    func refreshStagingState(refreshPatch: Bool = true) {
+        guard stagingEnabled else { reload(); return }
+        guard messageFocusAvailable, !busy, !pendingReloadCancel else { return }
+        fileMenuGeneration = UUID(); busy = true; stagingStateNeedsRefresh = true
+        Self.activeFileOperations += 1
+        let token = OperationCancellation(); reloadCancellation = token
+        let base = comparisonBase, retainedEntries = entries
+        reloadTask = Task {
+            defer {
+                Self.activeFileOperations -= 1
+                if reloadCancellation === token { reloadCancellation = nil; reloadTask = nil; busy = false }
+                withExtendedLifetime(access) {}
+            }
+            do {
+                try validateRestoreAccess()
+                let current = try await readReload(token) { try await queryStagingStates(retainedEntries, base, token) }
+                let staged = try await readReload(token) { try await repository.stagingFiles(staged: true, base: base, cancellation: token) }
+                let unstaged = try await readReload(token) { try await repository.stagingFiles(staged: false, cancellation: token) }
+                stagingStates = current.mapValues { state in
+                    switch state { case .unstaged: return .off; case .partial: return .mixed; case .staged: return .on }
+                }
+                stagedStatistics = Dictionary(staged.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+                unstagedStatistics = Dictionary(unstaged.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+                stagingStateNeedsRefresh = false
+                if refreshPatch { refreshPartial() }
+            } catch {
+                if messageFocusAvailable, reloadCancellation === token, !token.isCancelled { self.error = "Could not refresh staging. Press F5 to reload before committing.\n\n" + error.localizedDescription }
+            }
+        }
+    }
     private(set) static var activeFileOperations = 0
     private var fileMenuGeneration = UUID()
     private var activeFileMenu: StatusFileMenuSnapshot?
@@ -981,13 +1027,12 @@ import UniformTypeIdentifiers
     }
 
     func moveToStage(_ paths: Set<String>, staged: Bool) {
-        let valid = entries.filter { paths.contains($0.id) && $0.state != .conflicted }.map(\.path)
+        let valid = entries.filter { paths.contains($0.id) && $0.state != .conflicted }
         guard !valid.isEmpty else { return }
         let amendToParent = self.amendToParent
         runFileOperation(staged ? "Staging selected files…" : "Unstaging selected files…", operation: { [self] token, _ in
-            if staged { try await repository.stage(valid, cancellation: token) }
-            else { try await repository.unstageCommitPaths(valid, amendToParent: amendToParent, cancellation: token) }
-        }, completed: { [self] in reload() }, failed: { [self] in reload() })
+            try await repository.setCommitFilesStaged(valid, staged: staged, amendToParent: amendToParent, cancellation: token)
+        }, completed: { [self] in refreshStagingState() }, failed: { [self] in refreshStagingState() })
     }
 
     func canLockLFS(_ selected: [StatusEntry]) -> Bool {
@@ -1078,7 +1123,7 @@ import UniformTypeIdentifiers
         return changelists.assignments[entry.path].map { origin + (origin.isEmpty ? "" : "\n") + "Changelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: Set<String> { Set(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
-    var canCommit: Bool { messageFocusAvailable && !savingPreferences && !stagingHintVisible && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { messageFocusAvailable && !stagingStateNeedsRefresh && !savingPreferences && !stagingHintVisible && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: { isStaged($0) }) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -1166,7 +1211,7 @@ import UniformTypeIdentifiers
                 hasParent = try await readReload(token) { (try? await repository.run(["rev-parse", "--verify", "HEAD^1"], cancellation: token)) != nil }
                 if amend && !hasParent { amendDiffToLastCommit = true }
                 comparisonBase = amendToParent ? try await readReload(token) { try await repository.commitComparisonBase(amendToParent: true, cancellation: token) } : nil
-                entries = try await readReload(token) { try await queryCommitStatus(amendToParent, token) }; submodules = try await readReload(token) { try await repository.submodulePaths(cancellation: token) }; branch = try await readReload(token) { try await repository.branch(cancellation: token) }
+                entries = try await readReload(token) { try await queryCommitStatus(amendToParent, token) }; stagingStates = nil; stagingStateNeedsRefresh = false; submodules = try await readReload(token) { try await repository.submodulePaths(cancellation: token) }; branch = try await readReload(token) { try await repository.branch(cancellation: token) }
                 try validateRestoreAccess()
                 fileMetadata = try await readReload(token) { await repository.statusListMetadata(paths: entries.map(\.path)) }
                 hasLFS = try await readReload(token) { try await repository.hasLFS(cancellation: token) }
@@ -1305,6 +1350,8 @@ import UniformTypeIdentifiers
 
     Clicking a checkbox immediately stages or unstages the whole file. Clicking a mixed checkbox stages its remaining working changes.
 
+    For performance, status labels, line counts and groups stay as they were when the list was loaded. Press F5 to refresh them. The checkboxes always reflect the latest staging action.
+
     Use Partial Staging or Partial Unstaging to open the selected file's patch and choose individual hunks or lines. Commit includes the whole index, including staged files outside the displayed scope.
     """
     func offerStagingHint() {
@@ -1377,7 +1424,7 @@ import UniformTypeIdentifiers
     }
     func uncheckAll() {
         guard messageFocusAvailable,!inputsBlocked else {return}
-        if stagingEnabled { moveToStage(Set(visibleEntries.filter(\.staged).map(\.id)), staged: false) }
+        if stagingEnabled { moveToStage(Set(visibleEntries.filter { isStaged($0) }.map(\.id)), staged: false) }
         else { checked.subtract(visibleEntries.map(\.id)) }
     }
     func amendChanged() {
@@ -1548,7 +1595,7 @@ import UniformTypeIdentifiers
               historyCombine == nil || (amend && !createBranch) else { return }
         if replaySplit == nil && historyCombine == nil { completionAction = action }
         let rawMessage = message, rawIssueID = issueID, properties = issueProperties, provider = nativeIssueProvider, paths = checkedPathsForCommit, staging = stagingEnabled
-        let committedPaths = staging ? Set(entries.filter(\.staged).map(\.path)) : messageOnly ? Set<String>() : paths
+        let committedPaths = staging ? Set(entries.filter { isStaged($0) }.map(\.path)) : messageOnly ? Set<String>() : paths
         let retainedChangelists = Set(visibleEntries.filter { !committedPaths.contains($0.path) }.map(\.path)).union(restoreCopies.keys)
         let pruningScope = showWholeProject ? [] : scopePaths
         let preserveChangelists = keepChangelists
@@ -1621,7 +1668,7 @@ import UniformTypeIdentifiers
                 text = prepared.message; message = text
                 try provider?.checkCommit(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID))
                 if !options.messageOnly {
-                    let candidates = staging ? visibleEntries.filter(\.staged).map(\.path) : visibleEntries.filter { paths.contains($0.path) }.map(\.path)
+                    let candidates = staging ? visibleEntries.filter { isStaged($0) }.map(\.path) : visibleEntries.filter { paths.contains($0.path) }.map(\.path)
                     let dirty = try await repository.commitDirtySubmodules(paths:candidates,cancellation:preflightToken)
                     try validatePreflight(preflight,preflightToken)
                     for child in dirty {
@@ -1744,7 +1791,7 @@ import UniformTypeIdentifiers
         }
     }
     var checkedFileList: String {
-        visibleEntries.filter { stagingEnabled ? $0.staged : checked.contains($0.id) }.map { entry in
+        visibleEntries.filter { stagingEnabled ? isStaged($0) : checked.contains($0.id) }.map { entry in
             let label = entry.state == .untracked ? "Added" : entry.state.rawValue.capitalized
             return label.padding(toLength: max(10, label.count), withPad: " ", startingAt: 0) + " " + entry.path + "\n"
         }.joined()
@@ -2092,7 +2139,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                 }
     }
     func fileTable(_ entries: [StatusEntry], selection: Binding<Set<String>>, staged: Bool?) -> some View {
-        let statistics = staged.map { $0 ? model.stagedStatistics : model.unstagedStatistics } ?? model.statistics
+        let statistics = model.statistics
         let entries = model.sortedFiles(entries, statistics: statistics)
         let focusKey = staged.map { $0 ? "staged" : "unstaged" } ?? "checkbox"
         let focus = Binding<String?>(get: { model.focusedFiles[focusKey] }, set: { model.focusedFiles[focusKey] = $0 })
@@ -2104,7 +2151,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             TableColumn("") { (row: CommitSortableRow) in
                 if let entry = row.entry {
                     if staged != nil {
-                        StagingCheckbox(entry:entry,enabled:!model.inputsBlocked) { model.setFileChecked(entry, files: entries, highlighted: selection.wrappedValue, checked: $0) }.frame(width: 20, height: 20)
+                        StagingCheckbox(entry:entry,state:model.stagingState(entry),enabled:!model.inputsBlocked) { model.setFileChecked(entry, files: entries, highlighted: selection.wrappedValue, checked: $0) }.frame(width: 20, height: 20)
                     } else {
                         Toggle("Include \(entry.path)", isOn: Binding(get: { model.checked.contains(entry.id) }, set: { model.setFileChecked(entry, files: entries, highlighted: selection.wrappedValue, checked: $0) }))
                             .labelsHidden().toggleStyle(.checkbox).disabled(entry.state == .conflicted)
@@ -2287,7 +2334,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
         .background(CommitFileInteraction(rows: rows, configureRefresh: { dropTargets.set($0, for: focusKey) }, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
             String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
-            let next = model.stagingEnabled ? !(mark.staged && mark.worktree == " ") : !model.checked.contains(mark.id)
+            let next = model.stagingEnabled ? model.stagingState(mark) != .on : !model.checked.contains(mark.id)
             model.setFileChecked(mark, files: files, highlighted: Set(files.map(\.id)), checked: next)
         }))
         .onDrop(of: [UTType.fileURL], delegate: CommitFileDropDelegate(model: model, targets: dropTargets, key: focusKey))
@@ -2381,6 +2428,7 @@ private struct CommitDatePicker: NSViewRepresentable {
 /// Preserve TortoiseGit's three-state staging checkbox in the same file list.
 private struct StagingCheckbox: NSViewRepresentable {
     let entry: StatusEntry
+    let state: NSControl.StateValue
     let enabled: Bool
     let change: (Bool) -> Void
     func makeCoordinator() -> Coordinator { Coordinator(change: change) }
@@ -2391,11 +2439,11 @@ private struct StagingCheckbox: NSViewRepresentable {
     }
     func updateNSView(_ button: NSButton, context: Context) {
         context.coordinator.change = change
-        context.coordinator.nextStaged = !(entry.staged && entry.worktree == " ")
-        button.state = entry.staged ? (entry.worktree == " " ? .on : .mixed) : .off
+        context.coordinator.nextStaged = state != .on
+        button.state = state
         button.isEnabled=enabled && context.environment.isEnabled && entry.state != .conflicted
         button.setAccessibilityLabel("Stage \(entry.path)")
-        button.toolTip = entry.staged ? "Click to change staging; a mixed state stages the remaining working-tree changes." : "Click to stage the current file contents."
+        button.toolTip = state != .off ? "Click to change staging; a mixed state stages the remaining working-tree changes." : "Click to stage the current file contents."
     }
     final class Coordinator: NSObject {
         var change: (Bool) -> Void

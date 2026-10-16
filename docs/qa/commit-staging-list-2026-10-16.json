@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "857c70331da93b5b7aa918e2e5027b128a1cf473",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "GitStatusListCtrl.cpp CheckEntry/UncheckEntry/UpdateSelectedFileStagingStatus and GitUnstageEntry",
+    "CommitDlg.cpp PrepareStagingSupport, FillPatchView and OnPartialStagingRefreshPatchView"
+  ],
+  "implementation": [
+    "Independent current staging state preserves loaded status rows, colors, group membership, sorting statistics and metadata until F5",
+    "Whole-file, category/group/highlighted, Space-key direction and partial settlement routes use refreshed index state",
+    "Native checkbox state, staged counters, Commit gate, hook paths and checked message list consume independent staging state",
+    "Raw no-renames index/worktree path differences prevent identical-content rename pairing from dropping deletion checkbox state",
+    "Owned cancellable index/patch-stat refresh omits metadata/preferences/LFS/completion scans and retains Quit lifetime through worker drain",
+    "Failed/cancelled refresh gates Commit until a successful refresh; retired reads cannot publish",
+    "Both rename paths participate in whole-file stage/unstage; copies preserve source index; forced cached removal on unborn branches preserves modified working bytes",
+    "Source F5 explanation restored in native hint; user guide, offline Help, parity notes and CI runner updated"
+  ],
+  "build": {
+    "initial_exit": 0,
+    "initial_log": "build/qa/commit-staging-list-build.log",
+    "initial_anomalous_exit_zero_diagnostics": 3,
+    "repair_exit": 0,
+    "repair_log": "build/qa/commit-staging-list-build-repair.log",
+    "repair_anomalous_exit_zero_diagnostics": 3
+  },
+  "core": {
+    "initial_tests": 7,
+    "initial_failures": 0,
+    "initial_log": "build/qa/commit-staging-list-core.log",
+    "final_tests": 9,
+    "final_failures": 0,
+    "final_exit": 0,
+    "final_log": "build/qa/commit-staging-list-core-repair.log",
+    "scope": "CommitPatchTests only; repeated because Core implementation changed after the native failure",
+    "checks": [
+      "Rename stage/unstage includes both targets and preserves unrelated index/HEAD/working bytes",
+      "Unborn mixed state/unstage and pre-cancel preserve staged sibling and working bytes",
+      "Identical-content rename pairing cannot hide retained staged deletion",
+      "Copy staging preserves modified source index",
+      "Existing patch byte/direction/preferences cases retained"
+    ]
+  },
+  "native": {
+    "initial_log": "build/qa/commit-staging-list-native.log",
+    "initial_failed_receiver": 20899,
+    "diagnostic_log": "build/qa/commit-staging-list-native-diagnostic.log",
+    "diagnostic_failed_receiver": 21207,
+    "failure": "Highlighted delete/file staging: status rename pairing reassigned the identical deleted source, so the deletion checkbox incorrectly stayed off.",
+    "evidence": "Independent private Git reproduction after the same operations returned D rename and R remove -> renamed; original retained deletion row was remove.",
+    "repair": "Product staging-state reads now use raw no-renames index/worktree path differences. Original native assertions and identical-content fixture retained.",
+    "final_log": "build/qa/commit-staging-list-native-repair.log",
+    "exit": 0,
+    "passing_cases": 6,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "receivers_reaped": [
+      21602,
+      22051,
+      22374,
+      22985,
+      23609,
+      23902
+    ],
+    "checks": [
+      "Actual native new-file checkbox stage/unstage; retained source Unversioned category after staging",
+      "Group unstage, highlighted multi-row stage and None; stable loaded rows/groups/statistics/metadata/draft/checks/scope",
+      "Index paths outside scope remain in original list after unchecking",
+      "Actual partial stage and unstage update mixed/off without replacing source rows",
+      "Actual Commit window F5 dispatch rebuilds source status; failed refresh disables Commit until recovery",
+      "Held read retains input/Quit ownership through forced closure and worker drain; refuses late rows/errors",
+      "Retained staging activation/hint/private suppression/preview persistence, real helper cancellation/reaping and whole-file stage/unstage",
+      "Retained raw legacy patch encoding/export/Find, line stage/hunk unstage, cancelled/superseded/retired reads, parent/Quit ownership and unrelated index preservation"
+    ],
+    "ownership": "All eight failed/final receivers reaped; independent PID scan confirmed absent. Fixture-owned windows/preferences/repositories cleaned up; existing retained cases assert their helper cleanup."
+  },
+  "limits": [
+    "No complete hosted CI result for this commit",
+    "No new screenshots or physical keyboard/mouse certification",
+    "All amend/linked-worktree combinations, large repositories, signed sandbox and App Store acceptance remain open",
+    "Source unversioned partial-preview exclusion remains until a full refresh changes its loaded status",
+    "No dialog certified fully equivalent"
+  ]
+}
