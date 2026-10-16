@@ -176,3 +176,49 @@ All four owned receivers were reaped and independently absent. Native fixtures
 use real local conflicts and injected held providers; physical drag/keyboard and
 signed acceptance remain separate. [Batch evidence](qa/resolve-interaction-family-2026-10-16.json)
 records exact effects, preference scope and retained progress assertions.
+
+## Captured file-action menu family — October 16, 2026
+
+The source Resolve status-list mask keeps conflict editing/resolution first, then
+base/unified and two-file comparisons, history/Blame, editor/Open/Open With,
+Explorer/Finder and clipboard groups. Resolve now connects those read-only
+commands with original artwork and private context-icon preferences. Export,
+Save revision, Add, Ignore and comparison marks remain excluded by the source
+mask. Revert, remaining mutation/column-hit menus and physical default-item
+styling are still separate parity work. No complete context-menu claim is made.
+
+A popup retains its ordered ConflictEntry stages and owner/list epoch. It can
+invoke once; selection changes do not redirect it. Refresh/drop replacement,
+resolution, retirement, modal children and busy state reject obsolete targets.
+File handoffs re-read exact stages, and Open With revalidates after application
+selection. Cancellation and forced closure settle the owned panel, refuse late
+handoffs and retain Resolve/Quit accounting until the actual worker returns.
+The repository lease survives preparation and application handoff.
+
+Ordinary existing files offer editor/Open/Open With and eligible HEAD-pinned
+Blame. Two ordinary files compare in captured display order. Missing work files
+omit Open/Blame; Reveal finds their existing parent. A gitlink offers parent
+file history and separate child-repository history, using the shared scoped
+submodule reader. Unified diff captures Shift and exact no-ext-diff/no-textconv
+base patch bytes, revalidates after reading and uses the owned native/external
+unified viewer. Base comparison retains the existing stage-1 editable viewer.
+
+The shared clipboard formatter now accepts conflict rows directly, retaining
+literal names/order, directory extensions and Resolve's Path/Extension/Status
+columns without creating ordinary status records. Copy all and native
+Command-C/Shift-Command-C use the same one-use snapshot and preference guards.
+Native text field editors keep their own clipboard handling.
+
+Source reference: GitStatusListCtrl.cpp OnContextMenuList and command dispatch,
+with ResolveDlg::OnInitDialog's mask, at the pinned upstream commit. Actual
+receiving apps, Finder gestures, popup tracking/column hit-testing, signed grants
+and full source-menu/visual/VoiceOver acceptance remain open.
+
+Eight focused clipboard Core cases and all six grouped native case/engine runs
+passed. Review then aligned the displayed Extension column with the shared source
+formatter: leading dot for files, empty for gitlinks. Only the affected file-menu
+cases were repeated, with both engines and a `module.ext` fixture; both passed.
+All eight receivers were reaped and independently absent. Actual receiving apps,
+physical popup/copy gestures and signed grants were not exercised.
+[Batch evidence](qa/resolve-file-menu-2026-10-16.json) records builds, checks and
+the source eligibility/mutation work still open.

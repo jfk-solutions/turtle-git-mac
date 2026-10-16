@@ -56,6 +56,20 @@ public enum StatusListClipboard {
         return String(decoding: a.prefix(prefix), as: UTF8.self) + "{" + middle + "}" + String(decoding: b.suffix(suffix), as: UTF8.self)
     }
 
+    /// Resolve displays unresolved index entries without inventing ordinary status
+    /// records that could later be passed to a working-file mutation.
+    public static func text(_ entries:[ConflictEntry],root:URL,copy:StatusListCopy,visibleColumns:[StatusListColumn] = [.path,.fileExtension,.status])->String {
+        format(entries,root:root,copy:copy,visibleColumns:visibleColumns,path:{$0.path}) {entry,column in
+            switch column {
+            case .path:return entry.path
+            case .fileName:return (entry.path as NSString).lastPathComponent
+            case .fileExtension:return fileExtension(entry.path,isDirectory:entry.isSubmodule)
+            case .status:return "Conflicted"
+            default:return "–"
+            }
+        }
+    }
+
     /// Log merge parents can contain different occurrences of the same path.
     /// Read each occurrence's own statistics and use its ID for displayed statuses.
     public static func text(_ files: [CommitFile], root: URL, statuses: [String: String], copy: StatusListCopy, visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns) -> String {

@@ -5,6 +5,15 @@ final class StatusListClipboardTests: XCTestCase {
     let root = URL(fileURLWithPath: "/tmp/repository")
     let entries = [StatusEntry(path: "雪/new.txt", originalPath: "old.txt", index: "R", worktree: " "), StatusEntry(path: "raw.bin", originalPath: nil, index: "?", worktree: "?")]
     func text(_ copy: StatusListCopy) -> String { StatusListClipboard.text(entries, root: root, statistics: [:], copy: copy) }
+    func testResolveClipboardPreservesLiteralOrderAndVisibleConflictColumns() {
+        let files = [ConflictEntry(path:"dir/雪\tname\n.txt",stages:[.init(number:2,mode:"100644",object:"a")]),ConflictEntry(path:"module.ext",stages:[.init(number:3,mode:"160000",object:"b")])]
+        XCTAssertEqual(StatusListClipboard.text(files,root:root,copy:.relativePaths),"dir/雪\tname\n.txt\nmodule.ext\n")
+        XCTAssertEqual(StatusListClipboard.text(files,root:root,copy:.names),"雪\tname\n.txt\nmodule.ext\n")
+        XCTAssertEqual(StatusListClipboard.text(files,root:root,copy:.column(.fileExtension)),".txt\n\n")
+        XCTAssertEqual(StatusListClipboard.text(files,root:root,copy:.all),"Path\tExtension\tStatus\ndir/雪\tname\n.txt\t.txt\tConflicted\nmodule.ext\t\tConflicted\n")
+        XCTAssertEqual(StatusListClipboard.text(files,root:root,copy:.fullPaths),root.path+"/dir/雪\tname\n.txt\n"+root.path+"/module.ext\n")
+        XCTAssertEqual(StatusListClipboard.text([ConflictEntry](),root:root,copy:.all),"")
+    }
     func testOptionalMetadataClipboardUsesVisibleColumnsAndNativeFormatting() {
         let metadata = StatusListMetadata(modificationDate: Date(timeIntervalSince1970: 1700000000), size: 12345, isDirectory: false)
         let output = StatusListClipboard.text(entries, root: root, statistics: [:], copy: .all, metadata: [entries[0].path: metadata], visibleColumns: [.fileName, .lastModified, .fileSize])

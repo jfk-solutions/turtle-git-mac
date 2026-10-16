@@ -1502,3 +1502,12 @@ reads, Close/Cancel/Quit and source F5/Control-Return share existing lifetime
 guards. Conflict-resolution parent list refreshes now consume the source Advanced
 preference. See [Resolve parity](RESOLVE-PARITY.md#file-drops-source-keys-and-parent-refresh--october-16-2026)
 for source behavior, native adaptations and remaining acceptance.
+
+## Resolve captured file actions — October 16, 2026
+
+Resolve now connects history/Blame, ordinary/submodule handoffs, Open/editor/Finder,
+two-file and unified comparison, and shared clipboard formatting through a
+one-use conflict-stage snapshot. Open With owns its native panel and validates
+after the choice; parent closure retires associated unified viewers. The source
+conflict group remains first. See [Resolve parity](RESOLVE-PARITY.md#captured-file-action-menu-family--october-16-2026)
+for exact scope and still-missing mutation/physical/signed acceptance.

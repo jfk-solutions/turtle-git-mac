@@ -12,6 +12,8 @@ import UniformTypeIdentifiers
     private(set) var retired = false
     var configureComparison: (FileComparisonWindowModel) -> Void = { _ in }
     private(set) var baseComparison: FileComparisonWindowController?
+    private(set) var fileUnifiedWindows:[UUID:PatchWindowController] = [:]
+    private(set) var applicationPanel:NSOpenPanel?
     private var question: (UUID, NSAlert, (NSApplication.ModalResponse?) -> Void)?
     var presentQuestion: (NSWindow, NSAlert, @escaping (NSApplication.ModalResponse) -> Void) -> Bool = { owner, alert, reply in
         guard owner.attachedSheet == nil else { return false }; alert.beginSheetModal(for: owner, completionHandler: reply); return true
@@ -50,6 +52,24 @@ import UniformTypeIdentifiers
         model.confirmSubmoduleDeletion = { [weak self] request in
             await self?.ask(title: "Delete submodule folder?", message: request.gitError + "\n\nMove “\(request.path)” to Trash to resolve its deletion?", buttons: ["Delete", "Abort"]) == .alertFirstButtonReturn
         }
+        model.chooseFileApplication = { [weak self,weak window] in
+            guard let self,!self.retired,let window,window.attachedSheet == nil else {return nil}
+            let panel = NSOpenPanel();self.applicationPanel = panel
+            panel.title = "Open With";panel.prompt = "Open";panel.allowedContentTypes = [.applicationBundle]
+            panel.canChooseDirectories = false;panel.allowsMultipleSelection = false
+            panel.directoryURL = URL(fileURLWithPath:"/Applications",isDirectory:true)
+            defer {if self.applicationPanel === panel {self.applicationPanel = nil}}
+            let answer = await withCheckedContinuation {reply in panel.beginSheetModal(for:window) {reply.resume(returning:$0)}}
+            return answer == .OK ? panel.url:nil
+        }
+        model.cancelFileChoice = { [weak self] in self?.applicationPanel?.cancel(nil) }
+        model.onFileUnified = { [weak self] bytes,alternate,token in
+            guard let self,!self.retired,!token.isCancelled else {return}
+            if try await UnifiedDiffApplication.openExternal(bytes,alternate:alternate,preferences:preferences,title:"Conflict changes",permissions:access.map{[$0]} ?? []) {return}
+            guard !self.retired,!token.isCancelled else {return}
+            let id = UUID()
+            self.fileUnifiedWindows[id] = UnifiedDiffApplication.presentBuiltin(bytes,repository:repository,access:access,existing:nil,title:"Conflict changes",onClosed:{ [weak self] in self?.fileUnifiedWindows.removeValue(forKey:id) })
+        }
         DialogGeometry.attach(window, identifier: quick == nil ? "ResolveDialog" : "QuickResolveDialog", legacyName: "ResolveDialog")
     }
     private func confirm(_ choice: ResolveChoice, entries: [ConflictEntry]) {
@@ -86,6 +106,8 @@ import UniformTypeIdentifiers
     }
     func windowWillClose(_ notification: Notification) {
         guard !retired else { return }; retired = true; model.invalidate(); baseComparison?.close(); baseComparison = nil
+        applicationPanel?.cancel(nil);applicationPanel = nil
+        Array(fileUnifiedWindows.values).forEach{$0.close()};fileUnifiedWindows = [:]
         if let pending = question { finishQuestion(pending.0, answer: nil) }
         onClosed()
     }
@@ -105,6 +127,8 @@ import UniformTypeIdentifiers
     private var cancellation: OperationCancellation?
     private var refreshCancellation: OperationCancellation?
     private var loaded = false, reloadQueued = false
+    private var fileMenuEpoch = UUID()
+    private var usedFileMenus = Set<UUID>()
     private var droppedProviders: [NSItemProvider] = []
     private var dropTask: Task<Void,Never>?
     @Published private(set) var readingDrops = false
@@ -143,12 +167,39 @@ import UniformTypeIdentifiers
     var onSubmoduleReset: (GitRepository, String, @escaping () -> Void) -> Void = { _, _, _ in }
     var readConflicts: ((OperationCancellation) async throws -> ([ConflictEntry], Bool))?
     var executeResolution: (([ConflictEntry], ResolveChoice, OperationCancellation, @escaping @Sendable (GitOutputChunk) -> Void, @escaping @Sendable (ConflictResolutionProgress) -> Void) async throws -> String)?
+    var onFileLog: ((String)->Void)?
+    var onFileBlame: ((String,String)->Void)?
+    var onFilePair: (([String])->Void)?
+    var onFileSubmoduleLog: ((GitRepository)->Void)?
+    var onFileUnified: ((Data,Bool,OperationCancellation) async throws -> Void)?
+    var chooseFileApplication: () async -> URL? = {nil}
+    var cancelFileChoice: () -> Void = {}
+    var writeFileClipboard: (String)->Void = {text in NSPasteboard.general.clearContents();NSPasteboard.general.setString(text,forType:.string)}
+    var revealFiles: ([URL])->Void = {NSWorkspace.shared.activateFileViewerSelecting($0)}
+    var openFile: (URL,URL?) async throws -> Void = {url,application in
+        if let application {
+            try await withCheckedThrowingContinuation { (reply:CheckedContinuation<Void,Error>) in
+                NSWorkspace.shared.open([url],withApplicationAt:application,configuration:NSWorkspace.OpenConfiguration()) {_,error in if let error {reply.resume(throwing:error)} else {reply.resume()}}
+            }
+        } else if !NSWorkspace.shared.open(url) {throw StatusFileActionFailure(message:"Could not open "+url.lastPathComponent+".")}
+    }
+    lazy var openFileEditor: (URL) async throws -> Void = { [weak self] url in
+        guard let self else {throw OperationCancellationFailure.cancelled}
+        try await withCheckedThrowingContinuation { (reply:CheckedContinuation<Void,Error>) in
+            AlternativeEditor.open(url,preferences:self.preferences,permissions:self.access.map{[$0]} ?? []) {error in
+                if let error {reply.resume(throwing:StatusFileActionFailure(message:error))} else {reply.resume()}
+            }
+        }
+    }
+    lazy var submoduleFileLog = SubmoduleWorkingLogSession(repository:repository,access:access)
+    var readFileMenuConflicts: (([String],OperationCancellation) async throws -> [ConflictEntry])?
     var canInteract: Bool { active && !busy && !showingProgress && !hasQuestion && !hasChild }
     var canCancel: Bool { active && busy && !cancelling && !confirmingCancellation && !hasQuestion && !hasChild }
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.paths = paths; self.quick = quick; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences)
     }
     func invalidate() {
+        invalidateFileMenus();cancelFileChoice();submoduleFileLog.retire()
         droppedProviders = [];dropTask?.cancel()
         if busy { cancelled = true }; saveActionLog(); active = false; generation = UUID(); cancellation?.cancel(); refreshCancellation?.cancel(); pendingResolution = nil; reloadQueued = false; patch = nil
     }
@@ -180,6 +231,7 @@ import UniformTypeIdentifiers
     func load() {
         guard active else { return }
         if busy || hasQuestion || hasChild || showingProgress { reloadQueued = true; return }
+        invalidateFileMenus()
         let token = begin()
         Task {
             defer { finish(token); withExtendedLifetime(access) {} }
@@ -204,6 +256,7 @@ import UniformTypeIdentifiers
         pendingResolution = nil
         do { guard !selected.isEmpty else { throw ResolveFailure.selection }; try checkAccess() }
         catch { self.error = error.localizedDescription; return }
+        invalidateFileMenus()
         ProgressActionLog.nextAttempt(self, savePrevious: showingProgress)
         let token = begin(); showingProgress = true; output = ""; success = false; cancelled = false; resolvedCount = 0; patch = nil
         autoClosePolicy = GitProgressAutoClose(preferences: preferences)
@@ -266,7 +319,7 @@ import UniformTypeIdentifiers
     }
     func cancel() {
         guard canCancel, let token = cancellation else { return }
-        droppedProviders = []
+        droppedProviders = [];cancelFileChoice();submoduleFileLog.cancel()
         if !showingProgress || !preferences.bool(forKey: "ConfirmKillProcess") { cancelling = true; token.cancel();dropTask?.cancel(); refreshCancellation?.cancel(); return }
         confirmingCancellation = true; var answered = false
         confirmCancellation { [weak self] accepted in
@@ -344,15 +397,24 @@ private struct ResolveDialog: View {
                             Toggle("Resolve \(entry.path)", isOn: Binding(get: { model.checked.contains(entry.path) }, set: { if $0 { model.checked.insert(entry.path) } else { model.checked.remove(entry.path) } })).labelsHidden().toggleStyle(.checkbox)
                         }.width(24)
                         TableColumn("Path") { entry in HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(FileState.conflicted.textColor) }.repositoryFileHelp(repository: model.repository.root, path: entry.path, preferences: model.preferences) }.width(min: 260, ideal: 440)
-                        TableColumn("Extension") { Text(($0.path as NSString).pathExtension) }.width(70)
+                        TableColumn("Extension") { Text(StatusListClipboard.fileExtension($0.path,isDirectory:$0.isSubmodule)) }.width(70)
                         TableColumn("Status") { _ in Text("Conflicted").foregroundStyle(FileState.conflicted.textColor) }.width(95)
                     }.disabled(!model.canInteract).fileListFont().contextMenu(forSelectionType: String.self) { ids in
+                        let target = model.fileMenu(ids)
                         TurtleGitContextMenu {
-                            Button { model.compare(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
-                            Divider()
-                            ResolveSelectionMenu(paths: Array(ids), rebase: model.rebase, canEdit: ids.count == 1 && model.entries.contains(where: { ids.contains($0.id) })) { action, paths in
-                                if action == .editConflict, let path = paths.first { model.editOrCompare(Set(paths)) } else { model.request(action.resolveChoice ?? .current, ids: Set(paths)) }
+                            ResolveSelectionMenu(paths:target.entries.map(\.path),rebase:model.rebase,canEdit:target.entries.count == 1) {action,paths in
+                                model.withFileMenu(target) {
+                                    if action == .editConflict {model.editOrCompare(Set(paths))} else {model.request(action.resolveChoice ?? .current,ids:Set(paths))}
+                                }
                             }
+                            Divider()
+                            ForEach(target.commands,id:\.self) {command in
+                                Button {model.fileCommand(command,menu:target)} label: {CommandLabel(title:command.title,icon:command.icon)}.disabled(!model.canFileCommand(command,menu:target))
+                            }
+                            Divider()
+                            Menu {ForEach(ResolveClipboardChoice.allCases,id:\.self) {choice in
+                                Button {model.copyFileMenu(target,copy:choice.copy)} label: {CommandLabel(title:choice.rawValue,icon:.copy)}
+                            }} label: {CommandLabel(title:"Copy to clipboard",icon:.copy)}
                         }
                     } primaryAction: { ids in model.editOrCompare(ids) }
                     HStack {
@@ -421,6 +483,7 @@ extension ResolveWindowModel {
     }
     private func startFileDrop() {
         guard canReceiveFileDrop,!busy,!droppedProviders.isEmpty else {return}
+        invalidateFileMenus()
         let token = begin();readingDrops = true
         dropTask = Task {
             defer {dropTask = nil;readingDrops = false;finish(token);withExtendedLifetime(access) {}}
@@ -472,10 +535,144 @@ extension ResolveWindowController {
         let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
         let refresh = event.keyCode == 96 && flags.isEmpty
         let accept = [36,76].contains(event.keyCode) && (flags == .control || flags == .command)
-        guard refresh || accept else {return false}
+        let view = window.firstResponder as? NSView
+        let table = view as? NSTableView ?? view?.enclosingScrollView?.documentView as? NSTableView
+        let copy = table != nil && (view as? NSTextView)?.isFieldEditor != true && event.charactersIgnoringModifiers?.lowercased() == "c" && (flags == .command || flags == [.command,.shift])
+        guard refresh || accept || copy else {return false}
         guard model.canInteract,window.attachedSheet == nil else {return true}
-        if refresh {model.load()}
+        if copy {model.copyFileMenu(model.fileMenu(model.selection),copy:flags.contains(.shift) ? .pathsAndStatus:.relativePaths)}
+        else if refresh {model.load()}
         else if !model.checked.isEmpty {model.resolveChecked()}
         return true
+    }
+}
+
+enum ResolveFileCommand:String,CaseIterable {
+    case compareBase,unified,compareTwo,log,submoduleLog,blame,editor,open,openWith,reveal
+    var title:String {
+        switch self {
+        case .compareBase:return "Compare with base";case .unified:return "Show changes as unified diff"
+        case .compareTwo:return StatusFileCommand.compareTwo.rawValue;case .log:return StatusFileCommand.log.rawValue
+        case .submoduleLog:return StatusFileCommand.submoduleLog.rawValue;case .blame:return StatusFileCommand.blame.rawValue
+        case .editor:return StatusFileCommand.editor.rawValue;case .open:return StatusFileCommand.open.rawValue
+        case .openWith:return StatusFileCommand.openWith.rawValue;case .reveal:return StatusFileCommand.reveal.rawValue
+        }
+    }
+    var icon:MenuIcon {
+        switch self {
+        case .compareBase,.compareTwo:return .compare;case .unified:return .unifiedDiff
+        case .log,.submoduleLog:return .log;case .blame:return .blame;case .editor:return .editor
+        case .open,.openWith:return .open;case .reveal:return .explore
+        }
+    }
+}
+enum ResolveClipboardChoice:String,CaseIterable {
+    case full = "Full paths",relative = "Relative paths",names = "File/folder names",all = "Copy all information to clipboard"
+    var copy:StatusListCopy {switch self {case .full:return .fullPaths;case .relative:return .relativePaths;case .names:return .names;case .all:return .all}}
+}
+struct ResolveFileMenuSnapshot {
+    let id = UUID()
+    let epoch:UUID
+    let entries:[ConflictEntry]
+    let commands:[ResolveFileCommand]
+    let alternate:Bool
+    var paths:[String] {entries.map(\.path)}
+}
+extension ResolveWindowModel {
+    private func invalidateFileMenus() {fileMenuEpoch = UUID();usedFileMenus = []}
+    func fileMenu(_ ids:Set<String>)->ResolveFileMenuSnapshot {
+        let selected = entries.filter{ids.contains($0.path)}
+        let ordinary = selected.allSatisfy{!$0.isSubmodule}
+        func exists(_ entry:ConflictEntry)->Bool {
+            let type = (try? FileManager.default.attributesOfItem(atPath:repository.root.appendingPathComponent(entry.path).path)[.type]) as? FileAttributeType
+            return type == .typeRegular || type == .typeSymbolicLink
+        }
+        var commands:[ResolveFileCommand] = []
+        if !selected.isEmpty,ordinary {commands += [.compareBase,.unified]}
+        if selected.count == 2,ordinary,selected.allSatisfy(exists) {commands.append(.compareTwo)}
+        if selected.count == 1,let entry = selected.first {
+            commands.append(.log)
+            if entry.isSubmodule {commands.append(.submoduleLog)}
+            else {
+                if exists(entry),entry.stages.contains(where:{$0.number == 1}),entry.stages.contains(where:{$0.number == 2}) {commands.append(.blame)}
+                if exists(entry) {commands += [.editor,.open,.openWith]}
+            }
+            commands.append(.reveal)
+        }
+        return ResolveFileMenuSnapshot(epoch:fileMenuEpoch,entries:selected,commands:commands,alternate:ComparisonToolInvocation.capture)
+    }
+    private func acceptsFileMenu(_ menu:ResolveFileMenuSnapshot,during token:OperationCancellation? = nil)->Bool {
+        active && (token.map{live($0) && !$0.isCancelled} ?? (canInteract && !usedFileMenus.contains(menu.id))) && menu.epoch == fileMenuEpoch && !menu.entries.isEmpty && menu.entries.allSatisfy{entries.contains($0)}
+    }
+    func canFileCommand(_ command:ResolveFileCommand,menu:ResolveFileMenuSnapshot)->Bool {
+        guard acceptsFileMenu(menu),menu.commands.contains(command) else {return false}
+        switch command {
+        case .log:return onFileLog != nil;case .blame:return onFileBlame != nil
+        case .submoduleLog:return onFileSubmoduleLog != nil;case .compareTwo:return onFilePair != nil
+        case .unified:return onFileUnified != nil
+        default:return true
+        }
+    }
+    func withFileMenu(_ menu:ResolveFileMenuSnapshot, action:()->Void) {
+        guard acceptsFileMenu(menu) else {return};usedFileMenus.insert(menu.id);action()
+    }
+    func copyFileMenu(_ menu:ResolveFileMenuSnapshot,copy:StatusListCopy) {
+        withFileMenu(menu) {writeFileClipboard(StatusListClipboard.text(menu.entries,root:repository.root,copy:copy))}
+    }
+    private func validateFileMenu(_ menu:ResolveFileMenuSnapshot,token:OperationCancellation) async throws {
+        try checkAccess();try token.check()
+        guard acceptsFileMenu(menu,during:token) else {throw ResolveFailure.stale}
+        let fresh:[ConflictEntry]
+        if let readFileMenuConflicts {fresh = try await readFileMenuConflicts(menu.paths,token)}
+        else {fresh = try await repository.conflicts(paths:menu.paths,cancellation:token)}
+        try token.check()
+        guard acceptsFileMenu(menu,during:token),fresh == menu.entries else {throw ResolveFailure.stale}
+    }
+    private func fileLocation(_ path:String)throws->URL {
+        _ = try RemovalRequest(paths:[path],keepLocal:true)
+        let value = repository.root.appendingPathComponent(path).standardizedFileURL
+        guard RepositoryAccessLease.pathIsContained(value.deletingLastPathComponent(),by:repository.root) else {throw ResolveFailure.outsideWorkingTree}
+        return value
+    }
+    func fileCommand(_ command:ResolveFileCommand,menu:ResolveFileMenuSnapshot) {
+        guard canFileCommand(command,menu:menu) else {return}
+        usedFileMenus.insert(menu.id)
+        if command == .compareBase {ComparisonToolInvocation.$alternate.withValue(menu.alternate) {compare(Set(menu.paths))};return}
+        let alternate = menu.alternate,token = begin()
+        Task {
+            defer {finish(token);withExtendedLifetime(access) {}}
+            do {
+                try await validateFileMenu(menu,token:token)
+                try await ComparisonToolInvocation.$alternate.withValue(alternate) {
+                    switch command {
+                    case .compareBase:break
+                    case .log:onFileLog?(menu.paths[0])
+                    case .blame:
+                        let hash = try await repository.run(["rev-parse","--verify","HEAD^{commit}"],cancellation:token).text.trimmingCharacters(in:.newlines)
+                        try await validateFileMenu(menu,token:token);onFileBlame?(menu.paths[0],hash)
+                    case .compareTwo:onFilePair?(menu.paths)
+                    case .submoduleLog:
+                        let child = try await submoduleFileLog.load(menu.paths[0],cancellation:token)
+                        try await validateFileMenu(menu,token:token);onFileSubmoduleLog?(child)
+                    case .reveal:
+                        var value = try fileLocation(menu.paths[0])
+                        while !FileManager.default.fileExists(atPath:value.path),value.path != repository.root.path {value.deleteLastPathComponent()}
+                        revealFiles([value])
+                    case .editor,.open,.openWith:
+                        let application = command == .openWith ? await chooseFileApplication():nil
+                        guard command != .openWith || application != nil else {return}
+                        try await validateFileMenu(menu,token:token)
+                        let value = try fileLocation(menu.paths[0]),type = try FileManager.default.attributesOfItem(atPath:value.path)[.type] as? FileAttributeType
+                        guard type == .typeRegular || type == .typeSymbolicLink else {throw WorkingFileRestoreFailure.unsupported}
+                        let grant = application.map{RepositoryAccessLease(url:$0)};defer {withExtendedLifetime(grant) {}}
+                        if GitRuntime.isAppStoreBuild,application != nil,grant?.hasSecurityScope != true {throw RepositoryAccessFailure.securityScopeUnavailable}
+                        if command == .editor {try await openFileEditor(value)} else {try await openFile(value,application)}
+                    case .unified:
+                        let bytes = try await repository.run(["diff","--no-ext-diff","--no-textconv","--no-color","--base","--"]+menu.paths,cancellation:token).stdout
+                        try await validateFileMenu(menu,token:token);try await onFileUnified?(bytes,alternate,token)
+                    }
+                }
+            } catch {if active,!token.isCancelled {self.error = error.localizedDescription}}
+        }
     }
 }

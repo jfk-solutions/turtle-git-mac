@@ -1016,6 +1016,10 @@ import UniformTypeIdentifiers
         controller.model.onSubmoduleReset = { [weak self, weak controller] child, revision, done in
             self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: { [weak controller] in controller?.model.dismissSubmoduleReset() })
         }
+        controller.model.onFileLog = { [weak self] path in self?.showLog(repository:repository,access:access,paths:[path]) }
+        controller.model.onFileBlame = { [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
+        controller.model.onFileSubmoduleLog = { [weak self] child in self?.showLog(repository:child,access:access,paths:[]) }
+        controller.model.onFilePair = { [weak self,weak controller] paths in self?.showWorkingFilePair(repository:repository,access:access,paths:paths,owner:controller?.window) }
         controller.onCommit = { [weak self] in
             guard let self else { return }
             if self.root == root { self.activate(.commit) }

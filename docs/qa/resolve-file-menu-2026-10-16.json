@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "eceb2b0ec220648222036006dbbd478971cd6416",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Resolve captured file-action/clipboard context family and owned handoffs",
+  "source": [
+    "Git/GitStatusListCtrl.cpp OnContextMenuList and dispatch",
+    "TortoiseProc/ResolveDlg.cpp OnInitDialog context mask"
+  ],
+  "implementation": [
+    "Keep Edit Conflict/Resolved/Mine/Theirs group first, then original-icon base/unified/two-file, history/Blame, Open/editor/Finder and clipboard commands",
+    "Retain ordered ConflictEntry stages and menu/list epoch; one invocation per popup; selection changes cannot redirect; refresh/drop/resolution/retirement invalidate",
+    "Read actual conflict stages before handoff and again after Open With choice, Blame hash capture, submodule preparation or unified bytes",
+    "Capture Shift when the menu is built, including asynchronous comparison and unified handoffs",
+    "Own native application chooser and unified viewers; Cancel/Close retire panels and retain worker/Quit accounting until settlement",
+    "Separate ordinary/missing/gitlink capabilities; exact pinned Blame revision and shared scoped child-repository Log loader",
+    "Shared ConflictEntry clipboard formatter and matching displayed extension text; full/relative/name/visible-column output; field-editor-preserving native copy routing"
+  ],
+  "core": {
+    "log": "build/qa/resolve-file-menu-core-2026-10-16.log",
+    "exit": 0,
+    "suite": "StatusListClipboardTests",
+    "tests": 8,
+    "failures": 0,
+    "full_suite_repeated": false
+  },
+  "debug": [
+    {
+      "log": "build/qa/resolve-file-menu-build-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2,
+      "reason": "Initial complete implementation"
+    },
+    {
+      "log": "build/qa/resolve-file-menu-build-shift-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2,
+      "reason": "Capture alternate choice in menu snapshot before native checkpoint"
+    },
+    {
+      "log": "build/qa/resolve-file-menu-build-extension-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2,
+      "reason": "Native Extension column consistency repair after grouped pass"
+    }
+  ],
+  "native": {
+    "grouped_log": "build/qa/resolve-file-menu-native-2026-10-16.log",
+    "grouped_exit": 0,
+    "distinct_passing_case_engine_runs": 6,
+    "cases": {
+      "files": 2,
+      "drop": 2,
+      "progress": 2
+    },
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "affected_recheck_log": "build/qa/resolve-file-menu-native-extension-2026-10-16.log",
+    "affected_recheck_exit": 0,
+    "affected_recheck_runs": 2,
+    "reason": "Align actual Extension column with source/shared clipboard leading-dot rule and no extension for gitlinks; affected fixture now uses module.ext",
+    "failed_runs": 0,
+    "owned_receivers_reaped_and_independently_absent": [
+      46522,
+      46623,
+      46735,
+      46814,
+      46900,
+      46969,
+      47141,
+      47242
+    ],
+    "owned_windows_closed": true,
+    "actual_git_stage_change_test": "Resolve one private conflict while Open With choice is held; changed-stage validation refuses opening; restore original private index before preservation assertions",
+    "receiving_apps_and_shared_clipboard_used": false,
+    "physical_popup_and_native_copy_shortcuts_certified": false
+  },
+  "documentation": {
+    "help_files": 50,
+    "help_bytes": 1962582,
+    "source_built_equal": true,
+    "coverage_ledger": "regenerated"
+  },
+  "hosted_observation": {
+    "run": 38943866073,
+    "head": "eceb2b0e",
+    "status": "pending",
+    "pages_run": 38943866285,
+    "pages_head": "eceb2b0e",
+    "pages_conclusion": "success"
+  },
+  "limits": [
+    "Resolve Revert, remaining mutation/column-hit commands and complete source menu eligibility remain open",
+    "Actual Open With/alternative-editor/Finder receiving applications, physical menu/copy/VoiceOver and signed grants remain unverified",
+    "No full hosted CI, minimum-OS, signed Finder/App Store or full dialog parity claim",
+    "Captured existing-file predicates and final handoff validation do not prove protection against all same-user filesystem races"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

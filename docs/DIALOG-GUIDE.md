@@ -194,6 +194,14 @@ Other repositories and Git administrative files are ignored. Cancel stops pendin
 drop reads. Use **F5** to refresh, or **Control-Return / Command-Return** to resolve
 only the checked files through the normal progress flow.
 
+Resolve's file menu also provides path Log, Blame, Open/Open With, the alternative
+editor, Reveal in Finder, two-file comparison and unified changes where the
+selected conflict types permit them. Submodules have separate containing-file and
+child-repository Logs. Clipboard choices preserve the displayed row order and
+literal paths. Menu commands retain their original selection; a refreshed list or
+changed conflict stages require a new menu before a file action can proceed.
+Open With can be cancelled without opening the file.
+
 Advanced **RefreshFileListAfterResolvingConflict** controls explicit parent file-
 list refresh callbacks after resolution. Its default is true. It does not suppress
 explicit F5, replay state or independent repository/filesystem observations.
