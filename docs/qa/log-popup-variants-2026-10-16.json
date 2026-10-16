@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "583a653455adbd7ba20191825c63549b70ebe37a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/GitLogListBase.cpp selectedCount/root/parent/bare/working command groups and common clipboard/Find tail",
+    "src/TortoiseProc/GitLogListAction.cpp ID_COMPARETWO and ID_FINDENTRY",
+    "src/TortoiseProc/GitLogListBase.cpp CopySelectionToClipboard"
+  ],
+  "implementation": [
+    "Source-shaped single/root/merge/two/continuous/discontinuous and bare/working-tree popup variants; disabled single-only placeholders removed from multi-selection",
+    "Source comparison order, existing payloads/one-use relay retained; normalized separators and empty selection",
+    "Common original-icon Find command with captured mouse/keyboard selection mark through popup-close cleanup",
+    "Working-tree and mixed clipboard details retain synthetic entry without empty Git hash resolution; private clipboard",
+    "Contiguous working-tree endpoint comparison chooses oldest selected commit; Revert handoffs omit synthetic row"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/log-popup-variants-build.log",
+    "anomalous_exit_zero_diagnostics": 6
+  },
+  "core": "Native-only change; no Core implementation changes or Core suite rerun.",
+  "native": {
+    "runner": "scripts/test-log-popup-variants.py",
+    "cases": 6,
+    "result": "Six cumulative passing engine/family cases; only the affected Find family rerun after its source-trigger assertion repair.",
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "initial_log": "build/qa/log-popup-variants-native.log",
+    "initial_exit": 1,
+    "initial_receivers_reaped": [
+      97413,
+      97526,
+      97646,
+      99204,
+      975
+    ],
+    "initial_result": "Both new popup variants and retained history-workflow cases passed. Find/system failed at the old unconditional-popup-cursor-reset assertion; bundled Find had not run.",
+    "repair": "Retained Find now asserts ordinary popup opening preserves cursor, then invokes actual captured Find menu action and asserts selection-mark reset. This follows ID_FINDENTRY; existing Find assertions retained.",
+    "final_find_log": "build/qa/log-popup-variants-native-find-repair.log",
+    "final_find_exit": 0,
+    "final_find_receivers_reaped": [
+      1247,
+      1777
+    ],
+    "checks": [
+      "Actual native empty/single/root/merge/two/continuous/discontinuous/working/bare menu masks, source order, separators and icons",
+      "Working full/no-path and mixed clipboard contents; no empty-revision Git lookup",
+      "Working-tree range endpoints and no synthetic Revert commit",
+      "Actual native Find child, clicked mark surviving menu close, duplicate and selection-away/return rejection",
+      "Real bare clone consumer",
+      "Retained captured selectors/ref payloads, blocked/stale/retired callbacks, range/parent/combined/followed comparisons and actual Revert/Combine recovery",
+      "Retained Find search, wrap, cursor lifetime, reference refresh, critical sheets and parent-close cancellation",
+      "HEAD/index/worktree unchanged by popup/clipboard/Find preparation"
+    ],
+    "windows": "All seven receivers reaped; native windows and private preferences/clipboards closed/removed."
+  },
+  "hosted_ci_observed": {
+    "sha": "583a6534",
+    "run": 38841070778,
+    "job": 116787936888,
+    "status": "failure",
+    "failed_step": "Grouped native LFS and Send Mail receivers with one compilation",
+    "phase": "MergeFindNativeVerification",
+    "error": "Merge Find native transition did not settle",
+    "pages": "success for 583a6534",
+    "note": "Separate known hosted failure; popup local checks do not resolve or certify hosted CI."
+  },
+  "limits": [
+    "No new popup screenshot or physical tracking/VoiceOver claim",
+    "Full consumer masks, mixed working-tree/root or stash Revert variants and incomplete Follow histories remain open",
+    "Signed Finder/sandbox/App Store and full hosted acceptance remain open"
+  ]
+}

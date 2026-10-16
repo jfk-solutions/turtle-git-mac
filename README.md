@@ -14,6 +14,9 @@ macOS 13.
 
 ## Current capabilities and limits
 
+Log revision menus adapt to root, merge, multi-selection, working-tree and bare
+contexts; see [popup behavior and remaining acceptance](docs/LOG-POPUP-VARIANTS.md).
+
 | Area | Native implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Commit | Checked-file commits, optional staging, byte-preserving UTF-8/legacy-text partial staging in a right-hand window, same-repository file/folder drops, amend, author/date controls, Commit / ReCommit / Commit & Push | Complete upstream controls, hook/editor/signing interactions and physical UI acceptance across all routes |

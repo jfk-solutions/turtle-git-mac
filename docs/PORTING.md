@@ -3,6 +3,13 @@
 *A macOS fork of TortoiseGit*
 
 
+Log revision popups now follow source single/root/merge/multi-selection and
+bare/working-tree command groups. The common Find/clipboard tail, captured Find
+selection mark, synthetic working-tree clipboard and contiguous working-tree
+comparison endpoints are connected. See [popup variants](LOG-POPUP-VARIANTS.md).
+Full consumer-mask, physical and signed acceptance remain open.
+
+
 Rebase's action row now has the source-ordered sticky bulk split button, corrected
 oldest-commit Squash rules, canonical reference metadata tooltips and footer
 Edit/Split placement. Completion also remembers its chosen command through the

@@ -6,6 +6,12 @@ you enter a query. Closing the Log also closes its Find window.
 
 ## Full text search
 
+Find is available from the revision context menu as well as Command-F. The menu
+retains the clicked selection mark through popup closure, including a working-tree
+selection. Its captured action runs once and refuses a replaced selection or
+reload. Opening another revision command does not reset the Find cursor. See
+[popup variants](LOG-POPUP-VARIANTS.md) for source comparison and acceptance.
+
 Enter text in **Search for**, then press Return or click **Find**. The result is
 selected and scrolled into view. Find searches the displayed rows, independently
 of the Log's history filter. It includes subjects and message bodies, authors and

@@ -104,8 +104,11 @@ import Darwin
         let historyTable = views(window.contentView!).compactMap { $0 as? HistoryTableView }.first!
         let headIndex = controller.model.entries.firstIndex { $0.hash == headHash }!
         historyTable.selectRowIndexes(IndexSet(integer: headIndex), byExtendingSelection: false)
-        let menu = historyTable.menu!
+        let menu = historyTable.menu!, beforePopupIndex = reopened.searchIndex()
         menu.delegate?.menuNeedsUpdate?(menu)
+        try require(reopened.searchIndex() == beforePopupIndex)
+        guard let findItem = menu.items.first(where: { $0.action.map(NSStringFromSelector) == "findEntry:" }), let action = findItem.action else { throw Failure(line: #line) }
+        _ = NSApp.sendAction(action, to: findItem.target, from: findItem)
         try require(reopened.searchIndex() == headIndex)
         // Source Log Refresh also rebuilds an already-open Find reference list.
         reopened.referenceFilter.stringValue = "refs/tags/refresh-"; reopened.applyReferenceFilter()

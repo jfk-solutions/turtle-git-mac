@@ -1538,6 +1538,10 @@ struct LogCommandRequest: Identifiable {
         guard canStartHistoryTransport,selectedHistoryRanges.contains(range) else { return }
         onShowHistoryRange?(range)
     }
+    var continuousHistorySelection:Bool {
+        let indices=entries.indices.filter{selected.contains(entries[$0].hash)}
+        return indices.count==selected.count && indices.count>1 && indices.last! - indices.first! + 1 == indices.count
+    }
     var continuousRevisionSelection: Bool {
         let indices=entries.indices.filter { selected.contains(entries[$0].hash) }
         return !includesWorkingTree && indices.count==selected.count && indices.count>1 &&
@@ -2160,8 +2164,14 @@ struct LogCommandRequest: Identifiable {
             } catch { if request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
+    var clipboardEntries:[LogEntry] {
+        entries.filter{selected.contains($0.hash)}.map { entry in
+            guard entry.hash.isEmpty,let tree=workingTreeSnapshot else{return entry}
+            return LogEntry(hash:"",author:entry.author,date:entry.date,subject:entry.subject,parents:entry.parents,email:entry.email,message:tree.entry.subject+"\n"+tree.entry.message)
+        }
+    }
     func copyDetails(includePaths: Bool = true) {
-        let hashes = revisions.map(\.hash); guard !hashes.isEmpty else { return }
+        let chosen=clipboardEntries,working=workingTreeSnapshot;guard !chosen.isEmpty else{return}
         let dateSettings = HistoryDateSettings.load(defaults:labelDefaults)
         cancelClipboardRead()
         let cancellation = OperationCancellation(); clipboardCancellation = cancellation
@@ -2171,9 +2181,17 @@ struct LogCommandRequest: Identifiable {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 var text = ""
-                for hash in hashes {
+                for entry in chosen {
                     guard request == clipboardGeneration else { return }
-                    text += try await repository.commitLogText(revision: hash, includePaths: includePaths, cancellation: cancellation, dateSettings: dateSettings, useMailmap: labelDefaults.usesMailmap)
+                    if entry.hash.isEmpty,let working {
+                        var detail="Revision: \(entry.hash)\nAuthor: \(entry.author) <\(entry.email)>\nDate: \(dateSettings.format(entry.date))\nMessage:\n\(entry.message)\n"
+                        if includePaths {
+                            detail+="----\n"
+                            for file in working.files {detail+=file.status+": "+file.path+(file.oldPath.map{" (from "+$0+")"} ?? "")+"\n"}
+                        }
+                        text+=detail+"\n";continue
+                    }
+                    text += try await repository.commitLogText(revision: entry.hash, includePaths: includePaths, cancellation: cancellation, dateSettings: dateSettings, useMailmap: labelDefaults.usesMailmap)
                 }
                 guard request == clipboardGeneration else { return }
                 copy(text)
@@ -2717,8 +2735,8 @@ struct LogCommandRequest: Identifiable {
     func compare(workingTree: Bool = false, parent:Int? = nil) {
         guard canStartHistoryTransport, !workingTree || !bare else { return }
         let from: ComparisonRevision, to: ComparisonRevision, previousOf: String?
-        if includesWorkingTree, !workingTree, selected.count <= 2 {
-            let base = revisions.first?.hash ?? workingTreeSnapshot?.entry.parents.first
+        if includesWorkingTree, !workingTree, selected.count <= 2 || continuousHistorySelection {
+            let base = revisions.last?.hash ?? workingTreeSnapshot?.entry.parents.first
             from = base.map { .revision($0) } ?? .emptyTree; to = .workingTree; previousOf = nil
         } else {
             let chosen = revisions
@@ -3673,13 +3691,11 @@ struct RevisionTable: NSViewRepresentable {
                 }
                 return
             }
-            if let table, model.entries.indices.contains(table.selectedRow) {
-                model.findSearchIndex = table.selectedRow
-            }
             let actionTarget=HistoryMenuActionTarget(self);menuActionTarget=actionTarget
             // NSMenuItem.target is weak; this coordinator retains the popup's
             // relay until the next revision popup replaces it.
-            defer { bind(menu,to:actionTarget) }
+            defer { normalizeSeparators(menu);bind(menu,to:actionTarget) }
+            guard !model.selected.isEmpty,model.entries.filter({model.selected.contains($0.hash)}).count==model.selected.count else{return}
             @discardableResult func item(_ title: String, _ selector: Selector, icon: MenuIcon, enabled: Bool = true) -> NSMenuItem {
                 let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(defaults: model.colorPreferences); item.target = self; item.isEnabled = enabled; menu.addItem(item)
                 return item
@@ -3693,8 +3709,10 @@ struct RevisionTable: NSViewRepresentable {
             if model.selectedWorkingTree {
                 item("Commit…", #selector(commitWorkingTree), icon: .commit, enabled: !model.busy)
                 if model.workingCommandAvailable(.mergeAbort) { workingItem(.mergeAbort,menu:menu) }
-                item("Compare with previous revision", #selector(compare), icon: .compare, enabled: !model.busy && model.onCompare != nil)
-                item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: !model.busy && model.workingTreeSnapshot?.entry.parents.first != nil)
+                if model.workingTreeSnapshot?.entry.parents.isEmpty==false {
+                    item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: !model.busy)
+                    item("Compare with previous revision", #selector(compare), icon: .compare, enabled: !model.busy && model.onCompare != nil)
+                }
                 menu.addItem(.separator())
                 for action in [RepositoryAction.stash, .stashPop, .stashList] where model.workingCommandAvailable(action) {
                     workingItem(action, menu: menu)
@@ -3707,33 +3725,42 @@ struct RevisionTable: NSViewRepresentable {
                 menu.addItem(.separator())
                 for action in [RepositoryAction.pull, .fetch, .submoduleUpdate] where model.workingCommandAvailable(action) { workingItem(action, menu: menu) }
                 if model.workingCommandAvailable(.clean) { menu.addItem(.separator());workingItem(.clean,menu:menu) }
+                menu.addItem(.separator());appendClipboardAndFind(menu,one:false)
                 return
             }
             if model.selectedIsStash {
                 for action in [RepositoryAction.stashPop, .stashList] where model.workingCommandAvailable(action) { workingItem(action, menu: menu) }
                 menu.addItem(.separator())
             }
-            let one = model.revision != nil, two = model.revisions.count == 2
-            item("Compare with working tree", #selector(workingDiff), icon: .compare, enabled: one && !model.bare && !model.busy && model.onCompare != nil)
-            if let revision=model.revision,revision.parents.count>1 {
-                let previous=item("Compare with previous revision",#selector(compare),icon:.compare,enabled:!model.busy && model.onCompare != nil)
-                let parents=NSMenu();parents.autoenablesItems=false;previous.submenu=parents
-                for choice in model.parentChoices(for:revision) {
-                    let child=NSMenuItem(title:choice.title,action:#selector(compareParent(_:)),keyEquivalent:"")
-                    child.target=self;child.isEnabled=previous.isEnabled;child.representedObject=NSNumber(value:choice.number);parents.addItem(child)
-                }
-                if !model.bare {
+            let one = model.revision != nil, two = model.selected.count == 2
+            if let revision=model.revision {
+                if !model.bare {item("Compare with working tree",#selector(workingDiff),icon:.compare,enabled:!model.busy && model.onCompare != nil)}
+                if !model.bare,revision.parents.count==1 {
+                    item("Show changes as unified diff",#selector(showDiff),icon:.unifiedDiff,enabled:!model.busy)
+                } else if !model.bare,revision.parents.count>1 {
                     let unified=item("Unified diff with",#selector(showDiff),icon:.unifiedDiff,enabled:!model.busy)
                     let choices=NSMenu();choices.autoenablesItems=false;unified.submenu=choices
-                    let modes:[(String,LogRevisionDiffMode)]=[("All Parents",.allParents),("Only Merged Files",.combined),("Show extra changes after merge",.extraMergeChanges)] + model.parentChoices(for:revision).map { ($0.title,.parent($0.number)) }
-                    for (title,mode) in modes {
+                    let modes:[(String,LogRevisionDiffMode)]=[("All Parents",.allParents),("Only Merged Files",.combined),("Show extra changes after merge",.extraMergeChanges)] + model.parentChoices(for:revision).map{($0.title,.parent($0.number))}
+                    for(title,mode) in modes {
                         let child=NSMenuItem(title:title,action:#selector(showParentDiff(_:)),keyEquivalent:"")
                         child.target=self;child.isEnabled=unified.isEnabled;child.representedObject=mode;choices.addItem(child)
                     }
                 }
-            } else {
-                item(model.selected.count>1 ? "Compare revisions" : "Compare with previous revision", #selector(compare), icon: .compare, enabled: (model.canCompareRevisionSelection || model.includesWorkingTree && model.selected.count == 2) && !model.busy && model.onCompare != nil)
-                item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: (one || two || model.includesWorkingTree && model.selected.count == 2) && !model.bare && !model.busy)
+                if revision.parents.count==1 {
+                    item("Compare with previous revision",#selector(compare),icon:.compare,enabled:!model.busy && model.onCompare != nil)
+                } else if revision.parents.count>1 {
+                    let previous=item("Compare with previous revision",#selector(compare),icon:.compare,enabled:!model.busy && model.onCompare != nil)
+                    let parents=NSMenu();parents.autoenablesItems=false;previous.submenu=parents
+                    for choice in model.parentChoices(for:revision) {
+                        let child=NSMenuItem(title:choice.title,action:#selector(compareParent(_:)),keyEquivalent:"")
+                        child.target=self;child.isEnabled=previous.isEnabled;child.representedObject=NSNumber(value:choice.number);parents.addItem(child)
+                    }
+                }
+            } else if model.selected.count>=2 {
+                if model.canCompareRevisionSelection || model.includesWorkingTree && (two || model.continuousHistorySelection) {
+                    item("Compare revisions",#selector(compare),icon:.compare,enabled:!model.busy && model.onCompare != nil)
+                }
+                if two,!model.bare {item("Show changes as unified diff",#selector(showDiff),icon:.unifiedDiff,enabled:!model.busy)}
             }
             if two,!model.includesWorkingTree {
                 for range in model.selectedHistoryRanges {
@@ -3752,7 +3779,7 @@ struct RevisionTable: NSViewRepresentable {
             if model.historyLogAvailable(extended:extended) {
                 item("Show log…",#selector(showHistory(_:)),icon:.log,enabled:!model.busy && model.onShowHistory != nil).representedObject=NSNumber(value:extended)
             }
-            item("Browse repository", #selector(browseRepository), icon: .repositoryBrowser, enabled: one && !model.busy && model.onBrowseRepository != nil)
+            if one {item("Browse repository", #selector(browseRepository), icon: .repositoryBrowser, enabled: !model.busy && model.onBrowseRepository != nil)}
             if model.integrationAvailable {
                 item(model.integrationTitle(.merge), #selector(mergeReference(_:)), icon: .merge, enabled: model.canIntegrate(.merge)).representedObject = pointed
             }
@@ -3784,11 +3811,11 @@ struct RevisionTable: NSViewRepresentable {
             }
             if one { item("Export this version…", #selector(exportRevision), icon: .export, enabled: model.canExportRevision) }
             if model.onRevertRevisions != nil {
-                let chosen = model.entries.filter { model.selected.contains($0.hash) }
+                let chosen = model.entries.filter { !$0.hash.isEmpty && model.selected.contains($0.hash) }
                 let available = !model.isInvalidated && !model.busy && !model.bare && !model.mergeActive && !model.findBlocked && !model.orderingBlocked && model.window?.attachedSheet == nil
-                if chosen.count > 1 && chosen.count == model.selected.count {
+                if model.selected.count>1,chosen.count>1,chosen.count == model.selected.count - (model.includesWorkingTree ? 1:0) {
                     item("Revert changes by these commits", #selector(revertCaptured(_:)), icon: .revert, enabled: available).representedObject = RevertTarget(chosen)
-                } else if model.revertAvailable, let revision = model.revision {
+                } else if chosen.count==1,let revision=chosen.first,!revision.parents.isEmpty,!model.selectedIsStash,!revision.references.contains(where:{$0.name=="refs/stash"}),model.revertAvailable || model.includesWorkingTree {
                     if revision.parents.count > 1 {
                         let parent = NSMenuItem(title: "Revert change by this commit", action: nil, keyEquivalent: "")
                         parent.image = MenuIcon.revert.contextImage(defaults: model.colorPreferences); parent.isEnabled = available && model.canRevertRevision
@@ -3882,6 +3909,10 @@ struct RevisionTable: NSViewRepresentable {
             if model.canToggleRollup {
                 let rollup = NSMenuItem(title: model.rollupTitle, action: #selector(toggleRollup), keyEquivalent: ""); rollup.target = self; menu.addItem(rollup); menu.addItem(.separator())
             }
+            appendClipboardAndFind(menu,pointed:pointed,one:one)
+            if one { item("Show branches this commit is on", #selector(showContainingReferences), icon: .showBranches, enabled: !model.busy && model.onShowContainingReferences != nil) }
+        }
+        private func appendClipboardAndFind(_ menu:NSMenu,pointed:LogReferenceMenuTarget? = nil,one:Bool) {
             let clipboard = NSMenu(title: "Copy to clipboard")
             clipboard.autoenablesItems = false
             for (title, selector) in [("Full log details", #selector(copyDetails)), ("Full log details without changed paths", #selector(copyDetailsWithoutPaths)), ("Hashes", #selector(copyHashes)),
@@ -3898,7 +3929,25 @@ struct RevisionTable: NSViewRepresentable {
                 clipboard.addItem(refs)
             }
             parent.image = MenuIcon.copy.contextImage(); parent.submenu = clipboard; menu.addItem(parent)
-            if one { item("Show branches this commit is on", #selector(showContainingReferences), icon: .showBranches, enabled: !model.busy && model.onShowContainingReferences != nil) }
+            let find=NSMenuItem(title:"Find…",action:#selector(findEntry(_:)),keyEquivalent:"")
+            find.target=self;find.image=MenuIcon.historyFind.contextImage(defaults:model.colorPreferences)
+            find.isEnabled = !model.isInvalidated && !model.busy && !model.findBlocked && !model.orderingBlocked && !model.referencePickerBlocked && (table?.window as? LogHistoryWindow) != nil
+            find.representedObject=NSNumber(value:(table as? HistoryTableView)?.contextRow ?? table?.selectedRow ?? 0)
+            menu.addItem(find)
+        }
+        private func normalizeSeparators(_ menu:NSMenu) {
+            for item in menu.items {if let submenu=item.submenu{normalizeSeparators(submenu)}}
+            var previous=true
+            for item in menu.items {
+                if item.isSeparatorItem {if previous{menu.removeItem(item)};previous=true}
+                else {previous=false}
+            }
+            if menu.items.last?.isSeparatorItem==true {menu.removeItem(at:menu.numberOfItems-1)}
+        }
+        @objc func findEntry(_ sender:NSMenuItem) {
+            guard let table,let window=table.window as? LogHistoryWindow,!model.busy,!model.isInvalidated else{return}
+            let mark=(sender.representedObject as? NSNumber)?.intValue ?? table.selectedRow
+            model.findSearchIndex=max(0,mark);window.find()
         }
         private func bind(_ menu:NSMenu,to target:HistoryMenuActionTarget) {
             for item in menu.items {
@@ -3906,7 +3955,7 @@ struct RevisionTable: NSViewRepresentable {
                 if item.action != nil,item.target === self { item.target=target }
             }
         }
-        func menuDidClose(_ menu: NSMenu) { combineMenuTask?.cancel(); combineMenuTask = nil; combineMenuCancellation?.cancel(); combineMenuCancellation = nil; if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil } }
+        func menuDidClose(_ menu: NSMenu) { combineMenuTask?.cancel(); combineMenuTask = nil; combineMenuCancellation?.cancel(); combineMenuCancellation = nil; if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil;(table as? HistoryTableView)?.contextRow=nil } }
         private final class PushTarget: NSObject {
             let entry: LogEntry, pointedName: String?
             init(_ entry: LogEntry, pointedName: String?) { self.entry = entry; self.pointedName = pointedName }
@@ -4021,12 +4070,12 @@ struct RevisionTable: NSViewRepresentable {
             guard let value = sender.representedObject as? String, let action = RepositoryAction(rawValue: value) else { return }
             model.requestWorkingCommand(action)
         }
-        @objc func copyAuthors() { model.copy(model.revisions.map { "\($0.author) <\($0.email)>" }.joined(separator: "\n")) }
-        @objc func copyAuthorNames() { model.copy(model.revisions.map(\.author).joined(separator: "\n")) }
-        @objc func copyAuthorEmails() { model.copy(model.revisions.map(\.email).joined(separator: "\n")) }
-        @objc func copySubjects() { model.copy(LogEntry.historyClipboard(model.revisions, subjectsOnly: true)) }
-        @objc func copyHashes() { model.copy(model.revisions.map(\.hash).joined(separator: "\n")) }
-        @objc func copyMessages() { model.copy(LogEntry.historyClipboard(model.revisions, subjectsOnly: false)) }
+        @objc func copyAuthors() { model.copy(model.clipboardEntries.map { "\($0.author) <\($0.email)>" }.joined(separator: "\n")) }
+        @objc func copyAuthorNames() { model.copy(model.clipboardEntries.map(\.author).joined(separator: "\n")) }
+        @objc func copyAuthorEmails() { model.copy(model.clipboardEntries.map(\.email).joined(separator: "\n")) }
+        @objc func copySubjects() { model.copy(LogEntry.historyClipboard(model.clipboardEntries, subjectsOnly: true)) }
+        @objc func copyHashes() { model.copy(model.clipboardEntries.map(\.hash).joined(separator: "\n")) }
+        @objc func copyMessages() { model.copy(LogEntry.historyClipboard(model.clipboardEntries, subjectsOnly: false)) }
         @objc func copyDetails() { model.copyDetails() }
         @objc func copyDetailsWithoutPaths() { model.copyDetails(includePaths: false) }
     }
@@ -4074,6 +4123,7 @@ struct RevisionTable: NSViewRepresentable {
     @objc func checkoutReference(_ sender:NSMenuItem) { invoke(NSSelectorFromString("checkoutReference:"),sender:sender) }
     @objc func copyReferenceNames(_ sender:NSMenuItem) { invoke(NSSelectorFromString("copyReferenceNames:"),sender:sender) }
     @objc func toggleRollup() { invoke(NSSelectorFromString("toggleRollup")) }
+    @objc func findEntry(_ sender:NSMenuItem) {invoke(NSSelectorFromString("findEntry:"),sender:sender)}
     @objc func showContainingReferences() { invoke(NSSelectorFromString("showContainingReferences")) }
     @objc func browseRepository() { invoke(NSSelectorFromString("browseRepository")) }
     @objc func formatPatch() { invoke(NSSelectorFromString("formatPatch")) }
@@ -4114,6 +4164,7 @@ final class HistoryTableView: NSTableView {
     var onWindowChanged:(()->Void)?
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); onWindowChanged?() }
     var contextReference: (row: Int, name: String)?
+    var contextRow:Int?
     var contextExtendedMenu = false
     var onReturn: (() -> Bool)?
     var onFind: (() -> Bool)?
@@ -4124,7 +4175,7 @@ final class HistoryTableView: NSTableView {
     }
     @discardableResult func showKeyboardContextMenu(extended:Bool=false)->Bool {
         guard contextMenuAvailable(),let row=selectedRowIndexes.first,row>=0,row<numberOfRows,let menu else { return false }
-        contextReference=nil;contextExtendedMenu=extended
+        contextReference=nil;contextExtendedMenu=extended;contextRow=row
         scrollRowToVisible(row);layoutSubtreeIfNeeded();menu.update()
         let visible=rect(ofRow:row).intersection(visibleRect)
         let point=visible.isEmpty ? NSPoint(x:bounds.midX,y:rect(ofRow:row).midY) : NSPoint(x:visible.midX,y:visible.midY)
@@ -4168,6 +4219,7 @@ final class HistoryTableView: NSTableView {
         contextReference = mouse ? reference(at: point) : nil
         contextExtendedMenu = event.modifierFlags.contains(.shift)
         if mouse, row >= 0, !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
+        contextRow=mouse && row>=0 ? row:selectedRow
         menu?.update()
         return menu
     }

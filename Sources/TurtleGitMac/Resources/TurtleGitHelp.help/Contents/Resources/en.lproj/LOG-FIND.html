@@ -4,6 +4,11 @@
 focuses the same Find window. Find is modeless, so the Log stays available while
 you enter a query. Closing the Log also closes its Find window.</p>
 <h2 id="full-text-search">Full text search</h2>
+<p>Find is available from the revision context menu as well as Command-F. The menu
+retains the clicked selection mark through popup closure, including a working-tree
+selection. Its captured action runs once and refuses a replaced selection or
+reload. Opening another revision command does not reset the Find cursor. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LOG-POPUP-VARIANTS.html">popup variants</a> for source comparison and acceptance.</p>
 <p>Enter text in <strong>Search for</strong>, then press Return or click <strong>Find</strong>. The result is
 selected and scrolled into view. Find searches the displayed rows, independently
 of the Log's history filter. It includes subjects and message bodies, authors and

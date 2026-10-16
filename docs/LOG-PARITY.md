@@ -417,7 +417,7 @@ merge graph, file stats and double-click diff with disposable sample repositorie
 | References | Branch/ref chooser, remote ref deletion and tracking menus |
 | Search/filter | Full history scope controls, search highlighting, displayed jump/selection-history acceptance and keyboard navigation; implemented fields/modes are recorded above |
 | Files | Multi-revision union, multi-file diff, file log/blame, restore, save/export revision, open/editor/Finder actions |
-| Revision menus | Clicked-ref targeting, squash, ref containment/search; revision Export and revision/working-tree Bisect now have native routes, see [Export](REVISION-EXPORT.md) and [Bisect](BISECT-PARITY.md); see later sections for browser/patch commands |
+| Revision menus | Single/root/merge/multi/working/bare popup variants, captured ref targeting, Find and working clipboard are implemented; all consumer-specific masks, physical tracking and signed acceptance remain open. See [popup variants](LOG-POPUP-VARIANTS.md) and later source-family sections |
 | Mutations | Full branch/tag options, checkout branches, advanced Cherry Pick options and displayed acceptance ([audit](CHERRY-PICK-PARITY.md)), multi-commit Revert and other operations, conflict continue/abort |
 | Footer | Statistics, walk behavior, View options and upstream settings persistence |
 | Comparison | Native side-by-side/three-way editor, merge combined diffs and external tool configuration |
@@ -2706,3 +2706,16 @@ object ID. Successful ambiguity warnings on stderr cannot become part of a
 commit hash. Manually entered short revisions retain Git's own resolution rules;
 canonical choices do not invent a global branch-over-tag lookup policy.
 See [connected evidence](qa/log-canonical-integration-2026-10-16.json).
+
+
+## Source revision popup variants — October 16, 2026
+
+The native popup now follows source single/root/merge/two/continuous/discontinuous
+selection groups and bare/working-tree variants, with normalized separators.
+Multi-selection omits single-only commands rather than displaying disabled
+placeholders. Find uses the original icon and a captured selection mark through
+menu closure and the existing one-use relay. Working-tree and mixed clipboard
+commands retain the synthetic row without resolving an empty Git revision.
+Contiguous ranges including the working tree compare the oldest selected commit
+with live contents; Revert handoffs exclude the synthetic row. See
+[implementation and exact acceptance](LOG-POPUP-VARIANTS.md).

@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "d369a391ad3443b18d3efeabeda6ccdd87fd5e7c7b78ea67481b73256c32e5b4",
+    "Contents/Info.plist": "2053ca702adc0911e730e0ffc2be92280d23b137098c0de9c47cef2452161212",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "bffe41983454087ae3e242c659e7cfd6ff5c1d6a262f5246d5cdd772d84f2c4b",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "04859045f7eeb6a6b5d1187d1978d17df4adb5a0568b6bc5cb85a34951d1ade0",
     "Contents/Resources/en.lproj/CHERRY-PICK.html": "69424c956849c3686861e28c3a1c8d034ded56dba04c84841fc93528b67ee1af",
@@ -13,7 +13,7 @@
     "Contents/Resources/en.lproj/IMAGE-COMPARISON.html": "fd527ca72885ab9a134f9f7e0cd7adbc439d8af13232bc1d7262bffbae174054",
     "Contents/Resources/en.lproj/InfoPlist.strings": "436e0d7f17990db122633ab657a3a406a252ad892449860b7157494614595b02",
     "Contents/Resources/en.lproj/LFS.html": "224fbf65a08b3ed9878c01a68d21c4fc730849056be4cbff7832d9a10b633259",
-    "Contents/Resources/en.lproj/LOG-FIND.html": "f174e2ae7a6d7f89c33924856637455144f7d78954c619aae3a5f9d8c38d6b57",
+    "Contents/Resources/en.lproj/LOG-FIND.html": "5fb7c9146ba8e132351598888986dd7af3ab6f9be48cf9d8fb27b5dbacea5109",
     "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "71958b1b9f698bc2ab50a3d56bd3fe563cafa377f47929bbaa2b4df69ce7a2d6",
     "Contents/Resources/en.lproj/PRIVACY.html": "2d5694bd5468268eb34083726a366f04317c5d01d4da36a706b37d0bfcd8eaf7",
     "Contents/Resources/en.lproj/REBASE-CONFLICT-FILES.html": "8ea8e7ea5e9e8ad328bc7215381cfc8c690fc29cba224dfdf5a887b7fe855c83",
@@ -44,7 +44,7 @@
     "docs/GIT-PROPERTIES.md": "612ac979b47e69e263e308337f2ee7529d9620e73175167a72a1ff043f4d4605",
     "docs/IMAGE-COMPARISON.md": "5dfe781d512a6f95d2f6481fa8170ca59b8981ad5d73737ab114b2ade76d5934",
     "docs/LFS.md": "f6f0d435f7fe41e7ebcfa9f28bc5d9abe36ea3a4fb618dbb8b3947c675a40d4d",
-    "docs/LOG-FIND.md": "5e31e8642a416f0d94a99cffd6afe182f43359993fd238954efda2978805b36f",
+    "docs/LOG-FIND.md": "3712ab5d1ae0e9471c10fe5b69cc4eda2b50b341671b305f20c416e261be29f4",
     "docs/MOVING-AND-COPYING.md": "af27ece7f54d23f3a8e43af1144fbde6f794a38d76c6551becfc1909cfc8d7e1",
     "docs/PRIVACY.md": "05a10daf2f9e304da9b306fd8dd212dfe8611f9532013f2a7114ca3e7ce62160",
     "docs/REBASE-CONFLICT-FILES.md": "5def68fc819548e2f7316cd25029c0ee47fc1506c590b2107280de1bac2120c0",
