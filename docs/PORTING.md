@@ -5,6 +5,8 @@
 The shared [path-entry family](PATH-ENTRY-PARITY.md) now connects source filesystem
 completion to Clone, New Worktree, Rename and Export with native full-field
 completion, owned directory reads, access scoping and retired-result guards.
+Literal input, owner-icon Complete Path menus, caret ownership and native
+completion Undo/Redo binding now pass across all four dialogs.
 Physical keyboard/IME/popup and signed acceptance remain open.
 
 The [application identity/file-open family](APPLICATION-IDENTITY.md) now packages

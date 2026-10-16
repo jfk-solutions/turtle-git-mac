@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "8d744bace11facb2b3ead61cd507ec300e06d9e2",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Shared native path interaction in Clone, Rename, New Worktree and Export",
+  "implementation": [
+    "Literal editor input disables prose substitutions and spelling/text corrections locally",
+    "Complete Path with original artwork, owner icon preferences and captured once-only action context",
+    "Caret/selection guard on late reads and non-stealing initial focus; only key non-minimized owner presents native completion",
+    "Completion previews remain uncommitted; authoritative TextKit edits and completed Undo/Redo notifications synchronize the owning model",
+    "Existing access leases, disabled/sheet/retired guards and no Git-operation changes"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/path-entry-interaction-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/path-entry-interaction-undo-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/path-entry-interaction-undo-notification-debug.log",
+      "exit": 65,
+      "exit_zero_no_output_diagnostics": 0
+    },
+    {
+      "log": "build/qa/path-entry-interaction-undo-notification-repair-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "validation": {
+    "passing_case_engine_pairs": 4,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "logs": [
+      "build/qa/path-entry-interaction-native-repaired.log",
+      "build/qa/path-entry-interaction-paths-native.log"
+    ],
+    "checks": [
+      "Four shipping dialog views and actual field editors",
+      "Literal quotes, repeated dashes and Unicode input",
+      "Menu icon preference, one-use dispatch and stale caret context",
+      "Native completion preview/cancel and Undo/Redo with model equality",
+      "Held successful directory reply refuses caret movement; disabled and closed actions inert",
+      "Existing filesystem/path, related-scope and symlink-escape checks",
+      "HEAD and raw index unchanged after initial unrelated metadata settles"
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      54536,
+      54608,
+      54713,
+      54825,
+      54848,
+      54878,
+      54909,
+      54938,
+      54971,
+      54995
+    ],
+    "core_run": false,
+    "core_reason": "No Core or Git operation changes",
+    "store_build": false
+  },
+  "failures_and_repairs": [
+    "Initial interaction case 54536 timed out waiting for model to follow native Undo; diagnostic 54608 confirmed editor restored prefix but model retained completed path",
+    "First didChangeText repair did not cover completion Undo; affected receiver 54713 retained the assertion and failed",
+    "Completed Undo/Redo notification observers repaired the model synchronization; 54825/54848 passed all four dialog interactions",
+    "Notification property spelling initially failed compilation; corrected to SDK Notification.Name symbols",
+    "Popup fixture 54878 failed before app initialization; corrected to NSApplication.shared",
+    "Popup experiments 54909/54938 failed to find an in-process Cocoa completion table; diagnostic recorded loss of key-window state and remote text-service windows. No passing keyboard/popup claim. Fixture retained as failed experimental evidence and excluded from passing CI group."
+  ],
+  "limits": [
+    "Actual Cocoa popup Down/Return/Tab/Escape acceptance remains unresolved; experimental fixture did not pass",
+    "No physical keyboard, IME, VoiceOver, theme/layout screenshot or signed Finder/AppStore acceptance",
+    "No full hosted CI pass or complete dialog/port parity claim",
+    "Windows shell history/URL providers, network/large directory and alias-race acceptance remain open"
+  ],
+  "coverage": "130 dialogs, 120 partial audits, 10 pending, 0 certified; 986 mapped / 673 pending static controls"
+}

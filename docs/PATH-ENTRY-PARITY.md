@@ -47,3 +47,29 @@ cases perform their existing real Git mutations and ownership checks. All six
 receivers were reaped and independently absent. Core was unchanged and not rerun.
 [The dated evidence](qa/path-entry-2026-10-16.json) records actual scope, Xcode's
 exit-zero/no-output diagnostics, hidden-view layout warnings and open acceptance.
+
+## Literal input and native completion interaction — October 16, 2026
+
+The four path editors now disable prose substitutions, spelling correction and
+automatic prose completion for their own field editors. Quotes, repeated dashes
+and Unicode remain literal filenames without changing system preferences.
+**Complete Path** appears in the native field context menu with upstream artwork
+and the owning dialog's app-menu icon preference. Each captured action is usable
+once and expires when its text, selection, request generation or owner changes.
+
+Delayed directory replies also compare the initiating caret/selection. Deferred
+initial focus leaves an already active editor or another focused control alone.
+Only the current key, non-minimized window can present the Cocoa completion list;
+background lookup does not bring a dialog forward. Existing scope, sheet,
+disabled-control and retired-window guards remain in effect.
+
+The grouped verification exercises shipping views and field editors, preview
+cancellation, native Undo/Redo, menu preferences/lifetime and held successful
+replies after caret movement. The separate foreground popup experiment did not establish keyboard acceptance:
+the current SDK exposes remote text-service windows and the expected in-process
+completion table was absent. Its failed fixture is retained as evidence and is
+not part of the passing CI group. Physical popup/keyboard, input-method, VoiceOver
+and signed Finder/AppStore acceptance remain open. See the dated interaction
+[evidence](qa/path-entry-interaction-2026-10-16.json) for results.
+The four affected native case/engine pairs passed after repairing a real
+completion Undo/model synchronization defect. No Core suite was rerun.
