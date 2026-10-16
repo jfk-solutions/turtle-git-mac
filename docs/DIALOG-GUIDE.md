@@ -489,3 +489,9 @@ Use **View → Switch left and right view** to reverse a two-file comparison.
 Unsaved edits get Save/Don't Save/Cancel before reloading. Each file keeps its
 own Save target. **Toolbar** and **Status Bar** in View control the window chrome;
 the two-pane divider position is restored after using combined view.
+
+
+When a Compare or Merge window is active, its commands also appear in the native
+**File**, **Edit**, **Navigate**, **View** and **Help** menus, with icons and checked
+view choices. **F6** and **Shift-F6** cycle its visible panes. **Save As…** uses the
+active pane; commands remain available from the menu when the toolbar is hidden.

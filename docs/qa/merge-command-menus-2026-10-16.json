@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "e1f32aac85acd3dbb2ff44802370224a31a2e0e5",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected Compare/Merge native File/Edit/Navigate/View/Help menus, source icons/state, pane cycling and shortcuts, active Save As, settings entry, command/focus lifetimes and toolbar transition investigation",
+  "source": [
+    "src/Resources/TortoiseMergeENG.rc IDR_MAINFRAME menus and accelerators.",
+    "MainFrm command/update handlers and BaseView view/selection/pane navigation."
+  ],
+  "implementation": [
+    "Scoped File block for Open/Save/active Save As/resolution/patch/reload/editing; native clipboard/Undo remain responder-chain commands.",
+    "Existing applicable block/file choices, Find/Next/Previous/Go to Line, difference/conflict/inline/pane navigation.",
+    "Live native checked comparison/view choices, dynamic named regex filters and Settings initial Merge Editor page; existing Settings drafts/context preserved.",
+    "Source icon reuse, F6/Shift-F6 actual pane focus, displayed existing navigation bindings and source control-key view actions.",
+    "Shared toolbar state and validated dispatch; fresh installation epochs fence stale retained items, key window and fields/sheets/operations/Open/replacement rechecked at action time.",
+    "Only owned menu rows and empty created roots removed; unrelated native/OS-added menu entries preserved. Filter children rebuild only when names change.",
+    "Replacement toolbar visibility is set before attachment and native transition context has no implicit animation. This does not resolve the observed faded toolbar rendering."
+  ],
+  "core": "Not rerun: native-only code and existing artwork; no Core behavior/resources changed.",
+  "debug": [
+    {
+      "log": "build/qa/merge-menus-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/merge-menus-transition-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "group_log": "build/qa/merge-menus-native-system-items.log",
+    "group_exit": 0,
+    "case_engine_runs": 9,
+    "cases": [
+      "New menu workflow",
+      "View switching/Save/chrome/split workflow, system Git",
+      "View workflow, bundled Git",
+      "Retained native toolbar dispatch/Save/customization/image and File/Open replacement",
+      "Retained owned editor File/Open",
+      "Retained moved blocks",
+      "Retained wrapped navigation/reading anchors",
+      "Retained two-pane editing/encoding/Save",
+      "Retained three-pane conflict/regex/Undo/reload/resolve"
+    ],
+    "new_checks": [
+      "Native root ordering, original colored command images and shortcuts; F6/Shift-F6 actual focus cycling.",
+      "Checked wrap state, busy and File/Open refusal, no background or old epoch dispatch, field-editor shortcut exclusion.",
+      "Dynamic regex selection and checkmarks, comparison preference persistence and unsupported comment profile gate.",
+      "Active-pane Save As target and exact bytes, Find ownership, toolbar menu usable while hidden and presentation/history invariants.",
+      "Three-pane block choice plus Undo, F8 menu binding, resigned menu refusal and same-window replacement fencing.",
+      "Final exact input bytes and preservation of original Undo/Copy object identities and unrelated File row."
+    ],
+    "failures": [
+      {
+        "log": "build/qa/merge-menus-native.log",
+        "reason": "Fixture assumed Edit remained exactly Undo/Copy. macOS dynamically adds Writing Tools, AutoFill, dictation and Emoji entries."
+      },
+      {
+        "log": "build/qa/merge-menus-native-removal-diagnostic.log",
+        "reason": "Diagnostic confirmed File only retained its sentinel while Edit held original Undo/Copy plus OS-added entries. Fixture now requires original identities and no target owned by any retired menu controller; it leaves OS items intact."
+      }
+    ],
+    "focused_transition_recheck": {
+      "log": "build/qa/merge-menus-native-transition.log",
+      "exit": 0,
+      "cases": 1,
+      "reason": "After final toolbar visibility-before-attachment/zero-implicit-animation adjustment, only the affected menu/hide/show/replacement workflow was repeated. Prior eight unaffected runs were not repeated."
+    },
+    "owned_receivers_reaped_and_independently_absent": [
+      97771,
+      97809,
+      97855,
+      97869,
+      97953,
+      98028,
+      98036,
+      98043,
+      98050,
+      98053,
+      98072,
+      98484
+    ]
+  },
+  "documentation": {
+    "help": "50 source files, 1954642 bytes; all built counterparts byte-equal, generated Help index expected.",
+    "capture_candidates": [
+      "build/qa/merge-menus-captures/merge-command-menus-light.png",
+      "build/qa/merge-menus-captures/merge-command-menus-dark.png",
+      "build/qa/merge-menus-transition-captures/merge-command-menus-light.png",
+      "build/qa/merge-menus-transition-captures/merge-command-menus-dark.png"
+    ],
+    "visual_review": "Initial light/dark and final light captures inspected. Toolbar icons remain faded; original captures logged app/window active and Open enabled at capture, so disabled command state alone does not explain it. The final transition did not resolve the light capture. Candidates are not published as accepted gallery images; no physical menu/popup screenshot claim.",
+    "site": "252 documents, zero unresolved fragments; build/qa/merge-menus-site.log",
+    "ledger": "130 dialogs, 120 partial family audits, 10 pending, zero certified; 987 mapped/672 pending static controls unchanged."
+  },
+  "limits": [
+    "The entire Windows source menu/resource catalogue and all accelerator aliases are not certified equivalent.",
+    "Automatic reattachment after external/SwiftUI replacement of main-menu roots is not covered; key-window focus installation is implemented.",
+    "Physical native menu tracking, standard clipboard/Undo selection in every field/source context, Settings navigation and VoiceOver/system-shortcut conflicts require further acceptance.",
+    "Toolbar faded appearance persists despite enabled-state/activation diagnostics and the explicit transition adjustment; root cause unresolved.",
+    "Native-only local checks do not establish minimum-OS, signed Finder/AppStore/grants, hosted CI success or full application parity."
+  ]
+}

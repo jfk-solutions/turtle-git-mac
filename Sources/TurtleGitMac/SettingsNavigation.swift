@@ -340,14 +340,14 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         }
         return true
     }
-    func show(globalOnly: Bool = false) {
+    func show(globalOnly: Bool = false, initialPage: SettingsPageID = .general) {
         guard let workspace, let appearance, !workspace.confirmingQuit else { return }
         if let navigation, navigation.globalOnly != globalOnly {
             guard prepareContextChange() else { return }
             controller?.window?.performClose(nil)
         }
         if let controller { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return }
-        let navigation = SettingsNavigationController(workspace: workspace, appearance: appearance, globalOnly: globalOnly)
+        let navigation = SettingsNavigationController(workspace: workspace, appearance: appearance, globalOnly: globalOnly,initialPage:initialPage)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 740), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "Settings – TurtleGit for Mac"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width:860,height:540)

@@ -117,8 +117,10 @@ private enum MergeSourceSide {
     weak var mergedText: NSTextView?
     weak var patchModel: WorkingTreePatchWindowModel?
     private weak var findText: NSTextView?
+    var activeEditorText: NSTextView? { activeText }
     private var activeText: NSTextView? { (firstResponder as? MergeTextView) ?? findText ?? mergedText }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if let owner = delegate as? TextConflictWindowController,owner.editorCommandMenu?.performKeyEquivalent(event) == true { return true }
         if let patchModel {
             let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
             #if DEBUG
@@ -174,12 +176,13 @@ private enum MergeSourceSide {
 
 @MainActor final class TextConflictWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     private let editorFileMenu = MergeEditorFileMenu()
-    func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:))) }
-    func windowDidResignKey(_ notification: Notification) { editorFileMenu.remove() }
-    func detachForReplacement() { editorToolbar?.retire(); editorFileMenu.remove(); model.retire(); model.window = nil }
+    func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.remove();editorCommandMenu?.install() }
+    func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove();editorFileMenu.remove() }
+    func detachForReplacement() { editorCommandMenu?.retire();editorToolbar?.retire(); editorFileMenu.remove(); model.retire(); model.window = nil }
     @objc func reloadEditor(_ sender: Any?) { guard !preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
     func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.formatPending && !model.confirmingQuit && !model.retired && !model.exportingSource && window?.attachedSheet == nil }
     private(set) var editorToolbar: MergeEditorToolbar?
+    private(set) var editorCommandMenu: MergeEditorCommandMenu?
     var showEditorHelp: () -> Void = { TurtleGitHelp.show(.resolve) }
     let model: TextConflictWindowModel
     var onClosed: () -> Void = {}
@@ -233,8 +236,12 @@ private enum MergeSourceSide {
         default: return false
         }
     }
-    func windowWillClose(_ notification: Notification) { guard let closing = notification.object as? NSWindow, closing === window else { return }; editorToolbar?.retire(); editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire(); onClosed() }
-    func installEditorToolbar() { editorToolbar?.retire(); editorToolbar = MergeEditorToolbar.conflict(self) }
+    func windowWillClose(_ notification: Notification) { guard let closing = notification.object as? NSWindow, closing === window else { return }; editorCommandMenu?.retire();editorToolbar?.retire(); editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire(); onClosed() }
+    func installEditorToolbar() {
+        editorCommandMenu?.retire();editorToolbar?.retire();editorToolbar = MergeEditorToolbar.conflict(self)
+        editorCommandMenu = MergeEditorCommandMenu.conflict(self)
+        if window?.isKeyWindow == true { editorCommandMenu?.install() }
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class TextConflictWindowModel: ObservableObject {

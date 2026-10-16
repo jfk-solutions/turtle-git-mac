@@ -78,3 +78,11 @@ The eight-run grouped evidence retains the earlier native toolbar workflow.
 Optional new captures show faded toolbar icons after hide/show/replacement, so
 those frames are not published as accepted screenshots; physical appearance
 acceptance remains open.
+
+
+The [native command-menu continuation](MERGE-COMMAND-MENUS-PARITY.md) shares the
+same toolbar state/dispatch with active-window menus and adds native pane cycling.
+A hidden replacement toolbar receives saved visibility before attachment, with
+implicit transition animation disabled. The final affected menu workflow passes,
+but captured icons still fade even with Open enabled and an active window; this
+is not claimed as a rendering fix. See [diagnostics and exact scope](qa/merge-command-menus-2026-10-16.json).

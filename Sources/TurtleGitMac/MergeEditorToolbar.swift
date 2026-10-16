@@ -136,11 +136,18 @@ struct MergeToolbarState {
     func refresh() {
         guard !retired, let window else { return }
         let show = visible()
-        if show && window.toolbar !== toolbar { window.toolbar = toolbar; installed(true) }
-        else if !show && window.toolbar === toolbar { window.toolbar = nil; installed(false) }
-        if show,window.toolbar === toolbar,toolbar.isVisible != toolbarShown() {
-            applyingVisibility = true;toolbar.isVisible = toolbarShown();applyingVisibility = false
+        // A replacement may inherit a hidden toolbar. Set that state before
+        // attachment, rather than attach-visible then start a hide transition
+        // on the native frame that is about to receive another toolbar owner.
+        applyingVisibility = true
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0;context.allowsImplicitAnimation = false
+            if show && window.toolbar !== toolbar {
+                toolbar.isVisible = toolbarShown();window.toolbar = toolbar;installed(true)
+            } else if !show && window.toolbar === toolbar { window.toolbar = nil;installed(false) }
+            if show,window.toolbar === toolbar,toolbar.isVisible != toolbarShown() { toolbar.isVisible = toolbarShown() }
         }
+        applyingVisibility = false
         for item in toolbar.items { update(item) }
     }
     func retire() {
@@ -191,6 +198,10 @@ struct MergeToolbarState {
         let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSControl)?.tag ?? (sender as? NSToolbarItem)?.tag ?? -1
         guard MergeToolbarCommand.allCases.indices.contains(tag) else { return }
         perform(MergeToolbarCommand.allCases[tag])
+    }
+    func commandState(_ command: MergeToolbarCommand) -> MergeToolbarState? {
+        guard !retired,window?.toolbar === toolbar,visible() else { return nil }
+        return states(command)
     }
     func perform(_ command: MergeToolbarCommand) {
         guard !retired, window?.toolbar === toolbar, visible(), states(command)?.enabled == true else { return }
@@ -323,5 +334,306 @@ extension MergeEditorToolbar {
                 default: break
                 }
             })
+    }
+}
+
+/// Native menu contributions have a focus lifetime independent of the editor.
+/// A previously retained item never becomes live again on a later focus cycle.
+@MainActor final class MergeEditorCommandMenu: NSObject, NSMenuItemValidation {
+    enum Command: Hashable {
+        case toolbar(MergeToolbarCommand), saveAs, enableEdit, useFile, useBothFirst, useBothLast
+        case nextInline, previousInline, nextPane, previousPane, gotoLine, findNext, findPrevious
+        case toolbarVisible, statusVisible, lineDiff, lineNumbers, moved, locator, fishEye
+        case whitespace(MergeWhitespaceComparison), ignoreEndings, ignoreCase, ignoreComments
+        case regex(String?), configureRegex, settings, about
+    }
+    private final class Invocation {
+        let command: Command, epoch: UUID
+        init(_ command: Command, _ epoch: UUID) { self.command = command;self.epoch = epoch }
+    }
+    private weak var window: NSWindow?
+    private weak var mainMenu: NSMenu?
+    private var contributed: [NSMenuItem] = [], createdRoots: [NSMenuItem] = []
+    private var epoch = UUID(), retired = false, queued = false
+    private var renderedFilterNames: [String]?
+    private var observation: AnyCancellable?
+    private var available: () -> Bool
+    private var state: (Command) -> MergeToolbarState?
+    private var action: (Command) -> Void
+    private let conflict: Bool
+    var keyWindow: () -> NSWindow? = { NSApp.keyWindow }
+    init(window: NSWindow, conflict: Bool, changes: ObservableObjectPublisher, available: @escaping () -> Bool,
+         state: @escaping (Command) -> MergeToolbarState?, action: @escaping (Command) -> Void) {
+        self.window = window;self.conflict = conflict;self.available = available;self.state = state;self.action = action
+        super.init()
+        observation = changes.sink { [weak self] _ in
+            guard let self,!self.queued,!self.retired else { return };self.queued = true
+            DispatchQueue.main.async { [weak self] in guard let self else { return };self.queued = false;self.refresh() }
+        }
+    }
+    private var active: Bool { !retired && mainMenu != nil && keyWindow() === window && available() }
+    func install(in main: NSMenu? = nil) {
+        remove()
+        guard !retired,available(),keyWindow() === window,let main = main ?? NSApp.mainMenu else { return }
+        mainMenu = main
+        append([.toolbar(.open),.toolbar(.save),.saveAs,.toolbar(.resolved),.toolbar(.patch),.toolbar(.reload),.enableEdit],to:root("File",in:main))
+        append([.useFile,.toolbar(conflict ? .useTheirs : .useLeft),.toolbar(.useMine),.useBothFirst,.useBothLast,
+                .toolbar(.theirsThenMine),.toolbar(.mineThenTheirs),.toolbar(.find),.findNext,.findPrevious,.gotoLine],to:root("Edit",in:main))
+        append([.toolbar(.nextDifference),.toolbar(.previousDifference),.toolbar(.nextConflict),.toolbar(.previousConflict),.nextInline,.previousInline,.nextPane,.previousPane],to:root("Navigate",in:main))
+        let view = root("View",in:main)
+        append([.toolbarVisible,.statusVisible,.lineDiff,.locator,.fishEye,.toolbar(.wrap),.moved,.toolbar(.inline),.toolbar(.inlineWord),
+                .whitespace(.compare),.whitespace(.ignoreChanges),.whitespace(.ignoreAll),.ignoreEndings,.ignoreCase,.ignoreComments,
+                .toolbar(.whitespace),.lineNumbers,.toolbar(.onePane),.toolbar(.switchSides),.toolbar(.collapsed),.toolbar(.showBase),.settings],to:view)
+        let filters = NSMenuItem(title:"Filter Regexes",action:nil,keyEquivalent:"")
+        filters.submenu = NSMenu(title:"Filter Regexes");view.addItem(filters);contributed.append(filters)
+        rebuildFilters(filters.submenu!)
+        append([.toolbar(.help),.about],to:root("Help",in:main))
+        refresh()
+    }
+    private func root(_ name: String, in main: NSMenu) -> NSMenu {
+        if let found = main.items.first(where:{$0.title == name})?.submenu { return found }
+        let item = NSMenuItem(title:name,action:nil,keyEquivalent:"");item.submenu = NSMenu(title:name)
+        let index = name == "Help" ? main.items.count : (main.items.firstIndex(where:{$0.title == (name == "Navigate" ? "View" : "Window")}) ?? main.items.firstIndex(where:{$0.title == "Window" || $0.title == "Help"}) ?? main.items.count)
+        main.insertItem(item,at:index);createdRoots.append(item);return item.submenu!
+    }
+    private func append(_ commands: [Command], to menu: NSMenu) {
+        let supported = commands.filter { state($0) != nil }
+        guard !supported.isEmpty else { return }
+        if !menu.items.isEmpty { let divider = NSMenuItem.separator();menu.addItem(divider);contributed.append(divider) }
+        for command in supported { let item = makeItem(command);menu.addItem(item);contributed.append(item) }
+    }
+    private func makeItem(_ command: Command) -> NSMenuItem {
+        let item = NSMenuItem(title:title(command),action:#selector(invokeEditorMenu(_:)),keyEquivalent:"")
+        item.target = self;item.representedObject = Invocation(command,epoch);item.image = icon(command)?.image()
+        if let shortcut = shortcut(command) { item.keyEquivalent = shortcut.0;item.keyEquivalentModifierMask = shortcut.1 }
+        update(item);return item
+    }
+    private func rebuildFilters(_ menu: NSMenu) {
+        menu.removeAllItems()
+        let definitions = filterNames();renderedFilterNames = definitions
+        for command in [.regex(nil)] + definitions.map({Command.regex($0)}) + [.configureRegex] { menu.addItem(makeItem(command)) }
+    }
+    var filterNames: () -> [String] = { [] }
+    private func update(_ item: NSMenuItem) {
+        guard let invocation = item.representedObject as? Invocation else { return }
+        let value = state(invocation.command)
+        item.isEnabled = active && invocation.epoch == epoch && value?.enabled == true
+        item.state = value?.checked == true ? .on : .off
+    }
+    func refresh() {
+        guard !retired else { return }
+        if !available() { remove();return }
+        for item in contributed {
+            if item.title == "Filter Regexes",let submenu = item.submenu {
+                if renderedFilterNames != filterNames() { rebuildFilters(submenu) }
+                for child in submenu.items { update(child) }
+            }
+            else { update(item) }
+        }
+    }
+    func remove() {
+        epoch = UUID()
+        func disable(_ item: NSMenuItem) { item.isEnabled = false;for child in item.submenu?.items ?? [] { disable(child) } }
+        for item in contributed { disable(item);item.menu?.removeItem(item) }
+        if let mainMenu { for item in createdRoots where item.submenu?.items.isEmpty == true && mainMenu.items.contains(item) { mainMenu.removeItem(item) } }
+        mainMenu = nil;contributed = [];createdRoots = [];renderedFilterNames = nil
+    }
+    func retire() { remove();retired = true;observation = nil;available = {false};state = {_ in nil};action = {_ in};filterNames = {[]} }
+    func validateMenuItem(_ item: NSMenuItem) -> Bool { update(item);return item.isEnabled }
+    @objc private func invokeEditorMenu(_ item: NSMenuItem) {
+        guard active,let invocation = item.representedObject as? Invocation,invocation.epoch == epoch,state(invocation.command)?.enabled == true else { return }
+        action(invocation.command);refresh()
+    }
+    func performKeyEquivalent(_ event: NSEvent) -> Bool {
+        guard active,(window?.firstResponder as? NSTextView)?.isFieldEditor != true else { return false }
+        let modifiers = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        guard let text = event.charactersIgnoringModifiers?.lowercased() else { return false }
+        for item in contributed where !item.keyEquivalent.isEmpty && item.keyEquivalent.lowercased() == text && item.keyEquivalentModifierMask == modifiers {
+            guard let invocation = item.representedObject as? Invocation,state(invocation.command)?.enabled == true else { return false }
+            invokeEditorMenu(item);return true
+        }
+        return false
+    }
+    private func title(_ command: Command) -> String {
+        switch command {
+        case .toolbar(.help):return "TurtleGitMerge Help"
+        case .toolbar(let value):return value.title
+        case .saveAs:return "Save As…";case .enableEdit:return "Enable editing"
+        case .useFile:return "Use left file";case .useBothFirst:return "Use block from left before right";case .useBothLast:return "Use block from right before left"
+        case .nextInline:return "Next inline difference";case .previousInline:return "Previous inline difference"
+        case .nextPane:return "Next pane";case .previousPane:return "Previous pane";case .gotoLine:return "Go to Line…"
+        case .findNext:return "Find Next";case .findPrevious:return "Find Previous"
+        case .toolbarVisible:return "Toolbar";case .statusVisible:return "Status Bar";case .lineDiff:return "Line diff bar";case .lineNumbers:return "Line numbers"
+        case .moved:return "Moved blocks";case .locator:return "Locator bar";case .fishEye:return "Use fish-eye in locator bar"
+        case .whitespace(let value):return value.title;case .ignoreEndings:return "Ignore line endings";case .ignoreCase:return "Ignore case changes";case .ignoreComments:return "Ignore Comments"
+        case .regex(let name):return name ?? "No Filter";case .configureRegex:return "Configure Filter Regexes…"
+        case .settings:return "Merge Editor Settings…";case .about:return "About TurtleGitMerge…"
+        }
+    }
+    private func icon(_ command: Command) -> MenuIcon? {
+        switch command {
+        case .toolbar(let value):return value.icon
+        case .saveAs:return .mergeSaveAs;case .enableEdit:return .editor;case .useFile:return .mergeUseTheirs
+        case .useBothFirst:return .mergeTheirsThenMine;case .useBothLast:return .mergeMineThenTheirs
+        case .nextInline:return .mergeNextInline;case .previousInline:return .mergePreviousInline
+        case .findNext,.findPrevious,.gotoLine:return .mergeFind
+        case .settings,.configureRegex:return .settings;case .about:return .merge
+        case .moved:return .mergeMoved;case .whitespace,.ignoreComments,.ignoreEndings,.ignoreCase:return .compare
+        default:return nil
+        }
+    }
+    private func shortcut(_ command: Command) -> (String,NSEvent.ModifierFlags)? {
+        func key(_ scalar: Int) -> String { String(UnicodeScalar(scalar)!) }
+        switch command {
+        case .toolbar(.open):return ("o",.command);case .toolbar(.reload):return (key(NSF5FunctionKey),[])
+        case .toolbar(.save):return ("s",.command);case .saveAs:return ("s",[.command,.shift])
+        case .toolbar(.find):return ("f",.command);case .findNext:return ("g",.command);case .findPrevious:return ("g",[.command,.shift])
+        case .gotoLine:return ("g",.control);case .nextPane:return (key(NSF6FunctionKey),[]);case .previousPane:return (key(NSF6FunctionKey),.shift)
+        case .toolbar(.nextDifference):return (key(NSF7FunctionKey),[]);case .toolbar(.previousDifference):return (key(NSF7FunctionKey),.shift)
+        case .toolbar(.nextConflict):return (key(NSF8FunctionKey),[]);case .toolbar(.previousConflict):return (key(NSF8FunctionKey),.shift)
+        case .nextInline:return (key(NSRightArrowFunctionKey),[.control,.option]);case .previousInline:return (key(NSLeftArrowFunctionKey),[.control,.option])
+        case .toolbar(.wrap):return ("p",.control);case .toolbar(.whitespace):return ("t",.control)
+        case .toolbar(.onePane):return ("d",.control);case .toolbar(.switchSides):return ("u",.control)
+        case .toolbar(.collapsed):return ("l",.control);case .enableEdit:return ("e",.control)
+        default:return nil
+        }
+    }
+    static func cycle(window: NSWindow, forward: Bool) {
+        let panes = MergeMarkedWordInterface.panes(in:window.contentView).filter{!$0.isHiddenOrHasHiddenAncestor && $0.window === window}
+        guard panes.count > 1 else { return }
+        let current = panes.firstIndex(where:{$0 === window.firstResponder}) ?? (forward ? -1 : 0)
+        let next = panes[(current + (forward ? 1 : panes.count - 1)) % panes.count]
+        (next as? MergeLineNavigationProviding)?.beginUserNavigation();window.makeFirstResponder(next);next.setAccessibilityFocused(true)
+    }
+}
+
+extension MergeEditorCommandMenu {
+    static func comparison(_ owner: FileComparisonWindowController) -> MergeEditorCommandMenu? {
+        guard let window = owner.window else { return nil }
+        let model = owner.model, bar = owner.editorToolbar
+        let ready = { [weak owner,weak window] in
+            guard let owner,let window else { return false }
+            return owner.window === window && window.attachedSheet == nil && owner.model.contextCommandsAllowed && !owner.model.filtering && owner.editorOpenWorkflow == nil && !owner.preparingReplacement && (window.firstResponder as? NSTextView)?.isFieldEditor != true
+        }
+        let text = { [weak model] in model?.activeFindText }
+        let menu = MergeEditorCommandMenu(window:window,conflict:false,changes:model.objectWillChange,
+            available:{ [weak owner,weak window] in owner?.window === window && owner?.model.imageComparison == nil },
+            state:{ [weak model,weak bar,weak window] command in
+                guard let model else { return nil };let enabled = ready(),document = enabled && model.alignment != nil
+                switch command {
+                case .toolbar(let value):
+                    guard let state = bar?.commandState(value) else { return nil }
+                    return .init(enabled:enabled && state.enabled,checked:state.checked)
+                case .saveAs:return .init(enabled:enabled && model.canSavePaneAs)
+                case .enableEdit:return .init(enabled:document && model.editableBase != nil,checked:model.editingEnabled)
+                case .useFile:return .init(enabled:document && model.oppositeViewCommandsAllowed && model.canTransfer(toBase:false))
+                case .useBothFirst,.useBothLast:return .init(enabled:document && model.oppositeViewCommandsAllowed && model.canTransfer(toBase:false) && model.transferRows != nil)
+                case .nextInline,.previousInline:return .init(enabled:document && model.canNavigateInline(forward:command == .nextInline))
+                case .nextPane,.previousPane:return .init(enabled:document && MergeMarkedWordInterface.panes(in:window?.contentView).filter{!$0.isHiddenOrHasHiddenAncestor}.count > 1)
+                case .gotoLine:return .init(enabled:document && (text() as? (NSTextView & MergeLineNavigationProviding))?.canNavigateToSourceLine == true)
+                case .findNext,.findPrevious:return .init(enabled:document && (text() as? MergeFindProviding)?.mergeFindHighlights.query.isEmpty == false)
+                case .toolbarVisible:return .init(enabled:enabled,checked:model.showToolbar)
+                case .statusVisible:return .init(enabled:enabled,checked:model.showStatusBar)
+                case .lineDiff:return .init(enabled:document && !model.onePaneActive && !model.singleFileMode,checked:model.showLineDiffBar)
+                case .lineNumbers:return .init(enabled:document,checked:model.showLineNumbers)
+                case .moved:return .init(enabled:enabled && model.canChangeMovedBlocks,checked:model.showMovedBlocks)
+                case .locator:return .init(enabled:document,checked:model.locatorPreferences.visible)
+                case .fishEye:return .init(enabled:document && model.locatorPreferences.visible,checked:model.locatorPreferences.fishEye)
+                case .whitespace(let value):return .init(enabled:document,checked:model.comparisonOptions.whitespace == value)
+                case .ignoreEndings:return .init(enabled:document,checked:model.comparisonOptions.ignoreEndings)
+                case .ignoreCase:return .init(enabled:document,checked:model.comparisonOptions.ignoreCase)
+                case .ignoreComments:return .init(enabled:document && model.supportsComments,checked:model.comparisonOptions.ignoreComments)
+                case .regex(let name):return .init(enabled:document && (name == nil || model.regexFilters.contains{$0.name == name}),checked:model.regexFilterName == name)
+                case .configureRegex,.settings,.about:return .init(enabled:enabled)
+                }
+            },action:{ [weak owner,weak model,weak bar,weak window] command in
+                guard let model,ready() else { return }
+                switch command {
+                case .toolbar(let value):bar?.perform(value)
+                case .saveAs:model.saveAs(base:model.activeBase)
+                case .enableEdit:model.editingEnabled.toggle()
+                case .useFile:model.useOtherFile(targetBase:false)
+                case .useBothFirst:model.useOtherBlock(.otherThenCurrent,targetBase:false)
+                case .useBothLast:model.useOtherBlock(.currentThenOther,targetBase:false)
+                case .nextInline,.previousInline:model.navigateInline(forward:command == .nextInline)
+                case .nextPane,.previousPane:if let window { cycle(window:window,forward:command == .nextPane) }
+                case .gotoLine:(text() as? (NSTextView & MergeLineNavigationProviding))?.navigateToSourceLine()
+                case .findNext,.findPrevious:model.find(command == .findNext ? .nextMatch : .previousMatch)
+                case .toolbarVisible:model.setToolbarVisible(!model.showToolbar)
+                case .statusVisible:model.setStatusBarVisible(!model.showStatusBar)
+                case .lineDiff:model.showLineDiffBar.toggle()
+                case .lineNumbers:model.showLineNumbers.toggle()
+                case .moved:model.setMovedBlocks(!model.showMovedBlocks)
+                case .locator:var value = model.locatorPreferences;value.visible.toggle();model.setLocatorPreferences(value)
+                case .fishEye:var value = model.locatorPreferences;value.fishEye.toggle();model.setLocatorPreferences(value)
+                case .whitespace(let value):var options = model.comparisonOptions;options.whitespace = value;model.setComparisonOptions(options)
+                case .ignoreEndings:var value = model.comparisonOptions;value.ignoreEndings.toggle();model.setComparisonOptions(value)
+                case .ignoreCase:var value = model.comparisonOptions;value.ignoreCase.toggle();model.setComparisonOptions(value)
+                case .ignoreComments:var value = model.comparisonOptions;value.ignoreComments.toggle();model.setComparisonOptions(value)
+                case .regex(let name):model.selectRegexFilter(name)
+                case .configureRegex:model.manageRegexFilters()
+                case .settings:SettingsPresentationService.shared.show(globalOnly:true,initialPage:.mergeEditor)
+                case .about:TurtleGitAboutService.shared.show(.merge)
+                }
+                withExtendedLifetime(owner) {}
+            })
+        menu.filterNames = { [weak model] in model?.regexFilters.map(\.name) ?? [] };return menu
+    }
+    static func conflict(_ owner: TextConflictWindowController) -> MergeEditorCommandMenu? {
+        guard let window = owner.window else { return nil }
+        let model = owner.model, bar = owner.editorToolbar
+        let ready = { [weak owner,weak window] in
+            guard let owner,let window else { return false }
+            let model = owner.model
+            return owner.window === window && model.sourceToolsAllowed && owner.editorOpenWorkflow == nil && !owner.preparingReplacement && (window.firstResponder as? NSTextView)?.isFieldEditor != true
+        }
+        let text = { [weak window] in (window as? TextConflictNSWindow)?.activeEditorText }
+        let menu = MergeEditorCommandMenu(window:window,conflict:true,changes:model.objectWillChange,
+            available:{ [weak owner,weak model,weak window] in owner?.window === window && model?.retired == false },
+            state:{ [weak model,weak bar,weak window] command in
+                guard let model else { return nil };let enabled = ready()
+                switch command {
+                case .toolbar(let value):guard let state = bar?.commandState(value) else { return nil };return .init(enabled:enabled && state.enabled,checked:state.checked)
+                case .saveAs:return .init(enabled:enabled)
+                case .enableEdit:return .init(enabled:false,checked:text()?.isEditable == true)
+                case .useFile,.useBothFirst,.useBothLast,.nextInline,.previousInline,.lineDiff,.lineNumbers,.moved:return nil
+                case .nextPane,.previousPane:return .init(enabled:enabled && MergeMarkedWordInterface.panes(in:window?.contentView).filter{!$0.isHiddenOrHasHiddenAncestor}.count > 1)
+                case .gotoLine:return .init(enabled:enabled && (text() as? (NSTextView & MergeLineNavigationProviding))?.canNavigateToSourceLine == true)
+                case .findNext,.findPrevious:return .init(enabled:enabled && (text() as? MergeFindProviding)?.mergeFindHighlights.query.isEmpty == false)
+                case .toolbarVisible:return .init(enabled:enabled,checked:model.showToolbar)
+                case .statusVisible:return .init(enabled:enabled,checked:model.showStatusBar)
+                case .locator:return .init(enabled:enabled,checked:model.locatorPreferences.visible)
+                case .fishEye:return .init(enabled:enabled && model.locatorPreferences.visible,checked:model.locatorPreferences.fishEye)
+                case .whitespace(let value):return .init(enabled:enabled,checked:model.comparisonOptions.whitespace == value)
+                case .ignoreEndings:return .init(enabled:enabled,checked:model.comparisonOptions.ignoreEndings)
+                case .ignoreCase:return .init(enabled:enabled,checked:model.comparisonOptions.ignoreCase)
+                case .ignoreComments:return .init(enabled:enabled && model.supportsComments,checked:model.comparisonOptions.ignoreComments)
+                case .regex(let name):return .init(enabled:enabled && (name == nil || model.regexFilters.contains{$0.name == name}),checked:model.regexFilterName == name)
+                case .configureRegex,.settings,.about:return .init(enabled:enabled)
+                }
+            },action:{ [weak model,weak bar,weak window] command in
+                guard let model,ready() else { return }
+                switch command {
+                case .toolbar(let value):bar?.perform(value)
+                case .saveAs:model.export()
+                case .nextPane,.previousPane:if let window { cycle(window:window,forward:command == .nextPane) }
+                case .gotoLine:(text() as? (NSTextView & MergeLineNavigationProviding))?.navigateToSourceLine()
+                case .findNext,.findPrevious:if let text = text() { MergeFindInterface.perform(command == .findNext ? .nextMatch : .previousMatch,in:text) }
+                case .toolbarVisible:model.setToolbarVisible(!model.showToolbar)
+                case .statusVisible:model.setStatusBarVisible(!model.showStatusBar)
+                case .locator:var value = model.locatorPreferences;value.visible.toggle();model.setLocatorPreferences(value)
+                case .fishEye:var value = model.locatorPreferences;value.fishEye.toggle();model.setLocatorPreferences(value)
+                case .whitespace(let value):var options = model.comparisonOptions;options.whitespace = value;model.setComparisonOptions(options)
+                case .ignoreEndings:var value = model.comparisonOptions;value.ignoreEndings.toggle();model.setComparisonOptions(value)
+                case .ignoreCase:var value = model.comparisonOptions;value.ignoreCase.toggle();model.setComparisonOptions(value)
+                case .ignoreComments:var value = model.comparisonOptions;value.ignoreComments.toggle();model.setComparisonOptions(value)
+                case .regex(let name):model.selectRegexFilter(name)
+                case .configureRegex:model.manageRegexFilters()
+                case .settings:SettingsPresentationService.shared.show(globalOnly:true,initialPage:.mergeEditor)
+                case .about:TurtleGitAboutService.shared.show(.merge)
+                default:break
+                }
+            })
+        menu.filterNames = { [weak model] in model?.regexFilters.map(\.name) ?? [] };return menu
     }
 }

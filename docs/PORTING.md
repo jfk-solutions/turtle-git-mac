@@ -2,6 +2,15 @@
 
 *A macOS fork of TortoiseGit*
 
+The [native Merge command-menu family](MERGE-COMMAND-MENUS-PARITY.md) now connects
+File/Edit/Navigate/View/Help commands, active-pane Save As, F6 pane focus, named
+regex and checked comparison/view choices to the existing owners. Source icons,
+focus epochs and busy/field/sheet/Open/replacement fences retain native clipboard/
+Undo and unrelated app menu items. Nine grouped native runs and the affected
+transition recheck pass; all owned processes are closed. Toolbar fading persists
+with enabled/active diagnostics; full menu-root/physical/signed acceptance remains
+open. [Batch evidence](qa/merge-command-menus-2026-10-16.json).
+
 The [Merge view-controls family](MERGE-VIEW-CONTROLS-PARITY.md) now adds guarded
 left/right input exchange with reversed Save/Save As/reload routing, saved native
 Toolbar/Status Bar visibility and an owned two-pane divider fraction preserved

@@ -14,6 +14,7 @@ private extension FileComparisonDocument {
     weak var model: FileComparisonWindowModel?
     var openMergeDocument: () -> Void = {}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if let owner = delegate as? FileComparisonWindowController,owner.editorCommandMenu?.performKeyEquivalent(event) == true { return true }
         if let imageKeyModel, !imageKeysRetired {
             if attachedSheet == nil, (firstResponder as? NSTextView)?.isFieldEditor != true,
                imageKeyModel.performKey(event, window: self) { return true }
@@ -40,6 +41,7 @@ private extension FileComparisonDocument {
 @MainActor final class FileComparisonWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     let model: FileComparisonWindowModel
     private(set) var editorToolbar: MergeEditorToolbar?
+    private(set) var editorCommandMenu: MergeEditorCommandMenu?
     private(set) var imageToolbar: ImageEditorToolbar?
     var showEditorHelp: () -> Void = { TurtleGitHelp.show(.compare) }
     private let editorFileMenu = MergeEditorFileMenu()
@@ -49,21 +51,19 @@ private extension FileComparisonDocument {
         refreshScopedFileMenu()
     }
     func refreshScopedFileMenu() {
-        editorFileMenu.install(target: self, open: #selector(openMergeDocument(_:)), reload: #selector(reloadEditor(_:)), images: model.imageComparison != nil)
-        removePatchMenu()
-        guard model.imageComparison == nil else { return }
-        guard let menu = NSApplication.shared.mainMenu?.items.first(where: { $0.title == "File" })?.submenu else { return }
-        let item = NSMenuItem(title: "Create patch file", action: #selector(createPatchFile(_:)), keyEquivalent: "")
-        item.target = self; item.image = MenuIcon.patch.image(); menu.addItem(item)
-        patchMenu = menu; patchMenuItem = item
+        editorFileMenu.remove();removePatchMenu()
+        if model.imageComparison != nil {
+            editorCommandMenu?.remove()
+            editorFileMenu.install(target:self,open:#selector(openMergeDocument(_:)),reload:#selector(reloadEditor(_:)),images:true)
+        } else { editorCommandMenu?.install() }
     }
-    func windowDidResignKey(_ notification: Notification) { removePatchMenu(); editorFileMenu.remove() }
+    func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove(); removePatchMenu(); editorFileMenu.remove() }
     private func removePatchMenu() {
         if let item = patchMenuItem, let menu = patchMenu, menu.items.contains(item) { menu.removeItem(item) }
         patchMenuItem = nil; patchMenu = nil
     }
     func detachForReplacement() {
-        imageToolbar?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu(); model.retireImageLoader(); model.resetHistory(); model.window = nil
+        imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu(); model.retireImageLoader(); model.resetHistory(); model.window = nil
     }
     @objc func createPatchFile(_ sender: Any?) { model.createUnifiedPatch() }
     @objc func reloadEditor(_ sender: Any?) {
@@ -152,11 +152,15 @@ private extension FileComparisonDocument {
     }
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow, closing === window else { return }
-        imageToolbar?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu()
+        imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu()
         if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.stopAllPlayback(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
         editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retireImageLoader(); model.resetHistory(); onClosed()
     }
-    func installEditorToolbar() { editorToolbar?.retire(); editorToolbar = MergeEditorToolbar.comparison(self) }
+    func installEditorToolbar() {
+        editorCommandMenu?.retire();editorToolbar?.retire();editorToolbar = MergeEditorToolbar.comparison(self)
+        editorCommandMenu = MergeEditorCommandMenu.comparison(self)
+        if window?.isKeyWindow == true { editorCommandMenu?.install() }
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class FileComparisonWindowModel: ObservableObject {
