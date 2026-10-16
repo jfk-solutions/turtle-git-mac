@@ -1565,3 +1565,15 @@ operation/sheet/retirement gates; replaced frame/scale/layout retires a drag.
 See [image comparison parity](IMAGE-COMPARISON-PARITY.md) and
 [batch evidence](qa/image-pointer-2026-10-16.json). Physical and signed acceptance
 and full application parity remain open.
+
+
+### Image drop and information family — October 16, 2026
+
+Per-pane native file-URL drops now follow the source first-file preview rule,
+including unsupported image content. Owned asynchronous reads retain scoped
+grants and Quit accounting, fence late replies and disable competing actions.
+Conflict drops preserve the source's original Select bytes and explain the
+preview distinction. Shared metadata/tooltips now include zoom and both overlay
+inputs. See [image comparison parity](IMAGE-COMPARISON-PARITY.md) and
+[batch evidence](qa/image-drops-2026-10-16.json). Physical Finder drops and signed
+sandbox/App Store acceptance remain open.

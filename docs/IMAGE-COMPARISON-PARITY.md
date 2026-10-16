@@ -256,3 +256,47 @@ See [pointer batch evidence](qa/image-pointer-2026-10-16.json) for native scope,
 retained frame/toolbar/conflict checks and validation outcomes. No complete
 physical trackpad/mouse/VoiceOver, Windows cursor geometry, minimum-OS or signed
 Finder/App Store acceptance is established by constructed receiver events.
+
+
+## Dropped image inputs and information — October 16, 2026
+
+`PicWindow.cpp::WM_DROPFILES` takes only the first dropped file, calls SetPic on
+the addressed pane and fits it. Native image canvases now accept ordered file-URL
+pasteboard drops using that rule. They accept arbitrary extensions and an
+undecodable regular file as a blank preview with its original byte count; a file
+read/permission error retains the previous preview and shows the diagnostic.
+The other comparison pane remains unchanged. Images, frame controls, metadata,
+path tooltip and original frame decoder follow the replacement. An ordinary
+SwiftUI reconstruction keeps the preview; explicit Reload or a new Open input
+restores the underlying original comparison inputs. That Reload behavior is a
+native adaptation; the pinned image tool has no matching Reload command.
+
+Drop preparation acquires its file lease before a detached read. App Store
+configuration requires an active scoped permission for that exact input; a
+missing permission reports the existing select-again error. No filesystem read
+is performed while merely hovering. The owning model serializes reads, disables
+competing commands/frame input, stops playback and fences publication by request
+identity/cancellation/owner state. Close retires the request. Quit accounting and
+the captured file lease remain until the actual reader returns, including a
+non-cooperative reader after Close. A loaded preview retains its permission until
+replacement, Reload or owner retirement. No file is written by a preview drop.
+
+For conflict selection, MainWindow's SELECTBUTTON_ID copies its original
+selectionPaths entry; PicWindow's SetPic does not rewrite that map. The native
+conflict drop therefore changes only the preview, with a visible explanation
+that Select still uses the original conflict revision. Busy preview reads block
+Select and other panes' competing reads. The existing captured working-file/index
+validation, original bytes and owned mark-resolved confirmation remain in use.
+This also distinguishes an empty original Base from a subsequently dropped preview.
+
+BuildInfoString's size, dimensions, resolution, depth and zoom are shared by
+native information panels/tooltips. Overlay shows both inputs' metadata; conflict
+panes now include available DPI, zoom, frame and cursor-hotspot information too.
+Original caption/tooltips use the dropped path while the underlying comparison
+and conflict document remain immutable.
+
+[Drop/information evidence](qa/image-drops-2026-10-16.json) records grouped native
+first-file/permission/lifetime/Reload/conflict selection checks and retained
+pointer/frame/Open behavior. Actual Finder drag gestures and sandbox-issued drop
+grants, native error/panel/VoiceOver layout, all provider formats and signed
+App Store acceptance remain open. No full image tool/application parity is claimed.

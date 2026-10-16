@@ -470,7 +470,14 @@ Shift-drag leaves a linked peer in place. In overlay mode, Shift-drag moves only
 the first image and Ctrl-drag only the second. Ctrl-Shift-wheel adjusts blend
 alpha. Ordinary trackpad scrolling and Shift-wheel use native scrolling.
 
+Drop a local file onto an image pane to preview it there. If several files are
+dropped, only the first is used. Reload restores the original comparison inputs.
+Image Info and the pane-title tooltip show the current preview’s metadata.
+
 ### Image conflict selection
+
+A file dropped onto a conflict pane changes its preview. **Select still uses the
+original conflict revision**, as the pane’s preview notice explains.
 
 Image conflicts use the filename extension and your Merge Tool association.
 Each Mine/Base/Theirs pane has Select, even if that side cannot be decoded as an

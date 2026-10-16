@@ -68,6 +68,12 @@ import TurtleGitCore
             }
             window.alphaValue=0;window.orderOut(nil);window.orderFront(nil)
         }
+        let preview=root.appendingPathComponent("conflict-preview.png");try mine.write(to:preview)
+        let pane=mixed.model.panes[.theirs]!
+        try require(pane.dropFile(preview,base:true),"Conflict pane refused preview drop")
+        try require(!mixed.model.canSelect(.theirs),"Select raced a preview read")
+        try await wait {!pane.receivingDrop && pane.currentImage(base:true) != nil}
+        try require(mixed.model.document.contents[.theirs]==theirs && pane.droppedFiles[true]?.bytes==mine,"Preview changed captured conflict selection bytes")
         try await press(.theirs,mixed)
         try require(try Data(contentsOf:file)==theirs && Data(contentsOf:repo.root.appendingPathComponent(".git/index"))==index,"Raw side selection changed bytes or staged before confirmation")
         try require(ImageConflictWindowModel.activeOperations==1 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Owned question lost Quit lifetime")

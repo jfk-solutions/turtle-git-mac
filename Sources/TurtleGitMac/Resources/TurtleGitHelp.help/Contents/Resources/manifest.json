@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "79d132d6f183daa798fce5383b7180a2f6739264505defa3fda00233c2321d1c",
+    "Contents/Info.plist": "43b114b78e3d7963fe8e408eb3aefb36b647c8588c9bddc7eba2e2b183ec73ae",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "bffe41983454087ae3e242c659e7cfd6ff5c1d6a262f5246d5cdd772d84f2c4b",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "ea62e9255277183fb721ceb36a97a21b113f94329e42eef862414b541f4853fd",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
@@ -9,7 +9,7 @@
     "Contents/Resources/en.lproj/CHERRY-PICK.html": "69424c956849c3686861e28c3a1c8d034ded56dba04c84841fc93528b67ee1af",
     "Contents/Resources/en.lproj/COMMIT-CHECKBOX-INDEX.html": "871565da3ad60a404ddb968363c9783366aedfe681563068df4eb1d53b704bca",
     "Contents/Resources/en.lproj/CONFLICT-IDENTITIES.html": "fceecf83506092258f348b48a3a36d150fe8fe34ee26f36e5cf84d4d96b405c7",
-    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "e1f4dfe127e7c069a36c6dee492a694c9d13f6876ea5fb7afc55d38f6da04f6e",
+    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "3dfa09c7650354a0fe13cd084cf895bb6ea1509b66ecb6331519821ffa76f579",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "4e4dbf998996c02d74a4499f237017f8a14d522ba08ef3a05779f8fade1440d8",
     "Contents/Resources/en.lproj/GETTING-STARTED.html": "3f5b8800027034ed649c7c48a6d9bfe46910539ef2e99064e567ad64b06b0edc",
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "a34926c6954ced39075b069b48ee2804e8e63bb7b056a5c4158435f97dcf4a47",
@@ -59,7 +59,7 @@
     "docs/CHERRY-PICK.md": "ac4553c2aa55314d8be0f2b333d5a094d4c67b3c67f6613812a8c395df8f2380",
     "docs/COMMIT-CHECKBOX-INDEX.md": "59ae109cbde9c4c77a3ffdff3485b1b3ab20c0524cf42cbcc5a3f25303d4681e",
     "docs/CONFLICT-IDENTITIES.md": "5a0f6ac729c78df24e4ed8a6194e2cd9053d2289438b75519f1f21e908ec2213",
-    "docs/DIALOG-GUIDE.md": "768f678cf4a7a4a4c14b1afba9682d1c3ff8943ff44d124b482a005680323657",
+    "docs/DIALOG-GUIDE.md": "290d08ff95b24758986b65560a996aaecdd443ad02ffb0917e97e6c71b647fbe",
     "docs/EXCEL-COMPARISON.md": "7e3f3a627b2dc6bb807bee992ae0d76830107dea9592c3a02668fc570227ab36",
     "docs/GETTING-STARTED.md": "60e220f777e25f6ca2cd533ea03d061690d98b0f498a399406cf1efddcc45421",
     "docs/GIT-AUTHENTICATION.md": "34a58ad4649d7d7355712907441f35f37d3b9bd29c898002a58a8563361154bb",

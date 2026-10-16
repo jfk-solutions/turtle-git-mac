@@ -371,7 +371,12 @@ Merge Open/source comparisons stay in the Merge editor.</p>
 Shift-drag leaves a linked peer in place. In overlay mode, Shift-drag moves only
 the first image and Ctrl-drag only the second. Ctrl-Shift-wheel adjusts blend
 alpha. Ordinary trackpad scrolling and Shift-wheel use native scrolling.</p>
+<p>Drop a local file onto an image pane to preview it there. If several files are
+dropped, only the first is used. Reload restores the original comparison inputs.
+Image Info and the pane-title tooltip show the current preview’s metadata.</p>
 <h3 id="image-conflict-selection">Image conflict selection</h3>
+<p>A file dropped onto a conflict pane changes its preview. <strong>Select still uses the
+original conflict revision</strong>, as the pane’s preview notice explains.</p>
 <p>Image conflicts use the filename extension and your Merge Tool association.
 Each Mine/Base/Theirs pane has Select, even if that side cannot be decoded as an
 image. Select copies its captured original bytes; the diagnostic distinguishes

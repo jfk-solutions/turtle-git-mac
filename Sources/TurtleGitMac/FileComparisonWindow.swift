@@ -154,7 +154,7 @@ private extension FileComparisonDocument {
         guard let closing = notification.object as? NSWindow, closing === window else { return }
         MergeLineRuler.retire(in:window?.contentView)
         imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu()
-        if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.stopAllPlayback(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
+        if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.retire(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
         editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retireImageLoader(); model.resetHistory(); onClosed()
     }
     func installEditorToolbar() {
@@ -1127,7 +1127,7 @@ private extension FileComparisonDocument {
         onExportStateChanged = {}
         retired = true; movedBlockRecords = []; retainedMoveLinks = nil; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
         imageLoader?.retire(); imageLoader = nil
-        retainedImageModel?.stopAllPlayback(); retainedImageModel?.presentation.retire()
+        retainedImageModel?.retire(); retainedImageModel?.presentation.retire()
     }
     func chooseImageFiles() {
         guard !retired, !busy, !confirmingQuit, imageLoader == nil, let window, window.attachedSheet == nil else { return }
@@ -1273,6 +1273,7 @@ private extension FileComparisonDocument {
                 // Source dispatch chooses the viewer before decoding. Failed/empty
                 // image sides stay in IDiff; Merge stays Merge even for PNG bytes.
                 imageComparison = viewerSelection == .image ? ImageComparisonDocument(base: ComparisonImage(bytes: adapted.base.bytes), destination: ComparisonImage(bytes: adapted.destination.bytes)) : nil
+                if let images = imageComparison {retainedImageModel?.configureImages(base:images.base,destination:images.destination,force:true)}
                 window?.title = "\(standaloneImages == nil ? (sidesReversed ? adapted.destination.path : path) : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
                 drafts = imageComparison == nil ? FileComparisonDrafts(adapted) : nil
                 activeBase = drafts?.preferredBase ?? false

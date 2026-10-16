@@ -12,6 +12,57 @@ import TurtleGitCore
     }
     @Published var nativeToolbarInstalled = false
     var commandsAllowed: () -> Bool = { true }
+    static private(set) var activeFileReads = 0
+    @Published private(set) var receivingDrop = false
+    @Published private(set) var droppedFiles: [Bool:ComparisonFileContent] = [:]
+    @Published private(set) var dropError: String?
+    private var configuredInputs: [Bool:UUID] = [:]
+    private var dropPermissions: [Bool:RepositoryAccessLease] = [:]
+    private var dropCancellation: OperationCancellation?
+    private var dropGeneration = UUID()
+    private var retired = false
+    var requiresDropScope = GitRuntime.isAppStoreBuild
+    var makeDropPermission: (URL) -> RepositoryAccessLease = { RepositoryAccessLease(url:$0) }
+    var readDroppedFile: (URL,OperationCancellation) async throws -> ComparisonFileContent = { url,token in
+        try await Task.detached {
+            try token.check()
+            let value = try ImageFileComparison(base:url,destination:nil).read().base
+            try token.check();return value
+        }.value
+    }
+    var interactionAllowed: Bool { !retired && !receivingDrop && commandsAllowed() }
+    @discardableResult func dropFile(_ url:URL,base:Bool) -> Bool {
+        guard interactionAllowed,url.isFileURL,!url.path.contains("\0") else { return false }
+        let permission = makeDropPermission(url)
+        guard !requiresDropScope || permission.permits(url) else {
+            dropError = ImageFileComparisonFailure.filePermissionRequired.localizedDescription;return false
+        }
+        let token = OperationCancellation(),generation = UUID(),read = readDroppedFile
+        dropCancellation = token;dropGeneration = generation;receivingDrop = true;dropError = nil;stopAllPlayback()
+        Self.activeFileReads += 1
+        Task { [self] in
+            defer {
+                Self.activeFileReads -= 1;withExtendedLifetime(permission) {}
+                if dropGeneration == generation {dropCancellation = nil;receivingDrop = false}
+            }
+            do {
+                let content = try await read(url,token);try token.check()
+                guard !retired,dropGeneration == generation,commandsAllowed() else { return }
+                stopAllPlayback();imageOffsets = [:]
+                droppedFiles[base] = content;dropPermissions[base] = permission
+                sources[base] = ComparisonImage(bytes:content.bytes);currentImages[base] = sources[base]
+                frameErrors[base] = nil
+                sizing.replacePixels(base:currentImages[true]?.size ?? .zero,destination:currentImages[false]?.size ?? .zero)
+                fit = true
+            } catch { if !retired,dropGeneration == generation,!token.isCancelled {dropError = error.localizedDescription} }
+        }
+        return true
+    }
+    func cancelDrop() {
+        dropCancellation?.cancel();dropCancellation = nil;dropGeneration = UUID();receivingDrop = false
+    }
+    func retire() { guard !retired else {return};retired = true;cancelDrop();stopAllPlayback();dropPermissions = [:] }
+
     var reloadImages: () -> Void = {}
     @Published var overlay = false { didSet { if oldValue != overlay { imageOffsets = [:] }; if overlay { stopAllPlayback(); linked = true; alpha = 0.5 } } }
     @Published var blendAlpha = true
@@ -29,8 +80,22 @@ import TurtleGitCore
     private var playback: [Bool: Task<Void,Never>] = [:]
     private var playbackGeneration: [Bool: UUID] = [:]
     func currentImage(base: Bool) -> ComparisonImage? { currentImages[base] }
-    func configureImages(base: ComparisonImage?, destination: ComparisonImage?) {
-        guard sources[true]?.id != base?.id || sources[false]?.id != destination?.id else { return }
+    func information(base:Bool,bytes:Int) -> [String] {
+        var lines = ["File size: \(droppedFiles[base]?.bytes.count ?? bytes) bytes"]
+        if let image = currentImages[base] {
+            lines += ["Width: \(image.pixels.width) pixels","Height: \(image.pixels.height) pixels"]
+            if let x = image.dpiX,let y = image.dpiY {lines.append(String(format:"Resolution: %.1f × %.1f dpi",x,y))}
+            lines += ["Depth: \(image.pixels.bitsPerPixel) bits","Zoom: \(displaySizing.pane(base:base).percent)%"]
+            if image.frameCount > 1 {lines.append("Image \(image.frameIndex + 1) of \(image.frameCount)")}
+            if let hotspot = image.cursorHotspot {lines.append("Cursor hotspot: \(Int(hotspot.x)), \(Int(hotspot.y))")}
+        }
+        return lines
+    }
+
+    func configureImages(base: ComparisonImage?, destination: ComparisonImage?, force:Bool = false) {
+        guard !retired,force || configuredInputs[true] != base?.id || configuredInputs[false] != destination?.id else { return }
+        configuredInputs = [:];configuredInputs[true] = base?.id;configuredInputs[false] = destination?.id
+        cancelDrop();droppedFiles = [:];dropPermissions = [:];dropError = nil
         stopAllPlayback(); frameErrors = [:]; imageOffsets = [:]
         sources = [:]; sources[true] = base; sources[false] = destination; currentImages = sources
         configure(base: base?.size ?? .zero, destination: destination?.size ?? .zero)
@@ -47,12 +112,14 @@ import TurtleGitCore
         return true
     }
     func stepImage(base: Bool, forward: Bool) {
+        guard interactionAllowed else {return}
         for side in linked ? [base,!base] : [base] {
             guard let image = currentImages[side] else { continue }
             setImage(ImageComparisonFrames.next(image.frameIndex, count: image.frameCount, forward: forward), base: side)
         }
     }
     func togglePlayback(base: Bool) {
+        guard interactionAllowed else {return}
         let start = !playing.contains(base)
         for side in linked ? [base,!base] : [base] {
             if start { startPlayback(base: side) } else { stopPlayback(base: side) }
@@ -118,7 +185,7 @@ import TurtleGitCore
     func toggleHeights() { freezeFit(); sizing.toggleHeights() }
     func toggleAlpha() { alpha = ImageComparisonBlend.toggled(alpha) }
     func alphaWheel(_ event: NSEvent) -> Bool {
-        guard commandsAllowed(), overlay, event.modifierFlags.contains([.control, .shift]) else { return false }
+        guard interactionAllowed, overlay, event.modifierFlags.contains([.control, .shift]) else { return false }
         // AppKit maps a Shift-modified vertical wheel into the horizontal axis.
         let delta = event.scrollingDeltaY != 0 ? event.scrollingDeltaY : event.scrollingDeltaX
         let steps = event.hasPreciseScrollingDeltas ? delta / 120 : delta
@@ -127,7 +194,7 @@ import TurtleGitCore
     /// CPicWindow::OnMouseWheel: alpha, horizontal scrolling, then scale.
     /// Ordinary scrolling keeps AppKit's trackpad/momentum behavior.
     func pointerWheel(_ event: NSEvent, scroll: ImageComparisonScrollView, base: Bool) -> Bool {
-        guard commandsAllowed(), scroll.window?.attachedSheet == nil else { return true }
+        guard interactionAllowed, scroll.window?.attachedSheet == nil else { return true }
         if alphaWheel(event) { return true }
         let flags = event.modifierFlags.intersection([.control,.shift,.option,.command])
         guard flags == .control else { return false }
@@ -171,7 +238,7 @@ import TurtleGitCore
     }
     func pan(_ scroll:ImageComparisonScrollView,base:Bool,translation:CGPoint,start:CGPoint,
              offsets:[Bool:CGPoint],modifiers:NSEvent.ModifierFlags) {
-        guard commandsAllowed(),scroll.window?.attachedSheet == nil else { return }
+        guard interactionAllowed,scroll.window?.attachedSheet == nil else { return }
         if overlay,modifiers.contains(.control) || modifiers.contains(.shift) {
             let side = !modifiers.contains(.control)
             let initial = offsets[side] ?? .zero
@@ -190,7 +257,7 @@ import TurtleGitCore
         move(scroll,to:proposed,synchronize:linked && !modifiers.contains(.shift))
     }
     func commandState(_ command: ImageEditorCommand) -> ImageEditorCommandState {
-        let allowed = commandsAllowed()
+        let allowed = interactionAllowed
         switch command {
         case .blend: return .init(enabled: allowed && overlay, checked: overlay && blendAlpha)
         case .link: return .init(enabled: allowed && !overlay, checked: linked)
@@ -215,7 +282,7 @@ import TurtleGitCore
         }
     }
     func performKey(_ event: NSEvent, window: NSWindow) -> Bool {
-        guard commandsAllowed() else { return false }
+        guard interactionAllowed else { return false }
         if let command = ImageEditorCommand.key(event) { perform(command); return true }
         let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
         guard flags.isEmpty || flags == .shift else { return false }
@@ -253,25 +320,27 @@ import TurtleGitCore
     }
     private func pane(base: Bool) -> some View {
         let image = model.currentImage(base: base)
-        let content = base ? document.base : document.destination
+        let content = model.droppedFiles[base] ?? (base ? document.base : document.destination)
+        let heading = (content.path.isEmpty ? (base ? "Left image":"Right image"):content.path) + " — " + content.revision.label
+        let tooltip = heading + "\n" + model.information(base:base,bytes:content.bytes.count).joined(separator:"\n") + (model.overlay ? "\n\n" + (model.droppedFiles[false]?.path ?? document.destination.path) + "\n" + model.information(base:false,bytes:document.destination.bytes.count).joined(separator:"\n"):"")
         return VStack(alignment: .leading, spacing: 0) {
             Text((content.path.isEmpty ? (base ? "Left image" : "Right image") : content.path) + " — " + content.revision.label).font(.caption).lineLimit(1).truncationMode(.middle)
-                .help((content.path.isEmpty ? (base ? "Left image" : "Right image") : content.path) + " — " + content.revision.label)
+                .help(tooltip)
                 .padding(7).frame(maxWidth: .infinity, alignment: .leading).background(Color(nsColor: .controlBackgroundColor))
             ImageFrameControls(model: model, base: base, label: base ? "Base" : "Second image")
+            if model.receivingDrop { ProgressView("Loading dropped image…").controlSize(.small).padding(4) }
+            if let error = model.dropError {Text(error).font(.caption).foregroundStyle(.red).padding(4)}
             ZStack(alignment: .topLeading) {
                 ImageComparisonScroll(model: model, image: image, second: model.overlay ? model.currentImage(base: false) : nil, base: base)
                 if image == nil && !model.overlay { Text(content.mode == nil ? "No image on this side" : "Unable to decode image").foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
-                if model.showInfo, let image {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("File size: \(content.bytes.count) bytes")
-                        Text("Width: \(image.pixels.width) pixels")
-                        Text("Height: \(image.pixels.height) pixels")
-                        if let x = image.dpiX, let y = image.dpiY { Text(String(format: "Resolution: %.1f × %.1f dpi", x, y)) }
-                        Text("Depth: \(image.pixels.bitsPerPixel) bits")
-                        if image.frameCount > 1 { Text("Image \(image.frameIndex + 1) of \(image.frameCount)") }
-                        if let hotspot = image.cursorHotspot { Text("Cursor hotspot: \(Int(hotspot.x)), \(Int(hotspot.y))") }
-                    }.font(.caption).padding(8).background(.regularMaterial).padding(12).allowsHitTesting(false)
+                if model.showInfo {
+                    VStack(alignment:.leading,spacing:8) {
+                        ImageComparisonInformation(model:model,base:base,bytes:content.bytes.count)
+                        if model.overlay {
+                            Divider()
+                            ImageComparisonInformation(model:model,base:false,bytes:document.destination.bytes.count)
+                        }
+                    }.padding(8).background(.regularMaterial).padding(12).allowsHitTesting(false)
                 }
             }
         }
@@ -330,7 +399,7 @@ import TurtleGitCore
             else { HSplitView { pane(base: true); pane(base: false) } }
             Divider()
             HStack { Text(model.fit ? "Fit in window" : "Zoom: \(Int(model.zoom * 100))%"); Spacer(); Text("Read-only image comparison") }.font(.caption).padding(8)
-        }.background(Color(nsColor: .windowBackgroundColor)).disabled(!model.commandsAllowed())
+        }.background(Color(nsColor: .windowBackgroundColor)).disabled(!model.interactionAllowed)
         .background(ImageComparisonKeyBridge(model: model).frame(width: 0,height: 0))
         .onDisappear { model.stopAllPlayback() }
     }
@@ -361,7 +430,7 @@ struct ImageComparisonScroll: NSViewRepresentable {
     let base: Bool
     func makeCoordinator() -> Coordinator { Coordinator(model: model, base: base) }
     func makeNSView(context: Context) -> ImageComparisonScrollView {
-        let scroll = ImageComparisonScrollView()
+        let scroll = ImageComparisonScrollView();scroll.registerForDraggedTypes([.fileURL])
         scroll.hasHorizontalScroller = true; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
         let canvas = ImageComparisonCanvas(); canvas.setAccessibilityRole(.image); canvas.setAccessibilityLabel(base ? "Base image" : "Destination image")
         scroll.documentView = canvas
@@ -382,7 +451,8 @@ struct ImageComparisonScroll: NSViewRepresentable {
         scroll.alphaWheel = { [weak model,weak scroll] event in
             guard let model,let scroll else { return true };return model.pointerWheel(event,scroll:scroll,base:side)
         }
-        scroll.inputAllowed = { [weak model,weak scroll] in model?.commandsAllowed() == true && scroll?.window?.attachedSheet == nil }
+        scroll.receiveFile = { [weak model] url in model?.dropFile(url,base:side) ?? false }
+        scroll.inputAllowed = { [weak model,weak scroll] in model?.interactionAllowed == true && scroll?.window?.attachedSheet == nil }
         scroll.offsets = { [weak model] in model?.imageOffsets ?? [:] }
         scroll.pan = { [weak model,weak scroll] translation,start,offsets,modifiers in
             guard let model,let scroll else { return };model.pan(scroll,base:side,translation:translation,start:start,offsets:offsets,modifiers:modifiers)
@@ -413,11 +483,27 @@ final class ImageComparisonScrollView: NSScrollView {
     var overlay = false
     var blendAlpha = true
     var alphaWheel: ((NSEvent) -> Bool)?
+    var receiveFile: ((URL) -> Bool)?
+    func firstDroppedFile(_ pasteboard:NSPasteboard) -> URL? {
+        (pasteboard.readObjects(forClasses:[NSURL.self],options:[.urlReadingFileURLsOnly:true]) as? [URL])?.first
+    }
+    func validateFileDrop(_ pasteboard:NSPasteboard) -> Bool {
+        inputAllowed() && receiveFile != nil && firstDroppedFile(pasteboard) != nil
+    }
+    @discardableResult func receiveFileDrop(_ pasteboard:NSPasteboard) -> Bool {
+        guard validateFileDrop(pasteboard),let url = firstDroppedFile(pasteboard) else {return false}
+        return receiveFile?(url) == true
+    }
+    override func draggingEntered(_ sender:NSDraggingInfo) -> NSDragOperation {validateFileDrop(sender.draggingPasteboard) ? .copy:[]}
+    override func draggingUpdated(_ sender:NSDraggingInfo) -> NSDragOperation {draggingEntered(sender)}
+    override func prepareForDragOperation(_ sender:NSDraggingInfo) -> Bool {validateFileDrop(sender.draggingPasteboard)}
+    override func performDragOperation(_ sender:NSDraggingInfo) -> Bool {receiveFileDrop(sender.draggingPasteboard)}
     var inputAllowed: () -> Bool = { true }
     var offsets: () -> [Bool:CGPoint] = { [:] }
     var pan: ((CGPoint,CGPoint,[Bool:CGPoint],NSEvent.ModifierFlags) -> Void)?
     func retireInput() {
         (documentView as? ImageComparisonCanvas)?.cancelDrag()
+        unregisterDraggedTypes();receiveFile = nil
         inputAllowed = { false };alphaWheel = { _ in true };pan = nil;offsets = { [:] }
         recordViewport = nil;displayedSizes = nil
     }
@@ -592,7 +678,7 @@ struct ImageFrameControls: View {
                     Spacer(); Text("\(image.frameIndex + 1) of \(image.frameCount)").font(.caption).accessibilityLabel(label + " image \(image.frameIndex + 1) of \(image.frameCount)"); Spacer()
                 }
                 if let error = model.frameErrors[base] { Text(error).font(.caption).foregroundStyle(.red) }
-            }.padding(.horizontal,7).padding(.vertical,3).background(Color(nsColor: .controlBackgroundColor))
+            }.padding(.horizontal,7).padding(.vertical,3).background(Color(nsColor: .controlBackgroundColor)).disabled(!model.interactionAllowed)
         }
     }
 }
@@ -614,5 +700,16 @@ private struct ImageFrameButton: NSViewRepresentable {
         var action: () -> Void
         init(action: @escaping () -> Void) { self.action = action }
         @objc func press(_ sender: NSButton) { action() }
+    }
+}
+
+struct ImageComparisonInformation: View {
+    @ObservedObject var model:ImageComparisonViewModel
+    let base:Bool
+    let bytes:Int
+    var body:some View {
+        VStack(alignment:.leading,spacing:3) {
+            ForEach(Array(model.information(base:base,bytes:bytes).enumerated()),id:\.offset) { _,line in Text(line) }
+        }.font(.caption)
     }
 }

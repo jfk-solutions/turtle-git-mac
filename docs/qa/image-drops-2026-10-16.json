@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "79d72ef159d5e2c2d28b3d02da994ebbeafdef9d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "PicWindow.cpp WM_DROPFILES: first file, addressed SetPic and FitImageInWindow",
+    "PicWindow.cpp SetPic and BuildInfoString",
+    "MainWindow.cpp SELECTBUTTON_ID original selectionPaths map"
+  ],
+  "implementation": [
+    "Native file-URL pasteboard drag registration, validation and first-file perform path",
+    "Captured file lease before detached read; strict App Store scope check, ownership/cancellation and independent Quit lifetime",
+    "Unsupported image content accepted as blank preview; failed read retains prior image",
+    "Target-only current image/decoder/frame/size/path and shared metadata; both overlay inputs, DPI/zoom/frame/hotspot fields in conflict view",
+    "Unchanged SwiftUI input reconstruction retains preview; explicit Reload restores original inputs including all-empty/unsupported inputs using forced configuration",
+    "Conflict preview does not alter original selection bytes; visible Select-original explanation, pane/toolbar/selection gates",
+    "Owner Close retires requests and callbacks; real read/grant/counter remain until reader returns"
+  ],
+  "core": {
+    "run": false,
+    "reason": "Native input/presentation/ownership changes; Core APIs and Git mutation logic unchanged"
+  },
+  "debug": {
+    "log": "build/qa/image-drops-build-2026-10-16.log",
+    "exit": 0,
+    "exit_zero_no_output_diagnostics": 1
+  },
+  "native": {
+    "runs": [
+      {
+        "log": "build/qa/image-drops-native-2026-10-16.log",
+        "receivers_reaped": [
+          60002
+        ],
+        "final_case_pass_markers": 0
+      },
+      {
+        "log": "build/qa/image-drops-native-final-2026-10-16.log",
+        "receivers_reaped": [
+          60056,
+          60057,
+          60058,
+          60085,
+          60146,
+          60357,
+          60358,
+          60363,
+          60380,
+          60436
+        ],
+        "final_case_pass_markers": 10
+      }
+    ],
+    "final_exit": 0,
+    "distinct_case_engine_passes": 10,
+    "cases": [
+      "drop",
+      "pointer",
+      "open",
+      "frames",
+      "conflict-owned"
+    ],
+    "engines": [
+      "system Git",
+      "bundled universal Git arm64 execution"
+    ],
+    "failed_receivers": 1,
+    "failure_repair": "First drop fixture assumed a real dropped URL would have no scope and asserted denial. The actual startAccessing result was not a deterministic denial. Injected a provider that explicitly refuses scope; no application edit/rebuild was needed. All five previously-unpassed cases then passed with both Git engines.",
+    "warnings": "Unsigned native drop cases logged sandbox_extension_consume Operation not permitted diagnostics; fake-provider lifetime/explicit-denial assertions and ordinary readable-file paths passed. These logs do not establish signed sandbox grant behavior.",
+    "owned_receivers_reaped_and_independently_absent": [
+      60002,
+      60056,
+      60057,
+      60058,
+      60085,
+      60146,
+      60357,
+      60358,
+      60363,
+      60380,
+      60436
+    ],
+    "actual_new_checks": [
+      "Private native pasteboard with unsupported first file plus valid second file: original first content retained; peer unchanged",
+      "Native registration and actual shared performFileDrop receiver path, Unicode/newline filename, metadata and fit",
+      "Permission retained through preview and released by real Reload; denied-scope and directory-read rejection preserve preview",
+      "Original-input reconstruction does not reset drops; Reload does",
+      "Suspended non-cooperative read retains Quit counter and grant after forced close, rejects late publication and retired native drop",
+      "Real conflict valid-image preview over originally undecodable incoming side; Select still writes exact original incoming bytes and leaves index unmerged on No",
+      "Raw original comparison and all input file bytes remain unchanged by preview work"
+    ],
+    "retained_scope": "Existing pointer anchoring/linked and overlay panning, Open/scope/sheet paths, GIF/TIFF/ICO frame pixels/playback and real conflict owned Yes/No/close/cancellation",
+    "activation": "Hidden native windows; no forced application activation or global input posting."
+  },
+  "documentation": {
+    "help_log": "build/qa/image-drops-help-2026-10-16.log",
+    "help_files": 50,
+    "help_bytes": 1965218,
+    "source_built_equal": true,
+    "captures": "No new screenshot. Existing gallery predates the new drop notice/metadata.",
+    "site_log": "build/qa/image-drops-site-2026-10-16.log",
+    "site_exit": 0,
+    "site_documents": 259,
+    "unresolved_fragments": 0,
+    "coverage_ledger": "regenerated; counts unchanged"
+  },
+  "hosted_observation": {
+    "macos_run": 38957209761,
+    "head": "79d72ef1",
+    "status": "pending",
+    "pages_run": 38957209658,
+    "pages_conclusion": "success"
+  },
+  "limits": [
+    "Physical Finder drag gestures, file-provider promises and actual sandbox-issued drop grants",
+    "Signed/minimum-OS/VoiceOver and full tooltip/panel geometry acceptance",
+    "Explicit Reload behavior is a native adaptation; source has no matching command",
+    "Complete image tool/application parity and full hosted CI not established"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}
