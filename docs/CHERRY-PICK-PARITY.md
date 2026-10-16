@@ -167,3 +167,9 @@ metadata, stable numbering and current/completed styling through reopening.
 Active session context now restores original options and Fetch/Pull completion
 origin after reopening. [Session context](REBASE-SESSION-CONTEXT.md) records
 versioned metadata, fallback and verification limits.
+
+
+The [owned Add/mainline preparation follow-up](REBASE-ADD-PARITY.md#owned-add-and-merge-parent-preparation--october-16-2026)
+connects cancellation, private Log picker preferences, atomic plan/draft publication,
+merge-parent question retirement and Quit ownership. The underlying replay engine
+and its just-in-time source difference remain as documented above.

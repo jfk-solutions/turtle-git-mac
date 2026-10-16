@@ -261,6 +261,12 @@ onto target. Review the plan and each row action before starting. Edit, squash,
 skip and conflict handling can change the resulting history. Cherry Pick uses a
 related replay plan over the selected commits.
 
+**Add** opens a multiple-selection Log. Accepted commits appear above the current
+list and can repeat earlier commits. You can build an editable draft before branch
+and upstream are valid. Cancel during Add keeps the previous complete plan or
+draft. Cherry Pick asks which parent to use for a merge commit; cancelling the
+question keeps the plan available without starting replay.
+
 When replay stops, inspect its message and Conflict Files, resolve and save the
 required files, then continue through the owning replay window. Use Abort when
 you intend to abandon the unfinished replay. Closing a window is not a substitute

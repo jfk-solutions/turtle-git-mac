@@ -71,3 +71,48 @@ results rather than displaying and clicking the actual sheet. Displayed picker
 focus, close/OK/Cancel gestures and screenshot acceptance remain unverified.
 Preserve Merges customization, Split and complete conflict/
 squash controls remain pending. Signed App Store execution is not established.
+
+
+## Owned Add and merge-parent preparation — October 16, 2026
+
+Add now owns a cancellable preparation lifetime from the accepted picker rows
+through commit resolution and any missing destination-plan capture. Core Add
+APIs carry cancellation through session checks and every commit read. The native
+plan and editable draft publish only after all reads succeed; Cancel, failure,
+changed initiating inputs and forced closure retain the prior complete rows,
+actions and selection. The busy/preparation and global Quit ownership last until
+the actual worker returns, including a cancelled successful reply already in flight.
+A failed Add can be retried without losing the original plan. No references,
+index or working files are changed by this preparation.
+
+The Add Log inherits the owner's preferences and owns a distinct multiple-selection
+request. It retires and detaches before starting insertion; retained callbacks,
+refused presentation and forced parent closure cannot insert a second selection
+or leave the parent locked. Picker ownership itself prevents Quit while open.
+Ordinary selectable Log commands remain available, as in source `SetSelect(true)`.
+The source insertion order, repeated occurrence IDs, Pick defaults and incomplete-
+reference draft behavior are retained.
+
+Cherry Pick merge-parent preparation shares the cancellable read ownership.
+Parent metadata uses the same token as its native question. Cancel settles an
+owned question once; forced closure cancels reads and settles the continuation.
+The captured plan receives mainlines only after every choice succeeds and the
+initiating plan is still current. Cancel on a later merge therefore discards the
+whole tentative set of choices. Invalid or stale replies cannot start replay.
+This keeps the existing native preflight adaptation; upstream asks just in time
+inside `RebaseDlg.cpp` around lines 2115–2135. Upstream Add is
+`OnBnClickedButtonAdd` around lines 3082–3125.
+
+The Debug build passed. Six focused Core tests passed cumulatively: the initial
+run passed five; its started-Add fixture intercepted the wrong Git subcommand.
+Correcting that helper and rerunning only that case passed without a product
+change. Six grouped native cases passed with system/bundled Git: new preparation,
+retained action/replay and reference ownership. The first native attempt required
+LocalizedError conformance for the fixture's exact error-message assertion; the
+assertion was retained. All seven attempted receivers were reaped and independently
+absent. No app rebuild or complete Core rerun followed either fixture repair.
+[Batch evidence](qa/rebase-add-preparation-2026-10-16.json) records results and
+headless reference split-view warnings. Physical
+picker focus/keyboard/VoiceOver and native visual comparisons, full multi-merge
+and hook/editor behavior, signed Finder and App Store execution remain open.
+This is partial family parity, not complete Rebase or application acceptance.

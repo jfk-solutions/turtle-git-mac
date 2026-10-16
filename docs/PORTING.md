@@ -2,6 +2,11 @@
 
 *A macOS fork of TortoiseGit*
 
+Rebase/Cherry Pick Add and merge-parent preparation now share cancellable ownership,
+atomic plan/draft publication, private multi-selection Log preferences and retired
+question/picker callbacks. See [Add and mainline preparation](REBASE-ADD-PARITY.md#owned-add-and-merge-parent-preparation--october-16-2026).
+Physical, full source and signed acceptance remain open.
+
 Log range commands now follow source raw/displayed-row continuity through search,
 graph projection and streamed rollback. Single/two-row exceptions remain; Compare,
 Format Patch and Combine no longer treat hidden rows as adjacent selection.

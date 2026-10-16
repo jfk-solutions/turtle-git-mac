@@ -597,3 +597,13 @@ moves beside Continue in the source footer position. Plan/selection/child/busy
 and retirement fences accompany the native callbacks. See
 [action controls](REBASE-ACTION-CONTROLS.md) for source comparison, grouped
 verification and remaining physical/visual/signed acceptance.
+
+
+## Connected Add and Cherry Pick preparation — October 16, 2026
+
+The [Add/mainline family](REBASE-ADD-PARITY.md#owned-add-and-merge-parent-preparation--october-16-2026)
+now owns multiple-selection Log, cancellable atomic insertion into a captured plan
+or incomplete-reference draft, retry and merge-parent reads/questions together.
+Late results after Cancel, changed inputs or closure cannot publish or start replay.
+Preparation retains its repository grant and Quit ownership until worker drain.
+Physical, complete source and signed acceptance remain open.

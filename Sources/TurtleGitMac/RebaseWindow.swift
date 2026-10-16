@@ -23,7 +23,42 @@ import TurtleGitCore
     var presentConflictPanel: (NSWindow, NSOpenPanel, @escaping (NSApplication.ModalResponse) -> Void) -> Bool = { owner, panel, reply in
         guard owner.attachedSheet == nil else { return false }; panel.beginSheetModal(for: owner, completionHandler: reply); return true
     }
-    private var logPicker: LogWindowController?
+    private(set) var logPicker: LogWindowController?
+    private var commitPickerRequest: UUID?
+    private(set) static var activeCommitPickers = 0
+    var presentCommitPicker: (NSWindow, NSWindow) -> Bool = { owner, child in
+        guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true
+    }
+    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, UserDefaults, @escaping ([LogEntry]?) -> Void) -> LogWindowController = { repository, access, preferences, choose in
+        LogWindowController(repository: repository, access: access, onChooseMultiple: choose, labelDefaults: preferences)
+    }
+    func showAdditionalCommits() {
+        guard let owner = window, owner.attachedSheet == nil, logPicker == nil, let request = model.beginAdditionalSelection() else { return }
+        commitPickerRequest = request; Self.activeCommitPickers += 1
+        let picker = makeCommitPicker(model.repository, model.repositoryAccess, model.columnPreferences) { [weak self] revisions in
+            guard let self, self.commitPickerRequest == request else { return }
+            self.finishCommitPicker()
+            self.model.finishAdditionalSelection(request, revisions: revisions?.map(\.hash))
+        }
+        logPicker = picker
+        picker.onClosed = { [weak self, weak picker] in
+            if let child = picker?.window { child.sheetParent?.endSheet(child); child.orderOut(nil) }
+            if self?.logPicker === picker { self?.logPicker = nil }
+        }
+        model.configureLogPicker(picker.model)
+        guard let child = picker.window, presentCommitPicker(owner, child) else {
+            finishCommitPicker(); model.finishAdditionalSelection(request, revisions: nil); picker.close(); return
+        }
+    }
+    private func finishCommitPicker() {
+        guard commitPickerRequest != nil else { return }
+        commitPickerRequest = nil; logPicker = nil; Self.activeCommitPickers -= 1
+    }
+    private func retireCommitPicker() {
+        let picker = logPicker; finishCommitPicker()
+        if let child = picker?.window { child.sheetParent?.endSheet(child); child.orderOut(nil) }
+        picker?.close()
+    }
     private var splitCommitPicker: CommitWindowController?
     private var stashRestore: StashRestoreWindowController?
     private var stashAlert: NSAlert?
@@ -165,16 +200,9 @@ import TurtleGitCore
         model.onModeChanged = { [weak window, weak model] in
             RepositoryWindowTitles.set(window, repository: repository.root, dialog: "\(model?.operationTitle ?? "Rebase")", preferences: preferences)
         }
-        model.pickAdditionalCommits = { [weak self] in
-            guard let self, self.model.canAdd, let window = self.window, window.attachedSheet == nil, self.logPicker == nil else { return }
-            self.model.pickingCommits = true
-            let picker = LogWindowController(repository: repository, access: access, onChooseMultiple: { [weak self] revisions in
-                guard let self else { return }; self.model.finishPickingCommits(revisions?.map(\.hash))
-            })
-            self.logPicker = picker
-            picker.onClosed = { [weak self] in self?.logPicker = nil }
-            self.model.configureLogPicker(picker.model)
-            if let child = picker.window { window.beginSheet(child) } else { self.logPicker = nil; self.model.pickingCommits = false }
+        model.pickAdditionalCommits = { [weak self] in self?.showAdditionalCommits() }
+        model.cancelMainlineQuestion = { [weak self] in
+            if let pending = self?.replayQuestion { self?.finishReplayQuestion(pending.0, answer: Int.max) }
         }
         model.showSplitSelection = { [weak self] split, message in self?.showSplitSelection(split, message: message) }
         model.chooseStashBeforeReplay = { [weak self] in
@@ -286,7 +314,7 @@ import TurtleGitCore
         if !model.active && model.hasReplayStash { model.finishReplay(); return false }
         return true
     }
-    func windowWillClose(_ notification: Notification) { retireReferencePicker(); model.retire();conflictAddWindow?.close();conflictAddWindow=nil;conflictIgnoreWindow?.close();conflictIgnoreWindow=nil;Array(conflictUnifiedWindows.values).forEach {$0.close()};conflictUnifiedWindows=[:]; if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictRevertWindow?.close();conflictRevertWindow=nil; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) { retireReferencePicker(); model.retire(); retireCommitPicker();conflictAddWindow?.close();conflictAddWindow=nil;conflictIgnoreWindow?.close();conflictIgnoreWindow=nil;Array(conflictUnifiedWindows.values).forEach {$0.close()};conflictUnifiedWindows=[:]; if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictRevertWindow?.close();conflictRevertWindow=nil; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 enum RebaseReferenceTarget: Equatable { case upstream, onto }
@@ -471,19 +499,27 @@ struct RebaseReferenceRequest {
     private var planCancellation: OperationCancellation?
     private var detailCancellation: OperationCancellation?
     private var initialCancellation: OperationCancellation?
+    private var insertionCancellation: OperationCancellation?
+    private var mainlineCancellation: OperationCancellation?
+    @Published private(set) var addingCommits = false
+    @Published private(set) var preparingMainline = false
+    var readAddedEntries: ([RebaseEntry], [String], OperationCancellation) async throws -> [RebaseEntry]
+    var readAddedPlan: (RebasePlan, [String], OperationCancellation) async throws -> RebasePlan
+    var readMainlineChoices: (LogEntry, OperationCancellation) async throws -> [LogParentChoice]
+    var cancelMainlineQuestion: () -> Void = {}
     private var planSignature: Data?
     @Published private(set) var loadingPlan = false
     @Published private(set) var cancellingPreparation = false
     static private(set) var activePreparationReads = 0
     var readPlan: (RebaseOptions, OperationCancellation) async throws -> RebasePlan
     var validateOnto: (String, String, String, OperationCancellation) async throws -> String?
-    var hasCancellablePreparation: Bool { revisionFiles.hasOwnedPreparation || conflictFileCancellation != nil || sessionCancellation != nil || conflictDiffCancellation != nil || planCancellation != nil || referenceCancellation != nil || initialCancellation != nil || detailCancellation != nil }
+    var hasCancellablePreparation: Bool { insertionCancellation != nil || mainlineCancellation != nil || revisionFiles.hasOwnedPreparation || conflictFileCancellation != nil || sessionCancellation != nil || conflictDiffCancellation != nil || planCancellation != nil || referenceCancellation != nil || initialCancellation != nil || detailCancellation != nil }
     @discardableResult func cancelPreparation() -> Bool {
         if revertingConflictFiles {cancelConflictRevert();return true}
         if presentingConflictFileDialog {cancelConflictFileDialog();return true}
         guard hasCancellablePreparation else { return false }
         revisionFiles.cancelEmbeddedPreparation()
-        cancellingPreparation = true;pendingSessionRefresh=false;sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); return true
+        cancellingPreparation = true; insertionCancellation?.cancel(); mainlineCancellation?.cancel(); if preparingMainline { cancelMainlineQuestion() };pendingSessionRefresh=false;sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); return true
     }
     func referenceChoices(_ target: RebaseReferenceTarget?) -> [CheckoutReference] {
         let selected = target == nil ? options.branch : options.upstream
@@ -564,7 +600,7 @@ struct RebaseReferenceRequest {
     var chooseStashBeforeReplay: () async -> Bool = { false }
     var chooseRestoreReplayStash: () async -> Bool = { false }
     var restoreReplayStash: (Int) async -> Void = { _ in }
-    func retire() { retired = true;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
+    func retire() { retired = true; insertionCancellation?.cancel(); mainlineCancellation?.cancel(); cancelMainlineQuestion(); additionalSelection = nil; pickingCommits = false;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
     func finishReplay(after: (() -> Void)? = nil) {
         guard !retired, !busy, !revisionFiles.busy, !active, !selectingSplit, !pickingCommits else { return }
         // Preserve immediate completion routing when there is no stash question
@@ -1014,6 +1050,9 @@ struct RebaseReferenceRequest {
         conflictSortOrder=[RebaseConflictSort(column:column,order:messageDefaults.bool(forKey:Self.conflictColumnKey+".SortDescending") ? .reverse:.forward)]
         readColumnMetadata = { try await repository.replayColumnMetadata($0,cancellation:$1) }
         readPlan = { try await repository.rebasePlan($0, cancellation: $1) }
+        readAddedEntries = { try await repository.addingRebaseEntries($0, revisions: $1, cancellation: $2) }
+        readAddedPlan = { try await repository.addingRebaseCommits($0, revisions: $1, cancellation: $2) }
+        readMainlineChoices = { try await repository.logParentChoices($0, cancellation: $1) }
         readSession={try await repository.rebaseSessionSnapshot(retaining:$0,cancellation:$1)}
         prepareReplayMessage={try await repository.prepareCommitMessageFile($0,stripComments:$1,sanitize:$2,cancellation:$3).contents}
         validateOnto = { try await repository.rebaseOntoSelection($0, branch: $1, upstream: $2, cancellation: $3) }
@@ -1247,22 +1286,51 @@ struct RebaseReferenceRequest {
     }
     private func prepareCherryPick() {
         guard canStart, var snapshot = plan else { return }
-        busy = true; Self.beginReplayWork()
+        let token = OperationCancellation(), generation = planGeneration
+        mainlineCancellation = token; preparingMainline = true; cancellingPreparation = false; busy = true; error = nil
+        Self.activePreparationReads += 1
+        let controls = controlMenuGeneration
         Task {
-            defer { Self.endReplayWork(); withExtendedLifetime(access) {} }
+            var start = false
+            defer {
+                Self.activePreparationReads -= 1; withExtendedLifetime(access) {}
+                if mainlineCancellation === token {
+                    mainlineCancellation = nil; preparingMainline = false; cancellingPreparation = false
+                    if !retired { busy = false; if start { execute("start") } else { loadPendingHandoff() } }
+                }
+            }
             do {
-                try requireAccess()
+                try requireAccess(); try token.check()
                 for index in snapshot.entries.indices where snapshot.entries[index].action != .skip && snapshot.entries[index].commit.parents.count > 1 {
                     let commit = snapshot.entries[index].commit
-                    let choices = try await repository.logParentChoices(commit); guard !retired else { return }
-                    guard let parent = await chooseMainline(commit, choices) else { busy = false; loadPendingHandoff(); return }
+                    let choices = try await preparedRead(token) { try await readMainlineChoices(commit, token) }
+                    guard generation == planGeneration, controls == controlMenuGeneration else { return }
+                    guard let parent = await chooseMainline(commit, choices) else { return }
+                    try token.check()
+                    guard !retired, generation == planGeneration, controls == controlMenuGeneration, mainlineCancellation === token else { return }
+                    guard choices.contains(where: { $0.number == parent }) else { throw RebaseFailure.plan }
                     snapshot.entries[index].mainline = parent
                 }
-                guard !retired else { return }; plan = snapshot; busy = false; execute("start")
-            } catch { busy = false; self.error = error.localizedDescription; loadPendingHandoff() }
+                try token.check()
+                guard !retired, generation == planGeneration, controls == controlMenuGeneration, mainlineCancellation === token else { return }
+                plan = snapshot; start = true
+            } catch { if !retired, !token.isCancelled, generation == planGeneration, controls == controlMenuGeneration, mainlineCancellation === token { self.error = error.localizedDescription } }
         }
     }
+    private var additionalSelection: (id: UUID, generation: Int, controls: UUID)?
+    func beginAdditionalSelection() -> UUID? {
+        guard canAdd else { return nil }
+        let id = UUID(); additionalSelection = (id, planGeneration, controlMenuGeneration); pickingCommits = true
+        return id
+    }
+    func finishAdditionalSelection(_ request: UUID, revisions: [String]?) {
+        guard let pending = additionalSelection, pending.id == request else { return }
+        additionalSelection = nil; pickingCommits = false
+        guard !retired, pending.generation == planGeneration, pending.controls == controlMenuGeneration else { if !retired { loadPendingHandoff() }; return }
+        finishPickingCommits(revisions)
+    }
     func finishPickingCommits(_ revisions: [String]?) {
+        guard !retired else { return }
         pickingCommits = false
         if let revisions, !revisions.isEmpty { addCommits(revisions) }
         else { loadPendingHandoff() }
@@ -1271,27 +1339,40 @@ struct RebaseReferenceRequest {
         guard canAdd, !revisions.isEmpty else { return }
         let snapshot = plan, draft = draftEntries
         var settings = options; if !ontoEnabled { settings.onto = "" }
-        planCancellation?.cancel(); busy = true; planGeneration += 1; detailGeneration += 1
+        planCancellation?.cancel(); detailCancellation?.cancel(); busy = true; planGeneration += 1; detailGeneration += 1
+        let generation = planGeneration, token = OperationCancellation()
+        insertionCancellation = token; addingCommits = true; cancellingPreparation = false; error = nil
+        let controls = controlMenuGeneration
+        Self.activePreparationReads += 1
         Task {
-            defer { busy = false; loadPendingHandoff() }
-            do {
-                try requireAccess()
-                let added: [RebaseEntry]
-                if let snapshot {
-                    let value = try await repository.addingRebaseCommits(snapshot, revisions: revisions)
-                    plan = value; added = value.entries
-                } else {
-                    let draftResult = try await repository.addingRebaseEntries(draft, revisions: revisions)
-                    var captured: RebasePlan?
-                    do { captured = try await repository.rebasePlan(settings) }
-                    catch RebaseFailure.revision { /* Draft Add is available before references are complete. */ }
-                    if let captured {
-                        let value = try await repository.addingRebaseCommits(captured, revisions: draftResult.reversed().map { $0.commit.hash })
-                        plan = value; draftEntries = []; added = value.entries
-                    } else { draftEntries = draftResult; added = draftResult }
+            defer {
+                Self.activePreparationReads -= 1; withExtendedLifetime(access) {}
+                if insertionCancellation === token {
+                    insertionCancellation = nil; addingCommits = false; cancellingPreparation = false
+                    if !retired { busy = false; loadPendingHandoff() }
                 }
+            }
+            do {
+                try requireAccess(); try token.check()
+                let added: [RebaseEntry], updated: RebasePlan?
+                if let snapshot {
+                    let value = try await preparedRead(token) { try await readAddedPlan(snapshot, revisions, token) }
+                    updated = value; added = value.entries
+                } else {
+                    let draftResult = try await preparedRead(token) { try await readAddedEntries(draft, revisions, token) }
+                    var captured: RebasePlan?
+                    do { captured = try await preparedRead(token) { try await readPlan(settings, token) } }
+                    catch RebaseFailure.revision { try token.check() /* Incomplete references keep the editable draft. */ }
+                    if let captured {
+                        let value = try await preparedRead(token) { try await readAddedPlan(captured, draftResult.reversed().map { $0.commit.hash }, token) }
+                        updated = value; added = value.entries
+                    } else { updated = nil; added = draftResult }
+                }
+                try token.check()
+                guard !retired, generation == planGeneration, controls == controlMenuGeneration, insertionCancellation === token else { return }
+                plan = updated; draftEntries = updated == nil ? added : []
                 selection = Set(added.suffix(revisions.count).map(\.id)); selectCommit()
-            } catch { self.error = error.localizedDescription }
+            } catch { if !retired, !token.isCancelled, generation == planGeneration, controls == controlMenuGeneration, insertionCancellation === token { self.error = error.localizedDescription } }
         }
     }
     func setAction(_ action: RebaseAction, ids: Set<String>? = nil) {
@@ -1753,7 +1834,7 @@ struct RebaseDialog: View {
             } else if model.revisionFiles.busy {
                 HStack {ProgressView().controlSize(.small);Text(model.revisionFiles.fileActionTitle.isEmpty ? "Preparing revision files…":model.revisionFiles.fileActionTitle).font(.caption);Spacer();Button("Cancel"){model.revisionFiles.cancelEmbeddedPreparation()}}.padding(12).background(.regularMaterial)
             } else if model.hasCancellablePreparation {
-                HStack { ProgressView().controlSize(.small); Text(model.revertingConflictFiles ? "Reverting selected files…":model.refreshingSession ? "Refreshing replay state…":model.preparingConflictFiles ? "Preparing file action…":model.preparingConflictDiff ? "Preparing conflict comparison…":model.loadingPlan ? "Preparing commit plan…" : "Reading references…").font(.caption); Button(model.cancellingPreparation ? "Cancelling…" : "Cancel") { model.cancelPreparation() }.disabled(model.cancellingPreparation) }.padding(12)
+                HStack { ProgressView().controlSize(.small); Text(model.addingCommits ? "Adding selected commits…":model.preparingMainline ? "Preparing merge parents…":model.revertingConflictFiles ? "Reverting selected files…":model.refreshingSession ? "Refreshing replay state…":model.preparingConflictFiles ? "Preparing file action…":model.preparingConflictDiff ? "Preparing conflict comparison…":model.loadingPlan ? "Preparing commit plan…" : "Reading references…").font(.caption); Button(model.cancellingPreparation ? "Cancelling…" : "Cancel") { model.cancelPreparation() }.disabled(model.cancellingPreparation) }.padding(12)
             }
         }
         .modifier(RebaseRevisionMenuPresentation(log: model.revisionMenuLog))

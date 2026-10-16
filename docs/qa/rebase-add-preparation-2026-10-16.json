@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "4e21db39",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected Rebase/Cherry Pick Add, editable draft, owned multiple-selection Log and merge-parent preparation",
+  "source": [
+    "RebaseDlg.cpp OnBnClickedButtonAdd around 3082\u20133125: multiple-selection Log, reverse insertion and Pick defaults",
+    "RebaseDlg.cpp around 2115\u20132135: merge-parent question and Cancel; native continues existing all-parent upfront preflight adaptation"
+  ],
+  "implementation": [
+    "Optional Core Add cancellation reaches rebaseState and every rebaseCommit, with final cancellation checks",
+    "Native Add owns cancellation/busy/access/Quit until actual completion; atomic draft/plan publication and input-generation guards; failure retry preserves prior rows",
+    "Add picker carries owner preferences and distinct once-only request; close/refused/stale callbacks release ownership; picker itself blocks Quit",
+    "Cherry Pick parent reads and owned question share cancellable preparation; closed or cancelled questions settle once; tentative choices publish only after full success; invalid/stale results cannot start replay",
+    "Source insertion/repeated occurrences and valid-destination capture with incomplete-reference drafts preserved; no source read-only picker mask invented",
+    "CI grouped preparation receiver and offline/user/parity docs updated"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/rebase-add-preparation-build.log",
+    "anomalous_exit_zero_diagnostics": 4
+  },
+  "core": {
+    "initial_log": "build/qa/rebase-add-preparation-core.log",
+    "initial_result": "5 passing tests; started-Add fixture failed two assertions because wrapper matched log instead of actual rebaseCommit show command",
+    "repair": "Change only slow-Add helper interception to show; original marker/cancellation and HEAD/index/working assertions retained",
+    "repair_log": "build/qa/rebase-add-preparation-core-repair.log",
+    "repair_exit": 0,
+    "repair_scope": "Only failed started-Add test rerun; no complete Core rerun",
+    "cumulative_passing_tests": 6,
+    "coverage": [
+      "Pre-cancelled plan/draft Add including empty inputs",
+      "Actual started commit read cancellation with unchanged HEAD/index/working bytes and inactive replay",
+      "Retained insertion ordering/actions/snapshot and invalid-revision atomic failure",
+      "Retained repeated Add Edit/reopening/Continue actual replay",
+      "Retained up-to-date added-plan replay and Preserve Merges rejection",
+      "Retained repeated editable draft resolution and atomic failure"
+    ]
+  },
+  "native": {
+    "initial_log": "build/qa/rebase-add-preparation-native.log",
+    "initial_exit": 1,
+    "initial_failed_receiver": 39943,
+    "repair": "Fixture Failure gained LocalizedError errorDescription so controlled error.localizedDescription matches original exact-message assertion; diagnostic retained. No product change or app rebuild.",
+    "final_log": "build/qa/rebase-add-preparation-native-repair.log",
+    "final_exit": 0,
+    "passing_cases": 6,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "families": [
+      "new Add/draft/picker/mainline preparation",
+      "retained source action controls and real replay",
+      "retained reference/preparation ownership"
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      39943,
+      40062,
+      40354,
+      40640,
+      41020,
+      41447,
+      41823
+    ],
+    "checks": [
+      "Actual Add Log sheet with owner preference identity, multiple selection, Cancel/accept and detachment, refused presentation and retained callback refusal",
+      "Held successful Add response rejects after cancellation; busy/preparation/Quit remain until actual reply drain",
+      "Failed insertion preserves old plan and retries successfully with source order and distinct repeated occurrence IDs",
+      "Edited inputs reject successful late Add result; original rows retained",
+      "Invalid-reference editable draft, cancelled draft result and valid-reference destination capture without loaded plan",
+      "Old model picker request cannot consume newer picker",
+      "Held real parent metadata result rejects cancellation without replay",
+      "Actual native merge-parent sheet cancels and resumes once; forced parent close retires pending question",
+      "Forced Add owner closure refuses late publication; HEAD/write-tree and inactive replay preserved",
+      "Retained native controls perform real Edit/footer/Abort/Squash replay; retained references exercise real initial cancellation and source chooser ownership"
+    ],
+    "diagnostics": "Retained headless reference cases emit zero-sized NSSplitView arranged-frame warnings; behavioral assertions passed."
+  },
+  "documentation": {
+    "ledger": "130 dialogs; 120 partial family audits; 10 pending; 0 certified; 986 mapped / 673 pending controls",
+    "help": {
+      "documents": 28,
+      "topics": 47,
+      "files": 34,
+      "bytes": 215893,
+      "mode": "write"
+    },
+    "site": "238 documents, no unresolved fragments"
+  },
+  "limits": [
+    "No full hosted macOS CI result for this commit",
+    "No new physical pointer/keyboard/VoiceOver or light/dark screenshots",
+    "Complete multi-merge/hook/editor and all source dialog semantics remain unverified",
+    "No signed Finder/App Store execution or full application parity claim"
+  ]
+}

@@ -1183,6 +1183,49 @@ final class RebaseTests: XCTestCase {
         }
     }
 
+    func testCancelledAddPreservesCapturedPlanAndDraft() async throws {
+        let (root, repo, _) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let plan = try await repo.rebasePlan(options())
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let token = OperationCancellation(); token.cancel()
+        for revisions in [["HEAD"], []] {
+            do { _ = try await repo.addingRebaseCommits(plan, revisions: revisions, cancellation: token); XCTFail("Cancelled plan Add accepted") } catch is OperationCancellationFailure {}
+            do { _ = try await repo.addingRebaseEntries(plan.entries, revisions: revisions, cancellation: token); XCTFail("Cancelled draft Add accepted") } catch is OperationCancellationFailure {}
+        }
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(after, head); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+    func testStartedAddCancellationPreservesReferencesAndWorkingFiles() async throws {
+        let (root, repo, _) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let plan = try await repo.rebasePlan(options())
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let working = try Data(contentsOf: root.appendingPathComponent("first.txt"))
+        let helper = root.appendingPathComponent("slow-add-git"), marker = root.appendingPathComponent("add-started")
+        let script = """
+        #!/bin/sh
+        if [ "$4" = show ]; then
+          : > "$3/add-started"
+          exec /bin/sleep 30
+        fi
+        exec /usr/bin/git "$@"
+        """
+        try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let slow = GitRepository(root: root, executable: helper), token = OperationCancellation()
+        let task = Task { try await slow.addingRebaseCommits(plan, revisions: ["HEAD"], cancellation: token) }
+        for _ in 0..<500 { if FileManager.default.fileExists(atPath: marker.path) { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path)); token.cancel()
+        do { _ = try await task.value; XCTFail("Started Add escaped cancellation") }
+        catch is OperationCancellationFailure {} catch is GitCommandCancellationFailure {}
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(after, head); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("first.txt")), working)
+        let state = try await repo.rebaseState(); XCTAssertFalse(state.active)
+    }
+
     func testAddingCommitsKeepsPlanSnapshotAndAppendsInPickerOrder() async throws {
         let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let revisions = try await repo.run(["rev-list", "main..topic"]).text.split(separator: "\n").map(String.init)
