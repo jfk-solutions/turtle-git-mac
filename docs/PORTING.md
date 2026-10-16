@@ -2,6 +2,13 @@
 
 *A macOS fork of TortoiseGit*
 
+Create Branch/Tag now owns creation, cancellation questions, Switch acknowledgement
+and description-only retry independently of the options window. Cancel drains
+metadata/creation workers; forced closure closes its Switch sheet and refuses late
+handoffs. Tracking-name suffix behavior and source tooltips are restored. See
+[Branch/Tag completion](BRANCH-TAG-PARITY.md#owned-creation-cancellation-and-completion--october-16-2026).
+Physical signing/transport, full visual and signed acceptance remain open.
+
 Commit staging activation now closes the old preview, refreshes in the new mode
 and presents the owned three-state explanation with the source's remembered hint
 choice. Serialized mode/preview preference writes own cancellation, error/retry,

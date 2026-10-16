@@ -2245,6 +2245,7 @@
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/branch-tag-completion-2026-10-16.json",
         "docs/qa/branch-tag-handoff-2026-10-08.json",
         "docs/qa/creation-pickers-2026-10-09.json",
         "docs/qa/dialog-geometry-2026-10-08.json",

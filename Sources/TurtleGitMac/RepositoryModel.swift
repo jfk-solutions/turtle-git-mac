@@ -2582,7 +2582,8 @@ import UniformTypeIdentifiers
         }
         controller.model.onSwitch = { [weak self, weak controller] reference, done in
             guard let self, let parent = controller?.window, parent.attachedSheet == nil else { done(); return }
-            self.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, completion: done)
+            let progress = self.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: controller?.model.presentationPreferences ?? .standard, completion: done)
+            controller?.model.cancelSwitchPresentation = { [weak progress] in progress?.close() }
         }
         controller.model.onPushTag = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
@@ -2598,9 +2599,9 @@ import UniformTypeIdentifiers
         referenceWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showSwitchProgress(repository: GitRepository, access: RepositoryAccessLease?, reference: String, parent: NSWindow, completion: (() -> Void)? = nil) {
+    @discardableResult private func showSwitchProgress(repository: GitRepository, access: RepositoryAccessLease?, reference: String, parent: NSWindow, preferences: UserDefaults = .standard, completion: (() -> Void)? = nil) -> SwitchProgressWindowController {
         let id = UUID(), root = repository.root
-        let controller = SwitchProgressWindowController(repository: repository, access: access, reference: reference)
+        let controller = SwitchProgressWindowController(model: SwitchProgressWindowModel(repository: repository, access: access, reference: reference, preferences: preferences))
         controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id) }
         controller.model.onFinished = { [weak self] output, _ in
             self?.referenceLogWindows[root.path]?.model.reload()
@@ -2611,7 +2612,7 @@ import UniformTypeIdentifiers
         controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access) }
         switchProgressWindows[id] = controller
         if let window = controller.window { parent.beginSheet(window) { _ in completion?() } }
-        controller.model.start()
+        controller.model.start(); return controller
     }
     private func performSwitchPostAction(_ action: SwitchPostAction, previousBranch: String, repository: GitRepository, access: RepositoryAccessLease?) {
         switch action {

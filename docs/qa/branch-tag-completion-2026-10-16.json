@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "d49d4504b915b00a47b18c49402275c411364f05",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "CreateBranchTagDlg.cpp initialization, Track name suffix, tooltips and input groups",
+    "TortoiseProcENG.rc IDD_NEW_BRANCH_TAG",
+    "AppUtils.cpp CAppUtils::CreateBranchTag creation/Switch/description/Push order"
+  ],
+  "implementation": [
+    "Owned creation/description/cancellation-question counters hold Quit/access after forced window closure",
+    "Cancel and ordinary creation Close own ConfirmKillProcess Yes/No and wait for worker drain; initial Cancel drains both metadata readers",
+    "Natural success defers close and captured Tag Push until pending kill question settles; stale duplicate reply cannot repeat handoff",
+    "Created reference/captured options retained through fallback checkout failure and standalone description-only retry; once-only creation notification",
+    "Owned Switch continuation settles once on forced retirement; production adapter closes child and passes owner preferences",
+    "Source Track suffix behavior, deferred suggestions while picker owns draft and Force/Sign/Track tooltips",
+    "Core resolved object ID uses validated stdout without warning diagnostics",
+    "User guide/offline Help/CI entry updated"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/branch-tag-completion-build.log",
+    "anomalous_exit_zero_diagnostics": 4
+  },
+  "core": {
+    "exit": 0,
+    "tests": 8,
+    "failures": 0,
+    "log": "build/qa/branch-tag-completion-core.log",
+    "scope": "ReferenceCreationTests only; not rerun for fixture repair",
+    "checks": [
+      "Branch/tag creation accepts successful Git warnings without contaminating object ID",
+      "Retained cancellation, description/mixed changes, lightweight/annotated/forced tags, tracking/cross-name, invalid revision/current branch Force, config-lock description retry and whitespace unset"
+    ]
+  },
+  "native": {
+    "initial_log": "build/qa/branch-tag-completion-native.log",
+    "diagnostic_log": "build/qa/branch-tag-completion-native-diagnostic.log",
+    "failed_receivers": [
+      25143,
+      25490
+    ],
+    "failure": "Foreign config lock fixture wrote relative to wrapper working directory, so the private description write succeeded instead of failing.",
+    "repair": "Use Git -C argument ($3) to address the private root explicitly; original recovery assertions retained.",
+    "fixture_cleanup_incident": "Wrapper created .git/config.lock in workspace. Its exact bytes were verified as the fixture foreign-lock content and it was removed; final check confirms absent. No config content was changed.",
+    "final_logs": [
+      "build/qa/branch-tag-completion-native-repair.log",
+      "build/qa/branch-tag-completion-native-remaining.log"
+    ],
+    "exit": 0,
+    "passing_cases": 6,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "receivers_reaped": [
+      25616,
+      25959,
+      26293,
+      26461,
+      26636,
+      27270
+    ],
+    "checks": [
+      "Remote tracking suffix and owned-picker draft/suggestion guards",
+      "Standalone foreign-lock description failure, captured description-only retry, exact ref identity and once-only callback/close",
+      "Real fallback checkout failure, captured retry intent and no unintended new branch",
+      "Actual native No/Yes kill alerts on held Git tag creation; no cancelled Tag/Push",
+      "Natural held tag success waits for kill question; captured Push/close only once after reply",
+      "Forced description retirement retains created ref and drains real owned process without late publication",
+      "Forced Switch acknowledgement cancellation/settlement once; no late description",
+      "Initial metadata Cancel drains independent readers and owned helper",
+      "Retained real Switch/description acknowledgment, failed checkout/source recovery, name-conflict snapshots and actual full reference/typed Log creation pickers"
+    ],
+    "ownership": "All eight failed/final receivers reaped and independently absent. New fixtures assert all four helper/sleep pairs per engine gone; private windows/models/preferences/repos cleaned. Retained hidden picker checks emit zero-size NSSplitView diagnostics; physical layout acceptance is not inferred."
+  },
+  "limits": [
+    "No full hosted pass; older 78bcdd06 run38852442307 failed Settings layout step102, separate from this batch",
+    "No new screenshot or complete physical/VoiceOver layout certification",
+    "Real GPG signing/live Push, all source balloon/focus variants, signed scopes and App Store acceptance remain open",
+    "Production Switch-controller close/preference adapter is compiled; new forced-handoff fixture injects its cancellation callback",
+    "No complete Branch/Tag parity claim"
+  ]
+}

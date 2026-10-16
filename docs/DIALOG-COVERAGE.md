@@ -80,7 +80,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SVNDCOMMITTYPE` | partial-native-replacement | 0/7 mapped; 7 pending | [SVN-PARITY](SVN-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REQUESTPULL` | partial-native-replacement | 11/11 mapped; 0 pending | [REQUEST-PULL-PARITY](REQUEST-PULL-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_GITSWITCH` | partial-native-replacement | 2/19 mapped; 17 pending | [HELP-PARITY](HELP-PARITY.md), [SWITCH-PARITY](SWITCH-PARITY.md), [UI-PARITY](UI-PARITY.md); 11 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_NEW_BRANCH_TAG` | partial-native-replacement | 2/24 mapped; 22 pending | [BRANCH-TAG-PARITY](BRANCH-TAG-PARITY.md), [HELP-PARITY](HELP-PARITY.md), [UI-PARITY](UI-PARITY.md); 9 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_NEW_BRANCH_TAG` | partial-native-replacement | 2/24 mapped; 22 pending | [BRANCH-TAG-PARITY](BRANCH-TAG-PARITY.md), [HELP-PARITY](HELP-PARITY.md), [UI-PARITY](UI-PARITY.md); 10 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_APPLY_PATCH_LIST` | partial-native-replacement | 1/14 mapped; 13 pending | [HELP-PARITY](HELP-PARITY.md), [IMPORT-PATCH-PARITY](IMPORT-PATCH-PARITY.md); 27 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FORMAT_PATCH` | partial-native-replacement | 24/24 mapped; 0 pending | [FORMAT-PATCH-PARITY](FORMAT-PATCH-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_MERGE` | partial-workflow-replacement | 27/27 mapped; 0 pending | [MERGE-PARITY](MERGE-PARITY.md), [MESSAGE-LINK-INTERACTION-PARITY](MESSAGE-LINK-INTERACTION-PARITY.md), [UI-PARITY](UI-PARITY.md); 20 QA records |

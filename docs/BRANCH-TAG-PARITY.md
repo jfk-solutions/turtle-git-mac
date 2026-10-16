@@ -142,3 +142,51 @@ still need broader lifetime and physical/signed acceptance.
 The commit-revision row now uses the shared [editable session combo](VERSION-COMBO-PARITY.md),
 including programmatic custom choices, exact native Git token identity and
 disabled/retired/focus guards. Physical popup and complete dialog acceptance remain open.
+
+
+## Owned creation, cancellation and completion — October 16, 2026
+
+Pinned `CreateBranchTagDlg.cpp` and `IDD_NEW_BRANCH_TAG` retain Name, Base On,
+Options, Message/Description and OK/Cancel/Help. The native dialog keeps those
+controls and source-dependent Track/Force/Switch/Sign/Push states. Force, Sign
+and Track now have the corresponding source tooltips. The source tracking-name
+rule compares the suffix of the selected remote, so an explicitly tracked `topic`
+can retain Track when based on `origin/team/topic`. Queued base/name notifications
+cannot rewrite a picker-owned or already-created draft; suggestions resume after
+the owned read or picker returns.
+
+`CAppUtils::CreateBranchTag` performs creation, optional Switch, then description
+and optional Tag Push. Native completion now retains the created reference and
+captured options independently of the remaining phases. Standalone callers always
+save the branch description separately, matching the production Switch handoff.
+A description failure offers description-only retry without recreating the branch
+or repeating checkout. A failed fallback checkout retains its captured branch and
+checkout intent. Repository notification runs once for a created reference; a
+Tag Push uses the captured tag name and dispatches after completion/closure.
+
+Cancel remains available during creation and metadata reads. Creation and
+Description retry respect ConfirmKillProcess with owned Yes/No questions; No
+continues, Yes cancels the current token and closes after actual worker drain.
+Normal Close during creation uses the same route. Initial-read Cancel drains both
+independent metadata readers. A naturally completed operation waits for its
+outstanding cancellation question before closing or dispatching Tag Push; duplicate
+or old replies do not cancel another phase or repeat the handoff. Cancellation
+retains completed Git effects and does not remove a created reference.
+
+Forced owner retirement cancels Git and closes its owned Switch progress sheet.
+The pending Switch acknowledgement settles once so the parent cannot retain a
+suspended continuation or write its description later. The child retains its own
+existing process/Quit lifetime; the parent now also counts creation, description
+and cancellation questions independently of its window. Private preferences flow
+into the production Switch progress model. Retired workers refuse UI, error,
+closure and Push publication while retaining access until they return.
+
+Core creation now parses and validates the resolved object from stdout separately
+from successful diagnostics on stderr. Warning text cannot become part of the
+branch/tag's commit identity. This retains Git's resolution policy for manually
+entered short references.
+
+See [grouped evidence](qa/branch-tag-completion-2026-10-16.json) for actual build,
+Core/native results, any repairs and process cleanup. These checks do not certify
+all source focus/balloon behavior, physical signing/transport prompts, complete
+visual/VoiceOver parity, signed sandbox handoffs or App Store acceptance.

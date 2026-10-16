@@ -59,7 +59,7 @@ import AppKit
         if RevisionComparisonWindowModel.activeFileOperations > 0 { return .terminateCancel }
         if LogWindowModel.activeReferenceReads > 0 || LogWindowController.activeReferencePickers > 0 || ReferenceBrowserWindowModel.activeReads > 0 { return .terminateCancel }
         if LogWindowModel.activeHistoryLoads > 0 || LogWindowModel.activeFilterValidations > 0 { return .terminateCancel }
-        if ExportWindowModel.activeReads > 0 || BranchTagWindowModel.activeReads > 0 || MergeWindowModel.activeReads > 0 || ResetWindowModel.activeReads > 0 || SwitchWindowModel.activeReads > 0 || SubmoduleUpdateWindowModel.activeReads > 0 || SubmoduleWorkingLogSession.activeReads > 0 || SubmoduleUpdateProgressWindowModel.activeOperations > 0 || SubmoduleDiffWindowModel.activeReads > 0 { return .terminateCancel }
+        if ExportWindowModel.activeReads > 0 || BranchTagWindowModel.activeReads > 0 || BranchTagWindowModel.activeCreations > 0 || MergeWindowModel.activeReads > 0 || ResetWindowModel.activeReads > 0 || SwitchWindowModel.activeReads > 0 || SubmoduleUpdateWindowModel.activeReads > 0 || SubmoduleWorkingLogSession.activeReads > 0 || SubmoduleUpdateProgressWindowModel.activeOperations > 0 || SubmoduleDiffWindowModel.activeReads > 0 { return .terminateCancel }
         if RequestPullWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? RequestPullWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }
         if FormatPatchWindowModel.activeOperations > 0 { return .terminateCancel }
         if LocalGitCommandProgress.activeOperations > 0 { return .terminateCancel }

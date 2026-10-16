@@ -406,7 +406,7 @@ jobs:
       - name: Native reference browser inline branch rename
         run: python3 scripts/test-reference-rename.py
       - name: Native Branch and Tag creation handoffs
-        run: python3 scripts/test-branch-tag-handoff.py
+        run: python3 scripts/test-branch-tag-completion.py --only completion --only handoff --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Export progress and ZIP cancellation
         run: python3 scripts/test-export-progress.py
       - name: Export live output and abandoned window cleanup

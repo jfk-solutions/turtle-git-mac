@@ -118,6 +118,10 @@ Unicode spelling, rather than choosing one silently.
 Create Branch or Tag asks for a name and a base revision: HEAD, a branch, a tag,
 or an explicit commit. Choose the base before accepting. Branch tracking, force,
 switch, signing and push options depend on the operation and reference type.
+Cancel stops active creation or loading and waits for its processes to finish;
+when configured, confirm the running-process question first. A branch or tag
+already created is retained. If only its description failed, **Retry description**
+saves that description without recreating the branch or switching again.
 
 Switch/Checkout chooses the target branch, tag or commit. Review Create New
 Branch, force/overwrite, merge and tracking options when available. Force can

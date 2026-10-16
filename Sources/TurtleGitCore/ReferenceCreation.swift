@@ -41,7 +41,11 @@ extension GitRepository {
         let other = options.isTag ? "refs/heads/" : "refs/tags/"
         if !options.allowNameConflict, try exists(other + name) { throw ReferenceCreationFailure.nameConflict }
         let hash: String
-        do { hash = try run(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+        do {
+            let output = try run(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"], cancellation: cancellation).stdout
+            hash = String(decoding: output, as: UTF8.self).trimmingCharacters(in: .newlines)
+            guard [40, 64].contains(hash.count), hash.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw ReferenceCreationFailure.invalidRevision }
+        }
         catch { try cancellation?.check(); throw ReferenceCreationFailure.invalidRevision }
         let message = options.message.replacingOccurrences(of: "\r", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         var args = [options.isTag ? "tag" : "branch"]
