@@ -13,6 +13,18 @@ sheets gate commands. Detection mode gates complete-log/follow-renames options;
 selected revisions gate Next/Previous Change. Standard native Copy remains responder
 based. Command-G follows macOS Find Next; Go To uses Command-L.
 
+In the annotation gutter or source text, **Shift-F10** opens the context menu for
+the selected line. The accessibility Show Menu action uses that same route.
+**Blame previous revision** and **Compare with previous revision** retain the
+line's parent and historical filename, including renames. **Show log**, hash/log
+copying and source-line copying retain the line on which the menu opened. **Copy**
+retains the selected source text, even if the selection later changes.
+
+Annotation and embedded Log menu items dispatch once. Reloading, replacing or
+closing the document invalidates their old targets. Source menu icons honor the
+owning viewer's context-icon setting. Unified diff and native source-editing
+commands remain available alongside the source revision commands.
+
 Toolbar, Log, Properties and status/footer visibility persist in the supplied Blame
 defaults. The source remains usable when panes are hidden, and menu-bar controls can
 restore a hidden toolbar. Color Age also persists. Source options now consistently

@@ -379,6 +379,8 @@ jobs:
         run: python3 scripts/test-browser-revisions.py --only revision --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native RefLog refresh and deletion lifetime
         run: python3 scripts/test-reflog-lifecycle.py --only lifecycle --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+      - name: Native Blame captured source menus
+        run: python3 scripts/test-blame-source-menu.py --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Rebase action controls and structural row behavior
         run: python3 scripts/test-rebase-action-controls.py --only controls --only row-drag --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Rebase Revision Files and shared Changed Files workflows

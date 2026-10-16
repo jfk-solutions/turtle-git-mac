@@ -3,13 +3,6 @@ import SwiftUI
 import UniformTypeIdentifiers
 import TurtleGitCore
 
-private struct BlameParentMenuTarget {
-    let choice: GitBlameParentComparison
-    let originalLine: Int
-    let options: GitBlameOptions
-    let target:BlameWindowModel.HistoryTarget?
-}
-
 @MainActor final class BlameWindowController: NSWindowController, NSWindowDelegate {
     private(set) var model: BlameWindowModel
     var onClosed: () -> Void = {}
@@ -367,6 +360,20 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
             guard !retired,request==generation,accepted else { return };historyColumns=BlameHistoryColumns();historyColumns.save(labelDefaults)
         }
     }
+    struct SourceTarget {
+        let owner:ObjectIdentifier,generation:Int,line:GitBlameLine,selectionText:String
+    }
+    var presentSourceMenu:((NSMenu,NSPoint,NSView)->Void)?
+    func sourceTarget(number:Int,selectionText:String = "") -> SourceTarget? {
+        guard canFind,number>0,lines.indices.contains(number-1) else {return nil};let line=lines[number-1]
+        return SourceTarget(owner:ObjectIdentifier(self),generation:generation,line:line,selectionText:selectionText)
+    }
+    func acceptsSource(_ target:SourceTarget) -> Bool {
+        guard canFind,target.owner==ObjectIdentifier(self),target.generation==generation,target.line.number>0,
+              lines.indices.contains(target.line.number-1) else {return false}
+        let line=lines[target.line.number-1]
+        return line.hash==target.line.hash && line.originalLine==target.line.originalLine && line.filename.utf8.elementsEqual(target.line.filename.utf8) && line.sourceBytes==target.line.sourceBytes
+    }
     struct HistoryTarget { let owner:ObjectIdentifier,generation:Int;let entries:[LogEntry];var sourceOrigin=false }
     func sourceParentTarget(_ hash:String)->HistoryTarget? {
         guard canFind,let line=lines.first(where:{ $0.hash==hash }) else { return nil }
@@ -634,11 +641,12 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         followRenames = enabled; GitBlamePreferences.update(in:labelDefaults) { $0.followRenames = enabled }; reload(saveThresholds: true)
     }
     func retire() {
-        retired=true;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
+        retired=true;presentSourceMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
     func invalidate() { loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
-        selection = number; loadParents(completion: completion)
+        guard canFind,lines.contains(where:{$0.number==number}) else {return}
+        selection=number;loadParents(completion:completion)
     }
     private func loadParents(completion: @escaping () -> Void) {
         sourceParentToken?.cancel()
@@ -1143,13 +1151,15 @@ struct BlameHistoryTable:NSViewRepresentable {
                 NSMenu.popUpContextMenu(menu,with:event,for:table)
             }
         }
-        private class Invocation:NSObject { let target:BlameWindowModel.HistoryTarget,command:String;init(_ target:BlameWindowModel.HistoryTarget,_ command:String) { self.target=target;self.command=command } }
+        private class Invocation:NSObject { var used=false;let target:BlameWindowModel.HistoryTarget,command:String;init(_ target:BlameWindowModel.HistoryTarget,_ command:String) { self.target=target;self.command=command } }
         private final class ParentInvocation:NSObject {
+            var used=false
             let target:BlameWindowModel.HistoryTarget,choices:[GitBlameParentComparison],action:BlameWindowModel.ParentAction
             init(_ target:BlameWindowModel.HistoryTarget,_ choices:[GitBlameParentComparison],_ action:BlameWindowModel.ParentAction) { self.target=target;self.choices=choices;self.action=action }
         }
         @objc func invokeParent(_ sender:NSMenuItem) {
-            guard available,let value=sender.representedObject as? ParentInvocation else { return }
+            guard available,let value=sender.representedObject as? ParentInvocation,!value.used,model.acceptsHistory(value.target) else {return}
+            value.used=true
             model.performHistoryParent(value.target,choices:value.choices,action:value.action,alternate:NSEvent.modifierFlags.contains(.shift))
         }
         var selected:[LogEntry] { entries.filter { model.selectedLogHashes.contains($0.hash) } }
@@ -1188,7 +1198,8 @@ struct BlameHistoryTable:NSViewRepresentable {
             for (title,command) in [("Full log messages","details"),("Full log messages without changed paths","detailsNoPaths"),("SHA-1","hash"),("Author names and emails","authors"),("Author names","names"),("Author emails","emails"),("Subjects","subjects"),("Messages","messages")] { item(title,command,.copy,into:sub) }
         }
         @objc func invoke(_ sender:NSMenuItem) {
-            guard available,let action=sender.representedObject as? Invocation,model.acceptsHistory(action.target) else { return }
+            guard available,let action=sender.representedObject as? Invocation,!action.used,model.acceptsHistory(action.target) else {return}
+            action.used=true
             let entries=action.target.entries
             switch action.command {
             case "hash":model.copy(entries.map(\.hash).joined(separator:"\n"))
@@ -1247,12 +1258,9 @@ private struct BlameTable: NSViewRepresentable {
     func makeNSView(context: Context) -> BlameSourceContainer {
         let table = BlameTableView(); table.style = .plain; table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.onMarginClick = { [weak coordinator = context.coordinator] row, additive in coordinator?.model.highlight(row, additive: additive) }
-        table.onContextMenu = { [weak coordinator = context.coordinator] row, event in
-            guard let coordinator, coordinator.table != nil, coordinator.model.lines.indices.contains(row), !coordinator.model.busy else { return }
-            coordinator.model.prepareParentMenu(number: row + 1) { [weak coordinator] in
-                guard let coordinator, let table = coordinator.table, let menu = table.menu, table.window?.isVisible == true else { return }
-                NSMenu.popUpContextMenu(menu, with: event, for: table)
-            }
+        table.contextMenuAvailable={ [weak model] in model?.canFind==true }
+        table.onContextMenu={ [weak coordinator=context.coordinator,weak table] row,event in
+            guard let table else {return};coordinator?.showContext(row:row,event:event,in:table)
         }
         table.onHover = { [weak coordinator = context.coordinator] row in
             guard let model = coordinator?.model else { return }
@@ -1271,14 +1279,9 @@ private struct BlameTable: NSViewRepresentable {
         context.coordinator.table = table
         let container = BlameSourceContainer()
         container.editor.delegate = context.coordinator
-        container.editor.onContextMenu = { [weak coordinator = context.coordinator] row, event in
-            guard let coordinator, let table = coordinator.table, coordinator.model.lines.indices.contains(row), !coordinator.model.busy else { return }
-            coordinator.model.prepareParentMenu(number: row + 1) { [weak coordinator] in
-                guard let coordinator, let menu = coordinator.table?.menu, let editor = coordinator.container?.editor,
-                      editor.window?.isVisible == true else { return }
-                NSMenu.popUpContextMenu(menu, with: event, for: editor)
-            }
-            table.needsDisplay = true
+        container.editor.contextMenuAvailable={ [weak model] in model?.canFind==true }
+        container.editor.onContextMenu={ [weak coordinator=context.coordinator,weak editor=container.editor] row,event in
+            guard let editor else {return};coordinator?.showContext(row:row,event:event,in:editor)
         }
         context.coordinator.container = container
         let scroll = container.scroll
@@ -1386,67 +1389,89 @@ private struct BlameTable: NSViewRepresentable {
             view.revisionHighlighted = [1, 2].contains(model.highlightKind(model.lines[row]))
             return view
         }
-        func menuNeedsUpdate(_ menu: NSMenu) {
-            menu.removeAllItems()
-            guard let selectedLine = model.selectedLine else { return }
-            if model.loadingParents {
-                let loading = NSMenuItem(title: "Reading previous revisions…", action: nil, keyEquivalent: ""); loading.isEnabled = false; menu.addItem(loading)
-            } else if !model.parentChoices.isEmpty {
-                let originalLine = selectedLine.originalLine
-                func addCommand(title: String, action: Selector, icon: MenuIcon, enabled: Bool) {
-                    func item(_ choice: GitBlameParentComparison, title: String) -> NSMenuItem {
-                        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-                        item.target = self; item.image = icon.contextImage()
-                        item.representedObject = BlameParentMenuTarget(choice: choice, originalLine: originalLine, options:model.appliedOptions,target:model.sourceParentTarget(selectedLine.hash))
-                        item.isEnabled = enabled; return item
-                    }
-                    if model.parentChoices.count == 1 { menu.addItem(item(model.parentChoices[0], title: title)) }
+        private var contextTarget:BlameWindowModel.SourceTarget?
+        private var contextParents:[GitBlameParentComparison]=[]
+        private final class SourceInvocation:NSObject {
+            let target:BlameWindowModel.SourceTarget,command:String,choice:GitBlameParentComparison?
+            var used=false
+            init(_ target:BlameWindowModel.SourceTarget,_ command:String,_ choice:GitBlameParentComparison? = nil) {self.target=target;self.command=command;self.choice=choice}
+        }
+        private func selectedText() -> String {
+            guard let editor=container?.editor else {return ""};let text=editor.string as NSString
+            return editor.selectedRanges.map(\.rangeValue).filter{$0.location != NSNotFound && $0.length>0 && NSMaxRange($0)<=text.length}.map{text.substring(with:$0)}.joined(separator:"\n")
+        }
+        func showContext(row:Int,event:NSEvent,in view:NSView) {
+            guard let target=model.sourceTarget(number:row+1,selectionText:selectedText()) else {return}
+            model.prepareParentMenu(number:row+1) { [weak self,weak view] in
+                guard let self,let view,view.window?.isVisible==true,self.model.acceptsSource(target),self.model.selection==target.line.number,let menu=self.table?.menu else {return}
+                self.contextTarget=target;self.contextParents=self.model.parentChoices;self.menuNeedsUpdate(menu)
+                let rectangle=(view as? NSTableView)?.rect(ofRow:row) ?? self.container.flatMap { $0.editor.rowRectangles.indices.contains(row) ? $0.editor.rowRectangles[row]:nil } ?? .zero
+                let point=event.type == .keyDown ? NSPoint(x:max(view.visibleRect.minX+8,rectangle.minX),y:rectangle.maxY):view.convert(event.locationInWindow,from:nil)
+                if let present=self.model.presentSourceMenu {present(menu,point,view)}
+                else if event.type == .keyDown {menu.popUp(positioning:nil,at:point,in:view)}
+                else {NSMenu.popUpContextMenu(menu,with:event,for:view)}
+            }
+        }
+        func menuDidClose(_ menu:NSMenu) {contextTarget=nil;contextParents=[]}
+        func menuNeedsUpdate(_ menu:NSMenu) {
+            menu.removeAllItems();menu.autoenablesItems=false
+            guard let target=contextTarget ?? model.selection.flatMap({model.sourceTarget(number:$0,selectionText:selectedText())}),model.acceptsSource(target) else {return}
+            let choices=contextTarget == nil ? model.parentChoices:contextParents
+            func item(_ title:String,_ command:String,_ icon:MenuIcon?,choice:GitBlameParentComparison? = nil,enabled:Bool=true,into parent:NSMenu? = nil) {
+                let value=NSMenuItem(title:title,action:#selector(invokeSource(_:)),keyEquivalent:"");value.target=self
+                value.image=icon?.contextImage(defaults:model.labelDefaults);value.representedObject=SourceInvocation(target,command,choice);value.isEnabled=enabled;(parent ?? menu).addItem(value)
+            }
+            if contextTarget==nil && model.loadingParents {let value=NSMenuItem(title:"Reading previous revisions…",action:nil,keyEquivalent:"");value.isEnabled=false;menu.addItem(value)}
+            else if !choices.isEmpty {
+                for (title,command,icon,enabled) in [("Blame previous revision","previous",MenuIcon.blame,model.onPrevious != nil),("Compare with previous revision","compare",.compare,model.onChanges != nil),("Show changes as unified diff","unified",.unifiedDiff,model.onHistoryUnified != nil)] {
+                    if choices.count==1 {item(title,command,icon,choice:choices[0],enabled:enabled)}
                     else {
-                        let parent = NSMenuItem(title: title, action: nil, keyEquivalent: ""); parent.image = icon.contextImage()
-                        let submenu = NSMenu(); submenu.autoenablesItems = false
-                        for choice in model.parentChoices { submenu.addItem(item(choice, title: "Parent \(choice.parentNumber) (\(choice.revision.prefix(8)))")) }
-                        parent.submenu = submenu; menu.addItem(parent)
+                        let parent=NSMenuItem(title:title,action:nil,keyEquivalent:"");parent.image=icon.contextImage(defaults:model.labelDefaults);parent.isEnabled=enabled
+                        let sub=NSMenu();sub.autoenablesItems=false;parent.submenu=sub;menu.addItem(parent)
+                        for choice in choices {item("Parent \(choice.parentNumber) (\(choice.revision.prefix(8)))",command,icon,choice:choice,enabled:enabled,into:sub)}
                     }
                 }
-                addCommand(title: "Blame previous revision", action: #selector(blamePrevious(_:)), icon: .blame, enabled: model.onPrevious != nil)
-                addCommand(title: "Show changes", action: #selector(showChanges(_:)), icon: .compare, enabled: model.onChanges != nil)
-                addCommand(title:"Show changes as unified diff",action:#selector(showUnified(_:)),icon:.unifiedDiff,enabled:model.onHistoryUnified != nil)
             }
-            let log = NSMenuItem(title: "Show log", action: #selector(showLog), keyEquivalent: "")
-            log.target = self; log.image = MenuIcon.log.contextImage(); log.isEnabled = model.onLog != nil; menu.addItem(log)
-            menu.addItem(.separator())
-            for (title, action, icon) in [("Copy revision", #selector(copyRevision), MenuIcon.copy), ("Copy log message", #selector(copyLogMessage(_:)), .copy), ("Copy source line", #selector(copySource), .copy)] {
-                let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage()
-                item.representedObject = selectedLine.hash; menu.addItem(item)
+            item("Show log","log",.log,enabled:model.onLog != nil);menu.addItem(.separator())
+            item("Copy SHA-1 to clipboard","hash",.copy);item("Copy log to clipboard","details",.copy)
+            menu.addItem(.separator());item("Copy source line","line",.copy)
+            item("Copy","selection",.copy,enabled:!target.selectionText.isEmpty);item("Select All","all",nil,enabled:!model.lines.isEmpty)
+        }
+        @objc func invokeSource(_ sender:NSMenuItem) {
+            guard sender.isEnabled,let action=sender.representedObject as? SourceInvocation,!action.used,model.acceptsSource(action.target) else {return}
+            action.used=true;let line=action.target.line
+            switch action.command {
+            case "log":model.onLog?(line.filename,line.hash)
+            case "hash":model.copy(line.hash)
+            case "details":model.copyLogMessage(line.hash)
+            case "line":model.copy(line.source)
+            case "selection":model.copy(action.target.selectionText)
+            case "all":container?.editor.selectAll(nil)
+            default:
+                guard let choice=action.choice,let history=model.sourceParentTarget(line.hash) else {return}
+                let kind:BlameWindowModel.ParentAction=action.command=="previous" ? .previous:action.command=="compare" ? .compare:.unified
+                model.performHistoryParent(history,choices:[choice],action:kind,alternate:ComparisonToolInvocation.capture,originalLine:line.originalLine)
             }
-            menu.addItem(.separator())
-            let copy = NSMenuItem(title: "Copy", action: #selector(copySelectedSource(_:)), keyEquivalent: "")
-            copy.target = self; copy.image = MenuIcon.copy.contextImage()
-            copy.isEnabled = (container?.editor.selectedRange().length ?? 0) > 0; menu.addItem(copy)
-            let all = NSMenuItem(title: "Select All", action: #selector(selectAllSource(_:)), keyEquivalent: "")
-            all.target = self; all.isEnabled = !model.lines.isEmpty; menu.addItem(all)
         }
-        @objc func showLog() { if let line = model.selectedLine { model.showLog(line) } }
-        @objc func showChanges(_ sender: NSMenuItem) {
-            if let target=sender.representedObject as? BlameParentMenuTarget,let history=target.target { model.performHistoryParent(history,choices:[target.choice],action:.compare,alternate:ComparisonToolInvocation.capture) }
-        }
-        @objc func showUnified(_ sender:NSMenuItem) {
-            if let target=sender.representedObject as? BlameParentMenuTarget,let history=target.target { model.performHistoryParent(history,choices:[target.choice],action:.unified,alternate:NSEvent.modifierFlags.contains(.shift)) }
-        }
-        @objc func blamePrevious(_ sender: NSMenuItem) {
-            if let target=sender.representedObject as? BlameParentMenuTarget,let history=target.target { model.performHistoryParent(history,choices:[target.choice],action:.previous,originalLine:target.originalLine) }
-        }
-        @objc func copyLogMessage(_ sender: NSMenuItem) {
-            if let hash = sender.representedObject as? String { model.copyLogMessage(hash) }
-        }
-        @objc func copyRevision() { if let line = model.selectedLine { model.copy(line.hash) } }
-        @objc func copySource() { if let line = model.selectedLine { model.copy(line.source) } }
-        @objc func copySelectedSource(_ sender: Any?) { container?.editor.copy(sender) }
-        @objc func selectAllSource(_ sender: Any?) { container?.editor.selectAll(sender) }
+        @objc func showLog() {guard model.canFind,let line=model.selectedLine else {return};model.showLog(line)}
+
     }
 }
 
+private func blameKeyboardContextEvent(_ view:NSView)->NSEvent? {
+    NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.shift,timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:view.window?.windowNumber ?? 0,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:109)
+}
 private final class BlameTableView: NSTableView {
+    var contextMenuAvailable:()->Bool = {true}
+    @discardableResult private func showKeyboardContext() -> Bool {
+        guard window?.isVisible==true,contextMenuAvailable(),selectedRow>=0,selectedRow<numberOfRows,let event=blameKeyboardContextEvent(self) else {return false}
+        scrollRowToVisible(selectedRow);onContextMenu(selectedRow,event);return true
+    }
+    override func accessibilityPerformShowMenu()->Bool {showKeyboardContext()}
+    override func keyDown(with event:NSEvent) {
+        if event.keyCode==109,event.modifierFlags.intersection([.shift,.command,.control,.option]) == .shift,showKeyboardContext() {return}
+        super.keyDown(with:event)
+    }
     var onMarginClick: (Int, Bool) -> Void = { _, _ in }
     var onContextMenu: (Int, NSEvent) -> Void = { _, _ in }
     var onHover: (Int?) -> Void = { _ in }
@@ -1565,7 +1590,7 @@ private final class BlameSourceContainer: NSView {
         retired = true; editor.delegate = nil; editor.onContextMenu = { _,_ in }
         syntaxGeneration += 1; syntaxToken?.cancel(); syntaxTask?.cancel()
         editor.retired = true; editor.isSelectable = false
-        editor.onOpen = {};editor.onFind = {}; editor.onFindNext = { _ in }; editor.onGoTo = {}
+        editor.keyboardContextRow=nil;editor.contextMenuAvailable={false};editor.onOpen = {};editor.onFind = {}; editor.onFindNext = { _ in }; editor.onGoTo = {}
         scroll.onScroll = {}; sourceScroll.onScroll = {}
     }
     func installNavigation(_ model: BlameWindowModel) {
@@ -1576,6 +1601,7 @@ private final class BlameSourceContainer: NSView {
             guard range.location != NSNotFound, NSMaxRange(range) <= text.length else { return "" }
             return text.substring(with: range)
         }
+        editor.keyboardContextRow={ [weak self] in guard let self,!self.retired else {return nil};return self.sourceRow(at:self.editor.selectedRange().location) }
         model.retireSourceView = { [weak self] in self?.retire() }
         editor.onOpen = { [weak model] in model?.onOpenDocument?() }
         editor.onFind = { [weak model] in model?.onFind?() }
@@ -1831,6 +1857,13 @@ private final class BlameSourceTextView: NSTextView {
         return max(0,low-1)
     }
     var onContextMenu: (Int,NSEvent) -> Void = { _,_ in }
+    var contextMenuAvailable:()->Bool = {true}
+    var keyboardContextRow:(()->Int?)?
+    @discardableResult private func showKeyboardContext()->Bool {
+        guard !retired,window?.isVisible==true,contextMenuAvailable(),let row=keyboardContextRow?(),let event=blameKeyboardContextEvent(self) else {return false}
+        onContextMenu(row,event);return true
+    }
+    override func accessibilityPerformShowMenu()->Bool {showKeyboardContext()}
     var onOpen:()->Void={}
     var onFind: () -> Void = {}
     var onFindNext: (Bool) -> Void = { _ in }
@@ -1880,6 +1913,7 @@ private final class BlameSourceTextView: NSTextView {
     override func keyDown(with event: NSEvent) {
         guard !retired else { return }
         let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if event.keyCode==109,flags == .shift,showKeyboardContext() {return}
         if flags.contains(.command), !flags.contains(.control), !flags.contains(.option) {
             switch event.charactersIgnoringModifiers?.lowercased() {
             case "o":onOpen();return

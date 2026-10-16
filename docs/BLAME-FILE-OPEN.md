@@ -1,5 +1,8 @@
 # Blame File Open and recent files
 
+See [Blame menus and panes](BLAME-MENUS.md) for annotation context menus,
+keyboard access, navigation and pane layout.
+
 The pinned `TortoiseGitBlameENG.rc` File menu has Open, four recent files, Settings
 and Exit. `TortoiseGitBlameDoc::OnOpenDocument` reuses the SDI document, defaults
 subsequent Open to HEAD and adds only HEAD documents to MRU. Save/Save As strings

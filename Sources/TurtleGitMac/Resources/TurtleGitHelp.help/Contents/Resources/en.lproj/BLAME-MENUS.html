@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Native Blame menu context and panes</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="native-blame-menu-context-and-panes">Native Blame menu context and panes</h1>
+<p>The pinned File/Edit/View resource and <code>MainFrm.cpp</code> provide shared menu commands,
+output/Properties panes, toolbar/status visibility and source option check states.
+TurtleGit's macOS menu bar now supplies active Blame Find/Next/Previous/Go To,
+encoding, recent files, pane visibility, annotation fields, detection, history and
+presentation options. The existing Open command follows focused document ownership.</p>
+<p><code>BlameMenuContext</code> resolves the active window at invocation and follows owned Find
+panels/sheets. It observes the active model and document replacement, so a background
+or retired viewer cannot receive another editor's command. Busy reads and information
+sheets gate commands. Detection mode gates complete-log/follow-renames options;
+selected revisions gate Next/Previous Change. Standard native Copy remains responder
+based. Command-G follows macOS Find Next; Go To uses Command-L.</p>
+<p>In the annotation gutter or source text, <strong>Shift-F10</strong> opens the context menu for
+the selected line. The accessibility Show Menu action uses that same route.
+<strong>Blame previous revision</strong> and <strong>Compare with previous revision</strong> retain the
+line's parent and historical filename, including renames. <strong>Show log</strong>, hash/log
+copying and source-line copying retain the line on which the menu opened. <strong>Copy</strong>
+retains the selected source text, even if the selection later changes.</p>
+<p>Annotation and embedded Log menu items dispatch once. Reloading, replacing or
+closing the document invalidates their old targets. Source menu icons honor the
+owning viewer's context-icon setting. Unified diff and native source-editing
+commands remain available alongside the source revision commands.</p>
+<p>Toolbar, Log, Properties and status/footer visibility persist in the supplied Blame
+defaults. The source remains usable when panes are hidden, and menu-bar controls can
+restore a hidden toolbar. Color Age also persists. Source options now consistently
+use the supplied store, rather than writing global defaults from private viewers.</p>
+<p>Dark Mode installs a Blame-window appearance override, also applied to Find and
+native picker/information panels. Follow System Appearance removes the override.
+New viewers inherit persisted layout/appearance defaults; existing independent
+viewers retain their current layout until changed. Native split panes, utility
+panels and tab containers adapt Windows docking. Pane captions and View →
+Toolbars and Panes provide all dock edges, Float, Auto Hide, Tab with the other
+pane, and Restore Default Pane Layout. Tab selection and floating frames persist.</p>
+<p>Drag a caption to a workspace edge to dock, or release it outside the workspace
+to float there. Floating titlebars include an original-icon drag handle for
+docking back. Double-click a caption to Float/Dock; its accessibility press action
+also toggles placement. Escape cancels a caption drag. Group auto-hide applies to
+both panes; pinning either restores their tabs. Moving one pane to another edge
+or floating it separates the group. Hiding a member preserves the association.</p>
+<p>Physical pointer/Escape/multi-screen, full menu/accelerator and VoiceOver
+acceptance remain open. These native interactions do not certify every MFC
+smart-docking or toolbar/menu-bar gesture.</p>
+<p>The native fixture exercises current/Find/unrelated/second/retired window routing,
+visible state, busy/detection gates, hide/restore source selection, window/panel
+appearance and reset, reopened layout, private preferences and exact repository
+state preservation. These are object-linked native checks, not complete displayed
+menu-bar or signed App Store acceptance.</p>
+<p>The Debug build and ten grouped native menu/File Open/Find/source/wrap cases
+passed with both Git engines. The initial detection fixture used within-file mode
+for a between-file-only restriction; the corrected fixture retains the source gates.
+Retirement explicitly clears callbacks that could retain a view or target old UI.
+Core/AppStore checks were not repeated for this native-only batch.</p>
+<p>A separate private preview app also verified the actual SwiftUI menu bar: View and
+Edit commands were present, menu-bar toolbar hide/restore worked, Find accepted
+keyboard input, Command-G reported wrap and Command-L opened Go To Line from the
+Find panel. Its unique preferences/repository were isolated and PID was verified
+absent after normal Quit. This preview used <code>--resource-runtimes</code>; its runtime
+layout differs from production and cannot establish production signing acceptance.</p>
+<p>The preview investigation exposed a required distribution fix: mixed runtime data
+and reconstruction kits currently live under <code>Contents/Helpers</code>. Apple expects code
+in that location; data/scripts need appropriate resource placement, and dotted Perl
+library directories were rejected as bundles. See
+<a href="https://developer.apple.com/library/archive/technotes/tn2206/">Apple's signing guidance</a>.
+The initial preview-only resource relocation preserved helper lookups with relative
+aliases and passed ad-hoc verification. Production runtime placement and auxiliary
+library signing were subsequently implemented and checked; see
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/DISTRIBUTION.html">DISTRIBUTION.md</a>. Actual signed distribution remains open. <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/blame-menus-2026-10-13.json">Evidence</a> records both successes and this gap.</p>
+<h2 id="source-encode-catalog">Source Encode catalog</h2>
+<p>Both the macOS menu bar and the Blame window's Edit menu share the pinned Encode
+catalog: UTF-8/UTF-16 LE/UTF-16 BE, then all sixteen language groups in resource
+order, with all 48 legacy entries and original captions. Selection is checked by
+code page rather than localized codec name. Automatic and Additional macOS
+Encodings follow the source choices, retaining native detection and platform
+codecs without changing the source categories.</p>
+<p>Foundation supplies 49 of the 51 source codecs. OEM 720 and OEM 858 now use embedded
+single-byte mappings, including Arabic and the Euro replacement in OEM 858.
+Historical annotation, whole-file decoding and the native editor's trailing line
+handling use the same decoder. NUL/binary guards remain enforced. These choices
+require no process execution or additional sandbox entitlement.</p>
+<p>Focused Core coverage resolves every source choice and preserves additional codec
+access, checks Arabic/Euro mappings and binary rejection, and annotates historical
+OEM files while preserving HEAD, index and the working copy. The native menu
+receiver covers encoding selection, reset, busy and retired-window gates alongside
+the existing ownership/presentation checks. Full physical category-menu clicks,
+VoiceOver, all non-ASCII platform-codec behavior and signed execution remain open.</p>
+<p>The Debug build, 22 unique focused Core tests (initial UTF-16 mapping failure
+fixed and the three affected tests rerun), four grouped native receivers across
+system/bundled Git, and two site documentation checks passed within those scopes.
+All four owned native receivers were reaped. <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/blame-encoding-2026-10-13.json">Evidence</a>.</p>
+<p><a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/blame-pane-tabs-2026-10-15.json">Pane grouping and drag evidence</a> records
+the native interaction scope and remaining physical/signed checks.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

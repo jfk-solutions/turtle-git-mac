@@ -1,8 +1,9 @@
 {
   "files": {
-    "Contents/Info.plist": "954e35d302bde8011f8384fde0d59ce16b36be7e25dae77ea436e09e1cb9de51",
+    "Contents/Info.plist": "060026c04c6440b517422e54ee34cf052950cfad8ff52c19e736eb084ae4aa9a",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "bffe41983454087ae3e242c659e7cfd6ff5c1d6a262f5246d5cdd772d84f2c4b",
-    "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "04859045f7eeb6a6b5d1187d1978d17df4adb5a0568b6bc5cb85a34951d1ade0",
+    "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "ea62e9255277183fb721ceb36a97a21b113f94329e42eef862414b541f4853fd",
+    "Contents/Resources/en.lproj/BLAME-MENUS.html": "84b9abdc0c7538b1c81ee75ec03e833aa88c622aafceff2b6fd0138713ff42ac",
     "Contents/Resources/en.lproj/CHERRY-PICK.html": "69424c956849c3686861e28c3a1c8d034ded56dba04c84841fc93528b67ee1af",
     "Contents/Resources/en.lproj/CONFLICT-IDENTITIES.html": "fceecf83506092258f348b48a3a36d150fe8fe34ee26f36e5cf84d4d96b405c7",
     "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "3fa99498e93a06f81d41f8d5741dd6827b59219a93fb2356c699a36fcc0bb870",
@@ -30,12 +31,13 @@
     "Contents/Resources/en.lproj/STATISTICS.html": "1922b1a82a1797d28eb33c61b1fcdcb3b8446ad4801e67c892f67df761f3d448",
     "Contents/Resources/en.lproj/SVN-AUTHENTICATION.html": "07ba11505b7b1bd2ff9f55977c12087fbcae75214cc89b2151d9f5fe06c0bd1a",
     "Contents/Resources/en.lproj/help.css": "f68bb2e39c7ed8b34d6d8fe82e77612ec8b0ac901f4955fb1a2b16db2b29c4c7",
-    "Contents/Resources/en.lproj/index.html": "2967e24610ccac3ebd6c4846fcbb34bee4d3022645480a322df510c00861ad8b",
-    "Contents/Resources/en.lproj/topics.json": "eaaee4970ecf3758d21c22b9b041277ea9d41ba6525d36fda267f5b24b37dc15"
+    "Contents/Resources/en.lproj/index.html": "3e4b593dba5805a454d9b3a84e852c79b698f71ca5daaec7974305c50bcefe03",
+    "Contents/Resources/en.lproj/topics.json": "c3a21111fa25805a0eb24fc7ad80c1a5b9bc82ff9b0a6a6b149fef8bd9632f16"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ea90931832ee313fe03815ccb3a392b0eda50026fdb0324fbd0a2b38b5f00963",
-    "docs/BLAME-FILE-OPEN.md": "553fc2c40051d7f95cb3bad84be503b0710466c220f61c8043c7226372eda3ee",
+    "docs/BLAME-FILE-OPEN.md": "3036f8fc1ca73a25dd9db1b463231bf92eacd7d59b8990755c67c0d707093ae9",
+    "docs/BLAME-MENUS.md": "8f5d0b82d370d871efd54cd8f8001cddcc10396f03f523d14476aac67eda9685",
     "docs/CHERRY-PICK.md": "ac4553c2aa55314d8be0f2b333d5a094d4c67b3c67f6613812a8c395df8f2380",
     "docs/CONFLICT-IDENTITIES.md": "5a0f6ac729c78df24e4ed8a6194e2cd9053d2289438b75519f1f21e908ec2213",
     "docs/DIALOG-GUIDE.md": "5a6dcb1e6f1fad9085929f728322f71fb6df2cd36935da3219b57a5036ea3824",
@@ -61,6 +63,6 @@
     "docs/SSH-AUTHENTICATION.md": "33c00c2bde5c80f561e2b31f124a436127bc78d17466109828ab4742c34b7a8a",
     "docs/STATISTICS.md": "9816003a9a3ccfc24a021a86bb4add7f295b3a3ab3565a857a7d9faa6b4977e6",
     "docs/SVN-AUTHENTICATION.md": "e89e9f230f93b3a1a3357cab07bf84389c66bfdd602d2cea9229c22b1667c0b1",
-    "docs/help-topics.json": "eaaee4970ecf3758d21c22b9b041277ea9d41ba6525d36fda267f5b24b37dc15"
+    "docs/help-topics.json": "c3a21111fa25805a0eb24fc7ad80c1a5b9bc82ff9b0a6a6b149fef8bd9632f16"
   }
 }

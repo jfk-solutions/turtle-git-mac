@@ -2,6 +2,12 @@
 
 *A macOS fork of TortoiseGit*
 
+Blame's annotation menus now capture line/text/parent/rename targets, honor owner
+icon preferences and support Shift-F10/accessibility menu requests in both source
+and gutter. Source and embedded Log invocations dispatch once and reject stale
+document targets. See [annotation menus](BLAME-PARITY.md#captured-annotation-menus-and-keyboard-access--october-16-2026).
+Full physical, visual, command-artwork and signed acceptance remain open.
+
 RefLog now distinguishes full Refresh's missing-reference fallback to HEAD from
 post-deletion row reload, and owns cancellable refresh/parent/unified reads through
 actual worker drain. Delete/Clear confirmations, per-error sheets and exclusive

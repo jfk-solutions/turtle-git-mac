@@ -223,6 +223,7 @@
   ],
   "additional_guides": [
     "LOG-FIND.md",
+    "BLAME-MENUS.md",
     "REVERT-COMMIT.md",
     "REBASE-CONFLICT-FILES.md",
     "REBASE-SPLIT.md",

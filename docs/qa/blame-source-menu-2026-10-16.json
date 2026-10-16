@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "6daac685436bc2abf8aed771d80be6481b9dcd4f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "TortoiseGitBlameView.cpp OnRButtonUp and ContextMenuAction: captured source line/revision, relevant parent filenames, original line and commands",
+    "TortoiseGitBlameENG.rc: Compare with previous revision, Show log and SHA-1/full-log clipboard labels",
+    "LogListBlameAction.cpp: existing embedded Log command consumers retained"
+  ],
+  "implementation": [
+    "Immutable annotation targets with owner/generation, origin filename, hash, original line, source bytes and selected text",
+    "Captured previous/compare/unified, Log/hash/details/source/UTF-16 selected Copy and native Select All commands",
+    "Source resource labels and owner-specific context-icon preference",
+    "Annotation and embedded Log revision/parent items dispatch once",
+    "Gutter/editor Shift-F10 and accessibility Show Menu route selected row/caret through owned parent preparation",
+    "Frozen parent choices, keyboard row anchor and pointer location; stale preparation/reloaded/replaced/retired guards",
+    "User menu guide included in offline Help and linked from Blame Help"
+  ],
+  "build": {
+    "exit": 0,
+    "log": "build/qa/blame-source-menu-build.log",
+    "anomalous_exit_zero_diagnostics": 3
+  },
+  "core": "No Core implementation change; Core tests were not rerun for this native menu family.",
+  "native": {
+    "runner": "scripts/test-blame-source-menu.py",
+    "engines": ["system Git", "bundled Git"],
+    "initial_exit": 1,
+    "initial_log": "build/qa/blame-source-menu-native.log",
+    "initial_receivers_reaped": [15539],
+    "initial_result": "New source/system fixture failed its initial attribution assertion because its tiny file did not retain enough unchanged content for rename detection. No later family/engine had run.",
+    "repair": "Added stable unchanged context in the existing first line so Git recognizes the intended rename. Kept the attribution and old/new filename, original line, bytes and revision assertions.",
+    "final_exit": 0,
+    "final_log": "build/qa/blame-source-menu-native-repair.log",
+    "passing_cases": 6,
+    "final_receivers_reaped": [15627, 15743, 15868, 16167, 16477, 16505],
+    "checks": [
+      "Actual annotation menu construction through native editor AX request and parent reader, using injected popup presentation",
+      "Source labels/order, root exclusion, original assets and owner-private icons-off behavior",
+      "Captured Log/hash/source/Unicode selected Copy/full-log Copy after editor/line selection changes; repeated source items refused",
+      "Historical rename parent/original line/options, captured alternate comparison and real selected-revision unified patch bytes",
+      "Native Select All, gutter/editor Shift-F10 and AX, row anchoring, busy/foreign/reload/retired refusal",
+      "Retained embedded Log selected-entry, parent and unified callbacks, private clipboard and stale generation checks",
+      "Retained focused current/Find/unrelated/second window routing, pane docking/floating/auto-hide/persistence and document rebinding",
+      "Retained Unicode and multiline source Copy, BOM/CRLF/no-final-LF normalized display, read-only guards, margin/font/theme selection retention, scrolling and Find/Go To keyboard routes",
+      "Unchanged repository HEAD/raw index/working source bytes"
+    ],
+    "ownership": "All seven receivers reaped; independent final process scan found none. Owned windows closed and private fixtures/preferences/clipboard cleaned up."
+  },
+  "limits": [
+    "Popup presenter injected; no physical tracked-menu, pointer, keyboard or complete VoiceOver acceptance claim",
+    "No new screenshot or full all-state visual certification",
+    "Exact Windows default-item styling and complete source command-artwork mapping remain open",
+    "Signed sandbox/App Store, complete hosted CI and full Blame/application parity remain unverified"
+  ]
+}

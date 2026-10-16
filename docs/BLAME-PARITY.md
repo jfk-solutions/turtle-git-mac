@@ -1323,3 +1323,37 @@ lifetime. Light and Dark retain independent drafts and source defaults. The
 late callback fences and remaining physical/VoiceOver acceptance.
 
 The shared source color-button family passed native Settings draft/panel checks; see [dated evidence](qa/settings-color-choices-2026-10-16.json) for fixture repairs, exact scope and remaining navigation/physical acceptance.
+
+## Captured annotation menus and keyboard access — October 16, 2026
+
+`TortoiseGitBlameView::OnRButtonUp` captures the source line, its revision, relevant
+parents and filenames before `ContextMenuAction` dispatch. The native annotation
+menu now retains the same immutable line/parent/path data for Show Log, previous
+Blame, comparison and unified diff, hash/full-log copy and the added native source
+copy/selection commands. UTF-16 source selection is copied from the captured text,
+rather than a later editor selection. The line's original line number and applied
+Blame options accompany previous-revision navigation. Source labels now follow
+the pinned resource's Compare with previous revision, Copy SHA-1 to clipboard and
+Copy log to clipboard titles. Existing native unified/source-editing additions
+remain separate from the source clipboard group.
+
+Context targets include model identity, document generation, exact origin filename,
+original line number and source bytes. Selection changes after menu preparation
+cannot redirect an invocation; reload, document replacement/retirement and busy
+owners reject it. Each annotation, embedded Log revision and embedded Log parent
+item is consumed once. All annotation command artwork now uses the owning private
+preference store, matching the embedded Log's context-icon setting.
+
+Both annotation panes support Shift-F10 and accessibility Show Menu. The gutter
+uses its selected row; the source editor uses its native caret/selection row.
+Parent preparation uses the existing cancellable reader and suppresses a popup
+if selection changes before preparation completes. Keyboard menus anchor beside
+the selected row; pointer/Control-click preserves the clicked location. Production
+uses native AppKit menu presentation. A private presenter permits receiver checks
+without leaving a tracked menu open on the user's desktop.
+
+[Grouped evidence](qa/blame-source-menu-2026-10-16.json) records actual scope,
+the rename fixture repair and receiver cleanup. Core Git implementation is
+unchanged and was not rerun. No new screenshot or complete physical popup,
+keyboard/VoiceOver, exact Windows default-item styling, all command-artwork mapping
+or signed/App Store acceptance is claimed. Full Blame/application parity remains open.
