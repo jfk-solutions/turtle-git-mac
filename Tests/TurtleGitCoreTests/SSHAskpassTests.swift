@@ -61,7 +61,8 @@ final class SSHAskpassTests: XCTestCase {
         /bin/sleep 30 &
         task_child=$!
         trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-        printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+        printf '%s %s\\n' "$$" "$task_child" > "$0.started.pending"
+        /bin/mv "$0.started.pending" "$0.started"
         wait "$task_child"
         exec /usr/bin/ssh-add "$@"
         """

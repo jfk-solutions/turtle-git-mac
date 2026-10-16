@@ -45,6 +45,7 @@ public final class SSHAgentSession: @unchecked Sendable {
     private final class State: @unchecked Sendable {
         let lock = NSLock()
         let finished = DispatchSemaphore(value: 0)
+        let closed = DispatchGroup()
         var result: Result<Int32, Error>?
         var started = false
         var invalidated = false
@@ -52,6 +53,11 @@ public final class SSHAgentSession: @unchecked Sendable {
         var operationFinished: DispatchSemaphore?
     }
     private let state = State()
+    /// Observed worker/lifetime state, without probing or modifying the login agent.
+    public var isRunning:Bool {
+        state.lock.lock();defer {state.lock.unlock()}
+        return state.started && !state.invalidated && state.result==nil
+    }
 
     public init(runtime: SSHAgentRuntime, temporaryRoot: URL = FileManager.default.temporaryDirectory, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check(); self.runtime = runtime
@@ -75,21 +81,25 @@ public final class SSHAgentSession: @unchecked Sendable {
             let capturedEnvironment = environment
             state.started = true
             DispatchQueue.global(qos: .utility).async {
-                let value = Result { try CancellableGitProcess.run(executable: executable, arguments: arguments, environment: capturedEnvironment, output: out.fileDescriptor, error: err.fileDescriptor, cancellation: token) }
+                let value = Result { try CancellableGitProcess.run(executable: executable, arguments: arguments, environment: capturedEnvironment, output: out.fileDescriptor, error: err.fileDescriptor, cancellation: token,terminateDescendantsOnExit:true) }
                 try? out.close(); try? err.close(); state.lock.lock(); state.result = value; state.lock.unlock(); state.finished.signal()
             }
             for _ in 0..<500 {
                 try cancellation?.check()
                 state.lock.lock(); let result = state.result; state.lock.unlock()
                 if result != nil { throw SSHAgentFailure.startup((try? String(contentsOf: error, encoding: .utf8)) ?? "") }
-                if FileManager.default.fileExists(atPath: socket.path) { return }
+                var socketInfo=stat()
+                if lstat(socket.path,&socketInfo)==0 {
+                    guard socketInfo.st_mode & S_IFMT == S_IFSOCK else {throw SSHAgentFailure.startup("The agent did not create a Unix-domain socket.")}
+                    return
+                }
                 Thread.sleep(forTimeInterval: 0.01)
             }
             throw SSHAgentFailure.startup("Timed out waiting for its socket.")
         } catch { close(); throw error }
     }
     /// A supplied passphrase uses a private, one-use helper channel. Native
-    /// prompting/Keychain integration remains pending. Without a response, an
+    /// prompting/Keychain integration is supplied by the native coordinator. Without a response, an
     /// encrypted key fails without terminal interaction. Earlier keys remain.
     public func add(keys: [URL], passphrase: String? = nil, cancellation: OperationCancellation? = nil) throws {
         for key in keys {
@@ -132,14 +142,17 @@ public final class SSHAgentSession: @unchecked Sendable {
             catch { try? writer.close(); throw error }
             environment["SSH_ASKPASS"] = helper.path; environment["TURTLEGIT_SSH_CREDENTIAL_FILE"] = file.path
         }
-        let code = try CancellableGitProcess.run(executable: runtime.add, arguments: arguments, environment: environment, output: out.fileDescriptor, error: err.fileDescriptor, cancellation: request, pollOutput: { if cancellation?.isCancelled == true { request.cancel() } })
+        let code = try CancellableGitProcess.run(executable: runtime.add, arguments: arguments, environment: environment, output: out.fileDescriptor, error: err.fileDescriptor, cancellation: request, pollOutput: { if cancellation?.isCancelled == true { request.cancel() } },terminateDescendantsOnExit:true)
         try request.check(); try cancellation?.check()
         guard successfulExitCodes.contains(code) else { throw SSHAgentFailure.command(code, (try? String(contentsOf: errURL, encoding: .utf8)) ?? "") }
         return String(decoding: try Data(contentsOf: outURL), as: UTF8.self)
     }
     public func close() {
-        state.lock.lock(); if state.invalidated { state.lock.unlock(); return }; state.invalidated = true
+        state.lock.lock()
+        if state.invalidated {state.lock.unlock();state.closed.wait();return}
+        state.invalidated=true;state.closed.enter()
         let active = state.operation, operationFinished = state.operationFinished, started = state.started; state.lock.unlock()
+        defer {state.closed.leave()}
         active?.cancel(); lifetime.cancel()
         if started { state.finished.wait() }
         operationFinished?.wait()

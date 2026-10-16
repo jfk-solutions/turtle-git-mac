@@ -63,6 +63,7 @@ struct SSHAutoloadToggle: View {
         try check(token); guard active == nil else { throw SSHAgentFailure.closed }
         active = token; Self.activeOperations += 1
         defer { active = nil; Self.activeOperations -= 1 }
+        discardStoppedSession()
         let configured = try await repository.remoteNames(cancellation: token); try check(token)
         for name in names {
             guard configured.contains(where: { GitReferenceName.equal($0,name) }) else { continue }
@@ -83,6 +84,10 @@ struct SSHAutoloadToggle: View {
         try await loadKey(path: path, cancellation: token); try check(token)
         guard let session else { throw SSHAgentFailure.closed }; return session
     }
+    private func discardStoppedSession() {
+        guard let session,!session.isRunning else {return}
+        session.close();self.session=nil;loaded.removeAll()
+    }
     private func loadKey(path: String, cancellation token: OperationCancellation) async throws {
         let access = try identities.acquire(path: path, requireSecurityScope: GitRuntime.isAppStoreBuild)
         defer { withExtendedLifetime(access) {} }
@@ -92,6 +97,7 @@ struct SSHAutoloadToggle: View {
         let digest = try await Task.detached { try SSHAuthenticationIdentity.read(file, cancellation: token) }.value
         try check(token)
         let identity = IdentityRevision(path: Data(access.file.path.utf8), digest: digest, device: Int64(info.st_dev), inode: UInt64(info.st_ino), size: info.st_size, seconds: Int64(info.st_mtimespec.tv_sec), nanoseconds: Int64(info.st_mtimespec.tv_nsec))
+        discardStoppedSession()
         if loaded.contains(identity) { return }
         if session == nil {
             let tools = try runtime(), root = temporaryRoot

@@ -35,7 +35,8 @@ Build, signing and audit preparation are tracked in
 CLI. A supplied response can load an encrypted key through a private one-use
 channel; without a response, the headless loader rejects interactive prompting.
 The native secure response dialog now connects to configured-key loading in
-Clone/Fetch/Pull/Push, remote branch browsing, remote tags, BrowseRefs remote deletion and Log server deletion. Keychain integration is pending. See
+Clone/Fetch/Pull/Push, remote branch browsing, remote tags, BrowseRefs remote deletion and Log server deletion. Optional Keychain storage and removal are implemented; see
+[saved authentication](SSH-AUTHENTICATION.md). See
 [SSH passphrase parity](SSH-PASSPHRASE-PARITY.md). This is not authentication or
 signed sandbox acceptance.
 
@@ -43,8 +44,8 @@ signed sandbox acceptance.
 
 - Verify signed parent invocation of embedded OpenSSH helpers and transports.
   Packaged Git now prefers the bundled client; static signing checks are not execution acceptance.
-- Verify signed identity selection, renewal and loading; add permission management. Native mock-scope loading exists and Windows PuTTY configuration is preserved. Conversion or native PPK support remains pending.
-- Verify physical encrypted-key response sheets and add Keychain decisions with owned
+- Verify signed identity selection, renewal, loading and the implemented permission manager. Native mock-scope loading exists and Windows PuTTY configuration is preserved. Conversion or native PPK support remains pending.
+- Verify physical encrypted-key response sheets and signed Keychain decisions with owned
   cancellation. Keep private bytes out of command output, Finder and docs.
 - Verify inherited-agent compatibility for submodule Update initialization and
   recursion. The pinned Update command has no LaunchPAgent call or autoload
@@ -80,3 +81,22 @@ fails the test if needed. See the
 app window, use no user key/login agent and contact no server. Signed sandbox
 invocation, real authentication and physical response-window acceptance remain
 unverified.
+
+## Private agent lifecycle — October 16, 2026
+
+Startup accepts only a Unix-domain socket, rather than any file at the expected
+path. The foreground agent and each key-loader process own their descendants
+through normal exit as well as cancellation. Concurrent close callers all wait
+for the same agent/loader drain and private-directory removal. No login-agent
+environment or process is changed.
+
+The connected transport coordinator discards a closed or exited private session
+and its loaded-key cache before the next preparation. It creates a fresh agent
+and reloads the requested identity; a live session retains its identity cache.
+This does not retry a transport that fails after preparation. Signed sandbox,
+physical response sheets and server authentication remain separate acceptance.
+
+The grouped checkpoint passed 22 Core tests, both Debug builds and all six native
+case/engine runs, with every owned receiver reaped. See
+[the lifecycle batch record](qa/ssh-session-lifecycle-2026-10-16.json) for scope and
+the separate remaining hosted Merge view failure.

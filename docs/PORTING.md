@@ -1474,3 +1474,13 @@ to checked files and staging; issue-field Return requests message focus. Sign-of
 identity reads share owned cancellation/Close/Quit and late-retirement gates.
 Menu repair and installation epochs reject detached/background targets. See
 [Commit parity](COMMIT-PARITY.md#native-commit-commands-selection-direction-and-keyboard-flow--october-16-2026).
+
+## Private SSH lifecycle and replacement — October 16, 2026
+
+The connected agent/transport batch replaces stopped sessions and reloads cached
+identities, validates the real socket, drains concurrent closure and terminates
+owned helper descendants on normal exit. The observed hosted credential-loading
+marker race is repaired through atomic readiness publication with all original
+cleanup assertions retained. See [agent lifecycle](SSH-AGENT-PARITY.md) and
+[transport ownership](SSH-TRANSPORT-PARITY.md). Full hosted and signed acceptance
+remain open.

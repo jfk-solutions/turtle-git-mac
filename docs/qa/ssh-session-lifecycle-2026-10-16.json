@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "2ee986c3b6edbcaa5f32b7eb91f3c19e10da5654",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Private SSH agent lifecycle, cached identity replacement and atomic hosted loader readiness",
+  "implementation": [
+    "Validate a Unix-domain socket before accepting agent readiness",
+    "Terminate owned agent/key-loader descendants on normal exit as well as cancellation",
+    "Concurrent close callers await the same worker drain and directory removal",
+    "Replace closed/exited session and loaded-key cache before key preparation; unkeyed preparation cannot return an exited socket",
+    "Publish complete PID readiness markers atomically without weakening credential/liveness/removal assertions"
+  ],
+  "hosted_failure": {
+    "run": 38922360712,
+    "job": 117049148805,
+    "test": "SSHAskpassTests.testForcedCloseDuringCredentialLoadingRemovesEnvelopeAndChildren",
+    "assertion": "PID count 0 instead of 2",
+    "cause": "Marker file was visible before its complete PID contents",
+    "source": "GitHub decoded workflow job logs"
+  },
+  "core": {
+    "log": "build/qa/ssh-lifecycle-core-2026-10-16.log",
+    "exit": 0,
+    "tests": 22,
+    "failures": 0,
+    "suites": [
+      "SSHAgentSessionTests",
+      "SSHAskpassTests",
+      "SSHTransportPreparationTests"
+    ],
+    "full_suite_repeated": false
+  },
+  "debug": [
+    {
+      "log": "build/qa/ssh-lifecycle-debug-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/ssh-lifecycle-debug-unkeyed-2026-10-16.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "reason": "Final review also rejects stopped sessions for unkeyed preparation; incremental native-only build"
+    }
+  ],
+  "native": {
+    "log": "build/qa/ssh-lifecycle-native-2026-10-16.log",
+    "exit": 0,
+    "distinct_passing_case_engine_runs": 6,
+    "cases": [
+      "lifecycle",
+      "coordinator",
+      "authentication"
+    ],
+    "git_engines": [
+      "system",
+      "bundled"
+    ],
+    "actual_bundled_openssh_used_by_lifecycle": true,
+    "fixtures_use_private_generated_keys_and_mock_bookmarks": true,
+    "owned_receivers_reaped_and_independently_absent": [
+      39458,
+      39477,
+      39505,
+      40475,
+      41470,
+      41510
+    ],
+    "failed_runs": 0,
+    "windows_and_private_agents_closed": true
+  },
+  "documentation": {
+    "help_files": 50,
+    "help_bytes": 1959764,
+    "source_built_help_equal": true,
+    "coverage_ledger": "regenerated",
+    "site_documents": 256,
+    "unresolved_fragments": []
+  },
+  "latest_hosted_observation": {
+    "run": 38930685497,
+    "job": 117076731808,
+    "head": "e6da8fe7",
+    "integration": "success",
+    "job_conclusion": "failure",
+    "failed_native_case": "test-merge-view-family.py --only view, bundled Git",
+    "diagnostic": "Timed out waiting for two-pane comparison; busy=false, filtering=false, selections=[true], error=nil, window=true",
+    "next_action": "Inspect the view-family preparation wait; preserve the actual view/input/save assertions",
+    "pages_run": 38938237646,
+    "pages_head": "2ee986c3",
+    "pages_conclusion": "success"
+  },
+  "limits": [
+    "No real SSH server or user keys used",
+    "Live signed Keychain, sandbox, Finder and distribution acceptance remain open",
+    "No automatic retry of a transport that fails after agent preparation",
+    "No full upstream dialog certification"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

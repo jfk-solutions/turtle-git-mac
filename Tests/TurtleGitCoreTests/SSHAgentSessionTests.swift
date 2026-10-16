@@ -59,7 +59,8 @@ final class SSHAgentSessionTests: XCTestCase {
         /bin/sleep 30 &
         task_child=$!
         trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-        printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+        printf '%s %s\\n' "$$" "$task_child" > "$0.started.pending"
+        /bin/mv "$0.started.pending" "$0.started"
         wait "$task_child"
         exec /usr/bin/ssh-add "$@"
         """
@@ -75,4 +76,66 @@ final class SSHAgentSessionTests: XCTestCase {
         XCTAssertTrue(ids.allSatisfy { kill($0,0) != 0 }); XCTAssertFalse(FileManager.default.fileExists(atPath: agent.directory.path))
     }
 
+}
+
+extension SSHAgentSessionTests {
+    func testSocketReadinessRefusesRegularFileAndReapsWorker() throws {
+        let root=try fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let helper=root.appendingPathComponent("not-a-socket")
+        let script="""
+        #!/bin/sh
+        printf '%s\\n' "$$" > "$0.pid.pending"
+        /bin/mv "$0.pid.pending" "$0.pid"
+        : > "$3"
+        exec /bin/sleep 30
+        """
+        try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
+        XCTAssertThrowsError(try SSHAgentSession(runtime:.init(agent:helper,add:URL(fileURLWithPath:"/usr/bin/ssh-add")),temporaryRoot:root))
+        let pid=try XCTUnwrap(Int32(String(contentsOf:URL(fileURLWithPath:helper.path+".pid")).trimmingCharacters(in:.whitespacesAndNewlines)))
+        XCTAssertNotEqual(kill(pid,0),0)
+        XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath:root.path).contains{$0.hasPrefix("tg-agent-")})
+    }
+    func testConcurrentCloseWaitsForSharedCredentialWorkerDrain() async throws {
+        let root=try fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let helper=root.appendingPathComponent("close-add"),marker=URL(fileURLWithPath:helper.path+".started")
+        let script="""
+        #!/bin/sh
+        /bin/sleep 30 &
+        task_child=$!
+        trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
+        printf '%s %s\\n' "$$" "$task_child" > "$0.started.pending"
+        /bin/mv "$0.started.pending" "$0.started"
+        wait "$task_child"
+        """
+        try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
+        let session=try SSHAgentSession(runtime:.init(agent:URL(fileURLWithPath:"/usr/bin/ssh-agent"),add:helper),temporaryRoot:root)
+        defer{session.close()};XCTAssertTrue(session.isRunning)
+        let add=Task.detached {Result {try session.add(keys:[root.appendingPathComponent("fixture-key")])}}
+        for _ in 0..<500 {if FileManager.default.fileExists(atPath:marker.path){break};try await Task.sleep(nanoseconds:10_000_000)}
+        let ids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)}
+        XCTAssertEqual(ids.count,2)
+        let closes=(0..<8).map {_ in Task.detached {session.close();return !FileManager.default.fileExists(atPath:session.directory.path) && ids.allSatisfy{kill($0,0) != 0}}}
+        for close in closes {let drained=await close.value;XCTAssertTrue(drained,"Close returned before shared worker cleanup")}
+        if case .success = await add.value {XCTFail("Closed loader succeeded")}
+        XCTAssertFalse(session.isRunning)
+    }
+    func testSuccessfulLoaderExitStopsItsRemainingOwnedChild() async throws {
+        let root=try fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let helper=root.appendingPathComponent("early-exit-add"),marker=URL(fileURLWithPath:helper.path+".started")
+        let script="""
+        #!/bin/sh
+        /bin/sleep 30 &
+        printf '%s %s\\n' "$$" "$!" > "$0.started.pending"
+        /bin/mv "$0.started.pending" "$0.started"
+        exit 0
+        """
+        try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
+        let session=try SSHAgentSession(runtime:.init(agent:URL(fileURLWithPath:"/usr/bin/ssh-agent"),add:helper),temporaryRoot:root);defer{session.close()}
+        try session.add(keys:[root.appendingPathComponent("fixture-key")])
+        let ids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)}
+        XCTAssertEqual(ids.count,2);guard ids.count==2 else {return}
+        defer {if getpgid(ids[1])==ids[0] {kill(ids[1],SIGKILL)}}
+        for _ in 0..<500 {if kill(ids[1],0) != 0 {break};try await Task.sleep(nanoseconds:10_000_000)}
+        XCTAssertNotEqual(kill(ids[1],0),0);XCTAssertTrue(session.isRunning)
+    }
 }

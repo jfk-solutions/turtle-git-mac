@@ -375,6 +375,8 @@ jobs:
         run: python3 scripts/test-remote-settings.py
       - name: Native SSH passphrase response
         run: python3 scripts/test-ssh-passphrase.py
+      - name: Native private SSH session recovery and cleanup
+        run: python3 scripts/test-ssh-lifecycle-family.py --only lifecycle --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native SSH transport coordinator
         run: python3 scripts/test-ssh-coordinator.py
       - name: Native Submodule Sync

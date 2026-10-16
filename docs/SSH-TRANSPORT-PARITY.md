@@ -60,8 +60,9 @@ The coordinator reads the native `remote.<name>.turtlegitsshkeyfile` setting and
 holds the private read-only bookmark lease through loading. It creates a private
 agent lazily, batches Fetch All identities, and accumulates Push identities in
 remote order. A successfully loaded file is deduplicated by byte-exact path,
-device, inode, size and nanosecond modification time. Replacing/modifying a key
-reloads it; this is not a cryptographic fingerprint or proof against all races.
+SHA-256 content digest, device, inode, size and nanosecond modification time.
+Replacing/modifying a key reloads it; the surrounding file checks do not prove
+protection against all concurrent file changes.
 
 Loading first refuses interactive askpass. macOS OpenSSH can report that refusal
 with status 1 and no diagnostic. A bounded 256-byte header check recognizes
@@ -235,3 +236,27 @@ late-response, Clone and submodule checks. Failure diagnostics now include the
 source line and picker readiness snapshot. See
 [recorded results](qa/ssh-transport-readiness-2026-10-15.json). A new hosted pass
 is still required; local success does not establish signed/public SSH acceptance.
+
+## Session replacement and hosted marker handoff — October 16, 2026
+
+Preparation now replaces closed/exited private agents and reloads their identities
+instead of returning a stale loaded-key cache. Concurrent closure waits for shared
+worker cleanup. Startup rejects non-socket placeholders and owned helpers cannot
+leave descendants on normal exit.
+
+Hosted macOS run 38922360712, job 117049148805, failed
+`SSHAskpassTests.testForcedCloseDuringCredentialLoadingRemovesEnvelopeAndChildren`:
+the readiness marker existed before its two PIDs had been written. Related slow
+loader fixtures now publish the complete PID marker by same-directory rename.
+The original credential permissions, two-PID, liveness, worker termination and
+credential-removal assertions remain. No longer delay or weaker assertion is used.
+
+The grouped native lifecycle runner uses the built app objects, actual bundled
+OpenSSH and private fixture keys; coordinator and saved-credential cases preserve
+their original checks. Local results do not establish a complete hosted CI pass
+or signed Finder/App Store acceptance.
+
+The grouped checkpoint passed 22 Core tests, both Debug builds and all six native
+case/engine runs, with every owned receiver reaped. See
+[the lifecycle batch record](qa/ssh-session-lifecycle-2026-10-16.json) for scope and
+the separate remaining hosted Merge view failure.
