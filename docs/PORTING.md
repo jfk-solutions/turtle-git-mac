@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The [Merge view-controls family](MERGE-VIEW-CONTROLS-PARITY.md) now adds guarded
+left/right input exchange with reversed Save/Save As/reload routing, saved native
+Toolbar/Status Bar visibility and an owned two-pane divider fraction preserved
+through combined view. The Debug build, icon checks and all eight native
+case/engine runs pass after fixture/resource repairs; every owned receiver is
+closed. Faded toolbar icons in optional captures, full input-route/physical and
+signed acceptance remain open; [batch record](qa/merge-view-family-2026-10-16.json).
+
 The [moved-block family](MERGE-MOVED-BLOCKS-PARITY.md) now adds the source detector,
 saved View toggle, original colored margin icons/tooltips, bidirectional whole-block
 navigation and combined-view routing. Surviving view-record links move with edits

@@ -3,11 +3,18 @@ import AppKit
 import Combine
 import TurtleGitCore
 
+@MainActor enum MergeEditorChrome {
+    static func visible(_ part: String, defaults: UserDefaults) -> Bool {
+        let key = "TurtleGitMerge." + part + "Visible"
+        return defaults.object(forKey:key) == nil || defaults.bool(forKey:key)
+    }
+}
+
 enum MergeToolbarCommand: String, CaseIterable {
     case open, save, saveAs, reload, undo, redo, previousDifference, nextDifference, previousConflict, nextConflict
     case useLeft, useTheirs, useMine, theirsThenMine, mineThenTheirs, resolved, find, patch, compareSources, showBase
     case whitespace, wrap, inline, inlineWord, onePane, collapsed, help
-    case saveLeft, saveRight, saveMerged, continueResolving, compareTheirs, compareMine
+    case saveLeft, saveRight, saveMerged, continueResolving, compareTheirs, compareMine, switchSides
     var title: String {
         switch self {
         case .open: return "Open"; case .save: return "Save"; case .saveAs: return "Save As"
@@ -23,6 +30,7 @@ enum MergeToolbarCommand: String, CaseIterable {
         case .help: return "Help"; case .saveLeft: return "Save left pane as…"; case .saveRight: return "Save right pane as…"
         case .saveMerged: return "Save merged result as…"; case .continueResolving: return "Continue resolving conflicts"
         case .compareTheirs: return "Compare Theirs with Base"; case .compareMine: return "Compare Mine with Base"
+        case .switchSides: return "Switch left and right view"
         }
     }
     var icon: MenuIcon {
@@ -38,6 +46,7 @@ enum MergeToolbarCommand: String, CaseIterable {
         case .compareSources, .compareTheirs, .compareMine, .showBase: return .compare
         case .whitespace: return .mergeWhitespace; case .wrap: return .mergeWrap
         case .inline: return .mergeInline; case .inlineWord: return .mergeInlineWord
+        case .switchSides: return .mergeSwitch
         case .onePane: return .mergeOnePane; case .collapsed: return .mergeCollapse; case .help: return .help
         }
     }
@@ -60,6 +69,10 @@ struct MergeToolbarState {
     private let preferences: UserDefaults
     let profileKey: String
     private var displayObservation: NSKeyValueObservation?
+    private var visibilityObservation: NSKeyValueObservation?
+    private var applyingVisibility = false
+    private var toolbarShown: () -> Bool
+    private var changedVisibility: (Bool) -> Void
     private var states: (MergeToolbarCommand) -> MergeToolbarState?
     private var action: (MergeToolbarCommand) -> Void
     private var visible: () -> Bool
@@ -68,10 +81,11 @@ struct MergeToolbarState {
     private let defaults: [MergeToolbarCommand]
     private var menus: [MergeToolbarCommand: [MergeToolbarCommand]]
     init(window: NSWindow, identifier: String, commands: [MergeToolbarCommand], defaults: [MergeToolbarCommand], menus: [MergeToolbarCommand: [MergeToolbarCommand]], changes: ObservableObjectPublisher,
-         preferences: UserDefaults, visible: @escaping () -> Bool, installed: @escaping (Bool) -> Void,
+         preferences: UserDefaults, visible: @escaping () -> Bool, toolbarShown: @escaping () -> Bool, changedVisibility: @escaping (Bool) -> Void, installed: @escaping (Bool) -> Void,
          state: @escaping (MergeToolbarCommand) -> MergeToolbarState?, action: @escaping (MergeToolbarCommand) -> Void) {
         self.window = window; self.commands = commands; self.defaults = defaults; self.menus = menus
         self.states = state; self.action = action; self.visible = visible; self.installed = installed
+        self.toolbarShown = toolbarShown; self.changedVisibility = changedVisibility
         self.preferences = preferences; profileKey = identifier + ".ToolbarConfiguration"
         // AppKit synchronizes items/targets for equal identifiers. Keep native
         // instances unique and persist only layout, independently of ownership.
@@ -85,6 +99,12 @@ struct MergeToolbarState {
         restoring = false
         displayObservation = toolbar.observe(\.displayMode, options: [.new]) { [weak self] _, _ in
             MainActor.assumeIsolated { self?.changedConfiguration() }
+        }
+        visibilityObservation = toolbar.observe(\.isVisible,options:[.new]) { [weak self] toolbar,_ in
+            MainActor.assumeIsolated {
+                guard let self,!self.retired,!self.applyingVisibility,self.window?.toolbar === toolbar else { return }
+                self.changedVisibility(toolbar.isVisible)
+            }
         }
     }
     private func restoreConfiguration() {
@@ -118,13 +138,16 @@ struct MergeToolbarState {
         let show = visible()
         if show && window.toolbar !== toolbar { window.toolbar = toolbar; installed(true) }
         else if !show && window.toolbar === toolbar { window.toolbar = nil; installed(false) }
+        if show,window.toolbar === toolbar,toolbar.isVisible != toolbarShown() {
+            applyingVisibility = true;toolbar.isVisible = toolbarShown();applyingVisibility = false
+        }
         for item in toolbar.items { update(item) }
     }
     func retire() {
-        guard !retired else { return }; saveConfiguration(); retired = true; observer = nil; displayObservation = nil
+        guard !retired else { return }; saveConfiguration(); retired = true; observer = nil; displayObservation = nil; visibilityObservation = nil
         for item in toolbar.items { item.isEnabled = false; (item.view as? NSButton)?.isEnabled = false }
         if window?.toolbar === toolbar { window?.toolbar = nil }
-        installed(false); action = { _ in }; states = { _ in nil }; visible = { false }; installed = { _ in }
+        installed(false); action = { _ in }; states = { _ in nil }; visible = { false }; toolbarShown = { false };changedVisibility = { _ in }; installed = { _ in }
     }
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { defaults.map(\.identifier) }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { commands.map(\.identifier) + [.flexibleSpace, .space] }
@@ -186,11 +209,11 @@ struct MergeToolbarState {
 extension MergeEditorToolbar {
     static func comparison(_ owner: FileComparisonWindowController) -> MergeEditorToolbar? {
         guard let window = owner.window else { return nil }; let model = owner.model
-        let commands: [MergeToolbarCommand] = [.open, .save, .saveAs, .reload, .undo, .redo, .previousDifference, .nextDifference, .useLeft, .whitespace, .wrap, .inline, .inlineWord, .onePane, .collapsed, .find, .patch, .help]
+        let commands: [MergeToolbarCommand] = [.open, .save, .saveAs, .reload, .undo, .redo, .previousDifference, .nextDifference, .useLeft, .whitespace, .wrap, .inline, .inlineWord, .onePane, .collapsed, .switchSides, .find, .patch, .help]
         return MergeEditorToolbar(window: window, identifier: "TurtleGit.Merge.Comparison", commands: commands,
             defaults: [.open, .save, .saveAs, .reload, .undo, .redo, .previousDifference, .nextDifference, .useLeft, .wrap, .inline, .collapsed, .find, .patch, .help],
             menus: [.saveAs: [.saveLeft, .saveRight]], changes: model.objectWillChange, preferences: model.comparisonDefaults,
-            visible: { [weak model] in model?.imageComparison == nil }, installed: { [weak model] installed in if model?.nativeToolbarInstalled != installed { model?.nativeToolbarInstalled = installed } },
+            visible: { [weak model] in model?.imageComparison == nil }, toolbarShown:{ [weak model] in model?.showToolbar == true }, changedVisibility:{ [weak model] in model?.setToolbarVisible($0) }, installed: { [weak model] installed in if model?.nativeToolbarInstalled != installed { model?.nativeToolbarInstalled = installed } },
             state: { [weak model, weak owner] command in
                 guard let model, let owner else { return nil }
                 let ready = model.contextCommandsAllowed && !model.filtering && owner.editorOpenWorkflow == nil && !owner.preparingReplacement
@@ -212,6 +235,7 @@ extension MergeEditorToolbar {
                 case .inline: return .init(enabled: text && !model.singleFileMode, checked: model.showInlineDiff)
                 case .inlineWord: return .init(enabled: text && !model.singleFileMode && model.showInlineDiff, checked: model.inlineWordDiff)
                 case .onePane: return .init(enabled: text && !model.singleFileMode, checked: model.onePaneMode)
+                case .switchSides: return .init(enabled: text && model.canSwitchSides)
                 case .collapsed: return .init(enabled: text, checked: model.folding.collapsed)
                 default: return nil
                 }
@@ -233,6 +257,7 @@ extension MergeEditorToolbar {
                 case .inline: model.setInlineDiff(!model.showInlineDiff)
                 case .inlineWord: model.setInlineWordDiff(!model.inlineWordDiff)
                 case .onePane: model.switchPaneMode(!model.onePaneMode)
+                case .switchSides: model.switchSides()
                 case .collapsed: model.setCollapsed(!model.folding.collapsed)
                 case .help: owner.showEditorHelp()
                 default: break
@@ -246,7 +271,7 @@ extension MergeEditorToolbar {
             defaults: [.open, .save, .saveAs, .reload, .undo, .redo, .previousDifference, .nextDifference, .previousConflict, .nextConflict, .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs, .resolved, .wrap, .find, .compareSources, .showBase, .help],
             menus: [.saveAs: [.saveLeft, .saveRight, .saveMerged, .continueResolving], .compareSources: [.compareTheirs, .compareMine]],
             changes: model.objectWillChange, preferences: model.comparisonDefaults,
-            visible: { [weak model] in model?.retired == false }, installed: { [weak model] installed in if model?.nativeToolbarInstalled != installed { model?.nativeToolbarInstalled = installed } },
+            visible: { [weak model] in model?.retired == false }, toolbarShown:{ [weak model] in model?.showToolbar == true }, changedVisibility:{ [weak model] in model?.setToolbarVisible($0) }, installed: { [weak model] installed in if model?.nativeToolbarInstalled != installed { model?.nativeToolbarInstalled = installed } },
             state: { [weak model, weak owner] command in
                 guard let model, let owner else { return nil }
                 let ready = !model.retired && !model.busy && !model.preparing && !model.exportingSource && !model.formatPending && !model.confirmingQuit && window.attachedSheet == nil && owner.editorOpenWorkflow == nil && !owner.preparingReplacement

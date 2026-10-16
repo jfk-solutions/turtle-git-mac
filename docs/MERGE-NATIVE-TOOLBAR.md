@@ -66,3 +66,15 @@ not certify every Ribbon command, physical interaction or conditional state.
 ![Merge with native toolbar in light mode](site/assets/merge-native-toolbar-light.png)
 
 ![Merge with native toolbar in dark mode](site/assets/merge-native-toolbar-dark.png)
+
+
+## View visibility and input exchange — October 16, 2026
+
+The [connected View family](MERGE-VIEW-CONTROLS-PARITY.md) adds saved native
+Toolbar/Status Bar controls and source Switch artwork/dispatch in the comparison
+customization palette. Hidden toolbars retain their owner without fallback rows;
+native visibility updates the owning store and transfers to File/Open replacements.
+The eight-run grouped evidence retains the earlier native toolbar workflow.
+Optional new captures show faded toolbar icons after hide/show/replacement, so
+those frames are not published as accepted screenshots; physical appearance
+acceptance remains open.

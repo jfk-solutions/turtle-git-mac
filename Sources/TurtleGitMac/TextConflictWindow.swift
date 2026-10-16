@@ -361,7 +361,12 @@ private enum MergeSourceSide {
     var regexDefaults: UserDefaults = .standard
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
-    var comparisonDefaults: UserDefaults = .standard
+    var comparisonDefaults: UserDefaults = .standard {
+        didSet { if document == nil {
+            showToolbar = MergeEditorChrome.visible("Toolbar",defaults:comparisonDefaults)
+            showStatusBar = MergeEditorChrome.visible("StatusBar",defaults:comparisonDefaults)
+        } }
+    }
     @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
     @Published private(set) var showInlineDiff = true
     @Published private(set) var inlineWordDiff = false
@@ -533,6 +538,16 @@ private enum MergeSourceSide {
     @Published var confirmingQuit = false
     @Published var error: String?
     @Published var nativeToolbarInstalled = false
+    @Published private(set) var showToolbar = MergeEditorChrome.visible("Toolbar",defaults:.standard)
+    @Published private(set) var showStatusBar = MergeEditorChrome.visible("StatusBar",defaults:.standard)
+    func setToolbarVisible(_ value: Bool) {
+        guard !retired, showToolbar != value else { return }
+        showToolbar = value;comparisonDefaults.set(value,forKey:"TurtleGitMerge.ToolbarVisible")
+    }
+    func setStatusBarVisible(_ value: Bool) {
+        guard !retired, !busy, !confirmingQuit, showStatusBar != value else { return }
+        showStatusBar = value;comparisonDefaults.set(value,forKey:"TurtleGitMerge.StatusBarVisible")
+    }
     @Published var showBase = false
     @Published var canUndo = false
     @Published var canRedo = false
@@ -1177,7 +1192,7 @@ private struct TextConflictDialog: View {
             }.padding(9)
             }
             HStack {
-                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed)
+                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed, toolbarVisible:model.showToolbar, applyToolbar:model.setToolbarVisible, statusBarVisible:model.showStatusBar, applyStatusBar:model.setStatusBarVisible)
                 MergeInlineControls(enabled: model.showInlineDiff, word: model.inlineWordDiff, applyEnabled: model.setInlineDiff, applyWord: model.setInlineWordDiff).disabled(model.busy || model.confirmingQuit || model.sourceComparison == nil)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments)
                 Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
@@ -1209,6 +1224,7 @@ private struct TextConflictDialog: View {
                     pane("Merged · \(model.path)", text: model.result, editable: true)
                     }
                 }
+                if model.showStatusBar {
                 HStack {
                     Text(model.blocks.isEmpty ? (MergeText.hasMarkers(model.result) ? "Incomplete conflict markers" : "No remaining conflicts") : "\(model.blocks[min(model.selectedConflict,model.blocks.count - 1)].isIgnored ? "Ignored conflict" : "Conflict") \(min(model.selectedConflict + 1, model.blocks.count)) of \(model.blocks.count)").foregroundStyle(model.blocks.isEmpty ? Color.secondary : .red)
                     Spacer()
@@ -1219,6 +1235,7 @@ private struct TextConflictDialog: View {
                     }.disabled(!model.canChooseConflict)
                     Text("Line \(model.resultLineNumber)").font(.caption).foregroundStyle(.secondary)
                 }.padding(8)
+                }
             } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
         }.disabled(model.busy || model.confirmingQuit || model.formatPending).onAppear { model.load() }
         .alert("Merge editor operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }

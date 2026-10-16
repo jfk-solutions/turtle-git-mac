@@ -64,7 +64,7 @@ public enum MenuIcon: String, CaseIterable {
     case restore = "restore", restoreOverlay = "restoreovl"
     case resolve = "menuresolve", editConflict = "menuconflict"
     case mergeOpen = "Open", mergePreviousDifference = "UpGreen", mergeNextDifference = "DownGreen"
-    case mergeWrap = "WrapLines", mergeCollapse = "Collapse", mergeWhitespace = "TabSpace", mergeOnePane = "OneWayDiff"
+    case mergeWrap = "WrapLines", mergeCollapse = "Collapse", mergeWhitespace = "TabSpace", mergeOnePane = "OneWayDiff", mergeSwitch = "Switch"
     case mergeSave = "Save", mergeSaveAs = "SaveAs", mergeResolved = "Check"
     case refresh = "refresh"
     case mergeReload = "Refresh"
@@ -88,7 +88,7 @@ public enum MenuIcon: String, CaseIterable {
         #else
         let bundle = Bundle(for: IconResourceBundle.self)
         #endif
-        let ribbon: Set<MenuIcon> = [.mergeOpen, .mergePreviousDifference, .mergeNextDifference, .mergeWrap, .mergeCollapse, .mergeWhitespace, .mergeOnePane, .mergeInline, .mergeInlineWord, .mergePreviousInline, .mergeNextInline, .mergePaste,.mergeReload, .mergeSave, .mergeSaveAs, .mergeResolved, .mergeUndo, .mergeRedo, .mergeFind, .mergePreviousConflict, .mergeNextConflict, .mergeUseMine, .mergeUseTheirs, .mergeMineThenTheirs, .mergeTheirsThenMine]
+        let ribbon: Set<MenuIcon> = [.mergeSwitch, .mergeOpen, .mergePreviousDifference, .mergeNextDifference, .mergeWrap, .mergeCollapse, .mergeWhitespace, .mergeOnePane, .mergeInline, .mergeInlineWord, .mergePreviousInline, .mergeNextInline, .mergePaste,.mergeReload, .mergeSave, .mergeSaveAs, .mergeResolved, .mergeUndo, .mergeRedo, .mergeFind, .mergePreviousConflict, .mergeNextConflict, .mergeUseMine, .mergeUseTheirs, .mergeMineThenTheirs, .mergeTheirsThenMine]
         let isRibbon = ribbon.contains(self)
         guard let url = bundle.url(forResource: rawValue, withExtension: isRibbon ? "bmp" : "ico", subdirectory: "Icons"),
               let image = isRibbon ? Self.ribbonImage(at: url) : NSImage(contentsOf: url) else { return nil }

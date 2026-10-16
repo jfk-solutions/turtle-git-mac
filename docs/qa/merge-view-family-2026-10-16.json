@@ -1,0 +1,110 @@
+{
+  "date": "2026-10-16",
+  "base_commit": "04b3010f72a8a221550bceb222cd20ec547de31f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected native Merge input switching, storage-order Save/Save As/reload routing, owned dirty choices, toolbar/status visibility and two-pane split restoration",
+  "source": [
+    "MainFrm.cpp::OnViewSwitchleft / OnUpdateViewSwitchleft exchanges Base/Your working-file records after CheckForSave(Switch) and reloads. Bottom view disables it.",
+    "IDR_MAINFRAME Toolbar / Status Bar / Switch left and right view commands; source ribbon/Switch.bmp exact original bytes."
+  ],
+  "implementation": [
+    "Two/combined-pane Switch command in View and native toolbar customization, disabled in single/image/three-way/busy/choice/replacement contexts.",
+    "Displayed orientation exchanges exact bytes/revisions/encoding/writability and Save As bindings; repository APIs and working-file saves receive original storage order; reload retains displayed orientation.",
+    "Existing owned Save/Don\u2019t Save/Cancel workflow fences duplicate/retired actions, saves selected panes first and clears prior Undo on accepted reload.",
+    "Private-store Toolbar/Status Bar visibility in both editor models; native isVisible observation persists AppKit changes; hidden toolbar remains installed without fallback commands and is restored across File/Open.",
+    "Owned native two-pane split keeps ratio through combined view and reload/reopen; resize clamps pane widths without overwriting preferred ratio; divider edits persist, redundant frame writes are skipped."
+  ],
+  "core": {
+    "initial_log": "build/qa/merge-view-core.log",
+    "initial_cases": 3,
+    "initial_failures": 1,
+    "reason": "New Switch bitmap was not in the existing ribbon decoder registry. Registered it and extended original-alpha coverage.",
+    "unaffected_passes": 2,
+    "repair_log": "build/qa/merge-view-core-repair.log",
+    "repair_cases": 1,
+    "repair_exit": 0,
+    "other_core": "No Core behavior changes; full suite not rerun."
+  },
+  "debug": [
+    {
+      "log": "build/qa/merge-view-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 4
+    },
+    {
+      "log": "build/qa/merge-view-owner-debug.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    }
+  ],
+  "native": {
+    "exit": 0,
+    "case_engine_runs": 8,
+    "log": "build/qa/merge-view-native-focus-fixture.log",
+    "cases": [
+      "New view workflow with system Git",
+      "New view workflow with bundled Git",
+      "Retained native toolbar dispatch/customization/overflow/Save, image/text replacement and conflict Undo",
+      "Retained owned File/Open question/replacement/retirement",
+      "Retained moved-block detection/margins/context/edit/Undo/reload",
+      "Retained wrapped navigation/shared row-fraction anchors/font/resize/folded conflicts",
+      "Retained two-pane engine typing/selection/marks/encoding/Save/retirement",
+      "Retained three-pane engine conflict/regex/Undo/Save/reload/resolution/HEAD"
+    ],
+    "new_checks": [
+      "Actual native saved split fraction, setPosition persistence and combined/two-pane restoration.",
+      "Hidden toolbar retains owner and suppresses fallback; native show toggles model/private store. Both editor footer controls and hidden File/Open replacement/frame retention.",
+      "Exact Unicode UTF16-BOM/CRLF and UTF8 input swap, reversed normal Save writes original left file with original encoding, reload retains orientation.",
+      "Dirty Cancel retains draft/orientation and discard reload clears old Undo.",
+      "Save As target exchanges sides, saves into selected copy and reloads without overwriting original.",
+      "Real Git revision/worktree and separate historical/working-file swap+Save routes with unchanged HEAD.",
+      "Retired old toolbar cannot switch the replacement model."
+    ],
+    "failures": [
+      {
+        "log": "build/qa/merge-view-native.log",
+        "reason": "New runner omitted required configuration argument for retained ThreePaneEngineVerification; fixture compile only, no app receiver launched."
+      },
+      {
+        "log": "build/qa/merge-view-native-compile-repair.log",
+        "reason": "Fixture used activeFindText, which prioritizes the existing native first responder, after programmatically changing the model\u2019s active side. Historical read-only responder remained focused. Fixture now identifies the enabled native editor and explicitly focuses it before typing, as a physical pane click does. All prior new assertions had passed."
+      }
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      95699,
+      95788,
+      95884,
+      95957,
+      95966,
+      95981,
+      95989,
+      95997,
+      96015,
+      96609,
+      96684
+    ],
+    "final_affected_recheck": {
+      "log": "build/qa/merge-view-native-owner.log",
+      "exit": 0,
+      "case_engine_runs": 2,
+      "reason": "Final inspection added the missing owner File/Open/preparing-replacement gate to Switch. New fixture holds a workflow without a sheet and proves refusal; only this changed workflow repeated with both Git engines. Six retained workflows passed in the preceding grouped build."
+    }
+  },
+  "documentation": {
+    "help": "50 source files, 1954196 bytes; all built counterparts byte-equal, generated Help index expected.",
+    "capture_candidates": [
+      "build/qa/merge-view-captures/merge-view-controls-light.png",
+      "build/qa/merge-view-captures/merge-view-controls-dark.png"
+    ],
+    "visual_review": "Actual light/dark compositor captures inspected. Restored split, source text/palette and footer are visible; toolbar icons appear faded after the hide/show/replacement sequence. Candidates remain in build QA and are not published as accepted gallery frames. The cause and complete physical/native toolbar appearance remain open.",
+    "site": "251 documents; zero unresolved fragments; build/qa/merge-view-site.log",
+    "ledger": "130 dialogs, 120 partial family audits, 10 pending, zero certified; 987 mapped/672 pending static controls unchanged."
+  },
+  "limits": [
+    "No full source/MFC workspace/docking or all-dialog visual parity certification.",
+    "Conflict-base, two simultaneous rebound targets, external-writer/failed-save and forced-close phases after switching need additional acceptance beyond existing shared ownership checks.",
+    "Native split drag/accessibility/keyboard/VoiceOver and extreme resize/font/minimum OS require physical acceptance.",
+    "Physical toolbar show/hide animation and the faded-icon capture observation remain unresolved.",
+    "Unsigned local receiver checks do not establish signed AppStore/Finder/grant behavior or a full hosted CI pass."
+  ]
+}

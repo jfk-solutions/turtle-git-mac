@@ -80,11 +80,21 @@ struct MergeViewControls: View {
     var movedBlocks = true
     var canChangeMovedBlocks = false
     var applyMovedBlocks: (Bool) -> Void = { _ in }
+    var toolbarVisible = true
+    var applyToolbar: (Bool) -> Void = { _ in }
+    var statusBarVisible = true
+    var applyStatusBar: (Bool) -> Void = { _ in }
+    var canSwitchSides = false
+    var switchSides: () -> Void = {}
     var body: some View {
         Menu("View") {
+            Toggle("Toolbar",isOn:Binding(get:{toolbarVisible},set:applyToolbar))
+            Toggle("Status Bar",isOn:Binding(get:{statusBarVisible},set:applyStatusBar))
+            Divider()
             Toggle("Moved blocks", isOn:Binding(get:{movedBlocks},set:applyMovedBlocks)).disabled(!canChangeMovedBlocks)
             Toggle("Wrap long lines", isOn: Binding(get: { wrapLines }, set: applyWrap))
             Toggle("Collapsed", isOn: Binding(get: { collapsed }, set: applyCollapsed))
+            Button(action:switchSides) { CommandLabel(title:"Switch left and right view",icon:.mergeSwitch) }.disabled(!canSwitchSides)
             Divider()
             Toggle("Show Whitespaces", isOn: Binding(get: { whitespace.visible }, set: { var next = whitespace; next.visible = $0; applyWhitespace(next) }))
             Toggle("Line-ending icons", isOn: Binding(get: { whitespace.endingIcons }, set: { var next = whitespace; next.endingIcons = $0; applyWhitespace(next) }))
@@ -707,5 +717,59 @@ struct MergeLineStatisticsView: View {
         point.y = rect.midY + view.textContainerOrigin.y - clip.bounds.height / 2
         clip.scroll(to:clip.constrainBoundsRect(NSRect(origin:point,size:clip.bounds.size)).origin)
         scroll.reflectScrolledClipView(clip)
+    }
+}
+
+
+/// A two-pane owner keeps its divider ratio independently of combined view.
+/// SwiftUI's rebuilt split would otherwise inherit the single pane's width.
+struct MergeComparisonSplit: NSViewRepresentable {
+    let preferences: UserDefaults
+    let left: AnyView, right: AnyView
+    func makeNSView(context: Context) -> MergeComparisonSplitView {
+        let view = MergeComparisonSplitView()
+        view.preferences = preferences;view.isVertical = true;view.dividerStyle = .thin
+        let saved = preferences.double(forKey:MergeComparisonSplitView.key)
+        view.fraction = saved.isFinite && (0.1...0.9).contains(saved) ? saved : 0.5
+        view.addArrangedSubview(NSHostingView(rootView:left));view.addArrangedSubview(NSHostingView(rootView:right))
+        return view
+    }
+    func updateNSView(_ view: MergeComparisonSplitView, context: Context) {
+        (view.arrangedSubviews.first as? NSHostingView<AnyView>)?.rootView = left
+        (view.arrangedSubviews.last as? NSHostingView<AnyView>)?.rootView = right
+        view.layoutPanes()
+    }
+}
+@MainActor final class MergeComparisonSplitView: NSSplitView {
+    static let key = "TurtleGitMerge.TwoPaneSplitFraction"
+    var preferences: UserDefaults?
+    var fraction: CGFloat = 0.5
+    private var applying = false, tracking = false
+    override func resizeSubviews(withOldSize oldSize: NSSize) {
+        if tracking { super.resizeSubviews(withOldSize:oldSize) } else { layoutPanes() }
+    }
+    override func mouseDown(with event: NSEvent) {
+        tracking = true;super.mouseDown(with:event);tracking = false;recordDivider()
+    }
+    override func setPosition(_ position: CGFloat, ofDividerAt dividerIndex: Int) {
+        super.setPosition(position,ofDividerAt:dividerIndex)
+        if !applying && !tracking { recordDivider() }
+    }
+    func recordDivider() {
+        let usable = bounds.width - dividerThickness
+        guard !applying,arrangedSubviews.count == 2,usable > 0 else { return }
+        fraction = min(0.9,max(0.1,arrangedSubviews[0].frame.width / usable))
+        preferences?.set(Double(fraction),forKey:Self.key)
+    }
+    func layoutPanes() {
+        guard !applying,arrangedSubviews.count == 2,bounds.width > dividerThickness else { return }
+        applying = true;defer { applying = false }
+        let usable = bounds.width - dividerThickness,minimum = min(300,usable / 2)
+        let width = min(usable - minimum,max(minimum,usable * fraction))
+        let left = NSRect(x:0,y:0,width:width,height:bounds.height)
+        let right = NSRect(x:width + dividerThickness,y:0,width:usable - width,height:bounds.height)
+        if arrangedSubviews[0].frame != left { arrangedSubviews[0].frame = left }
+        if arrangedSubviews[1].frame != right { arrangedSubviews[1].frame = right }
+        needsDisplay = true
     }
 }

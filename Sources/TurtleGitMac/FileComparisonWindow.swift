@@ -3,6 +3,10 @@ import UniformTypeIdentifiers
 import SwiftUI
 import TurtleGitCore
 
+private extension FileComparisonDocument {
+    func exchangingSides() -> Self { replacingPane(base:true,content:destination).replacingPane(base:false,content:base) }
+}
+
 @MainActor class FileComparisonNativeWindow: NSWindow, ImageComparisonKeyRouting {
     weak var imageKeyModel: ImageComparisonViewModel?
     var imageKeyOwner: UUID?
@@ -217,6 +221,32 @@ import TurtleGitCore
     @Published var document: FileComparisonDocument?
     var singleFileMode = false
     @Published var nativeToolbarInstalled = false
+    @Published private(set) var showToolbar = MergeEditorChrome.visible("Toolbar",defaults:.standard)
+    @Published private(set) var showStatusBar = MergeEditorChrome.visible("StatusBar",defaults:.standard)
+    func setToolbarVisible(_ value: Bool) {
+        guard !retired, showToolbar != value else { return }
+        showToolbar = value;comparisonDefaults.set(value,forKey:"TurtleGitMerge.ToolbarVisible")
+    }
+    func setStatusBarVisible(_ value: Bool) {
+        guard !retired, !busy, !confirmingQuit, showStatusBar != value else { return }
+        showStatusBar = value;comparisonDefaults.set(value,forKey:"TurtleGitMerge.StatusBarVisible")
+    }
+    private(set) var sidesReversed = false
+    var canSwitchSides: Bool {
+        guard contextCommandsAllowed,!filtering,!singleFileMode,imageComparison == nil,alignment != nil,
+              let owner = window?.delegate as? FileComparisonWindowController else { return false }
+        return owner.editorOpenWorkflow == nil && !owner.preparingReplacement
+    }
+    private func storageSide(_ base: Bool) -> Bool { sidesReversed ? !base : base }
+    private func oriented(_ value: FileComparisonDocument) -> FileComparisonDocument { sidesReversed ? value.exchangingSides() : value }
+    func switchSides() {
+        guard canSwitchSides else { return }
+        requestProjectionChange(reason:"switching left and right",detail:"Switching left and right reloads the files and clears Undo history.") { [self] in
+            sidesReversed.toggle()
+            paneTargets = Dictionary(uniqueKeysWithValues:paneTargets.map { (!$0.key,$0.value) })
+            originalPaneDocument = originalPaneDocument?.exchangingSides()
+        }
+    }
     @Published var alignment: FileComparisonAlignment? { didSet { combinedCache = nil } }
     @Published private(set) var onePaneMode = false
     private var loadedPaneMode = false
@@ -312,7 +342,10 @@ import TurtleGitCore
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
     var comparisonDefaults: UserDefaults = .standard {
-        didSet { if document == nil { comparisonOptions = .load(from:comparisonDefaults); showMovedBlocks = MergeMovedBlock.enabled(defaults:comparisonDefaults) } }
+        didSet { if document == nil { comparisonOptions = .load(from:comparisonDefaults); showMovedBlocks = MergeMovedBlock.enabled(defaults:comparisonDefaults)
+            showToolbar = MergeEditorChrome.visible("Toolbar",defaults:comparisonDefaults)
+            showStatusBar = MergeEditorChrome.visible("StatusBar",defaults:comparisonDefaults)
+        } }
     }
     @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
     private var pendingLoadNavigation = false
@@ -491,7 +524,7 @@ import TurtleGitCore
         cancelDeferredNavigation(); alignmentGeneration += 1; resetHistory()
         load(discardingDraft:true)
     }
-    private func requestProjectionChange(_ change: @escaping () -> Void) {
+    private func requestProjectionChange(reason: String = "changing comparison options", detail: String = "Changing comparison options reloads the files and clears Undo history.", _ change: @escaping () -> Void) {
         guard !retired, !busy, !confirmingQuit, !hasPendingEditorChoice, window?.attachedSheet == nil else { return }
         guard document != nil else { change(); return }
         let request = ProjectionChange(change)
@@ -500,8 +533,8 @@ import TurtleGitCore
         guard let window else { finishProjectionChange(request); return }
         confirmingQuit = true
         let alert = NSAlert(); alert.alertStyle = .warning
-        alert.messageText = "Save changes to “" + unsavedFilesDescription + "” before changing comparison options?"
-        alert.informativeText = "Changing comparison options reloads the files and clears Undo history. Any pane you do not save will be reloaded from disk."
+        alert.messageText = "Save changes to “" + unsavedFilesDescription + "” before " + reason + "?"
+        alert.informativeText = detail + " Any pane you do not save will be reloaded from disk."
         let sides = drafts?.dirtySides ?? []
         let choices: [(String,ProjectionChange.Answer)] = sides.count > 1
             ? [("Save left pane",.save([true])),("Save right pane",.save([false])),("Save both panes",.save(sides)),("Don’t Save",.discard),("Cancel",.cancel)]
@@ -1186,8 +1219,9 @@ import TurtleGitCore
                         guard !GitRuntime.isAppStoreBuild || openPermissions.contains(where: { $0.hasSecurityScope && $0.contains(target.url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                         replacements[base] = try target.read()
                     }
+                    let storageReplacements = Dictionary(uniqueKeysWithValues:replacements.map { (storageSide($0.key),$0.value) })
                     var value: FileComparisonDocument
-                    if replacements.count == 2, let originalPaneDocument { value = originalPaneDocument }
+                    if replacements.count == 2, let originalPaneDocument { value = oriented(originalPaneDocument) }
                     else if let conflictBaseEntry, let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                         value = try await repository.conflictBaseComparison(conflictBaseEntry, cancellation: token).document
@@ -1198,14 +1232,15 @@ import TurtleGitCore
                         value = try standaloneImages.read()
                     } else if let historicalWorkingComparison, let repository {
                         try validateHistoricalWorkingAccess(historicalWorkingComparison)
-                        value = try await repository.comparisonFile(historicalWorkingComparison, replacements: replacements, cancellation: token)
+                        value = try await repository.comparisonFile(historicalWorkingComparison, replacements: storageReplacements, cancellation: token)
                     } else if let workingComparison {
                         try validateWorkingAccess(workingComparison)
-                        value = try workingComparison.read(replacements: replacements)
+                        value = try workingComparison.read(replacements: storageReplacements)
                     } else if let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                        value = try await repository.comparisonFile(snapshot, path: path, replacements: replacements, cancellation: token)
+                        value = try await repository.comparisonFile(snapshot, path: path, replacements: storageReplacements, cancellation: token)
                     } else { throw RevisionComparisonFailure.selection }
+                    value = oriented(value)
                     var original = value
                     for (base, replacement) in replacements {
                         if let prior = originalPaneDocument { original = original.replacingPane(base: base, content: base ? prior.base : prior.destination) }
@@ -1229,7 +1264,7 @@ import TurtleGitCore
                 // Source dispatch chooses the viewer before decoding. Failed/empty
                 // image sides stay in IDiff; Merge stays Merge even for PNG bytes.
                 imageComparison = viewerSelection == .image ? ImageComparisonDocument(base: ComparisonImage(bytes: adapted.base.bytes), destination: ComparisonImage(bytes: adapted.destination.bytes)) : nil
-                window?.title = "\(standaloneImages == nil ? path : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
+                window?.title = "\(standaloneImages == nil ? (sidesReversed ? adapted.destination.path : path) : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
                 drafts = imageComparison == nil ? FileComparisonDrafts(adapted) : nil
                 activeBase = drafts?.preferredBase ?? false
                 selectEditorActions()
@@ -1395,26 +1430,26 @@ import TurtleGitCore
                     try ensurePaneSave(request)
                     let options = MergeFileSaveOptions(backupOriginal: MergeFileSaveOptions.backupEnabled(from: comparisonDefaults), emptyResult: choice)
                     let result: FileComparisonDocument
-                    let context = savingContext(document)
+                    let context = oriented(savingContext(document)), physicalBase = storageSide(base)
                     if let target = paneTargets[base] {
                         guard !GitRuntime.isAppStoreBuild || openPermissions.contains(where: { $0.hasSecurityScope && $0.contains(target.url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                         result = try target.save(document, base: base, text: text, encoding: drafts?.encoding(base: base), options: options)
                     } else if let conflictBaseEntry, let repository {
-                        guard !base else { throw FileComparisonEditFailure.unsupported }
+                        guard !physicalBase else { throw FileComparisonEditFailure.unsupported }
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                        result = try await repository.saveConflictBaseComparison(conflictBaseEntry, document: context, text: text, encoding: drafts?.encoding(base: base), options: options)
+                        result = oriented(try await repository.saveConflictBaseComparison(conflictBaseEntry, document: context, text: text, encoding: drafts?.encoding(base: base), options: options))
                     } else if let historicalWorkingComparison {
                         try validateHistoricalWorkingAccess(historicalWorkingComparison)
-                        guard base else { throw FileComparisonEditFailure.unsupported }
+                        guard physicalBase else { throw FileComparisonEditFailure.unsupported }
                         guard try authorizeWorkingReplacement(at: historicalWorkingComparison.workingFile) else { return }
-                        result = try historicalWorkingComparison.saveBase(context, text: text, encoding: drafts?.encoding(base: base), options: options)
+                        result = oriented(try historicalWorkingComparison.saveBase(context, text: text, encoding: drafts?.encoding(base: base), options: options))
                     } else if let workingComparison {
                         try validateWorkingAccess(workingComparison)
-                        guard try authorizeWorkingReplacement(at: base ? workingComparison.base : workingComparison.destination) else { return }
-                        result = try workingComparison.save(context, base: base, text: text, encoding: drafts?.encoding(base: base), options: options)
+                        guard try authorizeWorkingReplacement(at: physicalBase ? workingComparison.base : workingComparison.destination) else { return }
+                        result = oriented(try workingComparison.save(context, base: physicalBase, text: text, encoding: drafts?.encoding(base: base), options: options))
                     } else if let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                        result = try await repository.saveComparisonFile(snapshot, document: context, base: base, text: text, encoding: drafts?.encoding(base: base), options: options)
+                        result = oriented(try await repository.saveComparisonFile(snapshot, document: context, base: physicalBase, text: text, encoding: drafts?.encoding(base: base), options: options))
                     } else { throw RevisionComparisonFailure.selection }
                     try ensurePaneSave(request)
                     var combined = result
@@ -1644,7 +1679,7 @@ private struct FileComparisonDialog: View {
                 Toggle("Line numbers", isOn: $model.showLineNumbers)
             }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
-                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed, movedBlocks:model.showMovedBlocks, canChangeMovedBlocks:model.canChangeMovedBlocks, applyMovedBlocks:model.setMovedBlocks).disabled(model.busy || model.confirmingQuit)
+                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed, movedBlocks:model.showMovedBlocks, canChangeMovedBlocks:model.canChangeMovedBlocks, applyMovedBlocks:model.setMovedBlocks, toolbarVisible:model.showToolbar, applyToolbar:model.setToolbarVisible, statusBarVisible:model.showStatusBar, applyStatusBar:model.setStatusBarVisible, canSwitchSides:model.canSwitchSides, switchSides:model.switchSides).disabled(model.busy || model.confirmingQuit)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments).disabled(model.busy || model.confirmingQuit)
                 Menu {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -1677,18 +1712,22 @@ private struct FileComparisonDialog: View {
                                     enabled: !model.busy && !model.filtering && !model.confirmingQuit, navigate: model.scrollLocator)
                         .frame(width: 44).help("Left and right file overview; click or drag to scroll")
                 }
-                HSplitView { if !model.singleFileMode && !model.onePaneActive { pane(base: true) }; pane(base: false) }
+                if !model.singleFileMode && !model.onePaneActive {
+                    MergeComparisonSplit(preferences:model.comparisonDefaults,left:AnyView(pane(base:true)),right:AnyView(pane(base:false)))
+                } else { pane(base:false) }
             }
             if model.showLineDiffBar && !model.singleFileMode && !model.onePaneActive {
                 Divider()
                 MergeLineDiffBar(model: model).frame(height: MergeLineDiffPreview.lineHeight(model.generalPreferences.nativeFont) * 2)
             }
+            if model.showStatusBar {
             Divider()
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
                 Text(model.filtering ? "Comparing…" : model.alignment.map { "\($0.differences.count) difference(s)" } ?? "").font(.caption)
                 Spacer(); Text(model.dirty ? "Modified · working file not saved" : model.editingEnabled && model.editableBase != nil ? "Editing working file" : "Read-only comparison").font(.caption).foregroundStyle(.secondary)
             }.padding(8)
+            }
         }
     }
 }

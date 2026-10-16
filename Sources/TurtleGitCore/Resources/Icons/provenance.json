@@ -1566,6 +1566,11 @@
       "asset": "moved.ico",
       "source": "src/Resources/moved.ico",
       "sha256": "36e9b14fd1ee640186d9b5ffa296c8e44b001dc0596113097e7b3b0919dd77f6"
+    },
+    {
+      "asset": "Switch.bmp",
+      "source": "src/Resources/ribbon/Switch.bmp",
+      "sha256": "07f0e6984c45c6fc723438b991a14055399801dacccbc10dacd7e0f4e6ad817a"
     }
   ]
 }

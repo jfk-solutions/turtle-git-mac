@@ -483,3 +483,9 @@ the margins. Hover a move icon for its destination/source line; double-click
 the margin or use **Go to moved block** in the text context menu to select the
 counterpart. It also works in combined view. Changing this comparison option
 asks about unsaved edits before reloading the files.
+
+
+Use **View → Switch left and right view** to reverse a two-file comparison.
+Unsaved edits get Save/Don't Save/Cancel before reloading. Each file keeps its
+own Save target. **Toolbar** and **Status Bar** in View control the window chrome;
+the two-pane divider position is restored after using combined view.
