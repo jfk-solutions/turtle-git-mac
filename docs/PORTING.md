@@ -2440,3 +2440,21 @@ all four owned receivers were reaped and independently absent. Core metadata and
 native sorting/clipboard checks do not certify String-based row selection,
 filesystem aliases, arbitrary invalid UTF-8 paths or signed Finder/App Store
 acceptance. No dialog is newly certified complete.
+
+### Persistent Log cache, Saved Data ownership and consistent branding, 2026-10-17
+
+Repaired cache reuse (Git echoed a parsing marker), exact newline metadata and
+global attribute paths, byte-stable attribute fingerprints, bounded cancellable
+reads, descriptor-pinned atomic records, and namespace-safe eviction/clear.
+Saved Data owns background cleanup through completion and application Quit; new
+Log windows capture the source cache preference. The complete application turtle
+with Git on its shell now replaces the older small branding artwork in About,
+setup, menus, Finder and authentication prompts, including small AppIcon slots.
+Original command/status artwork and attribution remain.
+
+Focused Core checks and affected repairs, three bundled-engine cache cases,
+three icon checks, four grouped native cases and packaged branding audit passed.
+Failed attempts, limitations and all seven receiver cleanup checks are retained
+in [dated evidence](qa/log-cache-branding-family-2026-10-17.json).
+No full Core/hosted CI, signed deployment, physical Finder or complete dialog
+parity claim follows from this checkpoint. Inventory counts are unchanged.

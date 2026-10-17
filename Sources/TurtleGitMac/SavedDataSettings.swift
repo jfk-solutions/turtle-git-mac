@@ -4,9 +4,13 @@ import TurtleGitCore
 
 @MainActor final class SavedDataSettingsModel: ObservableObject {
     private(set) var retired = false
+    private(set) static var activeCacheClears = 0
+    @Published private(set) var clearingHistoryCache = false
+    private var historyClearGeneration = UUID()
+    var clearHistoryRecords: @Sendable (HistoryFileCache) async throws -> Void = { try $0.clearSavedRecords() }
     func activate() { retired = false }
     func cancelTransientOperations() { temporaryClearGeneration += 1; confirmingTemporaryClear = false; confirmTemporaryClear = { $0(false) } }
-    func retire() { retired = true; cancelTransientOperations() }
+    func retire() { retired = true; historyClearGeneration = UUID(); cancelTransientOperations() }
     private(set) var savedMaximumLines: String = ""
     var modified: Bool { maximumLines != savedMaximumLines }
     func cancelDraft() { maximumLines = savedMaximumLines }
@@ -34,11 +38,23 @@ import TurtleGitCore
     }
     var valid: Bool { !maximumLines.isEmpty && maximumLines.utf8.allSatisfy { (48...57).contains($0) } && UInt32(maximumLines) != nil }
     func apply() { guard !retired, valid, let value = UInt32(maximumLines) else { return }; preferences.set(NSNumber(value: value), forKey: "MaxLinesInLogfile"); savedMaximumLines = maximumLines }
-    func refresh() { guard !retired else { return }; historyCacheRecords = (try? historyCache.savedRecordCount()) ?? 0; available = store.exists; summaries = Dictionary(uniqueKeysWithValues: SavedDataCategory.allCases.map { ($0, savedData.summary($0)) }) }
+    func refresh() { guard !retired else { return }; if !clearingHistoryCache { historyCacheRecords = (try? historyCache.savedRecordCount()) ?? 0 }; available = store.exists; summaries = Dictionary(uniqueKeysWithValues: SavedDataCategory.allCases.map { ($0, savedData.summary($0)) }) }
     func clearHistoryCache() {
-        guard !retired else { return }
-        do { try historyCache.clearSavedRecords(); error = nil } catch { self.error = error.localizedDescription }
-        refresh()
+        guard !retired, !clearingHistoryCache else { return }
+        let request = UUID(); historyClearGeneration = request
+        let cache = historyCache, clear = clearHistoryRecords
+        clearingHistoryCache = true; error = nil; Self.activeCacheClears += 1
+        // Accepted deletion owns its lifetime through completion, including a
+        // forced Settings close. Retired pages never receive a late error/result.
+        Task {
+            let result = await Task.detached { () -> String? in
+                do { try await clear(cache); return nil } catch { return error.localizedDescription }
+            }.value
+            Self.activeCacheClears -= 1; clearingHistoryCache = false
+            guard !retired else { return }
+            if request == historyClearGeneration { error = result }
+            refresh()
+        }
     }
     func clear(_ category: SavedDataCategory) { guard !retired else { return }; savedData.clear(category); refresh() }
     func resetTemporaryAvailability() { if !confirmingTemporaryClear { canClearTemporaryFiles = true } }
@@ -94,7 +110,8 @@ struct SavedDataSettingsPage: View {
             HStack {
                 Text("Log messages (Show log dialog)")
                 Spacer()
-                Button("Clear") { model.clearHistoryCache() }.disabled(model.historyCacheRecords == 0)
+                SavedLogCacheClearButton(enabled: model.historyCacheRecords > 0 && !model.clearingHistoryCache) { model.clearHistoryCache() }.fixedSize()
+                if model.clearingHistoryCache { ProgressView().controlSize(.small) }
             }.help("\(model.historyCacheRecords) cached repository log file records.")
             HStack {
                 Text(SavedDataCategory.dialogGeometry.title)
@@ -169,4 +186,28 @@ struct SavedDataSettingsPage: View {
         else { child.showWindow(nil) }
     }
     func close() { let child = controller; controller = nil; child?.close() }
+}
+
+/// A native target/action control keeps keyboard and accessibility activation on
+/// the same once-only model gate as pointer activation.
+private struct SavedLogCacheClearButton: NSViewRepresentable {
+    let enabled: Bool
+    let invoke: () -> Void
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton(title: "Clear", target: context.coordinator, action: #selector(Coordinator.press))
+        button.bezelStyle = .rounded; button.setAccessibilityIdentifier("SavedData.ClearLogCache")
+        return button
+    }
+    func updateNSView(_ button: NSButton, context: Context) {
+        button.title = NSLocalizedString("Clear", comment: "")
+        button.isEnabled = enabled; context.coordinator.invoke = invoke
+    }
+    static func dismantleNSView(_ button: NSButton, coordinator: Coordinator) {
+        coordinator.invoke = {}; button.target = nil
+    }
+    @MainActor final class Coordinator: NSObject {
+        var invoke: () -> Void = {}
+        @objc func press() { invoke() }
+    }
 }

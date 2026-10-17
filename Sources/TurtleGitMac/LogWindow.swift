@@ -132,9 +132,9 @@ final class LogHistoryWindow: NSWindow {
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((LogEntry?) -> Void)?
     private var multipleSelectionCompletion: (([LogEntry]?) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil, labelDefaults: UserDefaults = .standard, savesColumnLayout: Bool = true, savesGeometry: Bool = true, initialRevision: String? = nil, historyRegexExecutable: URL? = nil) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil, labelDefaults: UserDefaults = .standard, savesColumnLayout: Bool = true, savesGeometry: Bool = true, initialRevision: String? = nil, historyRegexExecutable: URL? = nil, historyFileCache: HistoryFileCache = HistoryFileCache()) {
         findAccess = access; findPreferences = labelDefaults
-        model = LogWindowModel(repository: repository, access: access, selecting: onChoose != nil || onChooseMultiple != nil, selectingMultiple: onChooseMultiple != nil, labelDefaults: labelDefaults, historyRegexExecutable: historyRegexExecutable)
+        model = LogWindowModel(repository: repository, access: access, selecting: onChoose != nil || onChooseMultiple != nil, selectingMultiple: onChooseMultiple != nil, labelDefaults: labelDefaults, historyRegexExecutable: historyRegexExecutable, historyFileCache: historyFileCache)
         selectionCompletion = onChoose; multipleSelectionCompletion = onChooseMultiple
         model.endRevision = initialRevision
         let window = LogHistoryWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780),
@@ -1813,9 +1813,9 @@ struct LogCommandRequest: Identifiable {
                      tagInfo: HistoryDateSettings.load(defaults: labelDefaults).tagInfo(revision.tagInfo), asterisk: asteriskLogPrefix)
     }
     var message: String { messageDocument.text }
-    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil, historyRegexExecutable: URL? = nil) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil, historyRegexExecutable: URL? = nil, historyFileCache: HistoryFileCache = HistoryFileCache()) {
         changedFileColumns = .load(from:labelDefaults,key:Self.changedFileColumnsKey)
-        fileCache = (labelDefaults.object(forKey: "EnableLogCache") as? Bool ?? true) ? HistoryFileCache() : nil
+        fileCache = (labelDefaults.object(forKey: "EnableLogCache") as? Bool ?? true) ? historyFileCache : nil
         describeOptions = .load(defaults: labelDefaults)
         asteriskLogPrefix = labelDefaults.object(forKey: "AsteriskLogPrefix") == nil || labelDefaults.bool(forKey: "AsteriskLogPrefix")
         let limits = HistoryLimitDefaults.load(defaults: labelDefaults)

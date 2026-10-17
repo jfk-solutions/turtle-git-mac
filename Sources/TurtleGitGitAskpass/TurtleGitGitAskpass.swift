@@ -15,7 +15,7 @@ import Darwin
         }
         var parent = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent()
         while parent.path != "/" && parent.pathExtension != "app" { parent.deleteLastPathComponent() }
-        let icon = NSImage(contentsOf: parent.appendingPathComponent("Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/TortoiseSmall.ico"))
+        let icon = NSImage(contentsOf: parent.appendingPathComponent("Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/TurtleGitApplication.png"))
         if let icon { application.applicationIconImage = icon }
         let ssh = URL(fileURLWithPath: CommandLine.arguments[0]).lastPathComponent == "TurtleGitOpenSSHAskpass"
         do {

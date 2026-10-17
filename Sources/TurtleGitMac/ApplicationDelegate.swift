@@ -94,7 +94,7 @@ import AppKit
         if SSHKeyImportModel.activeOperations > 0 { return .terminateCancel }
         if SSHKeyGenerationModel.activeOperations > 0 { return .terminateCancel }
         if SSHIdentityPermissionsModel.activeOperations > 0 { return .terminateCancel }
-        if SavedSSHAuthenticationModel.activeOperations > 0 { return .terminateCancel }
+        if SavedDataSettingsModel.activeCacheClears > 0 || SavedSSHAuthenticationModel.activeOperations > 0 { return .terminateCancel }
         if SSHTransportCoordinator.activeOperations > 0 { return .terminateCancel }
         if NetworkSettingsModel.activeSaves > 0 || NetworkSettingsModel.activeReads > 0 || NetworkSettingsModel.activeSSHChoosers > 0 { return .terminateCancel }
         if EmailSettingsModel.activeOperations > 0 || EmailSettingsModel.activeCredentialEditors > 0 { return .terminateCancel }

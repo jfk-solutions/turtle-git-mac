@@ -34,6 +34,9 @@ def validate(app):
         data = (assets/choice['filename']).read_bytes()
         assert data[:8] == b'\x89PNG\r\n\x1a\n' and struct.unpack('>II', data[16:24]) == (size, size)
     assert (root/'docs/site/assets/application-icon.png').read_bytes() == (source/'ApplicationIcon.png').read_bytes()
+    shared = app/'Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/TurtleGitApplication.png'
+    assert shared.read_bytes() == (resources/'Branding/ApplicationIcon.png').read_bytes(), 'Native branding differs from application artwork'
+    assert shared.read_bytes() == (root/'Sources/TurtleGitCore/Resources/Icons/TurtleGitApplication.png').read_bytes()
     print(f'Application/document identity: ten macOS icon slots, compiled catalog/ICNS, source provenance and alternate patch/diff handler verified: {app}')
 
 if __name__ == '__main__': validate(Path(sys.argv[1]))

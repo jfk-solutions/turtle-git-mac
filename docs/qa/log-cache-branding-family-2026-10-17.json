@@ -1,0 +1,122 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "42486642c8a45abc1016a3a19e290aa37a62191f",
+  "scope": "Persistent Log changed-file cache, Saved Data cleanup ownership, and consistent complete application turtle/Git artwork",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_inputs_sha256": {
+    "Sources/TurtleGitCore/HistoryFileCache.swift": "938c121d387fa5f1598ccb5b2edf534d3013c15f488276cde06c433680081476",
+    "Sources/TurtleGitCore/CommitHistory.swift": "a9c26d4dd7f7d8d5a0d6258a66e5a92bd6afb6963c29c1c37bdc91e1d7d5cf24",
+    "Sources/TurtleGitCore/MenuIcons.swift": "64161268ad57935f695e33b4546eb4efa7598358623329d17471b85ea71d09f8",
+    "Sources/TurtleGitCore/Resources/Icons/TurtleGitApplication.png": "ecf7dc32958aa9c18a777eb8c96507aad321d91d9899adf25be85f0efd48cee7",
+    "Sources/TurtleGitMac/SavedDataSettings.swift": "1bcf5dffc776c9a95d7bcb99d7eebe44ab5372b775379287c5a0476314832ed1",
+    "Sources/TurtleGitMac/LogWindow.swift": "4ad401fb99167e90f4cd677c5f60a64d21cbb72acba14cd8b7f5540e8dcd7359",
+    "Sources/TurtleGitMac/SettingsNavigation.swift": "3a74dec3510e6d45273d91167999043f20351e8b3dec35b0652da2385c087df0",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "c2972ae99a88cf0ebbdc360798fbfdb4e301119bfff493cc6923b65e47c5dd63",
+    "Sources/TurtleGitGitAskpass/TurtleGitGitAskpass.swift": "149b2d4be22b35100f20e08a0fc9a860da5cd0f54c53bde927a9505655457bf6",
+    "Tests/TurtleGitCoreTests/HistoryFileCacheTests.swift": "cdc38ba18cc95da0e18c57d3955ef998052d41f642d5b28057711fb347816d3f",
+    "docs/qa/log-cache-native-2026-10-17.swift": "4406afe15b4f188638edaa324d75adf07f6f671deaeb47a57b472ed4a40f90f1",
+    "docs/qa/settings-family-native-2026-10-13.swift": "dafdf39f1eb36446816a48cd661f1b5da143f85ff8c02e3e3169d6c088fb1345",
+    "scripts/test-log-cache-family.py": "abf6210356fe4a0d1497fa4852a1c58fe83dc44290e26b17b6d343c8a54c0674",
+    "scripts/build-application-icons.swift": "baad563e50dde35cc26d257c87b77338dce61e0f09f0db0f1394611f90697fcc",
+    "scripts/validate_application_identity.py": "005f8796d31a2a4bd2b95be83def9315703f7e8915f8c3f912f686e206fe212f"
+  },
+  "attempts": [
+    {
+      "kind": "Core selected",
+      "log": "build/qa/log-cache-core-2026-10-17.log",
+      "result": "13 tests, 5 assertions/errors in 2 failed cases; 11 cases passed. Newline/reopen cases exposed echoed --end-of-options marker rejecting the cache context."
+    },
+    {
+      "kind": "Debug",
+      "log": "build/qa/log-cache-build-2026-10-17.log",
+      "result": "exit 0; original cache parser before repair; retained SDK/simulator and zero-exit/no-output diagnostics"
+    },
+    {
+      "kind": "Core affected repair",
+      "log": "build/qa/log-cache-core-recheck-2026-10-17.log",
+      "result": "4 affected cases passed: corruption/symlink/cancel, newline attributes/reopen/index, root/replace, rename/copy detection threshold"
+    },
+    {
+      "kind": "Debug context/ownership repair",
+      "log": "build/qa/log-cache-build-recheck-2026-10-17.log",
+      "result": "exit 0"
+    },
+    {
+      "kind": "Core bundled engine",
+      "log": "build/qa/log-cache-core-bundled-2026-10-17.log",
+      "result": "3 real-Git cache cases passed with bundled Git; pure bounds/namespace and Saved Data cases not repeated"
+    },
+    {
+      "kind": "Native control fixture",
+      "receiver": 26849,
+      "log": "build/qa/log-cache-native-2026-10-17.log",
+      "result": "Log preference/write assertions passed, then Clear control lookup timed out; receiver reaped"
+    },
+    {
+      "kind": "Native accessibility control fixture",
+      "receiver": 27051,
+      "log": "build/qa/log-cache-native-recheck-2026-10-17.log",
+      "result": "Alternate accessibility-tree lookup timed out; receiver reaped. Clear is now an explicit target/action AppKit button with a stable native identifier."
+    },
+    {
+      "kind": "Core branding",
+      "log": "build/qa/branding-icons-core-2026-10-17.log",
+      "result": "3 MenuIconTests passed; no cache or full Core repeat"
+    },
+    {
+      "kind": "Debug native control and branding",
+      "log": "build/qa/log-cache-branding-build-2026-10-17.log",
+      "result": "exit 0; complete shared PNG compiled in Core; AppKit Clear target/action control; retained SDK and zero-exit/no-output diagnostics"
+    },
+    {
+      "kind": "Native accessibility press",
+      "receiver": 29065,
+      "log": "build/qa/log-cache-native-final-2026-10-17.log",
+      "result": "Native AppKit Clear found/enabled, but accessibilityPerformPress returned false in receiver. Fixture uses NSButton.performClick for actual target/action dispatch; physical accessibility remains open. Receiver reaped."
+    },
+    {
+      "kind": "Grouped native action and Settings",
+      "receivers": [
+        29207,
+        29309,
+        29418,
+        29426
+      ],
+      "log": "build/qa/log-cache-native-action-2026-10-17.log",
+      "result": "4 cases passed, cache and retained Settings families with system/bundled Git. Native target/action Clear, busy once-only gate, Quit fence, accepted deletion after retirement, rejection of late UI result, fresh-window preference policy, cache repopulation and failure surfaced. Owned windows closed and all receivers reaped."
+    },
+    {
+      "kind": "Packaged branding identity",
+      "log": "build/qa/branding-identity-2026-10-17.log",
+      "result": "passed; ten AppIcon slots, source hashes, compiled catalog/ICNS and byte-identical Core branding/ApplicationIcon PNG"
+    },
+    {
+      "kind": "Documentation and localization",
+      "result": "38 languages/1281 localization keys check; 38-document Help check; 286-document site with zero unresolved fragments; dialog coverage reconciled and unchanged; git diff --check"
+    }
+  ],
+  "limits": [
+    "Full application/dialog parity",
+    "Physical Finder/Dock/Launch Services refresh for the new artwork",
+    "Physical Enable Log Cache checkbox, keyboard, IME and VoiceOver acceptance",
+    "Signed sandbox and App Store distribution of this revision",
+    "Cache performance and immutable metadata-cache parity",
+    "System-wide attributes discovery, shallow/deepening and broad merge/octopus coverage",
+    "Cross-process mutation races and atomic external Git/config/attributes snapshots",
+    "Persistence through an actual process restart (reopened cache object/repository covered)"
+  ],
+  "owned_receiver_cleanup": {
+    "pids": [
+      26849,
+      27051,
+      29065,
+      29207,
+      29309,
+      29418,
+      29426
+    ],
+    "independent_ps_check": "all absent"
+  },
+  "validation_status": "Scoped grouped checkpoint passed after retained failed attempts and focused repairs; whole port and hosted CI not certified",
+  "hosted_state": "Prior 66b2ef8a run 39066931716 job117498247855 remained in progress in Git integration tests at final observed snapshot; not cancelled/restarted. 42486642 run39068147088 pending. No hosted pass claimed."
+}

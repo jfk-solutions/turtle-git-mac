@@ -1422,7 +1422,7 @@ extension GitRepository {
     public func files(in entry: LogEntry, cache: HistoryFileCache? = nil, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
         try cancellation?.check()
         let context = cache.flatMap { _ in try? historyFileCacheContext(entry, cancellation: cancellation) }
-        if let cache, let context, let record = cache.read(context.key), record.context == context.context,
+        if let cache, let context, let record = cache.read(context.key, cancellation: cancellation), record.context == context.context,
            let attributes = try? historyFileAttributesFingerprint(record.files, info: context.infoAttributes, global: context.globalAttributes, cancellation: cancellation), attributes == record.attributes {
             try cancellation?.check(); return record.files
         }
@@ -1434,6 +1434,10 @@ extension GitRepository {
         var numbers = args; numbers.insert(contentsOf: ["--numstat", "-z"], at: 1)
         var raw = args; raw.insert(contentsOf: ["--raw", "-z"], at: 1)
         let nameData = try run(names, cancellation: cancellation).stdout
+        let beforeAttributes = context.flatMap { value in
+            try? historyFileAttributesFingerprint(CommitFile.parse(names: nameData, statistics: Data(), raw: Data()),
+                info: value.infoAttributes, global: value.globalAttributes, cancellation: cancellation)
+        }
         try cancellation?.check()
         let numberData = try run(numbers, cancellation: cancellation).stdout
         try cancellation?.check()
@@ -1442,9 +1446,14 @@ extension GitRepository {
         let files = CommitFile.parse(names: nameData, statistics: numberData, raw: rawData)
         try cancellation?.check()
         if let cache, let context,
-           let attributes = try? historyFileAttributesFingerprint(files, info: context.infoAttributes, global: context.globalAttributes, cancellation: cancellation) {
+           let attributes = try? historyFileAttributesFingerprint(files, info: context.infoAttributes, global: context.globalAttributes, cancellation: cancellation),
+           attributes == beforeAttributes {
             try cancellation?.check()
-            cache.write(.init(key: context.key, context: context.context, attributes: attributes, files: files))
+            // Do not publish results under a configuration/index/tree context
+            // which changed while the three Git diff reads were running.
+            if let settled = try? historyFileCacheContext(entry, cancellation: cancellation), settled.context == context.context {
+                cache.write(.init(key: context.key, context: context.context, attributes: attributes, files: files), cancellation: cancellation)
+            }
         }
         try cancellation?.check(); return files
     }

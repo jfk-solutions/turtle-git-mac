@@ -5,7 +5,10 @@ The application asset catalog now packages all ten macOS AppIcon slots (16, 32,
 `src/Resources/Tortoise.ico`, the `IDR_MAINFRAME` artwork. Patch/diff documents use
 `src/TortoiseUDiff/TortoiseUDiff.ico` through a native ICNS. This follows the user's
 request to retain the same original artwork. No new mascot or generated redesign
-replaces it. Exact small frames are used where available; larger slots resample
+replaces it. Application slots use the complete 256-pixel turtle/Git frame at
+every size, keeping the same silhouette as the large application icon. This
+avoids the different older turtle/cart design in the upstream small ICO frames.
+Document slots keep exact small frames where available. Larger slots resample
 the original maximum 256-pixel representation. A 1024-pixel slot therefore does
 not claim newly drawn high-resolution detail.
 
@@ -66,3 +69,20 @@ combinations, true signed sandbox file grants, App Store submission and complete
 application parity remain open. Unsigned AppStore packaging is not signed runtime
 or App Store approval. The original ICO's maximum resolution remains a visual
 polish limit.
+
+
+## Consistent in-app branding, 17 October 2026
+
+The shared TurtleGit branding image now uses the same complete turtle with Git
+on its shell as `Branding/ApplicationIcon.png`. First Start, application About,
+Finder toolbar and submenu, cache menu and standalone Git/SSH authentication
+prompts use that shared image. The legacy `TortoiseSmall` lookup routes through
+the same branding loader; the vendored original ICO remains unchanged for
+attribution. Ordinary command icons and status overlays retain their own artwork.
+The generator publishes the shared PNG and its SHA-256 alongside the application
+assets. Small application catalog slots now use the full turtle too. This is
+consistent selection of existing artwork, not a newly drawn independent logo.
+
+The dedicated icon checks and packaged identity audit cover resource decoding,
+rendering and bundle equality. Physical Finder/Dock/Launch Services cache refresh
+and signed/App Store deployment of this revision remain open.

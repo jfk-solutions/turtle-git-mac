@@ -31,14 +31,61 @@ Refs, notes, mailmapped identities, traversal/graph state and working-tree chang
 remain fresh. The Windows mapped index/data binary format is replaced by native
 JSON records; Windows cache files are not interoperable with this format.
 
-This continuation is **uncompiled and untested**. Persistence across process
-restart, corruption/input invalidation, shallow/replace/attribute cases,
-concurrency/cancellation, eviction, sandbox execution and performance need the
-combined section check. Physical checkbox and keyboard/visual acceptance remain
-open. Source immutable commit-metadata cache efficiency still needs comparison;
-this implements persistent diff-file reuse, not certification of every source
-cache behavior. The older Settings/History QA records do not cover this change.
+The initial implementation had no dedicated cache acceptance. The dated
+continuation below records the subsequent implementation and focused checks;
+older Settings/History QA does not establish persistent cache coverage.
 
 The shared [rename/copy detection family](DIFF-DETECTION-PARITY.md) now connects
 source percentages, paired file/patch reads, pinned snapshot policy and historical
 cache invalidation. Its separate validation record reports the actual scope.
+
+## Log cache / Saved Data continuation, 17 October 2026
+
+Metadata paths are now read separately with exactly one Git record terminator
+removed. Repositories, linked metadata and configured global attribute filenames
+can contain newlines, including a trailing newline. Attribute path sets and their
+sort order use exact UTF-8 bytes. Index and attribute reads are regular-file-only,
+bounded to 64 MiB and cancellable by 64 KiB chunk; exceeding that optional-cache
+limit falls back to Git. A missing attribute/index is distinct from an unreadable
+one. Attribute fingerprints bracket the statistics/raw reads; context is checked
+again before publication. This is not a repository lock or an atomic snapshot
+across concurrent external Git/config/attribute edits.
+
+Cache operations pin a no-follow directory descriptor. Regular record reads do
+not follow record symlinks or block on FIFOs. New 0600 records publish through
+unique sibling files and atomic rename. Count, trim and both clear entry points
+share the 64-lowercase-hex JSON namespace and ignore foreign JSON, symlinks and
+directories. In-process operations serialize; an external writer can repopulate
+records after Clear, just as a later Log read can. The cache root is retained.
+
+Saved Data Clear runs away from the main actor. Repeated clicks are rejected
+while busy, the native button disables and shows progress, and Settings dismissal
+and application Quit retain ownership until accepted cleanup finishes. Forced
+retirement lets cleanup drain while refusing late UI updates. New Log windows
+capture Enable Log Cache (matching upstream CLogCache construction); changing the
+preference does not change the policy of a window already open. Private cache
+injection allows verification without touching the user's cache.
+
+The grouped validation checkpoint covers only its explicitly recorded cases. Windows binary cache
+interoperability, immutable commit metadata efficiency, performance, system-wide
+attributes discovery, shallow/deepening, broad merge/octopus parent permutations,
+external-process races and true signed sandbox cache behavior remain open.
+
+### Grouped checkpoint
+
+[17 October evidence](qa/log-cache-branding-family-2026-10-17.json) retains the
+initial failures: the context parser rejected Git's echoed `--end-of-options`,
+and receiver lookup/AX press did not reach the SwiftUI Clear action. Context now
+uses `--revs-only`; Clear is an explicit AppKit target/action button. The native
+fixture invokes its target/action with `performClick`, preserving the deletion
+and ownership assertions. Physical AX/VoiceOver acceptance is still open.
+
+Five cache cases, seven Saved Data cases and the rename/copy history-cache case
+passed across the initial unaffected checks and the four affected repair checks.
+The three real-Git cache cases also passed with bundled Git. Four grouped native
+cases then passed across system/bundled Git, covering new/open-window preference
+policy, actual Clear target/action, duplicate rejection, Quit ownership, retirement,
+repopulation, errors and retained Settings workflows. Debug builds passed. All
+seven attempted native receivers were reaped and independently absent. The full
+Core suite, signed AppStore build, installed Finder and hosted CI were not rerun
+or certified by this checkpoint.

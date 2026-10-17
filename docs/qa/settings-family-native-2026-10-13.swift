@@ -173,7 +173,7 @@ private actor SettingsSMTPFixture: SMTPCredentialStore {
         let temporary=TemporaryFileStore(root:root.appendingPathComponent("temporary"))
         let saved=SavedDataSettingsModel(store:ActionLogStore(storageURL:root.appendingPathComponent("log")),preferences:prefs,temporaryFiles:temporary,historyCache:HistoryFileCache(root:cacheRoot),showFile:{ _ in true })
         try require(saved.historyCacheRecords==1,"Saved Data missed cache record")
-        saved.clearHistoryCache(); try require(saved.historyCacheRecords==0,"Saved Data did not clear own cache")
+        saved.clearHistoryCache(); try await wait("Saved Data cache clear") { !saved.clearingHistoryCache }; try require(saved.historyCacheRecords==0,"Saved Data did not clear own cache")
         var answer:((Bool)->Void)?; saved.confirmTemporaryClear={ answer=$0 }; saved.clearTemporaryFiles(); saved.retire(); answer?(true)
         try require(!saved.confirmingTemporaryClear && saved.retired,"Closed Saved Data accepted retained clear response")
         saved.activate(); saved.maximumLines="123"; saved.apply(); try require(prefs.integer(forKey:"MaxLinesInLogfile")==123,"Reactivated Saved Data draft failed")

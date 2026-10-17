@@ -565,6 +565,8 @@ jobs:
         run: python3 scripts/test-patch-file-panel.py --only special --only recovery --only panel --only files --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Source color conversion and native status text appearance
         run: python3 scripts/test-status-colors.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Native Log cache and Saved Data ownership
+        run: python3 scripts/test-log-cache-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Log filter menu, timing and owned validation
         run: python3 scripts/test-log-filters.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Compare and Merge AppKit toolbar workflows

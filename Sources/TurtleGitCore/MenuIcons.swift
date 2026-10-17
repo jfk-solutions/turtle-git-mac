@@ -27,7 +27,7 @@ public enum MenuIcon: String, CaseIterable {
     case imageZoomIn = "zoomin", imageZoomOut = "zoomout", imageInfo = "imginfo", imageVertical = "vertical", imageAlphaToggle = "alphatoggle"
     case completionFile = "file", completionSnippet = "snippet", completionCode = "code", completionSpelling = "spell"
     case certificate = "certcheck"
-    case turtle = "TortoiseSmall", status = "menushowchanged", commit = "menucommit", log = "menulog"
+    case turtle = "TurtleGitApplication", status = "menushowchanged", commit = "menucommit", log = "menulog"
     case blame = "TortoiseGitBlame"
     case daemon = "menudaemon"
     case revisionGraph = "menurevisiongraph", showBranches = "showbranches"
@@ -93,7 +93,7 @@ public enum MenuIcon: String, CaseIterable {
         #endif
         let ribbon: Set<MenuIcon> = [.mergeSwitch, .mergeOpen, .mergePreviousDifference, .mergeNextDifference, .mergeWrap, .mergeCollapse, .mergeWhitespace, .mergeOnePane, .mergeInline, .mergeInlineWord, .mergePreviousInline, .mergeNextInline, .mergePaste,.mergeReload, .mergeSave, .mergeSaveAs, .mergeResolved, .mergeUndo, .mergeRedo, .mergeFind, .mergePreviousConflict, .mergeNextConflict, .mergeUseMine, .mergeUseTheirs, .mergeMineThenTheirs, .mergeTheirsThenMine]
         let isRibbon = ribbon.contains(self)
-        guard let url = bundle.url(forResource: rawValue, withExtension: isRibbon ? "bmp" : "ico", subdirectory: "Icons"),
+        guard let url = bundle.url(forResource: rawValue, withExtension: self == .turtle ? "png" : (isRibbon ? "bmp" : "ico"), subdirectory: "Icons"),
               let image = isRibbon ? Self.ribbonImage(at: url) : NSImage(contentsOf: url) else { return nil }
         image.size = NSSize(width: size, height: size); image.isTemplate = [.cherryPick, .log, .help, .settingsHooks].contains(self)
         return image
@@ -107,6 +107,7 @@ public enum MenuIcon: String, CaseIterable {
         #else
         let bundle = Bundle(for: IconResourceBundle.self)
         #endif
+        if resource == "TortoiseSmall" || resource == MenuIcon.turtle.rawValue { return MenuIcon.turtle.image(size: size) }
         // The upstream shell RC requests Tag.ico but the tracked filename is
         // tag.ico. Preserve that Windows resource spelling without duplicating
         // files that cannot coexist on a case-insensitive macOS volume.
