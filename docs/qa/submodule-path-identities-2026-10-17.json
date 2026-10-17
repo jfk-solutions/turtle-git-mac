@@ -1,0 +1,171 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "117c455cb7f5fcc10af5c2604ba7a0026dcca12b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Exact index/configured submodule catalog, scope and validation",
+    "Exact native Update selection/focus/saved selections/submission",
+    "Literal command-local Add/Update/Sync arguments",
+    "Effective Add/Update native minimum constraints and explicit Add control audit"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/submodule-identities-build-2026-10-17.log",
+      "exit": 65,
+      "failure": "Ambiguous GitReferenceName.init references; no runtime checks."
+    },
+    {
+      "log": "build/qa/submodule-identities-explicit-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/submodule-identities-progress-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "core": {
+    "initial_log": "build/qa/submodule-identities-core-2026-10-17.log",
+    "initial_exit": 1,
+    "initial_cases_run": 0,
+    "log": "build/qa/submodule-identities-explicit-core-2026-10-17.log",
+    "exit": 0,
+    "tests": 58,
+    "failures": 0,
+    "seconds": 58.953,
+    "filter": "SubmodulePathIdentityTests|SubmoduleUpdateTests|SubmoduleSyncTests|SubmoduleComparisonTests|SSHTransportPreparationTests|CommitSelectionTests",
+    "new_cases": 4,
+    "new_case_scope": "Real Git index stores both Unicode spellings; catalog/scope/unknown/duplicate validation and index preservation. Mutation commands in new argv cases are intercepted by a private wrapper; no remote request. Retained cases exercise actual local submodule/SSH/configuration operations.",
+    "repeated_after_native_only_repair": false
+  },
+  "native": {
+    "driver": "scripts/test-submodule-source-family.py",
+    "distinct_case_engine_passes_cumulatively": 10,
+    "cases": [
+      "identity",
+      "source",
+      "inputs",
+      "selection",
+      "progress"
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/submodule-identities-native-2026-10-17.log",
+        "exit": 1,
+        "case_engine_passes": 8,
+        "pids": [
+          63042,
+          63062,
+          63080,
+          63103,
+          63127,
+          63202,
+          63278,
+          63279,
+          63280
+        ],
+        "failure": "Progress/system caught real bounded-error regression: command option prefix missed starts-with classifier and appended full captured GitFailure text. Identity case initially had no capture because driver routed environment to input-capture key."
+      },
+      {
+        "log": "build/qa/submodule-identities-affected-native-2026-10-17.log",
+        "exit": 0,
+        "case_engine_passes": 4,
+        "cases": [
+          "identity",
+          "progress"
+        ],
+        "pids": [
+          63630,
+          63648,
+          63670,
+          64041
+        ],
+        "repair": "Recognize exact command prefix in progress error classifier and route identity capture variable correctly. No source/input/selection repeats."
+      }
+    ],
+    "coverage": [
+      "Both exact index names appear and are selected independently in real native table",
+      "Ordinary click toggles one spelling, focus survives reordered equivalent names",
+      "Tooltip/accessibility label distinguishes UTF-8 spelling",
+      "Both paths submitted once, restored privately, HEAD/index preserved",
+      "Retained captured Add/Update fields, scoped catalog cancellation and owned helpers",
+      "Retained clipboard/history/picker boundaries and real local staged Add",
+      "Retained row keyboard/selection/disabled/busy fencing",
+      "Retained actual Update checkout, saved options, automatic close, bounded failure, live output and cancellation/forced-close/Quit, bisect actions"
+    ],
+    "ownership": {
+      "receiver_pids": [
+        63042,
+        63062,
+        63080,
+        63103,
+        63127,
+        63202,
+        63278,
+        63279,
+        63280,
+        63630,
+        63648,
+        63670,
+        64041
+      ],
+      "all_independently_absent": true,
+      "private_helper_paths_absent": true,
+      "cleanup": "Sequential owned receiver processes; group cleanup closes options/progress and drains owned reads/tasks. Helpers assert reaped PIDs; driver reaps each group.",
+      "activation": "Prohibited; own window orderFront only; local synthetic native events, no global input"
+    }
+  },
+  "captures": {
+    "directory": "docs/site/assets",
+    "files": [
+      "submodule-update-identities-light.png",
+      "submodule-update-identities-dark.png",
+      "submodule-add-source-options-light.png",
+      "submodule-add-source-options-dark.png"
+    ],
+    "raw": true,
+    "child_windows_included": false,
+    "individually_reviewed": true,
+    "scope": "Four identity/Add Branch captures published. Earlier source/input captures produced by initial group are not newly published or claimed visually reviewed here.",
+    "pixels": {
+      "update": "1520x1064",
+      "add": "1520x684"
+    }
+  },
+  "ledger": {
+    "new_partial_control_mappings": 15,
+    "mapped_controls": 1566,
+    "pending_controls": 93,
+    "certified_dialogs": 0
+  },
+  "hosted_observed": {
+    "commit": "117c455cb7f5fcc10af5c2604ba7a0026dcca12b",
+    "macos": {
+      "id": 39004429670,
+      "status": "pending"
+    },
+    "pages": {
+      "id": 39004429567,
+      "conclusion": "success"
+    }
+  },
+  "remaining": [
+    "Working-file models retain legacy String-set submodule identity; broader path migration still required",
+    "Filesystem alias/collision behavior and physical checkout limits",
+    "All keyboard/VoiceOver/resize gestures and real SSH servers",
+    "Signed installed Finder/bookmark/keychain/App Group and App Store acceptance",
+    "Current full hosted macOS CI and refreshed universal release"
+  ],
+  "certified_complete": false,
+  "site": {
+    "log": "build/qa/submodule-identities-site-2026-10-17.log",
+    "exit": 0,
+    "documents": 265,
+    "unresolved_fragments": 0
+  }
+}

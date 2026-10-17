@@ -1,12 +1,13 @@
 import AppKit
 import SwiftUI
+import TurtleGitCore
 
 /// IDD_SUBMODULE_UPDATE uses LBS_MULTIPLESEL: ordinary clicks toggle rows.
 @MainActor final class SubmoduleUpdatePathTable: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     private(set) var paths: [String] = []
     private(set) var focusedRow = -1
     var interactionEnabled = true
-    var selectionChanged: (Set<String>) -> Void = { _ in }
+    var selectionChanged: (Set<GitReferenceName>) -> Void = { _ in }
     let lifetime = TransportControlLifetime()
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); lifetime.observe(self) }
     private var acceptsInput: Bool { interactionEnabled && !lifetime.retired && window != nil }
@@ -21,12 +22,12 @@ import SwiftUI
         setAccessibilityLabel("Submodule paths")
     }
     required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
-    func configure(paths next: [String], selection: Set<String>) {
+    func configure(paths next: [String], selection: Set<GitReferenceName>) {
         configuring = true; defer { configuring = false }
         let focusedPath = paths.indices.contains(focusedRow) ? paths[focusedRow] : nil
-        if paths != next { paths = next; reloadData() }
-        focusedRow = focusedPath.flatMap { paths.firstIndex(of:$0) } ?? (paths.isEmpty ? -1 : 0)
-        let indices = IndexSet(paths.indices.filter { selection.contains(paths[$0]) })
+        if !paths.elementsEqual(next, by: GitReferenceName.equal) { paths = next; reloadData() }
+        focusedRow = focusedPath.flatMap { focused in paths.firstIndex(where: { GitReferenceName.equal($0, focused) }) } ?? (paths.isEmpty ? -1 : 0)
+        let indices = IndexSet(paths.indices.filter { selection.contains(GitReferenceName(paths[$0])) })
         if selectedRowIndexes != indices { selectRowIndexes(indices,byExtendingSelection:false) }
         let font = NSFont.systemFont(ofSize:NSFont.systemFontSize)
         contentWidth = paths.map { (display($0) as NSString).size(withAttributes:[.font:font]).width+16 }.max() ?? 280
@@ -44,12 +45,16 @@ import SwiftUI
     func tableView(_ tableView:NSTableView,viewFor tableColumn:NSTableColumn?,row:Int) -> NSView? {
         guard paths.indices.contains(row) else { return nil }
         let cell = NSTextField(labelWithString:display(paths[row])); cell.font = .systemFont(ofSize:NSFont.systemFontSize)
-        cell.lineBreakMode = .byClipping; cell.toolTip = paths[row]; return cell
+        cell.lineBreakMode = .byClipping
+        let path = paths[row]
+        let ambiguous = paths.contains { $0 == path && !GitReferenceName.equal($0, path) }
+        let description = ambiguous ? path + "\nUTF-8: " + path.utf8.map { String(format: "%02X", $0) }.joined(separator: " ") : path
+        cell.toolTip = description; cell.setAccessibilityLabel(description); return cell
     }
     func selectionShouldChange(in tableView:NSTableView) -> Bool { configuring || acceptsInput }
     func tableViewSelectionDidChange(_ notification:Notification) {
         guard !configuring,acceptsInput else { return }
-        selectionChanged(Set(selectedRowIndexes.compactMap { paths.indices.contains($0) ? paths[$0] : nil }))
+        selectionChanged(Set(selectedRowIndexes.compactMap { paths.indices.contains($0) ? GitReferenceName(paths[$0]) : nil }))
     }
     override func mouseDown(with event:NSEvent) {
         guard acceptsInput else { return }

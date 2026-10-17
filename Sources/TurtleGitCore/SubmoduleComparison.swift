@@ -56,11 +56,11 @@ extension GitRepository {
     private func submoduleCheckout(path: String, requireCurrentGitlink: Bool, cancellation: OperationCancellation?) throws -> GitRepository {
         try cancellation?.check()
         let location = try restoreLocation(path)
-        if try requireCurrentGitlink && !submoduleUpdatePaths(cancellation: cancellation).contains(path) {
+        if try requireCurrentGitlink && !submoduleUpdatePaths(cancellation: cancellation).contains(where: { GitReferenceName.equal($0, path) }) {
             let previous = try run(["ls-tree", "--full-tree", "-z", "HEAD", "--", path], successfulExitCodes: 0...128, cancellation: cancellation)
             let wasGitlink = previous.exitCode == 0 && previous.stdout.split(separator: 0).contains { record in
                 let parts = record.split(separator: 9, maxSplits: 1)
-                return parts.count == 2 && String(decoding: parts[1], as: UTF8.self) == path && parts[0].starts(with: Data("160000 ".utf8))
+                return parts.count == 2 && GitReferenceName.equal(String(decoding: parts[1], as: UTF8.self), path) && parts[0].starts(with: Data("160000 ".utf8))
             }
             guard wasGitlink else { throw SubmoduleComparisonFailure.unsupported }
         }

@@ -74,7 +74,7 @@ import Darwin
             progress?.model.onUpdated = { _ in results += 1 }; progress?.model.start()
         }
         options.model.load(); try await wait("Options scoped load") { !options.model.busy }
-        try require(options.model.paths == [first] && options.model.selection == [first] && options.model.canApply,"Options scope/selection lost")
+        try require(options.model.paths == [first] && options.model.selection == [GitReferenceName(first)] && options.model.canApply,"Options scope/selection lost")
         options.model.options.noFetch = true; options.model.apply(); options.model.apply()
         try require(submitted == 1,"Options submitted twice")
         guard let manual = progress else { throw Failure(message:"Missing separate progress") }; defer { manual.close() }
@@ -85,7 +85,7 @@ import Darwin
         manual.close()
         let reopen = SubmoduleUpdateWindowModel(repository:repo,access:access,scope:["group"],selected:[],preferences:prefs)
         reopen.onSubmit = { _,_ in }; reopen.load(); try await wait("Options reopen") { !reopen.busy }
-        try require(reopen.options.noFetch && reopen.selection == [first],"Options/history did not persist privately"); reopen.invalidate()
+        try require(reopen.options.noFetch && reopen.selection == [GitReferenceName(first)],"Options/history did not persist privately"); reopen.invalidate()
         var noFetch = SubmoduleUpdateOptions(); noFetch.noFetch = true
         for policy in [1,2] {
             prefs.set(policy,forKey:"AutoCloseGitProgress")

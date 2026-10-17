@@ -2072,3 +2072,18 @@ were reviewed. Windows cache engines/registry/overlay-slot controls, physical
 Finder activation and signed/App Store acceptance remain open. Coverage counts
 remain partial, with no newly certified dialog. See
 [Finder control scope](FINDER-OVERLAY-SETTINGS-PARITY.md#owned-finder-controls-and-exact-overlay-drafts--october-17-2026).
+
+
+## Exact submodule paths — October 17, 2026
+
+Submodule index/.gitmodules catalogs, Update scope/selection/focus/persistence and
+Sync containment retain exact UTF-8 identities. Add/Update/Sync commands disable
+argv precomposition per invocation; Add's contained absolute path suffix is also
+exact. Ambiguous rows expose byte-distinguishing tooltips/accessibility labels.
+Add/Update minimum constraints are effective on native hosting views. The grouped
+checkpoint passed 58 Core tests and ten distinct native case/engine pairs
+cumulatively; one bounded-progress error regression was repaired and only affected
+native cases repeated. Four raw captures were reviewed; all 13 receivers are absent.
+Fifteen Add source controls gain explicit partial mappings. Existing working-file
+String-set models, filesystem-specific aliases, physical/signed Finder and App
+Store acceptance remain open. See [scope and evidence](SUBMODULE-UPDATE-PARITY.md#exact-submodule-path-identities--october-17-2026).

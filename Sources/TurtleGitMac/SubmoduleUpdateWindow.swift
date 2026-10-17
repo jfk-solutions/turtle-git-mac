@@ -21,6 +21,7 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
         window.contentMinSize = NSSize(width: 700, height: 460); window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: SubmoduleUpdateDialog(model: model).defaultAppStorage(preferences))
         host.sizingOptions = []; window.contentViewController = host
+        NSLayoutConstraint.activate([host.view.widthAnchor.constraint(greaterThanOrEqualToConstant: 700), host.view.heightAnchor.constraint(greaterThanOrEqualToConstant: 460)])
         super.init(window: window); window.delegate = self
         window.setContentSize(size); window.center()
         model.close = { [weak window] in window?.close() }; window.refresh = { [weak model] in model?.load() }
@@ -61,7 +62,7 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
             self.wholeProject = value; self.scopeChanged()
         })
     }
-    func setSelectedPaths(_ selected: Set<String>, context: FormContext) { guard accepts(context) else { return }; setSelectedPaths(selected) }
+    func setSelectedPaths(_ selected: Set<GitReferenceName>, context: FormContext) { guard accepts(context) else { return }; setSelectedPaths(selected) }
     func selectAll(context: FormContext) { guard accepts(context) else { return }; selectAll() }
     func apply(context: FormContext) { guard accepts(context) else { return }; apply() }
     func cancel() { guard !confirmingQuit, !submitted, !invalidated else { return }; invalidate(); close() }
@@ -73,7 +74,7 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
     }
     @Published var options = SubmoduleUpdateOptions()
     @Published var paths: [String] = []
-    @Published var selection = Set<String>()
+    @Published var selection = Set<GitReferenceName>()
     @Published var wholeProject = false
     @Published var busy = false { didSet { if busy != oldValue { formRevision = UUID() } } }
     @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { formRevision = UUID() } } }
@@ -104,19 +105,19 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
                 let next = try await repository.submoduleUpdatePaths(scope: requestedScope, cancellation: token)
                 guard !invalidated, !token.isCancelled else { return }
                 let saved = requestedSelection.isEmpty ? preferences.stringArray(forKey: key + ".selection") ?? [] : requestedSelection
-                let checks = loaded ? selection : Set(saved.isEmpty ? next : saved)
-                paths = next; selection = checks.intersection(next); loaded = true
+                let checks = loaded ? selection : Set((saved.isEmpty ? next : saved).map { GitReferenceName($0) })
+                paths = next; selection = checks.intersection(next.map { GitReferenceName($0) }); loaded = true
             } catch { if !invalidated && !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func scopeChanged() { guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; preferences.set(wholeProject, forKey: key + ".wholeProject"); loaded = false; scopeTitleChanged(); load() }
-    func setSelectedPaths(_ selected: Set<String>) {
-        guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; selection = selected.intersection(paths)
+    func setSelectedPaths(_ selected: Set<GitReferenceName>) {
+        guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; selection = selected.intersection(paths.map { GitReferenceName($0) })
     }
-    func selectAll() { guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; selection = selection.isEmpty ? Set(paths) : [] }
+    func selectAll() { guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; selection = selection.isEmpty ? Set(paths.map { GitReferenceName($0) }) : [] }
     func apply() {
         guard canApply, let onSubmit else { return }
-        let selected = paths.filter { selection.contains($0) }, snapshot = options
+        let selected = paths.filter { selection.contains(GitReferenceName($0)) }, snapshot = options
         guard !selected.isEmpty else { return }; submitted = true
         preferences.set(selected, forKey: key + ".selection")
         if let data = try? JSONEncoder().encode(snapshot) { preferences.set(data, forKey: key + ".options") }

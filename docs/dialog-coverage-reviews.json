@@ -853,6 +853,22 @@
       ],
       "parity_document": "docs/ABOUT-PARITY.md",
       "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SUBMODULE_ADD",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SubmoduleAddWindow.swift",
+          "anchor": "SubmoduleAddWindowModel"
+        },
+        {
+          "path": "Sources/TurtleGitCore/SubmoduleAdd.swift",
+          "anchor": "SubmoduleAddOptions"
+        }
+      ],
+      "parity_document": "docs/SUBMODULE-ADD-PARITY.md",
+      "status": "partial-native-replacement"
     }
   ]
 }

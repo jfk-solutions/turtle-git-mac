@@ -90,3 +90,14 @@ The shared visible output state now enforces the cumulative byte limit across
 streamed batches, rather than allowing a last full batch past the cap. A cut
 does not leave an incomplete valid UTF-8 scalar. The source truncation marker
 and final completion line remain visible; raw Git recovery output is unchanged.
+
+
+## Exact scope identity — October 17, 2026
+
+Sync's configured-submodule containment checks now compare exact UTF-8 scope
+prefixes. Each Sync invocation disables argv precomposition locally, preserving
+its reviewed scope without changing repository preferences. The shared command
+presentation retains the source command text. The connected grouped Core checks
+include real Sync behavior plus an intercepted literal-argv case; they do not
+certify filesystem alias behavior or real remote SSH/signed access. See
+[path-identity evidence](qa/submodule-path-identities-2026-10-17.json).

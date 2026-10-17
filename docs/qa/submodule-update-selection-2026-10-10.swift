@@ -34,7 +34,7 @@ import TurtleGitCore
             table.keyDown(with:event)
         }
         try click(0); try click(1)
-        try require(model.selection == Set(paths.prefix(2)),"Ordinary clicks retain multiple paths")
+        try require(model.selection == Set(paths.prefix(2).map { GitReferenceName($0) }),"Ordinary clicks retain multiple paths")
         try click(0,2); try require(model.selection == ["second"],"Click/double-click count toggles only its row")
         try key(125); try require(model.selection == ["second"] && table.focusedRow == 1,"Down moves focus independently")
         try key(126); try require(model.selection == ["second"] && table.focusedRow == 0,"Navigation retains selections")
@@ -53,12 +53,12 @@ import TurtleGitCore
         table.configure(paths:paths,selection:model.selection)
         try require(cell.toolTip == long && cell.stringValue.contains("↵"),"Literal newline path remains intact with readable display")
         table.interactionEnabled = false; try click(0); try key(49)
-        try require(model.selection == Set(paths),"Disabled list ignores mouse/keyboard input")
+        try require(model.selection == Set(paths.map { GitReferenceName($0) }),"Disabled list ignores mouse/keyboard input")
         table.interactionEnabled = true; model.busy = true; model.setSelectedPaths([])
-        try require(model.selection == Set(paths),"Busy model fences stale selection callbacks"); model.busy = false
+        try require(model.selection == Set(paths.map { GitReferenceName($0) }),"Busy model fences stale selection callbacks"); model.busy = false
         var submitted:[String] = []; model.onSubmit = { selected,_ in submitted = selected }
         model.apply(); model.apply(); model.setSelectedPaths([])
-        try require(submitted == paths && model.selection == Set(paths),"Acceptance captures literal paths once and fences later edits")
+        try require(submitted == paths && model.selection == Set(paths.map { GitReferenceName($0) }),"Acceptance captures literal paths once and fences later edits")
         preferences.removePersistentDomain(forName:suite)
         try require(preferences.persistentDomain(forName:suite)?.isEmpty != false,"Private preference domain cleared")
         print("Submodule Update native list: ordinary row toggles, keyboard focus/Space, all-selection, horizontal paths, disabled/busy fencing and literal single submission passed; unordered window only.")

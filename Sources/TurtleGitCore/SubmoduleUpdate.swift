@@ -30,7 +30,7 @@ public enum SubmoduleUpdateFailure: LocalizedError {
 extension GitRepository {
     public func submoduleUpdatePaths(scope: [String] = [], cancellation: OperationCancellation? = nil) throws -> [String] {
         try cancellation?.check()
-        var paths = try submodulePaths(cancellation: cancellation)
+        var paths = try submodulePathNames(cancellation: cancellation)
         let modules = root.appendingPathComponent(".gitmodules")
         if FileManager.default.fileExists(atPath: modules.path) {
             let type = try FileManager.default.attributesOfItem(atPath: modules.path)[.type] as? FileAttributeType
@@ -39,18 +39,23 @@ extension GitRepository {
             let names = try run(["config", "--no-includes", "--null", "--file", modules.path, "--name-only", "--get-regexp", "^submodule\\..*\\.path$"], successfulExitCodes: 0...1, cancellation: cancellation).stdout.split(separator: 0)
             for name in names {
                 let values = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get-all", String(decoding: name, as: UTF8.self)], successfulExitCodes: 0...1, cancellation: cancellation).stdout.split(separator: 0)
-                if let last = values.last { paths.insert(String(decoding: last, as: UTF8.self)) }
+                if let last = values.last { paths.insert(GitReferenceName(String(decoding: last, as: UTF8.self))) }
             }
         }
-        for path in paths { try cancellation?.check(); _ = try restoreLocation(path) }
+        for path in paths { try cancellation?.check(); _ = try restoreLocation(path.rawValue) }
         let prefixes = scope.filter { !$0.isEmpty && $0 != "." }
-        return paths.filter { path in prefixes.isEmpty || prefixes.contains { path == $0 || path.hasPrefix($0 + "/") } }.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        return paths.map(\.rawValue).filter { path in
+            prefixes.isEmpty || prefixes.contains { GitReferenceName.equal(path, $0) || GitReferenceName.removingPrefix($0 + "/", from: path) != nil }
+        }.sorted {
+            let order = $0.localizedStandardCompare($1)
+            return order == .orderedSame ? $0.utf8.lexicographicallyPrecedes($1.utf8) : order == .orderedAscending
+        }
     }
 
     public func updateSubmodules(paths: [String], options: SubmoduleUpdateOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
-        let available = Set(try submoduleUpdatePaths(cancellation: cancellation))
-        guard !paths.isEmpty, Set(paths).count == paths.count, paths.allSatisfy({ available.contains($0) }) else { throw SubmoduleUpdateFailure.selection }
+        let available = Set(try submoduleUpdatePaths(cancellation: cancellation).map { GitReferenceName($0) })
+        guard !paths.isEmpty, Set(paths.map { GitReferenceName($0) }).count == paths.count, paths.allSatisfy({ available.contains(GitReferenceName($0)) }) else { throw SubmoduleUpdateFailure.selection }
         for path in paths {
             try cancellation?.check()
             let location = try restoreLocation(path)
@@ -59,6 +64,6 @@ extension GitRepository {
         }
         // Always carry the reviewed selection explicitly. Selecting all within a
         // folder must not update unreviewed submodules elsewhere in the project.
-        return try run(options.arguments(paths: paths), cancellation: cancellation, onOutput: onOutput).text
+        return try run(["-c", "core.precomposeunicode=false"] + options.arguments(paths: paths), cancellation: cancellation, onOutput: onOutput).text
     }
 }

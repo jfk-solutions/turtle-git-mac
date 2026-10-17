@@ -98,7 +98,7 @@ import TurtleGitCore
                 if let failure = error as? GitFailure { exitCode = failure.code }
                 let message: String
                 if token.isCancelled { message = "Submodule update cancelled." }
-                else if let failure = error as? GitFailure, failure.arguments.starts(with:["submodule", "update"]) { message = "" }
+                else if let failure = error as? GitFailure, (failure.arguments.starts(with: ["submodule", "update"]) || failure.arguments.starts(with: ["-c", "core.precomposeunicode=false", "submodule", "update"])) { message = "" }
                 else { message = error.localizedDescription }
                 if !message.isEmpty { output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message }
             }

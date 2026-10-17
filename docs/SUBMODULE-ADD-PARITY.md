@@ -124,3 +124,23 @@ interaction, filesystem Unicode variants, real SSH servers or signed distributio
 
 [Grouped batch evidence](qa/submodule-source-family-2026-10-17.json) records the
 build, eight case/engine passes, fixture repairs and owned-process absence.
+
+
+## Literal paths and explicit source-control audit — October 17, 2026
+
+Add now passes a command-local core.precomposeunicode=false to preserve the
+submitted UTF-8 destination/source spelling. Absolute destinations extract the
+contained suffix with an exact prefix. Hosting-view minimum constraints retain
+the source rows when resizing; new light/dark captures include the enabled Branch
+field. Fifteen previously unmapped controls now have explicit partial native
+mappings for the project group, history/Browse rows, Branch/Force/key choices and
+OK/Cancel. OpenSSH remains the native adaptation of PuTTY loading; this mapping
+does not certify physical focus, signed key grants or complete layout parity.
+
+The connected [path-identity checkpoint](qa/submodule-path-identities-2026-10-17.json)
+records 58 Core tests and ten distinct native case/engine passes cumulatively,
+including real local Add and the retained input/history/picker/progress workflows.
+The new argument-capture cases intercept Add/Sync/Update mutations and test literal
+argv; they do not claim a real remote SSH operation or simultaneous checkout of
+Unicode aliases on every filesystem. Wider working-file identity and physical/
+signed App Store acceptance remain open.

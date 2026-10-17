@@ -17,6 +17,7 @@ import TurtleGitCore
         window.contentMinSize = NSSize(width: 670, height: 310)
         let host = NSHostingController(rootView: SubmoduleAddDialog(model: model).defaultAppStorage(preferences))
         host.sizingOptions = []; window.contentViewController = host
+        NSLayoutConstraint.activate([host.view.widthAnchor.constraint(greaterThanOrEqualToConstant: 670), host.view.heightAnchor.constraint(greaterThanOrEqualToConstant: 310)])
         window.setContentSize(NSSize(width:760,height:310))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in self?.window?.makeFirstResponder(nil); self?.window?.close() }

@@ -35,7 +35,7 @@ extension GitRepository {
         }
         // Validate configured gitlinks before allowing Git to change child configs.
         let paths = try submoduleUpdatePaths(cancellation: cancellation)
-        for path in paths where commands.contains(where: { $0.scope == "." || path == $0.scope || path.hasPrefix($0.scope + "/") }) {
+        for path in paths where commands.contains(where: { $0.scope == "." || GitReferenceName.equal(path, $0.scope) || GitReferenceName.removingPrefix($0.scope + "/", from: path) != nil }) {
             let location = try restoreLocation(path)
             if let type = try? FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType, type != .typeDirectory { throw SubmoduleSyncFailure.selection }
         }
@@ -50,7 +50,7 @@ extension GitRepository {
         for command in commands {
             try token.check(); _ = try submoduleSyncPlan(scope: [command.scope], cancellation: token)
             onOutput?(GitOutputChunk(stream: .stdout, data: Data(((entries.isEmpty ? "" : "\n") + command.display + "\n").utf8)))
-            let result = try run(command.arguments, successfulExitCodes: 0...255, cancellation: token, onOutput: onOutput)
+            let result = try run(["-c", "core.precomposeunicode=false"] + command.arguments, successfulExitCodes: 0...255, cancellation: token, onOutput: onOutput)
             entries.append(.init(command: command, exitCode: result.exitCode, output: result.text))
         }
         return SubmoduleSyncResult(entries: entries)

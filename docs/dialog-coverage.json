@@ -7,12 +7,12 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 108,
-    "mapped_controls": 1551,
+    "pending_control_reviews": 93,
+    "mapped_controls": 1566,
     "statuses": {
       "pending-review": 10,
-      "partial-native-replacement": 88,
-      "partial": 25,
+      "partial-native-replacement": 89,
+      "partial": 24,
       "native-partial": 1,
       "partial-workflow-replacement": 3,
       "partial-native": 3
@@ -2878,16 +2878,20 @@
       "resource": "src/Resources/TortoiseProcENG.rc",
       "id": "IDD_SUBMODULE_ADD",
       "caption": "Submodule Add",
-      "status": "partial",
+      "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 16,
-      "mapped_controls": 1,
-      "pending_control_reviews": 15,
+      "mapped_controls": 16,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/SubmoduleAddWindow.swift",
-          "origin": "recorded-control-mapping"
+          "anchor": "SubmoduleAddWindowModel"
+        },
+        {
+          "path": "Sources/TurtleGitCore/SubmoduleAdd.swift",
+          "anchor": "SubmoduleAddOptions"
         },
         {
           "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
@@ -2904,6 +2908,7 @@
         "docs/qa/submodule-add-2026-10-09.json",
         "docs/qa/submodule-add-progress-styling-2026-10-09.json",
         "docs/qa/submodule-add-progress-window-2026-10-09.json",
+        "docs/qa/submodule-path-identities-2026-10-17.json",
         "docs/qa/submodule-source-family-2026-10-17.json"
       ]
     },
@@ -3432,6 +3437,7 @@
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/submodule-path-identities-2026-10-17.json",
         "docs/qa/submodule-progress-controls-2026-10-09.json",
         "docs/qa/submodule-progress-styling-2026-10-09.json",
         "docs/qa/submodule-source-family-2026-10-17.json",

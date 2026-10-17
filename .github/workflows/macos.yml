@@ -413,7 +413,7 @@ jobs:
         run: python3 scripts/test-configured-smtp.py
       - name: Native bundled SSH encrypted-key loading and process cleanup
         run: python3 scripts/test-bundled-ssh-agent.py --app build/Build/Products/Debug/TurtleGitMac.app
-      - name: Grouped native Submodule Add and Update source forms, selection and progress
+      - name: Grouped native Submodule exact paths, source forms, selection and progress
         run: >-
           python3 scripts/test-submodule-source-family.py
           --git /usr/bin/git

@@ -61,7 +61,7 @@ import TurtleGitCore
         try require(controller.updateOptions == nil && controller.updateProgress == nil, "Cancel retained update owner")
         model.update(); try await wait { controller.updateOptions?.model.busy == false }
         let submitted = controller.updateOptions!
-        try require(submitted.model.selection == [path], "Update lost selected gitlink")
+        try require(submitted.model.selection == [GitReferenceName(path)], "Update lost selected gitlink")
         submitted.model.options.noFetch = true; submitted.model.apply()
         try await wait { controller.updateProgress != nil }
         let progress = controller.updateProgress!

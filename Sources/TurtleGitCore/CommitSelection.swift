@@ -191,12 +191,18 @@ extension GitRepository {
         _ = try run(["check-ref-format", "refs/heads/" + name], cancellation: cancellation)
         _ = try run(["checkout", "-b", name], cancellation: cancellation)
     }
-    public func submodulePaths(cancellation: OperationCancellation? = nil) throws -> Set<String> {
+    /// Exact index identities, including distinct Unicode spellings and stage deduplication.
+    public func submodulePathNames(cancellation: OperationCancellation? = nil) throws -> Set<GitReferenceName> {
         Set(try run(["ls-files", "--stage", "-z"], cancellation: cancellation).stdout.split(separator: 0).compactMap { record in
             let fields = record.split(separator: 9, maxSplits: 1)
             guard fields.count == 2, fields[0].starts(with: Array("160000 ".utf8)) else { return nil }
-            return String(decoding: fields[1], as: UTF8.self)
+            return GitReferenceName(String(decoding: fields[1], as: UTF8.self))
         })
+    }
+    // Existing working-file models still expose String sets. New submodule
+    // workflows use submodulePathNames so their catalog never collapses names.
+    public func submodulePaths(cancellation: OperationCancellation? = nil) throws -> Set<String> {
+        Set(try submodulePathNames(cancellation: cancellation).map(\.rawValue))
     }
     public func stagingFiles(staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
         try cancellation?.check()

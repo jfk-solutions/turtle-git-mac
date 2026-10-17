@@ -195,3 +195,34 @@ build, eight case/engine passes, fixture repairs and owned-process absence.
 ![Native Submodule Update, light](site/assets/submodule-update-source-light.png)
 
 ![Native Submodule Update, dark](site/assets/submodule-update-source-dark.png)
+
+
+## Exact submodule path identities — October 17, 2026
+
+Index and .gitmodules discovery now deduplicate exact UTF-8 identities, rather than
+Swift's canonical String equality. Scope filtering, requested-path validation,
+selection, focus restoration, saved selections and accepted submissions preserve
+distinct Unicode spellings. Localized row sorting has an exact-byte tie breaker.
+Ambiguous row tooltips and accessibility labels include UTF-8 bytes so the two
+names can be distinguished without changing the source list layout.
+
+Add, Update and Sync disable Git-for-macOS argv precomposition for their individual
+commands; persistent repository preferences stay unchanged. Add's contained absolute
+path extraction and Sync's configured scope checks use exact prefixes. Existing
+working-file models still expose String sets through the older submodulePaths API;
+their wider identity migration remains open. Filesystems may themselves alias both
+spellings or refuse simultaneous checkouts; the app preserves the reviewed Git
+names and reports Git's result instead of silently substituting a sibling.
+
+Add/Update use real hosting-view minimum constraints rather than relying solely
+on contentMinSize. The grouped checkpoint passed: 58 Core tests and ten distinct native case/engine
+pairs cumulatively. The first compile failed on overloaded initializer references;
+explicit closures repaired it before any Core case ran. The first native group
+passed eight pairs, then caught an actual progress regression: adding the Git
+option prefix bypassed the bounded-error classifier. The classifier now recognizes
+that exact prefix. Only the affected identity/capture and progress cases were
+repeated, passing four pairs; Core was not repeated for the native-only repair.
+Four final raw Add/Update light/dark captures were reviewed and all 13 receivers
+were independently absent. See [exact evidence](qa/submodule-path-identities-2026-10-17.json).
+Physical keyboard/VoiceOver, filesystem-specific checkout limits, real SSH servers and
+signed Finder/App Store acceptance remain open.

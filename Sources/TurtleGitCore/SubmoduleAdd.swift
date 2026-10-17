@@ -18,7 +18,7 @@ public struct SubmoduleAddOptions: Sendable {
     public func relativePath(root: URL) throws -> String {
         let value = path.trimmingCharacters(in: .whitespacesAndNewlines)
         let relative: String
-        if value.hasPrefix(root.path + "/") { relative = String(value.dropFirst(root.path.count + 1)) }
+        if let suffix = GitReferenceName.removingPrefix(root.path + "/", from: value) { relative = suffix }
         else { relative = value }
         guard !relative.isEmpty, !relative.hasPrefix("/"), !relative.contains("\0"),
               !relative.components(separatedBy: "/").contains(where: { $0.isEmpty || $0 == "." || $0 == ".." || $0.caseInsensitiveCompare(".git") == .orderedSame }) else { throw SubmoduleAddFailure.path }
@@ -64,7 +64,7 @@ extension GitRepository {
         _ = try restoreLocation(path)
         if let type = try? FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType,
            type != .typeDirectory { throw SubmoduleAddFailure.path }
-        let output = try run(args, environmentOverrides: session?.transportEnvironment ?? [:], literalPathspecs: false, cancellation: token, onOutput: onOutput).text
+        let output = try run(["-c", "core.precomposeunicode=false"] + args, environmentOverrides: session?.transportEnvironment ?? [:], literalPathspecs: false, cancellation: token, onOutput: onOutput).text
         if let key = options.sshKey {
             _ = try run(["-C", location.path, "-c", "core.precomposeunicode=false", "config", "--local", "remote.origin.turtlegitsshkeyfile", key.path], cancellation: token, onOutput: onOutput)
         }

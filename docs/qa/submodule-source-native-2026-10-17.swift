@@ -60,12 +60,12 @@ import TurtleGitCore
         try require(model.busy && model.wholeProject && prefs.bool(forKey:"SubmoduleUpdate."+root.path+".wholeProject"),"Scope did not synchronously own reload/persistence")
         staleForce.wrappedValue=true;model.setSelectedPaths([],context:old);model.apply(context:old)
         try await wait {!model.busy}
-        try require(Set(model.paths)==[first,second] && model.selection==[first,second] && !model.options.force && received.isEmpty,"Stale scoped form changed reloaded selection/options or submitted")
+        try require(Set(model.paths)==[first,second] && model.selection==Set([first,second].map { GitReferenceName($0) }) && !model.options.force && received.isEmpty,"Stale scoped form changed reloaded selection/options or submitted")
         scope.wrappedValue=false;staleForce.wrappedValue=true
         try require(model.wholeProject && !model.options.force,"Retired bindings revived after load")
         let current=model.formContext
         for field in [\SubmoduleUpdateOptions.initialize,\.recursive,\.force,\.remote,\.noFetch,\.merge,\.rebase] {model.option(field,context:current).wrappedValue=true}
-        model.setSelectedPaths([first],context:current)
+        model.setSelectedPaths([GitReferenceName(first)],context:current)
         if let output=ProcessInfo.processInfo.environment["TURTLEGIT_SUBMODULE_SOURCE_CAPTURE"] {try await capture(owner.window!,directory:URL(fileURLWithPath:output))}
         // Failed refresh keeps its diagnostic actionable, but cannot submit an old catalog.
         try Data("[broken\n".utf8).write(to:modules);model.load();try await wait {!model.busy}
