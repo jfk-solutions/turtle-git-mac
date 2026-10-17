@@ -334,7 +334,7 @@ extension GitRepository {
         guard review.files.filter({ paths.contains($0.pathBytes) }).count == selected.count else { throw WorkingTreePatchFailure.selection }
         let patterns = try selected.map { file -> String in
             guard let path = String(data: file.pathBytes, encoding: .utf8) else { throw WorkingTreePatchFailure.pathEncoding }
-            return path.map { "*?[]\\".contains($0) ? "\\" + String($0) : String($0) }.joined()
+            return String(decoding:path.utf8.flatMap {byte -> [UInt8] in [42,63,91,93,92].contains(byte) ? [92,byte]:[byte]},as:UTF8.self)
         }
         let filtered = try reviewWorkingTreePatch(review.document.bytes, reversed: review.reversed, stripCount: review.stripCount, includePatterns: patterns, directoryMode: review.directoryMode, isGitWorkingTree: review.isGitWorkingTree, cancellation: cancellation)
         guard filtered.files.count == selected.count, Set(filtered.files.map(\.pathBytes)) == paths else { throw WorkingTreePatchFailure.selection }
@@ -370,14 +370,14 @@ extension GitRepository {
     /// or writes the real index, and is removed after each complete operation.
     func withPatchTarget<T>(_ bytes: Data, directoryMode: Bool, isGitWorkingTree: Bool, cancellation: OperationCancellation? = nil, _ operation: (URL, ([String]) throws -> GitResult) throws -> T) throws -> T {
         try withWorkingTreePatch(bytes) { file in
-            if !directoryMode { return try operation(file, { try self.run($0, cancellation: cancellation) }) }
+            if !directoryMode { return try operation(file, { try self.run(["-c","core.precomposeunicode=false"] + $0, cancellation: cancellation) }) }
             let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitPatchTarget-" + UUID().uuidString)
             try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
             defer { try? FileManager.default.removeItem(at: temporary) }
             let gitDirectory = temporary.appendingPathComponent(".git").path
             let environment = ["GIT_DIR": gitDirectory, "GIT_COMMON_DIR": gitDirectory, "GIT_WORK_TREE": root.path,
                 "GIT_INDEX_FILE": gitDirectory + "/index", "GIT_OBJECT_DIRECTORY": gitDirectory + "/objects", "GIT_ALTERNATE_OBJECT_DIRECTORIES": ""]
-            let location = ["--git-dir=" + gitDirectory, "--work-tree=" + root.path]
+            let location = ["-c","core.precomposeunicode=false","--git-dir=" + gitDirectory, "--work-tree=" + root.path]
             _ = try run(location + ["init", "--template=", "--object-format=sha1"], environmentOverrides: environment, cancellation: cancellation)
             var configuration: [String] = []
             for key in ["apply.whitespace", "apply.ignoreWhitespace", "core.whitespace"] {
@@ -417,8 +417,8 @@ public struct WorkingTreePatchFileComparison: Sendable {
     public let document: FileComparisonDocument
     public let fileID: Int
     fileprivate let review: WorkingTreePatchReview
-    fileprivate let inputs: [String: ComparisonFileContent]
-    fileprivate let outputs: [String: ComparisonFileContent]
+    fileprivate let inputs: GitPathMap<ComparisonFileContent>
+    fileprivate let outputs: GitPathMap<ComparisonFileContent>
     /// Recorded version-control base used when the working file rejects the patch.
     public let recoveryBase: ComparisonFileContent?
     public let textEncodingPolicy:MergeTextEncodingPolicy?
@@ -443,6 +443,10 @@ public struct WorkingTreePatchFileComparison: Sendable {
 }
 
 extension GitRepository {
+    private func workingTreePatchLocation(_ path:String) throws ->URL {
+        _ = try restoreLocation(path)
+        return FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(root.path + "/" + path))
+    }
     public func compareWorkingTreePatchFile(_ review: WorkingTreePatchReview, fileID: Int,textEncodingPolicy:MergeTextEncodingPolicy? = nil, cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchFileComparison {
         try cancellation?.check()
         guard review.repositoryRoot == root, review.includePatterns.isEmpty,
@@ -460,19 +464,19 @@ extension GitRepository {
             guard opposite.count == review.files.count else { throw WorkingTreePatchFailure.metadata }
             func path(_ bytes: Data) throws -> String {
                 guard let value = String(data: bytes, encoding: .utf8) else { throw WorkingTreePatchFailure.pathEncoding }
-                _ = try restoreLocation(value)
+                _ = try workingTreePatchLocation(value)
                 return value
             }
             let destination = try path(file.pathBytes), source = try path(opposite[file.id].pathBytes)
-            let paths = try Set(matching.flatMap { record in [try path(record.pathBytes), try path(opposite[record.id].pathBytes)] })
+            let paths = try GitPathSet(matching.flatMap { record in [try path(record.pathBytes), try path(opposite[record.id].pathBytes)] }).sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
             let manager = FileManager.default
             let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitPatchComparison-" + UUID().uuidString, isDirectory: true)
             try manager.createDirectory(at: temporary, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
             defer { try? manager.removeItem(at: temporary) }
             func checkParents(_ location: URL, anchor: URL) throws {
                 var parent = location.deletingLastPathComponent()
-                while parent.path != anchor.path {
-                    guard parent.path.hasPrefix(anchor.path + "/") else { throw WorkingFileRestoreFailure.location }
+                while !GitReferenceName.equal(parent.path,anchor.path) {
+                    guard parent.path.utf8.starts(with:(anchor.path + "/").utf8) else { throw WorkingFileRestoreFailure.location }
                     do {
                         let attributes = try manager.attributesOfItem(atPath: parent.path)
                         guard attributes[.type] as? FileAttributeType != .typeSymbolicLink else { throw WorkingFileRestoreFailure.location }
@@ -492,14 +496,14 @@ extension GitRepository {
                 return textEncodingPolicy?.applying(content) ?? content
             }
             var before: ComparisonFileContent?
-            var inputs: [String: ComparisonFileContent] = [:]
+            var inputs: GitPathMap<ComparisonFileContent> = [:]
             for name in paths {
                 try cancellation?.check()
-                let location = try restoreLocation(name), value = try read(location, path: name, anchor: root)
+                let location = try workingTreePatchLocation(name), value = try read(location, path: name, anchor: root)
                 inputs[name] = value
-                if name == source { before = value }
+                if GitReferenceName.equal(name,source) { before = value }
                 guard value.mode != nil else { continue }
-                let copy = temporary.appendingPathComponent(name)
+                let copy = FileTransferPaths.fileURL(temporary.path + "/" + name)
                 try checkParents(copy, anchor: temporary)
                 try manager.createDirectory(at: copy.deletingLastPathComponent(), withIntermediateDirectories: true)
                 if value.mode == "120000" {
@@ -511,7 +515,7 @@ extension GitRepository {
             }
             let gitDirectory = temporary.appendingPathComponent(".git").path
             let environment = ["GIT_DIR": gitDirectory, "GIT_COMMON_DIR": gitDirectory, "GIT_WORK_TREE": temporary.path, "GIT_INDEX_FILE": temporary.appendingPathComponent(".git/index").path]
-            let location = ["-C", temporary.path, "--git-dir=" + gitDirectory, "--work-tree=" + temporary.path]
+            let location = ["-c","core.precomposeunicode=false","-C", temporary.path, "--git-dir=" + gitDirectory, "--work-tree=" + temporary.path]
             let format = review.isGitWorkingTree ? try run(["rev-parse", "--show-object-format"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) : "sha1"
             _ = try run(location + ["init", "--template=", "--object-format=" + format], environmentOverrides: environment, cancellation: cancellation)
             // Match repository-local apply policy, including whitespace fixing.
@@ -531,11 +535,11 @@ extension GitRepository {
                 let records = GitPatch(bytes:review.document.bytes).files
                 guard records.count == review.files.count else {throw directFailure}
                 for name in paths {
-                    let copy = temporary.appendingPathComponent(name)
+                    let copy = FileTransferPaths.fileURL(temporary.path + "/" + name)
                     try checkParents(copy,anchor:temporary)
                     if (try? manager.attributesOfItem(atPath:copy.path)) != nil {try manager.removeItem(at:copy)}
                 }
-                var seeded = Set<String>()
+                var seeded = GitPathSet()
                 for record in matching {
                     try cancellation?.check()
                     let index = review.reversed ? records.count - 1 - record.id : record.id
@@ -553,9 +557,9 @@ extension GitRepository {
                     let baseBytes = object.allSatisfy({$0 == "0"}) ? Data() : try run(["cat-file","blob",object],environmentOverrides:["GIT_NO_LAZY_FETCH":"1"],cancellation:cancellation).stdout
                     let rawBase = ComparisonFileContent(path:name,revision:.revision(object),bytes:baseBytes,mode:mode,permissions:inputs[name]?.permissions ?? (mode == "100755" ? 0o755 : 0o644))
                     let base=textEncodingPolicy?.applying(rawBase) ?? rawBase
-                    if name == source {recoveryBase = base}
+                    if GitReferenceName.equal(name,source) {recoveryBase = base}
                     if !object.allSatisfy({$0 == "0"}) {
-                        let copy = temporary.appendingPathComponent(name);try checkParents(copy,anchor:temporary)
+                        let copy = FileTransferPaths.fileURL(temporary.path + "/" + name);try checkParents(copy,anchor:temporary)
                         try manager.createDirectory(at:copy.deletingLastPathComponent(),withIntermediateDirectories:true)
                         if mode == "120000" {
                             guard let target = String(data:baseBytes,encoding:.utf8),!target.contains("\0") else {throw WorkingTreePatchFailure.symlinkTarget}
@@ -572,7 +576,7 @@ extension GitRepository {
             _ = try run(arguments + ["--", patch.path], environmentOverrides: environment, cancellation: cancellation)
             guard let before else { throw WorkingTreePatchFailure.metadata }
             try cancellation?.check()
-            let outputs = try Dictionary(uniqueKeysWithValues: paths.map { ($0, try read(temporary.appendingPathComponent($0), path: $0, anchor: temporary)) })
+            let outputs = try GitPathMap(uniqueKeysWithValues: paths.map { ($0, try read(FileTransferPaths.fileURL(temporary.path + "/" + $0), path: $0, anchor: temporary)) })
             return WorkingTreePatchFileComparison(document: FileComparisonDocument(base: before, destination: outputs[destination]!), fileID: fileID, review: selected, inputs: inputs, outputs: outputs,recoveryBase:recoveryBase,textEncodingPolicy:textEncodingPolicy)
         }
     }
@@ -605,16 +609,16 @@ extension GitRepository {
         let outputs = chosen.mapValues {content in ComparisonFileContent(path:content.path,revision:.workingTree,bytes:content.bytes,mode:content.mode,permissions:content.permissions,encoding:content.encoding,isDeleted:content.mode == nil)}
         return try savePatchOutputs(comparison,outputs:outputs,autoAddNewFiles:choice == .patched && autoAddNewFiles,message:choice == .current ? "Kept current working files and paths.\n" : "Saved the selected patched file state.\n",cancellation:cancellation)
     }
-    private func savePatchOutputs(_ comparison:WorkingTreePatchFileComparison,outputs:[String:ComparisonFileContent],autoAddNewFiles:Bool,message:String,cancellation:OperationCancellation?) throws -> WorkingTreePatchSaveResult {
+    private func savePatchOutputs(_ comparison:WorkingTreePatchFileComparison,outputs:GitPathMap<ComparisonFileContent>,autoAddNewFiles:Bool,message:String,cancellation:OperationCancellation?) throws -> WorkingTreePatchSaveResult {
         try cancellation?.check()
         guard comparison.review.repositoryRoot == root,let destination = outputs[comparison.document.destination.path] else {throw WorkingTreePatchFailure.review}
         func validateInputs() throws {
             for (path, expected) in comparison.inputs {
                 try cancellation?.check()
-                let location = try restoreLocation(path)
+                let location = try workingTreePatchLocation(path)
                 var parent = location.deletingLastPathComponent()
-                while parent.path != root.path {
-                    guard parent.path.hasPrefix(root.path + "/") else { throw WorkingFileRestoreFailure.location }
+                while !GitReferenceName.equal(parent.path,root.path) {
+                    guard parent.path.utf8.starts(with:(root.path + "/").utf8) else { throw WorkingFileRestoreFailure.location }
                     if let attributes = try? FileManager.default.attributesOfItem(atPath: parent.path), attributes[.type] as? FileAttributeType == .typeSymbolicLink { throw WorkingFileRestoreFailure.location }
                     parent.deleteLastPathComponent()
                 }
@@ -632,12 +636,12 @@ extension GitRepository {
         defer { try? manager.removeItem(at: temporary) }
         let gitDirectory = temporary.appendingPathComponent(".git").path
         let environment = ["GIT_DIR": gitDirectory, "GIT_COMMON_DIR": gitDirectory, "GIT_WORK_TREE": temporary.path, "GIT_INDEX_FILE": gitDirectory + "/index", "GIT_OBJECT_DIRECTORY": gitDirectory + "/objects", "GIT_ALTERNATE_OBJECT_DIRECTORIES": ""]
-        let location = ["-C", temporary.path, "--git-dir=" + gitDirectory, "--work-tree=" + temporary.path]
+        let location = ["-c","core.precomposeunicode=false","-C", temporary.path, "--git-dir=" + gitDirectory, "--work-tree=" + temporary.path]
         let format = comparison.review.isGitWorkingTree ? try run(["rev-parse", "--show-object-format"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) : "sha1"
         _ = try run(location + ["init", "--template=", "--object-format=" + format], environmentOverrides: environment, cancellation: cancellation)
-        func tree(_ contents: [String: ComparisonFileContent]) throws -> String {
+        func tree(_ contents: GitPathMap<ComparisonFileContent>) throws -> String {
             _ = try run(location + ["read-tree", "--empty"], environmentOverrides: environment, cancellation: cancellation)
-            for (path, content) in contents.sorted(by: { $0.key < $1.key }) {
+            for (path, content) in contents.sorted(by: { $0.key.utf8.lexicographicallyPrecedes($1.key.utf8) }) {
                 try cancellation?.check()
                 guard let mode = content.mode else { continue }
                 let payload = temporary.appendingPathComponent("payload")

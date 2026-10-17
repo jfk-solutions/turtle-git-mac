@@ -1,0 +1,102 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "cb680c9c",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "src/Git/GitPatch.cpp": "5dd70de4a8c898ae80a229aabd82832e7b590d1f",
+    "src/TortoiseProc/PatchListCtrl.cpp": "dea42bf97d4a1b265d31712e9b60ce7dd87dda8d",
+    "src/TortoiseMerge/FilePatchesDlg.cpp": "c882cf833e103f16750f1a9cd04d6a5b6db0402a"
+  },
+  "scope": "Exact path identities through renamed-file previews, recorded-base recovery, edited/special saves and serial-provider drop catalogs.",
+  "implemented": [
+    "GitPathMap input/output snapshots, GitPathSet path collection/recovery seeding, exact source comparisons and raw byte ordering for save trees",
+    "Guarded raw file URLs for target/preview workspace and exact parent containment comparisons",
+    "Per-command core.precomposeunicode=false for repository and disposable target/preview/save operations; no persistent user configuration change",
+    "UTF8-byte wildcard escaping for per-file include filters",
+    "Exact lexical serial-drop duplicate membership, preserving provider order and existing direct Add duplicate behavior"
+  ],
+  "validation": {
+    "core": {
+      "distinct_cases": 35,
+      "initial": {
+        "log": "build/qa/patch-path-core-2026-10-17.log",
+        "cases": 35,
+        "failures": 10,
+        "unexpected": 4
+      },
+      "affected_recheck": {
+        "log": "build/qa/patch-path-precompose-core-2026-10-17.log",
+        "cases": 35,
+        "failures": 0
+      },
+      "note": "The four new cases initially failed; existing 31 passed. Shared execution-prefix changes affected the complete focused family, so all 35 were rechecked. These are 35 distinct cases, not 70."
+    },
+    "builds": [
+      {
+        "log": "build/qa/patch-path-build-2026-10-17.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/patch-path-precompose-build-2026-10-17.log",
+        "exit_code": 0
+      }
+    ],
+    "native": {
+      "log": "build/qa/patch-path-native-2026-10-17.log",
+      "passed": 8,
+      "cases": [
+        "paths system Git",
+        "paths bundled Git",
+        "recovery system Git",
+        "recovery bundled Git",
+        "special system Git",
+        "special bundled Git",
+        "panel system Git",
+        "panel bundled Git"
+      ],
+      "scope": "Actual renamed-file recorded/current/patched editor, Theirs and Save, executable mode, completed action gates, serial URL provider spelling/order/duplicate and stale-catalog rules; retained text/special/file-panel workflows; original bytes and unchanged HEAD/raw index"
+    },
+    "owned_receiver_pids": [
+      74631,
+      74700,
+      74812,
+      75010,
+      75196,
+      75448,
+      75690,
+      75801
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/patch-paths-light.png",
+        "sha256": "7733f8bf844f75a4f373093661f980eaf9b973f4bfe897fa44dc0413b8661e20",
+        "width": 2200,
+        "height": 1606,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/patch-paths-dark.png",
+        "sha256": "4c46ad18773abe00dd85696f3e76737aaef67324cd99a277a7965f71fa80efa7",
+        "width": 2200,
+        "height": 1606,
+        "individually_viewed": true
+      }
+    ]
+  },
+  "failure_and_repair": "The new real-Git cases exposed macOS Git precomposing include/cache-info arguments in a freshly initialized preview repository, silently excluding the selected NFD patch and returning absent output, and a canonical-peer selection mismatch when precomposition was enabled. Force raw path handling per invocation across target/preview/save commands and preserve wildcard-filter bytes. Rebuild and affected focused-family recheck passed before the first native run.",
+  "remaining": [
+    "Simultaneous filesystem aliases, case-only/alias renames and all filename/volume combinations",
+    "Per-file editing of non-UTF8 paths; unchanged whole-patch Git application retains bytes",
+    "Physical drag/keyboard/accessibility, complete visuals and signed grants/Finder/App Store acceptance",
+    "Current full hosted macOS CI result"
+  ],
+  "notes": [
+    "All eight native workflows passed on their first native run.",
+    "Core canonical-peer selection is an index/review test, not proof of simultaneous on-disk canonical-peer writes.",
+    "Native provider peers exercise URL payload/catalog/preview behavior; no physical pointer-drag simulation or simultaneous distinct canonical-peer payloads claim.",
+    "The source file panel intentionally displays basenames; full raw target paths remain in tooltips and operation records.",
+    "Unaltered captures show existing inactive-toolbar fading and the expected initial conflict diagnostic; full visual acceptance remains open.",
+    "Existing outdated Simulator and exit-zero compiler diagnostics remain. Successful builds do not establish clean diagnostics."
+  ]
+}

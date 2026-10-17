@@ -50,3 +50,8 @@ TortoiseUDiff parity or a complete hosted CI pass.
 
 ![Regional unified diff, light](site/assets/raw-patch-codec-light.png)
 ![Regional unified diff, dark](site/assets/raw-patch-codec-dark.png)
+
+
+[Patch path identity](PATCH-PATH-IDENTITY.md) covers the separate connected
+filename/rename recovery and serial-provider migration. Exact metadata does not
+certify simultaneous filesystem aliases.

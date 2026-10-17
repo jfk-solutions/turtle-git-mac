@@ -347,10 +347,10 @@ import TurtleGitCore
             }
             receivingDrop = false
             guard !invalidated else { return }
-            var paths = Set(items.map { $0.file.standardizedFileURL.path })
+            var paths = GitPathSet(items.map { FileTransferPaths.lexicalPath($0.file.path) })
             let newFiles = urls.filter { url in
                 guard (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) != true else { return false }
-                return paths.insert(url.standardizedFileURL.path).inserted
+                return paths.insert(FileTransferPaths.lexicalPath(url.path)).inserted
             }
             add(newFiles)
             if let failure { error = failure }
@@ -1549,7 +1549,7 @@ struct WorkingTreePatchNativeFileList: NSViewRepresentable {
             label.font = model.focusedFile == file.id ? .boldSystemFont(ofSize:NSFont.systemFontSize) : .systemFont(ofSize:NSFont.systemFontSize)
             label.textColor = ["error","conflict"].contains(state) ? .systemRed : ["patched","kept current"].contains(state) ? .secondaryLabelColor : .labelColor
             label.translatesAutoresizingMaskIntoConstraints = false;cell.addSubview(label);cell.textField = label
-            cell.toolTip = model.repository.root.appendingPathComponent(file.path).path + (["error","conflict"].contains(state) ? "\n" + (model.fileResults[file.pathBytes]?.output ?? model.fileInspections[file.pathBytes]?.diagnostic ?? "") : "")
+            cell.toolTip = FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(model.repository.root.path + "/" + file.path)).path + (["error","conflict"].contains(state) ? "\n" + (model.fileResults[file.pathBytes]?.output ?? model.fileInspections[file.pathBytes]?.diagnostic ?? "") : "")
             if tableColumn?.identifier.rawValue == "Path" {
                 let image = NSImageView();image.image = NSWorkspace.shared.icon(for:UTType(filenameExtension:(file.path as NSString).pathExtension) ?? .data);image.translatesAutoresizingMaskIntoConstraints = false;cell.addSubview(image);cell.imageView = image
                 NSLayoutConstraint.activate([image.leadingAnchor.constraint(equalTo:cell.leadingAnchor,constant:4),image.centerYAnchor.constraint(equalTo:cell.centerYAnchor),image.widthAnchor.constraint(equalToConstant:16),image.heightAnchor.constraint(equalToConstant:16),label.leadingAnchor.constraint(equalTo:image.trailingAnchor,constant:4)])

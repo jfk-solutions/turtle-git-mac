@@ -62,6 +62,8 @@ physical UI acceptance or passing hosted GitHub CI.
 [Regional patch text](docs/RAW-PATCH-CODECS.md) covers captured code pages across
 Original Patch, serial previews, partial staging and editable unified diffs,
 including exact-byte exports and explicit limits on mixed-codec editing.
+[Patch filename handling](docs/PATCH-PATH-IDENTITY.md) covers renamed-file recovery,
+exact Unicode metadata and serial-import drop ordering/duplicate rules.
 
 ## Build and run
 

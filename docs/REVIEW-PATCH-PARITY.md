@@ -88,3 +88,12 @@ Ready/Conflict/Error classification, versioned-base retry, an embedded native
 three-pane preview and clean-merge Patch all/selected continuation. Earlier text
 listing all initial-state and conflict preview behavior as absent is historical;
 the continuation records the implemented paths and remaining special-file scope.
+
+
+## Exact renamed-file recovery and serial provider paths — October 17, 2026
+
+[Patch path identity](PATCH-PATH-IDENTITY.md) replaces Unicode-normalizing
+collection keys and temporary URL construction across preview, recorded-base
+recovery and text/special saves. It also retains exact serial-drop URL identities
+without changing direct Add duplicate semantics. See that checkpoint for the
+real-Git/native scope and the remaining physical filesystem-alias limitations.
