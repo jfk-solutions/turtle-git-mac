@@ -15,6 +15,8 @@ import TurtleGitCore
     private var generation = UUID()
     private(set) var retired = false
     @Published var hasSheet = false
+    @Published var exporting = false
+    @Published private(set) var formRevision = UUID()
     var becameIdle: () -> Void = {}
     @Published var options = LogStatisticsOptions()
     @Published var metric = LogStatisticsMetric.statistics
@@ -27,13 +29,18 @@ import TurtleGitCore
     @Published var error: String?
     var close: () -> Void = {}
     var graphSize = CGSize(width: 860, height: 400)
-    var canInteract: Bool { !retired && !busy && !hasSheet }
+    var canInteract: Bool { !retired && !busy && !hasSheet && !exporting }
     var showsGraphControls: Bool { metric != .statistics }
     var canExportGraph: Bool { canInteract && metric != .statistics && graph != nil }
     func supports(_ style: LogStatisticsStyle) -> Bool { !metric.byAuthor || ![.line, .stackedLine].contains(style) }
-    func selectStyle(_ style: LogStatisticsStyle) { guard canInteract, supports(style) else { return }; self.style = style }
-    func setOptions(_ options: LogStatisticsOptions) { guard canInteract else { return }; self.options = options; rebuild(resetAuthors: true) }
-    func setAuthorLimit(_ value: Double) { guard canInteract, value.isFinite else { return }; authorsShown = max(1, value); rebuild() }
+    func selectStyle(_ style: LogStatisticsStyle, context: UUID? = nil) { guard accepts(context), supports(style) else { return }; self.style = style; formRevision = UUID() }
+    func setOptions(_ options: LogStatisticsOptions, context: UUID? = nil) { guard accepts(context) else { return }; self.options = options; rebuild(resetAuthors: true) }
+    func setAuthorLimit(_ value: Double, context: UUID? = nil) {
+        guard accepts(context), value.isFinite else { return }
+        authorsShown = min(Double(max(1, min(250, availableAuthorCount))), max(1, value.rounded(.towardZero))); rebuild()
+    }
+    func accepts(_ context: UUID?) -> Bool { canInteract && (context == nil || context == formRevision) }
+    var authorSliderHint: String { summary?.authorSliderHint(limit: Int(authorsShown), metric: metric) ?? "" }
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.entries = entries; self.defaults = defaults
         options.caseSensitive = defaults.object(forKey: "StatAuthorsCaseSensitive") == nil || defaults.bool(forKey: "StatAuthorsCaseSensitive")
@@ -48,17 +55,17 @@ import TurtleGitCore
     }
     var availableAuthorCount: Int {
         guard let summary else { return 0 }
-        if metric == .authorship && changes != nil { return summary.authorshipPercent.values.filter { $0.rounded(.toNearestOrAwayFromZero) > 0 }.count }
-        return summary.commitsByAuthor.count
+        return summary.rankedAuthors(for: metric).count
     }
     func start() { if metric.needsChanges { calculate() } }
-    func selectMetric(_ metric: LogStatisticsMetric) {
-        guard canInteract else { return }; self.metric = metric
+    func selectMetric(_ metric: LogStatisticsMetric, context: UUID? = nil) {
+        guard accepts(context) else { return }; self.metric = metric
         if metric.byAuthor { style = .bar } else if metric == .statistics || metric == .commitsByDate { style = .line }
         rebuild(resetAuthors: true); if metric.needsChanges && changes == nil { calculate() }
     }
     func rebuild(resetAuthors: Bool = false) {
         guard !retired else { return }
+        formRevision = UUID()
         do {
             summary = try LogStatistics.analyze(entries, options: options, changes: changes)
             if resetAuthors { authorsShown = Double(min(250, max(1, availableAuthorCount))) }
@@ -68,8 +75,8 @@ import TurtleGitCore
             error = nil
         } catch { self.error = error.localizedDescription; graph = nil }
     }
-    func calculate() {
-        guard canInteract, changes == nil else { return }; busy = true; completed = 0; error = nil
+    func calculate(context: UUID? = nil) {
+        guard accepts(context), changes == nil else { return }; formRevision = UUID(); busy = true; completed = 0; error = nil
         let token = OperationCancellation(), request = UUID()
         cancellation = token; generation = request; Self.activeOperations += 1
         worker = Task { [self, access] in
@@ -103,7 +110,7 @@ import TurtleGitCore
     func cancel() { cancellation?.cancel() }
     func retire() {
         guard !retired else { return }
-        retired = true; generation = UUID(); cancel(); becameIdle = {}; close = {}
+        retired = true; formRevision = UUID(); generation = UUID(); cancel(); becameIdle = {}; close = {}
     }
     func savePreferences() {
         guard !retired else { return }
@@ -122,19 +129,36 @@ private final class StatisticsNativeWindow: NSWindow {
 }
 
 @MainActor final class StatisticsWindowController: NSWindowController, NSWindowDelegate {
+    static var activeExports = 0
     let model: StatisticsWindowModel
     var onClosed: () -> Void = {}
     private(set) var savePanel: StatisticsGraphSavePanel?
     private var exportError: NSAlert?
     private var closing = false
     private var closed = false
+    private var exportRequest: UUID?
+    var writeGraph: @Sendable (Data, URL) async throws -> Void = { data, url in
+        try await Task.detached {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            try data.write(to: url, options: .atomic)
+        }.value
+    }
     var presentSavePanel: (NSSavePanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, window, completion in panel.beginSheetModal(for: window, completionHandler: completion) }
+    var selectedSaveURL: (NSSavePanel) -> URL? = { $0.url }
     var canSaveGraph: Bool { !closed && model.canExportGraph && window?.attachedSheet == nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard) {
         model = StatisticsWindowModel(repository: repository, access: access, entries: entries, defaults: defaults)
         let window = StatisticsNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 620), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Statistics", preferences: defaults); window.contentMinSize = NSSize(width: 720, height: 530); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: StatisticsDialog(model: model))
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Statistics", preferences: defaults); window.contentMinSize = NSSize(width: 780, height: 550); window.isReleasedWhenClosed = false
+        let host = NSHostingView(rootView: StatisticsDialog(model: model))
+        host.translatesAutoresizingMaskIntoConstraints = false
+        let content = NSView(); content.addSubview(host); window.contentView = content
+        NSLayoutConstraint.activate([
+            host.leadingAnchor.constraint(equalTo: content.leadingAnchor), host.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            host.topAnchor.constraint(equalTo: content.topAnchor), host.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            content.widthAnchor.constraint(greaterThanOrEqualToConstant: 780), content.heightAnchor.constraint(greaterThanOrEqualToConstant: 550)
+        ])
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.performClose(nil) }
         model.becameIdle = { [weak self] in if self?.closing == true { self?.window?.performClose(nil) } }
@@ -143,36 +167,70 @@ private final class StatisticsNativeWindow: NSWindow {
         DialogGeometry.attach(window, identifier: "StatisticsDialog", legacyName: "StatisticsDialog")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    private struct ExportSnapshot {
+        let graph: LogStatisticsGraph
+        let metric: LogStatisticsMetric
+        let style: LogStatisticsStyle
+        let size: CGSize
+        let dark: Bool
+        let revision: UUID
+        @MainActor func data(format: StatisticsGraphFormat) throws -> Data {
+            try StatisticsGraphExport.data(graph: graph, metric: metric, style: style, size: size, dark: dark, format: format)
+        }
+    }
+    private func snapshot() throws -> ExportSnapshot {
+        guard canSaveGraph, let graph = model.graph else { throw StatisticsGraphExportFailure.unavailable }
+        return ExportSnapshot(graph: graph, metric: model.metric, style: model.style, size: model.graphSize,
+                              dark: window?.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua,
+                              revision: model.formRevision)
+    }
     func saveGraphAs() {
-        guard canSaveGraph, savePanel == nil, let window else { return }
-        let choice = StatisticsGraphSavePanel(); savePanel = choice; model.hasSheet = true
+        guard canSaveGraph, savePanel == nil, let window, let captured = try? snapshot() else { return }
+        let request = UUID(), choice = StatisticsGraphSavePanel()
+        exportRequest = request; savePanel = choice; model.hasSheet = true
         presentSavePanel(choice.panel, window) { [weak self, choice, weak window] response in
-            guard let self, !self.closed, self.savePanel === choice, let window else { return }
-            self.savePanel = nil; self.model.hasSheet = false
-            guard response == .OK, let url = choice.panel.url else { return }
-            do { try self.exportGraph(to: url, format: choice.format) }
-            catch {
-                let alert = NSAlert(error: error); self.exportError = alert; self.model.hasSheet = true
-                alert.beginSheetModal(for: window) { [weak self, weak alert] _ in
-                    guard let self, !self.closed, self.exportError === alert else { return }
-                    self.exportError = nil; self.model.hasSheet = false
+            guard let self, !self.closed, self.exportRequest == request, self.savePanel === choice, let window else { return }
+            self.savePanel = nil; self.model.hasSheet = false; self.exportRequest = nil
+            guard response == .OK, let url = self.selectedSaveURL(choice.panel), self.model.formRevision == captured.revision else { return }
+            self.model.exporting = true; Self.activeExports += 1
+            let writer = self.writeGraph
+            Task { [self] in
+                defer {
+                    Self.activeExports -= 1
+                    self.model.exporting = false
+                    if !self.closed && self.closing { self.window?.performClose(nil) }
+                }
+                do {
+                    let data = try captured.data(format: choice.format)
+                    try await writer(data, url)
+                } catch {
+                    guard !self.closed else { return }
+                    self.showExportError(error, window: window)
                 }
             }
         }
     }
+    private func showExportError(_ error: Error, window: NSWindow) {
+        let alert = NSAlert(error: error); exportError = alert; model.hasSheet = true
+        alert.beginSheetModal(for: window) { [weak self, weak alert] _ in
+            guard let self, !self.closed, self.exportError === alert else { return }
+            self.exportError = nil; self.model.hasSheet = false
+            if self.closing { self.window?.performClose(nil) }
+        }
+    }
+    /// Immediate export remains available for callers that already own a URL.
     func exportGraph(to url: URL, format: StatisticsGraphFormat) throws {
-        guard canSaveGraph, let graph = model.graph else { throw StatisticsGraphExportFailure.unavailable }
-        let dark = window?.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let data = try StatisticsGraphExport.data(graph: graph, metric: model.metric, style: model.style, size: model.graphSize, dark: dark, format: format)
+        let captured = try snapshot()
+        let data = try captured.data(format: format)
         let scoped = url.startAccessingSecurityScopedResource(); defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         try data.write(to: url, options: .atomic)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !model.hasSheet, sender.attachedSheet == nil else { return false }
-        if model.busy { closing = true; model.cancel(); return false }; return true
+        if model.busy || model.exporting { closing = true; model.cancel(); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
-        guard !closed else { return }; closed = true
+        guard !closed else { return }; closed = true; exportRequest = nil
         model.savePreferences(); model.retire()
         if let sheet = savePanel?.panel { window?.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
         if let alert = exportError { window?.endSheet(alert.window, returnCode: .cancel); alert.window.orderOut(nil) }
@@ -184,43 +242,47 @@ private final class StatisticsNativeWindow: NSWindow {
 private struct StatisticsDialog: View {
     @ObservedObject var model: StatisticsWindowModel
     var body: some View {
+        let context = model.formRevision
         VStack(alignment: .leading, spacing: 10) {
-            HStack { Text("Graph type:"); Spacer(); Picker("Graph type", selection: Binding(get: { model.metric }, set: { model.selectMetric($0) })) { ForEach(LogStatisticsMetric.allCases, id: \.rawValue) { Text($0.title).tag($0) } }.labelsHidden().frame(width: 360).disabled(!model.canInteract) }
+            HStack { Text("Graph type:"); Spacer(); Picker("Graph type", selection: Binding(get: { model.metric }, set: { model.selectMetric($0, context: context) })) { ForEach(LogStatisticsMetric.allCases, id: \.rawValue) { Text($0.title).tag($0) } }.labelsHidden().frame(width: 360).disabled(!model.canInteract) }
             GroupBox {
-                if model.metric == .statistics, let summary = model.summary { StatisticsSummary(summary: summary, calculate: model.calculate).disabled(!model.canInteract).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) }
+                if model.metric == .statistics, let summary = model.summary { StatisticsSummary(summary: summary, calculate: { model.calculate(context: context) }).disabled(!model.canInteract).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) }
                 else if let graph = model.graph { StatisticsChart(graph: graph, style: model.style, byAuthor: model.metric.byAuthor).frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(GeometryReader { proxy in Color.clear.onAppear { model.graphSize = proxy.size }.onChange(of: proxy.size) { model.graphSize = $0 } }) }
                 else { VStack {
                     Text(model.busy ? "Gathering statistics…" : "No graph data available.")
-                    if model.metric.needsChanges && !model.busy { Button("Calculate", action: model.calculate).disabled(!model.canInteract) }
+                    if model.metric.needsChanges && !model.busy { Button("Calculate") { model.calculate(context: context) }.disabled(!model.canInteract) }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity) }
             }
             HStack(alignment: .top) {
                 VStack(alignment: .leading) {
-                    Toggle("Authors case sensitive", isOn: option(\.caseSensitive))
-                    Toggle("Use committer names", isOn: option(\.useCommitterNames))
-                    Toggle("Use commit dates", isOn: option(\.useCommitDates))
-                    if model.showsGraphControls { Toggle("Sort by commit count", isOn: option(\.sortByCommitCount)) }
+                    Toggle("Authors case sensitive", isOn: option(\.caseSensitive, context: context))
+                    Toggle("Use committer names", isOn: option(\.useCommitterNames, context: context))
+                    Toggle("Use commit dates", isOn: option(\.useCommitDates, context: context))
+                    if model.showsGraphControls { Toggle("Sort by commit count", isOn: option(\.sortByCommitCount, context: context)) }
                 }.disabled(!model.canInteract)
                 Spacer()
                 if model.showsGraphControls { HStack {
                     ForEach([LogStatisticsStyle.pie, .stackedLine, .line, .stackedBar, .bar], id: \.rawValue) { style in
-                        Button { model.selectStyle(style) } label: { Image(nsImage: styleIcon(style).image() ?? NSImage()).frame(width: 18, height: 18) }.accessibilityLabel(styleTitle(style)).disabled(!model.canInteract || !model.supports(style)).help(styleTitle(style)).tint(model.style == style ? .accentColor : nil)
+                        Button { model.selectStyle(style, context: context) } label: { Image(nsImage: styleIcon(style).image() ?? NSImage()).frame(width: 18, height: 18) }.accessibilityLabel(styleTitle(style)).disabled(!model.canInteract || !model.supports(style)).help(styleTitle(style)).background(model.style == style ? Color.accentColor.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+                            .accessibilityValue(model.style == style ? "Selected" : "")
                     }
                 } }
             }
             HStack {
                 if model.showsGraphControls { Text("# authors shown individually:")
-                Slider(value: Binding(get: { model.authorsShown }, set: { model.setAuthorLimit($0) }), in: 1...Double(max(2, min(250, model.availableAuthorCount))), step: 1).frame(maxWidth: 220).disabled(!model.canInteract || model.availableAuthorCount < 2)
+                Slider(value: Binding(get: { model.authorsShown }, set: { model.setAuthorLimit($0, context: context) }), in: 1...Double(max(2, min(250, model.availableAuthorCount))), step: 1).frame(maxWidth: 220).disabled(!model.canInteract || model.availableAuthorCount < 2)
+                    .accessibilityLabel("Authors shown individually").accessibilityValue(model.authorSliderHint).help(model.authorSliderHint)
                 Text("\(Int(model.authorsShown))").monospacedDigit() }
+                if model.exporting { ProgressView().controlSize(.small); Text("Saving graph…") }
                 if model.busy { ProgressView(value: Double(model.completed), total: Double(max(1, model.entries.count))).frame(width: 100); Button("Cancel") { model.cancel() } }
                 Spacer(); Button("OK") { model.close() }.keyboardShortcut(.defaultAction)
             }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
         }.padding(12)
     }
-    private func option(_ key: WritableKeyPath<LogStatisticsOptions, Bool>) -> Binding<Bool> {
-        Binding(get: { model.options[keyPath: key] }, set: { value in var options = model.options; options[keyPath: key] = value; model.setOptions(options) })
+    private func option(_ key: WritableKeyPath<LogStatisticsOptions, Bool>, context: UUID) -> Binding<Bool> {
+        Binding(get: { model.options[keyPath: key] }, set: { value in var options = model.options; options[keyPath: key] = value; model.setOptions(options, context: context) })
     }
     private func styleIcon(_ style: LogStatisticsStyle) -> MenuIcon {
         switch style { case .pie: return .graphPie; case .line: return .graphLine; case .stackedLine: return .graphStackedLine; case .bar: return .graphBar; case .stackedBar: return .graphStackedBar }
@@ -234,23 +296,36 @@ private struct StatisticsSummary: View {
     let summary: LogStatisticsSummary
     var calculate: () -> Void
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 25, verticalSpacing: 12) {
-            value("Number of \(summary.unit.rawValue)s:", summary.displayedIntervalCount)
-            value("Number of authors:", summary.commitsByAuthor.count)
-            value("Total commits analyzed:", summary.totalCommits)
-            GridRow { Text("Total file changes:"); if summary.changesCalculated { Text("\(summary.totalChanges.files)") } else { Button("Calculate", action: calculate) } }
-            if summary.changesCalculated {
-                value("Total changed lines not including added/deleted files:", summary.totalChanges.linesWithoutNewDeletedFiles)
-                value("Total changed lines including added/deleted files:", summary.totalChanges.linesIncludingNewDeletedFiles)
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(spacing: 9) {
+                value("Number of \(summary.unit.rawValue)s:", summary.displayedIntervalCount)
+                value("Number of authors:", summary.commitsByAuthor.count)
+                value("Total commits analyzed:", summary.totalCommits)
+                HStack {
+                    Text("Total file changes:"); Spacer()
+                    if summary.changesCalculated { Text("\(summary.totalChanges.files)").monospacedDigit().textSelection(.enabled) }
+                    else { Button("Calculate", action: calculate) }
+                }
+                if summary.changesCalculated {
+                    value("Total changed lines not including added/deleted files:", summary.totalChanges.linesWithoutNewDeletedFiles)
+                    value("Total changed lines including added/deleted files:", summary.totalChanges.linesIncludingNewDeletedFiles)
+                }
             }
-            GridRow { Text(""); Text(""); Text("Average"); Text("Min"); Text("Max") }
-            GridRow { Text("Commits each \(summary.unit.rawValue):"); Text(""); Text("\(summary.averageCommits)"); Text("\(summary.minimumCommits)"); Text("\(summary.maximumCommits)") }
-            if let first = summary.authorsByActivity.first { activity("Most active author:", first) }
-            if let last = summary.authorsByActivity.last { activity("Least active author:", last) }
-        }.padding(10)
+            Grid(alignment: .trailing, horizontalSpacing: 18, verticalSpacing: 10) {
+                GridRow { Color.clear.frame(height: 1).gridCellUnsizedAxes(.vertical); Text("").frame(width: 160); Text("Average"); Text("Min"); Text("Max") }
+                GridRow { Text("Commits each \(summary.unit.rawValue):").frame(maxWidth: .infinity, alignment: .leading).gridColumnAlignment(.leading); Text(""); Text("\(summary.averageCommits)"); Text("\(summary.minimumCommits)"); Text("\(summary.maximumCommits)") }
+                activity("Most active author:", summary.authorsByActivity.first)
+                activity("Least active author:", summary.authorsByActivity.last)
+            }.frame(maxWidth: .infinity).monospacedDigit().textSelection(.enabled)
+        }.padding(10).frame(maxWidth: .infinity, alignment: .topLeading)
     }
-    private func value(_ label: String, _ count: Int) -> some View { GridRow { Text(label); Text("\(count)") } }
-    private func activity(_ label: String, _ author: String) -> some View { let values = summary.activity(for: author); return GridRow { Text(label); Text(author); Text("\(values.average)"); Text("\(values.minimum)"); Text("\(values.maximum)") } }
+    private func value(_ label: String, _ count: Int) -> some View {
+        HStack { Text(label); Spacer(); Text("\(count)").monospacedDigit().textSelection(.enabled) }
+    }
+    private func activity(_ label: String, _ author: String?) -> some View {
+        let values = author.map { summary.activity(for: $0) } ?? (average: 0, minimum: 0, maximum: 0)
+        return GridRow { Text(label).frame(maxWidth: .infinity, alignment: .leading).gridColumnAlignment(.leading); Text(author ?? "").lineLimit(1).truncationMode(.middle).frame(width: 160, alignment: .leading).help(author ?? ""); Text("\(values.average)"); Text("\(values.minimum)"); Text("\(values.maximum)") }
+    }
 }
 
 private extension LogStatisticsColor {

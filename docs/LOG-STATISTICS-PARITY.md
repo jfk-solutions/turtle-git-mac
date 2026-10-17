@@ -266,3 +266,47 @@ launched; no app build or Core check was repeated. All four owned receivers were
 reaped. See [batch evidence](qa/graph-workflows-2026-10-14.json). Injected panel replies do
 not prove physical save/overwrite input, signed destination grants, keyboard or
 VoiceOver acceptance. Full visual/source/App Store certification remains open.
+
+
+## Source form and captured graph export — October 17, 2026
+
+The Statistics summary now follows the source's full-width label/value rows,
+followed by the Average/Min/Max activity grid. Empty snapshots retain blank author
+names and zero activity rows. Window content constraints retain the summary and
+source-order footer at the minimum size. The five original style icons have
+explicit selection feedback and accessibility values; author-only graphs refuse
+line styles. Native slider help/accessibility uses OnNeedText's commit threshold,
+integer percentage, raw slider position and lone-omitted-author exception. Its
+ranking is shared with graph projection, including contribution-ranked authorship.
+Nonfinite and oversized slider input is refused or bounded before integer conversion.
+
+Metric/style/options/slider callbacks capture their form revision; a callback from
+an earlier presentation cannot change the new graph. File menu actions retain the
+Statistics owner and form revision. Save Graph captures graph, metric, style,
+viewport and appearance before opening the file panel. The picker accepts once
+and rejects old/cancelled/closed/replaced-form replies. Rendering uses the captured
+snapshot; accepted atomic writing happens off the main actor with its destination
+scope. Controls and ordinary close wait for completion. A forced close retires UI
+and dismisses sheets while accepted writing retains independent Quit accounting;
+late failures cannot reopen the closed owner. Save errors belong to that window.
+
+The Debug build and all sixteen focused Core checks pass. The grouped native
+family passes with system and bundled Git, including all five actual export
+encodings/styles in both appearances, existing calculation/cancellation paths,
+owned Save panel Cancel, captured export size, old/duplicate callbacks and accepted
+write/close/Quit lifetime. The first build needed explicit self capture repair;
+no Core checks were repeated for native-only repairs. An initial native attempt
+correctly refused a stale menu object before launching a receiver. Raw review
+then found the activity grid too far left; only its layout build/capture case was
+repeated. Final light/dark summary and bar captures were individually reviewed.
+All three owned receivers were reaped and independently absent. See
+[batch evidence](qa/statistics-source-family-2026-10-17.json).
+
+Physical keyboard/VoiceOver, exact Windows/macOS typography, large-repository
+performance and signed AppStore/Finder acceptance remain open. It does not certify
+the whole Statistics dialog or the complete application.
+
+![Native Statistics summary, light](site/assets/statistics-summary-source-light.png)
+![Native Statistics summary, dark](site/assets/statistics-summary-source-dark.png)
+![Native Statistics bar graph, light](site/assets/statistics-bar-source-light.png)
+![Native Statistics bar graph, dark](site/assets/statistics-bar-source-dark.png)

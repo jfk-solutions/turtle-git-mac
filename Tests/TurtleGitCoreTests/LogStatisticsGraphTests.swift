@@ -9,6 +9,25 @@ final class LogStatisticsGraphTests: XCTestCase {
         }
         return try LogStatistics.analyze(entries, changes: Dictionary(uniqueKeysWithValues: entries.map { ($0.hash, LogStatisticsChanges()) }))
     }
+    func testAuthorSliderHintUsesActivityAndLoneAuthorException() throws {
+        let summary = try summary(["Z": 5, "A": 3, "B": 2, "C": 1])
+        XCTAssertEqual(summary.authorSliderHint(limit: 2, metric: .commitsByDate), "2 most active author(s) with at least 3 commits each (27 %)")
+        XCTAssertEqual(summary.authorSliderHint(limit: 3, metric: .commitsByAuthor), "3 most active author(s) with at least 1 commits each (9 %)")
+        XCTAssertEqual(summary.authorSliderHint(limit: Int.max, metric: .commitsByDate), "4 most active author(s) with at least 1 commits each (9 %)")
+        XCTAssertEqual(summary.authorSliderHint(limit: Int.min, metric: .commitsByDate), "1 most active author(s) with at least 5 commits each (45 %)")
+        let empty = try LogStatistics.analyze([])
+        XCTAssertEqual(empty.authorSliderHint(limit: 1, metric: .commitsByDate), "1 most active author(s) with at least 0 commits each (0 %)")
+    }
+    func testAuthorshipSliderUsesContributionRankingButCommitThreshold() throws {
+        let summary = try summary(["A": 1, "B": 4, "C": 2, "D": 3])
+        let ranked = summary.rankedAuthors(for: .authorship)
+        XCTAssertEqual(Set(ranked), Set(["A", "B", "C", "D"]))
+        let commits = try XCTUnwrap(summary.commitsByAuthor[ranked[1]])
+        XCTAssertEqual(summary.authorSliderHint(limit: 2, metric: .authorship), "2 most active author(s) with at least \(commits) commits each (\(commits * 10) %)")
+        let graph = try LogStatisticsGraph.make(summary, metric: .authorship, authorsShown: 2)
+        XCTAssertEqual(graph.includedAuthors, Array(ranked.prefix(2)))
+    }
+
     func testSelectsMostActiveBeforeAlphabeticalAndNamesLastLoneAuthor() throws {
         let summary = try summary(["Z": 5, "A": 3, "B": 2, "C": 1])
         let graph = try LogStatisticsGraph.make(summary, metric: .commitsByAuthor, authorsShown: 2, alphabetical: true)

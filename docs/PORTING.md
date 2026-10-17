@@ -2137,3 +2137,29 @@ test. The pixel expression now uses explicit typed RGB components with the same
 reference assertions. All three affected Core checks pass locally, including 96
 reference RGB frames; full hosted confirmation remains open. See [batch evidence](qa/distribution-provenance-preview-2026-10-17.json)
 for exact artifacts, validation and outstanding physical/signed/full-parity gates.
+
+
+## Statistics source form and accepted graph saves — October 17, 2026
+
+This connected Statistics batch adds the source author-slider activity cutoff,
+contribution/commit ranking shared with graphs, bounded native input, stale form
+callback protection and captured File menu ownership. Its summary uses source
+label/value rows and right-aligned Average/Min/Max columns, retaining blank/zero
+activity for empty history. Native styles use original icons with selected-state
+feedback; the minimum content size preserves controls and footer.
+
+Save Graph retains the graph, metric, style, viewport and appearance captured
+before its owned picker. Old/duplicate/closed/replaced-form replies are rejected.
+Accepted atomic saves run outside the main actor and keep Quit protection after
+forced owner closure; ordinary close waits, errors belong to the original window,
+and closed owners suppress late UI. Existing export encodings and calculation
+semantics remain intact.
+
+Sixteen Core checks and the grouped native family pass with system and bundled
+Git. Build repair added explicit self captures; a stale menu object was rebuilt
+before receivers ran. Raw review repaired activity-column alignment, followed only
+by its narrow capture recheck. Four final raw light/dark captures were individually
+reviewed, and all three owned native receivers were independently absent. Help and
+source parity documentation are updated. Full physical, visual, VoiceOver, large
+history and signed acceptance remain open. See
+[batch evidence](qa/statistics-source-family-2026-10-17.json).

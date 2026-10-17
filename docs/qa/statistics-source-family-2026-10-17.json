@@ -1,0 +1,159 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected Statistics source form, shared author ranking/hint, captured File menu/export and accepted-write lifetime. Partial native parity only.",
+  "source": [
+    "src/TortoiseProc/StatGraphDlg.cpp::LoadListOfAuthors/OnNeedText/ShowStats/ShowLabels/OnCbnSelchangeGraphcombo/OnFileSavestatgraphas",
+    "src/Resources/TortoiseProcENG.rc::IDD_STATGRAPH/IDS_STATGRAPH_AUTHORSLIDER_TT"
+  ],
+  "implemented": [
+    "Activity tooltip/accessibility keeps raw slider position, ranked commit threshold, integer percentage and lone omitted author exception, with authorship contribution ranking shared with graph projection.",
+    "Nonfinite/oversized author counts are refused or clamped before integer conversion.",
+    "Revision-captured metric/style/options/slider callbacks and File command target; new owner/revision republishes menu state.",
+    "Source-order full-width summary totals and right-aligned Average/Min/Max grid, blank/zero empty activity, original style icons with selected feedback and author-style gates.",
+    "Actual root constraints retain the native form at 780x550 content size.",
+    "Picker captures graph/metric/style/size/appearance, accepts once, rejects stale form/duplicate/closed replies.",
+    "Accepted atomic write retains destination scope outside main actor; ordinary close waits, forced close suppresses late UI and independent Quit count lasts until real write completion.",
+    "Owned save-error sheet and real native Save panel Cancel; close and asynchronous completion release owners."
+  ],
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'LogStatisticsTests|LogStatisticsGraphTests'",
+    "log": "build/qa/statistics-source-core-2026-10-17.log",
+    "tests": 16,
+    "failures": 0,
+    "duration_seconds": 2.425,
+    "exit_code": 0,
+    "repeated_after_native_repairs": false
+  },
+  "builds": [
+    {
+      "log": "build/qa/statistics-source-build-2026-10-17.log",
+      "exit_code": 65,
+      "empty_output_exit_zero_diagnostics": 3
+    },
+    {
+      "log": "build/qa/statistics-source-build-repair-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 6
+    },
+    {
+      "log": "build/qa/statistics-source-menu-build-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 1
+    },
+    {
+      "log": "build/qa/statistics-source-layout-build-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 1
+    }
+  ],
+  "build_repairs": [
+    "Initial compiler errors required explicit self in the nested async export closure.",
+    "Menu owner/revision republishing changed after the earlier compile; cached receiver refused stale StatisticsMenuCommands.swift before launching. Incremental build updated it.",
+    "Raw source summary review found activity columns too far left; only native summary alignment changed, with its incremental build and narrow capture recheck."
+  ],
+  "native": {
+    "group_command": "python3 scripts/test-statistics-dialog.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git --captures docs/site/assets",
+    "group_log": "build/qa/statistics-source-native-run-2026-10-17.log",
+    "group_exit_code": 0,
+    "engines": [
+      "system /usr/bin/git",
+      "bundled Git"
+    ],
+    "summary_recheck_command": "python3 scripts/test-statistics-dialog.py --only summary --git /usr/bin/git --captures docs/site/assets",
+    "summary_recheck_log": "build/qa/statistics-source-layout-native-2026-10-17.log",
+    "summary_exit_code": 0,
+    "refused_stale_attempt_log": "build/qa/statistics-source-native-2026-10-17.log",
+    "refused_attempt_launched_receivers": 0,
+    "owned_pids": [
+      72451,
+      72515,
+      72648
+    ],
+    "independently_absent": true,
+    "covered": [
+      "Existing lazy diff totals, cancellation, preferences and exact repository preservation.",
+      "Five actual encodings x five styles x light/dark, decoded raster/PDF labels, multiple author/date groups, empty graph, original palette and background pixels, invalid dimensions and write failure.",
+      "Stale form callbacks, integer bounds, nonfinite values, author-only style restrictions and slider hint presence.",
+      "Cancelled/reopened picker old callbacks, duplicate acceptance, captured 480x280 export despite later 900x500 viewport, accepted-write forced close, independent Quit accounting and eventual atomic file.",
+      "Real asynchronous write failure owns a dismissible error sheet and no late error after closed owner.",
+      "Captured File command stays with its original window when key-window provider changes; stale form command refuses.",
+      "Real native owned Save panel cancellation.",
+      "Ordinary close waits for accepted writer, closes on completion, and controller deallocates."
+    ],
+    "diagnostics": [
+      "Existing Swift Charts custom UnitPoint AxisValueLabel anchor warning remains; no clean diagnostics claim."
+    ]
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/statistics-bar-source-dark.png",
+      "sha256": "6375511dff0d211e5cdb8240546735810fe1f24cdbcd0e5474c2d0d1e013560c",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "notes": "Minimum native content bounds, source-order labels/footer, original colorful style icons and visible selected Bar; source summary numeric activity columns aligned right after narrow repair."
+    },
+    {
+      "path": "docs/site/assets/statistics-bar-source-light.png",
+      "sha256": "6315adc2885e6c4ac03d22db5fe66888fbadfec478beffa77bf6c80522282939",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "notes": "Minimum native content bounds, source-order labels/footer, original colorful style icons and visible selected Bar; source summary numeric activity columns aligned right after narrow repair."
+    },
+    {
+      "path": "docs/site/assets/statistics-summary-source-dark.png",
+      "sha256": "d4834ae6d1c6b049769c0b0f85932d924fcb782c240bef9f515cfda51b1ec9f1",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "notes": "Minimum native content bounds, source-order labels/footer, original colorful style icons and visible selected Bar; source summary numeric activity columns aligned right after narrow repair."
+    },
+    {
+      "path": "docs/site/assets/statistics-summary-source-light.png",
+      "sha256": "cd739860885e5eee5ff6b0dfb3b1b99e28da5042c75aca6aa5069a489b44584d",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "notes": "Minimum native content bounds, source-order labels/footer, original colorful style icons and visible selected Bar; source summary numeric activity columns aligned right after narrow repair."
+    }
+  ],
+  "coverage": {
+    "dialogs": 130,
+    "partial_family_reviews": 120,
+    "pending_family_reviews": 10,
+    "certified_complete": 0,
+    "mapped_controls": 1566,
+    "pending_controls": 93,
+    "new_mappings": 0
+  },
+  "remaining": [
+    "Physical keyboard, VoiceOver and full source screen/menu/geometry acceptance",
+    "Large repository performance and non-English/locale acceptance",
+    "Signed security scope, sandbox and AppStore acceptance",
+    "Fresh distribution artifact for these subsequent source changes; prior preview/archive remains pinned to 1286765a",
+    "Full hosted integration including unresolved earlier folding timeout and complete application parity"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/LogStatisticsGraph.swift": "d60943b23b1baca57bf13eb70715ed0c5feedd899853a706ddc590febe44a0a2",
+    "Sources/TurtleGitMac/StatisticsWindow.swift": "20ec67a2db8a36096fdceaf8bf63163fcf3574de094d6ab91a108d04201ad21d",
+    "Sources/TurtleGitMac/StatisticsMenuCommands.swift": "434c68be253d77fdc7e69720a64e75b18e8bfaec8599916b03175f754d7198f5",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "f09de24fd0eeeeccda0d3500567f0515b9aa8716a68d215abb4493fd1005384f",
+    "Tests/TurtleGitCoreTests/LogStatisticsGraphTests.swift": "949fb9e8dbc6eb9c0c55e2afff1e6e662e17e88d6a73622cf4d86e96650d9b51",
+    "scripts/test-statistics-dialog.py": "ad9d88fe5a22897cdb410054927e66f0bfb085e7d88b7f94f5b9610ff4018e03",
+    "docs/qa/statistics-source-native-2026-10-17.swift": "8e05d487618f064540b2516acfea99e3e0d2761fbc9300c80d5c240cf314a0e5"
+  },
+  "documentation": {
+    "help_check": {
+      "exit_code": 0,
+      "documents": 36,
+      "topics": 47,
+      "files": 50,
+      "bytes": 1971555
+    },
+    "site": {
+      "exit_code": 0,
+      "documents": 266,
+      "unresolved_fragments": [],
+      "log": "build/qa/statistics-source-site-2026-10-17.log"
+    },
+    "coverage_reconciled": true
+  }
+}

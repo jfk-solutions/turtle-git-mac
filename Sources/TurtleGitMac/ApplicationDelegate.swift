@@ -37,7 +37,7 @@ import AppKit
         if ReferenceLogWindowModel.activeRevisionReads > 0 || ReferenceLogWindowModel.activeOwnedOperations > 0 { return .terminateCancel }
         if WorktreeListWindowModel.activeOperations > 0 || WorktreeCreateWindowModel.activeOperations > 0 { return .terminateCancel }
         if PushWindowModel.activePreparationReads > 0 || PushWindowModel.activePushWorkflows > 0 || FetchWindowModel.activePreparationReads > 0 { return .terminateCancel }
-        if StatisticsWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? StatisticsWindowController }).contains(where: { $0.model.hasSheet }) { return .terminateCancel }
+        if StatisticsWindowModel.activeOperations > 0 || StatisticsWindowController.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? StatisticsWindowController }).contains(where: { $0.model.hasSheet }) { return .terminateCancel }
         if RevisionGraphWindowModel.activeOperations > 0 || RevisionGraphFilterController.activeOperations > 0 { return .terminateCancel }
         if FileCopyWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileCopyWindowController }).contains(where: { $0.model.question || $0.model.confirmingCancel }) { return .terminateCancel }
         if FileMoveWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileMoveWindowController }).contains(where: { $0.model.hasQuestion || $0.model.choosingFolder || $0.model.confirmingCancellation }) { return .terminateCancel }

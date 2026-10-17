@@ -215,9 +215,19 @@ import PDFKit
         model.selectMetric(.linesIncluding); try await wait(model)
         precondition(model.error == nil && model.summary?.changesCalculated == true && model.summary?.totalChanges.files == 2)
         precondition(model.graph?.points.reduce(0) { $0 + $1.value } == 4)
+        if ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_CASE"] == "summary" {
+            model.selectMetric(.statistics)
+            controller.window?.setContentSize(NSSize(width: 780, height: 550))
+            controller.window?.alphaValue = 0; controller.window?.orderFront(nil)
+            try await sourceCapture(controller, page: "summary")
+            precondition((controller.window?.contentView?.bounds.width ?? 0) >= 780)
+            print("PASS: Statistics source summary layout and owned light/dark captures")
+            return
+        }
         model.selectMetric(.commitsByDate)
         for style in LogStatisticsStyle.allCases { model.style = style; controller.window?.contentView?.layoutSubtreeIfNeeded(); await Task.yield() }
         try verifyExport(controller, root: root)
+        try await verifySourceFamily(controller, root: root, defaults: isolated)
         model.selectMetric(.authorship); precondition(model.graph?.points.map(\.value) == [100])
         model.options.useCommitterNames = true; model.options.caseSensitive = false; model.rebuild(resetAuthors: true)
         model.style = .pie

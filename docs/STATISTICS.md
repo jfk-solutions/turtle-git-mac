@@ -59,3 +59,13 @@ Use Calculate to retry. Closing during calculation first cancels the read, then
 closes after Git finishes. The summary page hides graph style and author-limit
 controls; those appear when you select a graph. Save Graph As opens an owned
 native save sheet; cancelling leaves the graph available for another export.
+
+
+The author slider's tooltip reports the selected activity cutoff and commit share.
+When only one author would be omitted, that author keeps a named entry, matching
+TortoiseGit. The graph style buttons identify the selected style.
+
+Save Graph As captures the graph and its current size and appearance when you open
+the file panel. While its accepted file is being written, controls wait for that
+write to finish. Closing the window normally waits for completion; a forced owner
+close does not abandon an already accepted atomic save.

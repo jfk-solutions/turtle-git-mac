@@ -36,6 +36,29 @@ public struct LogStatisticsColor: Equatable, Sendable {
     public let green: UInt8
     public let blue: UInt8
 }
+
+public extension LogStatisticsSummary {
+    /// StatGraphDlg::LoadListOfAuthors ranks before optional alphabetical display.
+    func rankedAuthors(for metric: LogStatisticsMetric) -> [String] {
+        guard metric == .authorship else { return authorsByActivity }
+        return authorshipPercent.keys.filter { (authorshipPercent[$0] ?? 0).rounded(.toNearestOrAwayFromZero) != 0 }.sorted {
+            authorshipPercent[$0] == authorshipPercent[$1]
+                ? $0.utf16.lexicographicallyPrecedes($1.utf16)
+                : (authorshipPercent[$0] ?? 0) > (authorshipPercent[$1] ?? 0)
+        }
+    }
+    /// The source tooltip reports the slider position even when its lone omitted
+    /// author exception includes one extra name. Authorship still reports commits.
+    func authorSliderHint(limit: Int, metric: LogStatisticsMetric) -> String {
+        let ranked = rankedAuthors(for: metric)
+        let position = max(1, min(250, min(limit, max(1, ranked.count))))
+        let included = min(ranked.count, position + (position + 1 == ranked.count ? 1 : 0))
+        let commits = included > 0 ? (commitsByAuthor[ranked[included - 1]] ?? 0) : 0
+        let percent = Int(Double(commits) * 100 / Double(max(1, totalCommits)))
+        return "\(position) most active author(s) with at least \(commits) commits each (\(percent) %)"
+    }
+}
+
 public struct LogStatisticsGraph: Sendable {
     public struct Point: Sendable {
         public let category: Int
@@ -181,12 +204,7 @@ public struct LogStatisticsGraph: Sendable {
         if metric == .statistics { return Self(metric: metric, unit: summary.unit, categoryLabels: [], seriesLabels: [], points: [], includedAuthors: [], skippedAuthors: []) }
         if metric.needsChanges && !summary.changesCalculated { throw LogStatisticsFailure.incompleteChanges }
         let round: (Double) -> Int = { Int($0.rounded(.toNearestOrAwayFromZero)) }
-        var ranked = summary.authorsByActivity
-        if metric == .authorship {
-            ranked = summary.authorshipPercent.keys.filter { round(summary.authorshipPercent[$0]!) != 0 }.sorted {
-                summary.authorshipPercent[$0] == summary.authorshipPercent[$1] ? $0.utf16.lexicographicallyPrecedes($1.utf16) : summary.authorshipPercent[$0]! > summary.authorshipPercent[$1]!
-            }
-        }
+        let ranked = summary.rankedAuthors(for: metric)
         var count = min(max(1, authorsShown), min(250, ranked.count))
         if count + 1 == ranked.count { count += 1 } // Source names the last lone author.
         var included = Array(ranked.prefix(count)); let skipped = Array(ranked.dropFirst(count))
