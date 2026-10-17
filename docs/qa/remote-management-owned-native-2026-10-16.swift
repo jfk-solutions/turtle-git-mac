@@ -52,6 +52,9 @@ import TurtleGitCore
         // after the controller has disappeared, and cannot publish a late list.
         let closing = RemoteTagWindowController(repository: repo, access: nil, remote: "origin", preferences: prefs); windows.append(closing)
         closing.presentProgress = { _, _ in true }
+        // Explicit host bounds can trigger onAppear during controller setup.
+        // Settle that real initial catalog before injecting a held replacement read.
+        try await wait { !closing.model.busy }
         var readReply: CheckedContinuation<[RemoteTag], Error>?
         closing.model.query = { _ in try await withCheckedThrowingContinuation { readReply = $0 } }
         closing.model.load(); try await wait { readReply != nil }

@@ -85,3 +85,29 @@ All four receivers were reaped and independently absent. No Core suite was rerun
 [The dated evidence](qa/remote-management-owned-2026-10-16.json) records the scope,
 fixture repair, native build/layout diagnostics and remaining physical/signed
 acceptance.
+
+## Source native list and accepted form — October 17, 2026
+
+The native tag column now measures complete names and sizes its document to allow
+horizontal scrolling, including names wider than the source-sized dialog. The
+read-only Remote field, headerless list and Select/deselect all/Delete/Close footer
+retain the source arrangement. Selection updates avoid catalog reloads and retain
+the reading position. Explicit host bounds prevent automatic window resizing.
+
+The table keeps the names actually rendered in its catalog and captures the form
+lifetime for its selection callback. Select-all and Delete capture the same owner
+and lifetime. Refresh and operation transitions retire those callbacks; a retained
+row index cannot select a replacement catalog. Dismantled/closed list and checkbox
+controls cannot revive their event route. F5 requires the owning window and no
+attached sheet or modifiers. Existing destructive confirmation, error/reload and
+SSH/Git process ownership are retained. All seven static controls now have partial
+native mappings. Physical interaction, exact Windows sorting/geometry, signed
+transport/Finder and whole-dialog acceptance remain open.
+
+[Grouped source batch evidence](qa/reference-source-family-2026-10-17.json) records
+ten distinct case/engine passes, the layout/fixture repairs and owned process
+absence. Six unaffected passes precede the final layout-only build.
+
+![Native dialog, light](site/assets/remote-tags-source-light.png)
+
+![Native dialog, dark](site/assets/remote-tags-source-dark.png)

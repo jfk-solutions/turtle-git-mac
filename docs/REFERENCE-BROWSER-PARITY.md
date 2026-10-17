@@ -91,10 +91,10 @@ Show Reflog, Browse repository, Compare with working tree and Copy reference nam
 Log and working-tree comparison are offered for commit objects, Reflog for local
 and remote branches, and working-tree comparison is suppressed in bare repos.
 Reflog is owned by the browser and blocks parent selection/close until released.
-Other context callbacks retain canonical names. Remote/local deletion,
-fetch/push, range selection/commands, tree
-context commands and complete source menu parity remain unfinished. Reset, Switch, Branch/Tag and New Worktree use this browser; complete behavior
-and other chooser consumers remain pending.
+Other context callbacks retain canonical names. The sections below describe the
+implemented deletion, transport, range and namespace commands. Reset, Switch,
+Branch/Tag and New Worktree use this browser; complete menu behavior, other chooser
+consumers and physical acceptance remain pending.
 
 ## Verification and limits
 
@@ -690,3 +690,29 @@ The expanded grouped checkpoint passed 36 Core tests and fourteen native cases
 across system and bundled Git. Initial compilation and fixture failures, scoped
 repairs, actual process cleanup and acceptance limits are recorded in
 [the batch evidence](qa/rename-reference-management-2026-10-14.json).
+
+## Source filter forms and accepted ranges — October 17, 2026
+
+The source filter cue now lists its active Refname, Subject, Authors and SHA-1
+fields. The native search field, field-mask menu, nested-reference checkbox and
+merged-branch selector use captured form lifetimes. Query/mask updates refilter
+synchronously; nested and branch-filter choices synchronously start their catalog
+read, avoiding delayed SwiftUI change handlers. Child, refresh, namespace and
+rename/question transitions retire older form callbacks. The native search control
+also retires when dismantled or its window closes.
+
+The multi-selection OK menu now accepts the pair displayed when its range choices
+were built, even if the list selection moves before dispatch. The existing menu
+catalog/view epoch rejects choices after a refresh, filter, sort or child change.
+Standalone and single-selection OK behavior retains its existing routing.
+Explicit host sizing keeps the namespace/list, filter and source footer visible.
+This review maps all eleven static source controls; mappings remain partial and
+are not a certificate of complete menu, visual or workflow parity.
+
+[Grouped source batch evidence](qa/reference-source-family-2026-10-17.json) records
+ten distinct case/engine passes, the layout/fixture repairs and owned process
+absence. Six unaffected passes precede the final layout-only build.
+
+![Native dialog, light](site/assets/reference-browser-source-light.png)
+
+![Native dialog, dark](site/assets/reference-browser-source-dark.png)

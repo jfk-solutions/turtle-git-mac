@@ -412,8 +412,11 @@ jobs:
         run: python3 scripts/test-reference-browser.py
       - name: Native standalone reference browser
         run: python3 scripts/test-reference-standalone.py
-      - name: Native remote tag dialog
-        run: python3 scripts/test-remote-tags.py
+      - name: Source reference forms and owned remote-tag workflows
+        run: >-
+          python3 scripts/test-reference-source-family.py
+          --git /usr/bin/git
+          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native remote settings page
         run: python3 scripts/test-remote-settings.py
       - name: Native SSH passphrase response
@@ -497,7 +500,7 @@ jobs:
       - name: Exact Unicode repository paths and browser actions
         run: python3 scripts/test-browser-paths.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Captured reference menus and related native workflows
-        run: python3 scripts/test-reference-menu-targets.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+        run: python3 scripts/test-reference-menu-targets.py --only folders --only comparison --only tracking --only rename --only standalone --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Comparison savepoints, options, row edits and editor workflows
         run: python3 scripts/test-merge-whitespace-states.py
       - name: Three-pane ordinary block choices, navigation, history and ignored conflicts

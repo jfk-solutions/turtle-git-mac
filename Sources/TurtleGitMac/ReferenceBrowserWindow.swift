@@ -69,7 +69,9 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         model = ReferenceBrowserWindowModel(repository: repository, access: access, initial: initial, preferences: preferences, scope: scope, picking: picking, pickMultiple: pickMultiple, allowsRangeSelection: allowsRangeSelection); completion = onChoose
         let window = ReferenceBrowserNativeWindow(contentRect: .init(x: 0, y: 0, width: 1130, height: 660), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Browse references", preferences: preferences); window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 940, height: 450)
-        window.contentViewController = NSHostingController(rootView: ReferenceBrowserDialog(model: model).defaultAppStorage(preferences))
+        let host = NSHostingController(rootView: ReferenceBrowserDialog(model: model).defaultAppStorage(preferences))
+        host.sizingOptions = []; window.contentViewController = host
+        window.setContentSize(NSSize(width:1130,height:660))
         super.init(window: window); window.delegate = self; window.center()
         window.commandKeyWindow = { [weak self] in self?.commandKeyWindow() }
         window.handleCommand = { [weak self] event in self?.handleCommand(event) ?? false }
@@ -340,13 +342,13 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     private var resolvingCurrentBranch = false
     private(set) var initialFocusPending = true
     var closed: Bool { invalidated }
-    @Published private(set) var renameReference: GitReferenceName? { didSet { if oldValue != renameReference { menuEpoch &+= 1 } } }
+    @Published private(set) var renameReference: GitReferenceName? { didSet { if oldValue != renameReference { menuEpoch &+= 1; formRevision = UUID() } } }
     private var renameFolder: GitReferenceName?
     private var renameHash: String?
     static private(set) var activeRenames = 0
     static private(set) var activeMutations = 0
-    @Published private(set) var confirmingCancellation = false
-    @Published private(set) var awaitingConfirmation = false
+    @Published private(set) var confirmingCancellation = false { didSet { if oldValue != confirmingCancellation { formRevision = UUID() } } }
+    @Published private(set) var awaitingConfirmation = false { didSet { if oldValue != awaitingConfirmation { formRevision = UUID() } } }
     @Published private(set) var mutationTitle = "Rename"
     @Published private(set) var mutationFailed = false
     @Published private(set) var mutationCancelled = false
@@ -364,13 +366,13 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     func dismissOutput() { guard !mutationActive else { return }; saveActionLog(); renameOutput = "" }
 
 
-    @Published var hasChild = false { didSet { if oldValue != hasChild { menuEpoch &+= 1 } } }
+    @Published var hasChild = false { didSet { if oldValue != hasChild { menuEpoch &+= 1; formRevision = UUID() } } }
     @Published private(set) var bare = false
     private(set) var folders: [GitReferenceName] = ["refs"]
     @Published private(set) var snapshot: ReferenceBrowserSnapshot?
-    @Published private(set) var busy = false { didSet { if oldValue != busy { menuEpoch &+= 1 } } }
+    @Published private(set) var busy = false { didSet { if oldValue != busy { menuEpoch &+= 1; formRevision = UUID() } } }
     @Published var error: String?
-    @Published var folder: GitReferenceName = "refs" { didSet { if oldValue != folder { menuEpoch &+= 1;refreshNamespaceColumns() } } }
+    @Published var folder: GitReferenceName = "refs" { didSet { if oldValue != folder { menuEpoch &+= 1;formRevision = UUID();refreshNamespaceColumns() } } }
     @Published private(set) var selection: Set<GitReferenceName> = []
     @Published private(set) var lastSelected: GitReferenceName?
     var selected: GitReferenceName? {
@@ -426,6 +428,36 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     @Published var displayedDivider = 190.0
     private(set) var layoutRevision = 0
     var confirmResetColumns: () async -> Bool = { false }
+    private var formRevision = UUID()
+    struct FormContext: Equatable { let owner: ObjectIdentifier; let revision: UUID }
+    var formContext: FormContext { .init(owner:ObjectIdentifier(self),revision:formRevision) }
+    private func accepts(_ context: FormContext) -> Bool { canEditPresentation && context == formContext }
+    var filterCue: String {
+        let names: [(HistorySearchFields,String)] = [(.referenceNames,"Refname"),(.subject,"Subject"),(.authors,"Authors"),(.revisions,"SHA-1")]
+        return "Filter by " + names.filter { fields.contains($0.0) }.map { $0.1 }.joined(separator:", ")
+    }
+    func queryBinding(context: FormContext) -> Binding<String> {
+        Binding(get:{self.query},set:{value in guard self.accepts(context) else {return};self.query=value;self.refilter()})
+    }
+    func searchField(_ field: HistorySearchFields, context: FormContext) -> Binding<Bool> {
+        Binding(get:{self.fields.contains(field)},set:{value in
+            guard self.accepts(context) else {return}
+            if value {self.fields.insert(field)} else {self.fields.remove(field)};self.refilter()
+        })
+    }
+    func toggleSearchFields(context: FormContext) { guard accepts(context) else {return};fields=Self.allFields.subtracting(fields);refilter() }
+    func mergeFilterBinding(context: FormContext) -> Binding<ReferenceBrowserMergeFilter> {
+        Binding(get:{self.mergeFilter},set:{value in
+            guard self.accepts(context),self.mergeFilter != value else {return};self.mergeFilter=value;self.load()
+        })
+    }
+    func nestedBinding(context: FormContext) -> Binding<Bool> {
+        Binding(get:{self.nested},set:{value in
+            guard self.accepts(context),self.nested != value else {return};self.nested=value;self.nestedChanged()
+        })
+    }
+    func acceptRange(_ choice: Int, context: MenuContext) { performMenu(context) { acceptRange(choice) } }
+    func accept(context: MenuContext) { performMenu(context) { accept() } }
     var canEditPresentation: Bool { !invalidated && !busy && !hasChild && !confirmingCancellation && !awaitingConfirmation && renameReference == nil }
     var isLocalNamespace: Bool { folder == "refs/heads" || GitReferenceName.removingPrefix("refs/heads/",from:folder.rawValue) != nil }
     private func saveSort() {
@@ -667,7 +699,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         }
     }
     func load(preservingError: String? = nil) {
-        guard !invalidated, !generatingUnified, !hasChild, !deletingReference, !changingTracking, !resolvingCurrentBranch, renameReference == nil else { return }
+        guard !invalidated, !confirmingCancellation, !awaitingConfirmation, !generatingUnified, !hasChild, !deletingReference, !changingTracking, !resolvingCurrentBranch, renameReference == nil else { return }
         let requested = selected?.rawValue ?? (snapshot == nil ? initial : folder.rawValue)
         token?.cancel(); let request = OperationCancellation(); token = request; busy = true; error = preservingError
         let filter = mergeFilter; Self.activeReads += 1
@@ -683,13 +715,13 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         }
     }
     func invalidate() { if mutationActive { mutationCancelled = true }; saveActionLog(); invalidated = true; confirmingCancellation = false; awaitingConfirmation = false; generatingUnified = false; deletingReference = false; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
-    func setFolder(_ folder: GitReferenceName) { guard !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
+    func setFolder(_ folder: GitReferenceName) { guard !invalidated, !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
     func refilter() {
         refreshNamespaceColumns()
         selection.formIntersection(Set(rows.map { $0.reference.name }))
         if let lastSelected, !selection.contains(lastSelected) { self.lastSelected = selectedRows.last?.reference.name }
     }
-    func nestedChanged() { preferences.set(nested, forKey: "RefBrowserIncludeNestedRefs"); load() }
+    func nestedChanged() { guard canEditPresentation else {return};preferences.set(nested, forKey: "RefBrowserIncludeNestedRefs"); load() }
     var canChooseCurrentBranch: Bool { !invalidated && !busy && !hasChild && renameReference == nil }
     func currentBranch() {
         guard canChooseCurrentBranch else { return }
@@ -736,32 +768,34 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
 struct ReferenceBrowserDialog: View {
     @ObservedObject var model: ReferenceBrowserWindowModel
     var body: some View {
+        let context = model.formContext
+        let rangeContext = model.menuContext()
         VStack(spacing: 8) {
             HStack {
-                Color.clear.frame(width:model.displayedDivider)
+                Color.clear.frame(width:model.displayedDivider,height:1)
                 Text("Filter:")
-                ReferenceBrowserSearchField(text: $model.query).onChange(of: model.query) { _ in model.refilter() }
+                ReferenceBrowserSearchField(text: model.queryBinding(context:context), cue:model.filterCue)
                 Menu { ForEach([(HistorySearchFields.referenceNames, "Refname"), (.subject, "Subject"), (.authors, "Authors"), (.revisions, "SHA-1")], id: \.0.rawValue) { field, title in
-                    Toggle(title, isOn: Binding(get: { model.fields.contains(field) }, set: { enabled in if enabled { model.fields.insert(field) } else { model.fields.remove(field) }; model.refilter() }))
-                }; Divider(); Button("Toggle filters") { model.fields = ReferenceBrowserWindowModel.allFields.subtracting(model.fields); model.refilter() }
+                    Toggle(title, isOn: model.searchField(field,context:context))
+                }; Divider(); Button("Toggle filters") { model.toggleSearchFields(context:context) }
                 } label: { CommandLabel(title: "Filter by", icon: .log) }
-                Picker("Branch filter", selection: $model.mergeFilter) { ForEach(ReferenceBrowserMergeFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.labelsHidden().frame(width: 170).onChange(of: model.mergeFilter) { _ in model.load() }
-            }.disabled(model.busy || model.renameReference != nil)
+                Picker("Branch filter", selection: model.mergeFilterBinding(context:context)) { ForEach(ReferenceBrowserMergeFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.labelsHidden().frame(width: 170)
+            }.disabled(!model.canEditPresentation)
             ReferenceBrowserNativeView(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
             if model.mutationActive || !model.renameOutput.isEmpty {
                 SubmoduleProgressOutputView(text: model.renameOutput, completed: !model.mutationActive, success: !model.mutationFailed && !model.mutationCancelled, preferences: model.preferences).frame(height: 100)
                 HStack { Spacer(); if model.mutationActive { Button(model.cancellingRename ? "Cancelling…" : "Cancel " + model.mutationTitle) { model.cancelRenameOperation() }.disabled(model.cancellingRename || model.awaitingConfirmation || model.confirmingCancellation) } else { Button("Dismiss output") { model.dismissOutput() } } }
             }
             HStack {
-                Toggle("Show nested refs", isOn: $model.nested).onChange(of: model.nested) { _ in model.nestedChanged() }.disabled(model.busy || model.renameReference != nil)
+                Toggle("Show nested refs", isOn: model.nestedBinding(context:context)).disabled(!model.canEditPresentation)
                 Text("Showing \(model.rows.count) ref(s), \(model.selectedRows.count) ref(s) selected").font(.system(size: 11)).foregroundStyle(.secondary)
                 if model.busy { ProgressView().controlSize(.small) }; Spacer()
                 Button("Current Branch") { model.currentBranch() }.disabled(!model.canChooseCurrentBranch)
                 if !model.pickRangeChoices.isEmpty {
                     Menu("OK") {
-                        Button { model.accept() } label: { CommandLabel(title: model.selectedRows.map { $0.reference.name.browserShortName }.joined(separator: " "), icon: .log) }
+                        Button { if let rangeContext { model.accept(context:rangeContext) } } label: { CommandLabel(title: model.selectedRows.map { $0.reference.name.browserShortName }.joined(separator: " "), icon: .log) }
                         ForEach(Array(model.pickRangeChoices.enumerated()), id: \.offset) { index, range in
-                            Button { model.acceptRange(index) } label: { CommandLabel(title: range.expression, icon: .log) }
+                            Button { if let rangeContext { model.acceptRange(index,context:rangeContext) } } label: { CommandLabel(title: range.expression, icon: .log) }
                         }
                     }.disabled(!model.canAccept)
                 } else { Button("OK") { model.accept() }.keyboardShortcut(.defaultAction).disabled(!model.canFinish) }
@@ -772,21 +806,28 @@ struct ReferenceBrowserDialog: View {
         .alert("Browse references failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }
+@MainActor final class ReferenceBrowserOwnedSearchField: NSSearchField {
+    let lifetime=TransportControlLifetime()
+    override func viewDidMoveToWindow() {super.viewDidMoveToWindow();lifetime.observe(self)}
+}
 struct ReferenceBrowserSearchField: NSViewRepresentable {
     @Binding var text: String
+    var cue = "Filter references"
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSSearchField {
-        let field = NSSearchField();field.identifier = .init("BrowseRefs.Filter"); field.placeholderString = "Filter references"; field.setAccessibilityLabel("Filter references")
+        let field = ReferenceBrowserOwnedSearchField();field.identifier = .init("BrowseRefs.Filter"); field.placeholderString = "Filter references"; field.setAccessibilityLabel("Filter references")
         field.sendsSearchStringImmediately = true; field.sendsWholeSearchString = false
         field.target = context.coordinator; field.action = #selector(Coordinator.changed(_:)); return field
     }
     func updateNSView(_ field: NSSearchField, context: Context) {
+        guard (field as? ReferenceBrowserOwnedSearchField)?.lifetime.retired != true else {field.isEnabled=false;return}
+        field.placeholderString = cue
         if !field.stringValue.utf8.elementsEqual(text.utf8) { field.stringValue = text }
         field.isEnabled = enabled; context.coordinator.change = { text = $0 }
     }
-    static func dismantleNSView(_ field: NSSearchField, coordinator: Coordinator) { field.target = nil; coordinator.change = { _ in } }
-    final class Coordinator: NSObject { var change: (String) -> Void = { _ in }; @objc func changed(_ sender: NSSearchField) { guard sender.isEnabled else { return }; change(sender.stringValue) } }
+    static func dismantleNSView(_ field: NSSearchField, coordinator: Coordinator) { coordinator.live=false;(field as? ReferenceBrowserOwnedSearchField)?.lifetime.retire();field.target = nil; coordinator.change = { _ in } }
+    @MainActor final class Coordinator: NSObject { var live=true;var change: (String) -> Void = { _ in }; @objc func changed(_ sender: NSSearchField) { guard live,sender.isEnabled,sender.window != nil,(sender as? ReferenceBrowserOwnedSearchField)?.lifetime.retired != true else { return }; change(sender.stringValue) } }
 }
 struct ReferenceBrowserNativeView: NSViewRepresentable {
     @ObservedObject var model: ReferenceBrowserWindowModel

@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "3b00f93b1272943902889c8f5d2f68d65b44c67e",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source active filter cue and synchronous query/field-mask/nested/merged filtering with captured form lifetime",
+    "OK range menu uses displayed captured pair; retired choices rejected",
+    "Remote tag native rendered catalog identity, non-reloading selection and measured horizontal document",
+    "Owned search/tag controls retire on dismantle/window close; owning F5 dispatch",
+    "Explicit host sizes; compact filter spacer and bounded remote text field/footer",
+    "17 new partial static control mappings; Browse References 11/11, Delete Remote Tag 7/7"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/reference-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3
+    },
+    {
+      "log": "build/qa/reference-source-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2,
+      "reason": "Capture review exposed vertically expanding filter spacer and long URL intrinsic width hiding Remote label. Constrain spacer height, field compression and row/footer heights."
+    }
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false,
+    "reason": "Native forms, controls and presentation; retained native cases exercise actual reference and remote-tag Git actions/cancellation."
+  },
+  "native": {
+    "distinct_case_engine_passes": 10,
+    "cases": [
+      "source",
+      "presentation",
+      "targets",
+      "tags",
+      "owned"
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/reference-source-native-2026-10-17.log",
+        "exit": 1,
+        "passed_case_engine_pairs": 8,
+        "failure": "Owned fixture held-read injection occurred after explicit host sizing triggered initial onAppear/load. Timeout at line 57; wait for real initial read to settle before injecting held replacement. No assertion removed."
+      },
+      {
+        "log": "build/qa/reference-source-native-layout-2026-10-17.log",
+        "exit": 0,
+        "passed_case_engine_pairs": 4,
+        "cases": [
+          "source/system",
+          "source/bundled",
+          "owned/system",
+          "owned/bundled"
+        ],
+        "reason": "Repeat affected layout/source and repaired owned case only; six unaffected presentation/targets/tags case-engine passes retained."
+      }
+    ],
+    "receiver_pids": [
+      39704,
+      39780,
+      39841,
+      39880,
+      39926,
+      40029,
+      40130,
+      40233,
+      40335,
+      40434,
+      40495,
+      40566,
+      40595
+    ],
+    "independent_ps_all_absent": true,
+    "cleanup": "Grouped cleanup closes owned browser/tag controllers and retained owned remote-management windows, drains active reads/mutations/remote operations; run_receiver reaps each process group. Real helper cleanup remains asserted in retained tag fixture.",
+    "diagnostics": "Hidden zero-size NSSplitView diagnostics remain in retained cases; captures are actual stable owned windows."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/reference-browser-source-light.png",
+      "width": 2260,
+      "height": 1384,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit, child windows excluded, user focus preserved."
+    },
+    {
+      "path": "docs/site/assets/reference-browser-source-dark.png",
+      "width": 2260,
+      "height": 1384,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit, child windows excluded, user focus preserved."
+    },
+    {
+      "path": "docs/site/assets/remote-tags-source-light.png",
+      "width": 1020,
+      "height": 644,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit, child windows excluded, user focus preserved."
+    },
+    {
+      "path": "docs/site/assets/remote-tags-source-dark.png",
+      "width": 1020,
+      "height": 644,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit, child windows excluded, user focus preserved."
+    }
+  ],
+  "remaining": [
+    "Complete source dialog/menu/workflow parity",
+    "Physical keyboard/header dragging, horizontal gestures and VoiceOver",
+    "Exact Windows logical sorting across locale/name variants",
+    "Invalid UTF-8 references and global Git argv precomposition policy",
+    "Large catalog performance and all metadata/error/transport variants",
+    "Signed Finder/sandbox/Keychain/network acceptance",
+    "Passing full hosted macOS integration run",
+    "Fresh universal release and Developer ID/notarization/App Store acceptance"
+  ]
+}

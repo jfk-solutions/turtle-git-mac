@@ -4,7 +4,7 @@ import TurtleGitCore
 
 private final class RemoteTagNativeWindow: NSWindow {
     var refresh: () -> Void = {}
-    override func performKeyEquivalent(with event: NSEvent) -> Bool { if event.keyCode == 96 { refresh(); return true }; return super.performKeyEquivalent(with: event) }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool { if event.keyCode == 96, event.window === self, attachedSheet == nil, event.modifierFlags.intersection([.command,.control,.option,.shift]).isEmpty { refresh(); return true }; return super.performKeyEquivalent(with: event) }
 }
 @MainActor private final class RemoteTagProgressController: NSWindowController, NSWindowDelegate {
     var forcedClose: () -> Void = {}
@@ -32,7 +32,9 @@ private final class RemoteTagNativeWindow: NSWindow {
         model = RemoteTagWindowModel(repository: repository, access: access, remote: remote, preferences: preferences)
         let window = RemoteTagNativeWindow(contentRect: .init(x: 0, y: 0, width: 510, height: 290), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Delete remote tag – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 480, height: 250)
-        window.contentViewController = NSHostingController(rootView: RemoteTagDialog(model: model))
+        let host = NSHostingController(rootView: RemoteTagDialog(model: model).defaultAppStorage(preferences))
+        host.sizingOptions = []; window.contentViewController = host
+        window.setContentSize(NSSize(width:510,height:290))
         super.init(window: window); window.delegate = self; window.center()
         model.phaseChanged = { [weak self] in self?.showProgress($0) }; window.refresh = { [weak model] in model?.load() }
         model.close = { [weak self] in guard let self, !self.model.busy, self.window?.attachedSheet == nil else { return }; self.close() }
@@ -92,7 +94,7 @@ private final class RemoteTagNativeWindow: NSWindow {
     private(set) var closed = false
     @Published private(set) var tags: [RemoteTag] = []
     @Published private(set) var selection = Set<GitReferenceName>()
-    @Published private(set) var busy = false
+    @Published private(set) var busy = false { didSet { if oldValue != busy {formRevision=UUID()} } }
     @Published var error: String?
     @Published private(set) var phase: Phase? { didSet { phaseChanged(phase) } }
     var phaseChanged: (Phase?) -> Void = { _ in }
@@ -113,6 +115,13 @@ private final class RemoteTagNativeWindow: NSWindow {
             try await repository.deleteRemoteTags(remote: remote, tags: tags, cancellation: token, prepareTransport: coordinator?.preparation)
         }
     }
+    private var formRevision=UUID()
+    struct FormContext: Equatable { let owner:ObjectIdentifier;let revision:UUID }
+    var formContext:FormContext {.init(owner:ObjectIdentifier(self),revision:formRevision)}
+    private func accepts(_ context:FormContext)->Bool {!closed && !busy && context==formContext}
+    func select(_ names:Set<GitReferenceName>,context:FormContext) {guard accepts(context) else{return};select(names)}
+    func selectAll(_ state:NSControl.StateValue,context:FormContext) {guard accepts(context) else{return};selectAll(state)}
+    func delete(context:FormContext) {guard accepts(context) else{return};delete()}
     var canDelete: Bool { !closed && !busy && !selection.isEmpty && confirm != nil }
     var selectedTags: [GitReferenceName] { tags.filter { selection.contains($0.name) }.map(\.name) }
     var selectAllState: NSControl.StateValue { selection.isEmpty ? .off : selection.count == tags.count ? .on : .mixed }
@@ -171,32 +180,92 @@ private final class RemoteTagNativeWindow: NSWindow {
 private struct RemoteTagDialog: View {
     @ObservedObject var model: RemoteTagWindowModel
     var body: some View {
+        let context=model.formContext
         VStack(spacing: 12) {
-            HStack { Text("Remote:").frame(width: 95, alignment: .leading); RemoteTagRemoteField(remote: model.remote) }
+            HStack { Text("Remote:").frame(width: 95, alignment: .leading); RemoteTagRemoteField(remote: model.remote).frame(maxWidth:.infinity).frame(height:24) }.frame(height:24)
             HStack(alignment: .top) { Text("Tags:").frame(width: 95, alignment: .leading); RemoteTagTable(model: model).frame(maxWidth: .infinity, maxHeight: .infinity).border(Color(nsColor: .separatorColor)) }
-            HStack { RemoteTagAllCheckbox(model: model); Spacer(); Button("Delete") { model.delete() }.keyboardShortcut(.defaultAction).disabled(!model.canDelete); Button("Close") { model.close() }.keyboardShortcut(.cancelAction).disabled(model.busy) }
+            HStack { RemoteTagAllCheckbox(model: model).frame(height:22); Spacer(); Button("Delete") { model.delete(context:context) }.keyboardShortcut(.defaultAction).disabled(!model.canDelete); Button("Close") { model.close() }.keyboardShortcut(.cancelAction).disabled(model.busy) }
         }.padding(12).disabled(model.busy).onAppear { model.load() }
 
     }
 }
+@MainActor final class RemoteTagOwnedCheckbox:NSButton {
+    let lifetime=TransportControlLifetime()
+    override func viewDidMoveToWindow() {super.viewDidMoveToWindow();lifetime.observe(self)}
+}
 private struct RemoteTagAllCheckbox: NSViewRepresentable {
     @ObservedObject var model: RemoteTagWindowModel
-    func makeCoordinator() -> Coordinator { Coordinator(model) }
-    func makeNSView(context: Context) -> NSButton { let button = NSButton(checkboxWithTitle: "Select/deselect all", target: context.coordinator, action: #selector(Coordinator.changed(_:))); button.allowsMixedState = true; return button }
-    func updateNSView(_ button: NSButton, context: Context) { context.coordinator.model = model; button.state = model.selectAllState; button.isEnabled = !model.busy && !model.closed }
-    @MainActor final class Coordinator: NSObject { var model: RemoteTagWindowModel; init(_ model: RemoteTagWindowModel) { self.model = model }; @objc func changed(_ sender: NSButton) { model.selectAll(sender.state == .mixed ? .off : sender.state) } }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> NSButton {let button=RemoteTagOwnedCheckbox(checkboxWithTitle:"Select/deselect all",target:context.coordinator,action:#selector(Coordinator.changed(_:)));button.allowsMixedState=true;return button}
+    func updateNSView(_ button:NSButton,context:Context) {
+        guard (button as? RemoteTagOwnedCheckbox)?.lifetime.retired != true else {button.isEnabled=false;return}
+        let form=model.formContext;context.coordinator.change={ [weak model] state in model?.selectAll(state == .mixed ? .off:state,context:form) }
+        button.state=model.selectAllState;button.isEnabled = !model.busy && !model.closed
+    }
+    static func dismantleNSView(_ button:NSButton,coordinator:Coordinator) {coordinator.live=false;coordinator.change={_ in};(button as? RemoteTagOwnedCheckbox)?.lifetime.retire();button.target=nil}
+    @MainActor final class Coordinator:NSObject {
+        var live=true;var change:(NSControl.StateValue)->Void={_ in}
+        @objc func changed(_ sender:NSButton) {guard live,sender.isEnabled,sender.window != nil,(sender as? RemoteTagOwnedCheckbox)?.lifetime.retired != true else{return};change(sender.state)}
+    }
 }
-private struct RemoteTagTable: NSViewRepresentable {
-    @ObservedObject var model: RemoteTagWindowModel
-    func makeCoordinator() -> Coordinator { Coordinator(model) }
-    func makeNSView(context: Context) -> NSScrollView { let table = NSTableView(); table.setAccessibilityLabel("Remote tags"); table.headerView = nil; table.allowsMultipleSelection = true; table.rowHeight = 22; let column = NSTableColumn(identifier: .init("tag")); table.addTableColumn(column); table.delegate = context.coordinator; table.dataSource = context.coordinator; context.coordinator.table = table; let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table; return scroll }
-    func updateNSView(_ scroll: NSScrollView, context: Context) { let coordinator = context.coordinator; coordinator.model = model; coordinator.updating = true; defer { coordinator.updating = false }; guard let table = coordinator.table else { return }; table.reloadData(); table.selectRowIndexes(IndexSet(model.tags.indices.filter { model.selection.contains(model.tags[$0].name) }), byExtendingSelection: false); table.isEnabled = !model.busy; table.tableColumns.first?.width = max(200, scroll.contentSize.width) }
-    static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) { coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil }
-    @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate { var model: RemoteTagWindowModel; weak var table: NSTableView?; var updating = false; init(_ model: RemoteTagWindowModel) { self.model = model }; func numberOfRows(in tableView: NSTableView) -> Int { model.tags.count }; func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? { NSTextField(labelWithString: model.tags[row].name.rawValue) }; func tableViewSelectionDidChange(_ notification: Notification) { guard !updating, let table else { return }; model.select(Set(table.selectedRowIndexes.filter { model.tags.indices.contains($0) }.map { model.tags[$0].name })) } }
+@MainActor final class RemoteTagOwnedTable:NSTableView {
+    let lifetime=TransportControlLifetime()
+    var contentWidth:CGFloat=200
+    override func viewDidMoveToWindow() {super.viewDidMoveToWindow();lifetime.observe(self)}
+    func fitViewport(_ viewport:NSSize) {
+        let width=max(200,contentWidth,viewport.width)
+        if tableColumns.first?.width != width {tableColumns.first?.width=width}
+        let size=NSSize(width:width,height:max(CGFloat(numberOfRows)*(rowHeight+intercellSpacing.height),viewport.height))
+        if frame.size != size {setFrameSize(size)}
+    }
+}
+@MainActor final class RemoteTagOwnedScroll:NSScrollView {
+    private var fitting=false
+    override func tile() {
+        super.tile();guard !fitting,let table=documentView as? RemoteTagOwnedTable else{return}
+        fitting=true;defer {fitting=false};table.fitViewport(contentSize)
+    }
+}
+private struct RemoteTagTable:NSViewRepresentable {
+    @ObservedObject var model:RemoteTagWindowModel
+    func makeCoordinator()->Coordinator {Coordinator()}
+    func makeNSView(context:Context)->NSScrollView {
+        let table=RemoteTagOwnedTable();table.setAccessibilityLabel("Remote tags");table.headerView=nil;table.allowsMultipleSelection=true;table.rowHeight=22;table.columnAutoresizingStyle = .noColumnAutoresizing
+        let column=NSTableColumn(identifier:.init("tag"));column.maxWidth = .greatestFiniteMagnitude;table.addTableColumn(column)
+        table.delegate=context.coordinator;table.dataSource=context.coordinator;context.coordinator.table=table
+        let scroll=RemoteTagOwnedScroll();scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.documentView=table;return scroll
+    }
+    func updateNSView(_ scroll:NSScrollView,context:Context) {
+        let coordinator=context.coordinator
+        guard !coordinator.retired,let table=coordinator.table,table.lifetime.retired == false else{return}
+        let form=model.formContext;coordinator.change={ [weak model] names in model?.select(names,context:form) }
+        coordinator.updating=true;defer {coordinator.updating=false}
+        let names=model.tags.map(\.name)
+        if names != coordinator.names {coordinator.names=names;table.reloadData()}
+        table.selectRowIndexes(IndexSet(names.indices.filter {model.selection.contains(names[$0])}),byExtendingSelection:false)
+        table.isEnabled = !model.busy && !model.closed
+        let font=NSFont.systemFont(ofSize:NSFont.systemFontSize)
+        let width=names.map {($0.rawValue as NSString).size(withAttributes:[.font:font]).width+16}.max() ?? 0
+        table.contentWidth=width;table.fitViewport(scroll.contentSize)
+    }
+    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) {coordinator.retired=true;coordinator.change={_ in};coordinator.table?.lifetime.retire();coordinator.table?.delegate=nil;coordinator.table?.dataSource=nil}
+    @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate {
+        weak var table:RemoteTagOwnedTable?;var names:[GitReferenceName]=[];var updating=false,retired=false;var change:(Set<GitReferenceName>)->Void={_ in}
+        func numberOfRows(in tableView:NSTableView)->Int {names.count}
+        func tableView(_ tableView:NSTableView,viewFor tableColumn:NSTableColumn?,row:Int)->NSView? {
+            guard names.indices.contains(row) else{return nil}
+            let cell=NSTextField(labelWithString:names[row].rawValue);cell.font = .systemFont(ofSize:NSFont.systemFontSize);cell.lineBreakMode = .byClipping;cell.toolTip=names[row].rawValue;return cell
+        }
+        func selectionShouldChange(in tableView:NSTableView)->Bool {updating || (!retired && table?.isEnabled==true && table?.lifetime.retired==false)}
+        func tableViewSelectionDidChange(_ notification:Notification) {
+            guard !updating,!retired,let table,table.isEnabled,!table.lifetime.retired,table.window != nil else{return}
+            change(Set(table.selectedRowIndexes.compactMap {names.indices.contains($0) ? names[$0]:nil}))
+        }
+    }
 }
 
 private struct RemoteTagRemoteField: NSViewRepresentable {
     let remote: String
-    func makeNSView(context: Context) -> NSTextField { let field = NSTextField(); field.isEditable = false; field.isSelectable = true; field.isBordered = true; field.bezelStyle = .roundedBezel; field.setAccessibilityLabel("Remote"); return field }
+    func makeNSView(context: Context) -> NSTextField { let field = NSTextField(); field.isEditable = false; field.isSelectable = true; field.isBordered = true; field.bezelStyle = .roundedBezel; field.setContentHuggingPriority(.defaultLow,for:.horizontal); field.setContentCompressionResistancePriority(.defaultLow,for:.horizontal); field.setAccessibilityLabel("Remote"); return field }
     func updateNSView(_ field: NSTextField, context: Context) { field.stringValue = remote }
 }

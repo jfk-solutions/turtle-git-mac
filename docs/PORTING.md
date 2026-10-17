@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected [reference browser](REFERENCE-BROWSER-PARITY.md) and
+[remote-tag dialog](REMOTE-TAGS-PARITY.md) now add source filter cues, synchronous
+filter/scope handling, captured OK range choices and full-width native tag
+scrolling. Source layouts and retired callbacks have ten distinct grouped native
+case/engine passes after a layout repair and initial-load fixture correction.
+All thirteen receivers are absent; actual light/dark captures, remaining gates
+and the validation boundary are in [the batch record](qa/reference-source-family-2026-10-17.json).
+
 The connected [Submodule Add](SUBMODULE-ADD-PARITY.md) and
 [Update](SUBMODULE-UPDATE-PARITY.md) forms now retain source option layout with
 captured native fields, synchronous scope/title changes, cancellable metadata
