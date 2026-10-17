@@ -1,0 +1,159 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "4c044a9d7802a65a89aabe63d0794cf96961fe3e",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Coherent accepted source/origins/destination/draft publication and failed-read editor refusal",
+    "Failed initial Effective retry retains Global editable identity defaults",
+    "Captured draft/source/destination before authorized writes; hidden Apply completion preserves explicit reactivation",
+    "Owning Alternative Editor preferences and generation/exact displayed-text receipt fences",
+    "Native hierarchy separators/radios, bounded three-state controls, visibility/editor-identity/dismantled target fencing",
+    "Independent recovery-folder chooser Quit/Settings ownership, full-width CrLf group and three editor columns",
+    "All 34 static source controls receive explicit partial mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/git-config-source-build-2026-10-17.log",
+      "exit": 65,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/git-config-source-build-repair-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/git-config-source-activation-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/git-config-source-retired-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/git-config-source-initial-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/git-config-source-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "distinct_case_engine_passes": 4,
+    "affected_source_layout_rechecks": 2,
+    "runs": [
+      {
+        "log": "build/qa/git-config-source-native-2026-10-17.log",
+        "exit": 0,
+        "distinct_case_engine_passes": 4
+      },
+      {
+        "log": "build/qa/git-config-source-native-layout-2026-10-17.log",
+        "exit": 1,
+        "failure": "New layout fixture force-unwrapped a missing SwiftUI editor-button NSButton descendant.",
+        "receiver_returncode": -5
+      },
+      {
+        "log": "build/qa/git-config-source-native-layout-recheck-2026-10-17.log",
+        "exit": 1,
+        "failure": "Diagnostic confirmed SwiftUI editor buttons were not NSButton descendants, including through accessibility-label fallback."
+      },
+      {
+        "log": "build/qa/git-config-source-native-layout-reviewed-2026-10-17.log",
+        "exit": 0,
+        "affected_source_case_engine_passes": 2
+      }
+    ],
+    "owned_receivers_reaped": [
+      5992,
+      6115,
+      6253,
+      6383,
+      6661,
+      6841,
+      6984,
+      7094
+    ],
+    "independently_absent_owned_receivers": [
+      5992,
+      6115,
+      6253,
+      6383,
+      6661,
+      6841,
+      6984,
+      7094
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "live_editor_launch": false
+  },
+  "core": {
+    "repeated": false,
+    "reason": "Core configuration parsing, CLI write order and persistence algorithms unchanged; native cases exercise real private Git writes."
+  },
+  "repairs": [
+    "First build hit a SwiftUI type-check failure with local identity shadowing the identity-row helper; qualified helper calls explicitly.",
+    "Before native validation, added activation identity for hidden Apply/return, visibility/window fences for old form targets and accepted-first-load initialization tracking.",
+    "Initial four grouped case/engine combinations passed. Visual review rejected narrow CrLf background and editor columns packed into the left half. Raw initial captures are retained under build/qa/git-config-source-initial-captures; fixed only those layout details and removed duplicate empty identity placeholders.",
+    "The proposed new editor-column geometry assertion assumed SwiftUI Buttons were NSButton descendants. Replaced this invalid passive-host introspection with individually reviewed raw window captures. Existing native source, mixed-state, callback and lifecycle assertions remain. No automated editor-button geometry or VoiceOver acceptance is claimed."
+  ],
+  "captures": [
+    {
+      "path": "docs/site/assets/git-config-source-light.png",
+      "sha256": "73d9efa0386541f5b6c8a53d63f30c1bfadf664b94a7de5b56f2f3a7e821e3b9",
+      "pixels": [
+        1640,
+        1464
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/git-config-source-dark.png",
+      "sha256": "85135657999c2782e07b90229cfc1fd9763d5485c0e5d7e914929165eaf5d95e",
+      "pixels": [
+        1640,
+        1464
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of actual Git settings page in a private native host with production SettingsPageViewport. Private Git data/preferences, no user focus activation and no editor application launched.",
+  "help": {
+    "files": 50,
+    "bytes": 1968682,
+    "mode": "check",
+    "unchanged": true
+  },
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": []
+  },
+  "hosted_observation": {
+    "head": "4c044a9d7802a65a89aabe63d0794cf96961fe3e",
+    "pages": {
+      "run": 38983372104,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 38983372088,
+      "status": "pending",
+      "conclusion": null
+    }
+  },
+  "limitations": [
+    "Physical keyboard/radio navigation, sheets and VoiceOver remain separate acceptance work",
+    "Editor routing intercepted; live receiving-app delivery and signed configuration/application grants unverified",
+    "System editing uses ordinary macOS permissions without a privileged helper",
+    "Source-ordered writes already begun may finish after owner closure; no rollback claim",
+    "Complete hosted macOS CI and full source/App Store acceptance not established"
+  ]
+}

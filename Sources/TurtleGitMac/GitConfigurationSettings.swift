@@ -6,10 +6,17 @@ import TurtleGitCore
 @MainActor final class GitConfigurationSettingsModel: ObservableObject {
     private(set) static var activeSaves = 0
     private(set) static var activeReads = 0
+    private(set) static var activeFolderChoosers=0
+    @Published private(set) var authorizingFolder=false
     private let preferences: UserDefaults
     init(preferences: UserDefaults = .standard) { self.preferences = preferences }
     var authorizeFile: ((URL) async -> Bool)?
     var readConfigurationFiles: (GitRepository, Bool, OperationCancellation?) async throws -> GitConfigurationFiles = { try await $0.gitConfigurationFiles(hasRepository: $1, cancellation: $2) }
+    var readSettings:(GitRepository,GitConfigurationSource,OperationCancellation?)async throws->GitConfigurationSettings = {try await $0.gitConfiguration(source:$1,cancellation:$2)}
+    typealias EditorReply = @MainActor @Sendable (String?)->Void
+    var openEditor:(URL,UserDefaults,[RepositoryAccessLease],@escaping EditorReply)->Void = {AlternativeEditor.open($0,preferences:$1,permissions:$2,completion:$3)}
+    @Published private(set) var editorIdentity=UUID()
+    @Published private(set) var loadingSource:GitConfigurationSource?
     var writeSettings: (GitRepository, GitConfigurationSettings, GitConfigurationSource) async throws -> Void = { try await $0.saveGitConfiguration($1, destination: $2) }
     @Published private(set) var source: GitConfigurationSource = .effective
     @Published var destination: GitConfigurationSource = .local
@@ -26,34 +33,40 @@ import TurtleGitCore
     private(set) var repository: GitRepository?
     private var access: RepositoryAccessLease?
     private var hasRepository = false
-    private var active = false
+    @Published private var active = false
     private var hintShown = false
+    private var needsInitialLoad=true
     var isActive: Bool { active }
     private var saving = false
     private var pendingContext: (GitRepository, RepositoryAccessLease?, Bool)?
     private var generation = UUID()
+    private var activationIdentity=UUID()
     private var readToken: OperationCancellation?
     private var alert: NSAlert?
     private var answer: ((Bool) -> Void)?
     weak var window: NSWindow?
     var localAvailable: Bool { hasRepository }
-    var editable: Bool { loaded && source != .effective && !busy }
+    var editable: Bool {active && loaded && source != .effective && !busy}
     var changed: Bool { loaded && (draft != saved || destination != savedDestination) }
     func activate(repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
+        activationIdentity=UUID()
         if saving { pendingContext = (repository, access, localAvailable); return }
         if loaded && self.repository?.root == repository.root && self.repository?.executable == repository.executable && hasRepository == localAvailable {
             active = true; return
         }
         deactivate()
         self.repository = repository; self.access = access; hasRepository = localAvailable
-        active = true; destination = localAvailable ? .local : .global
+        active=true;source = .effective;destination=localAvailable ? .local:.global;savedDestination=destination
+        files=nil;draft=GitConfigurationSettings();saved=draft;loaded=false;needsInitialLoad=true
         load(.effective, initial: true)
     }
     func deactivate() {
-        active = false; pendingContext = nil; generation = UUID(); readToken?.cancel(); readToken = nil
+        active = false;activationIdentity=UUID(); pendingContext = nil; generation = UUID();editorIdentity=UUID();loadingSource=nil; readToken?.cancel(); readToken = nil
         if !saving { busy = false }; configurationText = nil
-        if let panel = permissionPanel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }
-        permissionPanel = nil; let permission = permissionAnswer; permissionAnswer = nil; permission?(false)
+        let panel=permissionPanel;permissionPanel=nil
+        if authorizingFolder {authorizingFolder=false;Self.activeFolderChoosers -= 1}
+        if let panel {(panel.sheetParent ?? window)?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil)}
+        let permission=permissionAnswer;permissionAnswer=nil;permission?(false)
         if let alert { window?.endSheet(alert.window, returnCode: .abort) }
         alert = nil; let pending = answer; answer = nil; pending?(false)
     }
@@ -62,32 +75,35 @@ import TurtleGitCore
     }
     func load(_ source: GitConfigurationSource, initial: Bool = false) {
         guard active, let repository, (!busy || readToken != nil), source != .local || hasRepository else { return }
+        let firstAccepted=needsInitialLoad,initialize=initial || (needsInitialLoad && source == .effective)
         readToken?.cancel(); let token = OperationCancellation(), request = UUID(); generation = request; readToken = token
-        self.source = source; loaded = false; busy = true; error = nil
-        if source == .local || source == .global { destination = source }
+        editorIdentity=UUID();loadingSource=source;loaded=false;busy=true;error=nil
+        let destination=(source == .local || source == .global) ? source:self.destination
         Self.activeReads += 1
         Task { [self, access] in
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if self.generation == request { self.readToken = nil; self.busy = false } }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if self.generation == request { self.readToken = nil; self.busy = false;self.loadingSource=nil } }
             do {
                 try self.checkAccess(repository, access: access, local: self.hasRepository)
                 let files = try await self.readConfigurationFiles(repository, self.hasRepository, token)
                 guard self.active, self.generation == request, !token.isCancelled else { return }
-                self.files = files
                 if source == .effective || source == .global {
                     for file in [files.global, files.xdg].compactMap({ $0 }) {
                         guard await self.ensurePermission(for: file), self.active, self.generation == request, !token.isCancelled else { return }
                     }
                 }
-                var value = try await repository.gitConfiguration(source: source, cancellation: token)
+                var value=try await self.readSettings(repository,source,token)
+                var acceptedSource=source,acceptedDestination=destination
                 guard self.active, self.generation == request, !token.isCancelled else { return }
-                if initial && value.name.value.isEmpty && value.email.value.isEmpty {
-                    value = try await repository.gitConfiguration(source: .global, cancellation: token)
+                if initialize && value.name.value.isEmpty && value.email.value.isEmpty {
+                    value=try await self.readSettings(repository,.global,token)
                     guard self.active, self.generation == request, !token.isCancelled else { return }
-                    self.source = .global; self.destination = .global
+                    acceptedSource = .global;acceptedDestination = .global
                     value.name.inherit = false; value.email.inherit = false
                 }
-                self.draft = value; self.saved = value; self.savedDestination = self.destination; self.loaded = true
-                if initial { self.showHierarchyHint() }
+                // Publish one accepted level, origin set, destination and draft.
+                self.files=files;self.source=acceptedSource;self.destination=acceptedDestination
+                self.draft=value;self.saved=value;self.savedDestination=acceptedDestination;self.loaded=true;self.editorIdentity=UUID();self.needsInitialLoad=false
+                if initial || firstAccepted {self.showHierarchyHint()}
             } catch { if self.active, self.generation == request, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
@@ -125,11 +141,11 @@ import TurtleGitCore
     func apply() { performApply { _ in } }
     func applyForSettings(owner: NSWindow?) async -> Bool {
         if !changed { return true }
-        let wasActive = active
+        let wasActive=active,activation=activationIdentity
         active = true
         if window == nil { window = owner }
         let success = await withCheckedContinuation { continuation in performApply { continuation.resume(returning: $0) } }
-        if !wasActive { active = false }
+        if !wasActive,activationIdentity==activation {active=false}
         return success
     }
     func cancelDraft() { guard !saving else { return }; draft = saved; destination = savedDestination }
@@ -158,6 +174,9 @@ import TurtleGitCore
                     for file in [files.global, files.xdg].compactMap({ $0 }) {
                         guard await self.ensurePermission(for: file), self.active, self.generation == request else { return }
                     }
+                }
+                guard self.draft==value,self.destination==destination,self.source==source else {
+                    self.error="The Git configuration draft changed while awaiting confirmation or permission. Review it and apply again.";return
                 }
                 // Each Git config write holds its own lock. Retain the grant and
                 // allow this source-ordered batch to finish after owner closure.
@@ -196,11 +215,12 @@ import TurtleGitCore
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
         panel.allowsMultipleSelection = false; panel.title = "Authorize Git configuration folder"; panel.prompt = "Authorize"
         panel.message = "Choose a folder containing your Git config files. This permission is remembered for future Git operations."
-        permissionPanel = panel; busy = true
+        permissionPanel=panel;busy=true;authorizingFolder=true;Self.activeFolderChoosers += 1
         let request = generation
         panel.beginSheetModal(for: window) { [weak self] response in
             guard let self, self.permissionPanel === panel else { return }
-            self.permissionPanel = nil
+            self.permissionPanel=nil
+            if self.authorizingFolder {self.authorizingFolder=false;Self.activeFolderChoosers -= 1}
             guard self.active, self.generation == request else { return }
             self.busy = false
             guard response == .OK, let directory = panel.url else { return }
@@ -211,7 +231,7 @@ import TurtleGitCore
         }
     }
     func editConfiguration(_ kind: GitConfigurationFile) {
-        guard active, !busy, let repository, let files, let file = files[kind] else { return }
+        guard active, loaded, !busy, let repository, let files, let file = files[kind] else { return }
         let request = UUID(), token = OperationCancellation(), access = access
         generation = request; readToken = token; busy = true; error = nil
         Self.activeReads += 1
@@ -234,7 +254,7 @@ import TurtleGitCore
                     target = file
                 }
                 guard self.active, self.generation == request, !token.isCancelled else { return }
-                AlternativeEditor.open(target, permissions: access.map { [$0] } ?? []) { [weak self] error in
+                self.openEditor(target,self.preferences,access.map { [$0] } ?? []) { [weak self] error in
                     guard let self, self.active, self.generation == request else { return }
                     self.error = error
                 }
@@ -242,14 +262,17 @@ import TurtleGitCore
         }
     }
     func openDisplayedConfiguration() {
-        guard active, let text = configurationText else { return }
+        guard active,let text=configurationText else {return}
+        let request=generation
         do {
-            let file = try GitConfigurationPreviewFiles.create(Data(text.utf8), name: "gitconfig.txt")
-            AlternativeEditor.open(file) { [weak self] error in guard let self, self.active else { return }; self.error = error }
-        } catch { self.error = error.localizedDescription }
+            let file=try GitConfigurationPreviewFiles.create(Data(text.utf8),name:"gitconfig.txt")
+            openEditor(file,preferences,[]) { [weak self] error in
+                guard let self,self.active,self.generation==request,self.configurationText.map({Data($0.utf8)})==Data(text.utf8) else {return};self.error=error
+            }
+        } catch {if active,generation==request {self.error=error.localizedDescription}}
     }
     func viewConfiguration(_ source: GitConfigurationSource) {
-        guard active, !busy, let repository else { return }
+        guard active, loaded, !busy, let repository else { return }
         let token = OperationCancellation(), request = UUID(); generation = request; readToken = token; busy = true; error = nil
         Self.activeReads += 1
         Task { [self, access] in
@@ -275,39 +298,45 @@ struct GitConfigurationSettingsPage: View {
     var globalOnly = false
     @Environment(\.settingsTransaction) private var transaction
     @StateObject private var model: GitConfigurationSettingsModel
+    @State private var visible=false
     init(workspace: RepositoryModel, globalOnly: Bool = false, preferences: UserDefaults = .standard, model: GitConfigurationSettingsModel? = nil) {
         self.workspace = workspace; self.globalOnly = globalOnly
         _model = StateObject(wrappedValue: model ?? GitConfigurationSettingsModel(preferences: preferences))
     }
     var body: some View {
+        let identity=model.editorIdentity
         VStack(alignment: .leading, spacing: 14) {
             GroupBox("Config source") {
-                Picker("Config source", selection: Binding(get: { model.source }, set: { model.load($0) })) {
-                    ForEach(GitConfigurationSource.allCases, id: \.self) { source in
-                        Text(source.rawValue).tag(source).disabled(source == .local && !model.localAvailable)
+                HStack {
+                    ForEach(Array(GitConfigurationSource.allCases.enumerated()),id:\.offset) {index,source in
+                        if index>0 {Text(index==1 ? "|":"<<").foregroundStyle(.secondary)}
+                        BaseRadio(title:source.rawValue,selected:model.source==source) {
+                            guard visible,model.isActive,!model.busy,model.editorIdentity==identity else {return};model.load(source)
+                        }.frame(height:24).disabled(source == .local && !model.localAvailable)
                     }
-                }.pickerStyle(.radioGroup).horizontalRadioGroupLayout().labelsHidden().padding(8).disabled(model.busy)
+                }.padding(8).disabled(model.busy || !model.isActive)
             }
+            if let source=model.loadingSource {Text("Loading "+source.rawValue+" configuration…").font(.caption).foregroundStyle(.secondary)}
             GroupBox("User Info") {
                 VStack(spacing: 10) {
-                    identity("Name:", field: $model.draft.name)
-                    identity("Email:", field: $model.draft.email)
-                    identity("Signing key ID:", field: $model.draft.signingKey)
+                    self.identity("Name:", field: $model.draft.name,identity:identity)
+                    self.identity("Email:", field: $model.draft.email,identity:identity)
+                    self.identity("Signing key ID:", field: $model.draft.signingKey,identity:identity)
                 }.padding(8)
             }
             GroupBox("Auto CrLf convert") {
                 HStack {
-                    Picker("AutoCrLf:", selection: $model.draft.autoCRLF) { ForEach(["", "false", "true", "input"], id: \.self) { Text($0.isEmpty ? " " : $0).tag($0) } }
-                    Picker("SafeCrLf:", selection: $model.draft.safeCRLF) { ForEach(["", "false", "true", "warn"], id: \.self) { Text($0.isEmpty ? " " : $0).tag($0) } }
-                }.padding(8).disabled(!model.editable)
+                    Picker("AutoCrLf:", selection: guarded($model.draft.autoCRLF,identity:identity)) { ForEach(["", "false", "true", "input"], id: \.self) { Text($0.isEmpty ? " " : $0).tag($0) } }
+                    Picker("SafeCrLf:", selection: guarded($model.draft.safeCRLF,identity:identity)) { ForEach(["", "false", "true", "warn"], id: \.self) { Text($0.isEmpty ? " " : $0).tag($0) } }
+                }.frame(maxWidth:.infinity,alignment:.leading).padding(8).disabled(!model.editable)
             }
             HStack {
-                GitConfigurationCheckbox(title: "QuotePath", value: $model.draft.quotePath, enabled: model.editable)
-                GitConfigurationCheckbox(title: "Prune", value: $model.draft.prune, enabled: model.editable)
+                GitConfigurationCheckbox(title: "QuotePath", value: guarded($model.draft.quotePath,identity:identity), enabled: model.editable).frame(height:24)
+                GitConfigurationCheckbox(title: "Prune", value: guarded($model.draft.prune,identity:identity), enabled: model.editable).frame(height:24)
             }
             HStack {
                 Text("Save to:")
-                Picker("Save to", selection: $model.destination) {
+                Picker("Save to", selection: guarded($model.destination,identity:identity)) {
                     if model.localAvailable { Text("Local").tag(GitConfigurationSource.local) }
                     Text("Global").tag(GitConfigurationSource.global)
                 }.labelsHidden().frame(width: 190).disabled(!model.editable)
@@ -317,18 +346,18 @@ struct GitConfigurationSettingsPage: View {
                     Button("Edit local .git/config") { model.editConfiguration(.local) }.disabled(!model.localAvailable)
                     Button(model.files?.bare == true ? "View .tgitconfig" : "Edit .tgitconfig") { model.editConfiguration(.project) }.disabled(!model.localAvailable)
                     Button("View effective config") { model.viewConfiguration(.effective) }
-                }
+                }.frame(maxWidth:.infinity,alignment:.leading)
                 VStack(alignment: .leading) {
                     Button("Edit global .gitconfig") { model.editConfiguration(.global) }.disabled(model.files?.global == nil)
                     if let xdg = model.files?.xdg, FileManager.default.fileExists(atPath: xdg.deletingLastPathComponent().path) {
                         Button("Edit global XDG git/config") { model.editConfiguration(.xdg) }
                     }
-                }
+                }.frame(maxWidth:.infinity,alignment:.leading)
                 VStack(alignment: .leading) {
                     Button("Edit systemwide gitconfig") { model.editConfiguration(.system) }.disabled(model.files?.system == nil)
                     Button("View systemwide gitconfig") { model.viewConfiguration(.system) }
-                }
-            }.disabled(model.busy)
+                }.frame(maxWidth:.infinity,alignment:.leading)
+            }.disabled(model.busy || !model.loaded || !model.isActive)
             if GitRuntime.isAppStoreBuild {
                 Button("Authorize configuration folder…", action: model.authorizeConfigurationFolder).disabled(model.busy)
             }
@@ -348,7 +377,7 @@ struct GitConfigurationSettingsPage: View {
             validate: { model.repository == nil ? "Choose a repository or global configuration." : nil },
             apply: { await model.applyForSettings(owner: transaction?.window) }, cancel: model.cancelDraft)
         .onChange(of: model.destination) { _ in transaction?.notify() }
-        .onAppear(perform: activate).onChange(of: workspace.root) { _ in if model.isActive { activate() } }.onDisappear { model.deactivate() }
+        .onAppear {visible=true;activate()}.onChange(of: workspace.root) { _ in if model.isActive { activate() } }.onDisappear {visible=false;model.deactivate()}
         .sheet(isPresented: Binding(get: { model.configurationText != nil }, set: { if !$0 { model.configurationText = nil } })) {
             VStack(alignment: .leading) {
                 ScrollView([.horizontal, .vertical]) { Text(model.configurationText ?? "").font(.system(.body, design: .monospaced)).textSelection(.enabled).padding() }
@@ -360,11 +389,15 @@ struct GitConfigurationSettingsPage: View {
         do { let context = try workspace.gitConfigurationContext(globalOnly: globalOnly); model.activate(repository: context.repository, access: context.access, localAvailable: context.localAvailable) }
         catch { model.error = error.localizedDescription }
     }
-    private func identity(_ label: String, field: Binding<GitConfigurationIdentity>) -> some View {
-        HStack {
-            Text(label).frame(width: 105, alignment: .leading)
-            TextField(label, text: field.value).disabled(!model.editable || field.wrappedValue.inherit)
-            Toggle("inherit", isOn: field.inherit).toggleStyle(.checkbox).disabled(!model.editable)
+    private func guarded<Value>(_ value:Binding<Value>,identity:UUID)->Binding<Value> {
+        Binding(get:{value.wrappedValue},set:{if visible,model.editable,model.editorIdentity==identity {value.wrappedValue=$0}})
+    }
+    private func identity(_ label:String,field:Binding<GitConfigurationIdentity>,identity:UUID)->some View {
+        let field=guarded(field,identity:identity)
+        return HStack {
+            Text(label).frame(width:105,alignment:.leading)
+            TextField("",text:field.value).accessibilityLabel(label).disabled(!model.editable || field.wrappedValue.inherit)
+            Toggle("inherit",isOn:field.inherit).toggleStyle(.checkbox).disabled(!model.editable)
         }
     }
 }
@@ -377,20 +410,23 @@ private struct GitConfigurationCheckbox: NSViewRepresentable {
         let button = NSButton(checkboxWithTitle: title, target: context.coordinator, action: #selector(Coordinator.changed(_:)))
         button.allowsMixedState = true; button.toolTip = "Mixed inherits the value from another config source."; return button
     }
+    static func dismantleNSView(_ button:NSButton,coordinator:Coordinator) {coordinator.retired=true;button.target=nil;button.action=nil}
     func updateNSView(_ button: NSButton, context: Context) {
         context.coordinator.parent = self; button.isEnabled = enabled
         button.state = value == .inherit ? .mixed : value == .enabled ? .on : .off
     }
     final class Coordinator: NSObject {
+        var retired=false
         var parent: GitConfigurationCheckbox
         init(_ parent: GitConfigurationCheckbox) { self.parent = parent }
-        @objc func changed(_ sender: NSButton) { parent.value = sender.state == .mixed ? .inherit : sender.state == .on ? .enabled : .disabled }
+        @objc func changed(_ sender: NSButton) {guard !retired,parent.enabled,sender.isEnabled,sender.window != nil else {return}; parent.value = sender.state == .mixed ? .inherit : sender.state == .on ? .enabled : .disabled }
     }
 }
 private struct GitConfigurationWindowProbe: NSViewRepresentable {
     let model: GitConfigurationSettingsModel
     func makeNSView(context: Context) -> Probe { let view = Probe(); view.model = model; return view }
     func updateNSView(_ view: Probe, context: Context) { model.window = view.window }
+    static func dismantleNSView(_ view:Probe,coordinator:()) {view.model?.deactivate();view.model=nil}
     final class Probe: NSView {
         weak var model: GitConfigurationSettingsModel?
         override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.window = window }

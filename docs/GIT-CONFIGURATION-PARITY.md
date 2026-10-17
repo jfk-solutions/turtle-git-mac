@@ -83,3 +83,40 @@ adds shared read/Quit ownership, Dialogs 3 save ownership, captured confirmation
 context and owning hierarchy-hint preferences. Its
 [grouped checkpoint](qa/configuration-lifecycle-2026-10-15.json) records native
 checks and the remaining physical/signed scope.
+
+## Coherent source forms and owning editors — October 17, 2026
+
+Loading a level now collects its configuration origins and required values before
+publishing the accepted source, save destination, draft and baseline together.
+The pending level has a loading caption. Failed/cancelled reads retain the prior
+accepted display and leave editing/Apply disabled until a successful read. File
+editor actions also require a loaded context, preventing an old origin from being
+edited after a new repository failed to load. A different repository clears the
+old context before loading. Switching source still discards drafts on success,
+matching the source level-selection behavior. Initial empty-identity defaults and
+the hierarchy hint are consumed only after a successful load, so retrying a failed
+first Effective read still selects editable Global identity fields.
+
+The source row now includes its `|`/`<<` hierarchy indicators and native radios.
+QuotePath/Prune retain three states with bounded native checkbox rows. Observable
+page activity re-enables cached forms after returning. Accepted editor identities
+fence old field/picker callbacks, and dismantled checkbox targets detach. The
+source page's static control family now has explicit partial mappings; native
+inheritance/layout and complete source certification remain separate evidence.
+
+Before an authorized write starts, Apply rechecks the captured draft, source and
+destination after confirmation and folder permission. A changed draft remains
+unsaved with an explicit message. Once a source-ordered write has started, its
+existing independent save/grant drain policy remains; later retirement does not
+claim rollback. Hidden cached pages still participate in shared Apply/Cancel. An activation identity
+prevents a hidden Apply completion from marking an explicitly returned page inactive.
+
+Config files and displayed read-only text now open with their Settings owner's
+Alternative Editor preferences. Replies are fenced by the request generation and,
+for a displayed copy, its exact text. A retired editor cannot report an error on
+a new level or replacement display. The explicit configuration-folder recovery
+chooser now has an independent Quit/Settings lifetime and retires on deactivation.
+
+Four distinct native case/engine combinations pass with system and bundled Git; the two affected source cases pass again after visual layout repairs and the recorded fixture correction. Both raw light/dark page captures were individually reviewed, including full-width CrLf and three editor columns. All eight owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/git-config-source-family-2026-10-17.json) for build diagnostics, fixture failures, intercepted editor scope and open physical/signed acceptance.
+Live editor delivery, physical keyboard/sheets, signed configuration grants,
+system elevation adaptation and complete source/App Store acceptance remain open.

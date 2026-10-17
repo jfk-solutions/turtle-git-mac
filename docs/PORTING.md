@@ -1791,3 +1791,12 @@ off the UI thread; captured panels reject stale replies, while in-flight writes
 and receiving-app callbacks retain independent Quit, scope and input lifetimes
 after caller closure. See [Browser parity](REPOSITORY-BROWSER-PARITY.md#historical-file-actions-and-source-path--october-17-2026).
 Four grouped native case/engine combinations pass with system and bundled Git after the recorded fixture URL repair. Both raw light/dark captures were individually reviewed: the native relative Path, tree/list and information/footer fit. All five owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/browser-file-actions-2026-10-17.json) for build diagnostics, failed-fixture details, intercepted launch scope and remaining acceptance.
+
+### Git configuration source forms and owning editors — October 17, 2026
+
+Git settings now publish level/origins/draft/destination coherently, reject changed
+pre-write confirmation contexts, fence retired form/editor callbacks, retain the
+source hierarchy row and use bounded native mixed-state inputs. Editor delivery
+uses the owning preferences, and the recovery folder chooser owns Quit/Settings.
+See [Git configuration parity](GIT-CONFIGURATION-PARITY.md#coherent-source-forms-and-owning-editors--october-17-2026).
+Four distinct native case/engine combinations pass with system and bundled Git; the two affected source cases pass again after visual layout repairs and the recorded fixture correction. Both raw light/dark page captures were individually reviewed, including full-width CrLf and three editor columns. All eight owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/git-config-source-family-2026-10-17.json) for build diagnostics, fixture failures, intercepted editor scope and open physical/signed acceptance.
