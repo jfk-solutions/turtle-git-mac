@@ -71,6 +71,8 @@ extension SynchronizationTagKind {
     var onClosed: () -> Void = {}
     private var alert: NSAlert?
     private var presentationClosed = false
+    private var pendingRecovery = false
+    var onRecovery: () -> Void = {}
     private var completion: ((Result<SynchronizationProgressResult, Error>) -> Void)?
     init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, access: RepositoryAccessLease? = nil, transportFactory: SSHTransportFactory? = nil,
          completion: @escaping (Result<SynchronizationProgressResult, Error>) -> Void) {
@@ -82,6 +84,11 @@ extension SynchronizationTagKind {
         window.contentViewController = NSHostingController(rootView: SynchronizationProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in self?.closePresentation() }
+        model.requestRecovery = { [weak self] in
+            guard let self, !self.presentationClosed, !self.pendingRecovery, !self.model.busy,
+                  !self.model.confirmingCancellation, self.window?.attachedSheet == nil else { return false }
+            self.pendingRecovery = true; self.closePresentation(); return true
+        }
         window.escapeAction = { [weak model] in guard let model else { return }; if model.busy { model.cancel() } else { model.close() } }
         model.confirmCancel = { [weak self] reply in
             guard let self, let window = self.window, window.attachedSheet == nil else { reply(false); return }
@@ -94,7 +101,7 @@ extension SynchronizationTagKind {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     private func closePresentation() { guard !model.busy, !model.confirmingCancellation, window?.attachedSheet == nil else { return }; window?.sheetParent?.endSheet(window!); close() }
     func abortPresentation() {
-        model.invalidate()
+        pendingRecovery = false; model.invalidate()
         if let alert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
         alert = nil; window?.sheetParent?.endSheet(window!); close()
     }
@@ -109,10 +116,11 @@ extension SynchronizationTagKind {
         model.saveActionLog(); model.invalidate(); window?.sheetParent?.endSheet(window!)
         if let alert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort); alert.window.close() }
         alert = nil
-        let callback = completion, didClose = onClosed; completion = nil
+        let callback = completion, didClose = onClosed
+        let recovery = pendingRecovery ? onRecovery : nil; pendingRecovery = false; completion = nil
         // A forcibly closed child must not let its parent mutate Git while the
         // previous worker is still draining (including ignored cancellation).
-        model.whenDrained { didClose(); callback?(result) }
+        model.whenDrained { didClose(); callback?(result); recovery?() }
     }
 }
 
@@ -129,6 +137,24 @@ extension SynchronizationTagKind {
     private var drained: [() -> Void] = []
     private var outputState: GitProgressOutputState
     private var startedAt: TimeInterval = 0
+    private var inspection: OperationCancellation?
+    private let recoveryOwner = UUID()
+    private var recoveryRevision = UUID()
+    @Published private(set) var recoveryAvailable = false
+    @Published private(set) var recoveryConsumed = false
+    struct RecoveryReceipt { fileprivate let owner: UUID; fileprivate let revision: UUID }
+    var requestRecovery: () -> Bool = { false }
+    var inspectConflicts: ((OperationCancellation) async throws -> Bool)?
+    func captureRecovery() -> RecoveryReceipt? {
+        guard !closed, !working, !busy, !confirmingCancellation, recoveryAvailable, !recoveryConsumed else { return nil }
+        return RecoveryReceipt(owner:recoveryOwner,revision:recoveryRevision)
+    }
+    func performRecovery(_ receipt: RecoveryReceipt) {
+        guard receipt.owner == recoveryOwner, receipt.revision == recoveryRevision, captureRecovery() != nil else { return }
+        recoveryConsumed = true
+        if !requestRecovery(), !closed { recoveryConsumed = false }
+    }
+    private var activeCancellation: OperationCancellation { inspection ?? cancellation }
     @Published private(set) var currentWork = ""
     @Published private(set) var percentage: Int?
     @Published private(set) var completionRange: NSRange?
@@ -159,21 +185,23 @@ extension SynchronizationTagKind {
     func whenDrained(_ completion: @escaping () -> Void) { if working { drained.append(completion) } else { completion() } }
     func invalidate() {
         guard !closed else { return }; closed = true
-        if working && busy { cancellation.cancel() }
+        if working && busy { cancellation.cancel(); inspection?.cancel() }
+        recoveryRevision = UUID(); recoveryAvailable = false
         transportCoordinator?.close(); transportCoordinator = nil; confirmingCancellation = false
         if !working { busy = false }
     }
     func cancel() {
         guard !closed, busy, !confirmingCancellation, !cancelling else { return }
+        let target = activeCancellation
         if preferences.bool(forKey: "ConfirmKillProcess") {
             confirmingCancellation = true
             var answered = false
             confirmCancel { [weak self] accepted in
                 guard !answered, let self, !self.closed else { return }; answered = true; self.confirmingCancellation = false
-                if accepted, self.busy { self.cancelling = true; self.cancellation.cancel() }
+                if accepted, self.busy, self.activeCancellation === target { self.cancelling = true; target.cancel() }
                 if !self.busy, self.automaticClose { self.close() }
             }
-        } else { cancelling = true; cancellation.cancel() }
+        } else { cancelling = true; target.cancel() }
     }
     private var automaticClose: Bool {
         guard let result else { return false }
@@ -188,7 +216,7 @@ extension SynchronizationTagKind {
         Task {
             let coordinator = transportFactory?(); transportCoordinator = coordinator
             defer {
-                coordinator?.close(); transportCoordinator = nil; working = false; busy = false
+                coordinator?.close(); transportCoordinator = nil; inspection = nil; working = false; busy = false
                 Self.activeOperations -= 1; withExtendedLifetime(access) {}
                 let callbacks = drained; drained.removeAll(); callbacks.forEach { $0() }
             }
@@ -235,8 +263,27 @@ extension SynchronizationTagKind {
             }
             guard !closed else { return }
             cancelled = cancellation.isCancelled && !success
+            let finished = Date(), elapsed = ProcessInfo.processInfo.systemUptime - startedAt
+            if case .merge = self.operation, !success {
+                // Source's failed ff-only progress offers Resolve when unmerged
+                // index entries remain; its callback opens Commit. Inspect with
+                // a fresh token so an ordinary Git cancellation can still settle.
+                let read = OperationCancellation(); inspection = read; cancelling = false; currentWork = "Checking for conflicts…"
+                do {
+                    let conflicts: Bool
+                    if let inspectConflicts { conflicts = try await inspectConflicts(read) }
+                    else { conflicts = try await repository.conflicts(cancellation:read).isEmpty == false }
+                    guard !closed, inspection === read else { return }
+                    try read.check(); recoveryAvailable = conflicts; recoveryRevision = UUID()
+                } catch {
+                    guard !closed, inspection === read else { return }
+                    output += "\nChecking for conflicts failed.\n" + error.localizedDescription
+                }
+                inspection = nil
+            }
+            guard !closed else { return }
             let completion = SubmoduleProgressCompletion(success: success, cancelled: cancelled, exitCode: exitCode,
-                elapsed: ProcessInfo.processInfo.systemUptime - startedAt, preferences: preferences)
+                elapsed: elapsed, finished: finished, preferences: preferences)
             currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
             busy = false; saveActionLog(); OperationSounds.report(failed: !success, preferences: preferences)
             if !confirmingCancellation, automaticClose { close() }
@@ -265,6 +312,9 @@ private struct SynchronizationProgressDialog: View {
             HStack {
                 if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity).frame(width: 16, height: 16); Text(model.cancelling ? "Cancelling…" : model.operation.work) } else if model.cancelled { Text("User cancelled").foregroundStyle(.red) } else if case .success = model.result { Text("Finished") } else { Text(model.operation.failure).foregroundStyle(.red) }
                 Spacer()
+                if let recovery = model.captureRecovery() {
+                    Button { model.performRecovery(recovery) } label: { CommandLabel(title:"Resolve",icon:.resolve) }
+                }
                 if model.busy { Button("Abort") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.cancelling) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
             }.disabled(model.confirmingCancellation)
@@ -540,6 +590,10 @@ enum SynchronizationHistoryOperation: Equatable {
                     }
                 }
                 self.commandProgress = child; child.onClosed = { [weak self] in self?.commandProgress = nil }
+                child.onRecovery = { [weak self] in
+                    guard let self, !self.model.closed, !self.model.confirmingQuit, self.window?.attachedSheet == nil else { return }
+                    self.model.onCommit()
+                }
                 child.window?.alphaValue = window.alphaValue; window.beginSheet(child.window!); child.model.start()
             }
         }

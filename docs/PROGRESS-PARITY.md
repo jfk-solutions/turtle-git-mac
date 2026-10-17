@@ -158,3 +158,11 @@ retains the actual worker lease and parent continuation until drain; source comp
 tag waits retain their parent error path. The Debug build and grouped native
 progress/tag workflows pass on system and bundled Git; four actual captures were
 reviewed. Full source/physical/signed acceptance remains open.
+
+
+The [Sync failed fast-forward recovery continuation](SYNCHRONIZATION-PARITY.md#failed-fast-forward-recovery-and-commit-handoff--october-17-2026)
+adds the source Resolve-to-Commit action after verified index conflicts. Its fresh
+inspection preserves the original failure and retains worker/lease/Quit ownership;
+late cancellation replies cannot target a replacement stage. Grouped system/bundled
+Git native checks and actual light/dark handoff captures pass. Full generic progress
+and physical/signed acceptance remain open.

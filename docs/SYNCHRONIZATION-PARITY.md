@@ -1651,8 +1651,8 @@ real rejecting remote hook. The oversized native activity indicator was constrai
 to its intended 16-point size. All receivers were reaped and independently absent.
 Core was unchanged and not repeated. See
 [batch evidence](qa/sync-child-progress-2026-10-17.json). Physical controls/VoiceOver,
-signed Finder/security scopes and full upstream acceptance remain open. Source
-fast-forward failure conflict/Commit post-action is still missing; this change
+signed Finder/security scopes and full upstream acceptance remain open. The following recovery continuation supplies the source fast-forward failure
+conflict/Commit post-action; this earlier progress batch alone
 does not certify complete Synchronization or generic ProgressDlg parity.
 
 ![Sync child progress, controlled live sample in light mode](site/assets/sync-child-progress-live-light.png)
@@ -1662,3 +1662,44 @@ does not certify complete Synchronization or generic ProgressDlg parity.
 ![Sync tag Push rejection, light](site/assets/sync-child-progress-failure-light.png)
 
 ![Sync tag Push rejection, dark](site/assets/sync-child-progress-failure-dark.png)
+
+
+### Failed fast-forward recovery and Commit handoff — October 17, 2026
+
+After a failed separate fast-forward, the progress owner now reads the actual
+unmerged index using a fresh cancellable token. Confirmed conflicts offer the
+source Resolve action and icon; that action opens the existing whole-project
+Commit dialog, matching SyncDlg's callback. A failed/cancelled inspection offers
+no unverified action and appends its own diagnostic while preserving the original
+Git result, exit-code footer and Git completion timestamp.
+
+Recovery captures an owner/revision receipt. Nested sheets, duplicate/retired
+clicks and closed/quit-confirming Sync owners cannot launch another Commit. The
+native handoff closes the acknowledged result, drains its worker, clears its
+parent sheet and delivers the original result before calling the existing Commit
+route. This follows the app's other progress post-action handoffs; Windows keeps
+its progress modal alive while starting a separate TortoiseGitProc process.
+No staging, resolving or committing happens merely by selecting Resolve.
+
+Cancellation questions capture their current worker token. An answer from the
+finished Git stage cannot cancel the replacement conflict inspection. A new Abort
+can cancel that read; forced retirement cancels it, retains lease/Quit accounting
+and parent continuation until actual drain, and suppresses late actions/footer.
+The Debug build and expanded native progress/recovery family pass with system
+and bundled Git. The actual Sync child callback opens a real Commit controller
+with the conflicted file; index stage entries, HEAD and working bytes are retained.
+Nested/duplicate/retired receipts, read errors, old/new cancellation questions and
+forced read drain/Quit fencing pass. Four actual light/dark captures were reviewed.
+All three owned receivers from the attempts were reaped and independently absent.
+Core was unchanged and not repeated. Two fixture repairs fixed async sheet overload
+selection and the injected error's localized message; no app rebuild was needed.
+See [batch evidence](qa/sync-recovery-2026-10-17.json). Physical/signed and complete
+Sync/ProgressDlg acceptance remain open.
+
+![Sync failed fast-forward recovery, light](site/assets/sync-recovery-conflict-light.png)
+
+![Sync failed fast-forward recovery, dark](site/assets/sync-recovery-conflict-dark.png)
+
+![Commit opened by Sync recovery, light](site/assets/sync-recovery-commit-light.png)
+
+![Commit opened by Sync recovery, dark](site/assets/sync-recovery-commit-dark.png)

@@ -1922,6 +1922,7 @@
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/stash-reference-cancellation-2026-10-11.json",
         "docs/qa/sync-child-progress-2026-10-17.json",
+        "docs/qa/sync-recovery-2026-10-17.json",
         "docs/qa/sync-replay-hooks-2026-10-14.json",
         "docs/qa/synchronization-apply-native-2026-10-11.json",
         "docs/qa/synchronization-branch-picker-native-2026-10-11.json",

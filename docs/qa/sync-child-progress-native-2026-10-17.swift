@@ -19,6 +19,7 @@ import TurtleGitCore
     @MainActor static func views(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(views) }
     @MainActor static func capture(_ window: NSWindow, name: String) async throws {
         guard let output = ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_CHILD_CAPTURE"] else { return }
+        if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_RECOVERY_ONLY_CAPTURE"] == "1", !name.hasPrefix("sync-recovery") { return }
         if #available(macOS 14.4, *) {
             let folder = URL(fileURLWithPath: output); try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             for (appearance, suffix) in [(NSAppearance.Name.aqua,"light"),(.darkAqua,"dark")] {
@@ -138,7 +139,106 @@ import TurtleGitCore
         let tags = SynchronizationProgressController(repository:repo,operation:.tags("origin"),cancellation:compactToken,preferences:preferences) { result in if case .success(.tags) = result { compact += 1 } }
         tags.window!.alphaValue = 0; tags.window!.orderFront(nil); tags.model.start(); try await wait { compact == 1 && SynchronizationProgressModel.activeOperations == 0 }
         try require(!compactToken.isCancelled, "Successful compact close cancelled parent request")
+        try await verifyRecovery(repo:repo,root:root,preferences:preferences)
         try require(NSApp.windows.filter { $0.isVisible }.isEmpty,"Owned progress window remained visible")
         print("PASS Sync child progress: real tag Push/Fetch/rejection, captured auto-close, native Copy icons/private clipboard, one Action log, live parser, completion/timing/footer, question/natural-success race, direct Abort, compact results, forced close/late output/drain/Quit and once-only parent callbacks")
+    }
+
+    @MainActor static func verifyRecovery(repo:GitRepository,root:URL,preferences:UserDefaults) async throws {
+        let state=try await repo.synchronizationRebaseState(target:"HEAD")
+        let beforeHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        let beforeFile=try Data(contentsOf:root.appendingPathComponent("file.txt"))
+        func blob(_ text:String) async throws -> String {
+            String(decoding:try await repo.run(["hash-object","-w","--stdin"],input:Data(text.utf8)).stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
+        }
+        let base=try await blob("base\n"), mine=try await blob("mine\n"), theirs=try await blob("theirs\n")
+        let index="0 0000000000000000000000000000000000000000\tfile.txt\n100644 "+base+" 1\tfile.txt\n100644 "+mine+" 2\tfile.txt\n100644 "+theirs+" 3\tfile.txt\n"
+        _=try await repo.run(["update-index","--index-info"],input:Data(index.utf8))
+        let unresolved=try await repo.run(["ls-files","--unmerged"]).stdout
+        try require(!unresolved.isEmpty,"Missing actual unmerged index fixture")
+        var events=[String](), commit:CommitWindowController?
+        let parent=SynchronizationWindowController(repository:repo,access:nil,preferences:preferences)
+        parent.window!.alphaValue=0;parent.window!.orderFront(nil)
+        defer {parent.close()}
+        parent.model.onCommit={ [weak parent] in
+            guard let parent else {return}
+            events.append("recovery")
+            precondition(SynchronizationProgressModel.activeOperations == 0 && parent.commandProgress == nil && parent.window!.attachedSheet == nil)
+            let child=CommitWindowController(repository:repo,access:nil,defaults:preferences)
+            child.window!.alphaValue=0;child.window!.orderFront(nil);child.model.reload();commit=child
+        }
+        let handoff=Task { await parent.model.performFastForward!(state,OperationCancellation()) }
+        try await wait {parent.commandProgress != nil}
+        let failure=parent.commandProgress!, clear=parent.commandProgress!.onClosed
+        failure.onClosed={clear();events.append("closed")}
+        failure.window!.alphaValue=0;failure.window!.orderFront(nil);failure.model.start()
+        try await wait{!failure.model.busy && SynchronizationProgressModel.activeOperations == 0}
+        guard let recovery=failure.model.captureRecovery() else {throw Failure(description:"Failed ff-only with real unmerged index did not offer Resolve")}
+        try require(!failure.model.success && failure.model.currentWork.contains("exit code") && failure.model.completionRange != nil,"Recovery inspection replaced original Git failure")
+        try await capture(failure.window!,name:"sync-recovery-conflict")
+        let nested=NSWindow(contentRect:.init(x:0,y:0,width:200,height:100),styleMask:[.titled],backing:.buffered,defer:false)
+        nested.isReleasedWhenClosed=false;nested.alphaValue=0;failure.window!.beginSheet(nested,completionHandler:nil)
+        failure.model.performRecovery(recovery)
+        try require(events.isEmpty && !failure.model.recoveryConsumed,"Attached sheet consumed or dispatched recovery")
+        failure.window!.endSheet(nested);nested.close()
+        failure.model.performRecovery(recovery);failure.model.performRecovery(recovery)
+        try await wait{commit != nil && !commit!.model.busy && CommitWindowModel.activeReloads == 0}
+        try require(events == ["closed","recovery"] && !failure.window!.isVisible && commit!.model.entries.contains{$0.state == .conflicted},"Resolve did not close/drain then open whole-project Commit exactly once")
+        try await capture(commit!.window!,name:"sync-recovery-commit")
+        commit!.close();commit=nil;failure.model.performRecovery(recovery)
+        try require(events.count == 2,"Retired recovery receipt launched another Commit")
+        let originalOutcome=await handoff.value
+        if case .failure(let error)=originalOutcome {try require(error is GitFailure,"Recovery lost original Git error")}
+        else {throw Failure(description:"Recovery rewrote failed parent result")}
+        parent.close()
+        let afterUnmerged=try await repo.run(["ls-files","--unmerged"]).stdout
+        let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        try require(afterUnmerged == unresolved && afterHead == beforeHead,"Recovery action changed index entries or HEAD")
+
+        // Secondary inspection errors retain the actual failed Git result and footer.
+        let probeFailure=SynchronizationProgressController(repository:repo,operation:.merge(state),cancellation:OperationCancellation(),preferences:preferences) {_ in}
+        probeFailure.model.inspectConflicts={_ in throw NSError(domain:"TurtleGit.SyncRecoveryQA",code:1,userInfo:[NSLocalizedDescriptionKey:"QA conflict inspection failed"])}
+        probeFailure.window!.alphaValue=0;probeFailure.window!.orderFront(nil);probeFailure.model.start()
+        try await wait{!probeFailure.model.busy && SynchronizationProgressModel.activeOperations == 0}
+        try require(probeFailure.model.captureRecovery() == nil && probeFailure.model.output.contains("QA conflict inspection failed") && probeFailure.model.currentWork.contains("exit code"),"Inspection failure clobbered the original failure or offered unverified recovery")
+        probeFailure.close()
+
+        // An old Git Abort question cannot cancel the later read. A new read question can.
+        preferences.set(true,forKey:"ConfirmKillProcess")
+        let gitGate=Gate(), readGate=Gate(), originalToken=OperationCancellation()
+        var readToken:OperationCancellation?, answers=[(Bool)->Void]()
+        let staged=SynchronizationProgressController(repository:repo,operation:.merge(state),cancellation:originalToken,preferences:preferences) {_ in}
+        staged.model.executeOperation={output in await gitGate.wait();return .merge(try await repo.run(["merge","--ff-only","--","HEAD"],onOutput:output))}
+        staged.model.inspectConflicts={token in readToken=token;await readGate.wait();return true}
+        staged.model.confirmCancel={answers.append($0)}
+        staged.window!.alphaValue=0;staged.window!.orderFront(nil);staged.model.start();try await wait{gitGate.entered}
+        staged.model.cancel();try require(answers.count == 1,"Git cancellation question missing")
+        gitGate.open();try await wait{readGate.entered}
+        answers[0](true);answers[0](true)
+        try require(!originalToken.isCancelled && readToken?.isCancelled == false && !staged.model.confirmingCancellation,"Late Git answer cancelled a replacement inspection")
+        staged.model.cancel();try require(answers.count == 2,"Inspection cancellation question missing")
+        answers[1](true);answers[1](true);try require(readToken?.isCancelled == true,"New inspection answer did not cancel its own read")
+        readGate.open();try await wait{!staged.model.busy && SynchronizationProgressModel.activeOperations == 0}
+        try require(staged.model.captureRecovery() == nil && !staged.model.cancelled && staged.model.currentWork.contains("exit code"),"Cancelled secondary read invented recovery or rewrote Git outcome")
+        staged.close()
+
+        let forcedGate=Gate();var forcedRead:OperationCancellation?, completed=0
+        let forced=SynchronizationProgressController(repository:repo,operation:.merge(state),cancellation:OperationCancellation(),preferences:preferences) {_ in completed += 1}
+        forced.model.inspectConflicts={token in forcedRead=token;await forcedGate.wait();return true}
+        forced.window!.alphaValue=0;forced.window!.orderFront(nil);forced.model.start();try await wait{forcedGate.entered}
+        forced.abortPresentation()
+        try require(forcedRead?.isCancelled == true && completed == 0 && SynchronizationProgressModel.activeOperations == 1,"Forced close released recovery inspection before real drain")
+        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Closed recovery inspection did not fence Quit")
+        forcedGate.open();try await wait{completed == 1 && SynchronizationProgressModel.activeOperations == 0}
+        try require(forced.model.captureRecovery() == nil && forced.model.completionRange == nil,"Retired probe published recovery/footer")
+        _=try await repo.run(["reset","--hard","HEAD"])
+        let noConflicts=SynchronizationProgressController(repository:repo,operation:.merge(state),cancellation:OperationCancellation(),preferences:preferences) {_ in}
+        noConflicts.model.executeOperation={output in .merge(try await repo.run(["merge","--ff-only","--","refs/heads/qa-missing"],onOutput:output))}
+        noConflicts.window!.alphaValue=0;noConflicts.window!.orderFront(nil);noConflicts.model.start()
+        try await wait{!noConflicts.model.busy && SynchronizationProgressModel.activeOperations == 0}
+        try require(!noConflicts.model.success && noConflicts.model.captureRecovery() == nil,"Non-conflict failure offered Resolve")
+        noConflicts.close()
+        try require(try Data(contentsOf:root.appendingPathComponent("file.txt")) == beforeFile,"Recovery inspection changed worktree bytes")
+        print("PASS Sync recovery: real ff-only failure/unmerged index, source Resolve-to-Commit handoff after drain, unchanged index/HEAD/working bytes, nested sheet/duplicate/retired receipts, secondary read error, old/new cancellation stage ownership, forced read drain/Quit/late footer and non-conflict refusal")
     }
 }

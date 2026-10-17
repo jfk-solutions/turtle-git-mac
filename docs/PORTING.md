@@ -2287,3 +2287,30 @@ The older hosted `Conflict menu choice lost Undo` timing was not reproduced by
 the local diagnostic, and a current hosted pass remains necessary. Complete
 physical input, source behavior and signed acceptance remain open. See
 [batch evidence](qa/merge-edit-history-2026-10-17.json).
+
+
+## Synchronization failure recovery and Commit handoff — October 17, 2026
+
+The source separate fast-forward failure callback now reads actual unmerged
+entries and offers Resolve with its original artwork. The native action closes
+the acknowledged progress result, drains the worker and calls the existing
+whole-project Commit route. Failure inspection has its own cancellable token;
+its errors or cancellation cannot rewrite the original Git result, exit-code
+footer or completion timestamp. No action is offered without confirmed conflicts.
+
+Captured recovery receipts reject nested-sheet, duplicate and retired clicks.
+Cancellation questions capture their current worker, so an old Git answer cannot
+cancel a replacement read. Forced closure cancels that read and retains lease,
+Quit guard and parent continuation until actual drain; late actions/footer stay
+retired. Windows' separate-process Commit launch is adapted to the app's existing
+acknowledged-result post-action route.
+
+One Debug build and the expanded connected native family pass on system and
+bundled Git. Actual Sync-to-Commit presentation retains conflicted index stage
+entries, HEAD and file bytes. Four raw light/dark captures were reviewed. Two
+fixture repairs selected the synchronous sheet overload and supplied an NSError
+with the intended localized diagnostic. No app/Core rebuild followed those
+fixture-only fixes. All three owned receivers were reaped and independently
+absent. Core was unchanged and not repeated. Physical/signed behavior, full
+Commit/Sync parity and current hosted CI remain open. See
+[batch evidence](qa/sync-recovery-2026-10-17.json).

@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": "src/TortoiseProc/SyncDlg.cpp fast-forward CProgressDlg::m_PostCmdCallback: status && HasWorkingTreeConflicts => Resolve icon/label launching /command:commit",
+  "scope": "Connected failed fast-forward inspection, retained outcome, captured source recovery handoff and cancellation-stage ownership; existing progress regression family included.",
+  "implemented": [
+    "Fresh cancellable actual unmerged-index inspection after failed separate fast-forward",
+    "Resolve source icon/label calls existing whole-project Commit after acknowledged progress close, worker drain and original parent-result delivery",
+    "Owner/revision receipts reject nested sheets, duplicate and retired actions; parent closed/Quit-confirmation guards retained",
+    "Secondary read failure/cancellation cannot replace original Git failure, exit code or Git completion time",
+    "Abort questions capture exact stage token; old response cannot cancel replacement inspection",
+    "Forced retirement cancels read, retains lease/global Quit accounting and parent continuation until drain, suppresses late recovery/footer"
+  ],
+  "adaptation": "Windows starts another TortoiseGitProc while retaining its modal result. macOS follows the existing native progress post-action route: close acknowledged result, return original failure, open Commit. No automatic stage/resolve/commit.",
+  "core": {
+    "changed": false,
+    "rerun": false
+  },
+  "build": {
+    "exit_code": 0,
+    "invocations": 1,
+    "log": "build/qa/sync-recovery-build-2026-10-17.log",
+    "warnings": "Existing actor/compiler warnings and three exit-zero/no-output diagnostics remain; no warning-free claim."
+  },
+  "native": {
+    "exit_code": 0,
+    "command": "python3 scripts/test-sync-child-progress.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git --recovery-captures docs/site/assets",
+    "log": "build/qa/sync-recovery-native-error-repair-2026-10-17.log",
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "receiver_pids": [
+      85340,
+      85517
+    ],
+    "all_attempt_receiver_pids": [
+      85105,
+      85340,
+      85517
+    ],
+    "independently_absent": true,
+    "cases": [
+      "Real unmerged index makes captured ff-only command fail with Git exit128; actual inspection offers Resolve",
+      "Actual Synchronization performFastForward child callback closes parent sheet, drains global worker count and opens real Commit with conflicted entry",
+      "Nested sheet does not consume receipt; accepted/duplicate/retired dispatch launches once",
+      "Index unmerged stage output, HEAD and file bytes retained across recovery handoff",
+      "Secondary inspection NSError retains original Git failure/footer; no unverified action",
+      "Old Git cancellation answer and duplicate cannot cancel replacement read; new read answer cancels its exact token",
+      "Cancelled read retains original Git failure and offers no recovery",
+      "Forced ignored-cancellation read keeps parent continuation/Quit guard until drain; no late action/footer",
+      "Actual non-conflict Git failure offers no Resolve",
+      "Existing tag Push/Fetch/rejection, captured auto-close, native Copy icons/private clipboard, Action log, parsed live progress, natural-success cancellation race and compact/forced cleanup retained"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/sync-recovery-native-2026-10-17.log",
+        "result": "Fixture compile failed selecting async beginSheet overload; zero receivers launched; added explicit completionHandler:nil."
+      },
+      {
+        "log": "build/qa/sync-recovery-native-repair-2026-10-17.log",
+        "result": "System receiver reached actual recovery/Commit captures, then injected CustomStringConvertible error did not produce expected localizedDescription; replaced with NSError localized message.",
+        "receiver_pid": 85105
+      },
+      {
+        "log": "build/qa/sync-recovery-native-error-repair-2026-10-17.log",
+        "result": "Both engines passed. No production change or app/Core rerun after fixture repairs."
+      }
+    ]
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/sync-recovery-commit-dark.png",
+      "width": 2000,
+      "height": 1584,
+      "sha256": "a4b93e575814d9de44a145e123772a894b4e80ffd49250e3c3d084c57cc12fba",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Real Git exit128/unmerged failure, colored diagnostics/footer, Resolve source icon and Close fit. Actual whole-project Commit shows conflicted file and normal options/source layout. Fixtures include private untracked QA files. Inactive bar remains gray and can be transitioning; no physical/error-bar color equivalence claim."
+    },
+    {
+      "path": "docs/site/assets/sync-recovery-commit-light.png",
+      "width": 2000,
+      "height": 1584,
+      "sha256": "c59fe4c140418a36ba6b59cd6fc7fcf461216b4618a8572da365e2fad9e009e0",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Real Git exit128/unmerged failure, colored diagnostics/footer, Resolve source icon and Close fit. Actual whole-project Commit shows conflicted file and normal options/source layout. Fixtures include private untracked QA files. Inactive bar remains gray and can be transitioning; no physical/error-bar color equivalence claim."
+    },
+    {
+      "path": "docs/site/assets/sync-recovery-conflict-dark.png",
+      "width": 1120,
+      "height": 600,
+      "sha256": "ff3fecb456decef84174653bb8c2cb3824b013934c44cf33adf05e3d75ed9678",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Real Git exit128/unmerged failure, colored diagnostics/footer, Resolve source icon and Close fit. Actual whole-project Commit shows conflicted file and normal options/source layout. Fixtures include private untracked QA files. Inactive bar remains gray and can be transitioning; no physical/error-bar color equivalence claim."
+    },
+    {
+      "path": "docs/site/assets/sync-recovery-conflict-light.png",
+      "width": 1120,
+      "height": 600,
+      "sha256": "b2fae9f531dba19fade57056f3cb63d83202172bffe8e506e76af3fc228bc7d0",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Real Git exit128/unmerged failure, colored diagnostics/footer, Resolve source icon and Close fit. Actual whole-project Commit shows conflicted file and normal options/source layout. Fixtures include private untracked QA files. Inactive bar remains gray and can be transitioning; no physical/error-bar color equivalence claim."
+    }
+  ],
+  "coverage": {
+    "new_control_mappings": 0,
+    "certified_dialogs": 0
+  },
+  "remaining": [
+    "Full current hosted CI, including prior Merge Undo and folding failures",
+    "Physical menu/keyboard/VoiceOver and source split-button/error bar equivalence",
+    "Signed security scopes, Finder/AppStore installed acceptance",
+    "Complete Commit/Sync/general progress/source dialog parity",
+    "Refresh earlier preview/archive at next distribution checkpoint"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "f4214bad84c3b304d043a0fd352ffd9f0eb03ec08408fb781f852989356e8df3",
+    "scripts/test-sync-child-progress.py": "64ba77ae5ddf14e47047e4e1c5fb43fe2bf1bdf74a10dc765a4f5181e4c9799a",
+    "docs/qa/sync-child-progress-native-2026-10-17.swift": "86077d4c3c02745a1d632d35edfad7f0fbe0f24098c85d23522b7ce5405e56f7"
+  }
+}
