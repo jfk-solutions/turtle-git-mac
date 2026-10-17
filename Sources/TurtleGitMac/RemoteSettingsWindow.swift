@@ -225,6 +225,7 @@ import TurtleGitCore
 }
 
 @MainActor final class RemoteSettingsNativeView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate {
+    private let wordCommands=GitInputWordCommands()
     let model: RemoteSettingsWindowModel
     let table = NSTableView()
     let remote = NSTextField(), url = NSTextField(), pushURL = NSTextField(), key = NSTextField(), sshKey = NSTextField()
@@ -308,6 +309,11 @@ import TurtleGitCore
     func numberOfRows(in tableView: NSTableView) -> Int { model.names.count }
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? { NSTextField(labelWithString: model.names[row].rawValue) }
     func tableViewSelectionDidChange(_ notification: Notification) { guard !updating else { return }; model.select(model.names.indices.contains(table.selectedRow) ? model.names[table.selectedRow] : nil) }
+    func control(_ control:NSControl,textView:NSTextView,doCommandBy selector:Selector)->Bool {
+        guard !updating,!model.closed,!model.busy,!model.hasChild,[remote,url,pushURL,key,sshKey].contains(where:{$0 === control}) else{return false}
+        wordCommands.policy=GitInputWordBreak(defaults:model.preferences)
+        return wordCommands.handle(control,text:textView,selector:selector,combo:false,owner:self)
+    }
     func controlTextDidChange(_ notification: Notification) {
         guard !updating, let field = notification.object as? NSTextField else { return }; let value = field.stringValue
         if field === remote { model.edit(.name) { $0.name = value } }; if field === url { model.edit(.url) { $0.url = value } }; if field === pushURL { model.edit(.pushURL) { $0.pushURL = value } }; if field === key { model.edit(.puttyKeyFile) { $0.puttyKeyFile = value } }

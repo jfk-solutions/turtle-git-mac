@@ -48,3 +48,25 @@ full application or signed Finder/App Store parity.
 [Batch evidence](qa/input-word-navigation-2026-10-17.json) records the first-pass
 11 Core cases, build and eight native family/engine checks, including receiver
 ownership and the precise remaining acceptance scope.
+
+## Revision, reference and prompt continuation — October 17, 2026
+
+The same policy now reaches the shared revision selector used by Switch/Branch/
+Tag/Worktree, Merge Open path fields, Remote name/URL/key fields, Merge Find's
+search/replacement histories, Graph/Log Find search and reference fields,
+containing-reference revision/filter fields, Browse References inline branch
+rename, and Log revision/path filters. Existing Return/Escape routes remain
+separate: submitting a query or cancelling a rename still performs its original
+action. Owner, loading, picker and edit availability gates apply before custom
+word commands.
+
+A controller can own several fields sharing AppKit's field editor. Navigation
+state now also records the actual input control; moving to another field abandons
+the earlier anchor even when its editor, raw text and selected range are identical.
+The connected native cases check that transition without replacing the editor.
+Arbitrary SwiftUI text fields and mouse word selection remain outside this scope.
+
+[Continuation evidence](qa/input-word-consumers-2026-10-17.json) records four
+passing native case/engine groups, the three fixture setup repairs and all seven
+receivers independently absent. The app build passed without repair; Core was
+unchanged. Full physical/signed acceptance remains open.

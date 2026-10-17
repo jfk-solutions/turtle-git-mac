@@ -981,6 +981,7 @@ final class RevisionGraphFindWindow: NSWindow {
     let status = NSTextField(labelWithString: "")
     private let repository: GitRepository
     private let access: RepositoryAccessLease?
+    private let wordCommands=GitInputWordCommands()
     private let preferences: UserDefaults
     private let regexExecutable: URL?
     var snapshot: () -> [RevisionGraphNode] = { [] }
@@ -1107,6 +1108,11 @@ final class RevisionGraphFindWindow: NSWindow {
         findButton.isEnabled = enabled && !searchBox.stringValue.isEmpty
         searchBox.isEnabled = enabled; matchCase.isEnabled = enabled; regex.isEnabled = enabled
         table.isEnabled = enabled; referenceFilter.isEnabled = !closed && !loadingReferences && !acknowledgingFailure
+    }
+    func control(_ control:NSControl,textView:NSTextView,doCommandBy selector:Selector)->Bool {
+        guard !closed,!busy,!loadingReferences,!acknowledgingFailure,control === searchBox || control === referenceFilter else{return false}
+        wordCommands.policy=GitInputWordBreak(defaults:preferences)
+        return wordCommands.handle(control,text:textView,selector:selector,combo:control === searchBox,owner:self)
     }
     func controlTextDidChange(_ notification: Notification) {
         if notification.object as? NSTextField === referenceFilter {

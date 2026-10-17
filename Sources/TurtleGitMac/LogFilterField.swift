@@ -21,6 +21,7 @@ struct LogFilterField: NSViewRepresentable {
         coordinator.retired = true; coordinator.menuGeneration = UUID(); field.delegate = nil; field.target = nil
     }
     @MainActor final class Coordinator: NSObject, NSSearchFieldDelegate {
+        private let wordCommands=GitInputWordCommands()
         weak var field: NSSearchField?
         let model: LogWindowModel, kind: Kind
         var retired = false, menuGeneration = UUID()
@@ -84,7 +85,8 @@ struct LogFilterField: NSViewRepresentable {
             guard available, let field, !textView.hasMarkedText() else { return false }
             if command == #selector(NSResponder.insertNewline(_:)) { change(field.stringValue, submit: true); return true }
             if command == #selector(NSResponder.cancelOperation(_:)), !field.stringValue.isEmpty { field.stringValue = ""; change("", submit: true); return true }
-            return false
+            wordCommands.policy=GitInputWordBreak(defaults:model.colorPreferences)
+            return wordCommands.handle(control,text:textView,selector:command,combo:false,owner:self)
         }
     }
 }

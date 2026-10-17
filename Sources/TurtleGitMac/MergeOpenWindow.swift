@@ -30,6 +30,7 @@ import TurtleGitCore
     let ok = NSButton(title: "OK", target: nil, action: nil)
     private var browseButtons: [Slot: NSButton] = [:]
     private var grants: [RepositoryAccessLease]
+    private let wordCommands=GitInputWordCommands()
     private let preferences: UserDefaults
     private let pasteboard: NSPasteboard
     private var picker: NSOpenPanel?
@@ -134,6 +135,11 @@ import TurtleGitCore
             if text.hasPrefix("~"), full.hasPrefix(NSHomeDirectory()+"/") { return "~" + full.dropFirst(NSHomeDirectory().count) }
             return full
         }
+    }
+    func control(_ control:NSControl,textView:NSTextView,doCommandBy selector:Selector)->Bool {
+        guard !retired,!busy,!accepting,Slot.allCases.contains(where:{field($0) === control}) else{return false}
+        wordCommands.policy=GitInputWordBreak(defaults:preferences)
+        return wordCommands.handle(control,text:textView,selector:selector,combo:false,owner:self)
     }
     func control(_ control: NSControl, textView: NSTextView, completions words: [String], forPartialWordRange range: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String] {
         guard !retired, !busy, !accepting, let slot = Slot.allCases.first(where:{ field($0) === control }), field(slot).isEnabled, range.location != NSNotFound, NSMaxRange(range) <= (textView.string as NSString).length else { return [] }

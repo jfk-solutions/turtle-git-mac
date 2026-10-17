@@ -221,6 +221,7 @@ private final class MergeFindNativeWindow: NSWindow {
 /// Modeless, pane-local counterpart of IDD_FIND and CFindDlg.
 @MainActor final class MergeFindWindowController: NSWindowController, NSWindowDelegate, NSComboBoxDelegate, NSTextFieldDelegate {
     private weak var text: NSTextView?
+    private let wordCommands=GitInputWordCommands()
     private let defaults: UserDefaults
     private weak var ownerWindow: NSWindow?
     private var retired = false, ownerClosing = false, seeded = false
@@ -329,6 +330,11 @@ private final class MergeFindNativeWindow: NSWindow {
         replaceButton.isEnabled = findButton.isEnabled && writable; replaceAllButton.isEnabled = replaceButton.isEnabled
     }
     func comboBoxSelectionDidChange(_ notification: Notification) { updateGates() }
+    func control(_ control:NSControl,textView:NSTextView,doCommandBy selector:Selector)->Bool {
+        guard !retired,!ownerClosing,control === search || control === replacement else{return false}
+        wordCommands.policy=GitInputWordBreak(defaults:defaults)
+        return wordCommands.handle(control,text:textView,selector:selector,combo:true,owner:self)
+    }
     func controlTextDidChange(_ notification: Notification) { updateGates() }
     func present(show: Bool = true) {
         guard allowed, let text, let window, let ownerWindow else { return }

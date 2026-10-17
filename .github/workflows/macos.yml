@@ -403,6 +403,8 @@ jobs:
         run: python3 scripts/test-merge-regex-source.py
       - name: Native Encoding source sheet and editor transactions
         run: python3 scripts/test-merge-format-source.py
+      - name: Native revision and prompt word-command consumers
+        run: python3 scripts/test-input-word-consumers.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native URL and path input word commands
         run: python3 scripts/test-input-word-navigation.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native prefixed command and progress failure diagnostics

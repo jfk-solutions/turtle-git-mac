@@ -17,6 +17,7 @@ private final class CommitReferencesWindow: NSWindow {
 @MainActor final class CommitContainingReferencesWindowController: NSWindowController, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSComboBoxDelegate, NSSearchFieldDelegate {
     let repository: GitRepository
     let access: RepositoryAccessLease?
+    private let wordCommands=GitInputWordCommands()
     let preferences: UserDefaults
     let revision = NSComboBox()
     let subject = NSTextField(labelWithString: "")
@@ -152,7 +153,9 @@ private final class CommitReferencesWindow: NSWindow {
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         if commandSelector == #selector(NSResponder.cancelOperation(_:)), control === filter, !filter.stringValue.isEmpty { filter.stringValue = ""; applyFilter(); return true }
         if commandSelector == #selector(NSResponder.insertNewline(_:)), control === revision { refresh(); return true }
-        return false
+        guard !closed,!busy,picker == nil,control === revision || control === filter else{return false}
+        wordCommands.policy=GitInputWordBreak(defaults:preferences)
+        return wordCommands.handle(control,text:textView,selector:commandSelector,combo:control === revision,owner:self)
     }
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {

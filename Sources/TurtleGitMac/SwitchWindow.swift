@@ -807,6 +807,7 @@ enum RevisionSessionChoices {
 // Editable session combo from CChooseVersion. No registry/history persistence.
 struct VersionRevisionField: NSViewRepresentable {
     @Binding var text: String
+    @AppStorage("UseCustomWordBreak") private var wordBreakMode=2
     var choices: [String] = []
     var accessibilityLabel = "Switch commit revision"
     let focusRequest: Int
@@ -819,13 +820,19 @@ struct VersionRevisionField: NSViewRepresentable {
         field.delegate = context.coordinator; return field
     }
     func updateNSView(_ field: NSComboBox, context: Context) {
+        context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         context.coordinator.configure(field, text: text, choices: choices, enabled: enabled) { text = $0 }
         if focusRequest > 0 { DispatchQueue.main.async { [weak field, weak coordinator = context.coordinator] in
             guard let field, let coordinator, !coordinator.retired, field.isEnabled else { return }; onFocus(field)
         } }
     }
     static func dismantleNSView(_ field: NSComboBox, coordinator: Coordinator) { coordinator.retire(field) }
-    final class Coordinator: NSObject, NSComboBoxDelegate {
+    @MainActor final class Coordinator: NSObject, NSComboBoxDelegate {
+        let wordCommands=GitInputWordCommands()
+        func control(_ control:NSControl,textView:NSTextView,doCommandBy selector:Selector)->Bool {
+            guard !retired else{return false}
+            return wordCommands.handle(control,text:textView,selector:selector,combo:true,owner:self)
+        }
         private var choices: [String] = []
         private(set) var retired = false
         var change: (String) -> Void = { _ in }

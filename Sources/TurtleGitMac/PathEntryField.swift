@@ -257,6 +257,7 @@ struct PathEntryField: NSViewRepresentable {
 @MainActor final class GitInputWordCommands {
     var policy=GitInputWordBreak()
     private weak var editor:NSTextView?
+    private weak var input:NSControl?
     private var anchor:Int?,caret:Int?
     private var expected:NSRange?
     private var content:Data?
@@ -271,7 +272,7 @@ struct PathEntryField: NSViewRepresentable {
         let forward=forwards.contains(command),selection=text.selectedRange(),length=text.string.utf16.count
         guard selection.location<=length,selection.length<=length-selection.location else {reset();return false}
         let bytes=Data(text.string.utf8)
-        if editor !== text || expected != selection || content != bytes {anchor=nil;caret=nil};editor=text;content=bytes
+        if input !== control || editor !== text || expected != selection || content != bytes {anchor=nil;caret=nil};input=control;editor=text;content=bytes
         let deleting=command.hasPrefix("delete"),extending=command.contains("AndModifySelection")
         if deleting {
             guard field.isEditable,text.isEditable else {return false}
@@ -296,5 +297,5 @@ struct PathEntryField: NSViewRepresentable {
         text.setSelectedRange(range);text.scrollRangeToVisible(range);expected=range
         return true
     }
-    func reset() {editor=nil;anchor=nil;caret=nil;expected=nil;content=nil}
+    func reset() {input=nil;editor=nil;anchor=nil;caret=nil;expected=nil;content=nil}
 }

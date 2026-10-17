@@ -860,6 +860,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
     static func dismantleNSView(_ split: NSSplitView, coordinator: Coordinator) { coordinator.retired = true;split.delegate = nil; coordinator.tree?.delegate = nil; coordinator.tree?.dataSource = nil; coordinator.tree?.menu?.delegate = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.menu?.delegate = nil;(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.buildMenu = { nil };(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.fit = {_,_ in} }
     @MainActor final class Folder: NSObject { let key: GitReferenceName; var children: [Folder] = []; weak var parent: Folder?; init(_ key: GitReferenceName) { self.key = key } }
     @MainActor final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate, NSMenuDelegate, NSSplitViewDelegate {
+        private let wordCommands=GitInputWordCommands()
         var model: ReferenceBrowserWindowModel
         weak var tree: NSOutlineView?; weak var table: NSTableView?
         private var paths: [GitReferenceName] = [], folders: [GitReferenceName: Folder] = [:], visible: [ReferenceBrowserRow] = []
@@ -1004,7 +1005,9 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             if commandSelector == NSSelectorFromString("insertNewline:") {
                 let label = renameField?.stringValue ?? ""; renameField?.delegate = nil; model.commitRename(label); return true
             }
-            return false
+            guard !retired,!model.busy else{return false}
+            wordCommands.policy=GitInputWordBreak(defaults:model.preferences)
+            return wordCommands.handle(control,text:textView,selector:commandSelector,combo:false,owner:self)
         }
         func controlTextDidEndEditing(_ notification: Notification) {
             guard let field = notification.object as? NSTextField, field === renameField, model.renameReference != nil, !model.busy else { return }

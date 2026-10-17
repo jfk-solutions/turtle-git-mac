@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "df3b6c29",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "src/Utils/MiscUI/EditWordBreak.cpp": "edf8f7eadccacdf220c54a9c08ea7e33fc1b0c79",
+    "src/Utils/MiscUI/StandAloneDlg.h": "9318dc83e07aaefdd8890ac66ffcd4c1f7ad39b4"
+  },
+  "scope": "Native word commands across shared revision selector, Merge Open, Remote, Merge Find, Graph/Log Find, containing refs, reference rename and Log filters; input identity for shared field editors.",
+  "validation": {
+    "core": "Unchanged; no Core tests repeated.",
+    "build": {
+      "log": "build/qa/input-word-consumers-build-2026-10-17.log",
+      "exit_code": 0,
+      "first_run": true,
+      "diagnostics": "Existing simulator, exit-zero frontend and Swift warnings remain; no clean-diagnostics claim."
+    },
+    "native": {
+      "passed": 4,
+      "log": "build/qa/input-word-consumers-complete-native-2026-10-17.log",
+      "cases": [
+        "new native consumers system Git",
+        "new native consumers bundled Git",
+        "retained input navigation system Git",
+        "retained input navigation bundled Git"
+      ],
+      "details": "Actual controller fields, source component caret stops, live mode zero/one/two distinctions, identical text/range in two Remote fields sharing the same native editor, preserved containing-ref and rename Escape, writable Merge Find replacement input, original path/author/history/Bisect deletion/binding/Undo/IME/hidden checks and unchanged HEAD/index/config/refs."
+    },
+    "owned_receiver_pids": [
+      87604,
+      87718,
+      87817,
+      87932,
+      87991,
+      88057,
+      88085
+    ],
+    "independently_absent": true,
+    "documentation": {
+      "documents": 284,
+      "unresolved_fragments": [],
+      "log": "build/qa/input-word-consumers-site-2026-10-17.log",
+      "localizations": "38 languages / 1240 keys; --check passed",
+      "workflow_yaml": "Psych parse passed",
+      "coverage": "130 dialogs; 120 partial family audits, 10 pending, 0 certified; 1566 mapped controls, 93 pending reviews",
+      "diff_check": "passed"
+    }
+  },
+  "fixture_repairs": [
+    {
+      "log": "build/qa/input-word-consumers-native-2026-10-17.log",
+      "reason": "Containing-reference owner was opened without its normal refresh; now calls refresh(reloadCompletion:true)."
+    },
+    {
+      "log": "build/qa/input-word-consumers-final-native-2026-10-17.log",
+      "reason": "Fixture reselected an already active inline rename editor and then could not dispatch its word command. The adapter now retains the existing editor instead of refocusing it; subsequent rename and Escape checks pass."
+    },
+    {
+      "log": "build/qa/input-word-consumers-owner-native-2026-10-17.log",
+      "reason": "Merge Find was constructed without its normal provider registration/presentation/readiness route. Fixture now waits mergeFindAllowed, registers mergeFindController and calls present(show:false); search/replacement checks pass."
+    }
+  ],
+  "limitations": [
+    "Initial and final receivers emit existing NSSplitView zero-bounds diagnostic; it is recorded, not treated as a clean run.",
+    "No new layout or screenshots; native input behavior changed.",
+    "Other standalone/SwiftUI text fields, mouse word selection, physical keyboard/VoiceOver and all locales remain open.",
+    "Complete source dialog and signed Finder/App Store acceptance remain open.",
+    "Last observed hosted d1bb278f job 117445446520 remained live in Git integration step 60; latest main validation was pending. No full hosted pass claimed."
+  ]
+}
