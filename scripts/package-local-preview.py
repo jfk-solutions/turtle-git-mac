@@ -11,6 +11,8 @@ import subprocess
 import sys
 import tempfile
 from preview_signing import signing_plan
+from distribution_archive import file_inventory
+from distribution_provenance import verify_candidate, require_same_bundle
 
 ROOT = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser(description=__doc__)
@@ -21,6 +23,8 @@ audit = json.loads(args.audit.read_text())
 if audit.get('kind') != 'TurtleGitUnsignedDistributionAudit' or audit.get('configuration') != 'Release':
     raise SystemExit('Use a successful Release build-distribution.py audit.')
 source = Path(audit['app']).resolve(strict=True)
+if source.suffix != '.app': raise SystemExit('Expected an application bundle.')
+packaging_inputs = verify_candidate(audit, ROOT, source)
 for name, expected in audit['code_sha256'].items():
     if hashlib.sha256((source / name).read_bytes()).hexdigest() != expected:
         raise SystemExit('Release code changed since its audit: ' + name)
@@ -36,6 +40,7 @@ with tempfile.TemporaryDirectory(prefix='.TurtleGitPreview-', dir=output.parent)
     package.mkdir()
     app = package / 'TurtleGitMac.app'
     subprocess.run(['/usr/bin/ditto', str(source), str(app)], check=True)
+    require_same_bundle(audit['bundle_files'], app)
     runtime_code = {item['destination'] for item in layout['code'].values()}
     payloads, bundles = signing_plan(app, runtime_code)
     for path in [*payloads, *bundles]:
@@ -50,6 +55,8 @@ with tempfile.TemporaryDirectory(prefix='.TurtleGitPreview-', dir=output.parent)
     roundtrip = Path(temporary) / 'roundtrip'
     subprocess.run(['/usr/bin/ditto', '-x', '-k', str(archive), str(roundtrip)], check=True)
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(roundtrip / app.name)], check=True)
+    signed_files = file_inventory(app)
+    require_same_bundle(signed_files, roundtrip / app.name)
     shutil.rmtree(roundtrip)
     hasher = hashlib.sha256()
     with archive.open('rb') as stream:
@@ -79,13 +86,17 @@ with tempfile.TemporaryDirectory(prefix='.TurtleGitPreview-', dir=output.parent)
         'kind': 'TurtleGitLocalPreview', 'created_at': datetime.now(timezone.utc).isoformat(),
         'version': version, 'build': info['CFBundleVersion'],
         'workspace_commit_at_packaging': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
-        'source_audit': audit, 'zip': archive.name, 'sha256': digest,
+        'source_audit': audit, 'build_input_sha256': packaging_inputs['sha256'],
+        'git_head_at_build': audit['build_inputs']['git_head_at_measurement'],
+        'dirty_build_inputs': audit['build_inputs']['dirty_inputs'],
+        'signed_bundle_files': signed_files, 'zip': archive.name, 'sha256': digest,
         'code_seal': 'ad-hoc; deep strict verification passed on app and extracted ZIP',
         'universal_bundle_and_cache_layout': 'passed',
         'launch_and_physical_Finder_acceptance': 'not performed',
         'developer_id_notarization_app_store': 'not performed',
     }
     (package / 'preview-manifest.json').write_text(json.dumps(record, indent=2) + '\n')
+    verify_candidate(audit, ROOT, source)
     package.rename(output)
 print('Local preview:', output)
 print('No installation, GUI launch, registration, upload or submission was performed.')

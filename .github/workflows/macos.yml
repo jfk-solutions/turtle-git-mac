@@ -305,6 +305,8 @@ jobs:
         run: python3 scripts/test-finder-control-source-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Project dialog source forms and owned icon chooser
         run: python3 scripts/test-project-dialog-source-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Distribution source and bundle provenance
+        run: python3 scripts/test-distribution-provenance.py
       - name: Native Apple support report review and export
         run: python3 scripts/test-support-report-family.py
       - name: Pinned About banner water-effect oracle

@@ -57,6 +57,27 @@ A thin development build cannot pass distribution acceptance merely because
 its Git runtime is universal. Architecture checks inspect binaries without
 launching the app or registering the Finder/cache service.
 
+## Candidate provenance and preview freshness
+
+Distribution audits now retain a fingerprint of repository build inputs measured
+before and after the build: Sources, Configuration, the Xcode project, Package
+files, LICENSE, NOTICE and scripts. Tracked/untracked files, deletions, modes and
+contained file aliases are measured. HEAD at measurement and dirty input state
+remain explicit; a docs-only commit does not relabel the original build revision.
+This is a bounded input check, not a claim of a hermetic or bit-reproducible build.
+
+The app audit inventories every candidate bundle file, mode and portable alias;
+the archive audit includes its products and matching dSYMs. Both retain the
+measured build inputs.
+`--audit-existing` requires its original complete audit and unchanged measured
+inputs/bundle; legacy executable-only audits require one rebuild. Local preview
+packaging refuses stale inputs or any changed bundle resource before copying,
+checks the unsigned copy before signing, and compares the signed app against its
+extracted ZIP. It rechecks the source candidate before publishing the fresh output
+directory. The preview manifest retains the build revision, input fingerprint,
+dirty state and signed bundle inventory. It does not claim signing, sandbox or
+App Store acceptance from those hashes.
+
 This verifies compilation and unsigned packaging only. An unsigned AppStore configuration does not prove
 sandbox permissions, inherited child-process access or App Review eligibility.
 The build phase embeds the prepared runtime into AppStore bundles and fails if
