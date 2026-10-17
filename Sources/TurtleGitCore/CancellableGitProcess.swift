@@ -104,8 +104,11 @@ enum CancellableGitProcess {
 }
 
 public struct GitCommandCancellationFailure: LocalizedError, Sendable {
-    public let result: GitResult
-    public var errorDescription: String? { "Operation cancelled." }
+    public let result:GitResult
+    public let outputWasDelivered:Bool
+    public init(result:GitResult,outputWasDelivered:Bool=false) {self.result=result;self.outputWasDelivered=outputWasDelivered}
+    public var errorDescription:String? {"Operation cancelled."}
+    public func markingOutputDelivered()->Self {.init(result:result,outputWasDelivered:true)}
 }
 
 /// Shell-free external comparison tool. Start reports a successful spawn; completion

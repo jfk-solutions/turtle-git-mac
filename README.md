@@ -66,6 +66,9 @@ retains mixed encodings and opaque bytes through edits, Save/Save As and Undo.
 [Patch filename handling](docs/PATCH-PATH-IDENTITY.md) covers renamed-file recovery,
 exact Unicode metadata and serial-import drop ordering/duplicate rules.
 
+[Command and progress diagnostics](docs/PROGRESS-DIAGNOSTICS.md) explains named
+failures, bounded output and retained raw recovery results.
+
 ## Build and run
 
 Requires Xcode with its macOS SDK and command-line tools, Python 3, CMake and Git.

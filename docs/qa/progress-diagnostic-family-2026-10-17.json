@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "f60f0b86",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/GitCliOutputParser.cpp": "719cd542dbb77314dedca6f28f6ad1c29eb43421",
+    "git-2.55.0.tar.xz": "457fdb04dc8728e007d4688695e6912e6f680727920f2a40bf11eacc17505357"
+  },
+  "scope": "Connected command identity, credential/replay routing and bounded local/transport progress failures, raw recovery results, cancellation and exact Unicode native output.",
+  "validation": {
+    "core": {
+      "cases": 26,
+      "failures": 0,
+      "log": "build/qa/progress-diagnostic-core-final-2026-10-17.log",
+      "suites": [
+        "GitCommandDiagnosticTests",
+        "GitAskpassTests",
+        "SSHAskpassTests",
+        "GitProcessExitTests",
+        "GitProcessCancellationTests",
+        "GitCommandPresentationTests"
+      ]
+    },
+    "build": {
+      "log": "build/qa/progress-diagnostic-build-2026-10-17.log",
+      "exit_code": 0,
+      "limitations": "Existing simulator/Swift warnings remain; success is not a clean-diagnostics claim."
+    },
+    "native": {
+      "passed": 12,
+      "families": [
+        "new connected diagnostics",
+        "Merge/Fetch ff-only stream",
+        "Fetch/Pull stream",
+        "Push stream",
+        "Clone stream",
+        "Format Patch stream"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "logs": [
+        "build/qa/progress-diagnostic-native-initial-2026-10-17.log",
+        "build/qa/progress-diagnostic-native-2026-10-17.log",
+        "build/qa/progress-diagnostic-push-diagnostic-2026-10-17.log",
+        "build/qa/progress-diagnostic-native-remaining-2026-10-17.log"
+      ],
+      "details": "Native Stash failure result, captured 16 KiB policy after preference changes, late nonstreamed failure, full live raw tail without visible duplication, owned process cancellation, exact Unicode redraw/Copy All, private action log; retained transport real repository effects and recovery."
+    },
+    "owned_receiver_pids": [
+      80820,
+      80886,
+      80906,
+      80945,
+      81143,
+      81350,
+      81505,
+      81695,
+      81878,
+      81996,
+      82204,
+      82422,
+      82516,
+      82622,
+      82691
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/progress-diagnostic-light.png",
+        "sha256": "f1e5d94a239d06924d6398f24c00db30912c513742b01282b650cf72e6d554b3",
+        "width": 1520,
+        "height": 984,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/progress-diagnostic-dark.png",
+        "sha256": "c1f6a3b1bd55fad4fea04a0286d1622ea92cf2b2e34f2f161e3b30bf667729ef",
+        "width": 1520,
+        "height": 984,
+        "individually_viewed": true
+      }
+    ],
+    "documentation": {
+      "documents": 282,
+      "unresolved_fragments": [],
+      "log": "build/qa/progress-diagnostic-site-2026-10-17.log",
+      "localizations": "38 languages, 1240 keys; --check passed",
+      "workflow_yaml": "Psych parse passed",
+      "coverage": "130 dialogs; 120 partial family audits, 10 pending, 0 certified; 1566 mapped controls and 93 pending reviews",
+      "diff_check": "passed"
+    }
+  },
+  "failed_attempts": [
+    {
+      "logs": [
+        "build/qa/progress-diagnostic-core-2026-10-17.log",
+        "build/qa/progress-diagnostic-core-repair-2026-10-17.log"
+      ],
+      "reason": "Swift compiler failed to diagnose conditional callback expression; explicit if/else assignment compiled and all 26 checks passed."
+    },
+    {
+      "log": "build/qa/progress-diagnostic-native-initial-2026-10-17.log",
+      "reason": "Capture fixture expected minimum 650x350 but Stash default window was 520x312. Capture now sizes the actual window to 760x460 content; no product layout change."
+    },
+    {
+      "logs": [
+        "build/qa/progress-diagnostic-native-2026-10-17.log",
+        "build/qa/progress-diagnostic-push-diagnostic-2026-10-17.log"
+      ],
+      "reason": "Push stream helper assumed command at argument four, missing the existing -c core.precomposeunicode=false prefix. Added call-site timeout diagnostics, corrected trigger and retained assertions; both engines passed."
+    }
+  ],
+  "hosted_observation": {
+    "pages_f60f0b86": "39046568550 success",
+    "macos_f60f0b86": "39046568545 pending",
+    "macos_7ac0327d": "39043881354 in progress; job 117431638109 advanced to Project dialog source forms step 73"
+  },
+  "limitations": [
+    "No full hosted CI pass established",
+    "Physical menus/keyboard/pointer/VoiceOver, authenticated network failures and signed sandbox/Finder installation remain open",
+    "Unknown Git global options stop identification; no alias expansion",
+    "Generic non-Git application errors retain caller fallback preferences",
+    "Complete progress-dialog/source parity remains open"
+  ]
+}

@@ -998,11 +998,7 @@ extension GitRepository {
 // Cancellation resets on every return/throw; later recovery reads use fresh input.
 extension GitRepository {
     func replayCommandOutput(_ arguments: [String]) -> (@Sendable (GitOutputChunk) -> Void)? {
-        var index = 0
-        while index < arguments.count, arguments[index].hasPrefix("-") {
-            index += ["-c", "-C", "--git-dir", "--work-tree"].contains(arguments[index]) ? 2 : 1
-        }
-        guard index < arguments.count, ["rebase", "commit", "reset", "cherry-pick"].contains(arguments[index]) else { return nil }
+        guard let command=GitCommandIdentity(arguments).command,["rebase","commit","reset","cherry-pick"].contains(command) else{return nil}
         return replayOutput
     }
     private func replayUncancelled<T>(_ operation: () throws -> T) throws -> T {

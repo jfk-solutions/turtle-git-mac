@@ -25,6 +25,7 @@ for baseline and update rules.
 - [Contextual Help source comparison](HELP-PARITY.md)
 - [Dialog guide](DIALOG-GUIDE.md)
 - [Git LFS locks](LFS.md)
+- [Command identity and progress failures](PROGRESS-DIAGNOSTICS.md)
 - [Saved progress action log](ACTION-LOG.md)
 - [Saved Data settings](SAVED-DATA.md)
 - [Dialog sizes and positions](DIALOG-GEOMETRY.md)

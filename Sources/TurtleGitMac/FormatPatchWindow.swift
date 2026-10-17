@@ -377,7 +377,7 @@ import TurtleGitCore
                 consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
                 let result = try await operation.value
                 guard !invalidated else { return }
-                guard !token.isCancelled else { cancelled = true; appendDiagnostic("Operation cancelled. Any patches written before cancellation remain in the output directory."); return }
+                guard !token.isCancelled else {cancelled=true;presentFailure(OperationCancellationFailure.cancelled,context:"Any patches written before cancellation remain in the output directory.");return}
                 if !outputState.hasOutput { appendDiagnostic("No patches created for this selection.") }
                 // Use the full stdout, independently of the visible output limit.
                 // A newline in the directory remains literal; Git sanitizes names.
@@ -391,16 +391,18 @@ import TurtleGitCore
                 success = true; exitCode = 0
             } catch let failure as GitCommandCancellationFailure {
                 cancelled = true; exitCode = failure.result.exitCode
-                if !invalidated { appendDiagnostic("Operation cancelled. Any patches written before cancellation remain in the output directory.") }
-            } catch is OperationCancellationFailure {
+                if !invalidated {presentFailure(failure,context:"Any patches written before cancellation remain in the output directory.")}
+            } catch let failure as OperationCancellationFailure {
                 cancelled = true
-                if !invalidated { appendDiagnostic("Operation cancelled. Any patches written before cancellation remain in the output directory.") }
+                if !invalidated {presentFailure(failure,context:"Any patches written before cancellation remain in the output directory.")}
             } catch {
                 exitCode = (error as? GitFailure)?.code
-                let alreadyStreamed = outputState.hasOutput && (error as? GitFailure)?.arguments.first == "format-patch"
-                if !invalidated && !alreadyStreamed { appendDiagnostic(error.localizedDescription) }
+                if !invalidated {presentFailure(error)}
             }
         }
+    }
+    private func presentFailure(_ error:Error,context:String="") {
+        outputState.presentFailure(error,context:context);output=outputState.output;currentWork=outputState.currentWork;percentage=outputState.percentage
     }
     private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
         guard !invalidated else { return }

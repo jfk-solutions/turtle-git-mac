@@ -737,16 +737,14 @@ enum PushPostAction: String, Hashable {
     }
     func complete(output: String, success: Bool, cancelled: Bool, failure: PushExecutionFailure? = nil) {
         guard busy else { return }
-        if displayedBytes.isEmpty { self.output = output }
-        else if !success {
-            // Keep live stderr and CR replacement; classify recovery using the full
-            // raw result below, even if the visible log has reached its limit.
-            let summary: String
-            if let failure {
-                let details = failure.commandFailure.map { "Git command failed (\($0.code))." } ?? failure.details
-                summary = (failure.completed.isEmpty ? "" : "Completed: " + failure.completed.joined(separator: ", ") + ".\n") + "Push to \(failure.failedRemote) failed.\n" + details
-            } else { summary = output }
-            self.output += (self.output.hasSuffix("\n") ? "" : "\n") + String(decoding: Data(summary.utf8).prefix(8192), as: UTF8.self)
+        if success {
+            if displayedBytes.isEmpty {self.output=GitProgressFailureOutput.renderDetails(output,existing:"",limit:outputLimit)}
+        } else if let failure {
+            let context=(failure.completed.isEmpty ? "":"Completed: "+failure.completed.joined(separator:", ")+".\n")+"Push to \(failure.failedRemote) failed."
+            if let command=failure.commandFailure {self.output=GitProgressFailureOutput.render(command,existing:self.output,limit:outputLimit,context:context)}
+            else {self.output=GitProgressFailureOutput.renderDetails(failure.details,existing:self.output,limit:outputLimit,status:context,preferTail:true)}
+        } else {
+            self.output=GitProgressFailureOutput.renderDetails(output,existing:self.output,limit:outputLimit,status:cancelled ? "Operation cancelled.":"",preferTail:true)
         }
         self.success = success; self.cancelled = cancelled
         if success { postActions = [.requestPull, .push, .switchBranch]; if superproject != nil { postActions.append(.commitSuperproject) } }

@@ -166,3 +166,11 @@ inspection preserves the original failure and retains worker/lease/Quit ownershi
 late cancellation replies cannot target a replacement stage. Grouped system/bundled
 Git native checks and actual light/dark handoff captures pass. Full generic progress
 and physical/signed acceptance remain open.
+
+
+## Connected command diagnostics — October 17, 2026
+
+[Command identity and failure delivery](PROGRESS-DIAGNOSTICS.md) connects local
+progress and transport consumers, preserves raw recovery results and keeps
+completion diagnostics within the captured output limit. Full progress-dialog
+parity and physical/signed acceptance remain open.

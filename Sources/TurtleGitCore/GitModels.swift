@@ -158,11 +158,75 @@ public struct LogEntry: Identifiable, Sendable {
     }
 }
 
+/// Parse Git's own global-option grammar before identifying an operation.
+/// Values and positional paths never become command/configuration identities.
+public struct GitCommandIdentity:Sendable {
+    public let command:String?
+    public let arguments:[String]
+    public let configurationKeys:[String]
+    public init(_ argv:[String]) {
+        var index=0,keys:[String]=[],found:String?,tail:[String]=[]
+        let values:Set<String>=["-c","-C","--git-dir","--work-tree","--namespace","--config-env","--shallow-file","--attr-source"]
+        let flags:Set<String>=["-p","--paginate","-P","--no-pager","--no-lazy-fetch","--no-replace-objects","--bare","--literal-pathspecs","--no-literal-pathspecs","--glob-pathspecs","--noglob-pathspecs","--icase-pathspecs","--no-optional-locks","--no-advice"]
+        func configKey(_ value:String) {keys.append(String(value.prefix{ $0 != "=" }).lowercased())}
+        while index<argv.count {
+            let token=argv[index]
+            if !token.hasPrefix("-") {found=token;tail=Array(argv.dropFirst(index+1));break}
+            if ["--help","-h","--version","-v"].contains(token) {found=["--help","-h"].contains(token) ? "help":"version";tail=Array(argv.dropFirst(index+1));break}
+            if flags.contains(token) {index+=1;continue}
+            if values.contains(token) {
+                guard index+1<argv.count else{break}
+                if token=="-c" || token=="--config-env" {configKey(argv[index+1])}
+                index+=2;continue
+            }
+            if let equals=token.firstIndex(of:"=") {
+                let option=String(token[..<equals])
+                if ["--git-dir","--work-tree","--namespace","--config-env","--attr-source","--exec-path"].contains(option) {
+                    if option=="--config-env" {configKey(String(token[token.index(after:equals)...]))}
+                    index+=1;continue
+                }
+                if option=="--list-cmds" {found="--list-cmds";break}
+            }
+            if ["--exec-path","--html-path","--man-path","--info-path"].contains(token) {found=token;break}
+            // Unknown or incomplete options are not a license to guess their value.
+            break
+        }
+        command=found;arguments=tail;configurationKeys=keys
+    }
+    public func overridesConfiguration(_ key:String)->Bool {configurationKeys.contains(key.lowercased())}
+    public var displayName:String? {
+        guard let command,!command.isEmpty,command.utf8.count<=128,
+              command.unicodeScalars.allSatisfy({!CharacterSet.controlCharacters.contains($0)}) else{return nil}
+        let subcommands:[String:Set<String>]=[
+            "svn":["clone","fetch","rebase","dcommit","info","init"],
+            "stash":["push","save","pop","apply","drop","clear","list","show","branch","create","store"],
+            "remote":["add","remove","rename","set-url","update","prune","show"],
+            "worktree":["add","move","remove","prune","lock","unlock","list","repair"],
+            "submodule":["add","update","sync","init","deinit","status","foreach","absorbgitdirs"],
+            "lfs":["fetch","pull","push","lock","locks","unlock","install","uninstall","track","untrack","ls-files","status"],
+            "bisect":["start","reset","run","good","bad","skip","log","replay"],
+            "notes":["add","append","edit","remove","merge","show","list","copy","prune"]]
+        if let first=arguments.first,subcommands[command]?.contains(first)==true {return command+" "+first}
+        return command
+    }
+}
+
 public struct GitFailure: LocalizedError, Sendable {
-    public let arguments: [String]
-    public let code: Int32
-    public let message: String
-    public var errorDescription: String? { "git \(arguments.first ?? "") failed (\(code)):\n\(message)" }
+    public let arguments:[String]
+    public let code:Int32
+    public let message:String
+    /// The failing command's output reached its supplied live-output callback.
+    /// A progress consumer may mark this after presenting its bounded fallback.
+    public let outputWasDelivered:Bool
+    public let standardError:Data?
+    public init(arguments:[String],code:Int32,message:String,outputWasDelivered:Bool=false,standardError:Data?=nil) {
+        self.arguments=arguments;self.code=code;self.message=message;self.outputWasDelivered=outputWasDelivered;self.standardError=standardError
+    }
+    public var identity:GitCommandIdentity {GitCommandIdentity(arguments)}
+    public var summary:String {identity.displayName.map{"git \($0) failed (\(code))"} ?? "Git command failed (\(code))"}
+    public var diagnosticText:String {if let standardError,!standardError.isEmpty {return String(decoding:standardError,as:UTF8.self)};return message}
+    public var errorDescription:String? {summary+":\n"+message}
+    public func markingOutputDelivered()->Self {.init(arguments:arguments,code:code,message:message,outputWasDelivered:true,standardError:standardError)}
 }
 
 public struct GitResult: Sendable {

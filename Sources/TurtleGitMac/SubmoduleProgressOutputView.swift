@@ -60,7 +60,7 @@ import TurtleGitCore
     }
     func present(_ text: String, completed: Bool = false, completionRange: NSRange? = nil, success: Bool = false) {
         let style = (preferences.object(forKey: "StyleGitOutput") as? NSNumber)?.boolValue ?? true
-        guard string != text || renderedCompleted != completed || renderedRange != completionRange || renderedSuccess != success || renderedStyle != style else { return }
+        guard !GitReferenceName.equal(string,text) || renderedCompleted != completed || renderedRange != completionRange || renderedSuccess != success || renderedStyle != style else { return }
         renderedCompleted = completed; renderedRange = completionRange; renderedSuccess = success; renderedStyle = style
         let ranges = selectedRanges.map(\.rangeValue)
         let font = baseFont ?? .monospacedSystemFont(ofSize: 12, weight: .regular)
@@ -124,6 +124,11 @@ struct SubmoduleProgressOutputView: NSViewRepresentable {
     var success = false
     var preferences: UserDefaults = .standard
     var clipboard: NSPasteboard = .general
+    // SwiftUI must observe byte-spelling changes that String equality folds.
+    private let textBytes:Data
+    init(text:String,completed:Bool=false,completionRange:NSRange?=nil,success:Bool=false,preferences:UserDefaults = .standard,clipboard:NSPasteboard = .general) {
+        self.text=text;self.completed=completed;self.completionRange=completionRange;self.success=success;self.preferences=preferences;self.clipboard=clipboard;textBytes=Data(text.utf8)
+    }
     func makeNSView(context: Context) -> NSScrollView { SubmoduleProgressTextView.scrollView(preferences: preferences, clipboard: clipboard) }
     func updateNSView(_ nsView: NSScrollView, context: Context) { (nsView.documentView as? SubmoduleProgressTextView)?.present(text, completed:completed, completionRange:completionRange, success:success) }
 }

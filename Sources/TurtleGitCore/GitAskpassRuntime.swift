@@ -11,10 +11,12 @@ public enum GitAskpassRuntime {
     }
     public static func mayAuthenticate(_ arguments: [String]) -> Bool {
         let commands: Set<String> = ["clone", "fetch", "pull", "push", "ls-remote", "submodule", "svn", "lfs", "credential"]
-        return arguments.prefix(while: { $0 != "--" }).contains { commands.contains($0) }
+        let identity=GitCommandIdentity(arguments)
+        if identity.command=="remote",let action=identity.arguments.drop(while:{["-v","--verbose","--"].contains($0)}).first,["update","prune","show"].contains(action) {return true}
+        return identity.command.map{commands.contains($0)} ?? false
     }
     public static func shouldInstall(arguments: [String], environment: [String: String], helper: URL?) -> Bool {
-        let explicit = arguments.contains { $0.lowercased().hasPrefix("core.askpass=") || $0.lowercased().hasPrefix("--config-env=core.askpass=") }
+        let explicit=GitCommandIdentity(arguments).overridesConfiguration("core.askpass")
         return helper != nil && !explicit && mayAuthenticate(arguments) && environment["GIT_ASKPASS"] == nil && environment["TURTLEGIT_DISABLE_ASKPASS"] != "1"
     }
     public static func sshEnvironment(arguments: [String], environment: [String: String], helper: URL?) -> [String: String] {

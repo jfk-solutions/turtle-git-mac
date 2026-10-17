@@ -15,6 +15,12 @@ struct GitProgressOutputState {
     init(preferences: UserDefaults) {
         presentation = GitCommandPresentation(defaults: preferences)
     }
+    mutating func presentFailure(_ error:Error,context:String="") {
+        output=GitProgressFailureOutput.render(error,existing:output,limit:limit,context:context)
+        percentage=nil
+        if let failure=error as? GitFailure {currentWork=failure.summary}
+        else if error is GitCommandCancellationFailure {currentWork="Operation cancelled."}
+    }
     mutating func reset() { bytes.removeAll(); truncated = false; output = ""; currentWork = ""; percentage = nil }
     mutating func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
         guard !truncated else { return }
@@ -68,7 +74,15 @@ struct GitProgressOutputState {
         }
         for await _ in updates { state.consume(parser.processPending(), parser: parser); DockProgressRegistry.shared.update(dockOwner, DockProgressState(.running, percentage: state.percentage)); update(state) }
         state.consume(parser.processPending(), parser: parser); state.consume(parser.finish(), parser: parser); update(state)
-        let result = try await worker.value
+        let result:T
+        do {result=try await worker.value}
+        catch let failure as GitFailure {
+            state.presentFailure(failure);update(state)
+            throw failure.markingOutputDelivered()
+        } catch let failure as GitCommandCancellationFailure {
+            state.presentFailure(failure);update(state)
+            throw failure.markingOutputDelivered()
+        }
         if state.output.isEmpty {
             let fallback = GitCliOutputParser(limit: state.limit)
             fallback.appendChunk(Data(resultText(result).utf8))
@@ -82,8 +96,11 @@ struct GitProgressOutputState {
         return state.output
     }
     static func failure(_ error: Error, existing: String, preferences: UserDefaults) -> String {
-        if !existing.isEmpty, error is GitFailure || error is GitCommandCancellationFailure { return existing }
-        return bounded(existing + (existing.isEmpty || existing.hasSuffix("\n") ? "" : "\n") + error.localizedDescription, preferences: preferences)
+        if !existing.isEmpty {
+            if let failure=error as? GitFailure,failure.outputWasDelivered {return existing}
+            if let failure=error as? GitCommandCancellationFailure,failure.outputWasDelivered {return existing}
+        }
+        return GitProgressFailureOutput.render(error,existing:existing,limit:GitCommandPresentation(defaults:preferences).outputLimit)
     }
 }
 
@@ -295,5 +312,53 @@ extension View {
             let text = NSAttributedString(string: mark, attributes: [.font: NSFont.boldSystemFont(ofSize: bounds.height * 0.24), .foregroundColor: NSColor.white, .strokeColor: NSColor.black, .strokeWidth: -3])
             text.draw(at: NSPoint(x: bounds.width * 0.73, y: bounds.height * 0.20))
         }
+    }
+}
+
+
+struct GitProgressFailureOutput {
+    static func render(_ error:Error,existing:String,limit:Int,context:String="")->String {
+        let detail:String,summary:String
+        if let failure=error as? GitFailure {
+            detail=failure.outputWasDelivered && !existing.isEmpty ? "":failure.diagnosticText
+            summary=failure.summary
+        } else if let failure=error as? GitCommandCancellationFailure {
+            detail=failure.outputWasDelivered && !existing.isEmpty ? "":String(decoding:failure.result.stderr.isEmpty ? failure.result.stdout:failure.result.stderr,as:UTF8.self)
+            summary=failure.localizedDescription
+        } else {detail=error.localizedDescription;summary=""}
+        return renderDetails(detail,existing:existing,limit:limit,status:[context,summary].filter{!$0.isEmpty}.joined(separator:"\n"))
+    }
+    static func renderDetails(_ detail:String,existing:String,limit:Int,status:String="",preferTail:Bool=false)->String {
+        let limit=max(256,limit),status=clip(status,bytes:512),reserve=128+status.utf8.count
+        let budget=max(0,limit-reserve)
+        let raw=clip(detail,bytes:budget,tail:preferTail),normalized=normalize(raw,limit:limit)
+        let detailBudget=existing.isEmpty ? budget:min(normalized.utf8.count,budget/2)
+        let shownDetail=clip(normalized,bytes:detailBudget,tail:preferTail)
+        let shownExisting=clip(existing,bytes:max(0,budget-shownDetail.utf8.count))
+        var parts=[shownExisting,shownDetail].filter{!$0.isEmpty}
+        if shownExisting.utf8.count<existing.utf8.count || shownDetail.utf8.count<normalized.utf8.count || raw.utf8.count<detail.utf8.count {
+            parts.append("[Output truncated at about \(limit/1024) KiB]")
+        }
+        if !status.isEmpty {parts.append(status)}
+        return parts.joined(separator:"\n")
+    }
+    private static func normalize(_ text:String,limit:Int)->String {
+        guard !text.isEmpty else{return ""}
+        let parser=GitCliOutputParser(limit:limit);parser.appendChunk(Data(text.utf8))
+        let first=parser.processPending(),last=parser.finish();var bytes=first.data
+        bytes.removeLast(min(bytes.count,last.erasePreviousLineBytes));bytes.append(last.data)
+        return String(decoding:bytes,as:UTF8.self).replacingOccurrences(of:"\u{1b}\\[[0-9;]*m|\u{1b}\\[K",with:"",options:.regularExpression)
+    }
+    private static func clip(_ text:String,bytes limit:Int,tail:Bool=false)->String {
+        let bytes=Data(text.utf8)
+        guard bytes.count>limit else{return text}
+        if tail {
+            var start=bytes.count-limit
+            while start<bytes.count,bytes[start]&0xc0==0x80 {start+=1}
+            return String(decoding:bytes.dropFirst(start),as:UTF8.self)
+        }
+        var end=max(0,limit)
+        while end>0,bytes[end]&0xc0==0x80 {end-=1}
+        return String(decoding:bytes.prefix(end),as:UTF8.self)
     }
 }

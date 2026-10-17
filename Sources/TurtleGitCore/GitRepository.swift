@@ -53,7 +53,7 @@ public actor GitRepository {
                 environment["TURTLEGIT_ASKPASS_APPEARANCE"] = UserDefaults.standard.string(forKey: "appearance") ?? "system"
             }
         }
-        if arguments.prefix(while: { $0 != "--" }).contains("svn"), let askpass,
+        if GitCommandIdentity(arguments).command=="svn", let askpass,
            environment["GIT_ASKPASS"] == GitAskpassRuntime.command(askpass), environment["TURTLEGIT_DISABLE_ASKPASS"] != "1" {
             let certificates = temporary.appendingPathComponent("svn-certificates", isDirectory: true)
             try FileManager.default.createDirectory(at: certificates, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -64,6 +64,7 @@ public actor GitRepository {
         }
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
         let status: Int32
+        var outputWasDelivered=false
         if cancellation != nil || onOutput != nil || consumeOutput != nil {
             let outputReader = try FileHandle(forReadingFrom: out), errorReader = try FileHandle(forReadingFrom: err)
             defer { try? outputReader.close(); try? errorReader.close() }
@@ -87,7 +88,7 @@ public actor GitRepository {
                     let chunk=GitOutputChunk(stream:stream,data:bytes)
                     do { try consumeOutput?(chunk) }
                     catch { consumerError=error;processCancellation.cancel();return }
-                    onOutput?(chunk)
+                    if let onOutput {onOutput(chunk);outputWasDelivered=true}
                     if !drain { return }
                 } while true
             }
@@ -101,9 +102,9 @@ public actor GitRepository {
             status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor,input:inputReader?.fileDescriptor)
         }
         let result = GitResult(exitCode: status, stdout: retainStandardOutput ? try Data(contentsOf: out) : Data(), stderr: try Data(contentsOf: err))
-        if cancellation?.isCancelled == true { throw GitCommandCancellationFailure(result: result) }
+        if cancellation?.isCancelled == true { throw GitCommandCancellationFailure(result: result,outputWasDelivered:outputWasDelivered) }
         guard successfulExitCodes.contains(status) else {
-            throw GitFailure(arguments: arguments, code: status, message: result.text)
+            throw GitFailure(arguments:arguments,code:status,message:result.text,outputWasDelivered:outputWasDelivered,standardError:result.stderr)
         }
         return result
     }

@@ -3,10 +3,10 @@ import SwiftUI
 import TurtleGitCore
 
 @main struct PushStreamVerification {
-    @MainActor static func wait(_ predicate: @escaping () -> Bool) async throws {
+    @MainActor static func wait(line:UInt = #line,_ predicate: @escaping () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(30)
         while !predicate() && Date() < deadline { try await Task.sleep(nanoseconds:10_000_000) }
-        precondition(predicate(), "Push stream timed out")
+        if !predicate() {throw NSError(domain:"PushStreamQA",code:Int(line),userInfo:[NSLocalizedDescriptionKey:"Push stream timed out at line \(line)"])}
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -26,7 +26,7 @@ import TurtleGitCore
         let quoted = "'" + git.path.replacingOccurrences(of:"'",with:"'\\''") + "'"
         let script = """
         #!/bin/sh
-        if [ "${4-}" = push ] && [ ! -f "$0.release" ]; then
+        if [ "${4-}" = -c ] && [ "${5-}" = core.precomposeunicode=false ] && [ "${6-}" = push ] && [ ! -f "$0.release" ]; then
           printf '\\351\\233' >&2
           /bin/sleep 0.02
           printf '\\252\\360\\237\\220\\242\\n' >&2

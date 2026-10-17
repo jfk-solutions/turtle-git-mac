@@ -397,10 +397,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
             guard !invalidated else { return }
             if let failure = error as? GitCommandCancellationFailure { rawOutput = failure.result.text + "\n" + failure.localizedDescription }
             else { rawOutput = error.localizedDescription }
-            let message: String
-            if let failure = error as? GitFailure, failure.arguments.first == "merge", outputState.hasOutput { message = "Git command failed (\(failure.code))." }
-            else { message = error.localizedDescription }
-            output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message; cancelled = cancellation.isCancelled
+            output=GitProgressFailureOutput.render(error,existing:output,limit:outputState.limit); cancelled = cancellation.isCancelled
         }
         var actions: [MergePostAction] = []
         if success {

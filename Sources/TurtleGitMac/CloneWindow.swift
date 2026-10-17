@@ -513,10 +513,8 @@ enum ClonePostAction: String, Hashable {
             try await inspectCompletedRepository(outcome)
         } catch {
             guard !invalidated else { busy = false; cancelling = false; return }
-            let message: String
-            if let failure = error as? GitFailure, !displayedBytes.isEmpty, (failure.arguments.first == "clone" || failure.arguments.starts(with: ["svn", "clone"])) { message = "Git command failed (\(failure.code))." }
-            else { message = error.localizedDescription }
-            output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message;postActions=commandCompleted ? [.inspect,.explore]:[.retry]
+            output=GitProgressFailureOutput.render(error,existing:output,limit:outputLimit)
+            postActions=commandCompleted ? [.inspect,.explore]:[.retry]
         }
         cancelled = cancellation.isCancelled; busy = false; cancelling = false
         finishAutomaticClose()
@@ -537,7 +535,7 @@ enum ClonePostAction: String, Hashable {
         Task { [self] in
             defer {Self.activeOperations -= 1;withExtendedLifetime((destinationAccess,sourceAccess,keyAccess)){}}
             do {try await inspectCompletedRepository(outcome)}
-            catch {if !invalidated {output += "\n" + error.localizedDescription;postActions=[.inspect,.explore]}}
+            catch {if !invalidated {output=GitProgressFailureOutput.render(error,existing:output,limit:outputLimit);postActions=[.inspect,.explore]}}
             guard !invalidated else {busy=false;return}
             cancelled=cancellation.isCancelled;busy=false;cancelling=false;finishAutomaticClose()
         }

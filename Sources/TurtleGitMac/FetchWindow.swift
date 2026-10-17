@@ -673,14 +673,12 @@ enum PullPostAction: String, CaseIterable, Hashable {
     private func resetOutput() {
         outputState.reset(); output = ""; rawOutput = ""; percentage = nil; currentWork = ""
     }
-    private func displayFailure(_ error: Error, transport: String) {
+    private func displayFailure(_ error: Error) {
         if let failure = error as? GitCommandCancellationFailure { rawOutput = failure.result.text + "\n" + failure.localizedDescription }
         else { rawOutput += (rawOutput.isEmpty ? "" : "\n") + error.localizedDescription }
-        let message: String
-        if let failure = error as? GitFailure, failure.arguments.first == transport, outputState.hasOutput { message = "Git command failed (\(failure.code))." }
-        else if let failure = error as? FetchRebaseExecutionFailure, outputState.hasOutput { message = "Preparing Rebase failed.\n" + (failure.commandFailure.map { "Git command failed (\($0.code))." } ?? failure.details) }
-        else { message = error.localizedDescription }
-        output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message
+        if let failure=error as? FetchRebaseExecutionFailure,let command=failure.commandFailure {
+            output=GitProgressFailureOutput.render(command,existing:output,limit:outputState.limit,context:"Preparing Rebase failed.")
+        } else {output=GitProgressFailureOutput.render(error,existing:output,limit:outputState.limit)}
     }
     @Published private(set) var postActions: [PullPostAction] = []
     @Published private(set) var oldHead = ""
@@ -719,7 +717,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
             guard !invalidated else { return }; rawOutput = result
             if !outputState.hasOutput { output = rawOutput }
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }; success = true
-        } catch { guard !invalidated else { return }; displayFailure(error, transport: "pull"); cancelled = cancellation.isCancelled }
+        } catch { guard !invalidated else { return }; displayFailure(error); cancelled = cancellation.isCancelled }
         guard !invalidated else { return }; guard beganPull else { completed(); return }
         // Normal Cancel inspects recovery with a fresh token; forced closure stops it.
         let token = OperationCancellation(); inspectionToken = token
@@ -947,14 +945,12 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     private func resetOutput() {
         outputState.reset(); output = ""; rawOutput = ""; percentage = nil; currentWork = ""
     }
-    private func displayFailure(_ error: Error, transport: String) {
+    private func displayFailure(_ error: Error) {
         if let failure = error as? GitCommandCancellationFailure { rawOutput += (rawOutput.isEmpty ? "" : "\n") + failure.result.text + "\n" + failure.localizedDescription }
         else { rawOutput += (rawOutput.isEmpty ? "" : "\n") + error.localizedDescription }
-        let message: String
-        if let failure = error as? GitFailure, failure.arguments.first == transport, outputState.hasOutput { message = "Git command failed (\(failure.code))." }
-        else if let failure = error as? FetchRebaseExecutionFailure, outputState.hasOutput { message = "Preparing Rebase failed.\n" + (failure.commandFailure.map { "Git command failed (\($0.code))." } ?? failure.details) }
-        else { message = error.localizedDescription }
-        output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message
+        if let failure=error as? FetchRebaseExecutionFailure,let command=failure.commandFailure {
+            output=GitProgressFailureOutput.render(command,existing:output,limit:outputState.limit,context:"Preparing Rebase failed.")
+        } else {output=GitProgressFailureOutput.render(error,existing:output,limit:outputState.limit)}
     }
     @Published private(set) var postActions: [FetchPostAction] = []
     @Published private(set) var confirmingRebaseDecision = false
@@ -1033,7 +1029,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
                         do { try await onOwnedRebase(fetched.upstream, rebaseMode == .automatic, preserveMerges) }
                         catch {
                             guard !invalidated else { return }
-                            success = false; output += "\nOpening Rebase failed.\n" + error.localizedDescription
+                            success=false;output=GitProgressFailureOutput.render(error,existing:output,limit:outputState.limit,context:"Opening Rebase failed.")
                         }
                         guard !invalidated else { return }
                         dispatchingAction = false; explicitCloseRequested = true
@@ -1050,7 +1046,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
             postActions.append(.switchBranch)
         } catch {
             guard !invalidated else { return }
-            displayFailure(error, transport: merging ? "merge" : "fetch"); cancelled = cancellation.isCancelled; success = false
+            displayFailure(error); cancelled = cancellation.isCancelled; success = false
             if merging {
                 let token = OperationCancellation(); inspectionToken = token
                 let conflicts = (try? await repository.status(refreshIndex: false, cancellation: token).contains(where: { $0.state == .conflicted })) ?? false
