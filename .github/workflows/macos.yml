@@ -631,6 +631,8 @@ jobs:
         run: python3 scripts/test-commit-message-encoding.py
       - name: Native Commit and Rebase message-file receiver
         run: python3 scripts/test-commit-message-file.py
+      - name: Native Synchronization child progress family
+        run: python3 scripts/test-sync-child-progress.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native language settings and compiled app resources
         run: python3 scripts/test-language-family.py
       - name: Native exact changelist Commit and Working Tree family

@@ -1624,3 +1624,41 @@ branch topic/one correctly. Local/remote/source draft changes reject a stale res
 Request ownership and the choosing-branch gate last until the picker sheet ends;
 then focus and the selected branch are applied once. Forced retirement clears the
 request before abandoning its child. Physical/signed acceptance remains open.
+
+
+### Connected child progress family — October 17, 2026
+
+The separate Checkout, fast-forward Merge and tag command progress children now
+show parsed current work and percentage, terminal 100, the shared source-style
+colored completion line with the timing/date preferences, and native Copy/Copy All
+output menus. Completed full progress attempts preserve one Action log entry.
+The shared application Dock adapter follows running, waiting, failure and success.
+Tag comparison/remote deletion retain the source compact wait presentation and
+return their errors to the parent. Checkout/fast-forward keep source explicit
+success-close behavior; tag command progress keeps its captured Settings policy.
+
+Abort gates repeated requests and preserves natural success while a question is
+pending. Escape/titlebar use the same cancellation path; Close cannot bypass an
+attached sheet. Forced retirement suppresses late output/result/footer, keeps the
+repository access lease through actual worker drain, and resumes the parent's
+continuation exactly once after drain. Independent active-worker accounting blocks
+Quit even when the progress and parent windows have been forcibly closed.
+
+The Debug build and both grouped native families passed with system and bundled
+Git after repairing success-close token cancellation. Four raw light/dark captures
+were reviewed; the live pair uses a controlled CLI stream and the failure pair a
+real rejecting remote hook. The oversized native activity indicator was constrained
+to its intended 16-point size. All receivers were reaped and independently absent.
+Core was unchanged and not repeated. See
+[batch evidence](qa/sync-child-progress-2026-10-17.json). Physical controls/VoiceOver,
+signed Finder/security scopes and full upstream acceptance remain open. Source
+fast-forward failure conflict/Commit post-action is still missing; this change
+does not certify complete Synchronization or generic ProgressDlg parity.
+
+![Sync child progress, controlled live sample in light mode](site/assets/sync-child-progress-live-light.png)
+
+![Sync child progress, controlled live sample in dark mode](site/assets/sync-child-progress-live-dark.png)
+
+![Sync tag Push rejection, light](site/assets/sync-child-progress-failure-light.png)
+
+![Sync tag Push rejection, dark](site/assets/sync-child-progress-failure-dark.png)

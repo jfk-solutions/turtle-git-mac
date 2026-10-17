@@ -1,0 +1,145 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected Synchronization child Checkout/Merge/tag progress presentation, cancellation, actual worker ownership and parent handoff.",
+  "source": [
+    "src/TortoiseProc/SyncDlg.cpp Checkout and fast-forward CProgressDlg paths",
+    "src/TortoiseProc/ProgressDlg.cpp completion/output/cancellation behavior"
+  ],
+  "implemented": [
+    "Parsed bounded live output, current work, percentage, terminal100 and native completion/timing/date footer",
+    "Native output copy menus and existing source icons, private clipboard verification",
+    "One Action log per completed full progress, shared Dock running/waiting/error/success adapter",
+    "Source explicit Checkout/Merge success-close and compact wait handoff; captured tag auto-close",
+    "Once-only Abort, natural-success pending-question fence, Escape/titlebar cancellation and sheet Close guard",
+    "Retired output/result/footer fence, repository access lease, independent active-worker Quit guard and parent continuation delayed until actual drain"
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false
+  },
+  "build": {
+    "exit_code": 0,
+    "logs": [
+      "build/qa/sync-child-progress-build-2026-10-17.log",
+      "build/qa/sync-child-progress-build-repair-2026-10-17.log"
+    ],
+    "invocations": 2,
+    "warnings": "Existing actor/isolation warnings and one exit-zero/no-output diagnostic in each build remain; no warning-free claim."
+  },
+  "native": {
+    "exit_code": 0,
+    "progress_log": "build/qa/sync-child-progress-native-repair-2026-10-17.log",
+    "tag_log": "build/qa/sync-child-progress-tags-native-repair-2026-10-17.log",
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "case_engine_groups": 4,
+    "receiver_pids": [
+      80478,
+      80607,
+      81027,
+      81131,
+      81284,
+      81630
+    ],
+    "independently_absent": true,
+    "initial_failure": {
+      "log": "build/qa/sync-child-progress-tags-native-2026-10-17.log",
+      "reason": "Success close invalidated a still-counted task and cancelled the parent-shared token, discarding the completed tag comparison. Repaired by cancelling only an actually busy worker.",
+      "pid": "Initial failing legacy receiver did not print its PID; its owned process group was reaped in finally and the exact receiver command independently absent."
+    },
+    "visual_repair": "Bound GitCommandActivity to 16x16 after actual captures showed it stretching the footer. Final four captures reviewed.",
+    "assertions": [
+      "Real tag Push and Fetch update refs; real pre-receive rejection retains Git exit1/raw diagnostics",
+      "Captured policy survives a later Settings change; completed Copy All preserves selection and Unicode text",
+      "Native Copy menu icons and duplicate Action log suppression",
+      "Controlled live Receiving objects 42%, timing footer, natural-success/late duplicate Abort",
+      "Forced close holds callback, lease and Quit until ignored-cancellation worker drains; no late output/result/footer",
+      "Direct Abort cancellation retains User cancelled and terminal100",
+      "Compact comparison closes without cancelling its parent token",
+      "Existing full Compare Tags native family: sorting/hash menus, stale rows, friendly deletion, manual/auto results, compact remote delete/refill/error, owned native error sheet and actual blocked-process cleanup"
+    ]
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/sync-child-progress-failure-dark.png",
+      "width": 1120,
+      "height": 664,
+      "sha256": "b3270e06ed7c68a83de183f489f107e06406cabfd1715c11afdad6ddead1029e",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Current work, progress bar, output, colored terminal footer and footer controls fit light/dark. Live pair is a controlled CLI stream; failure pair is real Git rejection. Inactive native bar is gray and may still be transitioning at capture; model terminal100/live42 are separately asserted. No full source color/physical equivalence claim."
+    },
+    {
+      "path": "docs/site/assets/sync-child-progress-failure-light.png",
+      "width": 1120,
+      "height": 664,
+      "sha256": "d748f6fb4e68c59dfaae32f83e0739f5dffa061b35d1e7aa4278ffb691a5fa7d",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Current work, progress bar, output, colored terminal footer and footer controls fit light/dark. Live pair is a controlled CLI stream; failure pair is real Git rejection. Inactive native bar is gray and may still be transitioning at capture; model terminal100/live42 are separately asserted. No full source color/physical equivalence claim."
+    },
+    {
+      "path": "docs/site/assets/sync-child-progress-live-dark.png",
+      "width": 1120,
+      "height": 664,
+      "sha256": "391d379090827b5d913c2bcbbc5cf946c8c3baefe2a779e9081a7fd92b14daae",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Current work, progress bar, output, colored terminal footer and footer controls fit light/dark. Live pair is a controlled CLI stream; failure pair is real Git rejection. Inactive native bar is gray and may still be transitioning at capture; model terminal100/live42 are separately asserted. No full source color/physical equivalence claim."
+    },
+    {
+      "path": "docs/site/assets/sync-child-progress-live-light.png",
+      "width": 1120,
+      "height": 664,
+      "sha256": "c89a15374b71c49e956240af496bf8146868b907f4e6856ae72618fa3c9961b0",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Current work, progress bar, output, colored terminal footer and footer controls fit light/dark. Live pair is a controlled CLI stream; failure pair is real Git rejection. Inactive native bar is gray and may still be transitioning at capture; model terminal100/live42 are separately asserted. No full source color/physical equivalence claim."
+    }
+  ],
+  "coverage": {
+    "new_control_mappings": 0,
+    "certified_dialogs": 0
+  },
+  "hosted": {
+    "run": 39007075056,
+    "commit": "d7133b3b",
+    "conclusion": "failure",
+    "step": "Scoped native Merge menus and pane shortcuts",
+    "failure": "Conflict menu choice lost Undo",
+    "receiver_reaped": 63100,
+    "separate_from_this_batch": true,
+    "current_language_run": 39012361345,
+    "current_language_status_at_observation": "pending",
+    "pages_language_run": 39012361289,
+    "pages_conclusion": "success"
+  },
+  "remaining": [
+    "Source ff-only Merge failure conflict/Commit post-action",
+    "Complete generic ProgressDlg controls and source acceptance",
+    "Physical Escape/titlebar/copy/nested-sheet/VoiceOver acceptance",
+    "Signed security scope/Finder/AppStore behavior",
+    "Hosted Merge conflict-menu Undo defect and full current CI",
+    "Refresh old preview/archive at next distribution checkpoint"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "51b8b068d567b26363237b829a70167e28fe5014bae54f2039121506b40d5b3d",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "dee60709717d236d75db4c3761c46e26020952b840c803a99e25b3ab1e81ffe6",
+    "docs/qa/sync-child-progress-native-2026-10-17.swift": "a516e38aa2f71d87d8444f2da3d04bef8c3d6fdac1bab045be29d7421ee1a75a",
+    "scripts/test-sync-child-progress.py": "77384430f813ecfa9365c3f347a9ff39fb22ba76a2e56d4e048a017bbc5373d2",
+    "scripts/test-synchronization-dialog.py": "a0e4099983d93b0e447e8b55710e5fcb4e394e0fdd6df8f3978bdb0f64f3dec4",
+    ".github/workflows/macos.yml": "b8cc300d2b42090f5e474f787c42a364aa4272a09267fff7cf0962ae128bf4f4"
+  },
+  "documentation": {
+    "coverage_reconciled": true,
+    "site": {
+      "exit_code": 0,
+      "documents": 267,
+      "unresolved_fragments": [],
+      "log": "build/qa/sync-child-progress-site-2026-10-17.log"
+    }
+  }
+}

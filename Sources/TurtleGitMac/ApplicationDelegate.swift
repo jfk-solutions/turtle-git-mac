@@ -32,7 +32,7 @@ import AppKit
         if RebaseWindowModel.activePreparationReads > 0 || RebaseWindowController.activeReferencePickers > 0 || RebaseWindowController.activeCommitPickers > 0 { return .terminateCancel }
         if RebaseWindowModel.activeColumnReads > 0 { return .terminateCancel }
         if RebaseWindowModel.activeStashRestorations > 0 { return .terminateCancel }
-        if SynchronizationWindowModel.activePushWorkflows > 0 { return .terminateCancel }
+        if SynchronizationProgressModel.activeOperations > 0 || SynchronizationWindowModel.activePushWorkflows > 0 { return .terminateCancel }
         if LogWindowModel.activeActionReads > 0 || LogWindowModel.activeWorkingCommandReads > 0 { return .terminateCancel }
         if ReferenceLogWindowModel.activeRevisionReads > 0 || ReferenceLogWindowModel.activeOwnedOperations > 0 { return .terminateCancel }
         if WorktreeListWindowModel.activeOperations > 0 || WorktreeCreateWindowModel.activeOperations > 0 { return .terminateCancel }

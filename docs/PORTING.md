@@ -2233,3 +2233,31 @@ English remains visible. All owned receivers were reaped and independently absen
 See [batch evidence](qa/language-family-2026-10-17.json) for failures and repairs.
 Full dynamic/AppKit/formatted/plural/RTL translation, physical input and signed
 acceptance remain open. No source dialog is newly certified complete.
+
+
+## Synchronization child progress family — October 17, 2026
+
+Separate Checkout, fast-forward Merge and tag progress now consume live work and
+percentage, native completion/timing details, Copy/Copy All source-icon menus,
+one Action log entry and the shared Dock adapter. Compact tag waits retain parent
+error handoff and explicit source auto-close behavior. Abort is once-only and
+keeps natural success while its question remains pending.
+
+Forced closure retires late publications while retaining the repository lease,
+independent Quit guard and parent continuation through actual worker drain. The
+parent receives one result after drain, avoiding overlapping mutation/recovery.
+Natural completion does not cancel the shared parent token. A grouped regression
+found that token-cancellation defect; it was repaired and the affected families
+rechecked on both system and bundled Git. The native activity indicator was
+constrained after visual review exposed unwanted expansion.
+
+The Debug build, two progress engine cases and two Compare Tags engine cases pass;
+four final raw light/dark captures were reviewed. Every owned receiver was reaped
+and independently absent. Core was unchanged and not repeated. The source Merge
+failure conflict/Commit post-action, full generic progress controls and physical/
+signed acceptance remain open. See [batch evidence](qa/sync-child-progress-2026-10-17.json).
+
+Separately, hosted d7133b3b passed Git integration but failed the Merge menus step
+with `Conflict menu choice lost Undo`; the receiver was reaped. That outstanding
+Undo defect is distinct from the earlier folding timeout. No full hosted green
+result is claimed from this local batch.

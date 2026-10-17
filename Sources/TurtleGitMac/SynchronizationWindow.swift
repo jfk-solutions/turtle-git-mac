@@ -70,17 +70,19 @@ extension SynchronizationTagKind {
     let model: SynchronizationProgressModel
     var onClosed: () -> Void = {}
     private var alert: NSAlert?
+    private var presentationClosed = false
     private var completion: ((Result<SynchronizationProgressResult, Error>) -> Void)?
-    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, transportFactory: SSHTransportFactory? = nil,
+    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, access: RepositoryAccessLease? = nil, transportFactory: SSHTransportFactory? = nil,
          completion: @escaping (Result<SynchronizationProgressResult, Error>) -> Void) {
-        model = SynchronizationProgressModel(repository: repository, operation: operation, cancellation: cancellation, preferences: preferences, transportFactory: transportFactory)
+        model = SynchronizationProgressModel(repository: repository, operation: operation, cancellation: cancellation, preferences: preferences, access: access, transportFactory: transportFactory)
         self.completion = completion
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: operation.compactProgress ? 480 : 760, height: operation.compactProgress ? 170 : 420), styleMask: operation.compactProgress ? [.titled, .closable] : [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: operation.compactProgress ? 480 : 760, height: operation.compactProgress ? 170 : 420), styleMask: operation.compactProgress ? [.titled, .closable] : [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "\(operation.title)", preferences: preferences)
         window.isReleasedWhenClosed = false; window.contentMinSize = operation.compactProgress ? NSSize(width: 400, height: 150) : NSSize(width: 560, height: 300)
         window.contentViewController = NSHostingController(rootView: SynchronizationProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in self?.closePresentation() }
+        window.escapeAction = { [weak model] in guard let model else { return }; if model.busy { model.cancel() } else { model.close() } }
         model.confirmCancel = { [weak self] reply in
             guard let self, let window = self.window, window.attachedSheet == nil else { reply(false); return }
             let alert = NSAlert(); alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
@@ -90,7 +92,7 @@ extension SynchronizationTagKind {
         if !operation.compactProgress { DialogGeometry.attach(window, identifier: "ProgressDlg") }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    private func closePresentation() { guard !model.busy, !model.confirmingCancellation else { return }; window?.sheetParent?.endSheet(window!); close() }
+    private func closePresentation() { guard !model.busy, !model.confirmingCancellation, window?.attachedSheet == nil else { return }; window?.sheetParent?.endSheet(window!); close() }
     func abortPresentation() {
         model.invalidate()
         if let alert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
@@ -102,42 +104,76 @@ extension SynchronizationTagKind {
         sender.sheetParent?.endSheet(sender); return true
     }
     func windowWillClose(_ notification: Notification) {
+        guard !presentationClosed else { return }; presentationClosed = true
         let result = model.result ?? .failure(OperationCancellationFailure.cancelled)
-        model.invalidate(); window?.sheetParent?.endSheet(window!)
-        let callback = completion; completion = nil; onClosed(); callback?(result)
+        model.saveActionLog(); model.invalidate(); window?.sheetParent?.endSheet(window!)
+        if let alert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort); alert.window.close() }
+        alert = nil
+        let callback = completion, didClose = onClosed; completion = nil
+        // A forcibly closed child must not let its parent mutate Git while the
+        // previous worker is still draining (including ignored cancellation).
+        model.whenDrained { didClose(); callback?(result) }
     }
 }
 
-@MainActor final class SynchronizationProgressModel: ObservableObject {
+@MainActor final class SynchronizationProgressModel: ObservableObject, ActionLogProgress {
+    private(set) static var activeOperations = 0
     let progressPresentation: GitCommandPresentation
     let repository: GitRepository, operation: SynchronizationProgressOperation, preferences: UserDefaults
     private let cancellation: OperationCancellation
     private let autoClosePolicy: GitProgressAutoClose
     private let transportFactory: SSHTransportFactory?
     private var transportCoordinator: SSHTransportCoordinator?
-    private var started = false, closed = false
+    private let access: RepositoryAccessLease?
+    private var started = false, closed = false, working = false
+    private var drained: [() -> Void] = []
+    private var outputState: GitProgressOutputState
+    private var startedAt: TimeInterval = 0
+    @Published private(set) var currentWork = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var completionRange: NSRange?
+    @Published private(set) var success = false
+    @Published private(set) var cancelled = false
+    @Published private(set) var cancelling = false
     @Published private(set) var busy = true
     @Published private(set) var output = ""
     @Published private(set) var confirmingCancellation = false
     private(set) var result: Result<SynchronizationProgressResult, Error>?
     var close: () -> Void = {}
     var confirmCancel: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, transportFactory: SSHTransportFactory? = nil) {
-        self.transportFactory = transportFactory; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
-        self.repository = repository; self.operation = operation; self.cancellation = cancellation; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences)
+    // The receiver can hold an actual worker boundary without changing product Git operations.
+    var executeOperation: ((@escaping @Sendable (GitOutputChunk) -> Void) async throws -> SynchronizationProgressResult)?
+    var actionLogRepository: URL { repository.root }
+    var actionLogCancelled: Bool { cancelled }
+    var actionLogFailed: Bool { !success }
+    var actionLogEligible: Bool { started && !busy && !closed && !operation.compactProgress }
+    func saveActionLog() {
+        guard actionLogEligible else { return }
+        ProgressActionLog.record(owner: self, repository: repository.root, output: output, cancelled: cancelled, failed: !success)
     }
-    func invalidate() { closed = true; if busy { cancellation.cancel() }; transportCoordinator?.close(); transportCoordinator = nil; busy = false; confirmingCancellation = false }
+    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, access: RepositoryAccessLease? = nil, transportFactory: SSHTransportFactory? = nil) {
+        self.access = access; self.transportFactory = transportFactory; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
+        self.repository = repository; self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
+        outputState = GitProgressOutputState(preferences: preferences); progressPresentation = outputState.presentation
+    }
+    func whenDrained(_ completion: @escaping () -> Void) { if working { drained.append(completion) } else { completion() } }
+    func invalidate() {
+        guard !closed else { return }; closed = true
+        if working && busy { cancellation.cancel() }
+        transportCoordinator?.close(); transportCoordinator = nil; confirmingCancellation = false
+        if !working { busy = false }
+    }
     func cancel() {
-        guard !closed, busy, !confirmingCancellation, !cancellation.isCancelled else { return }
+        guard !closed, busy, !confirmingCancellation, !cancelling else { return }
         if preferences.bool(forKey: "ConfirmKillProcess") {
             confirmingCancellation = true
             var answered = false
             confirmCancel { [weak self] accepted in
                 guard !answered, let self, !self.closed else { return }; answered = true; self.confirmingCancellation = false
-                if accepted, self.busy { self.cancellation.cancel() }
+                if accepted, self.busy { self.cancelling = true; self.cancellation.cancel() }
                 if !self.busy, self.automaticClose { self.close() }
             }
-        } else { cancellation.cancel() }
+        } else { cancelling = true; cancellation.cancel() }
     }
     private var automaticClose: Bool {
         guard let result else { return false }
@@ -147,15 +183,23 @@ extension SynchronizationTagKind {
         return success
     }
     func start() {
-        guard !started, !closed else { return }; started = true
+        guard !started, !closed else { return }; started = true; working = true; Self.activeOperations += 1
+        startedAt = ProcessInfo.processInfo.systemUptime; currentWork = operation.work
         Task {
             let coordinator = transportFactory?(); transportCoordinator = coordinator
-            defer { coordinator?.close(); transportCoordinator = nil }
-            let parser = GitCliOutputParser(limit: GitProgressOutputState(preferences: preferences).limit)
-            var state = GitProgressOutputState(preferences: preferences)
+            defer {
+                coordinator?.close(); transportCoordinator = nil; working = false; busy = false
+                Self.activeOperations -= 1; withExtendedLifetime(access) {}
+                let callbacks = drained; drained.removeAll(); callbacks.forEach { $0() }
+            }
+            let parser = GitCliOutputParser(limit: outputState.limit)
             let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
             let operation = Task {
                 defer { continuation.finish() }
+                if GitRuntime.isAppStoreBuild {
+                    guard access?.hasSecurityScope == true, access?.contains(repository.root) == true else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                }
+                if let executeOperation { return try await executeOperation { chunk in parser.appendChunk(chunk.data); continuation.yield(()) } }
                 switch self.operation {
                 case .checkout(let plan):
                     return SynchronizationProgressResult.checkout(try await repository.synchronizationPullCheckout(plan, checkoutAuthorized: true, cancellation: cancellation,
@@ -178,24 +222,29 @@ extension SynchronizationTagKind {
                 }
             }
             for await _ in updates {
-                guard !closed else { continue }; state.consume(parser.processPending(), parser: parser); output = state.output
+                guard !closed else { continue }; consume(parser.processPending(), parser: parser)
             }
             guard !closed else { _ = try? await operation.value; return }
-            state.consume(parser.processPending(), parser: parser); state.consume(parser.finish(), parser: parser); output = state.output
-            do { result = .success(try await operation.value) }
+            consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
+            var exitCode: Int32?
+            do { result = .success(try await operation.value); success = true; exitCode = 0 }
             catch {
-                result = .failure(error)
-                if let failure = error as? GitFailure, state.hasOutput { output += "\nGit command failed (\(failure.code))." }
+                result = .failure(error); exitCode = (error as? GitFailure)?.code
+                if let failure = error as? GitFailure, outputState.hasOutput { output += "\nGit command failed (\(failure.code))." }
                 else { output += "\n" + error.localizedDescription }
             }
-            guard !closed else { return }; busy = false
-            if let result {
-                let succeeded: Bool
-                if case .success = result { succeeded = true } else { succeeded = false }
-                OperationSounds.report(failed: !succeeded, preferences: preferences)
-            }
+            guard !closed else { return }
+            cancelled = cancellation.isCancelled && !success
+            let completion = SubmoduleProgressCompletion(success: success, cancelled: cancelled, exitCode: exitCode,
+                elapsed: ProcessInfo.processInfo.systemUptime - startedAt, preferences: preferences)
+            currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
+            busy = false; saveActionLog(); OperationSounds.report(failed: !success, preferences: preferences)
             if !confirmingCancellation, automaticClose { close() }
         }
+    }
+    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
+        outputState.consume(emission, parser: parser); output = outputState.output
+        currentWork = outputState.currentWork; percentage = outputState.percentage
     }
 }
 
@@ -207,15 +256,20 @@ private struct SynchronizationProgressDialog: View {
             if model.operation.compactProgress {
                 Spacer()
             } else {
-                SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: { if case .success = model.result { return true }; return false }(), preferences: model.preferences)
+                Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption).lineLimit(1).help(model.currentWork)
+                ProgressView(value: Double(model.busy ? model.percentage ?? 0 : 100), total: 100)
+                    .tint(model.busy ? .accentColor : model.success ? .blue : .red)
+                    .accessibilityLabel("Git command progress")
+                SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success, preferences: model.preferences)
             }
             HStack {
-                if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity); Text(model.operation.work) } else if case .success = model.result { Text("Finished") } else { Text(model.operation.failure).foregroundStyle(.red) }
+                if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity).frame(width: 16, height: 16); Text(model.cancelling ? "Cancelling…" : model.operation.work) } else if model.cancelled { Text("User cancelled").foregroundStyle(.red) } else if case .success = model.result { Text("Finished") } else { Text(model.operation.failure).foregroundStyle(.red) }
                 Spacer()
-                if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
+                if model.busy { Button("Abort") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.cancelling) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
             }.disabled(model.confirmingCancellation)
         }.padding(12)
+        .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation, percentage: model.percentage))
     }
 }
 
@@ -462,7 +516,7 @@ enum SynchronizationHistoryOperation: Equatable {
         model.performCheckout = { [weak self] plan, token in
             guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
             return try await withCheckedThrowingContinuation { continuation in
-                let child = SynchronizationProgressController(repository: repository, operation: .checkout(plan), cancellation: token, preferences: preferences) { result in
+                let child = SynchronizationProgressController(repository: repository, operation: .checkout(plan), cancellation: token, preferences: preferences, access: self.model.access) { result in
                     switch result {
                     case .success(.checkout(let checkpoint)): continuation.resume(returning: checkpoint)
                     case .success: continuation.resume(throwing: SynchronizationFailure.invalidInput)
@@ -478,7 +532,7 @@ enum SynchronizationHistoryOperation: Equatable {
         model.performFastForward = { [weak self] state, token in
             guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return .failure(OperationCancellationFailure.cancelled) }
             return await withCheckedContinuation { continuation in
-                let child = SynchronizationProgressController(repository: repository, operation: .merge(state), cancellation: token, preferences: preferences) { result in
+                let child = SynchronizationProgressController(repository: repository, operation: .merge(state), cancellation: token, preferences: preferences, access: self.model.access) { result in
                     switch result {
                     case .success(.merge(let command)): continuation.resume(returning: .success(command))
                     case .success: continuation.resume(returning: .failure(SynchronizationFailure.invalidInput))
@@ -492,7 +546,7 @@ enum SynchronizationHistoryOperation: Equatable {
         model.performTagOperation = { [weak self] operation, token in
             guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return .failure(OperationCancellationFailure.cancelled) }
             return await withCheckedContinuation { continuation in
-                let child = SynchronizationProgressController(repository: repository, operation: operation, cancellation: token, preferences: preferences, transportFactory: self.model.sshSettings.capture()) { result in
+                let child = SynchronizationProgressController(repository: repository, operation: operation, cancellation: token, preferences: preferences, access: self.model.access, transportFactory: self.model.sshSettings.capture()) { result in
                     continuation.resume(returning: result)
                 }
                 self.commandProgress = child; child.onClosed = { [weak self] in self?.commandProgress = nil }

@@ -149,3 +149,12 @@ The connected [native Dock progress family](DOCK-PROGRESS.md) now adapts taskbar
 normal/indeterminate/waiting/error/completion to the application Dock, with
 concurrent operation and retained-window ownership. Physical/signed and full
 consumer acceptance remain open. Older Dock-pending entries are historical.
+
+
+The [Synchronization child progress family](SYNCHRONIZATION-PARITY.md#connected-child-progress-family--october-17-2026)
+now adopts parsed live progress, completion details, native Copy menus, Action log
+and Dock state across separate Checkout/Merge/tag command children. Forced closure
+retains the actual worker lease and parent continuation until drain; source compact
+tag waits retain their parent error path. The Debug build and grouped native
+progress/tag workflows pass on system and bundled Git; four actual captures were
+reviewed. Full source/physical/signed acceptance remains open.

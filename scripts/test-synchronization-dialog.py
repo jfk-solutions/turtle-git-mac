@@ -67,9 +67,11 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-sync-native-') as temporary:
         fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
         print('Checking ' + str(git), flush=True)
         receiver = subprocess.Popen([str(executable), str(fixture), str(git.resolve())], cwd=root, env=environment, start_new_session=True)
+        print('Owned Sync receiver PID: ' + str(receiver.pid), flush=True)
         try:
             code = receiver.wait(timeout=1200)
             if code:
                 raise subprocess.CalledProcessError(code, receiver.args)
         finally:
             close_receiver(receiver)
+            print('Owned Sync receiver reaped: ' + str(receiver.pid), flush=True)
