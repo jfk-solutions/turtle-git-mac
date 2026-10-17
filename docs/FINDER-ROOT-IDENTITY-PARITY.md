@@ -71,3 +71,8 @@ final alias-owner review. Initial compile/legacy-fixture failures are retained.
 All four receivers, eight reported exact-root workers and eight retained publication
 workers were reaped. The twelve reported PIDs were independently absent. No full
 Core, signed deployment, physical Finder or full hosted CI certification is made.
+
+The [query-lifetime continuation](FINDER-QUERY-PARITY.md) reuses the exact namespace
+and owner-scoped descendant state within each snapshot value. Mutations detach
+query data from retained copies; source masks, wire identities and migration policy
+remain as documented above.

@@ -215,11 +215,14 @@ extension GitRepository {
 }
 
 public struct FinderSnapshot: Codable, Sendable {
-    public var roots: [String]
-    public var states: GitPathMap<FileState>
+    // A value copy may share already-built immutable queries. Any field that
+    // changes path/owner eligibility detaches the copy's private query generation.
+    var queries=FinderSnapshotQueries()
+    public var roots: [String] { didSet { queries=FinderSnapshotQueries() } }
+    public var states: GitPathMap<FileState> { didSet { queries=FinderSnapshotQueries() } }
     public var updated: Date
-    public var repositories: GitPathMap<FinderRepositoryMetadata>
-    public var overlayEntries: GitPathMap<FileState>?
+    public var repositories: GitPathMap<FinderRepositoryMetadata> { didSet { queries=FinderSnapshotQueries() } }
+    public var overlayEntries: GitPathMap<FileState>? { didSet { queries=FinderSnapshotQueries() } }
     public var indexFlags: GitPathMap<FinderIndexFlags>?
     public init(roots: [String], states: GitPathMap<FileState>, updated: Date = Date(), repositories: GitPathMap<FinderRepositoryMetadata> = [:], overlayEntries: GitPathMap<FileState>? = nil, indexFlags: GitPathMap<FinderIndexFlags>? = nil) {
         self.roots = roots; self.states = states; self.updated = updated; self.repositories = repositories

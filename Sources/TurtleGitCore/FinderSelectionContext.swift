@@ -1,6 +1,32 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
+/// Snapshot values share lazy immutable query data until one of their path or
+/// owner fields changes. The lock covers construction/publication only; returned
+/// Swift values use copy-on-write storage and are never mutated by a reader.
+final class FinderSnapshotQueries: @unchecked Sendable {
+    typealias Descendants=[GitReferenceName:[GitReferenceName:Set<FileState>]]
+    private let lock=NSLock()
+    private var rootNames:GitPathSet?
+    private var pathNames:FileTransferIndex?
+    private var descendantStates:Descendants?
+    func roots(_ create:()->GitPathSet) -> GitPathSet {
+        lock.lock();defer {lock.unlock()}
+        if let rootNames {return rootNames}
+        let value=create();rootNames=value;return value
+    }
+    func paths(_ create:()->FileTransferIndex) -> FileTransferIndex {
+        lock.lock();defer {lock.unlock()}
+        if let pathNames {return pathNames}
+        let value=create();pathNames=value;return value
+    }
+    func descendants(_ create:()->Descendants) -> Descendants {
+        lock.lock();defer {lock.unlock()}
+        if let descendantStates {return descendantStates}
+        let value=create();descendantStates=value;return value
+    }
+}
+
 extension FinderSnapshot {
     static func parentPath(_ path: String) -> String {
         let parts = path.utf8.split(separator: 47).dropLast()
@@ -10,7 +36,9 @@ extension FinderSnapshot {
     /// unique canonical spelling when Finder supplies a filesystem alias.
     private func cachedPath(for url: URL) -> String? {
         let path = FileTransferPaths.lexicalPath(url.path)
-        let index = FileTransferIndex(paths: GitPathSet(states.keys).union(GitPathSet(overlayEntries?.keys ?? [])).union(roots).union(repositories.keys).map { String($0.dropFirst()) }, caseSensitive: true)
+        let index = queries.paths {
+            FileTransferIndex(paths: GitPathSet(states.keys).union(GitPathSet(overlayEntries?.keys ?? [])).union(roots).union(repositories.keys).map { String($0.dropFirst()) }, caseSensitive: true)
+        }
         return (try? index.resolvingForIndex(String(path.dropFirst()))).map { "/" + $0 }
     }
 
@@ -19,8 +47,23 @@ extension FinderSnapshot {
     public func repositoryRoot(for url: URL) -> String? {
         guard url.isFileURL else { return nil }
         guard let path = cachedPath(for:url) else { return nil }
-        return roots.filter { root in Self.contains(path,root:root) }
-            .max { $0.utf8.count < $1.utf8.count }
+        return exactRepositoryRoot(for:path)
+    }
+    /// Badge aggregation uses the recorded namespace directly, without asking
+    /// the filesystem to alias a root or scanning every watched root per file.
+    func exactRepositoryRoot(for path:String) -> String? {
+        let names=queries.roots {GitPathSet(roots)}
+        return Self.exactRepositoryRoot(for:path,names:names)
+    }
+    private static func exactRepositoryRoot(for path:String,names:GitPathSet) -> String? {
+        guard path.hasPrefix("/") else {return nil}
+        var candidate=path
+        while candidate.utf8.count > 1,candidate.hasSuffix("/") {candidate.removeLast()}
+        while true {
+            if names.contains(candidate) {return candidate}
+            if candidate == "/" {return nil}
+            candidate=parentPath(candidate)
+        }
     }
     func isRepositoryRoot(_ url:URL, root:String) -> Bool {
         cachedPath(for:url).map { GitReferenceName.equal($0,root) } == true
@@ -34,25 +77,27 @@ extension FinderSnapshot {
     /// ignored folder. Only explicit ignore entries propagate in modern caches;
     /// aggregated directory badge states are not ignore rules.
     public func cachedState(for url: URL) -> FileState? {
-        guard let root = repositoryRoot(for: url) else { return nil }
-        guard let path = cachedPath(for: url) else { return nil }
+        guard url.isFileURL,let path=cachedPath(for:url),let root=exactRepositoryRoot(for:path) else {return nil}
         if let direct = overlayEntries?[path] { return direct }
         if overlayEntries == nil, let state = states[path] { return state }
         let entries = overlayEntries ?? states
-        var parent = FileTransferPaths.fileURL(Self.parentPath(path))
-        while Self.contains(parent.path,root:root) {
-            if entries[parent.path] == .ignored { return .ignored }
-            if GitReferenceName.equal(parent.path,root) { break }
-            parent = FileTransferPaths.fileURL(Self.parentPath(parent.path))
+        var parent = Self.parentPath(path)
+        while Self.contains(parent,root:root) {
+            if entries[parent] == .ignored { return .ignored }
+            if GitReferenceName.equal(parent,root) { break }
+            parent = Self.parentPath(parent)
         }
         // An aggregated ignored folder can still be a tracked folder whose only
         // dirty children are ignored. Treat it as neutral, not an ignore rule.
         return states[path] == .ignored ? nil : states[path]
     }
     func fileOperationOwner(for url: URL) -> String? {
-        guard let owner = repositoryRoot(for: url) else { return nil }
-        if isRepositoryRoot(url,root:owner), let parent = repositories[owner]?.submoduleParentRoot { return parent }
-        return owner
+        guard url.isFileURL,let path=cachedPath(for:url),let owner=exactRepositoryRoot(for:path) else {return nil}
+        return fileOperationOwner(path:path,root:owner)
+    }
+    private func fileOperationOwner(path:String,root:String) -> String {
+        if GitReferenceName.equal(path,root),let parent=repositories[root]?.submoduleParentRoot {return parent}
+        return root
     }
     public func commonFileOperationOwner(for paths: [URL]) -> String? {
         guard let first = paths.first, let owner = fileOperationOwner(for: first),
@@ -60,14 +105,29 @@ extension FinderSnapshot {
         return owner
     }
     func hasFileState(_ statesToMatch: Set<FileState>, at url: URL, includingDescendants: Bool) -> Bool {
-        guard let owner = fileOperationOwner(for: url) else { return false }
-        let entries = overlayEntries ?? states
-        guard let path = cachedPath(for: url) else { return false }
-        if let state = entries[path], statesToMatch.contains(state) { return true }
-        guard includingDescendants else { return false }
-        let prefix = path
-        return entries.contains { path, state in
-            FileTransferPaths.contains(path, in: prefix) && statesToMatch.contains(state) && fileOperationOwner(for: FileTransferPaths.fileURL(path)).map { GitReferenceName.equal($0,owner) } == true
+        guard url.isFileURL,let path=cachedPath(for:url),let root=exactRepositoryRoot(for:path) else {return false}
+        let owner=fileOperationOwner(path:path,root:root),entries=overlayEntries ?? states
+        if let state=entries[path],statesToMatch.contains(state) {return true}
+        guard includingDescendants else {return false}
+        // Build from exact recorded entries, never alias filesystem names during
+        // propagation. A child checkout's contents belong to that child; its
+        // parent's gitlink remains a separately owned direct entry.
+        let names=queries.roots {GitPathSet(roots)}
+        let descendants=queries.descendants {
+            var result=FinderSnapshotQueries.Descendants()
+            for (entry,state) in entries {
+                guard let root=Self.exactRepositoryRoot(for:entry,names:names) else {continue}
+                let owner=fileOperationOwner(path:entry,root:root)
+                var parent=Self.parentPath(entry)
+                while Self.contains(parent,root:owner) {
+                    result[GitReferenceName(owner),default:[:]][GitReferenceName(parent),default:[]].insert(state)
+                    if GitReferenceName.equal(parent,owner) {break}
+                    parent=Self.parentPath(parent)
+                }
+            }
+            return result
         }
+        guard let present=descendants[GitReferenceName(owner)]?[GitReferenceName(path)] else {return false}
+        return !present.isDisjoint(with:statesToMatch)
     }
 }

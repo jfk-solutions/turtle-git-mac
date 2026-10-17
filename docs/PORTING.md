@@ -2540,3 +2540,21 @@ All owned receivers/helpers exited. The native wire fixture does not assert that
 the host volume has two physical canonical-peer folders. Installed signed-version
 migration, other grant boundaries, physical Finder and full port/App Store/hosted
 acceptance remain open. No dialog is newly certified by this cache batch.
+
+### Finder snapshot query and directory-menu family, 2026-10-18
+
+Finder snapshots now reuse immutable exact namespaces, watched-root sets and
+owner-grouped descendant states. Menu eligibility no longer rebuilds all path
+prefixes for every predicate or scans every cache entry for each folder action.
+Badge projection finds an exact owner by ancestor lookup. Copies share query data
+until a relevant field changes, then detach without altering a retained snapshot.
+The existing wire format and exact/unique-alias/nested-root rules remain intact.
+
+All 48 scoped Core cases, the Debug build and both grouped native engine cases
+passed on the first checkpoint. Dense-cache timing, concurrent reads and all
+copy/field/encoding assertions are retained in [dated evidence](qa/finder-query-family-2026-10-18.json).
+Native original-icon menus, changed generations, fresh badges and retained
+exact-root/foreground/event/cross-process workflows pass. All owned processes
+exited. Full Core/unrelated families were not repeated. Synchronous snapshot
+reading/reload, huge/remote-volume performance, physical Finder and signed/App
+Store acceptance remain open. No whole dialog or port certification is implied.

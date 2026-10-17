@@ -251,3 +251,4 @@ commands and dropdowns, independent saved layouts, replacement ownership and
 reviewed full-window light/dark captures.
 
 - [Finder repository-root identity](FINDER-ROOT-IDENTITY-PARITY.md): lossless root metadata, menu ownership, badge propagation and cache writer migration.
+- [Finder query lifetime and directory menus](FINDER-QUERY-PARITY.md): snapshot query reuse, ancestor-state ownership and remaining responsiveness work.

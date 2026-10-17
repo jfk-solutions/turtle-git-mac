@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "35a00a2530f62e668a2f116fd42cff33448a5d1f",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Immutable-generation Finder namespace reuse, exact ancestor root queries, owner-scoped indexed directory eligibility, value-copy mutation isolation and repeated native menu/badge/publication workflows",
+  "source_inputs_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "f7f6f2efeec436e2cfab35915850c3dec1eaaa0871fdf0c0f4fe0fe3b7ff9fe4",
+    "Sources/TurtleGitCore/FinderSelectionContext.swift": "f9416e654b16d5773a099f7b0228e418d5e43a341e287ef2a958334e55bec543",
+    "Sources/TurtleGitCore/FinderOverlaySettings.swift": "dd48bed5e67b4ba7bc3f8c519dfe1408044a58a42a87406ea8190059505b56fe",
+    "Tests/TurtleGitCoreTests/FinderSnapshotQueryTests.swift": "9a9e516939492022743d423890a65700749a8fae8d8438ad0a3aeabda802b8b0",
+    "FinderSync/FinderSync.swift": "f4bb6b89e84c88adf6837da84600195a911fc1fa01a81a504647323d7b08070e",
+    "docs/qa/finder-query-family-native-2026-10-18.swift": "52eebd392c9012047745a28cba4c39cf291cb3977fc5e0ddfb461a3572689797",
+    "scripts/test-finder-query-family.py": "6921fc59c3e4f0cc3fa7d25e83b50575948667cc2282c0a0e69636dc1b84846d",
+    "docs/qa/finder-root-identity-native-2026-10-18.swift": "d6c9b75e1a853a64bd6e8c326c3e072d7aadf6854fd1fe1eaf0db585aaedd45a",
+    "docs/qa/finder-publication-native-2026-10-13.swift": "8f0ea44827a51752844b61de4c30edd2c7a00f17dc6f54ce7fd51171c7961089",
+    "docs/qa/finder-publication-worker-native-2026-10-13.swift": "672d40316caef12c244776bb11b3c75c0e81d2a4372edb572cf28fda61287ce1"
+  },
+  "attempts": [
+    {
+      "kind": "Scoped Core",
+      "log": "build/qa/finder-query-core-2026-10-18.log",
+      "result": "first attempt passed: 48 cases, zero failures. Six new query cases cover each relevant field mutation, retained value copies, canonical-peer alias invalidation, independent entry-scan oracle, 128 concurrent readers, unchanged wire encoding and repeated dense-cache queries. Retained exact-root/selection/metadata/publication/overlay cases passed."
+    },
+    {
+      "kind": "Debug",
+      "log": "build/qa/finder-query-build-2026-10-18.log",
+      "result": "first attempt exit 0; existing simulator/SDK, actor/deprecation and zero-exit/no-output diagnostics retained"
+    },
+    {
+      "kind": "Grouped native",
+      "log": "build/qa/finder-query-native-2026-10-18.log",
+      "receivers": [
+        40735,
+        40823
+      ],
+      "exact_root_workers": [
+        40737,
+        40738,
+        40825,
+        40826
+      ],
+      "result": "first attempt both system/bundled engine cases passed. Production Finder source menus/icons on 5000 entries/201 roots, changed-copy old/new eligibility, fresh badge projection, nested ownership, exact-root URI and primitive dispatch, concurrent wire cache writers, two actual foreground models and real event updates retained/passed."
+    }
+  ],
+  "timing_samples": {
+    "scope": "Debug/local host fixture; no timing threshold or general speedup asserted",
+    "Core_5000_entries_201_roots": {
+      "cold_ms": 117.362708,
+      "warm_1500_folder_root_queries_ms": 33.12425
+    },
+    "native_system": {
+      "cold_menu_ms": 846.191,
+      "warm_20_menus_ms": 226.642416
+    },
+    "native_bundled": {
+      "cold_menu_ms": 805.535917,
+      "warm_20_menus_ms": 230.069583
+    },
+    "qualification": "Native cold samples include original image/menu construction; these measurements are not a before/after baseline comparison."
+  },
+  "cleanup": {
+    "receivers": [
+      40735,
+      40823
+    ],
+    "exact_root_workers": [
+      40737,
+      40738,
+      40825,
+      40826
+    ],
+    "independent_ps": "all six reported PIDs absent",
+    "legacy_workers": "two per engine case explicitly waited with successful exit status by retained publication fixture; PIDs not printed",
+    "resources": "private cache/repositories and temporary script outputs removed; foreground models closed, event monitors stopped. No Finder activation, installed app launch, user clipboard or external app changes."
+  },
+  "hosted_snapshot": {
+    "Pages": "35a00a25 run39073988108 completed success",
+    "macOS": "35a00a25 run39073988088 pending, bdf35802 run39073252669 in_progress at final pre-push observation; no whole hosted pass claimed"
+  },
+  "not_repeated": "Full Core and unrelated native suites; no native UI literals or bundled Help pages changed, so localization and Help generation not repeated",
+  "limits": [
+    "First namespace/ancestor index construction still depends on snapshot size and depth",
+    "Memory proportional to recorded paths/prefixes/ancestor state; huge and remote-volume loads unverified",
+    "Finder shared snapshot reading, JSON decode and overall badge reload remain synchronous",
+    "Physical Finder, minimum OS, VoiceOver and installed signed/App Store acceptance",
+    "Canonical wire peers do not prove two physical peer directories on the host volume",
+    "No screenshot or complete app/dialog parity certification"
+  ],
+  "checks": {
+    "site": "291 documents, zero unresolved fragments; build/qa/finder-query-site-2026-10-18.log",
+    "coverage": "reconciled, unchanged counts; no newly certified dialog",
+    "diff": "git diff --check passed"
+  }
+}
