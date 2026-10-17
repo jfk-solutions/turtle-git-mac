@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "6909250ba3064f917b124a746982eed92ea16876",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native SVN certificate inspection, exact fingerprint copy and public DER/PEM export, owned parent/child/picker/writer response lifetime",
+  "source_inputs_sha256": {
+    "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift": "40d6d877b9c8e26520bc2b927944da255d7de603243ef04865e222dd1f6f8e70",
+    "Sources/TurtleGitGitAskpass/SVNPromptWindow.swift": "7a38a38839a8373392926e7eb20a3fefaa411e9919ccaa19177d4da953cee773",
+    "Tests/TurtleGitCoreTests/GitCertificateDetailsTests.swift": "77fa3560e9546773ab8758a171a8ad95b78e0ed802261060e16592daf2a94f57",
+    "docs/qa/certificate-inspector-native-2026-10-17.swift": "754c27b55bc17c028856eb9756c7a75fb677645dbbc9e98b1d0339fe24b90075",
+    "scripts/test-certificate-inspector.py": "8f5ae7bb010bcaf7a94658d623539ca8646ab58097815f6382904b4f22db4ca9"
+  },
+  "attempts": [
+    {
+      "kind": "Core focused",
+      "log": "build/qa/certificate-inspector-core-2026-10-17.log",
+      "result": "7 cases passed: 3 certificate inspection/export cases and 4 authentication protocol/client-certificate cases"
+    },
+    {
+      "kind": "Initial Debug",
+      "log": "build/qa/certificate-inspector-build-2026-10-17.log",
+      "result": "exit 65 in finalize-runtime-layout: explicit Core import introduced an unowned @rpath/TurtleGitCore dependency into standalone askpass. Initial new ExportChoice capture warning retained."
+    },
+    {
+      "kind": "Repair",
+      "result": "Removed production Core import; helper uses compiled shared certificate model, packaged artwork paths and native URL scope retention. ExportChoice marked @MainActor. No runtime-audit assertion was removed or weakened. Stable generated fixture shims import Core types only for native QA."
+    },
+    {
+      "kind": "Debug repair",
+      "log": "build/qa/certificate-inspector-build-repair-2026-10-17.log",
+      "result": "exit 0; runtime layout/audits pass. No new Core repeat."
+    },
+    {
+      "kind": "Grouped native",
+      "log": "build/qa/certificate-inspector-native-2026-10-17.log",
+      "receiver": 35542,
+      "result": "First native run passed retained credentials/secret/trust/client-certificate family plus native inspector, exact private pasteboard, DER/PEM saves, cancelled/duplicate/stale chooser refusal, captured format, current export error, accepted-writer drain before parent response, once-only rejection and raw light/dark captures. Native SecurityInterface OID diagnostics retained."
+    }
+  ],
+  "captures": {
+    "docs/site/assets/certificate-inspector-light.png": {
+      "sha256": "8be5aea6c6395e4d610852b1344583df645e8adfcca2ae19e7f6440fe6ccd68d",
+      "pixels": [
+        1520,
+        1184
+      ],
+      "review": "Individually inspected raw native capture: native certificate badge, subject/issuer, dates, key/signature fields, tabs and source-icon footer fit; lower details intentionally scroll. System locale dates visible."
+    },
+    "docs/site/assets/certificate-inspector-dark.png": {
+      "sha256": "097ff395f2c0ed8004e2f64e5d0c25c8b9ce7896f7d9ff35c9679c449297682a",
+      "pixels": [
+        1520,
+        1184
+      ],
+      "review": "Individually inspected raw native capture: native certificate badge, subject/issuer, dates, key/signature fields, tabs and source-icon footer fit; lower details intentionally scroll. System locale dates visible."
+    }
+  },
+  "cleanup": {
+    "owned_receiver": 35542,
+    "receiver_report": "reaped",
+    "independent_ps": "absent",
+    "windows": "owned controllers closed on completion; old/new fixtures retain defer cleanup",
+    "pasteboard": "private named pasteboard released",
+    "files": "private fixture source preserved; temporary export destinations removed with fixture root",
+    "system_services": "System certificate UI/trust services are not terminated"
+  },
+  "packaged_helper": {
+    "sha256": "7813cc6b8fc2b5e2c6387ab69b9f0bc9b18f27016764cee173a6994b1029c965",
+    "linkage": "otool -L verifies no TurtleGitCore.framework dependency; only system framework/library linkage",
+    "model": "Production helper compiles the shared source model, not a framework import; native QA imports its identical Core model"
+  },
+  "checks": {
+    "localization": "38 languages /1281 keys --check passed; helper AppKit captions remain partial English localization",
+    "help": "38 documents /48 topics /58 files --check passed after manual update",
+    "ledger": "Reconciled; counts unchanged; not feature completion percentages",
+    "diff": "git diff --check",
+    "site": "288 documents, zero unresolved fragments"
+  },
+  "limits": [
+    "Live SVN/TLS and full certificate chains (callback carries one DER leaf)",
+    "Signed App Store helper/save grants and actual prompt process exit after export",
+    "Physical keyboard, VoiceOver, actual nested Save panel interaction and all certificate disclosure/extension layouts",
+    "Native certificate status can differ from SVN failure reports and does not decide SVN trust",
+    "External cancellation/termination of the Git/helper process during a write",
+    "Permission failures/network filesystem behavior after an inspector has retired",
+    "No full Core suite, complete hosted CI pass, installed Finder or full application parity claim"
+  ]
+}

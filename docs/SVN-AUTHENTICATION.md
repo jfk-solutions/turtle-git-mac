@@ -11,7 +11,7 @@ build requires macOS Keychain support and disables plaintext password storage.
 Signed Keychain behavior remains a distribution acceptance check.
 
 Certificate Check shows the server name, issuer, validity dates, separate SHA-1/SHA-256 fingerprints and
-validation failures. Open certificate shows an owned read-only details window. Reject is the default; closing the window or pressing Escape
+validation failures. Open certificate shows an owned native expandable certificate view and read-only Text page. Copy fingerprints copies both named hashes; Export saves the public certificate as exact DER (.cer) or PEM (.pem). Accepted exports finish before a closing prompt returns its response. See [certificate inspection and export](CERTIFICATE-INSPECTOR.md). Reject is the default; closing the window or pressing Escape
 rejects. Choose temporary acceptance only for the current authentication attempt,
 or permanent acceptance when that option is allowed by SVN. Compare certificate
 details with the server information you trust before accepting.

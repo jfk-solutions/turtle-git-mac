@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
 import Foundation
+import Security
+import SecurityInterface
+import UniformTypeIdentifiers
 
 @MainActor private final class GitSVNAuthenticationWindow: NSWindow {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -17,6 +20,8 @@ import Foundation
     private var response: ((GitSVNAuthenticationResponse?) -> Void)?
     private var panel: NSOpenPanel?
     private(set) var certificateViewer: GitCertificateDetailsWindowController?
+    private var drainingCertificate: GitCertificateDetailsWindowController?
+    var makeCertificateViewer: (GitCertificateDetails) -> GitCertificateDetailsWindowController = { GitCertificateDetailsWindowController(details: $0) }
     let certificateDetails: GitCertificateDetails?
     let sha1 = NSTextField(wrappingLabelWithString: "")
     let sha256 = NSTextField(wrappingLabelWithString: "")
@@ -66,8 +71,9 @@ import Foundation
         if let icon { window.miniwindowImage = icon }
     }
     @objc func openCertificate() {
-        guard !finished, prompt.kind == .trust, let certificateDetails, let window, window.attachedSheet == nil else { return }
-        let child = GitCertificateDetailsWindowController(details: certificateDetails)
+        guard !finished, prompt.kind == .trust, certificateViewer == nil, drainingCertificate == nil, let certificateDetails, let window, window.attachedSheet == nil else { return }
+        let child = makeCertificateViewer(certificateDetails)
+        child.window?.appearance = window.appearance
         certificateViewer = child
         child.onClosed = { [weak self, weak child] in guard self?.certificateViewer === child else { return }; self?.certificateViewer = nil }
         if let sheet = child.window { window.beginSheet(sheet) }
@@ -97,25 +103,148 @@ import Foundation
         guard !finished else { return }; finished = true
         username.stringValue = ""; password.stringValue = ""; username.isEnabled = false; password.isEnabled = false; save.isEnabled = false
         if let panel { panel.sheetParent?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
-        certificateViewer?.close(); certificateViewer = nil
-        let callback = response; response = nil; close(); callback?(result)
+        let callback = response; response = nil
+        if let child = certificateViewer {
+            certificateViewer = nil; drainingCertificate = child
+            child.onClosed = { [self, weak child] in
+                guard drainingCertificate === child else { return }
+                drainingCertificate = nil; close(); callback?(result)
+            }
+            child.close()
+        } else { close(); callback?(result) }
     }
     func windowWillClose(_ notification: Notification) { if !finished { abort() } }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class GitCertificateDetailsWindowController: NSWindowController, NSWindowDelegate {
-    let text = NSTextView()
-    var onClosed: () -> Void = {}
-    init(details: GitCertificateDetails) {
-        let window = GitSVNAuthenticationWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 540), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = details.subject + " – Certificate"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 500, height: 320)
-        super.init(window: window); window.delegate = self
-        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.autoresizingMask = [.width, .height]; scroll.documentView = text
-        text.string = details.description; text.isEditable = false; text.isSelectable = true; text.isRichText = false; text.font = .monospacedSystemFont(ofSize: 12, weight: .regular); text.isVerticallyResizable = true; text.autoresizingMask = [.width]; text.textContainer?.widthTracksTextView = true; text.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude); text.textContainerInset = NSSize(width: 12, height: 12)
-        window.contentView = scroll
+    @MainActor private final class ExportChoice {
+        let panel: NSSavePanel
+        let bytes: Data
+        var responded = false
+        var destination: URL?
+        var observer: NSObjectProtocol?
+        init(panel: NSSavePanel, bytes: Data) { self.panel = panel; self.bytes = bytes }
     }
-    override func close() { if let window { window.sheetParent?.endSheet(window); window.close() } }
-    func windowWillClose(_ notification: Notification) { if let window { window.sheetParent?.endSheet(window) }; onClosed() }
+    let details: GitCertificateDetails
+    let text = NSTextView()
+    let certificateView = SFCertificateView(frame: NSRect(x: 0, y: 0, width: 700, height: 800))
+    let tabs = NSTabView()
+    let format = NSPopUpButton()
+    let exportButton = NSButton(title: "Export…", target: nil, action: nil)
+    let copyButton = NSButton(title: "Copy fingerprints", target: nil, action: nil)
+    let status = NSTextField(wrappingLabelWithString: "")
+    let progress = NSProgressIndicator()
+    private let pasteboard: NSPasteboard
+    private var choice: ExportChoice?
+    private(set) var exporting = false
+    private(set) var retired = false
+    private var notified = false
+    var onClosed: () -> Void = {}
+    var presentExport: ((NSSavePanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
+    var exportDestination: (NSSavePanel) -> URL? = { $0.url }
+    var writeExport: @Sendable (Data, URL) async throws -> Void = { bytes, url in
+        try await Task.detached { try bytes.write(to: url, options: .atomic) }.value
+    }
+    init(details: GitCertificateDetails, pasteboard: NSPasteboard = .general, images: ((String) -> NSImage?)? = nil) {
+        self.details = details; self.pasteboard = pasteboard
+        let window = GitSVNAuthenticationWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 560), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = details.subject + " – Certificate"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 650, height: 420)
+        super.init(window: window); window.delegate = self
+        certificateView.setEditableTrust(false); certificateView.setDisplayTrust(false)
+        certificateView.setDisplayDetails(true); certificateView.setDetailsDisclosed(true)
+        if let certificate = SecCertificateCreateWithData(nil, details.der as CFData) { certificateView.setCertificate(certificate) }
+        certificateView.autoresizingMask = [.width]
+        let nativeScroll = NSScrollView(); nativeScroll.hasVerticalScroller = true; nativeScroll.documentView = certificateView
+        tabs.setContentHuggingPriority(.defaultLow, for: .vertical)
+        let nativeTab = NSTabViewItem(identifier: "certificate"); nativeTab.label = "Certificate"; nativeTab.view = nativeScroll; tabs.addTabViewItem(nativeTab)
+        let rawScroll = NSScrollView(); rawScroll.hasVerticalScroller = true; rawScroll.documentView = text
+        text.string = details.description; text.isEditable = false; text.isSelectable = true; text.isRichText = false
+        text.font = .monospacedSystemFont(ofSize: 12, weight: .regular); text.isVerticallyResizable = true
+        text.autoresizingMask = [.width]; text.textContainer?.widthTracksTextView = true
+        text.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude); text.textContainerInset = NSSize(width: 12, height: 12)
+        let rawTab = NSTabViewItem(identifier: "text"); rawTab.label = "Text"; rawTab.view = rawScroll; tabs.addTabViewItem(rawTab)
+        format.addItems(withTitles: ["DER certificate (.cer)", "PEM certificate (.pem)"]); format.setAccessibilityLabel("Certificate export format")
+        copyButton.target = self; copyButton.action = #selector(copyFingerprints); copyButton.bezelStyle = .rounded; copyButton.image = images?("copy") ?? Self.sourceIcon("copy"); copyButton.imagePosition = .imageLeading
+        exportButton.target = self; exportButton.action = #selector(exportCertificate); exportButton.bezelStyle = .rounded; exportButton.image = images?("saveas") ?? Self.sourceIcon("saveas"); exportButton.imagePosition = .imageLeading
+        let close = NSButton(title: "Close", target: self, action: #selector(closeInspector)); close.bezelStyle = .rounded; close.keyEquivalent = "\r"
+        window.defaultButtonCell = close.cell as? NSButtonCell; window.initialFirstResponder = close
+        progress.style = .spinning; progress.controlSize = .small; progress.isDisplayedWhenStopped = false
+        let footer = NSStackView(views: [copyButton, format, exportButton, progress, NSView(), close]); footer.orientation = .horizontal; footer.spacing = 8
+        status.textColor = .systemRed; status.setAccessibilityLabel("Certificate export status")
+        let body = NSStackView(views: [tabs, status, footer]); body.orientation = .vertical; body.alignment = .leading; body.spacing = 8; body.translatesAutoresizingMaskIntoConstraints = false
+        window.contentView?.addSubview(body)
+        if let content = window.contentView { NSLayoutConstraint.activate([
+            body.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 12), body.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -12),
+            body.topAnchor.constraint(equalTo: content.topAnchor, constant: 12), body.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -12),
+            tabs.widthAnchor.constraint(equalTo: body.widthAnchor), tabs.heightAnchor.constraint(greaterThanOrEqualToConstant: 280),
+            status.widthAnchor.constraint(equalTo: body.widthAnchor), status.heightAnchor.constraint(equalToConstant: 32), footer.widthAnchor.constraint(equalTo: body.widthAnchor)]) }
+    }
+    /// The command-line helper shares source models but deliberately does not
+    /// link the application's Core framework. Read its packaged command artwork
+    /// through the containing application, as the helper entry point does.
+    private static func sourceIcon(_ name: String) -> NSImage? {
+        var application = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
+        while application.path != "/" && application.pathExtension != "app" { application.deleteLastPathComponent() }
+        guard application.pathExtension == "app",
+              let image = NSImage(contentsOf: application.appendingPathComponent("Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/" + name + ".ico")) else { return nil }
+        image.size = NSSize(width: 16, height: 16); return image
+    }
+    @objc func copyFingerprints() {
+        guard !retired else { return }; pasteboard.clearContents(); pasteboard.setString(details.fingerprints, forType: .string)
+    }
+    @objc func exportCertificate() {
+        guard !retired, !exporting, choice == nil, let window, window.attachedSheet == nil else { return }
+        let encoding: GitCertificateDetails.ExportFormat = format.indexOfSelectedItem == 1 ? .pem : .der
+        let panel = NSSavePanel(); panel.title = "Export certificate"; panel.nameFieldStringValue = "Certificate." + encoding.fileExtension
+        panel.allowedContentTypes = [UTType(filenameExtension: encoding.fileExtension) ?? .data]; panel.canCreateDirectories = true
+        let pending = ExportChoice(panel: panel, bytes: details.encoded(as: encoding)); choice = pending; updateControls(); status.stringValue = ""
+        pending.observer = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification, object: window, queue: .main) { [weak self, weak pending] _ in
+            DispatchQueue.main.async { if let pending { self?.drain(pending) } }
+        }
+        let reply: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            guard let self, self.choice === pending, !pending.responded else { return }
+            pending.responded = true; pending.destination = !self.retired && response == .OK ? self.exportDestination(panel) : nil
+            self.release(pending, response: response)
+        }
+        if let presentExport { presentExport(panel, window, reply) } else { panel.beginSheetModal(for: window, completionHandler: reply) }
+    }
+    private func release(_ pending: ExportChoice, response: NSApplication.ModalResponse) {
+        if let parent = pending.panel.sheetParent { parent.endSheet(pending.panel, returnCode: response) }
+        pending.panel.orderOut(nil)
+        DispatchQueue.main.async { [self] in drain(pending) }
+    }
+    private func drain(_ pending: ExportChoice) {
+        guard choice === pending, pending.responded, pending.panel.sheetParent == nil, window?.attachedSheet !== pending.panel else { return }
+        choice = nil
+        if let observer = pending.observer { NotificationCenter.default.removeObserver(observer); pending.observer = nil }
+        guard !retired, let destination = pending.destination, destination.isFileURL else { updateControls(); notifyRetired(); return }
+        exporting = true; updateControls(); progress.startAnimation(nil)
+        let bytes = pending.bytes, writer = writeExport, scoped = destination.startAccessingSecurityScopedResource()
+        Task { [self] in
+            defer { if scoped { destination.stopAccessingSecurityScopedResource() }; exporting = false; progress.stopAnimation(nil); updateControls(); notifyRetired() }
+            do { try await writer(bytes, destination) }
+            catch { if !retired { status.stringValue = error.localizedDescription } }
+        }
+    }
+    private func updateControls() { format.isEnabled = !retired && !exporting && choice == nil; exportButton.isEnabled = format.isEnabled; copyButton.isEnabled = !retired }
+    @objc private func closeInspector() { close() }
+    override func close() {
+        retire()
+        if let window { window.sheetParent?.endSheet(window); window.close() }
+        notifyRetired()
+    }
+    private func retire() {
+        guard !retired else { return }; retired = true; updateControls()
+        if let choice { choice.responded = true; choice.destination = nil; release(choice, response: .cancel) }
+    }
+    private func notifyRetired() {
+        guard retired, !exporting, choice == nil, !notified else { return }; notified = true
+        let callback = onClosed; onClosed = {}; callback()
+    }
+    func windowWillClose(_ notification: Notification) {
+        if let window { window.sheetParent?.endSheet(window) }; retire()
+        DispatchQueue.main.async { [self] in notifyRetired() }
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

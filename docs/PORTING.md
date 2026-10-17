@@ -2477,3 +2477,23 @@ independently absent. [Scope and limits](LOG-DOCUMENT-OPEN-PARITY.md) and
 [dated evidence](qa/log-document-open-family-2026-10-17.json) retain the actual
 checks. Physical receiving-app/AX and signed App Store acceptance remain open;
 this does not certify the whole Log or application port.
+
+### Native certificate inspector and public export, 2026-10-17
+
+Open certificate now supplies native expandable macOS certificate fields plus
+the read-only Text report. Copy uses the exact named fingerprints; Export captures
+DER/PEM encoding before its owned Save panel. Cancelled, repeated and retired
+callbacks cannot write, and an accepted write retains the destination scope until
+completion before a closing authentication helper returns its response. Native
+trust editing is disabled and this view does not accept the SVN connection.
+
+Seven focused Core cases and the grouped native authentication/inspector receiver
+passed. Initial Debug packaging failed because an added Core import accidentally
+linked the standalone helper against the app framework; the helper now keeps
+shared source models, packaged artwork paths and native URL scope handling. The
+Debug repair passed with the runtime audit intact. No Core repeat followed the
+helper-only repair. Raw light/dark captures were individually reviewed; receiver
+35542 was reaped and independently absent. [Guide](CERTIFICATE-INSPECTOR.md) and
+[evidence](qa/certificate-inspector-family-2026-10-17.json) retain scope/limits.
+Live TLS, physical/AX, signed helper/save grants and full application parity remain
+open. Dialog inventory counts are unchanged.

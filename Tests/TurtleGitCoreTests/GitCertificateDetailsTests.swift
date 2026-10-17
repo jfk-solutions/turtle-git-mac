@@ -11,6 +11,19 @@ final class GitCertificateDetailsTests: XCTestCase {
         let prompt = GitSVNAuthenticationPrompt(kind: .trust, realm: "fixture", failures: 8, hostname: "turtlegit.example.invalid", issuer: "fixture", fingerprint: "SVN fingerprint", certificate: data.base64EncodedString())
         let decoded = try XCTUnwrap(GitSVNAuthenticationPrompt.decode(prompt.encoded(), enabled: true)); XCTAssertEqual(try decoded.certificateDetails()?.der, data)
     }
+    func testPublicCertificateExportDERAndPEMRoundTrip() throws {
+        let file = try XCTUnwrap(Bundle.module.url(forResource: "server", withExtension: "der", subdirectory: "Certificates"))
+        let original = try Data(contentsOf: file), details = try GitCertificateDetails(base64DER: original.base64EncodedString())
+        XCTAssertEqual(details.encoded(as: .der), original)
+        let pem = String(decoding: details.encoded(as: .pem), as: UTF8.self)
+        XCTAssertTrue(pem.hasPrefix("-----BEGIN CERTIFICATE-----\n")); XCTAssertTrue(pem.hasSuffix("\n-----END CERTIFICATE-----\n"))
+        let lines = pem.split(separator: "\n").map(String.init), body = Array(lines.dropFirst().dropLast())
+        XCTAssertTrue(body.dropLast().allSatisfy { $0.utf8.count == 64 }); XCTAssertLessThanOrEqual(body.last!.utf8.count, 64)
+        XCTAssertEqual(Data(base64Encoded: body.joined()), original)
+        XCTAssertEqual(details.fingerprints, "SHA-1: " + details.sha1 + "\nSHA-256: " + details.sha256)
+        XCTAssertEqual(try GitCertificateDetails(base64DER: body.joined()).sha256, details.sha256)
+        XCTAssertFalse(pem.contains("PRIVATE KEY")); XCTAssertEqual(try Data(contentsOf: file), original)
+    }
     func testInvalidCertificateIsRefusedAndLegacyRequestStillWorks() throws {
         XCTAssertThrowsError(try GitCertificateDetails(base64DER: "invalid certificate"))
         let bad = GitSVNAuthenticationPrompt(kind: .trust, realm: "fixture", failures: 8, hostname: "host", issuer: "issuer", fingerprint: "fp", certificate: Data("not DER".utf8).base64EncodedString())

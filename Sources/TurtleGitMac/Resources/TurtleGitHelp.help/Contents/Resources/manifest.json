@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "3b11f3e8926ff10cca87f39af9ad8c0fb362e91555a6499554eda9e017c15526",
+    "Contents/Info.plist": "767fb9194882bcfbbcf42592ab13389bdb0c1834116a64956136309c2ed693ab",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "ea62e9255277183fb721ceb36a97a21b113f94329e42eef862414b541f4853fd",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
@@ -36,7 +36,7 @@
     "Contents/Resources/en.lproj/SAVED-DATA.html": "a12e071bb8898ae7d5bd3cf962545279e31332d274a5e9e6fa0356478b256601",
     "Contents/Resources/en.lproj/SSH-AUTHENTICATION.html": "97b2afc89a58711b9c1e8a1124b289a36356e2658aa86edae3290d93ae40e51c",
     "Contents/Resources/en.lproj/STATISTICS.html": "a5dfee7da8595041c68daedff757d727b38242f4a22d66fa089fe17c048607ef",
-    "Contents/Resources/en.lproj/SVN-AUTHENTICATION.html": "07ba11505b7b1bd2ff9f55977c12087fbcae75214cc89b2151d9f5fe06c0bd1a",
+    "Contents/Resources/en.lproj/SVN-AUTHENTICATION.html": "a85280bfb4fdb0793092ad90646321abed37aa760ac91a5a86b456bffb355a98",
     "Contents/Resources/en.lproj/WORD-COMPARISON.html": "1ff25db451eedbe15f78b4d334297f0dfa1d9c21b7c6dcc848f029f50071c985",
     "Contents/Resources/en.lproj/WORD-MERGE.html": "2879dc7c437af55f55a931b84e1e54e2501693f145c4d4304cc1bdd978c2ce43",
     "Contents/Resources/en.lproj/ZIP-COMPARISON.html": "4dda6cab35812340375388e957f32c0eb80700b93cfbaf0afa3e29fdbbbbcbfa",
@@ -93,7 +93,7 @@
     "docs/SAVED-DATA.md": "54f11a8a0ec8a5dda818158f36dbaabe43dbbd7ba83cf141aa5f742007be0caf",
     "docs/SSH-AUTHENTICATION.md": "33c00c2bde5c80f561e2b31f124a436127bc78d17466109828ab4742c34b7a8a",
     "docs/STATISTICS.md": "a350dc541f0f50e5e1141d896010ba98b18a61899c091dbfe97a18df0d9dcff6",
-    "docs/SVN-AUTHENTICATION.md": "e89e9f230f93b3a1a3357cab07bf84389c66bfdd602d2cea9229c22b1667c0b1",
+    "docs/SVN-AUTHENTICATION.md": "f5cdd353c17d55ff2d7f5cc37e93d96205c0b6a53737cc4226049769ad830b16",
     "docs/WORD-COMPARISON.md": "4abfaf00ef834ee9788858006e4272d16f9961a7a42147a97e5d09dfd0350fd2",
     "docs/WORD-MERGE.md": "ffed41df55c03977f430e784cd444e2b5616b77422a79119f11df0f53631ef6d",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",

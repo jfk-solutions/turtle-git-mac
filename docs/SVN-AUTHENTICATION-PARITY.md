@@ -72,3 +72,19 @@ The certificate family passed cached runtime materialization/install audit, Debu
 nine unique Core tests after a focused three-test icon alias repair, shipped Perl
 callback checks and four native cases. Actual failure/repair and acceptance limits
 are recorded in [the certificate evidence](qa/svn-certificate-details-2026-10-14.json).
+
+## Native certificate inspector and public export — October 17, 2026
+
+The [certificate inspector](CERTIFICATE-INSPECTOR.md) adds a native expandable
+macOS certificate view and retains the existing read-only text report, fingerprint
+copying and DER/PEM export. Native trust editing/display controls are disabled;
+no Keychain import or trust-save API is called. The parent SVN decision continues
+to use its reported failure bits. The native view may display macOS's independent
+certificate status; that display does not accept the SVN connection.
+
+An owned Save panel captures its encoding and refuses duplicate, cancelled and
+retired callbacks. Accepted writes retain their destination permission and finish
+before a closing authentication parent returns the response that can terminate
+the helper process. Parent/child closure remains once-only. This supersedes the
+historical text-only inspector within that scope; live TLS, complete chains,
+physical/AX and signed-helper acceptance remain open.

@@ -96,6 +96,19 @@ public struct GitCertificateDetails: Sendable {
     public let sha1: String
     public let sha256: String
     public let description: String
+    public enum ExportFormat: String, CaseIterable, Sendable {
+        case der, pem
+        public var fileExtension: String { self == .der ? "cer" : "pem" }
+    }
+    public var fingerprints: String { "SHA-1: " + sha1 + "\nSHA-256: " + sha256 }
+    /// Public certificate bytes only. Export never imports an identity or edits
+    /// Keychain trust; PEM uses the standard certificate label and 64-character rows.
+    public func encoded(as format: ExportFormat) -> Data {
+        guard format == .pem else { return der }
+        let bytes = Array(der.base64EncodedString().utf8)
+        let rows = stride(from: 0, to: bytes.count, by: 64).map { String(decoding: bytes[$0..<min($0 + 64, bytes.count)], as: UTF8.self) }
+        return Data(("-----BEGIN CERTIFICATE-----\n" + rows.joined(separator: "\n") + "\n-----END CERTIFICATE-----\n").utf8)
+    }
     public init(base64DER: String) throws {
         guard base64DER.utf8.count <= 48_000, let data = Data(base64Encoded: base64DER.filter { !$0.isWhitespace }), !data.isEmpty,
               let certificate = SecCertificateCreateWithData(nil, data as CFData) else { throw GitSVNAuthenticationFailure.malformed }
