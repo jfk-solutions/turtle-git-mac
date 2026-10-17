@@ -61,3 +61,44 @@ in `qa/general-setup-batch-2026-10-11.json`. Native visual/keyboard/ownership, l
 network, bookmark renewal and signed sandbox acceptance remain open. This
 checkpoint supersedes the uncompiled/untested statements above. Inventory is
 unchanged; no dialog is newly certified.
+
+## Source downloads and native ownership — October 17, 2026
+
+The source source/version/result/link, Change log, Download/list/progress/action
+and Close/automatic opt-out hierarchy now has a native counterpart. Published
+GitHub release assets retain names, sizes, state and optional SHA-256 digests.
+The Mac application archive starts checked; other eligible files can be checked
+independently. Missing/invalid digests, unuploaded files and files outside the
+one-GiB bound remain visible but cannot use the in-app download. The website
+link remains available. Old release metadata without assets is still supported.
+
+The metadata and file URLs must belong to the configured repository and release
+tag, with literal safe names, unique identities/names and HTTPS links. Downloads
+use a private URLSession without shared credentials/cookies, bounded request and
+resource times, GitHub HTTPS redirects, byte/size bounds and SHA-256 verification.
+See [GitHub asset metadata](https://docs.github.com/en/rest/releases/assets) and
+[Apple download delegates](https://developer.apple.com/documentation/foundation/urlsessiondownloaddelegate).
+This digest checks public-feed integrity; it does not independently authenticate
+the publisher or replace macOS code signing.
+
+A native folder sheet owns one checked batch. The folder's security scope remains
+live through verification and accepted file publication. Files download into a
+private staging directory; complete files publish via a private same-volume sibling
+and a non-replacing hard link. Existing files are preserved. Filesystems without
+hard-link support report a destination error. Multi-file batches retain completed
+files when a later file fails or Abort is requested; checked failed files can be
+retried. The final button reveals downloaded files in Finder. It does not unpack,
+launch or install executable code. Windows installer execution, independent release
+signatures and signed macOS installer/update acceptance remain open.
+
+Progress/selection/Abort and late results are scoped to the captured owner and
+request. Normal Close waits for downloads; Abort cancels owned chooser/transport
+work, while Quit accounting remains until actual tasks drain. Forced close retires
+delivery and keeps accepted file work/scopes alive to completion. Manual release
+checks now retain that same independent accounting. Preferences and channel are
+captured from the model's own store; automatic opt-out does not write another store.
+App Store builds never check/download GitHub assets and use the installed App Store.
+
+All thirteen static resource controls have partial mappings. The Debug build, nine focused Core checks and both grouped native families pass. Core covers metadata/eligibility, old feeds and duplicate assets, real URLSession transport through a private URLProtocol, cancellation, digest/size rejection and non-overwriting file publication. Native checks cover captured feed/defaults, native/injected folder cancellation, two verified file installs, existing-file and digest failure, held request drain, late replies and App Store isolation. Initial captures exposed unbounded hosting growth; disabling automatic host sizing repaired it, and the affected source case passed again. All four final raw light/dark captures were individually reviewed, and all three owned receivers were reaped and independently absent. See [batch evidence](qa/release-download-family-2026-10-17.json) for exact scope and limits. Actual public-network/CDN
+behavior, large-file/mount/permission boundaries, independent signatures, signed
+Finder/App Store deployment and full dialog parity remain unverified.

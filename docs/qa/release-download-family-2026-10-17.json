@@ -1,0 +1,140 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "3151032f4cad5b031f0aeed5d2de9e8605b711f0",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source release/version/result/link/changelog/download/progress/Close hierarchy",
+    "Validated GitHub assets and size/SHA-256 eligibility with checked main archive and auxiliary choices",
+    "Owned folder sheet/scopes, private URLSession staging, progress/Abort and non-overwriting publication",
+    "Retained per-file results and Finder reveal adaptation, captured preview/preferences/owner contexts",
+    "Independent fetch/chooser/transfer/file operation accounting after retirement and App Store isolation",
+    "All thirteen source controls have partial mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/release-download-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 7
+    },
+    {
+      "log": "build/qa/release-download-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "repair": "Disable automatic NSHostingController sizing; source notes scroll inside the native resizable window."
+    }
+  ],
+  "core": {
+    "log": "build/qa/release-download-core-2026-10-17.log",
+    "exit": 0,
+    "tests": 9,
+    "failures": 0,
+    "filter": "ReleaseDownloadTests|GeneralSetupBatchTests.*(VersionOrdering|ReleaseFeed)",
+    "scope": [
+      "Asset identity/name/repository/tag metadata and size/digest/state eligibility",
+      "Old feeds without assets, retained assets and duplicate refusal",
+      "Wrong bytes/size and symlink rejection",
+      "Non-overwriting complete-file publication and temporary sibling cleanup",
+      "Actual URLSessionDownloadTask/HTTP failure and cancellation with private URLProtocol; no public network",
+      "Retained version ordering and release filtering"
+    ],
+    "repeated_after_native_layout_repair": false
+  },
+  "native": {
+    "distinct_family_passes": 2,
+    "families": [
+      "source download/folder/verified publication workflow",
+      "forced-owner fetch/transfer drain and App Store isolation"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/release-download-native-2026-10-17.log",
+        "exit": 0,
+        "passed_families": 2,
+        "visual_failure": "Unbounded hosting growth produced tall changelog windows (1440x4424/5128). Captures rejected despite passing behavioral assertions."
+      },
+      {
+        "log": "build/qa/release-download-layout-native-2026-10-17.log",
+        "exit": 0,
+        "passed_families": 1,
+        "repair": "Affected source case rechecked with final 1440x1364 capture bounds assertion. Lifetime and Core were unchanged and not repeated."
+      }
+    ],
+    "owned_receivers_reaped": [
+      18270,
+      18321,
+      18424
+    ],
+    "independently_absent_owned_receivers": [
+      18270,
+      18321,
+      18424
+    ],
+    "private_effects": "Private release metadata, temporary file destinations and preference stores. Native actual NSOpenPanel cancellation; injected folder/transfer/reveal/App Store responses. Final hash verification and file publication use production Core. No public release or installed app/Finder was opened."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/release-update-source-light.png",
+      "sha256": "ac1045a75a14387bef57e7c1b5d522d4adcfcc74c3d84684369b66c48884dcd5",
+      "pixels": [
+        1440,
+        1364
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/release-update-source-dark.png",
+      "sha256": "66f2b2fe0951c6f199d4c0ef2401e1c59ba8393fc66de59f8bcfda19ba985ae2",
+      "pixels": [
+        1440,
+        1364
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/release-download-source-light.png",
+      "sha256": "3c72b4dc53c061bf07a79fb05ad15f14c84fef4dba321f520071566db90aa159",
+      "pixels": [
+        1440,
+        1364
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/release-download-source-dark.png",
+      "sha256": "6eaf0b523d2afdd26347fcff128bad36141da46346fbc3fe22bf42e488e47410",
+      "pixels": [
+        1440,
+        1364
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit images of the production update window with private fixture release metadata and tiny matching payloads. Available and downloaded states are actual model states. No public version 2.0.0 release was created. Passive owned window, no global input/focus. Rejected tall captures retained under build/qa/release-update-rejected.",
+  "hosted_observation": {
+    "head": "3151032f4cad5b031f0aeed5d2de9e8605b711f0",
+    "macos": {
+      "run": 38991255865,
+      "status": "in_progress",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38991255827,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Public GitHub/CDN/TLS redirects, large files and real mount/permission boundaries remain unverified",
+    "GitHub SHA-256 is public-feed integrity, not independent publisher authentication or macOS code signing",
+    "No automatic unpack/install; Windows/GPG installer parity and signed macOS update installation remain open",
+    "Hard-link support is required for non-replacing destination publication",
+    "Every partial-batch failure/Abort combination, physical controls/keyboard/VoiceOver and signed Finder/App Store acceptance remain open",
+    "Focused passes do not certify complete hosted CI, dialog or full-port parity"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/release-download-site-2026-10-17.log"
+  }
+}

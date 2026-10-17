@@ -1889,3 +1889,13 @@ Errors and unsigned notices are separate. Source drag-menu limits remain explici
 clipboard actions are a separate macOS group. All fourteen source controls have
 partial mappings. See [context parity](CONTEXT-MENU-SETTINGS-PARITY.md#native-source-lists-and-shared-publication--october-17-2026).
 The Debug build and both grouped native families pass: source pages/native actions and retained settings/publication/Advanced/transaction behavior. The initial source check found disabled native rows; diagnostics isolated the missing observation of model changes, repaired with direct observation and rendered-state readiness. All four raw light/dark captures were individually reviewed: source groups, original icons, native checkboxes, exclusions and page controls fit. All four owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/context-menu-source-family-2026-10-17.json) for exact attempts, provenance and acceptance limits.
+
+### Release downloads and App Store isolation — October 17, 2026
+
+Check for Updates now retains the source result/changelog/download hierarchy,
+checked published files, size/digest validation, progress/Abort and native Finder
+reveal. Folder scopes, private staging, non-overwriting publication, retained
+partial results and actual request drain connect the whole workflow. App Store
+builds stay on their own update path. All thirteen source controls have partial
+mappings. See [release parity](RELEASE-UPDATES-PARITY.md#source-downloads-and-native-ownership--october-17-2026).
+The Debug build, nine focused Core checks and both grouped native families pass. Core covers metadata/eligibility, old feeds and duplicate assets, real URLSession transport through a private URLProtocol, cancellation, digest/size rejection and non-overwriting file publication. Native checks cover captured feed/defaults, native/injected folder cancellation, two verified file installs, existing-file and digest failure, held request drain, late replies and App Store isolation. Initial captures exposed unbounded hosting growth; disabling automatic host sizing repaired it, and the affected source case passed again. All four final raw light/dark captures were individually reviewed, and all three owned receivers were reaped and independently absent. See [batch evidence](qa/release-download-family-2026-10-17.json) for exact scope and limits.

@@ -2,7 +2,7 @@
 
 The pinned inventory contains **130 dialogs**: **120 have partial family audits**, **10 await a family review**, and **none are certified complete**.
 
-There are 1659 inventoried static controls. 1268 have recorded native mappings; 391 still have pending control reviews. Dynamic menus, runtime-created controls, full layout and signed acceptance require separate evidence. A partial family audit never clears its unmapped controls. Recorded control mappings also remain partial; they do not prove all associated behavior.
+There are 1659 inventoried static controls. 1281 have recorded native mappings; 378 still have pending control reviews. Dynamic menus, runtime-created controls, full layout and signed acceptance require separate evidence. A partial family audit never clears its unmapped controls. Recorded control mappings also remain partial; they do not prove all associated behavior.
 
 This generated table links explicit implementation/parity reviews and existing QA. Missing links indicate missing recorded evidence, rather than proof that a feature is absent. The full machine-readable ledger is [dialog coverage](dialog-coverage.json). Review decisions live in `dialog-coverage-reviews.json`; regeneration is pinned to the source commit.
 
@@ -48,7 +48,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSPROGSADV` | partial-native-replacement | 8/8 mapped; 0 pending | [DIFF-TOOLS-PARITY](DIFF-TOOLS-PARITY.md); 10 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_URL` | pending-review | 0/4 mapped; 4 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_TOOLASSOC` | partial-native-replacement | 7/7 mapped; 0 pending | [DIFF-TOOLS-PARITY](DIFF-TOOLS-PARITY.md); 10 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_CHECKFORUPDATES` | partial-native-replacement | 0/13 mapped; 13 pending | [RELEASE-UPDATES-PARITY](RELEASE-UPDATES-PARITY.md); 1 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_CHECKFORUPDATES` | partial-native-replacement | 13/13 mapped; 0 pending | [RELEASE-UPDATES-PARITY](RELEASE-UPDATES-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REVERT` | partial-native-replacement | 6/6 mapped; 0 pending | [REVERT-PARITY](REVERT-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_LFS_LOCKS` | partial-native-replacement | 6/6 mapped; 0 pending | [LFS-PARITY](LFS-PARITY.md); 18 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_STATGRAPH` | partial-native-replacement | 45/49 mapped; 4 pending | [LOG-STATISTICS-PARITY](LOG-STATISTICS-PARITY.md); 9 QA records |
