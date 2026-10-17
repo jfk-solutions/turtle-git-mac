@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 378,
-    "mapped_controls": 1281,
+    "pending_control_reviews": 328,
+    "mapped_controls": 1331,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -1994,8 +1994,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 42,
-      "mapped_controls": 0,
-      "pending_control_reviews": 42,
+      "mapped_controls": 42,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [],
       "missing_native_references": [],
@@ -2011,7 +2011,8 @@
         "docs/qa/issue-regex-runtime-2026-10-05.json",
         "docs/qa/issue-regex-tester-native-2026-10-12.json",
         "docs/qa/issue-tracker-captures-2026-10-12.json",
-        "docs/qa/issue-tracker-settings-native-2026-10-12.json"
+        "docs/qa/issue-tracker-settings-native-2026-10-12.json",
+        "docs/qa/issue-tracker-source-family-2026-10-17.json"
       ]
     },
     {
@@ -2873,6 +2874,7 @@
       "qa_records": [
         "docs/qa/configuration-lifecycle-2026-10-15.json",
         "docs/qa/git-config-source-family-2026-10-17.json",
+        "docs/qa/issue-tracker-source-family-2026-10-17.json",
         "docs/qa/settings-history-batch-2026-10-11.json"
       ]
     },
@@ -3626,6 +3628,7 @@
       "qa_records": [
         "docs/qa/configuration-lifecycle-2026-10-15.json",
         "docs/qa/git-config-source-family-2026-10-17.json",
+        "docs/qa/issue-tracker-source-family-2026-10-17.json",
         "docs/qa/settings-history-batch-2026-10-11.json"
       ]
     },
@@ -3636,8 +3639,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 8,
-      "mapped_controls": 0,
-      "pending_control_reviews": 8,
+      "mapped_controls": 8,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [],
       "missing_native_references": [],
@@ -3653,7 +3656,8 @@
         "docs/qa/issue-regex-runtime-2026-10-05.json",
         "docs/qa/issue-regex-tester-native-2026-10-12.json",
         "docs/qa/issue-tracker-captures-2026-10-12.json",
-        "docs/qa/issue-tracker-settings-native-2026-10-12.json"
+        "docs/qa/issue-tracker-settings-native-2026-10-12.json",
+        "docs/qa/issue-tracker-source-family-2026-10-17.json"
       ]
     },
     {

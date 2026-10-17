@@ -8,6 +8,21 @@ final class IssueTrackerSettingsTests: XCTestCase {
         _=try await value.2.run(["init","-b","main"])
         return value
     }
+    func testExactUnicodeValuesAcrossAllWritableScopesWithoutChangingGitPreference() async throws {
+        let (root,_,repo)=try await fixture()
+        defer {try? FileManager.default.removeItem(at:root)}
+        _=try await repo.run(["config","core.precomposeUnicode","true"])
+        let text="e\u{301} #([0-9]+)"
+        var settings=IssueTrackerSettings()
+        for key in IssueTrackerStringKey.allCases { settings.fields[key]=GitConfigurationIdentity(value:text,inherit:false) }
+        for destination in [ProjectDialogSettingsSource.local,.project,.global] {
+            try await repo.saveIssueTrackerSettings(settings,destination:destination)
+            let read=try await repo.issueTrackerSettings(source:destination)
+            for key in IssueTrackerStringKey.allCases { XCTAssertEqual(Data(read.fields[key]!.value.utf8),Data(text.utf8),"\(destination) \(key)") }
+        }
+        let preference=try await repo.run(["config","--local","--get","core.precomposeUnicode"])
+        XCTAssertEqual(preference.text,"true\n")
+    }
     func testScopedRoundTripPreservesIncludesOtherKeysAndFeedsCommitProperties() async throws {
         let (root,_,repo)=try await fixture("[bugtraq]\nurl = https://global.invalid/%BUGID%\n[include]\npath = included.config\n")
         defer{try? FileManager.default.removeItem(at:root)}

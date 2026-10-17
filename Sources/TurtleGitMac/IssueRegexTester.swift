@@ -7,14 +7,15 @@ import TurtleGitCore
 @MainActor final class IssueRegexTesterModel: ObservableObject {
     private(set) static var activeRequests = 0
     static let sample = "Sample log message to test the bugtraq: regex strings.\n\nTesting mentions of issues inside a text: Mention single issue #55. Mention issues #77, #78, and #79. Mention more issues #123, #124 and #125 and some more separate ones: Issue #45, issue #46 and issue #47.\n\n\nUpdate issue #101\nFixes issue #202\nFixed issue #123\nResolves issue #88.\nCloses issue #99.\n"
-    @Published var message = sample { didSet { if message != oldValue { ranges = []; schedule() } } }
-    @Published var check: String { didSet { if check != oldValue { schedule() } } }
-    @Published var extract: String { didSet { if extract != oldValue { schedule() } } }
+    @Published var message = sample { didSet { if !message.utf8.elementsEqual(oldValue.utf8) { ranges = []; schedule() } } }
+    @Published var check: String { didSet { if !check.utf8.elementsEqual(oldValue.utf8) { schedule() } } }
+    @Published var extract: String { didSet { if !extract.utf8.elementsEqual(oldValue.utf8) { schedule() } } }
     @Published private(set) var ranges: [NSRange] = []
     @Published private(set) var error: String?
     @Published private(set) var busy = false
     private var active = false, retired = false
     private var generation = UUID()
+    private var lifecycle = UUID()
     private var cancellation: OperationCancellation?
     private var task: Task<Void, Never>?
     private var lastValid: (String, String)?
@@ -30,9 +31,13 @@ import TurtleGitCore
         }
     }
     var canAccept: Bool { active && !retired }
-    func activate() { guard !retired else { return }; active = true; schedule() }
+    func binding(_ key: ReferenceWritableKeyPath<IssueRegexTesterModel,String>) -> Binding<String> {
+        let context = lifecycle
+        return Binding(get: { self[keyPath:key] }, set: { if self.canAccept && self.lifecycle == context { self[keyPath:key] = $0 } })
+    }
+    func activate() { guard !retired, !active else { return }; active = true; lifecycle = UUID(); schedule() }
     func retire() {
-        guard !retired else { return }; retired = true; active = false; generation = UUID()
+        guard !retired else { return }; retired = true; active = false; generation = UUID(); lifecycle = UUID()
         cancellation?.cancel(); task?.cancel(); cancellation = nil; task = nil; busy = false
     }
     private func schedule() {
@@ -79,7 +84,7 @@ import TurtleGitCore
         window.title = "Bugtraq Regex Tester – TurtleGit for Mac"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width:560,height:380)
         super.init(window:window); window.delegate = self
-        window.contentViewController = NSHostingController(rootView:IssueRegexTesterDialog(model:model,accept:{[weak self] in self?.finish(accept:true)},cancel:{[weak self] in self?.finish(accept:false)}))
+        let host = NSHostingController(rootView:IssueRegexTesterDialog(model:model,accept:{[weak self] in self?.finish(accept:true)},cancel:{[weak self] in self?.finish(accept:false)})); host.sizingOptions = []; window.contentViewController = host; window.setContentSize(.init(width:660,height:420))
         DialogGeometry.attach(window,identifier:"BugtraqRegexTester"); window.center(); model.activate()
     }
     required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
@@ -98,8 +103,8 @@ private struct IssueRegexTesterDialog: View {
         VStack(alignment:.leading,spacing:12) {
             Text("Sample text:")
             IssueRegexSampleEditor(model:model).frame(minHeight:150,maxHeight:.infinity)
-            HStack { Text("Message part expression:").frame(width:170,alignment:.leading); TextField("",text:$model.check).accessibilityLabel("Message part expression") }
-            HStack { Text("Bug-ID expression:").frame(width:170,alignment:.leading); TextField("",text:$model.extract).accessibilityLabel("Bug-ID expression") }
+            HStack { Text("Message part expression:").frame(width:170,alignment:.leading); TextField("",text:model.binding(\.check)).accessibilityLabel("Message part expression") }
+            HStack { Text("Bug-ID expression:").frame(width:170,alignment:.leading); TextField("",text:model.binding(\.extract)).accessibilityLabel("Bug-ID expression") }
             if let error=model.error { Text(error).font(.caption).foregroundStyle(.red).lineLimit(3).textSelection(.enabled) }
             Text("Testing expressions does not change repository settings.").font(.caption).foregroundStyle(.secondary)
             HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("OK",action:accept).keyboardShortcut(.defaultAction); Button("Cancel",action:cancel).keyboardShortcut(.cancelAction) }
@@ -113,6 +118,7 @@ struct IssueRegexSampleEditor: NSViewRepresentable {
     func makeNSView(context:Context)->NSScrollView {
         let editor=IssueRegexSampleTextView(frame:.zero)
         editor.clipboard=model.clipboard; editor.preferences=model.preferences; editor.delegate=context.coordinator
+        editor.allowsAction = { [weak model] in model?.canAccept == true }
         editor.isEditable=true; editor.isSelectable=true; editor.isRichText=false; editor.allowsUndo=true
         editor.isAutomaticQuoteSubstitutionEnabled=false; editor.isAutomaticDashSubstitutionEnabled=false; editor.isAutomaticTextReplacementEnabled=false
         editor.font=MessageEditorFont.resolve(name:model.preferences.string(forKey:"LogFontName") ?? MessageEditorFont.defaultName,size:(model.preferences.object(forKey:"LogFontSize") as? Int) ?? MessageEditorFont.defaultSize)
@@ -127,36 +133,43 @@ struct IssueRegexSampleEditor: NSViewRepresentable {
         guard let editor=view.documentView as? IssueRegexSampleTextView else {return}
         context.coordinator.model=model;context.coordinator.updating=true
         defer{context.coordinator.updating=false}
-        if editor.string != model.message {editor.string=model.message}
+        editor.isEditable = model.canAccept; editor.allowsAction = { [weak model] in model?.canAccept == true }
+        if !editor.string.utf8.elementsEqual(model.message.utf8) {editor.string=model.message}
         let selection=editor.selectedRanges,length=(editor.string as NSString).length
         editor.textStorage?.beginEditing()
         editor.textStorage?.setAttributes([.font:editor.font ?? NSFont.systemFont(ofSize:12),.foregroundColor:NSColor.textColor],range:NSRange(location:0,length:length))
         for range in model.ranges where range.location>=0 && range.location<=length && range.length<=length-range.location {
             editor.textStorage?.addAttributes([.foregroundColor:NSColor.linkColor,.underlineStyle:NSUnderlineStyle.single.rawValue],range:range)
         }
-        editor.textStorage?.endEditing();editor.selectedRanges=selection
+        editor.textStorage?.endEditing();editor.selectedRanges=selection.map { value in let range=value.rangeValue; let start=min(max(0,range.location),length); return NSValue(range:NSRange(location:start,length:min(max(0,range.length),length-start))) }
         editor.typingAttributes=[.font:editor.font ?? NSFont.systemFont(ofSize:12),.foregroundColor:NSColor.textColor]
     }
-    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) {(view.documentView as? NSTextView)?.delegate=nil}
+    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) {
+        coordinator.live = false
+        if let editor=view.documentView as? IssueRegexSampleTextView { editor.delegate=nil; editor.isEditable=false; editor.allowsAction={false} }
+    }
     @MainActor final class Coordinator:NSObject,NSTextViewDelegate {
-        var model:IssueRegexTesterModel,updating=false
+        var model:IssueRegexTesterModel,updating=false,live=true
         init(model:IssueRegexTesterModel){self.model=model}
-        func textDidChange(_ notification:Notification){guard !updating,let editor=notification.object as? NSTextView else{return};model.message=editor.string}
+        func textDidChange(_ notification:Notification){guard live,!updating,model.canAccept,let editor=notification.object as? NSTextView,editor.window != nil else{return};model.message=editor.string}
     }
 }
 
 @MainActor final class IssueRegexSampleTextView:NSTextView {
+    var allowsAction: () -> Bool = { true }
+    private var ownsAction: Bool { window != nil && allowsAction() }
     var clipboard:NSPasteboard = .general
     var preferences:UserDefaults = .standard
-    override func copy(_ sender:Any?){let text=string as NSString,range=selectedRange();guard range.length>0,range.location<=text.length,range.length<=text.length-range.location else{return};clipboard.clearContents();clipboard.setString(text.substring(with:range),forType:.string)}
-    override func cut(_ sender:Any?){guard isEditable, selectedRange().length>0 else{return};copy(sender);insertText("",replacementRange:selectedRange())}
-    override func paste(_ sender:Any?){guard isEditable, let text=clipboard.string(forType:.string) else{return};insertText(text,replacementRange:selectedRange())}
+    override func copy(_ sender:Any?){guard ownsAction else{return};let text=string as NSString,range=selectedRange();guard range.length>0,range.location<=text.length,range.length<=text.length-range.location else{return};clipboard.clearContents();clipboard.setString(text.substring(with:range),forType:.string)}
+    override func cut(_ sender:Any?){guard ownsAction,isEditable, selectedRange().length>0 else{return};copy(sender);insertText("",replacementRange:selectedRange())}
+    override func paste(_ sender:Any?){guard ownsAction,isEditable, let text=clipboard.string(forType:.string) else{return};insertText(text,replacementRange:selectedRange())}
+    override func selectAll(_ sender:Any?) { guard ownsAction else{return};super.selectAll(sender) }
     override func menu(for event:NSEvent)->NSMenu? {sampleMenu()}
     func sampleMenu()->NSMenu {
         let menu=NSMenu();menu.autoenablesItems=false
         let icons=MenuPresentationSettings.applicationContextIcons(defaults:preferences)
         for (title,action,enabled,icon) in [("Cut",#selector(cut(_:)),isEditable && selectedRange().length>0,NSImage(systemSymbolName:"scissors",accessibilityDescription:nil)),("Copy",#selector(copy(_:)),selectedRange().length>0,MenuIcon.copy.image()),("Paste",#selector(paste(_:)),isEditable && clipboard.string(forType:.string) != nil,NSImage(systemSymbolName:"doc.on.clipboard",accessibilityDescription:nil)),("Select All",#selector(selectAll(_:)),!string.isEmpty,NSImage(systemSymbolName:"selection.pin.in.out",accessibilityDescription:nil))] {
-            let item=NSMenuItem(title:title,action:action,keyEquivalent:"");item.target=self;item.isEnabled=enabled;item.image=icons ? icon:nil;menu.addItem(item)
+            let item=NSMenuItem(title:title,action:action,keyEquivalent:"");item.target=self;item.isEnabled=ownsAction && enabled;item.image=icons ? icon:nil;menu.addItem(item)
         }
         return menu
     }

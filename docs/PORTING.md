@@ -1899,3 +1899,13 @@ partial results and actual request drain connect the whole workflow. App Store
 builds stay on their own update path. All thirteen source controls have partial
 mappings. See [release parity](RELEASE-UPDATES-PARITY.md#source-downloads-and-native-ownership--october-17-2026).
 The Debug build, nine focused Core checks and both grouped native families pass. Core covers metadata/eligibility, old feeds and duplicate assets, real URLSession transport through a private URLProtocol, cancellation, digest/size rejection and non-overwriting file publication. Native checks cover captured feed/defaults, native/injected folder cancellation, two verified file installs, existing-file and digest failure, held request drain, late replies and App Store isolation. Initial captures exposed unbounded hosting growth; disabling automatic host sizing repaired it, and the affected source case passed again. All four final raw light/dark captures were individually reviewed, and all three owned receivers were reaped and independently absent. See [batch evidence](qa/release-download-family-2026-10-17.json) for exact scope and limits.
+
+### Issue Tracker source configuration and Regex Tester — October 17, 2026
+
+The connected configuration/tester family now retains source radio precedence,
+field/inherit/Save to order, complete draft confirmation and tester-return guards,
+and owner-aware cached forms. Exact UTF-8 changes drive settings dirtiness and
+fresh UTF-16 issue styling; retired clipboard/editor bindings cannot publish.
+All fifty source controls receive partial mappings. See
+[issue parity](ISSUE-TRACKER-PARITY.md#source-configuration-and-exact-tester-drafts--october-17-2026).
+The Debug build, 12 focused Core checks and five native case/engine runs pass. The initial source assertion and diagnostic recheck exposed Git’s argv precomposition; a private reproduction confirmed the cause, and the scoped writer now preserves exact values with a command-only override. Core verifies all writable scopes and the unchanged persistent preference; native source/configuration checks pass with system and bundled Git, plus the retained actual C++ Regex Tester. All four raw light/dark captures were individually reviewed, and all seven owned receivers were reaped and independently absent. See [batch evidence](qa/issue-tracker-source-family-2026-10-17.json) for exact attempts, provenance and remaining acceptance.

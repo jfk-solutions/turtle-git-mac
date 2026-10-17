@@ -350,6 +350,8 @@ jobs:
         run: python3 scripts/test-merge-diff-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Grouped native LFS and Send Mail receivers with one compilation
         run: python3 scripts/test-native-lfs-mail-batch.py
+      - name: Native Issue Tracker source and Regex Tester workflows
+        run: python3 scripts/test-issue-tracker-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native release download and App Store workflows
         run: python3 scripts/test-release-updates.py
       - name: Native regex source list and editor workflows

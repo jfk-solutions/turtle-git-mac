@@ -285,13 +285,17 @@ extension GitRepository {
         if destination == .project, try isBare(cancellation: cancellation) { throw GitConfigurationFailure.destination }
         guard !values.contains(where: { $0.1?.utf8.contains(0) == true }) else { throw GitConfigurationFailure.invalidValue }
         let scope = projectDialogSettingsArguments(destination)
+        // Git for macOS otherwise precomposes every argv value, including
+        // config text. Preserve the submitted bytes without changing the
+        // repository's persistent filesystem/path preference.
+        let command = ["-c", "core.precomposeUnicode=false", "config"]
         for (key, value) in values {
             try cancellation?.check()
             do {
-                if let value { _ = try run(["config"] + scope + ["--replace-all", "--", key, value], cancellation: cancellation) }
+                if let value { _ = try run(command + scope + ["--replace-all", "--", key, value], cancellation: cancellation) }
                 else {
                     if destination == .project, !FileManager.default.fileExists(atPath: root.appendingPathComponent(".tgitconfig").path) { continue }
-                    let arguments = ["config"] + scope + ["--unset-all", "--", key]
+                    let arguments = command + scope + ["--unset-all", "--", key]
                     let result = try run(arguments, successfulExitCodes: 0...5, cancellation: cancellation)
                     guard result.exitCode == 0 || result.exitCode == 5 else { throw GitFailure(arguments: arguments, code: result.exitCode, message: result.text) }
                 }

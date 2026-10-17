@@ -120,3 +120,14 @@ chooser now has an independent Quit/Settings lifetime and retires on deactivatio
 Four distinct native case/engine combinations pass with system and bundled Git; the two affected source cases pass again after visual layout repairs and the recorded fixture correction. Both raw light/dark page captures were individually reviewed, including full-width CrLf and three editor columns. All eight owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/git-config-source-family-2026-10-17.json) for build diagnostics, fixture failures, intercepted editor scope and open physical/signed acceptance.
 Live editor delivery, physical keyboard/sheets, signed configuration grants,
 system elevation adaptation and complete source/App Store acceptance remain open.
+
+## Exact scoped project values — October 17, 2026
+
+The shared Project Dialog/Issue Tracker/client-hook writer passes the command-only
+`-c core.precomposeUnicode=false` override. Git on macOS otherwise precomposes
+Unicode argv, including text values unrelated to filesystem spelling. Exact
+submitted UTF-8 now reaches Local, Project and Global stores; the repository's
+persistent preference is retained. The 12 focused configuration/issue/hook checks
+and two-engine native consumer checks are recorded in
+[the connected Issue Tracker batch](qa/issue-tracker-source-family-2026-10-17.json).
+This is scoped writer behavior, not a global change to Git path policy.

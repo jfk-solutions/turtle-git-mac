@@ -377,3 +377,41 @@ adds shared read/Quit ownership, Dialogs 3 save ownership, captured confirmation
 context and owning hierarchy-hint preferences. Its
 [grouped checkpoint](qa/configuration-lifecycle-2026-10-15.json) records native
 checks and the remaining physical/signed scope.
+
+## Source configuration and exact tester drafts — October 17, 2026
+
+Issue Tracker Config now retains the source Effective/Local/Project/Global/System
+radio hierarchy with precedence separators, BugTraq fields and inherit controls,
+provider fields and Save to order. The extra native provider fallback stays in a
+separate group below the source controls. All field, inheritance, boolean, source,
+destination and Test actions capture the owning model/read revision. Inherited,
+busy, hidden, cancelled, replaced and retired forms reject stale input. The owner
+observer remains attached while the cached page is hidden; authorized hidden Apply
+still works, while a closed owner cannot save.
+
+Apply captures the whole draft/source/destination before confirmation and global
+folder authorization. A changed context refuses the write and retains its newer
+draft. Already accepted source-ordered writes still finish under their own scope
+and lifetime after forced closure; this does not add a multi-key rollback.
+Tester OK updates only the same parent draft, destination and window. The tester
+uses the parent's preference store. Cancel remains draft-only.
+
+Native settings modification/captured comparisons and tester message/expression
+changes now preserve exact UTF-8 distinctions, including canonically equivalent
+Unicode spellings. The existing C++ matcher still supplies UTF-16 ranges. The
+native sample editor updates that exact text, bounds selections after replacement,
+retains editable plain text/Undo and original-icon clipboard menus, and rejects
+retired/dismantled clipboard, field and delegate callbacks. Its automatic hosting
+size is disabled so notes/sample text stay in the resizable native window.
+
+All 42 configuration and eight tester controls receive explicit partial native
+mappings. The scoped Git configuration writer now passes a command-only
+`core.precomposeUnicode=false`: macOS Git otherwise precomposes every argv value,
+including configuration text. This preserves submitted UTF-8 in Local, Project
+and Global stores without changing the persistent repository preference. The
+shared Project Dialog/client-hook writer uses the same path. Regex grammar and
+configuration schema remain unchanged.
+The Debug build, 12 focused Core checks and five native case/engine runs pass. The initial source assertion and diagnostic recheck exposed Git’s argv precomposition; a private reproduction confirmed the cause, and the scoped writer now preserves exact values with a command-only override. Core verifies all writable scopes and the unchanged persistent preference; native source/configuration checks pass with system and bundled Git, plus the retained actual C++ Regex Tester. All four raw light/dark captures were individually reviewed, and all seven owned receivers were reaped and independently absent. See [batch evidence](qa/issue-tracker-source-family-2026-10-17.json) for exact attempts, provenance and remaining acceptance. Windows COM
+execution, full SciEdit/editor/context-menu parity, every configuration/locale/IME
+boundary, physical keyboard/VoiceOver and signed sandbox/App Store acceptance
+remain open. No full dialog or port certification is claimed.

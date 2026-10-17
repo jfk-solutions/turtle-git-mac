@@ -1,0 +1,143 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "6a58617e6df649808e07e8902ef1c02f93a0e1df",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source Config source precedence radios, BugTraq/inherit/provider/Save to order and separate native fallback",
+    "Captured source/read/owner bindings, complete destination confirmation and tester-return contexts, hidden Apply and closed-owner refusal",
+    "Exact UTF-8 settings dirtiness and tester requests, correct UTF-16 preview after equivalent Unicode edits",
+    "Native sample replacement selection bounds and retired/dismantled editor/clipboard/field guards",
+    "Scoped Git config writer disables argv precomposition for that command without changing repository preference",
+    "All 42 configuration/eight tester controls receive partial mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/issue-tracker-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/issue-tracker-unicode-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 0,
+      "repair": "Scoped writer preserves exact argv values after backend diagnosis."
+    }
+  ],
+  "core": {
+    "log": "build/qa/issue-tracker-unicode-core-2026-10-17.log",
+    "exit": 0,
+    "tests": 12,
+    "failures": 0,
+    "filter": "IssueTrackerSettingsTests|ClientHooksTests|GitConfigurationTests",
+    "scope": [
+      "Exact Unicode in all Issue Tracker writable scopes and every string key",
+      "Persistent core.precomposeUnicode preference retained",
+      "Existing Issue Tracker/Project Dialog/configuration and client-hook consumers"
+    ]
+  },
+  "native": {
+    "distinct_case_engine_passes": 5,
+    "runs": [
+      {
+        "log": "build/qa/issue-tracker-source-native-2026-10-17.log",
+        "exit": 1,
+        "failure": "Exact Unicode spelling did not reach Git configuration."
+      },
+      {
+        "log": "build/qa/issue-tracker-source-diagnostic-2026-10-17.log",
+        "exit": 1,
+        "failure": "Unchanged assertion with diagnostics: accepted NFD draft/saved state but NFC backend value; no transaction/model error."
+      },
+      {
+        "log": "build/qa/issue-tracker-source-unicode-native-2026-10-17.log",
+        "exit": 0,
+        "passed_cases": 5,
+        "scope": "New source form and retained configuration/Commit consumer with system and bundled Git; retained C++ tester once because it has no Git backend."
+      }
+    ],
+    "owned_receivers_reaped": [
+      19185,
+      19282,
+      19809,
+      19865,
+      19919,
+      19965,
+      20011
+    ],
+    "independently_absent_owned_receivers": [
+      19185,
+      19282,
+      19809,
+      19865,
+      19919,
+      19965,
+      20011
+    ],
+    "diagnosis": "Private system-Git config write reproduced NFC conversion with default behavior, and exact NFD with command-only core.precomposeUnicode=false. No user configuration modified."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/issue-tracker-source-light.png",
+      "sha256": "fbcc6e27016a9df2608fbdce3877d640b8fe4af5227a2493dd9b783052d63260",
+      "pixels": [
+        1640,
+        1984
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/issue-tracker-source-dark.png",
+      "sha256": "74d8f1757f3ce87ed4d273f67efb17b0e46226e4adfd58baa4c2111879a1fb31",
+      "pixels": [
+        1640,
+        1984
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/issue-regex-source-light.png",
+      "sha256": "cdd2b05fbe6514e7e3a50c3dab69053a955ae232901ec1cdfdf7dc55ecb734d4",
+      "pixels": [
+        1320,
+        904
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/issue-regex-source-dark.png",
+      "sha256": "fffb135d225955dd077527e429a1f53ad467133b53b9eb38fb3e9886992e61b5",
+      "pixels": [
+        1320,
+        904
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of production IssueTrackerSettingsPage in SettingsPageViewport with four-edge host constraints, and production IssueRegexTesterController. Private repositories/global files/preferences/sample and clipboard. Page excludes outer Settings tree/footer; shared transaction and real config writes asserted separately. Native fallback is separate below source Save to. Passive owned windows, no global focus/input.",
+  "hosted_observation": {
+    "head": "6a58617e6df649808e07e8902ef1c02f93a0e1df",
+    "macos": {
+      "run": 38992123858,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38992123845,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Windows COM execution/provider ecosystem still requires native implementations",
+    "No multi-key rollback for already accepted configuration writes",
+    "All SciEdit/context-menu/Undo/IME and locale boundaries remain incomplete",
+    "Physical controls/keyboard/VoiceOver, signed sandbox/Finder/App Store acceptance remain open",
+    "Focused checks do not certify complete hosted CI, dialogs or full port"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/issue-tracker-source-site-2026-10-17.log"
+  }
+}
