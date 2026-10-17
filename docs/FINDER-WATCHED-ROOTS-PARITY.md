@@ -73,3 +73,22 @@ New native assertions exercise a linked worktree denied before the extra grant,
 publication after granting its main `.git` folder, service transfer of the grant,
 and rejection again after removing it. All four owned receiver processes were
 reaped. See qa/finder-additional-permissions-2026-10-15.json for scope and limits.
+
+
+## Captured watch controls — October 17, 2026
+
+Select one or more rows in Settings → Icon Overlays → Watched Repositories, then use Refresh to
+refresh all selected repositories, or Remove to stop their watches and remove
+cached subtrees. Remove lists the captured paths and offers Cancel first. It
+leaves repository files unchanged. Renew Access remains a single-row action.
+Select one row to manage its additional authorized folders.
+
+All choosers and removal questions belong to the Settings owner, rather than the
+global key window. Leaving the page or closing Settings dismisses owned sheets;
+delayed/duplicate replies cannot operate on a later selection. Accepted watch
+mutations continue under the application manager. Removed roots and grants are
+pruned from selection, including permission changes without a root-ID change.
+Grouped real private registry/cache tests passed with both Git engines, including
+batch refresh/publication and removal with HEAD/index preservation. This does not
+certify physical Finder activation, Login Items or signed bookmark authorization.
+See [scope and evidence](FINDER-OVERLAY-SETTINGS-PARITY.md#owned-finder-controls-and-exact-overlay-drafts--october-17-2026).

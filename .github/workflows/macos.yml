@@ -301,6 +301,8 @@ jobs:
         run: python3 scripts/test-svn-source-family.py --source-only --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First Start forms and setup operation ownership
         run: python3 scripts/test-first-start-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Finder overlay and watched-repository source controls
+        run: python3 scripts/test-finder-control-source-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Project dialog source forms and owned icon chooser
         run: python3 scripts/test-project-dialog-source-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Pinned About banner water-effect oracle

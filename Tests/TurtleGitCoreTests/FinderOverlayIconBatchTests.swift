@@ -4,6 +4,22 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FinderOverlayIconBatchTests: XCTestCase {
+    func testOverlayDraftEqualityPreservesLiteralRuleSpelling() throws {
+        var composed = FinderOverlaySettings(), decomposed = composed
+        composed.includePaths = "/repo/café?"; decomposed.includePaths = "/repo/cafe\u{301}?"
+        XCTAssertEqual(composed.includePaths, decomposed.includePaths) // Swift canonical equality.
+        XCTAssertNotEqual(composed, decomposed)
+        XCTAssertTrue(composed.pathPolicy.allows("/repo/café", fallback: false, caseSensitive: true))
+        XCTAssertFalse(composed.pathPolicy.allows("/repo/cafe\u{301}", fallback: false, caseSensitive: true))
+        XCTAssertTrue(decomposed.pathPolicy.allows("/repo/cafe\u{301}", fallback: false, caseSensitive: true))
+        XCTAssertTrue(composed.pathPolicy.allows("/repo/cafe\u{301}", fallback: false, caseSensitive: false))
+        let decoded = try JSONDecoder().decode(FinderOverlaySettings.self, from: JSONEncoder().encode(decomposed))
+        XCTAssertEqual(decoded, decomposed); XCTAssertNotEqual(decoded, composed)
+        composed.includePaths = ""; decomposed.includePaths = ""
+        composed.excludePaths = "/repo/café*"; decomposed.excludePaths = "/repo/cafe\u{301}*"
+        XCTAssertNotEqual(composed, decomposed)
+        decomposed.excludePaths = composed.excludePaths; XCTAssertEqual(composed, decomposed)
+    }
     func testCompiledOverlayRulesRespectVolumeCaseAndExactRecursivePrecedence() {
         let policy = FinderOverlayPathPolicy(exclude: "/Repo*\n/Repo/Exact?\n/Repo/Keep*\n/Repo/Tie?\n", include: "/Repo/Allowed*\n/Repo/Exact*\n/Repo/Keep?\n/Repo/Tie?\n")
         XCTAssertNil(policy.issue)

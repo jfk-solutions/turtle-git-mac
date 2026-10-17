@@ -58,6 +58,15 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
     public var showAssumeUnchanged = true
     public var iconSet: FinderOverlayIconSet = .xpStyle
     public init() {}
+    // Include/exclude rules can distinguish canonically equivalent spellings on
+    // case-sensitive volumes; draft equality must retain those exact bytes too.
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.cacheMode == rhs.cacheMode && lhs.unversionedAsModified == rhs.unversionedAsModified &&
+        lhs.recurseSubmodules == rhs.recurseSubmodules && lhs.showExcludedAsNormal == rhs.showExcludedAsNormal &&
+        lhs.volumes == rhs.volumes && lhs.excludePaths.utf8.elementsEqual(rhs.excludePaths.utf8) &&
+        lhs.includePaths.utf8.elementsEqual(rhs.includePaths.utf8) && lhs.hiddenStates == rhs.hiddenStates &&
+        lhs.showSkipWorktree == rhs.showSkipWorktree && lhs.showAssumeUnchanged == rhs.showAssumeUnchanged && lhs.iconSet == rhs.iconSet
+    }
     private enum CodingKeys: String, CodingKey { case cacheMode, unversionedAsModified, recurseSubmodules, showExcludedAsNormal, volumes, excludePaths, includePaths, hiddenStates, showSkipWorktree, showAssumeUnchanged, iconSet }
     public init(from decoder: Decoder) throws {
         self.init(); let values = try decoder.container(keyedBy: CodingKeys.self)

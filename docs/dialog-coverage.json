@@ -1008,6 +1008,7 @@
         "docs/FINDER-OVERLAY-SETTINGS-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/finder-control-source-family-2026-10-17.json",
         "docs/qa/finder-icons-batch-2026-10-11.json",
         "docs/qa/network-finder-settings-batch-2026-10-11.json",
         "docs/qa/overlay-path-policy-2026-10-15.json"
@@ -1038,6 +1039,7 @@
         "docs/FINDER-OVERLAY-SETTINGS-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/finder-control-source-family-2026-10-17.json",
         "docs/qa/finder-icons-batch-2026-10-11.json",
         "docs/qa/network-finder-settings-batch-2026-10-11.json",
         "docs/qa/overlay-path-policy-2026-10-15.json"
@@ -1441,6 +1443,7 @@
         "docs/FINDER-OVERLAY-SETTINGS-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/finder-control-source-family-2026-10-17.json",
         "docs/qa/finder-icons-batch-2026-10-11.json",
         "docs/qa/network-finder-settings-batch-2026-10-11.json",
         "docs/qa/overlay-path-policy-2026-10-15.json"

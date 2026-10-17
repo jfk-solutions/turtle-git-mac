@@ -191,17 +191,136 @@ struct FinderWatchRow:Identifiable {
     func shutdown() async { retire();while pendingOperations>0 { try? await Task.sleep(nanoseconds:10_000_000) };await backgroundService?.settle() }
 }
 
-struct FinderWatchedRepositoriesPage:View {
-    @ObservedObject var manager:FinderWatchManager
-    @State private var selection=Set<UUID>()
-    @State private var confirmingRemove=false
-    @State private var permissionSelection:UUID?
-    @State private var confirmingPermissionRemove=false
+/// The page owns its chooser/question; the application owns accepted watches.
+@MainActor final class FinderWatchPageModel: ObservableObject {
+    let manager: FinderWatchManager
+    @Published private(set) var selected = Set<UUID>()
+    @Published private(set) var selectedPermission: UUID?
+    @Published private(set) var hasSheet = false
+    @Published private var revision = UUID()
+    private var active = false
+    private var retired = false
+    private weak var window: NSWindow?
+    private var ownerObserver: NSObjectProtocol?
+    private var sheet: NSWindow?
+    private var sheetID: UUID?
+    var chooseFolder: ((String, URL?, @escaping (URL?) -> Void) -> Void)?
+    var ask: ((String, String, @escaping (Bool) -> Void) -> Void)?
+    struct Context: Equatable {
+        let owner: ObjectIdentifier
+        let revision: UUID
+        let roots: Set<UUID>
+        let permission: UUID?
+        let serviceRevision: Int
+    }
+    init(manager: FinderWatchManager) { self.manager = manager }
+    deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
+    var context: Context { .init(owner: ObjectIdentifier(self), revision: revision, roots: selected, permission: selectedPermission, serviceRevision: manager.serviceRevision) }
+    var canInteract: Bool { active && manager.active && !manager.busy && !hasSheet && window != nil }
+    func attach(to owner: NSWindow?) {
+        guard !retired, let owner, window !== owner || ownerObserver == nil else { return }
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }
+        if window != nil { suspend() }
+        window = owner; revision = UUID()
+        ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.retired = true; self?.suspend() }
+        }
+    }
+    func activate() { guard !retired else { return }; active = true; revision = UUID(); reconcile() }
+    func suspend() {
+        active = false; revision = UUID(); sheetID = nil; hasSheet = false
+        if let sheet { window?.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }; sheet = nil
+    }
+    func reconcile() {
+        let roots = Set(manager.rows.map(\.id)), next = selected.intersection(roots)
+        if next != selected { selected = next; selectedPermission = nil; revision = UUID() }
+        if let id = selected.first, let permission = selectedPermission, !manager.additionalPermissions(id).contains(where: { $0.id == permission }) { selectedPermission = nil; revision = UUID() }
+    }
+    private func accepts(_ context: Context) -> Bool { canInteract && context == self.context }
+    func selection(context: Context) -> Binding<Set<UUID>> {
+        Binding(get: { self.selected }, set: { value in
+            guard self.accepts(context) else { return }
+            let next = value.intersection(Set(self.manager.rows.map(\.id)))
+            if next != self.selected { self.selected = next; self.selectedPermission = nil; self.revision = UUID() }
+        })
+    }
+    func permission(context: Context) -> Binding<UUID?> {
+        Binding(get: { self.selectedPermission }, set: { value in
+            guard self.accepts(context), self.selected.count == 1, let id = self.selected.first else { return }
+            guard value == nil || self.manager.additionalPermissions(id).contains(where: { $0.id == value }) else { return }
+            self.selectedPermission = value; self.revision = UUID()
+        })
+    }
+    func refresh(context: Context) {
+        guard accepts(context) else { return }; for id in context.roots { manager.refresh(id) }
+    }
+    private func begin(context: Context) -> (UUID, Context)? {
+        guard accepts(context), window?.attachedSheet == nil else { return nil }
+        let id = UUID(); sheetID = id; hasSheet = true; revision = UUID(); return (id, self.context)
+    }
+    private func finish(_ id: UUID, context: Context) -> Bool {
+        guard sheetID == id else { return false }
+        let accepted = active && manager.active && !manager.busy && context == self.context
+        sheetID = nil; sheet = nil; hasSheet = false; revision = UUID(); return accepted
+    }
+    private func choose(title: String, initial: URL?, context: Context, accepted: @escaping (URL) -> Void) {
+        guard let (id, modal) = begin(context: context), let window else { return }
+        let reply: (URL?) -> Void = { [weak self] url in
+            guard let self, self.finish(id, context: modal), let url else { return }; accepted(url)
+        }
+        if let chooseFolder { chooseFolder(title, initial, reply); return }
+        let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.allowsMultipleSelection = false
+        panel.showsHiddenFiles = true; panel.title = title; panel.prompt = title; panel.directoryURL = initial; sheet = panel
+        panel.message = title == "Watch Repository" || title == "Renew Access" ? "Choose the repository root folder." : "Choose the reported Git administration folder, or a parent folder containing it."
+        panel.beginSheetModal(for: window) { response in reply(response == .OK ? panel.url : nil) }
+    }
+    private func confirm(title: String, message: String, context: Context, accepted: @escaping () -> Void) {
+        guard let (id, modal) = begin(context: context), let window else { return }
+        let reply: (Bool) -> Void = { [weak self] value in guard let self, self.finish(id, context: modal), value else { return }; accepted() }
+        if let ask { ask(title, message, reply); return }
+        let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
+        alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Remove"); sheet = alert.window
+        alert.beginSheetModal(for: window) { response in reply(response == .alertSecondButtonReturn) }
+    }
+    func chooseRoot(renew: Bool, context: Context) {
+        guard accepts(context), !renew || context.roots.count == 1 else { return }
+        let id = renew ? context.roots.first : nil
+        let initial = id.flatMap { target in manager.rows.first { $0.id == target }.map { URL(fileURLWithPath: $0.path, isDirectory: true) } }
+        choose(title: renew ? "Renew Access" : "Watch Repository", initial: initial, context: context) { [manager] url in Task { await manager.add(url, replacing: id) } }
+    }
+    func choosePermission(renew: Bool, context: Context) {
+        guard accepts(context), context.roots.count == 1, let id = context.roots.first, !renew || context.permission != nil else { return }
+        let permission = renew ? context.permission : nil
+        let initial = permission.flatMap { target in manager.additionalPermissions(id).first { $0.id == target }.map { URL(fileURLWithPath: $0.path, isDirectory: true) } }
+        choose(title: renew ? "Renew Folder Access" : "Grant Folder Access", initial: initial, context: context) { [manager] url in Task { await manager.changePermission(id, url: url, replacing: permission) } }
+    }
+    func remove(context: Context) {
+        guard accepts(context), !context.roots.isEmpty else { return }
+        let rows = manager.rows.filter { context.roots.contains($0.id) }, ids = rows.map(\.id)
+        guard ids.count == context.roots.count else { return }
+        confirm(title: ids.count == 1 ? "Remove watched repository?" : "Remove watched repositories?", message: rows.map(\.path).joined(separator: "\n") + "\n\nStop these watches and remove their cached subtrees. Repository files remain unchanged.", context: context) { [manager] in
+            Task { for id in ids { await manager.remove(id); if manager.error != nil { break } } }
+        }
+    }
+    func removePermission(context: Context) {
+        guard accepts(context), context.roots.count == 1, let id = context.roots.first, let permission = context.permission,
+              let grant = manager.additionalPermissions(id).first(where: { $0.id == permission }) else { return }
+        confirm(title: "Remove additional folder access?", message: grant.path + "\n\nRefresh may stop until access is granted again. Files remain unchanged.", context: context) { [manager] in Task { await manager.changePermission(id, removing: permission) } }
+    }
+}
+
+struct FinderWatchedRepositoriesPage: View {
+    @ObservedObject var manager: FinderWatchManager
+    @StateObject private var controls: FinderWatchPageModel
+    init(manager: FinderWatchManager, controls: FinderWatchPageModel? = nil) {
+        self.manager = manager; _controls = StateObject(wrappedValue: controls ?? FinderWatchPageModel(manager: manager))
+    }
     var body:some View {
+        let context = controls.context
         VStack(alignment:.leading,spacing:12) {
             Text("Keep these repositories refreshed for Finder.")
             if let service=manager.backgroundService { FinderBackgroundServiceControls(service:service,manager:manager) }
-            Table(manager.rows,selection:$selection) {
+            Table(manager.rows,selection:controls.selection(context: context)) {
                 TableColumn("Repository") { row in HStack { Image(nsImage:MenuIcon.repositoryBrowser.image() ?? NSImage()).frame(width:16,height:16);Text(row.name) } }
                 TableColumn("Path",value:\.path)
                 TableColumn("Status") { row in Text(row.status).foregroundStyle(row.status.contains("unavailable") ? Color.orange : row.status.hasPrefix("Updated") ? Color.green : Color.primary) }
@@ -211,23 +330,23 @@ struct FinderWatchedRepositoriesPage:View {
                 }
             }.accessibilityLabel("Watched repositories").frame(minHeight:180)
             HStack {
-                Button { choose(nil) } label: { CommandLabel(title:"Add…",icon:.add) }
-                Button { confirmingRemove=true } label: { CommandLabel(title:"Remove",icon:.remove) }.disabled(selection.count != 1)
-                Button { if let id=selection.first { manager.refresh(id) } } label: { CommandLabel(title:"Refresh",icon:.refresh) }.disabled(selection.count != 1)
-                Button { choose(selection.first) } label: { CommandLabel(title:"Renew Access…",icon:.open) }.disabled(selection.count != 1)
-            }.disabled(manager.busy || !manager.active)
-            if let id=selection.first,selection.count==1 {
+                Button { controls.chooseRoot(renew: false, context: context) } label: { CommandLabel(title:"Add…",icon:.add) }
+                Button { controls.remove(context: context) } label: { CommandLabel(title:"Remove",icon:.remove) }.disabled(controls.selected.isEmpty)
+                Button { controls.refresh(context: context) } label: { CommandLabel(title:"Refresh",icon:.refresh) }.disabled(controls.selected.isEmpty)
+                Button { controls.chooseRoot(renew: true, context: context) } label: { CommandLabel(title:"Renew Access…",icon:.open) }.disabled(controls.selected.count != 1)
+            }.disabled(!controls.canInteract)
+            if let id=controls.selected.first,controls.selected.count==1 {
                 GroupBox("Additional folder access") {
                     VStack(alignment:.leading,spacing:8) {
                         Text("Linked worktrees may need access to the main repository’s Git folder. Add only the folders reported in the repository status.").font(.caption).foregroundStyle(.secondary)
-                        List(manager.additionalPermissions(id),selection:$permissionSelection) { grant in
+                        List(manager.additionalPermissions(id),selection:controls.permission(context: context)) { grant in
                             Label(grant.path,systemImage:"folder").tag(grant.id).help(grant.path)
                         }.frame(height:90).accessibilityLabel("Additional authorized folders")
                         HStack {
-                            Button { chooseAdditional(id) } label: { CommandLabel(title:"Add Folder Access…",icon:.add) }
-                            Button { chooseAdditional(id,replacing:permissionSelection) } label: { CommandLabel(title:"Renew Folder Access…",icon:.open) }.disabled(permissionSelection==nil)
-                            Button { confirmingPermissionRemove=true } label: { CommandLabel(title:"Remove Access",icon:.remove) }.disabled(permissionSelection==nil)
-                        }.disabled(manager.busy || !manager.active)
+                            Button { controls.choosePermission(renew: false, context: context) } label: { CommandLabel(title:"Add Folder Access…",icon:.add) }
+                            Button { controls.choosePermission(renew: true, context: context) } label: { CommandLabel(title:"Renew Folder Access…",icon:.open) }.disabled(controls.selectedPermission==nil)
+                            Button { controls.removePermission(context: context) } label: { CommandLabel(title:"Remove Access",icon:.remove) }.disabled(controls.selectedPermission==nil)
+                        }.disabled(!controls.canInteract)
                     }.padding(4)
                 }
             }
@@ -235,33 +354,22 @@ struct FinderWatchedRepositoriesPage:View {
             if let error=manager.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             Text("Changes take effect immediately. An open workspace refreshes its repository separately.").font(.caption).foregroundStyle(.secondary)
             Spacer()
-        }.padding(16).onAppear { manager.restore() }
-        .onChange(of:selection) { _ in permissionSelection=nil }
-        .alert("Remove additional folder access?",isPresented:$confirmingPermissionRemove) {
-            Button("Cancel",role:.cancel) {}
-            Button("Remove Access") { if let id=selection.first,let permission=permissionSelection { Task { await manager.changePermission(id,removing:permission);permissionSelection=nil } } }
-        } message: { Text("Refresh may stop until access is granted again. Files remain unchanged.") }
-        .alert("Remove watched repository?",isPresented:$confirmingRemove) {
-            Button("Cancel",role:.cancel) {}
-            Button("Remove") { if let id=selection.first { Task { await manager.remove(id);selection=[] } } }
-        } message: { Text("Stop its background watch and remove its cached subtree. Repository files remain unchanged.") }
+        }.padding(16)
+        .background(FinderWatchOwnerProbe(controls: controls).frame(width: 0, height: 0))
+        .onAppear { controls.activate(); manager.restore() }
+        .onDisappear { controls.suspend() }
+        .onChange(of: manager.rows.map(\.id)) { _ in controls.reconcile() }
+        .onChange(of: manager.serviceRevision) { _ in controls.reconcile() }
     }
-    private func chooseAdditional(_ id:UUID,replacing permission:UUID? = nil) {
-        guard let window=NSApp.keyWindow,window.attachedSheet==nil,!manager.busy,manager.active else { return }
-        let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.showsHiddenFiles=true
-        panel.prompt="Grant Folder Access";panel.message="Choose the Git administration folder reported in the repository status, or a parent folder containing it."
-        panel.beginSheetModal(for:window) { response in
-            guard response == .OK,let url=panel.url,manager.active else { return }
-            Task { await manager.changePermission(id,url:url,replacing:permission) }
-        }
-    }
-    private func choose(_ id:UUID?) {
-        guard let window=NSApp.keyWindow,window.attachedSheet==nil,!manager.busy,manager.active else { return }
-        let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.prompt=id==nil ? "Watch Repository" : "Renew Access"
-        panel.message="Choose the repository root folder."
-        panel.beginSheetModal(for:window) { response in
-            guard response == .OK,let url=panel.url,manager.active else { return };Task { await manager.add(url,replacing:id) }
-        }
+}
+
+private struct FinderWatchOwnerProbe: NSViewRepresentable {
+    let controls: FinderWatchPageModel
+    func makeNSView(context: Context) -> Probe { let view = Probe(); view.controls = controls; return view }
+    func updateNSView(_ view: Probe, context: Context) { controls.attach(to: view.window) }
+    final class Probe: NSView {
+        weak var controls: FinderWatchPageModel?
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); controls?.attach(to: window) }
     }
 }
 

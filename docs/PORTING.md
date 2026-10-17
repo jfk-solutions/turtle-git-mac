@@ -2057,3 +2057,18 @@ Two raw appearance captures were reviewed; all four owned receivers are absent.
 Four source separator controls map partially to the native hierarchy hint. Full
 physical/geometry/signed sandbox acceptance remains open. See
 [scope and evidence](CONFIGURATION-LIFECYCLE-PARITY.md#project-dialog-source-forms--october-17-2026).
+
+
+## Finder overlay and watch controls — October 17, 2026
+
+The three overlay settings pages now capture page/owner/dependency generations,
+preserve exact UTF-8 path-rule edits, retain shared Apply/Cancel and retire after
+owner closure. Watched-repository root/grant choosers and confirmations own their
+native Settings window, reject stale/duplicate responses and support captured
+multi-selection Refresh/Remove. Accepted operations stay under the existing watch
+manager. Debug builds, 12 overlay Core checks and the combined two-engine native
+family pass. All three receivers are absent and eight raw appearance captures
+were reviewed. Windows cache engines/registry/overlay-slot controls, physical
+Finder activation and signed/App Store acceptance remain open. Coverage counts
+remain partial, with no newly certified dialog. See
+[Finder control scope](FINDER-OVERLAY-SETTINGS-PARITY.md#owned-finder-controls-and-exact-overlay-drafts--october-17-2026).

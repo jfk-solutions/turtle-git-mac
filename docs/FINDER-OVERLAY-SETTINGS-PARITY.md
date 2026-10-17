@@ -186,3 +186,40 @@ the latest valid shared overlay record. App startup and new overlay Settings
 owners honor that accepted shared record; private preference stores stay isolated.
 Corrupt records are not overwritten by menu actions. Existing Settings drafts
 retain their explicit Apply/Cancel semantics.
+
+
+## Owned Finder controls and exact overlay drafts — October 17, 2026
+
+The three overlay pages now capture their page, owner and form generation for
+fields, optional handlers, drive masks, icon set and List/Symbols preview. Leaving
+and revisiting a page, Apply, Cancel and cache-mode changes retire retained
+callbacks. None mode refuses propagation changes at the model boundary as well as
+disabling its controls. Cross-page/foreign controls cannot edit another page or
+hide mandatory badges. Cached pages retain shared property-sheet Apply semantics;
+closing the Settings owner retires their controls and prevents further Apply.
+Include/exclude modified-state retains exact UTF-8 spelling, matching sensitive
+volume path rules; canonical String equality no longer discards a real edit.
+
+Watched-repository controls now use their own native owner rather than the global
+key window. Root and additional-folder choosers, renewal and removal confirmations
+capture the selected root/permission IDs and registry revision. They retire once
+on page departure/closure; stale or duplicate replies cannot update a later
+selection. Accepted mutations remain owned by the application watch manager and
+finish independently of the page. Refresh and Remove support multiple selected
+repositories; the removal question lists the captured paths, uses Cancel as the
+first button and keeps repository files unchanged. Selection drops removed roots
+and grants. Existing background service and watch/cache ownership remain intact.
+
+The grouped checkpoint passed: Debug build, 12 overlay Core tests and the full
+combined native family with system and bundled Git. The first native attempt
+used an idle predicate that could pass before an accepted renewal task started;
+the repaired wait requires a registry revision change. Icon captures now use the
+production Settings viewport, avoiding a standalone host's narrow ideal width.
+The grant-selection refresh was also corrected before the final native pass.
+Core tests were not repeated for those native/fixture changes. Eight raw captures
+were reviewed; all three receivers and their private paths were independently
+absent. See [exact evidence](qa/finder-control-source-family-2026-10-17.json).
+Physical Finder activation,
+actual user chooser gestures, cross-volume mounts and signed App Group/bookmark/
+App Store acceptance remain open. Windows overlay-slot/registry controls and the
+alternate Windows cache engines are still unresolved native adaptations.

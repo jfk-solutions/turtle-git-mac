@@ -1,0 +1,144 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "10df9807ddb60a7d92876fad4a8632ce54860da2",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Three overlay settings pages and shared Apply/Cancel",
+    "Exact path-rule modified-state for case-sensitive volumes",
+    "Owned watch-root/grant choosers and captured questions",
+    "Multi-repository Refresh/Remove with private cache and registry integration"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/finder-control-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/finder-control-revision-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "reason": "Refresh selected grant on registry revisions, alongside fixture-only renewal wait and production viewport changes."
+    }
+  ],
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter FinderOverlayIconBatchTests",
+    "log": "build/qa/finder-control-source-core-2026-10-17.log",
+    "exit": 0,
+    "tests": 12,
+    "failures": 0,
+    "seconds": 0.453,
+    "coverage": [
+      "Exact rule spelling and JSON roundtrip; sensitive/insensitive lookup behavior",
+      "Existing compiled rules and volume metadata/cache/alias projection",
+      "Existing index flags, icon decoding and stale snapshot cleanup"
+    ],
+    "repeated_after_native_only_changes": false
+  },
+  "native": {
+    "driver": "scripts/test-finder-control-source-family.py",
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "whole_family_engine_passes": 2,
+    "attempts": [
+      {
+        "log": "build/qa/finder-control-source-native-2026-10-17.log",
+        "exit": 1,
+        "pids": [
+          57149
+        ],
+        "failure": "Idle predicate returned before accepted renewal task began, so next mutation raced it. Timed out waiting for additional grant. Six initial captures; Icon host shrank to 222 points."
+      },
+      {
+        "log": "build/qa/finder-control-revision-native-2026-10-17.log",
+        "exit": 0,
+        "pids": [
+          57296,
+          57427
+        ]
+      }
+    ],
+    "coverage": [
+      "Shared property-sheet Apply of canonically equivalent path bytes to actual private JSON",
+      "Apply/Cancel, page revisit, cache mode and cross-page field fences",
+      "Mandatory badges cannot be hidden by optional-handler bindings",
+      "List/Symbols and source icon set selection",
+      "Publication error retains draft and bytes without notification; successful shared handler/icon Apply",
+      "Owner close prevents subsequent overlay Apply and retained-field changes",
+      "Real private root renewal, grant add/remove and stale grant question refusal",
+      "Injected chooser/question acceptance with once-only modal tokens",
+      "Actual native chooser belongs to exact Settings owner and dismisses on page suspension",
+      "Captured two-root question paths, Cancel/duplicate refusal and stale page action rejection",
+      "Both selected roots actually publish after Refresh (publication count increases by two)",
+      "Accepted Remove prunes registry/cache for both roots; selection prunes removed IDs",
+      "Closed watcher page cannot reactivate",
+      "Both repository HEAD/index bytes remain unchanged"
+    ],
+    "ownership": {
+      "receiver_pids": [
+        57149,
+        57296,
+        57427
+      ],
+      "all_independently_absent": true,
+      "private_paths_absent": true,
+      "activation": "prohibited; orderFront owned windows only",
+      "cleanup": "Close all owned windows and await watch manager shutdown on success/failure. Driver reaps receiver process group on timeout.",
+      "inputs": "Private repositories/preferences/cache/registry and fake bookmark provider. No Finder activation or user App Group mutation. Native folder acceptance and removal confirmation are injected; native chooser cancellation uses its own sheet."
+    }
+  },
+  "captures": {
+    "directory": "docs/site/assets",
+    "files": [
+      "overlay-controls-source-light.png",
+      "overlay-controls-source-dark.png",
+      "overlay-handlers-source-light.png",
+      "overlay-handlers-source-dark.png",
+      "overlay-icons-source-light.png",
+      "overlay-icons-source-dark.png",
+      "finder-watch-controls-source-light.png",
+      "finder-watch-controls-source-dark.png"
+    ],
+    "raw": true,
+    "child_windows_included": false,
+    "individually_reviewed": true,
+    "pixels": {
+      "overlay": "1600x1384",
+      "watch": "1920x1264"
+    },
+    "observations": "All overlay controls and nine colored source Symbols fit. Watch capture has two selected roots; live refresh status differs between appearances. Overlay pages use production Settings viewport; full Settings tree, Finder and Login Items are not shown."
+  },
+  "ledger": {
+    "mapped_controls": 1551,
+    "pending_controls": 108,
+    "certified_dialogs": 0,
+    "new_mappings": 0
+  },
+  "hosted_observed": {
+    "commit": "10df9807ddb60a7d92876fad4a8632ce54860da2",
+    "macos": {
+      "id": 39003822513,
+      "status": "pending"
+    },
+    "pages": {
+      "id": 39003822524,
+      "conclusion": "success"
+    }
+  },
+  "remaining": [
+    "Physical Finder activation/notification propagation and signed sandbox bookmarks/App Group",
+    "Real folder selection, physical keyboard/VoiceOver and complete Settings geometry",
+    "All mount types and filesystem edge cases",
+    "Windows alternate cache engines/registry/overlay-slot native adaptations",
+    "Current full hosted macOS CI and universal preview, signed distribution/App Store acceptance"
+  ],
+  "certified_complete": false,
+  "site": {
+    "log": "build/qa/finder-control-source-site-2026-10-17.log",
+    "exit": 0,
+    "documents": 265,
+    "unresolved_fragments": 0
+  }
+}
