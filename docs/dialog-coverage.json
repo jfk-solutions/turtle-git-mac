@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 419,
-    "mapped_controls": 1240,
+    "pending_control_reviews": 405,
+    "mapped_controls": 1254,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -453,8 +453,8 @@
       "status": "partial-native-replacement",
       "source_blob": "b0c19b52528f5dc6a7adb62095e5cd7260abe5dd",
       "static_controls": 6,
-      "mapped_controls": 0,
-      "pending_control_reviews": 6,
+      "mapped_controls": 6,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [],
       "missing_native_references": [],
@@ -462,7 +462,8 @@
         "docs/MERGE-REGEX-FILTERS-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/merge-regex-batch-2026-10-12.json"
+        "docs/qa/merge-regex-batch-2026-10-12.json",
+        "docs/qa/merge-regex-source-family-2026-10-17.json"
       ]
     },
     {
@@ -472,8 +473,8 @@
       "status": "partial-native-replacement",
       "source_blob": "b0c19b52528f5dc6a7adb62095e5cd7260abe5dd",
       "static_controls": 8,
-      "mapped_controls": 0,
-      "pending_control_reviews": 8,
+      "mapped_controls": 8,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [],
       "missing_native_references": [],
@@ -481,7 +482,8 @@
         "docs/MERGE-REGEX-FILTERS-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/merge-regex-batch-2026-10-12.json"
+        "docs/qa/merge-regex-batch-2026-10-12.json",
+        "docs/qa/merge-regex-source-family-2026-10-17.json"
       ]
     },
     {

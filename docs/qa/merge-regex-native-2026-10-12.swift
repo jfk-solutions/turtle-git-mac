@@ -64,7 +64,11 @@ import TurtleGitCore
         model.updateDraft("version 900\r\nkeep\r\nnewer\r\n", base: false); model.rebuildAlignment()
         try await wait { !model.filtering }
         precondition(model.alignment?.rows[0].base.state == .filtered)
-        precondition(model.alignment?.rows.last?.destination.text == "newer\r\n")
+        // Source EOF projection includes the final blank line after CRLF.
+        // Verify original content and its source number separately from that row.
+        precondition(model.alignment?.rows.first(where: { $0.destination.lineNumber == 3 })?.destination.text == "newer\r\n")
+        precondition(model.alignment?.rows.last?.destination.lineNumber == 4 && model.alignment?.rows.last?.destination.text == "" && model.alignment?.rows.last?.destination.state == .normal)
+        precondition(model.draftText(base: false) == "version 900\r\nkeep\r\nnewer\r\n")
         let image = MergePalette.color(.filtered)
         let light = NSAppearance(named: .aqua)!, dark = NSAppearance(named: .darkAqua)!
         var lightGreen: CGFloat = 0, darkGreen: CGFloat = 0

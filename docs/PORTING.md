@@ -1867,3 +1867,14 @@ three-pane requests keep independent Quit accounting until an actual response
 drains after forced closure. All seven source controls receive partial mappings.
 See [format parity](MERGE-FORMAT-PARITY.md#source-encoding-sheet-and-independent-drain--october-17-2026).
 The Debug build and all three grouped native families passed on their first attempt: source prompt/retirement, retained two-pane format transactions and three-pane formatting/Undo/Save. Both raw light/dark captures were individually reviewed; pane, labels, choices and lower-right buttons fit. All three owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-format-source-family-2026-10-17.json) for build diagnostics, capture provenance and acceptance limits.
+
+### Merge Regex source list/editor session — October 17, 2026
+
+The connected regex list/editor family now retains captured child sessions,
+source action layout with original icons, draft-only Cancel and once-only OK.
+External saves preserve older drafts with an inline conflict; stale controls,
+validation replies and retired owners cannot mutate or persist them. Existing
+ECMAScript validation retains independent worker accounting until drain after
+forced closure. All fourteen source controls have partial mappings. See
+[regex parity](MERGE-REGEX-FILTERS-PARITY.md#source-listeditor-ownership--october-17-2026).
+The Debug build and both grouped native families pass: source list/editor ownership and retained actual comparison filtering. Raw light/dark captures of both windows were individually reviewed; source labels, complete fields, action icons and footer buttons fit. The first capture exposed collapsed editor width, now fixed with an explicit native content size. A retained fixture expected content at the final EOF row; diagnostics showed source line 3 plus the deliberate blank line 4, and assertions now check both and the complete draft. All five owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-regex-source-family-2026-10-17.json) for exact attempts and acceptance limits.

@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "7399b60588e5b37a1aab831eac4769d4482428c4",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source Regex column, Add/Edit/Delete row with original icons, Name/Regex/Replace form and lower-right OK/Cancel",
+    "Owned captured child sessions, parent Close/Quit/input gates, Cancel/external sheet completion and forced retirement",
+    "Captured validation draft/bindings, invalid expression correction, single acceptance and independent worker drain",
+    "Retired list save/menu guards and external-save conflict refusal preserving draft",
+    "All fourteen source controls partially mapped"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/merge-regex-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 8
+    },
+    {
+      "log": "build/qa/merge-regex-source-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "change": "Explicit 570x230 editor content frame after raw capture exposed collapsed SwiftUI ideal width."
+    }
+  ],
+  "native": {
+    "distinct_family_passes": 2,
+    "families": [
+      "source list/editor session, validation and ownership",
+      "retained comparison filtering and original-byte projection"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/merge-regex-source-native-2026-10-17.log",
+        "exit": 1,
+        "source_behavior_passed": true,
+        "failure": "Retained fixture expected last destination row to contain newer CRLF. Source EOF projection now includes final blank line. Raw source capture separately rejected collapsed editor width."
+      },
+      {
+        "log": "build/qa/merge-regex-source-comparison-diagnostic-2026-10-17.log",
+        "exit": 1,
+        "failure": "Unchanged assertion with diagnostics proved line 3 contains newer CRLF and line 4 is normal empty EOF; full draft unchanged."
+      },
+      {
+        "log": "build/qa/merge-regex-source-repaired-native-2026-10-17.log",
+        "exit": 0,
+        "passed_families": 2,
+        "repair": "Explicit production editor width; source fixture asserts minimum width; retained fixture checks content line 3, normal empty EOF line 4 and exact full draft."
+      }
+    ],
+    "owned_receivers_reaped": [
+      16254,
+      16276,
+      16358,
+      16470,
+      16478
+    ],
+    "independently_absent_owned_receivers": [
+      16254,
+      16276,
+      16358,
+      16470,
+      16478
+    ],
+    "runtime": "Actual bundled ECMAScript helper; ordinary retained comparison uses existing Subversion adapter. No new backend parity claim."
+  },
+  "core": {
+    "repeated": false,
+    "reason": "Core regex protocol, conversion, alignment and serialization unchanged."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/merge-regex-list-source-light.png",
+      "sha256": "eb9351c1e25e8255451d052adddab939320afb623c084ac440af6c59e529c5a7",
+      "pixels": [
+        900,
+        644
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/merge-regex-list-source-dark.png",
+      "sha256": "0c1d216288aaf490a92e99c56516391bb02494a99015e08e787ed654bfc2ba51",
+      "pixels": [
+        900,
+        644
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/merge-regex-editor-source-light.png",
+      "sha256": "fd18b217e21ad17ecf85f0ad9ac8f4b299b413ee321a9464822088b38ffe189a",
+      "pixels": [
+        1140,
+        524
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/merge-regex-editor-source-dark.png",
+      "sha256": "dff5e68918383d1452097dbdfffc13b1410da034a2bb78656ba574d053457929",
+      "pixels": [
+        1140,
+        524
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit images of actual production windows, private sample definitions/preferences and passive owned hosts. Child editor captured standalone to avoid compositor sheet-group scaling; actual attached-sheet lifecycle asserted separately. No global focus/input. Rejected narrow-editor captures retained under build/qa/regex-source-rejected and excluded from published gallery.",
+  "hosted_observation": {
+    "head": "7399b60588e5b37a1aab831eac4769d4482428c4",
+    "macos": {
+      "run": 38990193339,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38990193345,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Nonblank names and inline errors are explicit native adaptations",
+    "INI import/export and preset migration remain open",
+    "All regex/locale/unpaired UTF-16 and large-file boundaries remain open",
+    "Physical gestures/keyboard/VoiceOver and signed helper/sandbox/App Store acceptance remain open",
+    "Focused local checks do not certify complete hosted CI, dialog or port parity"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/merge-regex-source-site-2026-10-17.log"
+  }
+}

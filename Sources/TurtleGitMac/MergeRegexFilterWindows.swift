@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Native adaptation of RegexFiltersDlg / RegexFilterDlg, TortoiseGit 2023-2025
+// and TortoiseSVN 2013-2014, 2016, 2020. See NOTICE and LICENSE.
 import AppKit
 import SwiftUI
 import TurtleGitCore
@@ -9,28 +11,67 @@ extension Notification.Name {
 @MainActor enum MergeRegexOperations { static var activeRequests = 0 }
 
 @MainActor final class MergeRegexFilterListModel: ObservableObject {
+    struct Context: Equatable { let revision: UUID; let filters: [MergeRegexFilter] }
+    struct EditSession: Equatable { let id = UUID(); let context: Context; let original: MergeRegexFilter? }
     @Published private(set) var filters: [MergeRegexFilter]
     @Published var selection: String?
-    @Published var error: String?
+    @Published private(set) var error: String?
+    @Published private(set) var retired = false
+    @Published private(set) var session: EditSession?
+    @Published private var revision = UUID()
+    private let original: [MergeRegexFilter]
     var edit: (MergeRegexFilter?) -> Void = { _ in }
     var close: () -> Void = {}
     let defaults: UserDefaults
-    init(defaults: UserDefaults = .standard) { self.defaults = defaults; filters = MergeRegexFilters.load(defaults: defaults) }
-    var selected: MergeRegexFilter? { filters.first { $0.id == selection } }
-    func accept(_ filter: MergeRegexFilter, oldName: String?) {
-        filters = MergeRegexFilters.updating(filters, oldName: oldName, filter: filter); selection = filter.id
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults; let values = MergeRegexFilters.load(defaults: defaults)
+        filters = values; original = values
     }
-    func remove() {
-        guard let selected else { return }
-        filters.removeAll { $0.id == selected.id }; selection = nil
+    var context: Context { .init(revision: revision, filters: filters) }
+    var canEdit: Bool { !retired && session == nil }
+    var selected: MergeRegexFilter? { filters.first { $0.id == selection } }
+    func current(_ context: Context) -> Bool { canEdit && self.context == context }
+    func requestEdit(_ filter: MergeRegexFilter?, context: Context) {
+        guard current(context), filter == nil || filters.contains(filter!) else { return }
+        edit(filter)
+    }
+    func beginEdit(_ filter: MergeRegexFilter?) -> EditSession? {
+        guard canEdit, filter == nil || filters.contains(filter!) else { return nil }
+        let value = EditSession(context: context, original: filter); session = value; return value
+    }
+    func finishEdit(_ session: EditSession, value: MergeRegexFilter?) {
+        guard !retired, self.session == session else { return }
+        self.session = nil
+        guard context == session.context, let value else { return }
+        accept(value, oldName: session.original?.name)
+    }
+    func accept(_ filter: MergeRegexFilter, oldName: String?) {
+        guard canEdit else { return }
+        filters = MergeRegexFilters.updating(filters, oldName: oldName, filter: filter)
+        selection = filter.id; revision = UUID(); error = nil
+    }
+    func remove() { guard let selected else { return }; remove(selected, context: context) }
+    func remove(_ filter: MergeRegexFilter, context: Context) {
+        guard current(context), filters.contains(filter) else { return }
+        filters.removeAll { $0.id == filter.id }; selection = nil; revision = UUID(); error = nil
     }
     func saveAndClose() {
+        guard canEdit else { return }
+        // Another comparison may have saved the same shared definitions while
+        // this list was open. Keep this draft instead of overwriting that save.
+        guard MergeRegexFilters.load(defaults: defaults) == original else {
+            error = "Filters changed in another window. Your draft is retained. Cancel and reopen to load the saved definitions."
+            return
+        }
         do {
             try MergeRegexFilters.save(filters, defaults: defaults); error = nil
+            retire()
             NotificationCenter.default.post(name: .mergeRegexFiltersChanged, object: defaults)
             close()
         } catch { self.error = error.localizedDescription }
     }
+    func cancel() { guard canEdit else { return }; retire(); close() }
+    func retire() { guard !retired else { return }; retired = true; session = nil; revision = UUID(); edit = { _ in } }
 }
 
 @MainActor final class MergeRegexFilterEditModel: ObservableObject {
@@ -38,8 +79,9 @@ extension Notification.Name {
     @Published var expression: String
     @Published var replacement: String
     @Published private(set) var validating = false
+    @Published private(set) var retired = false
     @Published private(set) var error: String?
-    private var generation = 0, retired = false
+    private var generation = 0
     private var cancellation: OperationCancellation?
     var executable: URL?
     var accepted: (MergeRegexFilter) -> Void = { _ in }
@@ -47,11 +89,20 @@ extension Notification.Name {
     init(filter: MergeRegexFilter?) {
         name = filter?.name ?? ""; expression = filter?.expression ?? ""; replacement = filter?.replacement ?? ""
     }
+    var value: MergeRegexFilter { .init(name: name, expression: expression, replacement: replacement) }
+    var canEdit: Bool { !validating && !retired }
+    func field(_ key: ReferenceWritableKeyPath<MergeRegexFilterEditModel, String>) -> Binding<String> {
+        let current = generation
+        return Binding(get: { self[keyPath: key] }, set: { [weak self] text in
+            guard let self, self.canEdit, self.generation == current else { return }
+            self[keyPath: key] = text
+        })
+    }
     func accept() {
-        guard !validating, !retired else { return }
-        let filter = MergeRegexFilter(name: name, expression: expression, replacement: replacement)
+        guard canEdit else { return }
+        let filter = value
         // macOS storage needs a usable named section, as does the source menu.
-        guard !filter.name.isEmpty else { error = "Enter a name for the filter."; return }
+        guard !filter.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { error = "Enter a name for the filter."; return }
         generation += 1; let current = generation, token = OperationCancellation(), executable = executable
         cancellation = token; validating = true; error = nil
         MergeRegexOperations.activeRequests += 1
@@ -60,21 +111,31 @@ extension Notification.Name {
             let result = await Task.detached { Result { try MergeRegexFilters.validate(filter, executable: executable, cancellation: token) } }.value
             guard !retired, generation == current else { return }
             validating = false; cancellation = nil
+            guard value == filter else { error = "The filter changed during validation. Validate it again."; return }
             switch result {
-            case .success: accepted(filter); close()
+            case .success:
+                // Retire delivery before callbacks: repeated OK and reentrant
+                // parent changes must never accept this child a second time.
+                retire(); accepted(filter); close()
             case .failure(let failure): error = failure.localizedDescription
             }
         }
     }
-    func retire() { retired = true; generation += 1; cancellation?.cancel(); cancellation = nil }
+    func cancel() { guard !retired else { return }; retire(); close() }
+    func retire() {
+        guard !retired else { return }; retired = true; generation += 1
+        cancellation?.cancel(); cancellation = nil; validating = false
+        // Actual operation accounting remains owned by the suspended task.
+    }
 }
 
 @MainActor final class MergeRegexFilterListController: NSWindowController, NSWindowDelegate {
+    static private(set) var activeEditors = 0
     let model: MergeRegexFilterListModel
-    private var editor: NSWindowController?
-    private var editorModel: MergeRegexFilterEditModel?
+    private(set) var editor: MergeRegexFilterEditController?
     var onClosed: () -> Void = {}
     var executable: URL?
+    private var retired = false
     init(defaults: UserDefaults = .standard) {
         model = MergeRegexFilterListModel(defaults: defaults)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 570, height: 350), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -84,48 +145,76 @@ extension Notification.Name {
         model.edit = { [weak self] in self?.edit($0) }; model.close = { [weak self] in self?.window?.performClose(nil) }
     }
     private func edit(_ filter: MergeRegexFilter?) {
-        guard editor == nil, let window, window.attachedSheet == nil else { return }
-        let model = MergeRegexFilterEditModel(filter: filter); model.executable = executable
-        let sheet = NSWindow(contentRect: .init(x: 0, y: 0, width: 550, height: 225), styleMask: [.titled], backing: .buffered, defer: false)
-        sheet.title = "Regex Filter"; sheet.isReleasedWhenClosed = false
-        sheet.contentViewController = NSHostingController(rootView: MergeRegexFilterEditView(model: model))
-        let controller = NSWindowController(window: sheet); editor = controller; editorModel = model
-        model.accepted = { [weak self] value in self?.model.accept(value, oldName: filter?.name) }
-        model.close = { [weak self, weak sheet, weak model] in
-            guard let self, let sheet else { return }; model?.retire()
-            self.window?.endSheet(sheet); sheet.close(); self.editor = nil; self.editorModel = nil
+        guard !retired, editor == nil, let window, window.attachedSheet == nil,
+              let session = model.beginEdit(filter) else { return }
+        let child = MergeRegexFilterEditController(filter: filter, executable: executable)
+        editor = child; Self.activeEditors += 1
+        child.finished = { [weak self, weak child] value in
+            guard let self, self.editor === child else { return }
+            if let sheet = child?.window, sheet.sheetParent === self.window { self.window?.endSheet(sheet, returnCode: value == nil ? .cancel : .OK) }
+            self.editor = nil; Self.activeEditors -= 1
+            self.model.finishEdit(session, value: value)
         }
-        window.beginSheet(sheet)
+        window.beginSheet(child.window!) { [weak child] _ in child?.cancel() }
     }
-    func retire() {
-        editorModel?.retire(); editorModel?.accepted = { _ in }; editorModel?.close = {}
-        if let sheet = editor?.window { window?.endSheet(sheet, returnCode: .cancel); sheet.close() }
-        editor = nil; editorModel = nil; window?.close()
+    func retire() { window?.close(); retireOwnedState() }
+    private func retireOwnedState() {
+        guard !retired else { return }; retired = true; model.retire()
+        editor?.cancel(); editor = nil
+        model.edit = { _ in }; model.close = {}
+        let callback = onClosed; onClosed = {}; callback()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) {
-        editorModel?.retire(); model.edit = { _ in }; model.close = {}; onClosed()
+    func windowShouldClose(_ sender: NSWindow) -> Bool { editor == nil && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { retireOwnedState() }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+
+@MainActor final class MergeRegexFilterEditController: NSWindowController, NSWindowDelegate {
+    let model: MergeRegexFilterEditModel
+    var finished: (MergeRegexFilter?) -> Void = { _ in }
+    private var settled = false
+    init(filter: MergeRegexFilter?, executable: URL? = nil) {
+        model = MergeRegexFilterEditModel(filter: filter); model.executable = executable
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 570, height: 230), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "Regex Filter"; window.isReleasedWhenClosed = false
+        super.init(window: window); window.delegate = self
+        window.contentViewController = NSHostingController(rootView: MergeRegexFilterEditView(model: model).frame(width: 570, height: 230))
+        model.accepted = { [weak self] value in self?.finish(value) }
+        model.close = { [weak self] in self?.cancel() }
     }
+    func cancel() { finish(nil) }
+    private func finish(_ value: MergeRegexFilter?, closing: Bool = false) {
+        guard !settled else { return }; settled = true; model.retire()
+        let callback = finished; finished = { _ in }; callback(value)
+        model.accepted = { _ in }; model.close = {}
+        if !closing { window?.close() }
+    }
+    func windowWillClose(_ notification: Notification) { finish(nil, closing: true) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 private struct MergeRegexFilterListView: View {
     @ObservedObject var model: MergeRegexFilterListModel
     var body: some View {
+        let context = model.context, selected = model.selected
         VStack(alignment: .leading, spacing: 10) {
-            Table(model.filters, selection: $model.selection) { TableColumn("Regex", value: \.name) }
+            Table(model.filters, selection: Binding(get: { model.selection }, set: { if model.current(context) { model.selection = $0 } })) { TableColumn("Regex", value: \.name) }
                 .contextMenu(forSelectionType: String.self) { selection in
-                    Button { model.selection = selection.first; if let filter = model.selected { model.edit(filter) } } label: { CommandLabel(title: "Edit Filter", icon: .settingsGeneral) }.disabled(selection.count != 1)
-                    Button { model.selection = selection.first; model.remove() } label: { CommandLabel(title: "Delete Filter", icon: .remove) }.disabled(selection.count != 1)
-                } primaryAction: { selection in model.selection = selection.first; if let filter = model.selected { model.edit(filter) } }
-            if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+                    let filter = context.filters.first { $0.id == selection.first }
+                    Button { if let filter { model.requestEdit(filter, context: context) } } label: { CommandLabel(title: "Edit Filter", icon: .settingsGeneral) }.disabled(selection.count != 1 || !model.canEdit)
+                    Button { if let filter { model.remove(filter, context: context) } } label: { CommandLabel(title: "Delete Filter", icon: .remove) }.disabled(selection.count != 1 || !model.canEdit)
+                } primaryAction: { selection in
+                    if selection.count == 1, let filter = context.filters.first(where: { $0.id == selection.first }) { model.requestEdit(filter, context: context) }
+                }
+                .disabled(!model.canEdit)
+            if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
             HStack {
                 Spacer()
-                Button("Add Filter") { model.edit(nil) }
-                Button("Edit Filter") { if let filter = model.selected { model.edit(filter) } }.disabled(model.selected == nil)
-                Button("Delete Filter") { model.remove() }.disabled(model.selected == nil)
-            }
-            HStack { Spacer(); Button("OK") { model.saveAndClose() }.keyboardShortcut(.defaultAction); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }
+                Button { model.requestEdit(nil, context: context) } label: { CommandLabel(title: "Add Filter", icon: .add) }
+                Button { if let selected { model.requestEdit(selected, context: context) } } label: { CommandLabel(title: "Edit Filter", icon: .settingsGeneral) }.disabled(selected == nil)
+                Button { if let selected { model.remove(selected, context: context) } } label: { CommandLabel(title: "Delete Filter", icon: .remove) }.disabled(selected == nil)
+            }.disabled(!model.canEdit)
+            HStack { Spacer(); Button("OK") { if model.current(context) { model.saveAndClose() } }.keyboardShortcut(.defaultAction); Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }.disabled(!model.canEdit)
         }.padding(14)
     }
 }
@@ -135,16 +224,16 @@ private struct MergeRegexFilterEditView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Grid(alignment: .leading) {
-                GridRow { Text("Name:").frame(width: 75, alignment: .leading); TextField("Name", text: $model.name).focused($nameFocused) }
-                GridRow { Text("Regex:"); TextField("Regex", text: $model.expression).font(.system(.body, design: .monospaced)) }
-                GridRow { Text("Replace:"); TextField("Replace", text: $model.replacement).font(.system(.body, design: .monospaced)) }
-            }.disabled(model.validating)
-            if let error = model.error { Text(error).foregroundStyle(.red).font(.caption).textSelection(.enabled) }
-            Spacer()
+                GridRow { Text("Name:").frame(width: 75, alignment: .leading); TextField("Name", text: model.field(\.name)).focused($nameFocused).accessibilityLabel("Filter name") }
+                GridRow { Text("Regex:"); TextField("Regex", text: model.field(\.expression)).font(.system(.body, design: .monospaced)).accessibilityLabel("Filter regular expression") }
+                GridRow { Text("Replace:"); TextField("Replace", text: model.field(\.replacement)).font(.system(.body, design: .monospaced)).accessibilityLabel("Filter replacement") }
+            }.disabled(!model.canEdit)
+            if let error = model.error { Text(error).foregroundStyle(.red).font(.caption).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+            Spacer(minLength: 0)
             HStack {
                 if model.validating { ProgressView().controlSize(.small) }
-                Spacer(); Button("OK") { model.accept() }.keyboardShortcut(.defaultAction).disabled(model.validating)
-                Button("Cancel") { model.retire(); model.close() }.keyboardShortcut(.cancelAction)
+                Spacer(); Button("OK") { model.accept() }.keyboardShortcut(.defaultAction).disabled(!model.canEdit)
+                Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.retired)
             }
         }.padding(16).onAppear { nameFocused = true }
     }

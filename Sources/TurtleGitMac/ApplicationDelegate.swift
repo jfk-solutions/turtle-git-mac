@@ -59,6 +59,7 @@ import AppKit
         if BlameDocumentOpener.activeReads > 0 { return .terminateCancel }
         if BlameWindowModel.activeHistoryOperations > 0 { return .terminateCancel }
         if BlameWindowModel.activeSyntaxRequests > 0 { return .terminateCancel }
+        if MergeRegexFilterListController.activeEditors > 0 { return .terminateCancel }
         if MergeRegexOperations.activeRequests > 0 { return .terminateCancel }
         if SVNWindowModel.activeOperations > 0 { return .terminateCancel }
         if ReviewPatchWorkflow.activeLoads > 0 { return .terminateCancel }

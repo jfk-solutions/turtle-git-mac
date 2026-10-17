@@ -350,6 +350,8 @@ jobs:
         run: python3 scripts/test-merge-diff-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Grouped native LFS and Send Mail receivers with one compilation
         run: python3 scripts/test-native-lfs-mail-batch.py
+      - name: Native regex source list and editor workflows
+        run: python3 scripts/test-merge-regex-source.py
       - name: Native Encoding source sheet and editor transactions
         run: python3 scripts/test-merge-format-source.py
       - name: Native Merge Editor source form and profile ownership

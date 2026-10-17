@@ -59,3 +59,32 @@ retired validation cleanup. It closed its hidden windows and removed private
 preferences/files. Its body is included in the shared native CI receiver so
 future CI does not compile all app sources again for this feature. This wrapper
 integration has not been run remotely. See `qa/merge-regex-batch-2026-10-12.json`.
+
+## Source list/editor ownership — October 17, 2026
+
+The source Regex column, Add/Edit/Delete row and lower-right OK/Cancel remain;
+original action icons now appear on the list buttons as well as its context menu.
+The editor retains Name/Regex/Replace labels, initial Name focus and native
+inline validation instead of Windows balloons. Blank or whitespace-only names
+are explicitly refused to keep a usable named menu section.
+
+A child now owns one captured list session. Parent actions and Close/Quit are
+blocked while it is open; acceptance, Cancel/Escape, external sheet completion
+and forced owner closure settle only that session. Closing a list retires its
+callbacks, so a retained OK cannot save a discarded draft. Menu/button callbacks
+capture list revision and definitions; old targets cannot edit/delete a new list.
+Outer OK saves the draft once. If another window has saved shared definitions,
+it preserves this draft and reports the conflict instead of overwriting that save;
+Cancel/reopen loads the current definitions.
+
+Validation snapshots all three fields and uses the existing ECMAScript helper.
+Busy and retired bindings refuse input, duplicate OK is refused, a directly
+changed draft must be validated again, and success retires delivery before parent
+callbacks. Invalid expressions remain editable. Cancel/forced close cancels the
+helper, while independent operation accounting keeps Quit guarded until actual
+worker drain. No Core regex, alignment or serialization algorithm changed.
+
+All fourteen list/editor controls receive partial native mappings. The Debug build and both grouped native families pass: source list/editor ownership and retained actual comparison filtering. Raw light/dark captures of both windows were individually reviewed; source labels, complete fields, action icons and footer buttons fit. The first capture exposed collapsed editor width, now fixed with an explicit native content size. A retained fixture expected content at the final EOF row; diagnostics showed source line 3 plus the deliberate blank line 4, and assertions now check both and the complete draft. All five owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-regex-source-family-2026-10-17.json) for exact attempts and acceptance limits. INI import/export and
+preset migration, all regex/locale/UTF-16 boundaries, physical keys/VoiceOver,
+large files and signed helper/sandbox acceptance remain open. This is not full
+Merge or dialog certification.
