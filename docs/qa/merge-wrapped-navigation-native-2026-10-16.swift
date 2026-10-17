@@ -39,6 +39,19 @@ struct MergeWrappedNavigationVerification {
         scroll.contentView.scroll(to:scroll.contentView.constrainBoundsRect(bounds).origin);scroll.reflectScrolledClipView(scroll.contentView)
         (view as! MergeLineNavigationProviding).didNavigateViewport()
     }
+    @MainActor static func presentationBuilds(_ views: [NSTextView]) -> [Int] {
+        views.map { ($0 as! MergeEditorPresentationProviding).presentationCache.builds }
+    }
+    @MainActor static func unchangedUpdates(send: () -> Void, views: [NSTextView], root: NSView?) async throws {
+        // Complete the caller's just-requested inline/view configuration before
+        // measuring unchanged notifications; a publisher send is not a render.
+        send(); root?.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 30_000_000)
+        let ids = views.map(ObjectIdentifier.init), builds = presentationBuilds(views)
+        for _ in 0..<8 { send(); try await Task.sleep(nanoseconds: 20_000_000); root?.layoutSubtreeIfNeeded() }
+        let current = TwoPaneEngineVerification.editors(root).filter { !$0.isFieldEditor }
+        try require(Set(current.map(ObjectIdentifier.init)) == Set(ids), "Unchanged hosting updates replaced native editor owners")
+        try require(presentationBuilds(views) == builds, "Viewport-only hosting updates rebuilt inline/text presentation: before=\(builds), after=\(presentationBuilds(views)), panes=\(views.count)")
+    }
     @MainActor static func verify() async throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitWrappedNavigation-"+UUID().uuidString)
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
@@ -72,6 +85,7 @@ struct MergeWrappedNavigationVerification {
         for _ in 0..<3 {model.scrolled(right.enclosingScrollView!);model.updateSelection(right.selectedRange(),cells:model.displayCells(base:false))}
         observer.cancel()
         try require(repeatedPublications==0,"Identical viewport/selection caused a render feedback publication")
+        try await unchangedUpdates(send: { model.objectWillChange.send() }, views: views, root: owner.window?.contentView)
         let original=views.map(\.string),generation=model.alignmentGeneration
         right.setSelectedRange(.init(location:right.string.utf16.count - 1,length:0));await Task.yield();model.navigate(-1)
         try require(try atLastFragment(right,marker:"NEW LATE") && atLastFragment(left,marker:"OLD LATE"),"Reverse navigation missed last wrapped fragment/peer")
@@ -139,6 +153,7 @@ struct MergeWrappedNavigationVerification {
         try await wait { ThreePaneEngineVerification.textViews(merge.window?.contentView).filter{!$0.isFieldEditor}.count==3 }
         let three=ThreePaneEngineVerification.textViews(merge.window?.contentView).filter{!$0.isFieldEditor},result=three.first{$0.isEditable}!
         try await wait { three.allSatisfy{$0.textContainer?.widthTracksTextView==true} && merge.model.lineWrapping.alignedHeights.count>100 && result.string==merge.model.resultDisplayText }
+        try await unchangedUpdates(send: { merge.model.objectWillChange.send() }, views: three, root: merge.window?.contentView)
         let resultText=merge.model.result,threeText=three.map(\.string),resultRows=merge.model.resultPresentation,initialDirty=merge.model.dirty,initialUndo=merge.model.canUndo
         // Unresolved aligned result rows are intentionally empty; use a source
         // pane for conflict text, and a non-conflicting insertion for result text.

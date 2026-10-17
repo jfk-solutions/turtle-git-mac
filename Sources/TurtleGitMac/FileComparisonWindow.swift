@@ -381,6 +381,7 @@ private extension FileComparisonDocument {
         for scroll in scrolls.values { MergeLocatorScrolling.scroll(scroll, to: row) }
         lineWrapping.recordViewportIntent(); refreshLocatorViewport()
     }
+    func invalidateLineRulers() { for scroll in scrolls.values { scroll.verticalRulerView?.needsDisplay = true } }
     func refreshLocatorViewport() {
         guard !retired, !lineWrapping.isGeometryPending else { return }
         let value = MergeLocatorScrolling.viewport(onePaneActive ? scrolls[false] : scrolls[true] ?? scrolls[false])
@@ -764,10 +765,11 @@ private extension FileComparisonDocument {
     private var inlineNavigationCache: [Int: InlineResult] = [:]
     private var inlineGeneration = -1
     private var cachedWordMode = false
+    private var cachedInlineMaximum = -1
     func inlineDifference(_ index: Int, force: Bool = false) -> MergeInlineComparison? {
         guard !filtering, (showInlineDiff || force), let alignment, alignment.rows.indices.contains(index), alignment.rows[index].changed else { return nil }
-        if inlineGeneration != alignmentGeneration || cachedWordMode != inlineWordDiff {
-            inlineCache = [:]; inlineNavigationCache = [:]; inlineGeneration = alignmentGeneration; cachedWordMode = inlineWordDiff
+        if inlineGeneration != alignmentGeneration || cachedWordMode != inlineWordDiff || cachedInlineMaximum != generalPreferences.maximumInlineLength {
+            inlineCache = [:]; inlineNavigationCache = [:]; inlineGeneration = alignmentGeneration; cachedWordMode = inlineWordDiff; cachedInlineMaximum = generalPreferences.maximumInlineLength
         }
         if let cached = inlineCache[index] { return cached.value }
         let row = alignment.rows[index]
@@ -778,8 +780,8 @@ private extension FileComparisonDocument {
     func inlineNavigationDifference(_ row: Int) -> MergeInlineComparison? {
         guard !retired, !busy, !filtering, !confirmingQuit, showInlineDiff, !onePaneActive,
               let alignment, alignment.rows.indices.contains(row) else { return nil }
-        if inlineGeneration != alignmentGeneration || cachedWordMode != inlineWordDiff {
-            inlineCache = [:]; inlineNavigationCache = [:]; inlineGeneration = alignmentGeneration; cachedWordMode = inlineWordDiff
+        if inlineGeneration != alignmentGeneration || cachedWordMode != inlineWordDiff || cachedInlineMaximum != generalPreferences.maximumInlineLength {
+            inlineCache = [:]; inlineNavigationCache = [:]; inlineGeneration = alignmentGeneration; cachedWordMode = inlineWordDiff; cachedInlineMaximum = generalPreferences.maximumInlineLength
         }
         if let cached = inlineNavigationCache[row] { return cached.value }
         let pair = alignment.rows[row]
@@ -1705,9 +1707,10 @@ private extension FileComparisonDocument {
         } catch { self.error = error.localizedDescription; return false }
     }
 }
-private struct FileComparisonDialog: View {
+struct FileComparisonPane: View {
     @ObservedObject var model: FileComparisonWindowModel
-    private func pane(base: Bool) -> some View {
+    let base: Bool
+    var body: some View {
         let content = base ? model.document?.base : model.document?.destination
         let header: String
         if model.onePaneActive, let document = model.document {
@@ -1737,6 +1740,10 @@ private struct FileComparisonDialog: View {
             }
         }.padding(8).frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)
     }
+}
+private struct FileComparisonDialog: View {
+    @ObservedObject var model: FileComparisonWindowModel
+    private func pane(base: Bool) -> some View { FileComparisonPane(model: model, base: base) }
     var body: some View {
         Group {
             if let images = model.imageComparison, let document = model.document {
@@ -1810,7 +1817,7 @@ private struct FileComparisonDialog: View {
                         .frame(width: 44).help("Left and right file overview; click or drag to scroll")
                 }
                 if !model.singleFileMode && !model.onePaneActive {
-                    MergeComparisonSplit(preferences:model.comparisonDefaults,left:AnyView(pane(base:true)),right:AnyView(pane(base:false)))
+                    MergeComparisonSplit(model: model)
                 } else { pane(base:false) }
             }
             if model.showLineDiffBar && !model.singleFileMode && !model.onePaneActive {
@@ -1869,12 +1876,17 @@ struct FileComparisonEditor: NSViewRepresentable {
         model.register(scroll, base: base)
         return scroll
     }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height, width.isFinite, height.isFinite else { return nil }
+        return CGSize(width: max(0, width), height: max(0, height))
+    }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
-        guard let view = scroll.documentView as? NSTextView else { return }
+        guard let view = scroll.documentView as? NSTextView, let presentationCache = (view as? MergeEditorPresentationProviding)?.presentationCache else { return }
         (view as? FileComparisonTextView)?.baseSide = base
         model.register(scroll, base: base)
-        view.backgroundColor = MergePalette.color(MergeSourceState.normal)
-        view.insertionPointColor = MergePalette.foreground(.normal)
+        let background = MergePalette.color(MergeSourceState.normal), foreground = MergePalette.foreground(.normal)
+        if view.backgroundColor != background { view.backgroundColor = background }
+        if view.insertionPointColor != foreground { view.insertionPointColor = foreground }
         if !model.wrapLines { DispatchQueue.main.async { model.refreshLocatorViewport() } }
         // Hosting can deliver a previously captured View value after an edit.
         // Read the current alignment and preserve the selection in source
@@ -1889,14 +1901,21 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
         (view as? FileComparisonTextView)?.sourceCells = cells
         if let renderer = (view as? MergeWhitespaceDisplaying)?.whitespaceRenderer {
+            if renderer.preferences != model.whitespaceDisplay || renderer.removal != base || renderer.highlightEndings != model.showInlineDiff { view.needsDisplay = true }
             renderer.update(text: cells.map(\.displayText).joined(separator: "\n") + (cells.isEmpty ? "" : "\n"), cells: cells,
                             otherCells: model.onePaneActive ? nil : model.alignment?.rows.map { base ? $0.destination : $0.base }, preferences: model.whitespaceDisplay)
             renderer.removal = base; renderer.highlightEndings = model.showInlineDiff
         }
-        view.isEditable = model.editingEnabled && model.editableBase == base && !model.busy && !model.confirmingQuit
+        let editable = model.editingEnabled && model.editableBase == base && !model.busy && !model.confirmingQuit
+        if view.isEditable != editable { view.isEditable = editable }
         (view as? FileComparisonTextView)?.mergeFindController?.updateGates()
-        let value = Self.attributed(cells, font: model.generalPreferences.nativeFont, model: model, base: base)
-        (view as? FileComparisonTextView)?.missingOffsets = Self.missingOffsets(cells, model: model, base: base)
+        let peerCells = model.onePaneActive || model.singleFileMode ? nil : model.displayCells(base: !base)
+        let style = MergeEditorPresentationCache.Style(font: model.generalPreferences.nativeFont, tabWidth: model.tabWidth(base: base), inline: model.showInlineDiff && !model.filtering, word: model.inlineWordDiff, maximumInlineLength: model.generalPreferences.maximumInlineLength, palette: MergePalette.revision, mode: model.onePaneActive ? 2 : base ? 0 : 1)
+        let rendered = presentationCache.value(text: "", cells: cells, peers: peerCells, style: style) {
+            .init(text: Self.attributed(cells, font: style.font, model: model, base: base), missingOffsets: Self.missingOffsets(cells, model: model, base: base))
+        }
+        let value = rendered.text
+        (view as? FileComparisonTextView)?.missingOffsets = rendered.missingOffsets
         // Preserve settled folds and wrapping on an identical hosting update.
         model.updateFolding()
         let target = view as? FileComparisonTextView
@@ -1910,20 +1929,22 @@ struct FileComparisonEditor: NSViewRepresentable {
             let range = NSRange(location: start, length: max(0, end - start))
             if view.selectedRange() != range { view.setSelectedRange(range) }
         }
-        model.lineWrapping.geometryChanged = { [weak model] in DispatchQueue.main.async { model?.applyViewportNavigation(); model?.refreshLocatorViewport() } }
+        model.lineWrapping.geometryChanged = { [weak model] in DispatchQueue.main.async {
+            model?.applyViewportNavigation(); model?.refreshLocatorViewport(); model?.invalidateLineRulers()
+        } }
         model.lineWrapping.update(scroll, key: base ? "Base" : "Mine", aligned: !model.onePaneActive && !model.singleFileMode, enabled: model.wrapLines)
         let moved = model.movedRowLinks(base:base), generation = model.alignmentGeneration
-        scroll.rulersVisible = true
+        if !scroll.rulersVisible { scroll.rulersVisible = true }
         if let ruler = scroll.verticalRulerView as? MergeLineRuler {
             ruler.showNumbers = model.showLineNumbers
             ruler.movedRows = moved.mapValues(\.tooltip)
             ruler.followMovedRow = { [weak model] row in model?.followMovedBlock(row:row,base:base,generation:generation) }
-            ruler.updateRecords(cells,peers:model.onePaneActive || model.singleFileMode ? nil : model.displayCells(base:!base))
+            ruler.updateRecords(cells,peers:peerCells)
         }
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
         (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.onePaneActive ? Set((model.combined?.rows ?? []).enumerated().compactMap { model.annotations(base: false).marked.contains($0.element.alignmentRow) ? $0.offset : nil }) : model.annotations(base: base).marked
-        scroll.verticalRulerView?.needsDisplay = true
+        if presentationChanged { scroll.verticalRulerView?.needsDisplay = true }
         model.registerViewportNavigation(base: base, scroll: scroll) { [weak coordinator = context.coordinator] in coordinator?.applyViewportSelection() }
         if let target = view as? MergeFindProviding {
             target.mergeFindHighlights.annotationsChanged = { [weak model] in model?.refreshLocatorHighlights() }
@@ -1931,7 +1952,9 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
         model.refreshLocatorHighlights()
         // Run once after layout, including the first representable update.
-        DispatchQueue.main.async { [weak coordinator = context.coordinator] in coordinator?.applyViewportSelection() }
+        if model.initialNavigationPending || model.alignmentSelections[base]?.id != context.coordinator.appliedSelection {
+            context.coordinator.scheduleViewportSelection()
+        }
     }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
         coordinator.model.unregister(scroll, base: coordinator.base)
@@ -1980,6 +2003,12 @@ struct FileComparisonEditor: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
         let model: FileComparisonWindowModel
+        private var viewportSelectionScheduled = false
+        func scheduleViewportSelection() {
+            guard !viewportSelectionScheduled else { return }
+            viewportSelectionScheduled = true
+            DispatchQueue.main.async { [weak self] in self?.viewportSelectionScheduled = false; self?.applyViewportSelection() }
+        }
         var appliedSelection: UUID?
         weak var scroll: NSScrollView?
         var cells: [MergeSourceCell] = []
@@ -2116,7 +2145,8 @@ struct FileComparisonEditor: NSViewRepresentable {
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+private final class FileComparisonTextView: NSTextView, MergeEditorPresentationProviding, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+    let presentationCache = MergeEditorPresentationCache()
     var presentationDepth = 0
     var marginSelectionAllowed: Bool { navigationAllowed && window?.attachedSheet == nil }
     var marginSelectionStamp: MergeMarginStamp { .init(values:[model?.alignmentGeneration ?? -1,model?.folding.revision ?? -1,navigationIntentRevision],text:string) }

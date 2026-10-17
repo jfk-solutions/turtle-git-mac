@@ -492,6 +492,10 @@ private enum MergeSourceSide {
         locatorPreferences = value; value.save(to: comparisonDefaults)
     }
     func registerLocatorResult(_ scroll: NSScrollView) { locatorResultScroll = scroll }
+    func invalidateLineRulers() {
+        for reference in sourceScrolls.values { reference.view?.verticalRulerView?.needsDisplay = true }
+        locatorResultScroll?.verticalRulerView?.needsDisplay = true
+    }
     func refreshLocatorViewport(from scroll: NSScrollView? = nil) {
         guard !retired, !lineWrapping.isGeometryPending else { return }
         let primary = scroll ?? sourceScrolls.first { $0.key.hasPrefix("Theirs") }?.value.view ?? locatorResultScroll
@@ -1480,19 +1484,25 @@ private struct MergeEditor: NSViewRepresentable {
         scroll.hasVerticalRuler = true; scroll.rulersVisible = true; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
         return scroll
     }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height, width.isFinite, height.isFinite else { return nil }
+        return CGSize(width: max(0, width), height: max(0, height))
+    }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? MergeTextView else { return }
         // Use a single current model generation rather than a queued View value
         // paired with newer source maps after rapid edits or Undo/Redo.
         let sourceCells = editable ? model.alignedResultProjection?.cells : sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.mine : $0.theirs } } ?? self.sourceCells
         let text = editable ? model.resultDisplayText : sourceCells.map { $0.map(\.displayText).joined(separator:"\n") + ($0.isEmpty ? "" : "\n") } ?? self.text
-        view.backgroundColor = MergePalette.color(MergeSourceState.normal)
-        view.insertionPointColor = MergePalette.foreground(.normal)
+        let background = MergePalette.color(MergeSourceState.normal), foreground = MergePalette.foreground(.normal)
+        if view.backgroundColor != background { view.backgroundColor = background }
+        if view.insertionPointColor != foreground { view.insertionPointColor = foreground }
         if !model.wrapLines { DispatchQueue.main.async { model.refreshLocatorViewport() } }
-        scroll.rulersVisible = true
+        if !scroll.rulersVisible { scroll.rulersVisible = true }
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
-        view.isEditable = editable && model.sourceOperationsAllowed; view.model = model
+        let writable = editable && model.sourceOperationsAllowed
+        if view.isEditable != writable { view.isEditable = writable }; view.model = model
         view.mergeFindController?.updateGates()
         if view.blockGeneration != model.navigationGeneration {
             view.blockSelection.clear(in:view); view.invalidateNavigationRevision(); view.blockGeneration = model.navigationGeneration
@@ -1502,33 +1512,43 @@ private struct MergeEditor: NSViewRepresentable {
         // observers must not measure the restored, unstyled or half-hidden map.
         let font = model.generalPreferences.nativeFont
         view.setMergeTabWidth(tabWidth, font: font)
-        let value = NSMutableAttributedString(string: text)
-        let entire = NSRange(location: 0, length: (text as NSString).length)
-        value.addAttributes([.foregroundColor: MergePalette.foreground(.normal), .backgroundColor: MergePalette.color(MergeSourceState.normal), .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
-        if editable {
-            view.inlineMissingOffsets = []
-            let states = sourceCells?.map(\.state) ?? model.resultStates
-            for (index, range) in MergeLineEndings.lineRanges(in: text).enumerated() where states.indices.contains(index) {
-                value.addAttributes([.backgroundColor: MergePalette.color(states[index]), .foregroundColor: MergePalette.foreground(states[index])], range: range)
-            }
-        } else if let sourceCells {
-            var offset = 0
-            view.inlineMissingOffsets = []
-            for (row, cell) in sourceCells.enumerated() {
-                let length = (cell.displayText as NSString).length + 1
-                value.addAttributes([.backgroundColor: MergePalette.color(cell.state), .foregroundColor: MergePalette.foreground(cell.state)], range: NSRange(location: offset, length: length))
-                if let sourceSide, let diff = model.inlineDifference(row, mine: sourceSide == .mine) {
-                    let left = sourceSide == .theirs
-                    let removal = cell.state.isRemoval
-                    value.addAttribute(.backgroundColor, value: MergePalette.inlineCommon, range: NSRange(location: offset, length: length))
-                    for range in left ? diff.base : diff.destination {
-                        value.addAttribute(.backgroundColor, value: removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length))
-                    }
-                    view.inlineMissingOffsets += (left ? diff.baseMissing : diff.destinationMissing).map { offset + $0 }
+        let other = sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.theirs : $0.mine } }
+        let states = sourceCells?.map(\.state) ?? model.resultStates
+        let style = MergeEditorPresentationCache.Style(font: font, tabWidth: tabWidth, inline: model.showInlineDiff && !model.preparing, word: model.inlineWordDiff, maximumInlineLength: model.generalPreferences.maximumInlineLength, palette: MergePalette.revision, mode: editable ? 3 : sourceSide == .mine ? 4 : 5)
+        let rendered = view.presentationCache.value(text: text, cells: sourceCells, peers: other, states: states, style: style) {
+            var missingOffsets: [Int] = []
+            let value = NSMutableAttributedString(string: text)
+            let entire = NSRange(location: 0, length: (text as NSString).length)
+            value.addAttributes([.foregroundColor: MergePalette.foreground(.normal), .backgroundColor: MergePalette.color(MergeSourceState.normal), .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
+            if editable {
+                missingOffsets = []
+                let states = sourceCells?.map(\.state) ?? model.resultStates
+                for (index, range) in MergeLineEndings.lineRanges(in: text).enumerated() where states.indices.contains(index) {
+                    value.addAttributes([.backgroundColor: MergePalette.color(states[index]), .foregroundColor: MergePalette.foreground(states[index])], range: range)
                 }
-                offset += length
-            }
-        } else { view.inlineMissingOffsets = [] }
+            } else if let sourceCells {
+                var offset = 0
+                missingOffsets = []
+                for (row, cell) in sourceCells.enumerated() {
+                    let length = (cell.displayText as NSString).length + 1
+                    value.addAttributes([.backgroundColor: MergePalette.color(cell.state), .foregroundColor: MergePalette.foreground(cell.state)], range: NSRange(location: offset, length: length))
+                    if let sourceSide, let diff = model.inlineDifference(row, mine: sourceSide == .mine) {
+                        let left = sourceSide == .theirs
+                        let removal = cell.state.isRemoval
+                        value.addAttribute(.backgroundColor, value: MergePalette.inlineCommon, range: NSRange(location: offset, length: length))
+                        for range in left ? diff.base : diff.destination {
+                            value.addAttribute(.backgroundColor, value: removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length))
+                        }
+                        missingOffsets += (left ? diff.baseMissing : diff.destinationMissing).map { offset + $0 }
+                    }
+                    offset += length
+                }
+            } else { missingOffsets = [] }
+            return .init(text: value, missingOffsets: missingOffsets)
+        }
+        let value = rendered.text
+        view.inlineMissingOffsets = rendered.missingOffsets
+        let entire = NSRange(location: 0, length: (text as NSString).length)
         model.updateFolding()
         view.presentationDepth += 1
         let presentationChanged = view.foldLayout.installPresentation(value, font: font, in: view, controller: editable ? model.resultFolding : model.folding)
@@ -1543,10 +1563,10 @@ private struct MergeEditor: NSViewRepresentable {
                 DispatchQueue.main.async { if model.selectionRequest == rawRequest { model.selectionRequest = nil } }
             }
         }
-        model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport() }
+        model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport(); model?.invalidateLineRulers() }
         model.lineWrapping.update(scroll, key: label, aligned: sourceCells != nil, enabled: model.wrapLines)
         view.sourceCells = sourceCells; view.sourceLayoutRevision = model.sourceLayoutRevision; view.resultPresentationRevision = model.resultPresentationRevision
-        let other = sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.theirs : $0.mine } }
+        if view.whitespaceRenderer.preferences != model.whitespaceDisplay || view.whitespaceRenderer.removal != (sourceSide == .theirs) || view.whitespaceRenderer.highlightEndings != model.showInlineDiff { view.needsDisplay = true }
         view.whitespaceRenderer.update(text: text, cells: sourceCells, otherCells: other, preferences: model.whitespaceDisplay)
         view.whitespaceRenderer.removal = sourceSide == .theirs
         view.whitespaceRenderer.highlightEndings = model.showInlineDiff
@@ -1563,7 +1583,7 @@ private struct MergeEditor: NSViewRepresentable {
             ruler.updateRecords(records, peers: other)
         }
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
-        scroll.verticalRulerView?.needsDisplay = true
+        if presentationChanged { scroll.verticalRulerView?.needsDisplay = true }
         if editable { model.nativeEditorDidUpdate(view) }
     }
     func makeCoordinator() -> Coordinator { Coordinator(model: model, editable: editable) }
@@ -1616,7 +1636,8 @@ private struct MergeEditor: NSViewRepresentable {
     var mergeSourceRowsReady:Bool { get }
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+private final class MergeTextView: NSTextView, MergeEditorPresentationProviding, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+    let presentationCache = MergeEditorPresentationCache()
     var presentationDepth = 0
     var marginSelectionAllowed: Bool { navigationAllowed && window?.attachedSheet == nil }
     var marginSelectionStamp: MergeMarginStamp { .init(values:[model?.navigationGeneration ?? -1,model?.sourceLayoutRevision ?? -1,model?.folding.revision ?? -1,model?.resultFolding.revision ?? -1,navigationIntentRevision],text:model?.result ?? string) }
@@ -2138,10 +2159,10 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     }
 }
 final class MergeLineRuler: NSRulerView {
-    var sourceNumbers: [Int?]?
-    var markedRows = Set<Int>()
-    var showNumbers = true
-    var movedRows: [Int:String] = [:]
+    var sourceNumbers: [Int?]? { didSet { if sourceNumbers != oldValue { needsDisplay = true } } }
+    var markedRows = Set<Int>() { didSet { if markedRows != oldValue { needsDisplay = true } } }
+    var showNumbers = true { didSet { if showNumbers != oldValue { needsDisplay = true } } }
+    var movedRows: [Int:String] = [:] { didSet { if movedRows != oldValue { needsDisplay = true } } }
     var followMovedRow: (Int) -> Void = { _ in }
     private var visibleMovedRows: [(NSRect,Int)] = []
     private var visibleSymbols: [(NSRect,Int)] = []

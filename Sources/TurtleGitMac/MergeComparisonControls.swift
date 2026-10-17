@@ -746,20 +746,25 @@ enum MergeMarginGeometry {
 /// A two-pane owner keeps its divider ratio independently of combined view.
 /// SwiftUI's rebuilt split would otherwise inherit the single pane's width.
 struct MergeComparisonSplit: NSViewRepresentable {
-    let preferences: UserDefaults
-    let left: AnyView, right: AnyView
+    let model: FileComparisonWindowModel
     func makeNSView(context: Context) -> MergeComparisonSplitView {
         let view = MergeComparisonSplitView()
-        view.preferences = preferences;view.isVertical = true;view.dividerStyle = .thin
-        let saved = preferences.double(forKey:MergeComparisonSplitView.key)
+        view.preferences = model.comparisonDefaults; view.isVertical = true; view.dividerStyle = .thin
+        let saved = model.comparisonDefaults.double(forKey: MergeComparisonSplitView.key)
         view.fraction = saved.isFinite && (0.1...0.9).contains(saved) ? saved : 0.5
-        view.addArrangedSubview(NSHostingView(rootView:left));view.addArrangedSubview(NSHostingView(rootView:right))
+        for base in [true, false] {
+            let pane = NSHostingView(rootView: FileComparisonPane(model: model, base: base))
+            // The split owns these frames. Child intrinsic/min/max sizes must
+            // not feed a second content-sized layout back into its parent.
+            pane.sizingOptions = []
+            view.addArrangedSubview(pane)
+        }
         return view
     }
-    func updateNSView(_ view: MergeComparisonSplitView, context: Context) {
-        (view.arrangedSubviews.first as? NSHostingView<AnyView>)?.rootView = left
-        (view.arrangedSubviews.last as? NSHostingView<AnyView>)?.rootView = right
-        view.layoutPanes()
+    func updateNSView(_ view: MergeComparisonSplitView, context: Context) { view.layoutPanes() }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: MergeComparisonSplitView, context: Context) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height, width.isFinite, height.isFinite else { return nil }
+        return CGSize(width: max(0, width), height: max(0, height))
     }
 }
 @MainActor final class MergeComparisonSplitView: NSSplitView {
@@ -790,9 +795,10 @@ struct MergeComparisonSplit: NSViewRepresentable {
         let width = min(usable - minimum,max(minimum,usable * fraction))
         let left = NSRect(x:0,y:0,width:width,height:bounds.height)
         let right = NSRect(x:width + dividerThickness,y:0,width:usable - width,height:bounds.height)
-        if arrangedSubviews[0].frame != left { arrangedSubviews[0].frame = left }
-        if arrangedSubviews[1].frame != right { arrangedSubviews[1].frame = right }
-        needsDisplay = true
+        var changed = false
+        if arrangedSubviews[0].frame != left { arrangedSubviews[0].frame = left; changed = true }
+        if arrangedSubviews[1].frame != right { arrangedSubviews[1].frame = right; changed = true }
+        if changed { needsDisplay = true }
     }
 }
 

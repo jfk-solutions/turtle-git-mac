@@ -226,3 +226,49 @@ extension NSAttributedString.Key {
         }
     }
 }
+
+/// A viewport update must not recompute every inline diff or rebuild the styled
+/// document. Keep source content/style separate from live wrapping and folding.
+@MainActor final class MergeEditorPresentationCache {
+    struct Style: Equatable {
+        let font: NSFont
+        let tabWidth: Int
+        let inline: Bool
+        let word: Bool
+        let maximumInlineLength: Int
+        let palette: Int
+        let mode: Int
+    }
+    struct Value {
+        let text: NSAttributedString
+        let missingOffsets: [Int]
+    }
+    private struct Cell: Equatable {
+        let bytes: Data
+        let number: Int?
+        let state: MergeSourceState
+        init(_ cell: MergeSourceCell) { bytes = Data(cell.text.utf8); number = cell.lineNumber; state = cell.state }
+    }
+    private struct Key: Equatable {
+        let text: Data
+        let cells: [Cell]?
+        let peers: [Cell]?
+        let states: [MergeSourceState]
+        let style: Style
+    }
+    private var key: Key?
+    private var saved: Value?
+    private(set) var builds = 0
+    func value(text: String, cells: [MergeSourceCell]?, peers: [MergeSourceCell]?, states: [MergeSourceState] = [], style: Style, build: () -> Value) -> Value {
+        let next = Key(text: Data(text.utf8), cells: cells?.map(Cell.init), peers: peers?.map(Cell.init), states: states, style: style)
+        if key == next, let saved { return saved }
+        let result = build()
+        // Copy the attributed value: a mutable builder must not rewrite a cached
+        // presentation while TextKit retains the preceding source generation.
+        let value = Value(text: NSAttributedString(attributedString: result.text), missingOffsets: result.missingOffsets)
+        key = next; saved = value; builds += 1
+        return value
+    }
+}
+
+@MainActor protocol MergeEditorPresentationProviding { var presentationCache: MergeEditorPresentationCache { get } }

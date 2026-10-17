@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Compare/Merge pane presentation work](MERGE-WRAPPING-PARITY.md#stable-native-pane-and-source-presentation-ownership--october-18-2026)
+separates native split/viewport ownership from source styling and inline ticks.
+Exact peer/source changes invalidate shared presentation caches; unchanged hosted
+updates preserve editor owners, folds, wrapping and selection. See
+[batch evidence](qa/merge-pane-presentation-2026-10-18.json) for one passing Debug
+build, thirteen distinct grouped native passes, the fixture setup repair and all
+fourteen owned receivers reaped. Hosted Intel timeout resolution remains unproven.
+
 The [primary command-line entry family](COMMAND-LINE.md) now connects startup
 readiness, repository/file authorization and editable Commit/Log presets to six
 existing native workflows. Diff reuses historical, standalone pair and directory

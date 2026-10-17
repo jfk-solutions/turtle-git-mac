@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-18",
+  "scope": "Stable Compare native split/viewport ownership and shared Compare/Merge styled-source/inline-marker cache",
+  "base_commit": "d874da54da12742db024674b4c194333f0f1d3f6",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "review": [
+    "src/TortoiseMerge/BaseView.cpp CBaseView::OnSize width-change wrap/scroll/caret invalidation",
+    "src/TortoiseMerge/BaseView.cpp CBaseView::WrapChanged horizontal scrollbar reset",
+    "Retained hosted failure run 39075802416, job 117524619810, stack build/qa/4f347bb9-wrapped.sample.txt"
+  ],
+  "implementation": [
+    "Stable observing FileComparisonPane roots in native split; owner controls frames and retained divider fraction; child content-size negotiation disabled",
+    "Finite SwiftUI proposals size viewport rather than wrapped document in both Compare and Merge",
+    "Shared immutable attributed-source and inline missing-marker cache keyed by exact source/peer UTF-8, line number/state and font/tab/inline/maximum/palette/pane style",
+    "Independent fold/storage invalidation retained, including same-text replacement",
+    "Conditional editable/colour/ruler/whitespace redraw updates and actual-reflow ruler invalidation",
+    "Coalesced pending Compare viewport selection; length cap invalidates both inline rendering/navigation caches"
+  ],
+  "validation": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/merge-pane-presentation-build-2026-10-18.log"
+    },
+    "core_tests": {
+      "run": false,
+      "reason": "No Core sources changed; native behavioral and source-byte assertions exercise the changed presentation/ownership paths"
+    },
+    "native_initial": {
+      "exit": 1,
+      "passing_cases": [
+        "presentation",
+        "ownership",
+        "terminal",
+        "margin-selection",
+        "margin",
+        "moved"
+      ],
+      "failed_case": "wrapped",
+      "log": "build/qa/merge-pane-presentation-native-2026-10-18.log",
+      "reason": "New no-op assertion captured cache baseline before the fixture\u2019s just-requested inline-display setting had rendered"
+    },
+    "native_affected_and_remaining": {
+      "exit": 0,
+      "passing_cases": [
+        "wrapped",
+        "wrapping",
+        "navigation",
+        "three-pane",
+        "initial",
+        "folding",
+        "find"
+      ],
+      "log": "build/qa/merge-pane-presentation-native-repair-2026-10-18.log",
+      "repair": "Finish the requested initial configuration before capturing no-op baseline; retain eight forced unchanged updates and every content/geometry/selection/Undo assertion",
+      "app_sources_changed_after_checkpoint": false
+    },
+    "native_cumulative": {
+      "distinct_cases_passed": 13,
+      "runtime_attempts": 14,
+      "owned_receiver_pids": [
+        79250,
+        79251,
+        79255,
+        79289,
+        79317,
+        79321,
+        79329,
+        79378,
+        79383,
+        79390,
+        79400,
+        79402,
+        79412,
+        79416
+      ],
+      "cleanup": "Runner reported all 14 reaped; independent ps probe exit 1 with empty stdout",
+      "unrepaired_failures": []
+    },
+    "localizations": {
+      "write_exit": 0,
+      "check_exit": 0,
+      "languages": 38,
+      "keys": 1284,
+      "generated_changes": false,
+      "log": "build/qa/merge-pane-presentation-localizations-2026-10-18.log"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "not_a_completion_percentage": true
+    },
+    "site": {
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": 0,
+      "log": "build/qa/merge-pane-presentation-site-2026-10-18.log"
+    }
+  },
+  "limits": [
+    "Hosted macOS 15/Intel timeout resolution is not yet verified by this local macOS 27/arm64 pass",
+    "The retained stack is diagnostic evidence, not a unique root-cause or deadlock proof",
+    "No full hosted CI/Core-suite/signed/Finder/minimum-OS acceptance claim",
+    "No all-dialog visual or complete Unicode wrapping equivalence claim",
+    "Large-file allocation/performance and physical accessibility/input acceptance remain open"
+  ]
+}

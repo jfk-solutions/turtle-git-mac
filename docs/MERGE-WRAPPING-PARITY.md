@@ -179,3 +179,40 @@ by an actual invalidation-request count, and the synthetic wheel's delayed
 No behavioral assertion was removed. All 18 receivers across successful and
 failed attempts were reaped and independently confirmed absent. No new visual,
 hosted or distribution acceptance is claimed.
+
+
+## Stable native pane and source presentation ownership — October 18, 2026
+
+The hosted Intel/macOS 15 wrapped-navigation timeout persisted after the earlier
+storage/Find no-op repairs. The retained [post-repair stack](qa/ci-wrapped-stack-after-presentation-2026-10-18.json)
+still samples SwiftUI/AppKit layout and repeated source projection; it does not
+prove a unique root cause or a deadlock.
+
+Compare now gives each native split child one observing SwiftUI pane for its
+lifetime. Parent updates no longer replace both hosted roots. The split controls
+their frames and divider ratio, with child content-size negotiation disabled;
+editor representables answer finite viewport proposals without growing their
+requested size from wrapped document height. Resize, font, tab and wrap geometry
+continue through the existing aligned reflow/reading-anchor owner.
+
+Both Compare and three-pane Merge retain an immutable unfolded attributed source
+and inline missing-character markers until exact source/peer bytes, line numbers,
+state, font, tab width, inline mode/word mode/length cap, palette or pane mode
+changes. A peer-only edit and canonically equivalent but byte-distinct text cannot
+reuse stale inline paint. Folding revisions and real storage edits still pass
+through the existing independent storage/fold installer. Whitespace preferences,
+marked rows, numbers, moved links and actual reflow invalidate native drawing when
+needed; an unchanged parent update does not repeatedly repaint every ruler.
+Deferred viewport selection is coalesced and requested for pending navigation.
+
+Pinned source comparison remains `CBaseView::WrapChanged`,
+`CalculateWrappedLine`, `CountMultiLines`, scrollbar recalculation and source
+size handlers in `src/TortoiseMerge/BaseView.cpp` at
+`7338078f8ddd924b8cddee35f512f2286072136d`. Native SwiftUI/TextKit ownership is a
+platform adaptation of those per-view wrapping responsibilities, not a claim of
+identical Unicode word-breaking. No dialog controls or source command semantics
+were removed. Physical rendering, hosted older-SDK/Intel timeout resolution and
+complete large-file/format/keyboard parity still require their own evidence.
+
+The grouped native checkpoint and any affected repairs are recorded in
+[the pane presentation batch record](qa/merge-pane-presentation-2026-10-18.json).

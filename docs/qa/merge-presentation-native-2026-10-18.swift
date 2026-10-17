@@ -24,7 +24,29 @@ struct MergePresentationVerification {
         func replaceFindMatches(_ ranges: [NSRange], with replacement: String) -> Bool { false }
     }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
+    @MainActor static func verifySourceCache() throws {
+        let cache = MergeEditorPresentationCache(), font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        func style(tab: Int = 4, inline: Bool = true, word: Bool = false, cap: Int = 3000, palette: Int = 0, mode: Int = 0) -> MergeEditorPresentationCache.Style {
+            .init(font: font, tabWidth: tab, inline: inline, word: word, maximumInlineLength: cap, palette: palette, mode: mode)
+        }
+        let cells = [MergeSourceCell(text: "same\n", lineNumber: 1, state: .added)]
+        let a = [MergeSourceCell(text: "caf\u{e9}\n", lineNumber: 1, state: .removed)]
+        let b = [MergeSourceCell(text: "cafe\u{301}\n", lineNumber: 1, state: .removed)]
+        let builder = NSMutableAttributedString(string: "same\n", attributes: [.font: font])
+        func render(_ peer: [MergeSourceCell], _ style: MergeEditorPresentationCache.Style) -> MergeEditorPresentationCache.Value {
+            cache.value(text: "same\n", cells: cells, peers: peer, style: style) { .init(text: builder, missingOffsets: [2]) }
+        }
+        let first = render(a, style())
+        for _ in 0..<20 { let next = render(a, style()); try require(next.text === first.text && next.missingOffsets == [2], "Unchanged source projection was rebuilt") }
+        try require(cache.builds == 1, "Identical cache inputs rebuilt source styling")
+        builder.mutableString.setString("changed by caller")
+        try require(first.text.string == "same\n", "Mutable builder rewrote the retained styled source")
+        _ = render(b, style()); try require(cache.builds == 2, "Canonical peer spelling was folded into a stale inline presentation")
+        for changed in [style(tab: 8), style(inline: false), style(word: true), style(cap: 30), style(palette: 1), style(mode: 2)] { _ = render(b, changed) }
+        try require(cache.builds == 8, "A source styling option retained obsolete inline/font/tab/colour output")
+    }
     @MainActor static func verify() async throws {
+        try verifySourceCache()
         let suite = "TurtleGit.Presentation." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite); MergePalette.reload() }
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
