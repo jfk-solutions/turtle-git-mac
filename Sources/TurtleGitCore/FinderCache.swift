@@ -210,13 +210,13 @@ public struct FinderSnapshot: Codable, Sendable {
     public var updated: Date
     public var repositories: [String: FinderRepositoryMetadata]
     public var overlayEntries: [String: FileState]?
-    public var indexFlags: [String: FinderIndexFlags]?
-    public init(roots: [String], states: [String: FileState], updated: Date = Date(), repositories: [String: FinderRepositoryMetadata] = [:], overlayEntries: [String: FileState]? = nil, indexFlags: [String: FinderIndexFlags]? = nil) {
+    public var indexFlags: GitPathMap<FinderIndexFlags>?
+    public init(roots: [String], states: [String: FileState], updated: Date = Date(), repositories: [String: FinderRepositoryMetadata] = [:], overlayEntries: [String: FileState]? = nil, indexFlags: GitPathMap<FinderIndexFlags>? = nil) {
         self.roots = roots; self.states = states; self.updated = updated; self.repositories = repositories
         self.overlayEntries = overlayEntries
         self.indexFlags = indexFlags
     }
-    private enum CodingKeys: String, CodingKey { case roots, states, updated, repositories, overlayEntries, indexFlags }
+    private enum CodingKeys: String, CodingKey { case roots, states, updated, repositories, overlayEntries, indexFlags, indexFlagsV2 }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         roots = try values.decode([String].self, forKey: .roots)
@@ -224,7 +224,27 @@ public struct FinderSnapshot: Codable, Sendable {
         updated = try values.decode(Date.self, forKey: .updated)
         repositories = try values.decodeIfPresent([String: FinderRepositoryMetadata].self, forKey: .repositories) ?? [:]
         overlayEntries = try values.decodeIfPresent([String: FileState].self, forKey: .overlayEntries)
-        indexFlags = try values.decodeIfPresent([String: FinderIndexFlags].self, forKey: .indexFlags)
+        if values.contains(.indexFlagsV2) {
+            indexFlags = try values.decodeIfPresent(GitPathMap<FinderIndexFlags>.self,forKey:.indexFlagsV2)
+        } else {
+            indexFlags = try values.decodeIfPresent([String:FinderIndexFlags].self,forKey:.indexFlags).map {
+                GitPathMap($0.map { ($0.key,$0.value) },uniquingKeysWith:{ _,last in last })
+            }
+        }
+    }
+    public func encode(to encoder:Encoder) throws {
+        var values = encoder.container(keyedBy:CodingKeys.self)
+        try values.encode(roots,forKey:.roots); try values.encode(states,forKey:.states)
+        try values.encode(updated,forKey:.updated); try values.encode(repositories,forKey:.repositories)
+        try values.encodeIfPresent(overlayEntries,forKey:.overlayEntries)
+        try values.encodeIfPresent(indexFlags,forKey:.indexFlagsV2)
+        // Older installed extensions can keep reading their original field
+        // during an app update. Current readers prefer the lossless records.
+        if let indexFlags {
+            let ordered = indexFlags.sorted { $0.key.utf8.lexicographicallyPrecedes($1.key.utf8) }
+            let legacy = Dictionary(ordered.map { ($0.key,$0.value) },uniquingKeysWith:{ _,last in last })
+            try values.encode(legacy,forKey:.indexFlags)
+        }
     }
     public func repositoryMetadata(for paths: [URL]) -> FinderRepositoryMetadata? {
         commonRepositoryRoot(for: paths).flatMap { repositories[$0] }

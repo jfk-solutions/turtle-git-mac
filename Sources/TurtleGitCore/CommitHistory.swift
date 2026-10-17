@@ -619,6 +619,13 @@ public struct CommitFile: Identifiable, Hashable, Codable, Sendable {
         self.added = added; self.removed = removed; self.hasStatistics = hasStatistics
         self.isSubmodule = isSubmodule; self.parentIndex = parentIndex
     }
+    public static func == (lhs:Self,rhs:Self) -> Bool {
+        GitReferenceName.equal(lhs.path,rhs.path) && lhs.oldPath.map { GitReferenceName($0) } == rhs.oldPath.map { GitReferenceName($0) } && lhs.parentIndex == rhs.parentIndex && lhs.action == rhs.action && lhs.added == rhs.added && lhs.removed == rhs.removed && lhs.hasStatistics == rhs.hasStatistics && lhs.isSubmodule == rhs.isSubmodule
+    }
+    public func hash(into hasher:inout Hasher) {
+        hasher.combine(GitReferenceName(path)); hasher.combine(oldPath.map { GitReferenceName($0) }); hasher.combine(parentIndex)
+        hasher.combine(action); hasher.combine(added); hasher.combine(removed); hasher.combine(hasStatistics); hasher.combine(isSubmodule)
+    }
     public func inParentGroup(_ index: Int) -> Self {
         Self(path: path, oldPath: oldPath, action: action, added: added, removed: removed, hasStatistics: hasStatistics, isSubmodule: isSubmodule, parentIndex: index)
     }
@@ -636,7 +643,7 @@ public struct CommitFile: Identifiable, Hashable, Codable, Sendable {
     }
     public static func parse(names: Data, statistics: Data, raw: Data = Data()) -> [CommitFile] {
         let rawRecords = raw.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
-        var gitlinks = Set<String>(), cursor = 0
+        var gitlinks = Set<GitReferenceName>(), cursor = 0
         while cursor + 1 < rawRecords.count {
             let header = rawRecords[cursor].split(separator: " "); cursor += 1
             guard header.count == 5, header[0].hasPrefix(":") else { break }
@@ -644,10 +651,10 @@ public struct CommitFile: Identifiable, Hashable, Codable, Sendable {
             if header[4].hasPrefix("R") || header[4].hasPrefix("C") {
                 guard cursor < rawRecords.count else { break }; path = rawRecords[cursor]; cursor += 1
             }
-            if header[1] == "160000" || (header[1] == "000000" && header[0] == ":160000") { gitlinks.insert(path) }
+            if header[1] == "160000" || (header[1] == "000000" && header[0] == ":160000") { gitlinks.insert(GitReferenceName(path)) }
         }
         let numbers = statistics.split(separator: 0, omittingEmptySubsequences: false)
-        var stats: [String: (Int?, Int?)] = [:]
+        var stats = GitPathMap<(Int?,Int?)>()
         var i = 0
         while i < numbers.count {
             let parts = String(decoding: numbers[i], as: UTF8.self).split(separator: "\t", maxSplits: 2, omittingEmptySubsequences: false)
@@ -672,7 +679,7 @@ public struct CommitFile: Identifiable, Hashable, Codable, Sendable {
             guard i < records.count else { break }
             let path = records[i]; i += 1
             files.append(CommitFile(path: path, oldPath: oldPath, action: action,
-                                    added: stats[path]?.0, removed: stats[path]?.1, hasStatistics: stats[path] != nil, isSubmodule: gitlinks.contains(path)))
+                                    added: stats[path]?.0, removed: stats[path]?.1, hasStatistics: stats[path] != nil, isSubmodule: gitlinks.contains(GitReferenceName(path))))
         }
         return files
     }

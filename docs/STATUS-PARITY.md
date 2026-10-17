@@ -431,3 +431,10 @@ and reset defaults use a separate ConflictSyncDlg profile; ordinary Working Tree
 defaults remain unchanged. The grouped conflict-table and existing Working Tree
 menu checks pass on both Git engines. Wider path identity and physical/signed
 acceptance remain open.
+
+
+The [working-file identity continuation](WORKING-FILE-IDENTITY-PARITY.md) now
+preserves distinct valid UTF-8 spellings through status/rename/statistics reads,
+amend joins, per-path metadata and index flags. Native row IDs and highlighted/
+checked String sets still require their separate migration; this is not full
+filename-selection parity.

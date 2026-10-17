@@ -146,8 +146,8 @@ extension GitRepository {
     /// paths remain unavailable and do not prevent committing other files.
     /// The shared location gate rejects escaping parents; attributes describe
     /// the final symlink itself rather than opening its target.
-    public func statusListMetadata(paths: [String]) -> [String: StatusListMetadata] {
-        var result: [String: StatusListMetadata] = [:]
+    public func statusListMetadata(paths: [String]) -> GitPathMap<StatusListMetadata> {
+        var result: GitPathMap<StatusListMetadata> = [:]
         for path in paths {
             let location = try? restoreLocation(path)
             let attributes = location.flatMap { try? FileManager.default.attributesOfItem(atPath: $0.path) }

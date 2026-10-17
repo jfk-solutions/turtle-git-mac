@@ -216,7 +216,7 @@ final class StatusNativeWindow: NSWindow {
     var groupsEnabled = true
     var showsStagedStatus = true
     var clipboard = NSPasteboard.general
-    func installEmbeddedFiles(_ rows:[WorkingTreeFile],statistics:[String:CommitFile],metadata:[String:StatusListMetadata],submodules:Set<String>,hasHead:Bool,rebase:Bool,hasLFS:Bool) {
+    func installEmbeddedFiles(_ rows:[WorkingTreeFile],statistics:GitPathMap<CommitFile>,metadata:GitPathMap<StatusListMetadata>,submodules:Set<String>,hasHead:Bool,rebase:Bool,hasLFS:Bool) {
         guard !retired,!busy else {return};menuGeneration = UUID()
         files = rows;self.statistics = statistics;fileMetadata = metadata;self.submodules = submodules
         self.hasHead = hasHead;conflictRebase = rebase;self.hasLFS = hasLFS
@@ -231,7 +231,7 @@ final class StatusNativeWindow: NSWindow {
     @Published var submodules = Set<String>()
     @Published var hasLFS = false
     @Published var fileColumns: StatusListColumnSettings
-    @Published var fileMetadata: [String: StatusListMetadata] = [:]
+    @Published var fileMetadata: GitPathMap<StatusListMetadata> = [:]
     var showLFSOwners: Bool { fileColumns.visible.contains(.lfsOwner) }
     private let columnKey: String
     private let initialColumns: StatusListColumnSettings
@@ -248,7 +248,7 @@ final class StatusNativeWindow: NSWindow {
     var ownersVisible: Bool { hasLFS && showLFSOwners }
     var onLFSOperation: ([String], Bool) -> Bool = { _, _ in false }
     @Published var files: [WorkingTreeFile] = []
-    @Published var statistics: [String: CommitFile] = [:]
+    @Published var statistics: GitPathMap<CommitFile> = [:]
     private var menuGeneration = UUID()
     @Published var selection = Set<String>() { didSet { if selection != oldValue { menuGeneration = UUID() } } }
     @Published var sortOrder = [StatusFileSort(column: .path)]
@@ -485,7 +485,7 @@ final class StatusNativeWindow: NSWindow {
             invocation = nextInvocation; hasStash = nextStash; hasHead = nextHasHead; updateScopeTitle()
             changelists = nextChangelists; files = nextFiles; branch = nextBranch; conflictRebase = nextRebase; submodules = nextSubmodules
             hasLFS = nextLFS; fileMetadata = nextMetadata
-            statistics = Dictionary(nextStatistics.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+            statistics = GitPathMap(nextStatistics.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
             selection.formIntersection(Set(visibleFiles.map(\.id)))
             lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
             if ownersVisible {
@@ -601,7 +601,7 @@ final class StatusNativeWindow: NSWindow {
     private func accepts(_ snapshot: StatusFileMenuSnapshot, duringOperation: Bool = false) -> Bool {
         guard !retired, !confirmingQuit, actionOwnerAvailable(), (duringOperation || !busy), snapshot.generation == menuGeneration,
               !snapshot.entries.isEmpty else { return false }
-        let current = Dictionary(files.map { ($0.id, $0.entry) }, uniquingKeysWith: { _, last in last })
+        let current = GitPathMap(files.map { ($0.id, $0.entry) }, uniquingKeysWith: { _, last in last })
         return snapshot.entries.allSatisfy { current[$0.path] == $0 } && (snapshot.mark.map { current[$0.path] == $0 } ?? true)
     }
     func withFileMenu(_ snapshot: StatusFileMenuSnapshot, perform: () -> Void) {
@@ -728,7 +728,7 @@ final class StatusNativeWindow: NSWindow {
 /// Native adaptation of ChangedDlg::UpdateStatistics and status-list action flags.
 struct StatusFooterStatistics {
     var addedLines=0,removedLines=0,unversioned=0,modified=0,added=0,deleted=0,conflicted=0
-    init(files:[WorkingTreeFile],statistics:[String:CommitFile],filter:WorkingTreeFilter) {
+    init(files:[WorkingTreeFile],statistics:GitPathMap<CommitFile>,filter:WorkingTreeFilter) {
         var acquired=filter;acquired.showUnmodified=true
         for file in files where acquired.includes(file) {
             let counts=statistics[file.id];addedLines += counts?.added ?? 0;removedLines += counts?.removed ?? 0

@@ -30,8 +30,8 @@ public struct FinderIndexFlags: Codable, Equatable, Sendable {
     public init(skipWorktree: Bool = false, assumeUnchanged: Bool = false) { self.skipWorktree = skipWorktree; self.assumeUnchanged = assumeUnchanged }
 }
 extension GitRepository {
-    public func finderIndexFlags(cancellation: OperationCancellation? = nil) throws -> [String: FinderIndexFlags] {
-        var flags: [String: FinderIndexFlags] = [:]
+    public func finderIndexFlags(cancellation: OperationCancellation? = nil) throws -> GitPathMap<FinderIndexFlags> {
+        var flags: GitPathMap<FinderIndexFlags> = [:]
         for record in try run(["ls-files", "-v", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
             guard record.count >= 3 else { throw GitConfigurationFailure.output }
             let bytes = Array(record), code = bytes[0]
@@ -39,7 +39,7 @@ extension GitRepository {
             let assume = (97...122).contains(code), skip = code == 83 || code == 115
             if assume || skip {
                 let path = String(decoding: bytes.dropFirst(2), as: UTF8.self)
-                flags[root.appendingPathComponent(path).path] = .init(skipWorktree: skip, assumeUnchanged: assume)
+                flags[root.path + "/" + path] = .init(skipWorktree: skip, assumeUnchanged: assume)
             }
         }
         return flags

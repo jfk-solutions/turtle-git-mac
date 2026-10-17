@@ -386,8 +386,8 @@ import UniformTypeIdentifiers
     enum RestoreChoice { case restore, keep, cancel }
     var chooseRestoreCopies: (Bool, @escaping (RestoreChoice) -> Void) -> Void = { _, choose in choose(.keep) }
     @Published var comparisonBase: String?
-    @Published var stagedStatistics: [String: CommitFile] = [:]
-    @Published var unstagedStatistics: [String: CommitFile] = [:]
+    @Published var stagedStatistics: GitPathMap<CommitFile> = [:]
+    @Published var unstagedStatistics: GitPathMap<CommitFile> = [:]
     @Published var stagingEnabled = false { didSet { if stagingEnabled != oldValue { fileMenuGeneration = UUID() } } }
     @Published var viewingPatch = false
     private var loadedPreferences = false
@@ -405,10 +405,10 @@ import UniformTypeIdentifiers
     @Published private var pendingReloadCancel = false
     var queryCommitStatus: (Bool, OperationCancellation) async throws -> [StatusEntry]
     var queryStagingStates: ([StatusEntry], String?, OperationCancellation) async throws -> [String: CommitStagingState]
-    @Published var statistics: [String: CommitFile] = [:]
+    @Published var statistics: GitPathMap<CommitFile> = [:]
     @Published var checked = Set<String>()
     @Published var selection = Set<String>() { didSet { if selection != oldValue { fileMenuGeneration = UUID() } } }
-    @Published var fileMetadata: [String: StatusListMetadata] = [:] { didSet { if fileMetadata.mapValues({ $0.isDirectory }) != oldValue.mapValues({ $0.isDirectory }) { fileMenuGeneration = UUID() } } }
+    @Published var fileMetadata: GitPathMap<StatusListMetadata> = [:] { didSet { if fileMetadata.mapValues({ $0.isDirectory }) != oldValue.mapValues({ $0.isDirectory }) { fileMenuGeneration = UUID() } } }
     @Published var hasLFS = false
     @Published var lfsOwners: [String: String] = [:]
     @Published var lfsLockedPaths = Set<String>()
@@ -748,10 +748,10 @@ import UniformTypeIdentifiers
     var visibleEntries: [StatusEntry] {
         entries.filter { entry in
             entry.state != .ignored && (showUnversioned || entry.state != .untracked) &&
-                (entry.staged || showWholeProject || scopePaths.contains { $0 == entry.path || entry.path.hasPrefix($0 + "/") })
+                (entry.staged || showWholeProject || scopePaths.contains { GitReferenceName.equal($0,entry.path) || entry.path.utf8.starts(with:($0 + "/").utf8) })
         }
     }
-    func sortedFiles(_ files: [StatusEntry], statistics: [String: CommitFile]) -> [StatusEntry] {
+    func sortedFiles(_ files: [StatusEntry], statistics: GitPathMap<CommitFile>) -> [StatusEntry] {
         guard let comparator = fileSortOrder.first else { return files }
         return files.map { CommitSortableRow(row: .file($0), statistics: statistics[$0.path], isDirectory: submodules.contains($0.path) || fileMetadata[$0.path]?.isDirectory == true, metadata: fileMetadata[$0.path], lfsOwner: lfsOwners[$0.path] ?? "") }
             .sorted(using: comparator).compactMap(\.entry)
@@ -826,8 +826,8 @@ import UniformTypeIdentifiers
                 stagingStates = current.mapValues { state in
                     switch state { case .unstaged: return .off; case .partial: return .mixed; case .staged: return .on }
                 }
-                stagedStatistics = Dictionary(staged.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
-                unstagedStatistics = Dictionary(unstaged.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+                stagedStatistics = GitPathMap(staged.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+                unstagedStatistics = GitPathMap(unstaged.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 stagingStateNeedsRefresh = false
                 if refreshPatch { refreshPartial() }
                 if !position.remember {selection = []}
@@ -867,7 +867,7 @@ import UniformTypeIdentifiers
     private func acceptsFileMenu(_ snapshot: StatusFileMenuSnapshot, duringOperation: Bool = false) -> Bool {
         guard messageFocusAvailable,!savingPreferences,!stagingHintVisible,!confirmingQuit,!pendingReloadCancel,duringOperation || !busy,
               snapshot.generation == fileMenuGeneration, !snapshot.entries.isEmpty else { return false }
-        let current = Dictionary(entries.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        let current = GitPathMap(entries.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         return snapshot.entries.allSatisfy { current[$0.path] == $0 } && (snapshot.mark.map { current[$0.path] == $0 } ?? true)
     }
     func withFileMenu(_ snapshot: StatusFileMenuSnapshot, perform: () -> Void) {
@@ -989,7 +989,7 @@ import UniformTypeIdentifiers
         }
         copyFileText(selected, statistics: stats, copy: copy)
     }
-    func copyFileText(_ selected: [StatusEntry], statistics: [String: CommitFile], copy: StatusListCopy) {
+    func copyFileText(_ selected: [StatusEntry], statistics: GitPathMap<CommitFile>, copy: StatusListCopy) {
         guard !selected.isEmpty else { return }
         let text = StatusListClipboard.text(selected, root: repository.root, statistics: statistics, copy: copy, metadata: fileMetadata, lfsOwners: lfsOwners, visibleColumns: visibleFileColumns)
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
@@ -1255,9 +1255,9 @@ import UniformTypeIdentifiers
                 let nextChangelists = try await readReload(token) { try await repository.changelists(cancellation:token) }
                 let nextIndexFlags = try await readReload(token) { try await repository.workingTreeStatus(cancellation:token) }
                 let nextConflictRebase = try await readReload(token) { try await repository.conflictIsRebase(cancellation:token) }
-                let nextStatistics = Dictionary(try await readReload(token) { try await repository.workingTreeFiles(amendToParent:compareParent,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
-                let nextStaged = Dictionary(try await readReload(token) { try await repository.stagingFiles(staged:true,base:nextBase,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
-                let nextUnstaged = Dictionary(try await readReload(token) { try await repository.stagingFiles(staged:false,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
+                let nextStatistics = GitPathMap(try await readReload(token) { try await repository.workingTreeFiles(amendToParent:compareParent,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
+                let nextStaged = GitPathMap(try await readReload(token) { try await repository.stagingFiles(staged:true,base:nextBase,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
+                let nextUnstaged = GitPathMap(try await readReload(token) { try await repository.stagingFiles(staged:false,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
                 let nextAuthor:String?
                 if !hasLoaded && author.isEmpty {
                     nextAuthor = try await readReload(token) {
@@ -2415,7 +2415,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             if files.count == 1 && NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty { focus.wrappedValue = files.first }
         }
     }
-    @ViewBuilder private func lineCount(_ row: StatusListRow, statistics: [String: CommitFile], selected: Set<String>, added: Bool) -> some View {
+    @ViewBuilder private func lineCount(_ row: StatusListRow, statistics: GitPathMap<CommitFile>, selected: Set<String>, added: Bool) -> some View {
         if let entry = row.entry {
             let count: Int? = added ? statistics[entry.path]?.added : statistics[entry.path]?.removed
             let label = count.map { String($0) } ?? "–"

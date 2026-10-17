@@ -54,7 +54,7 @@ public struct WorkingTreeFilter: Equatable, Sendable {
     public var showAllStaged = true
     public init() {}
     public func includes(_ file: WorkingTreeFile) -> Bool {
-        let scoped = wholeProject || paths.isEmpty || paths.contains { $0 == "." || file.id == $0 || file.id.hasPrefix($0 + "/") }
+        let scoped = wholeProject || paths.isEmpty || paths.contains { $0 == "." || GitReferenceName.equal(file.id,$0) || file.id.utf8.starts(with:($0 + "/").utf8) }
         guard scoped || showAllStaged && file.entry.staged else { return false }
         if file.assumeUnchanged || file.skipWorktree { return showLocalChangesIgnored }
         switch file.state {
@@ -84,7 +84,7 @@ extension GitRepository {
         }
         var common = directories[0]
         for directory in directories.dropFirst() {
-            common = Array(zip(common, directory).prefix { $0.0 == $0.1 }.map { $0.0 })
+            common = Array(zip(common, directory).prefix { GitReferenceName.equal($0.0,$0.1) }.map { $0.0 })
         }
         return WorkingTreeInvocation(paths: paths, singleDirectory: paths.count == 1 && firstIsDirectory,
             firstIsDirectory: firstIsDirectory, commonDirectory: common.joined(separator: "/"))
@@ -101,8 +101,8 @@ extension GitRepository {
     public func workingTreeStatus(refreshIndex: Bool = true, cancellation: OperationCancellation? = nil) throws -> [WorkingTreeFile] {
         try cancellation?.check()
         let changes = try status(refreshIndex: refreshIndex, cancellation: cancellation)
-        var entries = Dictionary(changes.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
-        var flags: [String: (Bool, Bool)] = [:]
+        var entries = GitPathMap(changes.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+        var flags = GitPathMap<(Bool,Bool)>()
         for record in try run(["ls-files", "-v", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
             guard record.count >= 3 else { continue }
             let bytes = Array(record), path = String(decoding: bytes.dropFirst(2), as: UTF8.self)
@@ -165,9 +165,9 @@ extension GitRepository {
     /// after the remaining selected entries have been updated.
     public func setIndexFlags(_ action: IndexFlagAction, paths: [String], markedPath: String? = nil, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
-        let paths = Set(paths)
+        let paths = Set(paths.map { GitReferenceName($0) })
         guard !paths.isEmpty else { throw RevisionComparisonFailure.selection }
-        for path in paths { _ = try restoreLocation(path) }
+        for path in paths { _ = try restoreLocation(path.rawValue) }
         if let markedPath { _ = try restoreLocation(markedPath) }
         var indexBytes = try run(["rev-parse", "--git-path", "index"], cancellation: cancellation).stdout
         if indexBytes.last == 10 { indexBytes.removeLast() }
@@ -183,22 +183,22 @@ extension GitRepository {
         do { try handle.write(contentsOf: Data(contentsOf: index)); try handle.close() }
         catch { try? handle.close(); throw error }
         let current = try workingTreeStatus(refreshIndex: false, cancellation: cancellation)
-        let selected = current.filter { paths.contains($0.id) }
-        let gate = markedPath.map { mark in current.filter { $0.id == mark } } ?? selected
+        let selected = current.filter { paths.contains(GitReferenceName($0.id)) }
+        let gate = markedPath.map { mark in current.filter { GitReferenceName.equal($0.id,mark) } } ?? selected
         guard (markedPath != nil || selected.count == paths.count), action.isAvailable(for: gate) else {
             throw GitFailure(arguments: ["update-index"], code: 1, message: "The selected files changed or cannot use this index flag action. Refresh and select versioned files.")
         }
         // libgit2's upstream action looks up every selected path independently.
         // Preserve that behavior for an eligible mark, including idempotent flags
         // and added files, while reporting paths lacking a stage-zero entry.
-        var indexed = Set<String>()
+        var indexed = Set<GitReferenceName>()
         for record in try run(["ls-files", "--stage", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
             guard let tab = record.firstIndex(of: 9) else { continue }
             let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
-            if header.last == "0" { indexed.insert(String(decoding: record[record.index(after: tab)...], as: UTF8.self)) }
+            if header.last == "0" { indexed.insert(GitReferenceName(String(decoding: record[record.index(after: tab)...], as: UTF8.self))) }
         }
-        let targets = paths.intersection(indexed).sorted()
-        let missing = paths.subtracting(indexed).sorted()
+        let targets = paths.intersection(indexed).map(\.rawValue).sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
+        let missing = paths.subtracting(indexed).map(\.rawValue).sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
         guard !targets.isEmpty else { throw IndexFlagPartialFailure(updatedPaths: [], unavailablePaths: missing) }
         let environment = ["GIT_INDEX_FILE": lock.path]
         let arguments: [[String]]
@@ -208,7 +208,7 @@ extension GitRepository {
         case .clear: arguments = [["--no-assume-unchanged"], ["--no-skip-worktree"]]
         }
         for flags in arguments {
-            _ = try run(["update-index"] + flags + ["--"] + targets, environmentOverrides: environment, cancellation: cancellation)
+            _ = try run(["update-index"] + flags + ["-z", "--stdin"], environmentOverrides: environment, cancellation: cancellation, input:Data((targets.joined(separator:"\0") + "\0").utf8))
         }
         let attributes = try FileManager.default.attributesOfItem(atPath: index.path)
         if let permissions = attributes[.posixPermissions] { try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: lock.path) }

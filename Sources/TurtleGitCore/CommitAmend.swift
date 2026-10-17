@@ -22,8 +22,8 @@ extension GitRepository {
         guard amendToParent else { return current }
         let base = try commitComparisonBase(amendToParent: true, cancellation: cancellation)
         let indexed = try stagingFiles(staged: true, base: base, cancellation: cancellation)
-        let indexedByPath = Dictionary(indexed.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
-        let currentByPath = Dictionary(current.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        let indexedByPath = GitPathMap(indexed.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        let currentByPath = GitPathMap(current.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         var result = current.filter { $0.state == .untracked || $0.state == .ignored || $0.state == .conflicted }
         for file in try workingTreeFiles(amendToParent: true, cancellation: cancellation) {
             if currentByPath[file.path]?.state == .conflicted { continue }
@@ -37,15 +37,15 @@ extension GitRepository {
         }
         // Include an index-only change cancelled out by the working tree, so the
         // staging checkbox can still unstage or retain it.
-        let paths = Set(result.map(\.path))
-        for file in indexed where !paths.contains(file.path) {
+        let paths = Set(result.map { GitReferenceName($0.path) })
+        for file in indexed where !paths.contains(GitReferenceName(file.path)) {
             var entry = StatusEntry(path: file.path, originalPath: file.oldPath,
                                       index: file.action.first ?? "M",
                                       worktree: currentByPath[file.path]?.worktree ?? " ")
             entry.hasUnversionedCopy = currentByPath[file.path]?.hasUnversionedCopy ?? false
             result.append(entry)
         }
-        return Dictionary(result.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last }).values.sorted { $0.path < $1.path }
+        return GitPathMap(result.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last }).values.sorted { $0.path.utf8.lexicographicallyPrecedes($1.path.utf8) }
     }
 
     /// Read the index independently of rename pairing. Git may choose a

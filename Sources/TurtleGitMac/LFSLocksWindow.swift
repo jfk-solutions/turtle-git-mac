@@ -82,7 +82,7 @@ import TurtleGitCore
     @Published var selection = Set<String>()
     @Published var sortOrder = [LFSFileSort(column: .path)]
     @Published var fileColumns: StatusListColumnSettings { didSet { menuGeneration = UUID() } }
-    @Published var fileMetadata: [String: StatusListMetadata] = [:] { didSet { menuGeneration = UUID() } }
+    @Published var fileMetadata: GitPathMap<StatusListMetadata> = [:] { didSet { menuGeneration = UUID() } }
     var presentationPreferences: UserDefaults { defaults }
     private let defaults: UserDefaults
     private static let columnKey = "LFSLocks.FileColumns"

@@ -2578,3 +2578,10 @@ or physical/signed acceptance follows from these checks. See
 Complete physical menus, VoiceOver, upstream legacy codepages and signed AppStore
 acceptance remain open. Older builds that only read version 1 cannot read a native
 metadata document after its first successful version 2 mutation.
+
+
+The [working-file identity continuation](WORKING-FILE-IDENTITY-PARITY.md) now
+preserves distinct valid UTF-8 spellings through status/rename/statistics reads,
+amend joins, per-path metadata and index flags. Native row IDs and highlighted/
+checked String sets still require their separate migration; this is not full
+filename-selection parity.

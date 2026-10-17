@@ -237,7 +237,7 @@ import UniformTypeIdentifiers
     }
     private var cacheStates: [String: FileState] = [:]
     private var cacheOverlayEntries: [String: FileState]?
-    private var cacheIndexFlags: [String: FinderIndexFlags]?
+    private var cacheIndexFlags: GitPathMap<FinderIndexFlags>?
     private var cacheRepositories: [String: FinderRepositoryMetadata] = [:]
     private var monitoredRoots: [String] = []
     var visibleEntries: [StatusEntry] { entries.filter { showIgnored || $0.state != .ignored } }

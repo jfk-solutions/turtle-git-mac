@@ -42,12 +42,12 @@ extension GitRepository {
         // Net HEAD diff can be empty even though the index has a different
         // gitlink. Keep that row typed as a submodule rather than a text file.
         let indexRecords = try read(["ls-files", "--stage", "-z"]).stdout.split(separator: 0)
-        var gitlinks = Set<String>()
+        var gitlinks = Set<GitReferenceName>()
         for record in indexRecords {
             guard let tab = record.firstIndex(of: 9), record.prefix(upTo: tab).starts(with: Data("160000 ".utf8)) else { continue }
-            gitlinks.insert(String(decoding: record.suffix(from: record.index(after: tab)), as: UTF8.self))
+            gitlinks.insert(GitReferenceName(String(decoding: record.suffix(from: record.index(after: tab)), as: UTF8.self)))
         }
-        var differences: [String: CommitFile] = [:]
+        var differences: GitPathMap<CommitFile> = [:]
         if let parent = parents.first {
             let args = ["diff", "--no-ext-diff", "--no-textconv", "--no-color"] + diffDetection.comparisonArguments + [parent, "--"]
             func data(_ format: String) throws -> Data { try read([args[0], format, "-z"] + args.dropFirst()).stdout }
@@ -69,7 +69,7 @@ extension GitRepository {
             else { action = "M" }
             let file = CommitFile(path: row.path, oldPath: row.originalPath ?? diff?.oldPath, action: action,
                                   added: diff?.added, removed: diff?.removed, hasStatistics: diff?.hasStatistics ?? false,
-                                  isSubmodule: diff?.isSubmodule == true || gitlinks.contains(row.path))
+                                  isSubmodule: diff?.isSubmodule == true || gitlinks.contains(GitReferenceName(row.path)))
             if row.state == .untracked { unversioned.append(file) } else { files.append(file) }
             if row.hasUnversionedCopy {
                 unversioned.append(CommitFile(path: row.path, oldPath: nil, action: "?", added: nil, removed: nil, hasStatistics: false, isSubmodule: false))

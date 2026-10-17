@@ -40,6 +40,19 @@ import TurtleGitCore
         func ready(_ model: CommitWindowModel) async throws { try await wait { !model.busy && !model.savingPreferences && CommitWindowModel.activeFileOperations == 0 } }
         let owner = make(), model = owner.model; try await ready(model)
         try require(model.error == nil && model.stagingEnabled, "Initial staging list failed")
+        // Exercise the app-side statistics join without putting canonical
+        // aliases into the still-String-keyed native selection model.
+        let exactA = "café.txt", exactB = "cafe\u{301}.txt"
+        let exactRows = StatusEntry.parse(Data(" M \(exactA)\0 M \(exactB)\0".utf8))
+        let exactFiles = CommitFile.parse(names:Data("M\0\(exactA)\0M\0\(exactB)\0".utf8),statistics:Data("11\t1\t\(exactA)\0".appending("3\t2\t\(exactB)\0").utf8))
+        let exactStatistics = GitPathMap(uniqueKeysWithValues:exactFiles.map { ($0.path,$0) })
+        let oldSort = model.fileSortOrder
+        model.setFileSortOrder([CommitFileSort(column:.added)])
+        let ordered = model.sortedFiles(exactRows,statistics:exactStatistics)
+        try require(exactStatistics.count == 2 && ordered.map { Data($0.path.utf8) } == [Data(exactB.utf8),Data(exactA.utf8)],"Native Commit statistics joined canonical aliases")
+        let copied = StatusListClipboard.text(exactRows,root:root,statistics:exactStatistics,copy:.column(.added))
+        try require(copied == "11\n3\n","Metadata clipboard collapsed exact Git paths")
+        model.setFileSortOrder(oldSort)
         model.message = "retained draft"; model.checked = ["new"]; model.selection = ["new"]
         let rows = model.visibleEntries, stats = model.statistics, scope = model.scopePaths
         let groups = StatusListGroups.rows(entries: rows, changelists: model.changelists)

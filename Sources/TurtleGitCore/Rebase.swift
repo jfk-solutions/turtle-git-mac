@@ -124,8 +124,8 @@ public struct RebaseSessionSnapshot:Sendable {
     public let fileRecovery:Bool
     public let conflicts:[ConflictEntry]
     public let rows:[StatusEntry]
-    public let statistics:[String:CommitFile]
-    public var indexFlags:[String:FinderIndexFlags]=[:]
+    public let statistics:GitPathMap<CommitFile>
+    public var indexFlags:GitPathMap<FinderIndexFlags>=[:]
     public let head:String
     public let remaining:[RebaseEntry],replay:[RebaseEntry]
 }
@@ -548,16 +548,16 @@ extension GitRepository {
         let state=try rebaseState(cancellation:cancellation),identity=RebaseConflictIdentity(state)
         let recovery=state.active && identity != nil && (state.needsFileRecovery || identity == previous)
         let head=try run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:cancellation).text.trimmingCharacters(in:.newlines)
-        var conflicts:[ConflictEntry]=[],rows:[StatusEntry]=[],statistics:[String:CommitFile]=[:]
+        var conflicts:[ConflictEntry]=[],rows:[StatusEntry]=[],statistics:GitPathMap<CommitFile>=[:]
         if recovery {
             conflicts=try self.conflicts(cancellation:cancellation)
             let group=state.stoppedAction == .squash
             rows=try commitDialogStatus(amendToParent:group,cancellation:cancellation).filter {$0.state != .untracked && $0.state != .ignored}
-            statistics=Dictionary(try workingTreeFiles(amendToParent:group,cancellation:cancellation).map {($0.path,$0)},uniquingKeysWith:{_,last in last})
+            statistics=GitPathMap(try workingTreeFiles(amendToParent:group,cancellation:cancellation).map {($0.path,$0)},uniquingKeysWith:{_,last in last})
         }
         let absoluteFlags=recovery ? try finderIndexFlags(cancellation:cancellation):[:]
-        let indexFlags=Dictionary(uniqueKeysWithValues:rows.compactMap { row in
-            absoluteFlags[root.appendingPathComponent(row.path).path].map {(row.path,$0)}
+        let indexFlags=GitPathMap(uniqueKeysWithValues:rows.compactMap { row in
+            absoluteFlags[root.path + "/" + row.path].map {(row.path,$0)}
         })
         let remaining=state.active && includeReplay ? try remainingRebaseEntries(cancellation:cancellation):[]
         let replay=state.active && includeReplay ? try rebaseReplayEntries(cancellation:cancellation):[]

@@ -19,3 +19,70 @@ public struct GitReferenceName: Hashable, Sendable, ExpressibleByStringLiteral {
     public static func == (lhs: Self, rhs: Self) -> Bool { equal(lhs.rawValue, rhs.rawValue) }
     public func hash(into hasher: inout Hasher) { hasher.combine(Data(rawValue.utf8)) }
 }
+
+/// Git path-keyed metadata must retain canonically equivalent UTF-8 spellings.
+/// String-facing lookup keeps callers from accidentally normalizing the payload.
+public struct GitPathMap<Value>: Sequence, ExpressibleByDictionaryLiteral {
+    private var storage: [GitReferenceName: Value] = [:]
+    public init() {}
+    public init<S: Sequence>(_ pairs: S, uniquingKeysWith combine: (Value,Value) throws -> Value) rethrows where S.Element == (String,Value) {
+        for (path,value) in pairs {
+            let key = GitReferenceName(path)
+            if let previous = storage[key] { storage[key] = try combine(previous,value) }
+            else { storage[key] = value }
+        }
+    }
+    public init<S: Sequence>(uniqueKeysWithValues pairs: S) where S.Element == (String,Value) {
+        self.init(pairs,uniquingKeysWith: { _,_ in preconditionFailure("Duplicate Git path bytes") })
+    }
+    public init(dictionaryLiteral elements: (String,Value)...) { self.init(uniqueKeysWithValues:elements) }
+    public subscript(path:String) -> Value? {
+        get { storage[GitReferenceName(path)] }
+        set { storage[GitReferenceName(path)] = newValue }
+    }
+    public var count:Int { storage.count }
+    public var isEmpty:Bool { storage.isEmpty }
+    public var keys:[String] { storage.keys.map(\.rawValue) }
+    public var values:[Value] { Array(storage.values) }
+    public func makeIterator() -> AnyIterator<(key:String,value:Value)> {
+        var iterator = storage.makeIterator()
+        return AnyIterator { iterator.next().map { (key:$0.key.rawValue,value:$0.value) } }
+    }
+    public func filter(_ isIncluded: ((key:String,value:Value)) throws -> Bool) rethrows -> Self {
+        var result = Self()
+        for entry in self where try isIncluded(entry) { result[entry.key] = entry.value }
+        return result
+    }
+    public func mapValues<T>(_ transform:(Value) throws -> T) rethrows -> GitPathMap<T> {
+        var result = GitPathMap<T>()
+        for entry in self { result[entry.key] = try transform(entry.value) }
+        return result
+    }
+    public mutating func merge(_ other:Self,uniquingKeysWith combine:(Value,Value) throws -> Value) rethrows {
+        for entry in other {
+            if let previous = self[entry.key] { self[entry.key] = try combine(previous,entry.value) }
+            else { self[entry.key] = entry.value }
+        }
+    }
+    @discardableResult public mutating func removeValue(forKey key:String) -> Value? { storage.removeValue(forKey:GitReferenceName(key)) }
+    public mutating func removeAll(keepingCapacity:Bool = false) { storage.removeAll(keepingCapacity:keepingCapacity) }
+}
+extension GitPathMap: Sendable where Value:Sendable {}
+extension GitPathMap: Equatable where Value:Equatable {
+    public static func == (lhs:Self,rhs:Self)->Bool { lhs.storage == rhs.storage }
+}
+extension GitPathMap: Codable where Value:Codable {
+    private struct Entry:Codable { let path:String; let value:Value }
+    public init(from decoder:Decoder) throws {
+        let entries = try decoder.singleValueContainer().decode([Entry].self)
+        self.init()
+        for entry in entries {
+            guard self[entry.path] == nil else { throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Duplicate Git path bytes")) }
+            self[entry.path] = entry.value
+        }
+    }
+    public func encode(to encoder:Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(keys.sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }.map { Entry(path:$0,value:self[$0]!) })
+    }
+}

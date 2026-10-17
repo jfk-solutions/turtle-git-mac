@@ -2181,8 +2181,8 @@ One Debug build, sixteen focused Core checks and one native group across system
 and bundled Git pass, with no repair/repetition. A real selected-file commit prunes
 its own assignment and retains the two exact unchecked names. Four raw light/dark
 Commit/Working Tree captures were individually reviewed; both owned native
-receivers were reaped and independently absent. Full status-parser, file-table
-selection, metadata dictionary, checked-path and restore-copy identity migration
+receivers were reaped and independently absent. The later working-file identity continuation advances status parsing and metadata
+joins. File-table selection, checked-path and restore-copy identity migration
 remains open, along with physical and signed acceptance. This is a changelist
 family improvement, not full filename or application certification. See
 [batch evidence](qa/changelist-identities-2026-10-17.json).
@@ -2388,3 +2388,25 @@ with visible labels and footers. Receiver 90665 was reaped and independently
 absent. Help freshness, localization and the site build are checked separately.
 Actual system-crash delivery, installed signed/App Store access, physical input
 and complete Windows collector/transport/solution parity remain open.
+
+
+## Exact working-file reads, metadata and index flags — October 17, 2026
+
+Status coalescing, row equality/hashing, rename/statistics/gitlink joins, Working
+Tree and amend status aggregation now retain canonically equivalent valid UTF-8
+spellings separately. GitPathMap carries metadata through Commit staging, Working
+Tree, Revert, Rebase and Finder flags. The index-flag writer selects each exact
+stage-zero path and supplies NUL-delimited stdin. Finder absolute flag keys avoid
+Foundation suffix normalization; snapshot records retain exact keys alongside a
+legacy compatibility object. See [scope and remaining migration](WORKING-FILE-IDENTITY-PARITY.md)
+and [batch evidence](qa/working-file-identities-2026-10-17.json).
+
+There are 48 distinct relevant Core passes across the initial retained checks and
+affected repairs, plus four native case/engine passes for Commit staging and
+Working Tree. The initial clipboard fixture type, invalid numstat fixture and
+actual Foundation-normalized absolute flag keys were repaired. Only affected
+identity/amend checks were repeated after those changes. Both Debug builds pass;
+all four owned receivers were reaped and independently absent. Core metadata and
+native sorting/clipboard checks do not certify String-based row selection,
+filesystem aliases, arbitrary invalid UTF-8 paths or signed Finder/App Store
+acceptance. No dialog is newly certified complete.

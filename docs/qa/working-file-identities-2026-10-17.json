@@ -1,0 +1,107 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/Git/Git.cpp NUL status/name-status/numstat/raw readers",
+    "src/Git/GitStatusListCtrl.cpp::SetGitIndexFlagsForSelectedFiles / git_index_find UTF-8 lookup"
+  ],
+  "scope": "Connected valid UTF-8 working-file read/join/metadata/index-flag family; native String row-selection migration remains explicitly open.",
+  "implemented": [
+    "Exact status duplicate coalescing and StatusEntry/CommitFile equality/hashing including rename origins",
+    "Exact name-status/numstat/raw statistics and gitlink joins",
+    "Exact Working Tree, amend-to-parent and working-tree Log aggregation and marked index-flag preflight",
+    "GitPathMap metadata through Commit staged/unstaged sorting/clipboard, Working Tree, Revert, Rebase, LFS metadata and Finder flags",
+    "Exact request/stage-zero sets, literal NUL stdin index flags and exact updated/unavailable reports",
+    "Raw Git suffix preserved in absolute Finder/Rebase flag keys rather than normalized URL joining",
+    "Lossless indexFlagsV2 path/value records plus deterministic old-object compatibility and old-format import"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/working-file-identities-build-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 3
+    },
+    {
+      "log": "build/qa/working-file-identities-build-final-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 0
+    }
+  ],
+  "core_attempts": [
+    {
+      "log": "build/qa/working-file-identities-core-2026-10-17.log",
+      "exit_code": 1,
+      "phase": "test-target compile",
+      "failure": "Existing StatusListClipboardTests inferred String dictionary; annotated GitPathMap<CommitFile>."
+    },
+    {
+      "log": "build/qa/working-file-identities-core-repair-2026-10-17.log",
+      "exit_code": 1,
+      "tests": 43,
+      "assertion_failures": 3,
+      "failing_cases": 2,
+      "unaffected_passes_retained": 37,
+      "failures": [
+        "Absolute Finder flag keys passed through Foundation URL normalization and collapsed both spellings",
+        "Invalid empty-count numstat fixture record was interpreted as a rename and consumed next row"
+      ]
+    },
+    {
+      "log": "build/qa/working-file-identities-core-final-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 11,
+      "scope": "Six identity and five amend cases after raw absolute-key/fixture repairs; amend source review still pending at this run"
+    },
+    {
+      "log": "build/qa/working-file-identities-core-amend-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 11,
+      "scope": "Same affected identity/amend cases after exact amend joins and real-index amend assertion"
+    }
+  ],
+  "core_distinct_final_passes": 48,
+  "diagnostic": "Private direct-Git probe with system and bundled Git and core.precomposeunicode=true retained both spellings through NUL update-index input. A Foundation Swift probe showed URL.appendingPathComponent normalized the suffix. The product repair changes absolute metadata keys, without overriding persistent Git settings.",
+  "native": [
+    {
+      "log": "build/qa/working-file-identities-commit-native-2026-10-17.log",
+      "exit_code": 0,
+      "pids": [
+        94081,
+        94370
+      ],
+      "cases": "Commit staging system/bundled Git; new exact metadata sort and clipboard assertions plus retained actual staging/unstaging/refresh/retirement"
+    },
+    {
+      "log": "build/qa/working-file-identities-status-native-2026-10-17.log",
+      "exit_code": 0,
+      "pids": [
+        94678,
+        94756
+      ],
+      "cases": "Working Tree source footer system/bundled Git; actual statistics, scopes, captured Stash actions, stale/retired/foreign rejection and unchanged repository"
+    }
+  ],
+  "cleanup": {
+    "owned_receivers_reaped": [
+      94081,
+      94370,
+      94678,
+      94756
+    ],
+    "independent_ps_absence": true
+  },
+  "visual_scope": "No changed window layout, no screenshot or physical/signed acceptance claim.",
+  "remaining": [
+    "Native file-table String IDs and highlighted/checked sets",
+    "Wider operation path sets, LFS owner maps, restore-copy preflights",
+    "Finder state/overlay/repository maps and actual filesystem case/normalization alias behavior",
+    "URL-derived invocation spelling preservation and arbitrary invalid UTF-8 Git filenames",
+    "Full current hosted CI, signed Finder/App Store and latest distribution checkpoint"
+  ],
+  "documentation": {
+    "localizations": "38 languages / 1242 safe literal keys; check passed, no catalog changes",
+    "site": "build/qa/working-file-identities-site-2026-10-17.log; 268 documents, no unresolved fragments",
+    "coverage": "130 dialogs, 120 partial audits, 10 pending family reviews, 0 certified, 1566 mapped / 93 pending controls",
+    "diff_check": "passed"
+  }
+}

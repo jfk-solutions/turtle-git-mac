@@ -47,7 +47,7 @@ final class StatusListClipboardTests: XCTestCase {
         XCTAssertEqual(StatusListColumn.nativeColumn(3), .status)
     }
     func testAllVisibleColumnsAndStagedStatisticsUseCorrectHeadingsAndOrder() {
-        let stats = ["raw.bin": CommitFile(path: "raw.bin", oldPath: nil, action: "A", added: 2, removed: 0, hasStatistics: true, isSubmodule: false)]
+        let stats: GitPathMap<CommitFile> = ["raw.bin": CommitFile(path: "raw.bin", oldPath: nil, action: "A", added: 2, removed: 0, hasStatistics: true, isSubmodule: false)]
         XCTAssertEqual(StatusListClipboard.text(entries, root: root, statistics: stats, copy: .all), "Path\tExtension\tStatus\tLines added\tLines removed\n雪/new.txt (from old.txt)\t.txt\tRenamed\t–\t–\nraw.bin\t.bin\tAdded\t2\t0\n")
         XCTAssertEqual(StatusListClipboard.text(entries, root: root, statistics: stats, copy: .all, visibleColumns: [.status, .path]), "Status\tPath\nRenamed\t雪/new.txt (from old.txt)\nAdded\traw.bin\n")
         XCTAssertEqual(StatusListClipboard.text(entries, root: root, statistics: stats, copy: .all, visibleColumns: []), "")

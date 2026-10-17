@@ -2796,3 +2796,10 @@ history, clipboard, focus/owner, retained message-link and repository-invariant
 checks. Physical keyboard layouts, side-button event delivery, context-menu
 tracking, VoiceOver, signed Finder/App Store access and complete Log parity remain
 open. No new screenshot certifies the whole window.
+
+
+The [working-file identity continuation](WORKING-FILE-IDENTITY-PARITY.md) now
+preserves distinct valid UTF-8 spellings through status/rename/statistics reads,
+amend joins, per-path metadata and index flags. Native row IDs and highlighted/
+checked String sets still require their separate migration; this is not full
+filename-selection parity.

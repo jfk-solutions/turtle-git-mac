@@ -35,6 +35,13 @@ public struct StatusEntry: Identifiable, Hashable, Sendable {
         if code.contains("A") { return .added }
         return .modified
     }
+    public static func == (lhs:Self,rhs:Self) -> Bool {
+        GitReferenceName.equal(lhs.path,rhs.path) && lhs.originalPath.map { GitReferenceName($0) } == rhs.originalPath.map { GitReferenceName($0) } && lhs.index == rhs.index && lhs.worktree == rhs.worktree && lhs.hasUnversionedCopy == rhs.hasUnversionedCopy
+    }
+    public func hash(into hasher:inout Hasher) {
+        hasher.combine(GitReferenceName(path)); hasher.combine(originalPath.map { GitReferenceName($0) })
+        hasher.combine(index); hasher.combine(worktree); hasher.combine(hasUnversionedCopy)
+    }
     /// The status-list menu gates base/unified comparisons by the marked row.
     /// Unversioned and ignored rows still support their double-click preview.
     public var canCompareWithBaseFromStatusList: Bool {
@@ -56,9 +63,9 @@ public struct StatusEntry: Identifiable, Hashable, Sendable {
             }
             result.append(StatusEntry(path: path, originalPath: source, index: x, worktree: y))
         }
-        var combined: [StatusEntry] = [], positions: [String: Int] = [:]
+        var combined: [StatusEntry] = [], positions: [GitReferenceName: Int] = [:]
         for entry in result {
-            guard let position = positions[entry.path] else { positions[entry.path] = combined.count; combined.append(entry); continue }
+            guard let position = positions[GitReferenceName(entry.path)] else { positions[GitReferenceName(entry.path)] = combined.count; combined.append(entry); continue }
             let previous = combined[position]
             let local = [FileState.untracked, .ignored].contains(entry.state)
             let previousLocal = [FileState.untracked, .ignored].contains(previous.state)

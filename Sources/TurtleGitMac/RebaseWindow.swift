@@ -368,8 +368,8 @@ struct RebaseReferenceRequest {
     var revisionFilesAvailable:Bool { !retired && !busy && !selectingSplit && !pickingCommits && pickingReference == nil && !revisionFiles.busy && revisionFiles.window?.attachedSheet == nil }
 
     @Published var conflictRows: [StatusEntry] = []
-    @Published var conflictStatistics: [String: CommitFile] = [:]
-    @Published private(set) var conflictIndexFlags:[String:FinderIndexFlags]=[:]
+    @Published var conflictStatistics: GitPathMap<CommitFile> = [:]
+    @Published private(set) var conflictIndexFlags:GitPathMap<FinderIndexFlags>=[:]
     @Published private(set) var revertingConflictFiles=false
     @Published private(set) var conflictComparisonMark:PreparedFileComparisonMark?
     private var lastImportedConflictMark:UUID?
@@ -434,7 +434,7 @@ struct RebaseReferenceRequest {
         case .lfsOwner:return ""
         }
     }
-    private func conflictStatus(_ entry:StatusEntry,flags:[String:FinderIndexFlags])->String {
+    private func conflictStatus(_ entry:StatusEntry,flags:GitPathMap<FinderIndexFlags>)->String {
         if flags[entry.path]?.skipWorktree == true {return "Skip-worktree"}
         if flags[entry.path]?.assumeUnchanged == true {return "Assume unchanged"}
         return entry.state.rawValue.capitalized
@@ -732,9 +732,9 @@ struct RebaseReferenceRequest {
         let head: String
         let rows: [StatusEntry]
         let conflicts: [ConflictEntry]
-        let statistics: [String: CommitFile]
+        let statistics: GitPathMap<CommitFile>
         let columns:[StatusListColumn]
-        let indexFlags:[String:FinderIndexFlags]
+        let indexFlags:GitPathMap<FinderIndexFlags>
         let mark:String
         let comparisonMark:PreparedFileComparisonMark?
         let amendToParent:Bool

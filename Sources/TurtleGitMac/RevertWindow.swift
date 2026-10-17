@@ -143,7 +143,7 @@ private final class RevertNativeWindow:NSWindow {
     let fileListRefresh = FileListRefreshCoordinator()
     weak var window:NSWindow?
     @Published private(set) var entries:[StatusEntry] = []
-    @Published private(set) var statistics:[String:CommitFile] = [:]
+    @Published private(set) var statistics:GitPathMap<CommitFile> = [:]
     @Published var checked = Set<String>()
     @Published var highlighted = Set<String>() {didSet {commands.selection = highlighted}}
     @Published private(set) var busy = false
@@ -269,7 +269,7 @@ private final class RevertNativeWindow:NSWindow {
                 let status = files.filter{$0.state != .normal || direct.contains($0.id)}.map(\.entry)
                 let selection = RevertDialogSelection(status:status,paths:nextScope,directFiles:direct)
                 let ids = Set(selection.entries.map(\.path)),selectedFiles = files.filter{ids.contains($0.id)}
-                let stats = Dictionary(try await readStatistics(token).map{($0.path,$0)},uniquingKeysWith:{_,last in last})
+                let stats = GitPathMap(try await readStatistics(token).map{($0.path,$0)},uniquingKeysWith:{_,last in last})
                 let metadata = await repository.statusListMetadata(paths:selection.entries.map(\.path));try token.check()
                 let modules = try await repository.submodulePaths(cancellation:token),rebase = try await repository.conflictIsRebase(cancellation:token)
                 let hasHead = try await repository.run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:token).exitCode == 0
