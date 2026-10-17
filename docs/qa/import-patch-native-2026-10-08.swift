@@ -210,13 +210,13 @@ import TurtleGitCore
         defer { menuClipboard.releaseGlobally() }
         menuClipboard.declareTypes([.string], owner: nil); menuClipboard.setString("private paste", forType: .string)
         editedView.setSelectedRange(NSRange(location: 0, length: 4))
-        let prompt = MergeLineNumberPrompt(limit: 2)
+        let prompt = MergeLineNumberPrompt(limit: 2); defer { prompt.close() }
         for input in ["", "0", "3", "-1", "1.5", " 1", "１", "9999999999999999999999"] {
             prompt.field.stringValue = input; prompt.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification))
-            precondition(!prompt.alert.buttons[0].isEnabled && MergeLineNumberPrompt.validated(input, limit: 2) == nil)
+            precondition(!prompt.ok.isEnabled && MergeLineNumberPrompt.validated(input, limit: 2) == nil)
         }
         prompt.field.stringValue = "02"; prompt.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification))
-        precondition(prompt.alert.buttons[0].isEnabled && MergeLineNumberPrompt.validated("02", limit: 2) == 2)
+        precondition(prompt.ok.isEnabled && MergeLineNumberPrompt.validated("02", limit: 2) == 2)
         let comparisonMenus = editedView as! ComparisonContextMenuProviding
         let menu = comparisonMenus.comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard)
         precondition(!menu.item(withTitle: "Go to Line…")!.isEnabled) // Source single-line gate.

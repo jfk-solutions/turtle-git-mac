@@ -1819,3 +1819,13 @@ refuses reentrant Open delivery while allowing failed preparation to retry.
 All 24 static controls receive explicit partial mappings. See
 [Open parity](MERGE-OPEN-PARITY.md#source-form-and-chooser-ownership--october-17-2026).
 The Debug build and all four grouped native families pass: source form/chooser ownership, standalone Open, text replacement and patch replacement. The affected source case passes again after the footer-spacing repair. Both raw light/dark captures were individually reviewed; all five receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-open-source-family-2026-10-17.json) for the fixture compile repair, captures, diagnostic warnings and acceptance limits.
+
+### Merge search forms and pane ownership — October 17, 2026
+
+Find now has fresh-controller close/reopen semantics, preserved live drafts,
+source selection/empty seeding, separate relative pane positions, empty Count
+option persistence and complete pending/retired control gates. Go to Line uses a
+native source-shaped range/input/OK/Cancel sheet, one-response cancellation and
+independent request drain for Quit. All 18 static controls have partial mappings.
+See [search parity](MERGE-FIND-PARITY.md#source-search-forms-and-pane-ownership--october-17-2026).
+All three native families have passing runs, including the actual Find/Replace/Undo Git-conflict workflow with system and bundled Git. The source-form and initial-navigation cases exercise native UI without Git commands; their repeated engine environments do not prove additional Git backend coverage. Affected source rechecks pass after capture/footer repairs. One initial-navigation block/caret assertion failed before the two passing diagnostic attempts; its intermittent cause remains open. Four final raw light/dark captures were individually reviewed, and all eleven receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-search-source-family-2026-10-17.json) for exact failures, repairs, capture provenance and acceptance limits.

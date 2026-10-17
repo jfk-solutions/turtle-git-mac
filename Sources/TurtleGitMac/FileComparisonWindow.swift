@@ -2175,7 +2175,8 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     let mergeFindHighlights = MergeFindHighlights()
     var mergeFindController: MergeFindWindowController?
     var mergeFindDefaults: UserDefaults { model?.comparisonDefaults ?? .standard }
-    var mergeFindAllowed: Bool { window != nil && model?.contextCommandsAllowed == true && model?.filtering == false }
+    var mergeFindPaneID: Int { baseSide ? 1 : 2 }
+    var mergeFindAllowed: Bool { window != nil && !navigationPending && model?.contextCommandsAllowed == true && model?.filtering == false }
     var mergeFindWritable: Bool { mergeFindAllowed && isEditable }
     var mergeFindLines: [MergeFindLine] { MergeFindLine.displayCells(sourceCells) }
     func replaceFindMatches(_ ranges: [NSRange], with replacement: String) -> Bool {
@@ -2408,40 +2409,78 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     }
 }
 
-/// Shared native adaptation of CGotoLineDlg. AppKit owns the sheet, focus and
-/// validation; the injected choice supports tests without displaying a window.
-@MainActor final class MergeLineNumberPrompt: NSObject, NSTextFieldDelegate {
-    let alert = NSAlert()
-    let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+/// Native IDD_GOTO: a permanent range label, initially empty numeric input,
+/// inline validation and source OK/Cancel order, owned by the invoking editor.
+@MainActor final class MergeLineNumberPrompt: NSWindowController, NSWindowDelegate, NSTextFieldDelegate {
+    let field = NSTextField(), label = NSTextField(labelWithString: ""), status = NSTextField(labelWithString: "")
+    let ok = NSButton(title: "OK", target: nil, action: nil)
     let limit: Int
+    private var ownerObserver: NSObjectProtocol?
+    private var completion: ((Int?) -> Void)?
+    private var finished = false
     init(limit: Int) {
         self.limit = limit
-        super.init()
-        alert.messageText = "Go To Line"
-        alert.informativeText = "Line number (1 – \(limit))"
-        alert.addButton(withTitle: "OK"); alert.addButton(withTitle: "Cancel")
-        alert.buttons[0].isEnabled = false
-        field.placeholderString = "Line number"; field.setAccessibilityLabel("Line number (1 – \(limit))")
-        field.delegate = self; alert.accessoryView = field
-        alert.window.initialFirstResponder = field
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 340, height: 156), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "Go To Line"; window.isReleasedWhenClosed = false
+        super.init(window: window); window.delegate = self
+        label.stringValue = "Line number (1 – \(limit))"; field.setAccessibilityLabel(label.stringValue)
+        (field.cell as? NSTextFieldCell)?.usesSingleLineMode = true; (field.cell as? NSTextFieldCell)?.isScrollable = true
+        field.delegate = self; field.widthAnchor.constraint(equalToConstant: 308).isActive = true
+        ok.target = self; ok.action = #selector(accept); ok.keyEquivalent = "\r"; ok.isEnabled = false
+        let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancelClicked)); cancel.keyEquivalent = "\u{1b}"
+        let buttons = NSStackView(views: [ok, cancel]); buttons.spacing = 10
+        let footer = NSView(); footer.widthAnchor.constraint(equalToConstant: 308).isActive = true; footer.heightAnchor.constraint(equalToConstant: 32).isActive = true
+        footer.addSubview(buttons); buttons.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([buttons.trailingAnchor.constraint(equalTo: footer.trailingAnchor), buttons.centerYAnchor.constraint(equalTo: footer.centerYAnchor)])
+        status.textColor = .systemRed; status.isSelectable = true; status.maximumNumberOfLines = 2
+        status.heightAnchor.constraint(equalToConstant: 30).isActive = true; status.widthAnchor.constraint(equalToConstant: 308).isActive = true
+        status.setAccessibilityLabel("Line number validation")
+        let stack = NSStackView(views: [label, field, status, footer]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
+        let host = NSView(); window.contentView = host; host.addSubview(stack); stack.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([stack.topAnchor.constraint(equalTo: host.topAnchor, constant: 14), stack.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 16)])
+        window.initialFirstResponder = field
     }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
     static func validated(_ input: String, limit: Int) -> Int? {
         guard !input.isEmpty, input.utf8.allSatisfy({ (48...57).contains($0) }),
               let value = Int(input), (1...max(1, limit)).contains(value), limit > 1 else { return nil }
         return value
     }
     func controlTextDidChange(_ notification: Notification) {
-        alert.buttons[0].isEnabled = Self.validated(field.stringValue, limit: limit) != nil
+        guard !finished else { return }
+        ok.isEnabled = Self.validated(field.stringValue, limit: limit) != nil
+        status.stringValue = field.stringValue.isEmpty || ok.isEnabled ? "" : "Enter a whole number from 1 to \(limit)."
     }
+    @objc func accept() {
+        guard !finished else { return }
+        guard let value = Self.validated(field.stringValue, limit: limit) else {
+            status.stringValue = "Enter a whole number from 1 to \(limit)."; field.selectText(nil); return
+        }
+        finish(value)
+    }
+    private func finish(_ value: Int?, closing: Bool = false) {
+        guard !finished else { return }; finished = true
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver); self.ownerObserver = nil }
+        if let window, let parent = window.sheetParent { parent.endSheet(window); window.orderOut(nil) }
+        ok.isEnabled = false; field.isEnabled = false; field.delegate = nil
+        let callback = completion; completion = nil; if !closing { close() }; callback?(value)
+    }
+    func present(owner: NSWindow, completion: @escaping (Int?) -> Void) {
+        guard !finished, self.completion == nil, owner.attachedSheet == nil, let window else { completion(nil); return }
+        self.completion = completion
+        ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.finish(nil) } }
+        owner.beginSheet(window); window.makeFirstResponder(field)
+    }
+    func windowWillClose(_ notification: Notification) { finish(nil, closing: true) }
+    @objc private func cancelClicked() { finish(nil) }
     static func choose(window: NSWindow, limit: Int) async -> Int? {
         let prompt = MergeLineNumberPrompt(limit: limit)
-        let response = await withCheckedContinuation { continuation in
-            prompt.alert.beginSheetModal(for: window) { continuation.resume(returning: $0) }
-        }
-        guard response == .alertFirstButtonReturn else { return nil }
-        return validated(prompt.field.stringValue, limit: limit)
+        let result: Int? = await withCheckedContinuation { continuation in prompt.present(owner: window) { continuation.resume(returning: $0) } }
+        withExtendedLifetime(prompt) {}; return result
     }
 }
+@MainActor enum MergeNavigationRequests { static var activeRequests = 0 }
 @MainActor protocol MergeLineNavigationProviding: AnyObject {
     var chooseNavigationLine: (NSWindow, Int) async -> Int? { get set }
     var navigationPending: Bool { get set }
@@ -2467,9 +2506,9 @@ extension MergeLineNavigationProviding where Self: NSTextView {
         guard canNavigateToSourceLine, let window, let limit = navigationLimit else { return }
         beginUserNavigation()
         let original = string, revision = navigationIntentRevision
-        navigationPending = true
+        navigationPending = true; MergeNavigationRequests.activeRequests += 1
         Task { @MainActor in
-            defer { navigationPending = false }
+            defer { navigationPending = false; MergeNavigationRequests.activeRequests -= 1 }
             guard let line = await chooseNavigationLine(window, limit), line >= 1, line <= limit,
                   navigationAllowed, window.attachedSheet == nil, self.window === window,
                   navigationIntentRevision == revision, string.utf8.elementsEqual(original.utf8) else { return }

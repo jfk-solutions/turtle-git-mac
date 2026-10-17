@@ -1,0 +1,180 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "70e2a31f0549b54e904820549c415d02664710ca",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Fresh Find controller ownership on close/reopen, first selection/empty seeding and preserved live drafts",
+    "Independent viewport-relative left/right/result Find positions and session-local Search Up reset",
+    "Empty Count option persistence and full pending/retired input/Count/replacement gates",
+    "Native source-shaped Go to Line range/input/OK/Cancel, inline validation and single-response owner-close cancellation",
+    "Independent navigation request drain guards Quit after forced closure",
+    "All 18 Find/Go to Line static controls receive explicit partial mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/merge-search-source-build-2026-10-17.log",
+      "exit": 65,
+      "exit_zero_no_output_diagnostics": 0,
+      "failure": "Prompt private owner property collided with NSWindowController.owner; removed unused property."
+    },
+    {
+      "log": "build/qa/merge-search-source-build-repair-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3
+    },
+    {
+      "log": "build/qa/merge-search-source-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "families": [
+      "source Find/Go to Line forms and ownership",
+      "retained actual two/three-pane Find/Replace/Undo",
+      "retained initial navigation and versioned Go to Line"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/merge-search-source-native-2026-10-17.log",
+        "exit": 1,
+        "failure": "Fixture compile error: constrained navigation extension required NSTextView & MergeLineNavigationProviding composition; no receiver started."
+      },
+      {
+        "log": "build/qa/merge-search-source-native-recheck-2026-10-17.log",
+        "exit": 1,
+        "passed_case_engine_combinations": 4,
+        "failure": "Initial navigation source block/inline caret assertion failed before Go to Line. No diagnostic values in this first assertion."
+      },
+      {
+        "log": "build/qa/merge-search-navigation-diagnostic-2026-10-17.log",
+        "exit": 0,
+        "passed_case_engine_combinations": 2,
+        "note": "Added assertion diagnostics only; both engines passed without app changes. Initial intermittent failure remains unexplained."
+      },
+      {
+        "log": "build/qa/merge-search-source-capture-recheck-2026-10-17.log",
+        "exit": 0,
+        "affected_source_rechecks": 2
+      },
+      {
+        "log": "build/qa/merge-search-source-layout-native-2026-10-17.log",
+        "exit": 0,
+        "affected_source_rechecks": 2
+      }
+    ],
+    "owned_receivers_reaped": [
+      11266,
+      11301,
+      11304,
+      11351,
+      11399,
+      11441,
+      11448,
+      11556,
+      11582,
+      11726,
+      11754
+    ],
+    "independently_absent_owned_receivers": [
+      11266,
+      11301,
+      11304,
+      11351,
+      11399,
+      11441,
+      11448,
+      11556,
+      11582,
+      11726,
+      11754
+    ],
+    "case_environment_passes": 6,
+    "actual_git_conflict_case_engine_passes": 2,
+    "native_only_cases": [
+      "source",
+      "navigation"
+    ],
+    "engine_scope": "Only the retained Find family performs Git conflict commands with TURTLEGIT_FIND_TEST_GIT. Source/navigation cases are native-only; repeated engine environment labels do not prove extra Git behavior."
+  },
+  "core": {
+    "repeated": false,
+    "reason": "Core matching, source coordinate mapping and serialization unchanged; grouped native cases exercise existing real Git conflict and Undo routes."
+  },
+  "repairs": [
+    "Removed unused prompt owner property conflicting with NSWindowController during first build.",
+    "Fixed fixture existential cast without app rebuild.",
+    "Preserved initial-navigation assertion and added actual block/caret/transfer/pending/error diagnostic values. Both diagnostic attempts passed, without claiming the earlier intermittent failure fixed.",
+    "ScreenCaptureKit grouped the attached Go to Line sheet with alpha-zero owner/child windows. Kept raw rejected captures in build/qa/merge-search-source-initial-captures; capture unchanged production prompt standalone and exclude child windows. Functional assertions still exercise attached sheets.",
+    "Standalone raw captures exposed left-aligned Go to Line buttons. Added a footer container with trailing buttons; original captures retained in build/qa/merge-search-source-standalone-initial-captures; only affected source family repeated after layout repair."
+  ],
+  "captures": [
+    {
+      "path": "docs/site/assets/merge-find-source-light.png",
+      "sha256": "ba9110116a9257a8c9a48eae170738f723875348f66dba1fe96249fec9643bc3",
+      "pixels": [
+        1320,
+        564
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/merge-find-source-dark.png",
+      "sha256": "91befb01d114c0d22ab7ec89d0aed3107d1ad00507178ac8f1e046c3ed37c250",
+      "pixels": [
+        1320,
+        564
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/merge-goto-source-light.png",
+      "sha256": "5cc4542d9475a7d5d5a2dbc403320403087ca07c06b481a54eab87b97c9a73fb",
+      "pixels": [
+        680,
+        376
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/merge-goto-source-dark.png",
+      "sha256": "b6538c09a13b08581ee663d160608cd3f749abf44ddfbeba23d947a17ae61f5b",
+      "pixels": [
+        680,
+        376
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of actual production Find and Go to Line controllers with private real inputs/preferences. Find is pane-owned; Go to Line is captured standalone to avoid ScreenCaptureKit attached-sheet grouping. Actual attached-sheet acceptance/cancellation is separately asserted. Passive owned windows; no global user focus activation/input.",
+  "hosted_observation": {
+    "head": "70e2a31f0549b54e904820549c415d02664710ca",
+    "macos": {
+      "run": 38986747121,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38986747144,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "One initial-navigation block/caret failure is not explained by the two later passing diagnostic attempts; intermittent readiness/initial-selection acceptance remains open",
+    "Native histories retain 25 entries; pinned CHistoryCombo has a transient 26th entry before next 25-entry LoadHistory, not reproduced here",
+    "Source SaveWindowPos Y-to-both-coordinate assignment deliberately replaced with independent native coordinates",
+    "Source Windows validation balloon and search flash are represented by native inline validation/status; complete rendering equivalence not certified",
+    "Physical gestures, radio/menu/keyboard/VoiceOver, all window/pane replacement and volume cases, signed Finder/App Store and full hosted CI remain open"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/merge-search-source-site-2026-10-17.log"
+  }
+}

@@ -18,7 +18,7 @@ struct MergeInitialNavigationVerification {
         defer{owner.close()};owner.window!.alphaValue=0;owner.window!.orderFront(nil);model.load();try await TwoPaneEngineVerification.settled(model)
         let views=TwoPaneEngineVerification.editors(owner.window?.contentView),right=views.first{$0.string.contains("prefix new")}!,left=views.first{$0.string.contains("prefix old")}!
         let selected=right as! MergeBlockSelecting
-        try require(selected.mergeSelectedBlockRange == NSRange(location:5,length:25) && right.selectedRange() == NSRange(location:12,length:0),"Initial source block/inline entry caret")
+        try require(selected.mergeSelectedBlockRange == NSRange(location:5,length:25) && right.selectedRange() == NSRange(location:12,length:0),"Initial source block/inline entry caret: block=\(String(describing:selected.mergeSelectedBlockRange)), caret=\(right.selectedRange()), transfer=\(String(describing:model.transferRows)), pending=\(model.initialNavigationPending), error=\(String(describing:model.error))")
         try require((left as! MergeBlockSelecting).mergeSelectedBlockRange != nil && model.transferRows == 1..<2,"Initial peer block/transfer rows")
         let navigation=right as! MergeLineNavigationProviding
         navigation.beginUserNavigation();right.setSelectedRange(NSRange(location:0,length:0));await Task.yield()

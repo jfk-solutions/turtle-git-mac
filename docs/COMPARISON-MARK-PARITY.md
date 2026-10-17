@@ -499,3 +499,6 @@ validation controls and operation guards. They do not prove physical sheet
 tracking, focus, keyboard routing or signed accessibility acceptance. The native
 text selection adapts the upstream view-line highlight; full locator/folding
 and source view behavior remain incomplete.
+
+
+The [October 17 search-form continuation](MERGE-FIND-PARITY.md#source-search-forms-and-pane-ownership--october-17-2026) replaces the generic Go to Line alert with a native range/input/OK/Cancel sheet, inline validation and one-response cancellation. Original-coordinate navigation and stale-intent fences remain. Actual validation and the intermittent initial-selection limitation are recorded in [batch evidence](qa/merge-search-source-family-2026-10-17.json).

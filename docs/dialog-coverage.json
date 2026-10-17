@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 498,
-    "mapped_controls": 1161,
+    "pending_control_reviews": 480,
+    "mapped_controls": 1179,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -399,10 +399,15 @@
       "status": "partial-native-replacement",
       "source_blob": "b0c19b52528f5dc6a7adb62095e5cd7260abe5dd",
       "static_controls": 14,
-      "mapped_controls": 0,
-      "pending_control_reviews": 14,
+      "mapped_controls": 14,
+      "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/MergeFindWindow.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [],
       "qa_records": []
@@ -429,10 +434,15 @@
       "status": "partial-native-replacement",
       "source_blob": "b0c19b52528f5dc6a7adb62095e5cd7260abe5dd",
       "static_controls": 4,
-      "mapped_controls": 0,
-      "pending_control_reviews": 4,
+      "mapped_controls": 4,
+      "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FileComparisonWindow.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [],
       "qa_records": []

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Adapts FindDlg/BaseView; Copyright (C) 2023 TortoiseGit; 2006, 2011-2014, 2016, 2020 TortoiseSVN.
 import AppKit
 import TurtleGitCore
 
@@ -5,6 +7,7 @@ import TurtleGitCore
     var mergeFindController: MergeFindWindowController? { get set }
     var mergeFindHighlights: MergeFindHighlights { get }
     var mergeFindDefaults: UserDefaults { get }
+    var mergeFindPaneID: Int { get }
     var mergeFindAllowed: Bool { get }
     var mergeFindWritable: Bool { get }
     var mergeFindLines: [MergeFindLine] { get }
@@ -219,13 +222,15 @@ private final class MergeFindNativeWindow: NSWindow {
 @MainActor final class MergeFindWindowController: NSWindowController, NSWindowDelegate, NSComboBoxDelegate, NSTextFieldDelegate {
     private weak var text: NSTextView?
     private let defaults: UserDefaults
+    private weak var ownerWindow: NSWindow?
+    private var retired = false, ownerClosing = false, seeded = false
     let search = NSComboBox(), replacement = NSComboBox()
     let matchCase = NSButton(checkboxWithTitle: "Match case", target: nil, action: nil)
     let modifiedOnly = NSButton(checkboxWithTitle: "Limit search to modified lines", target: nil, action: nil)
     let searchUp = NSButton(checkboxWithTitle: "Search up", target: nil, action: nil)
     let wholeWord = NSButton(checkboxWithTitle: "Whole word", target: nil, action: nil)
     let status = NSTextField(labelWithString: "")
-    private(set) var findButton: NSButton!, replaceButton: NSButton!, replaceAllButton: NSButton!
+    private(set) var findButton: NSButton!, replaceButton: NSButton!, replaceAllButton: NSButton!, countButton: NSButton!
     private var ownerObserver: NSObjectProtocol?
     private var textObserver: NSObjectProtocol?
     private var options: MergeFindOptions {
@@ -235,17 +240,17 @@ private final class MergeFindNativeWindow: NSWindow {
         return value
     }
     init(text: NSTextView, defaults: UserDefaults) {
-        self.text = text; self.defaults = defaults
-        let window = MergeFindNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 590, height: 260), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        self.text = text; self.defaults = defaults; self.ownerWindow = text.window
+        let window = MergeFindNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 250), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Find – TurtleGitMerge"; window.isReleasedWhenClosed = false
         super.init(window: window); window.delegate = self; window.findController = self
         let saved = MergeFindOptions.load(from: defaults)
         matchCase.state = saved.matchCase ? .on : .off; modifiedOnly.state = saved.modifiedOnly ? .on : .off
         wholeWord.state = saved.wholeWord ? .on : .off
         for (combo, key, label) in [(search, "Search", "Search for"), (replacement, "Replace", "Replace with")] {
-            combo.addItems(withObjectValues: history(key)); combo.stringValue = history(key).first ?? ""
+            combo.addItems(withObjectValues: history(key)); combo.stringValue = key == "Search" ? "" : history(key).first ?? ""
             combo.delegate = self; combo.setAccessibilityLabel(label)
-            combo.widthAnchor.constraint(equalToConstant: 290).isActive = true
+            combo.widthAnchor.constraint(equalToConstant: 370).isActive = true
         }
         let labels = NSGridView(views: [[NSTextField(labelWithString: "Search for:"), search], [NSTextField(labelWithString: "Replace with:"), replacement]])
         labels.rowSpacing = 8; labels.columnSpacing = 10
@@ -259,17 +264,19 @@ private final class MergeFindNativeWindow: NSWindow {
         findButton = button("Find", #selector(findClicked)); findButton.keyEquivalent = "\r"
         replaceButton = button("Replace", #selector(replaceClicked))
         replaceAllButton = button("Replace All", #selector(replaceAllClicked))
-        _ = button("Count", #selector(countClicked))
+        countButton = button("Count", #selector(countClicked))
         let cancel = button("Cancel", #selector(cancelClicked)); cancel.keyEquivalent = "\u{1b}"
         let row = NSStackView(views: [left, right]); row.orientation = .horizontal; row.alignment = .top; row.spacing = 16
         status.textColor = .systemBlue; status.isSelectable = true; status.setAccessibilityLabel("Search status")
+        status.maximumNumberOfLines = 2; status.widthAnchor.constraint(equalToConstant: 632).isActive = true
+        status.heightAnchor.constraint(equalToConstant: 30).isActive = true
         let content = NSStackView(views: [row, status]); content.orientation = .vertical; content.alignment = .leading; content.spacing = 10
         let host = NSView(); host.addSubview(content); content.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([content.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 14), content.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -14), content.topAnchor.constraint(equalTo: host.topAnchor, constant: 14), content.bottomAnchor.constraint(lessThanOrEqualTo: host.bottomAnchor, constant: -12)])
         window.contentView = host
-        DialogGeometry.attach(window, identifier: "TurtleGitMerge.Find", legacyName: "FindDlg")
+
         if let owner = text.window {
-            ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.close() } }
+            ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.ownerClosing = true; self?.close() } }
         }
         textObserver = NotificationCenter.default.addObserver(forName: NSText.didChangeNotification, object: text, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.updateGates(); self?.refreshHighlights() } }
         updateGates()
@@ -281,37 +288,75 @@ private final class MergeFindNativeWindow: NSWindow {
     private func remember(_ key: String, combo: NSComboBox) {
         let value = combo.stringValue.replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\n", with: " ")
         guard !value.isEmpty else { return }
-        var values = history(key).filter { $0 != value }; values.insert(value, at: 0); values = Array(values.prefix(25))
+        var values = history(key).filter { !$0.utf8.elementsEqual(value.utf8) }; values.insert(value, at: 0); values = Array(values.prefix(25))
         defaults.set(values, forKey: "TurtleGitMerge.History.Find." + key)
         combo.removeAllItems(); combo.addItems(withObjectValues: values); combo.stringValue = value
     }
-    func refreshHighlights() { if let text { target?.mergeFindHighlights.refresh(in: text) } }
+    private var allowed: Bool {
+        !retired && ownerWindow != nil && text?.window === ownerWindow && target?.mergeFindAllowed == true
+    }
+    private var positionKey: String { "TurtleGitMerge.FindDlgOffset." + String(target?.mergeFindPaneID ?? 0) }
+    private var paneFrame: NSRect? {
+        guard let text, let ownerWindow, text.window === ownerWindow else { return nil }
+        let pane: NSView = text.enclosingScrollView ?? text
+        return ownerWindow.convertToScreen(pane.convert(pane.bounds, to: nil))
+    }
+    private func savePosition() {
+        guard seeded, !retired, let window, let paneFrame else { return }
+        defaults.set([window.frame.minX - paneFrame.minX, paneFrame.maxY - window.frame.maxY], forKey: positionKey)
+    }
+    private func restorePosition() {
+        guard let window, let paneFrame else { return }
+        let values = defaults.array(forKey: positionKey) as? [Double]
+        let x = values?.count == 2 && values![0].isFinite ? values![0] : 0
+        let y = values?.count == 2 && values![1].isFinite ? values![1] : 0
+        var origin = NSPoint(x: paneFrame.minX + x, y: paneFrame.maxY - y - window.frame.height)
+        if let screen = ownerWindow?.screen?.visibleFrame {
+            origin.x = min(max(origin.x, screen.minX), max(screen.minX, screen.maxX - window.frame.width))
+            origin.y = min(max(origin.y, screen.minY), max(screen.minY, screen.maxY - window.frame.height))
+        }
+        window.setFrameOrigin(origin)
+    }
+    func refreshHighlights() { if !retired, let text { target?.mergeFindHighlights.refresh(in: text) } }
     func updateGates() {
-        let allowed = target?.mergeFindAllowed == true, writable = target?.mergeFindWritable == true
-        findButton.isEnabled = allowed && !search.stringValue.isEmpty
-        replacement.isEnabled = writable
+        guard !retired else { return }
+        if ownerWindow != nil && text?.window !== ownerWindow { close(); return }
+        let enabled = allowed, writable = enabled && target?.mergeFindWritable == true
+        search.isEnabled = enabled; replacement.isEnabled = writable
+        for option in [matchCase, modifiedOnly, searchUp, wholeWord] { option.isEnabled = enabled }
+        findButton.isEnabled = enabled && !search.stringValue.isEmpty
+        countButton.isEnabled = enabled
         replaceButton.isEnabled = findButton.isEnabled && writable; replaceAllButton.isEnabled = replaceButton.isEnabled
     }
     func comboBoxSelectionDidChange(_ notification: Notification) { updateGates() }
     func controlTextDidChange(_ notification: Notification) { updateGates() }
     func present(show: Bool = true) {
-        guard let text, let window, target?.mergeFindAllowed == true else { return }
-        let range = text.selectedRange()
-        if range.length > 0, NSMaxRange(range) <= (text.string as NSString).length { search.stringValue = (text.string as NSString).substring(with: range) }
-        updateGates()
-        if let owner = text.window {
-            if window.parent !== owner { owner.addChildWindow(window, ordered: .above) }
-            if !window.isVisible { window.setFrameOrigin(NSPoint(x: owner.frame.minX + 35, y: owner.frame.maxY - window.frame.height - 50)) }
+        guard allowed, let text, let window, let ownerWindow else { return }
+        if !seeded {
+            let range = text.selectedRange()
+            search.stringValue = range.length > 0 && NSMaxRange(range) <= (text.string as NSString).length ? (text.string as NSString).substring(with: range) : ""
+            restorePosition(); seeded = true
         }
+        updateGates()
+        if window.parent !== ownerWindow { ownerWindow.addChildWindow(window, ordered: .above) }
         if show { window.makeKeyAndOrderFront(nil); window.makeFirstResponder(search) }
     }
-    func windowWillClose(_ notification: Notification) { if let window { window.parent?.removeChildWindow(window) }; text?.window?.makeFirstResponder(text) }
+    func windowWillClose(_ notification: Notification) {
+        guard !retired else { return }; savePosition(); retired = true
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver); self.ownerObserver = nil }
+        if let textObserver { NotificationCenter.default.removeObserver(textObserver); self.textObserver = nil }
+        if target?.mergeFindController === self { target?.mergeFindController = nil }
+        if let window { window.parent?.removeChildWindow(window) }
+        for control in [search, replacement, matchCase, modifiedOnly, searchUp, wholeWord, findButton!, replaceButton!, replaceAllButton!, countButton!] as [NSControl] { control.isEnabled = false }
+        status.stringValue = ""; search.delegate = nil; replacement.delegate = nil
+        if !ownerClosing, let text, text.window === ownerWindow, target?.mergeFindAllowed == true { ownerWindow?.makeFirstResponder(text) }
+    }
     private func prepare(replacing: Bool = false) -> [NSRange]? {
         updateGates()
-        guard target?.mergeFindAllowed == true, !search.stringValue.isEmpty, !replacing || target?.mergeFindWritable == true else { return nil }
-        status.stringValue = ""; options.save(to: defaults); remember("Search", combo: search)
+        guard allowed, !replacing || target?.mergeFindWritable == true else { return nil }
+        savePosition(); status.stringValue = ""; options.save(to: defaults); remember("Search", combo: search)
         if replacing { remember("Replace", combo: replacement) }
-        guard let text else { return nil }
+        guard !search.stringValue.isEmpty, let text else { return nil }
         target?.mergeFindHighlights.set(search.stringValue, options: options, in: text)
         return target?.mergeFindHighlights.ranges ?? []
     }
@@ -325,6 +370,7 @@ private final class MergeFindNativeWindow: NSWindow {
         reportNavigation(wrapped: match.wrapped, upwards: upwards ?? options.searchUp)
     }
     func reportNavigation(wrapped: Bool, upwards: Bool) {
+        guard allowed else { return }
         status.stringValue = wrapped ? (upwards ? "Top reached. Search continued from the bottom." : "Bottom reached. Search continued from the top.") : ""
         status.textColor = .systemGreen
     }

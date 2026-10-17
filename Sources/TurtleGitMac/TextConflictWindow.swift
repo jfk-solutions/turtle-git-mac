@@ -1565,7 +1565,8 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     let mergeFindHighlights = MergeFindHighlights()
     var mergeFindController: MergeFindWindowController?
     var mergeFindDefaults: UserDefaults { model?.comparisonDefaults ?? .standard }
-    var mergeFindAllowed: Bool { window != nil && model?.retired == false && model?.busy == false && model?.preparing == false && model?.confirmingQuit == false && window?.attachedSheet == nil }
+    var mergeFindPaneID: Int { mergeEditable ? 3 : sourceSide == .theirs ? 1 : 2 }
+    var mergeFindAllowed: Bool { window != nil && !navigationPending && mergeSourceRowsReady && model?.retired == false && model?.busy == false && model?.preparing == false && model?.confirmingQuit == false && window?.attachedSheet == nil }
     var mergeFindWritable: Bool { mergeFindAllowed && mergeEditable && isEditable && mergeSourceRowsReady }
     var mergeFindLines: [MergeFindLine] {
         if let sourceCells { return MergeFindLine.displayCells(sourceCells) }
