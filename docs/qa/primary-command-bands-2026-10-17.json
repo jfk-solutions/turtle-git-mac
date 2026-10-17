@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "d1bb278f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f",
+    "doc/images/en/Commit.png": "e811f1428aafd1c8445a951511fc5526125171f7",
+    "doc/images/en/GitSync.png": "f7b758c80c23cc561b754947ffeaf4ae4afc4687"
+  },
+  "scope": "Native command-band reflow across Commit, Log and Sync; Log diagnostics above footer; CI Merge lifecycle fixture mounts required editor.",
+  "validation": {
+    "core": "Unchanged; no Core tests repeated.",
+    "builds": [
+      {
+        "log": "build/qa/primary-command-bands-build-2026-10-17.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/primary-command-bands-sizing-build-2026-10-17.log",
+        "exit_code": 0
+      }
+    ],
+    "native": {
+      "distinct_cases": 5,
+      "initial_group": {
+        "log": "build/qa/primary-command-bands-native-2026-10-17.log",
+        "passed": 4,
+        "cases": [
+          "expanded primary system Git",
+          "expanded primary bundled Git",
+          "retained Log controls system Git",
+          "retained Log controls bundled Git"
+        ]
+      },
+      "affected_recheck": {
+        "log": "build/qa/primary-command-bands-final-native-2026-10-17.log",
+        "passed": 3,
+        "cases": [
+          "expanded primary system Git",
+          "expanded primary bundled Git",
+          "failed hosted Merge lifecycle system Git"
+        ]
+      },
+      "details": "Genuine row wrapping retains field/editor/selection; actual Commit branch/author/date/issue bounds; actual long Log failure retains footer; Sync width/height/combobox bounds at 860/1050/1200 widths; retained dates/font/clipboard/source menus and five Merge shortcuts/Undo; repository invariants."
+    },
+    "owned_receiver_pids": [
+      83643,
+      83779,
+      83932,
+      84406,
+      85006,
+      85138,
+      85263
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/commit-command-bands-light.png",
+        "sha256": "70641ca649b77fa52babccdfd889f38acc6c3be89bba5a8a79584efecee993be",
+        "width": 1800,
+        "height": 1584,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/commit-command-bands-dark.png",
+        "sha256": "0e79fbd9da1ed09c4ac955c54718b42711e6d807393869d27b9c073362d16d92",
+        "width": 1800,
+        "height": 1584,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/log-command-bands-light.png",
+        "sha256": "b009b47bcc6657a1f81abd73bdf625be7d21b29932f48fb52c4ff7fd6d267d64",
+        "width": 2160,
+        "height": 1624,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/log-command-bands-dark.png",
+        "sha256": "ae4400af6f05b018cb1abbde7a6c541b2a81b5cab4752ea42a01bf98d9c77efb",
+        "width": 2160,
+        "height": 1624,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-command-bands-light.png",
+        "sha256": "8f46def1ec240a05ed633b553a0fb9ac35bc5f083716a5330ffd784aa54c4041",
+        "width": 1720,
+        "height": 1384,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-command-bands-dark.png",
+        "sha256": "047f2e6c20e826167ebdb6e03f8022ffc138ef0fd3fdc52e9b880f2d05e5c35c",
+        "width": 1720,
+        "height": 1384,
+        "individually_viewed": true
+      }
+    ],
+    "documentation": {
+      "documents": 283,
+      "unresolved_fragments": [],
+      "log": "build/qa/primary-command-bands-site-2026-10-17.log",
+      "localizations": "38 languages / 1240 keys; --check passed",
+      "coverage": "130 dialogs, 120 partial family audits, 10 pending, 0 certified; 1566 mapped controls, 93 pending reviews",
+      "diff_check": "passed"
+    }
+  },
+  "repairs": [
+    {
+      "evidence": "Initial Sync capture 1720x1852 despite requested 860x660 content; initial assertion omitted height.",
+      "change": "Independent minimum-height measurement for zero-width probe, leading aligned branch groups and content-height assertion; final capture 1720x1384."
+    },
+    {
+      "evidence": "Initial Error fixture yielded a generic message instead of long diagnostic.",
+      "change": "LocalizedError readback and assertion of more than 200 actual diagnostic characters; final captures show wrapped text."
+    }
+  ],
+  "hosted_failure": {
+    "run_id": 39043881354,
+    "commit": "7ac0327d",
+    "job_id": 117431638109,
+    "step": 85,
+    "message": "Conflict block shortcut missing",
+    "receiver_pid": 92537,
+    "log_excerpt": "build/qa/hosted-7ac0327d-merge-menu-excerpt.log",
+    "fix": "Fixture constructed three-pane owner without mounting its editor. Now orders owned hidden window and waits nativeEditorReady. Product gates and all shortcut/Undo assertions retained. Local case passes; hosted confirmation required."
+  },
+  "limitations": [
+    "Initial retained Log check emitted existing NSSplitView zero-bounds diagnostic and passed. Builds retain simulator/exit-zero compiler diagnostic noise.",
+    "Full translated catalogs/RTL, physical keyboard/pointer/VoiceOver and display scaling remain open.",
+    "Complete dialog and signed Finder/App Store acceptance remain open.",
+    "PowerPoint presentation Merge adaptation remains open; no substitute comparison added."
+  ]
+}

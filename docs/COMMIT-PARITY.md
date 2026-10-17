@@ -2615,3 +2615,8 @@ captured picker commands and owner retirement. Commit's template/draft retention
 message styling and history issue extraction now also distinguish raw Unicode
 spellings. Earlier history checkpoints remain evidence for their recorded scope;
 physical/signed and complete Commit parity remain open.
+
+
+[Primary command bands](PRIMARY-COMMAND-BANDS.md) continue the native layout
+with retained control identity and wrapping at constrained widths. The source
+command order and existing behavior remain; full dialog acceptance stays open.

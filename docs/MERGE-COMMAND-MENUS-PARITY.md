@@ -91,3 +91,11 @@ physical menu interaction, accessibility and signed acceptance remain open.
 The connected [typing batch](MERGE-TYPING-PARITY.md) adds checked Overwrite mode,
 current-row ending cycling and comparison marking to Edit, with Insert, Ctrl-Enter
 and Ctrl-M bindings and the same ownership/validation fences.
+
+
+The hosted 7ac0327d lifecycle case failed `Conflict block shortcut missing` after
+constructing a three-pane owner without mounting its native editor. The fixture
+now orders its owned hidden window and waits for `nativeEditorReady`, retaining
+the production gate and all five block shortcut/Undo assertions. The affected
+local case passes; hosted confirmation remains required. See
+[primary command-band batch evidence](qa/primary-command-bands-2026-10-17.json).

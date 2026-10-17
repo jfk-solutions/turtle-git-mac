@@ -3069,7 +3069,7 @@ struct LogDialog: View {
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
     var body: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 6) {
+            DialogCommandRows(spacing:6) {
                 LogControlMenuButton(model: model, kind: .reference).frame(minWidth: 125, idealWidth: 135, maxWidth: 145)
                 Menu(model.historyLimitTitle) {
                     Button("No limitation") { model.chooseHistoryLimit(.noLimit) }
@@ -3082,7 +3082,8 @@ struct LogDialog: View {
                 }.fixedSize(horizontal: true, vertical: false).disabled(model.busy)
                 DatePicker("From:", selection: Binding(get: { model.from }, set: { model.changeHistoryFrom($0) }), displayedComponents: .date).labelsHidden().fixedSize(horizontal: true, vertical: false).disabled(model.busy)
                 DatePicker("To:", selection: Binding(get: { model.to }, set: { model.changeHistoryTo($0) }), displayedComponents: .date).fixedSize(horizontal: true, vertical: false).disabled(model.busy)
-                LogFilterField(model: model).frame(minWidth: 140, maxWidth: .infinity).layoutPriority(1)
+                LogFilterField(model: model).frame(minWidth:140,idealWidth:180).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
+                HStack(spacing:6) {
                 Picker("Jump", selection: $model.jumpKind) {
                     ForEach(HistoryJumpKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }.labelsHidden().frame(width: 150).help("Jump to revision · Option-Left/Right goes Back/Forward")
@@ -3097,6 +3098,7 @@ struct LogDialog: View {
                 } }
                 Button { model.jump(up: true) } label: { CommandLabel(title: "", icon: .jumpUp) }.help("Jump up").accessibilityLabel("Jump up").disabled(model.busy || model.jumping)
                 Button { model.jump(up: false) } label: { CommandLabel(title: "", icon: .jumpDown) }.help("Jump down").accessibilityLabel("Jump down").disabled(model.busy || model.jumping)
+                }
 
             }.font(.system(size: 12))
             VSplitView {
@@ -3155,18 +3157,20 @@ struct LogDialog: View {
                 LogFilterField(model: model, kind: .paths).frame(minWidth: 180, maxWidth: .infinity)
                 Button("Help") { TurtleGitHelp.show(.log) }
             }
-            HStack {
-                Button("Refresh") { model.reload() }.disabled(model.busy)
-                Button("Statistics") { model.showStatistics() }.disabled(model.busy || model.entries.isEmpty || model.isInvalidated)
-                LogControlMenuButton(model: model, kind: .walk).fixedSize()
-                LogControlMenuButton(model: model, kind: .view).fixedSize()
-                Spacer()
+            VStack(alignment:.leading,spacing:4) {
                 if model.busy { ProgressView().controlSize(.small); if model.loadingHistory { Text("Read \(model.loadedRevisionCount) revisions…").font(.caption).foregroundStyle(.secondary) } }
                 if model.patchPreviewLoading { ProgressView("Reading patch…").controlSize(.small) }
                 if let error = model.patchPreviewError { Text(error).foregroundStyle(.red).font(.caption) }
                 if let error = model.patchPreferenceError { Text("Could not remember View Patch: " + error).foregroundStyle(.red).font(.caption) }
                 if model.loadingNote { ProgressView("Reading notes…").controlSize(.small) }
                 if model.copyingDetails { ProgressView("Reading log details for clipboard…").controlSize(.small) }
+            }.frame(maxWidth:.infinity,alignment:.leading)
+            HStack {
+                Button("Refresh") { model.reload() }.disabled(model.busy)
+                Button("Statistics") { model.showStatistics() }.disabled(model.busy || model.entries.isEmpty || model.isInvalidated)
+                LogControlMenuButton(model: model, kind: .walk).fixedSize()
+                LogControlMenuButton(model: model, kind: .view).fixedSize()
+                Spacer()
                 Button("OK") { model.accept() }.disabled(model.selecting && !model.canAcceptSelection).keyboardShortcut(.defaultAction)
                 if model.selecting { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }
             }

@@ -2167,23 +2167,22 @@ GroupBox("Message:") {
                 VStack(alignment: .leading, spacing: 8) {
                     CommitMessageEditor(model: model).frame(minHeight: 100, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
                     HStack { Spacer(); CommitMessagePositionIndicator(model: model) }
-                    HStack {
+                    DialogCommandRows {
                         Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead || model.operation != nil || model.replaySplit != nil || model.historyCombine != nil).onChange(of: model.amend) { _ in model.amendChanged() }
                         if model.amend { Toggle("Show diff to last commit", isOn: $model.amendDiffToLastCommit).toggleStyle(.checkbox).disabled(!model.hasParent || model.replaySplit != nil || model.historyCombine != nil) }
-                        Spacer()
                     }
-                    HStack {
-                        Toggle("Set author date", isOn: $model.setAuthorDate).toggleStyle(.checkbox).frame(width: 170, alignment: .leading)
+                    DialogCommandRows {
+                        Toggle("Set author date", isOn: $model.setAuthorDate).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
                         if model.setAuthorDate {
                             CommitDatePicker(selection: $model.authorDate, time: false, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate)).frame(width: 130, height: 24)
                             CommitDatePicker(selection: $model.authorDate, time: true, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate)).frame(width: 115, height: 24)
                             if model.amend { Toggle("Reset", isOn: $model.resetAuthorDate).toggleStyle(.checkbox) }
                         }
-                        Spacer()
                     }
-                    HStack {
-                        Toggle("Set author", isOn: $model.setAuthor).toggleStyle(.checkbox).frame(width: 170, alignment: .leading)
+                    DialogCommandRows {
+                        Toggle("Set author", isOn: $model.setAuthor).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
                         CommitAuthorField(author: $model.author, editable: model.setAuthor && !model.loadingAuthorIdentity)
+                            .frame(minWidth:220,idealWidth:280).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
                         Button("Add Signed-off-by") { model.addSignOff() }
                     }
                 }.padding(4)
@@ -2192,7 +2191,7 @@ GroupBox("Message:") {
     private var changesSection: some View {
 GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 10) {
+                        DialogCommandRows(spacing:10) {
                             Text("Check:")
                             checkButton("All") { checking in model.check({ _ in true },checking:checking) }
                             checkButton("None") { model.checkAll(!$0) }

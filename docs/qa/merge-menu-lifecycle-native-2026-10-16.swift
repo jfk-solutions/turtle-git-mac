@@ -82,7 +82,8 @@ struct MergeMenuLifecycleVerification {
         send(try item("Clear Search Highlights",current));try require((right as! MergeFindProviding).mergeFindHighlights.query.isEmpty,"Main menu clear search")
         menu.remove();focused=nil
         let merge=TextConflictWindowController(repository:GitRepository(root:folder,executable:URL(fileURLWithPath:CommandLine.arguments[2])),access:nil,path:b.path,workingMerge:try WorkingTextMerge(base:a,theirs:t,mine:b),preferences:prefs)
-        defer {merge.close()};merge.model.load();try await ThreePaneEngineVerification.wait{!merge.model.busy && merge.model.document != nil}
+        defer {merge.close()};merge.window!.alphaValue=0;merge.window!.orderFront(nil);merge.model.load()
+        try await ThreePaneEngineVerification.wait{!merge.model.busy && merge.model.document != nil && merge.model.nativeEditorReady}
         focused=merge.window;let triple=merge.editorCommandMenu!;triple.keyWindow={focused};triple.applicationMenu={current};triple.install(in:current)
         let original=merge.model.result
         for (scalar,code,flags,prefix) in [(NSF10FunctionKey,109,NSEvent.ModifierFlags.control,"head\nmine1\n"),(NSF12FunctionKey,111,.shift,"head\nmine1\n"),(NSF9FunctionKey,101,.control,"head\ntheirs1\n"),(NSF10FunctionKey,109,[.control,.shift],"head\nmine1\ntheirs1\n"),(NSF9FunctionKey,101,[.control,.shift],"head\ntheirs1\nmine1\n")] {

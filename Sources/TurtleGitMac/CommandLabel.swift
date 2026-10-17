@@ -39,3 +39,62 @@ struct TurtleGitContextMenu<Content: View>: View {
     init(@ViewBuilder content: () -> Content) { self.content = content() }
     var body: some View { content.environment(\.turtleGitContextMenu, true) }
 }
+
+/// Reflow source command bands without constructing alternate copies of fields.
+/// Flexible controls retain their ideal width and share unused room in their row.
+struct DialogCommandRows: Layout {
+    var spacing: CGFloat = 8
+    var rowSpacing: CGFloat = 6
+    struct Flexible: LayoutValueKey { static let defaultValue = false }
+    private struct Row { var indices: [Int] = []; var widths: [CGFloat] = []; var height: CGFloat = 0 }
+    private func rows(_ subviews: Subviews, width: CGFloat) -> [Row] {
+        var result: [Row] = [], row = Row(), used: CGFloat = 0
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let proposed = min(width, max(0, size.width.isFinite ? size.width : 0))
+            if !row.indices.isEmpty && used + spacing + proposed > width {
+                result.append(row); row = Row(); used = 0
+            }
+            if !row.indices.isEmpty { used += spacing }
+            row.indices.append(index); row.widths.append(proposed); used += proposed
+            row.height = max(row.height, subviews[index].sizeThatFits(.init(width: proposed, height: nil)).height)
+        }
+        if !row.indices.isEmpty { result.append(row) }
+        for index in result.indices {
+            let flexible = result[index].indices.indices.filter { subviews[result[index].indices[$0]][Flexible.self] }
+            let occupied = result[index].widths.reduce(0,+) + spacing * CGFloat(max(0,result[index].indices.count-1))
+            let extra = max(0,width-occupied) / CGFloat(max(1,flexible.count))
+            for item in flexible { result[index].widths[item] += extra }
+            result[index].height = zip(result[index].indices,result[index].widths).map {
+                subviews[$0.0].sizeThatFits(.init(width:$0.1,height:nil)).height
+            }.max() ?? 0
+        }
+        return result
+    }
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        // Minimum width and minimum height are independent probes, like wrapped
+        // text. A zero-width probe must not claim every possible wrapped row as
+        // the window's minimum height even when its real width is much larger.
+        if proposal.width == 0 {
+            return CGSize(width:subviews.map{$0.sizeThatFits(.zero).width}.max() ?? 0,
+                          height:subviews.map{$0.sizeThatFits(.unspecified).height}.max() ?? 0)
+        }
+        let ideal = subviews.map { $0.sizeThatFits(.unspecified).width }.reduce(0,+) + spacing * CGFloat(max(0,subviews.count-1))
+        let offered = proposal.width ?? ideal
+        let width = max(0,offered.isFinite ? offered : ideal)
+        let bands = rows(subviews,width:width)
+        return CGSize(width:width,height:bands.map(\.height).reduce(0,+) + rowSpacing * CGFloat(max(0,bands.count-1)))
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in rows(subviews,width:bounds.width) {
+            var x = bounds.minX
+            for (index,width) in zip(row.indices,row.widths) {
+                let height = subviews[index].sizeThatFits(.init(width:width,height:nil)).height
+                subviews[index].place(at:.init(x:x,y:y+(row.height-height)/2),anchor:.topLeading,proposal:.init(width:width,height:height))
+                x += width + spacing
+            }
+            y += row.height + rowSpacing
+        }
+    }
+}

@@ -1755,3 +1755,8 @@ menu marks. Shared native refresh/keyboard replacement uses explicit clear/selec
 transitions. See the [working-file selection batch](qa/working-selection-identities-2026-10-17.json)
 for its regression scope. Wider LFS/Finder identity maps and physical/signed
 acceptance remain open.
+
+
+[Primary command bands](PRIMARY-COMMAND-BANDS.md) continue the native layout
+with retained control identity and wrapping at constrained widths. The source
+command order and existing behavior remain; full dialog acceptance stays open.

@@ -2816,3 +2816,8 @@ reference scopes, retained ranges under All/basic/local masks, native source-ord
 Walk/View/reference menus and three-pane divider restoration. It supersedes the
 corresponding older pending control/persistence notes, while retaining its explicit
 physical, accessibility, signed and complete-window acceptance limits.
+
+
+[Primary command bands](PRIMARY-COMMAND-BANDS.md) continue the native layout
+with retained control identity and wrapping at constrained widths. The source
+command order and existing behavior remain; full dialog acceptance stays open.

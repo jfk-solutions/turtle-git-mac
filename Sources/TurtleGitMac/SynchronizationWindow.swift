@@ -2148,26 +2148,30 @@ private struct SynchronizationDialog: View {
         VStack(spacing: 10) {
             GroupBox {
                 VStack(spacing: 10) {
-                    HStack {
+                    DialogCommandRows {
+                        HStack {
                         Text("Local Branch:")
                         Picker("Local Branch", selection: Binding(get: { GitReferenceName(model.localBranch) }, set: { model.localBranch = $0.rawValue; model.reload(selectTracking: true) })) {
                             ForEach(model.localBranches.map { GitReferenceName($0) }, id: \.self) { Text($0.rawValue).tag($0) }
                         }.labelsHidden()
                         Button("…") { model.browseBranch(.local) }.accessibilityLabel("Browse local branches")
+                        }.frame(minWidth:280,idealWidth:320,maxWidth:.infinity,alignment:.leading).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
+                        HStack {
                         Text("Remote Branch:")
                         FetchHistoryCombo(value: edit(\.remoteBranch), choices: model.branchHistory, label: "Remote Branch", onDelete: model.deleteBranchHistory)
                         Button("…") { model.browseBranch(.remote) }.accessibilityLabel("Browse remote branches")
+                        }.frame(minWidth:300,idealWidth:400,maxWidth:.infinity,alignment:.leading).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
                     }
-                    HStack {
-                        Text("Remote URL:")
+                    DialogCommandRows {
+                        Text("Remote URL:").fixedSize()
                         FetchHistoryCombo(value: edit(\.remote), choices: model.remoteChoices, label: "Remote URL", onDelete: model.deleteURLHistory, onSelectionState: { model.remoteWasSelected = $0 })
+                            .frame(minWidth:280,idealWidth:460).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
                         Button { model.manageRemotes() } label: { CommandLabel(title: "Manage", icon: .settings) }
                             .disabled(model.busy || model.confirmingQuit)
                     }
-                    HStack(spacing: 24) {
+                    DialogCommandRows(spacing:24) {
                         SSHAutoloadToggle(settings: model.sshSettings)
                         Toggle("Force", isOn: Binding(get: { model.force }, set: { model.force = $0; model.reload() }))
-                        Spacer()
                     }.padding(.leading, 100)
                 }.padding(6)
             }.disabled(model.transportRunning || model.hasBlockingChild)
@@ -2210,7 +2214,7 @@ private struct SynchronizationDialog: View {
                     Text("Out Commits").tag(0); Text("Out Changelist").tag(1); Text("Ref List").tag(3)
                 }
             }.labelsHidden().pickerStyle(.segmented)
-            HStack {
+            DialogCommandRows {
                 HStack(spacing: 0) {
                     Button { model.performPullAction() } label: { CommandLabel(title: model.pullActionTitle, icon: model.compareTagsSelected ? .tag : model.pullAction == .pull ? .pull : .fetch) }
                     Menu {
@@ -2241,9 +2245,8 @@ private struct SynchronizationDialog: View {
                 }.disabled(model.busy || model.hasBlockingChild)
                 Button { model.applyPatch() } label: { CommandLabel(title: "Apply Patch", icon: .patch) }.disabled(model.busy || model.hasBlockingChild)
                 Button { model.emailPatch() } label: { CommandLabel(title: "Email Patch", icon: .sendMail) }.disabled(!model.canEmailPatch)
-                Spacer()
             }
-            HStack {
+            DialogCommandRows {
                 Button { model.onLog(model.localBranch) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.localBranch.isEmpty)
                 Button { model.onCommit() } label: { CommandLabel(title: "Commit", icon: .commit) }.disabled(model.busy)
                 HStack(spacing: 0) {
@@ -2255,7 +2258,6 @@ private struct SynchronizationDialog: View {
                     } label: { Text("").accessibilityLabel("Stash actions") }.menuStyle(.borderlessButton).fixedSize()
                 }.disabled(model.busy || model.hasBlockingChild)
                 Button("Refresh") { model.refresh() }.disabled(model.transportRunning || model.hasBlockingChild)
-                Spacer()
             }
             HStack {
                 if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }

@@ -69,6 +69,9 @@ exact Unicode metadata and serial-import drop ordering/duplicate rules.
 [Command and progress diagnostics](docs/PROGRESS-DIAGNOSTICS.md) explains named
 failures, bounded output and retained raw recovery results.
 
+[Primary dialog command bands](docs/PRIMARY-COMMAND-BANDS.md) covers retained
+field focus, wrapping controls and accessible Log footer diagnostics.
+
 ## Build and run
 
 Requires Xcode with its macOS SDK and command-line tools, Python 3, CMake and Git.
