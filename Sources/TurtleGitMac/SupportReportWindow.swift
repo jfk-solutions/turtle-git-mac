@@ -3,18 +3,121 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 import TurtleGitCore
+import Darwin
 
 @MainActor final class SupportReportService {
     static let shared = SupportReportService()
-    private var controller: SupportReportWindowController?
-    func show() {
-        if let controller, !controller.model.retired { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return }
+    static private(set) var activeScans = 0
+    private(set) var controller: SupportReportWindowController?
+    private(set) var recoveryNotice: SupportCrashRecoveryWindowController?
+    private let preferences: UserDefaults, directory: URL
+    private let processName: String, bundleIdentifier: String
+    private var checked = false, retired = false
+    private var token: OperationCancellation?
+    var discover: @Sendable (URL, String, String, Set<String>, OperationCancellation) async throws -> SupportCrashIncident? = { directory,process,bundle,handled,token in
+        try await Task.detached { try SupportCrashDiscovery.latest(in:directory,process:process,bundleIdentifier:bundle,excluding:handled,cancellation:token) }.value
+    }
+    var presentNotice: (SupportCrashRecoveryWindowController) -> Void = { $0.showWindow(nil); $0.window?.orderFront(nil) }
+    var presentReport: (SupportReportWindowController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
+    init(preferences: UserDefaults = .standard, reportsDirectory: URL? = nil, processName: String? = nil, bundleIdentifier: String? = nil) {
+        self.preferences = preferences
+        let home = getpwuid(getuid()).flatMap { $0.pointee.pw_dir }.map { String(cString:$0) } ?? NSHomeDirectory()
+        directory = reportsDirectory ?? URL(fileURLWithPath:home).appendingPathComponent("Library/Logs/DiagnosticReports",isDirectory:true)
+        self.processName = processName ?? Bundle.main.executableURL?.lastPathComponent ?? ""
+        self.bundleIdentifier = bundleIdentifier ?? Bundle.main.bundleIdentifier ?? ""
+    }
+    @discardableResult func show(recovered report: SupportCrashReport? = nil) -> Bool {
+        guard !retired else { return false }
+        if let controller, !controller.model.retired {
+            if let report, !controller.model.installRecoveredReport(report) { presentReport(controller); return false }
+            presentReport(controller); return true
+        }
         let bundle = Bundle.main
         let info = ApplicationAboutInformation(application: bundle.bundleURL, version: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "", build: bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "")
-        let owner = SupportReportWindowController(systemInformation: info.versionText + "\nmacOS: " + ProcessInfo.processInfo.operatingSystemVersionString)
+        let owner = SupportReportWindowController(systemInformation: info.versionText + "\nmacOS: " + ProcessInfo.processInfo.operatingSystemVersionString, preferences:preferences)
         controller = owner
         owner.onClosed = { [weak self, weak owner] in if self?.controller === owner { self?.controller = nil } }
-        owner.showWindow(nil); owner.window?.makeKeyAndOrderFront(nil)
+        if let report { _ = owner.model.installRecoveredReport(report) }
+        presentReport(owner); return true
+    }
+    func checkForPreviousCrash() {
+        guard !retired, !checked else { return }; checked = true
+        guard SupportCrashRecoveryPreferences.enabled(in:preferences), !processName.isEmpty, !bundleIdentifier.isEmpty else { return }
+        let token = OperationCancellation(), discover = discover, directory = directory, process = processName, bundle = bundleIdentifier
+        let handled = SupportCrashRecoveryPreferences.handled(in:preferences)
+        self.token = token; Self.activeScans += 1
+        Task { [weak self] in
+            defer { Self.activeScans -= 1; if self?.token === token { self?.token = nil } }
+            do {
+                let incident = try await discover(directory,process,bundle,handled,token)
+                guard let self, !self.retired, !token.isCancelled, self.token === token,
+                      SupportCrashRecoveryPreferences.enabled(in:self.preferences), let incident,
+                      !SupportCrashRecoveryPreferences.handled(in:self.preferences).contains(incident.id) else { return }
+                let notice = SupportCrashRecoveryWindowController(incident:incident)
+                self.recoveryNotice = notice
+                notice.onReview = { [weak self, weak notice] in
+                    guard let self, let notice, !self.retired, self.recoveryNotice === notice,
+                          self.show(recovered:incident.report) else { return false }
+                    SupportCrashRecoveryPreferences.acknowledge(incident,in:self.preferences); return true
+                }
+                notice.onDismiss = { [weak self, weak notice] in
+                    guard let self, let notice, !self.retired, self.recoveryNotice === notice else { return }
+                    SupportCrashRecoveryPreferences.acknowledge(incident,in:self.preferences)
+                }
+                notice.onClosed = { [weak self, weak notice] in if self?.recoveryNotice === notice { self?.recoveryNotice = nil } }
+                self.presentNotice(notice)
+            } catch { /* Unavailable or denied diagnostics retain the ordinary manual import route. */ }
+        }
+    }
+    func retire() {
+        guard !retired else { return }; retired = true; token?.cancel()
+        recoveryNotice?.onDismiss = {}; recoveryNotice?.onReview = { false }; recoveryNotice?.close(); recoveryNotice = nil
+        controller?.close(); controller = nil
+    }
+}
+
+@MainActor final class SupportCrashRecoveryModel: ObservableObject {
+    let incident: SupportCrashIncident
+    @Published var notice: String?
+    init(incident:SupportCrashIncident) { self.incident = incident }
+}
+@MainActor final class SupportCrashRecoveryWindowController: NSWindowController, NSWindowDelegate {
+    let model: SupportCrashRecoveryModel
+    var onReview: () -> Bool = { false }
+    var onDismiss: () -> Void = {}
+    var onClosed: () -> Void = {}
+    private var handled = false
+    init(incident: SupportCrashIncident) {
+        model = SupportCrashRecoveryModel(incident:incident)
+        let window = NSWindow(contentRect:.init(x:0,y:0,width:540,height:290),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+        window.title = "Crash Report – TurtleGit for Mac"; window.isReleasedWhenClosed = false
+        super.init(window:window); window.delegate = self
+        let host = NSHostingController(rootView:SupportCrashRecoveryDialog(owner:self)); host.sizingOptions = []
+        window.contentViewController = host; window.setContentSize(.init(width:540,height:290)); window.center()
+    }
+    required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
+    func review() {
+        guard !handled else { return }
+        guard onReview() else { model.notice = "Finish the current problem-report operation, then try again."; return }
+        handled = true; close()
+    }
+    func dismiss() { guard !handled else { return }; handled = true; onDismiss(); close() }
+    func windowWillClose(_ notification:Notification) { if !handled { handled = true; onDismiss() }; onClosed() }
+}
+private struct SupportCrashRecoveryDialog: View {
+    private weak var owner: SupportCrashRecoveryWindowController?
+    @ObservedObject private var state: SupportCrashRecoveryModel
+    init(owner:SupportCrashRecoveryWindowController) { self.owner = owner; state = owner.model }
+    var body: some View {
+        VStack(alignment:.leading,spacing:12) {
+            Label("TurtleGit stopped unexpectedly",systemImage:"exclamationmark.triangle.fill").font(.headline).foregroundStyle(.orange)
+            Text("An Apple crash report is available. You can review it and describe what happened before choosing what to share.")
+            Text(state.incident.report.fileName).font(.caption).foregroundStyle(.secondary).lineLimit(1).help(state.incident.report.fileName)
+            Text("The report stays local. It is excluded from the problem report until you select Include.").font(.caption)
+            if let notice = state.notice { Text(notice).font(.caption).foregroundStyle(.red) }
+            Spacer(minLength:0)
+            HStack { Spacer(); Button("Dismiss") { owner?.dismiss() }.keyboardShortcut(.cancelAction); Button("Review Report…") { owner?.review() }.keyboardShortcut(.defaultAction) }
+        }.padding(20)
     }
 }
 
@@ -24,6 +127,8 @@ import TurtleGitCore
     @Published var draft = SupportReportDraft() {
         didSet { if oldValue.includeCrashReport != draft.includeCrashReport || oldValue.replaceHomePath != draft.replaceHomePath { revision = UUID() }; rebuild() }
     }
+    @Published private(set) var checkCrashReportsAtLaunch: Bool
+    private let recoveryPreferences: UserDefaults
     @Published private(set) var report: SupportCrashReport?
     @Published private(set) var preview = ""
     @Published private(set) var error: String?
@@ -41,7 +146,18 @@ import TurtleGitCore
     struct Context: Equatable { let owner: ObjectIdentifier; let revision: UUID }
     var context: Context { .init(owner: ObjectIdentifier(self), revision: revision) }
     var canEdit: Bool { !retired && !reading && !writing && !picking }
-    init(systemInformation: String, home: String = FileManager.default.homeDirectoryForCurrentUser.path) { self.systemInformation = systemInformation; self.home = home; rebuild() }
+    init(systemInformation: String, home: String = FileManager.default.homeDirectoryForCurrentUser.path, preferences: UserDefaults = .standard) {
+        self.systemInformation = systemInformation; self.home = home; recoveryPreferences = preferences
+        checkCrashReportsAtLaunch = SupportCrashRecoveryPreferences.enabled(in:preferences); rebuild()
+    }
+    func setCrashChecking(_ enabled: Bool, context: Context) {
+        guard accepts(context) else { return }; checkCrashReportsAtLaunch = enabled; revision = UUID()
+        recoveryPreferences.set(enabled,forKey:SupportCrashRecoveryPreferences.enabledKey)
+    }
+    @discardableResult func installRecoveredReport(_ report: SupportCrashReport) -> Bool {
+        guard canEdit else { return false }
+        self.report = report; draft.includeCrashReport = false; notice = "Recovered Apple crash report. Review it before including it."; revision = UUID(); rebuild(); return true
+    }
     func accepts(_ context: Context) -> Bool { canEdit && context == self.context }
     func field<Value>(_ key: WritableKeyPath<SupportReportDraft, Value>, context: Context) -> Binding<Value> {
         Binding(get: { self.draft[keyPath: key] }, set: { if self.accepts(context) { self.draft[keyPath: key] = $0 } })
@@ -93,8 +209,8 @@ import TurtleGitCore
     private var panel: NSSavePanel?
     private var picker: UUID?
     private var closed = false
-    init(systemInformation: String, home: String = FileManager.default.homeDirectoryForCurrentUser.path) {
-        model = SupportReportWindowModel(systemInformation: systemInformation, home: home)
+    init(systemInformation: String, home: String = FileManager.default.homeDirectoryForCurrentUser.path, preferences: UserDefaults = .standard) {
+        model = SupportReportWindowModel(systemInformation: systemInformation, home: home, preferences:preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 840, height: 740), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "Report a Problem – TurtleGit for Mac"; window.isReleasedWhenClosed = false
         super.init(window: window); window.delegate = self
@@ -157,6 +273,7 @@ private struct SupportReportDialog: View {
                 Spacer()
                 if model.reading || model.writing { ProgressView().controlSize(.small) }
             }
+            Toggle("Check for crash reports at launch", isOn: Binding(get:{ model.checkCrashReportsAtLaunch },set:{ model.setCrashChecking($0,context:context) })).disabled(!model.canEdit)
             Toggle("Include the selected crash report", isOn: model.field(\.includeCrashReport, context: context)).disabled(!model.canEdit || model.report == nil)
             Toggle("Replace my home folder path with <HOME>", isOn: model.field(\.replaceHomePath, context: context)).disabled(!model.canEdit)
             Text("Review the exact report below before sharing. Other private details may remain. Copy and Save keep the report local; the issue form opens separately.").font(.caption).foregroundStyle(.secondary)

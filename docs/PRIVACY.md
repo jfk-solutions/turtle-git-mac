@@ -80,3 +80,18 @@ Bookmarks are used only after containment/security-scope validation. Successful
 reopening renews moved grants; failed entries remain until replaced by later
 recent-file use. The archive is atomically written with owner-only permissions
 and is not shared with Finder or uploaded.
+
+
+At launch, the local problem-report helper checks up to 32 recent candidate Apple
+`.ips`/`.crash` files in the current user's DiagnosticReports folder. It requires
+both this app's process name and bundle identifier, rejects symlinks and oversized
+files, and does not traverse subdirectories. Reports older than 30 days are
+ignored. An inaccessible folder is skipped without requesting broader access.
+You can disable **Check for crash reports at launch** in Help → Report a Problem.
+
+Discovery and review do not upload reports. A discovered body stays in memory
+and is excluded from Copy/Save until Include is selected. Review or Dismiss saves
+only its SHA-256 content hash in a bounded history of 64 handled reports; report
+bodies and report paths are not saved as preferences. Dismiss does not delete the
+Apple report. Manual import and the separately opened blank issue form retain
+their explicit sharing workflow.

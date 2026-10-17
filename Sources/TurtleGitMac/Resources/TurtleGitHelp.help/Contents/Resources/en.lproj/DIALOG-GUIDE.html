@@ -533,6 +533,17 @@ macOS Reduce Motion and pause when their window is hidden or minimized.</p>
 repository. Describe what happened and the steps needed to reproduce it. Choose
 an Apple <code>.ips</code> or <code>.crash</code> file if you have one, then explicitly enable <strong>Include
 the selected crash report</strong> to add it to the preview.</p>
+<p>At launch, TurtleGit checks the current user's local DiagnosticReports folder for
+recent reports matching this app's exact process and bundle identity. A notice
+offers <strong>Review Report…</strong> or <strong>Dismiss</strong>. Review opens the same report editor;
+crash text remains excluded until you enable Include. Dismiss leaves the Apple
+report on disk. Both choices remember only a content hash so the same report
+does not prompt again. Disable <strong>Check for crash reports at launch</strong> in the
+report window to stop automatic checking; manual import remains available.</p>
+<p>Discovery examines at most 32 recent matching candidates from the last 30 days.
+If the folder is unavailable or sandbox access is denied, choose a report
+manually. Signed App Store discovery still needs installed-app verification.
+This workflow recovers a diagnostic report; it does not restore unsaved edits.</p>
 <p>Review the complete preview. Home-folder replacement removes that path only;
 other private details can remain. <strong>Copy Report</strong> copies exactly the preview;
 <strong>Save Report…</strong> writes it to a chosen text file. <strong>Open Issue Form</strong> opens a blank

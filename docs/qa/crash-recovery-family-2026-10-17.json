@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc initial report and consent/details resources",
+    "Apple two-object IPS format and legacy Identifier/Process report fields"
+  ],
+  "scope": "Native local post-crash report discovery, review/dismiss, explicit inclusion and persistent handled suppression; original Windows collector/transport/solution resources remain pending.",
+  "implemented": [
+    "One launch-owned cancellable background discovery with 32 matching-candidate reads, 30-day age and 4 MiB per-file bounds",
+    "Exact process and bundle identity, filename boundaries, regular-file/no-follow checks, malformed/foreign report rejection",
+    "Local native Review/Dismiss/close flow and immutable report handoff to existing editor with inclusion off",
+    "Busy report picker/read/write refusal without acknowledgement; retry after it settles",
+    "SHA-256 handled content identities only, bounded to 64; duplicate content suppressed without storing report body/path",
+    "Private launch-check preference; inaccessible diagnostics retain manual import; no new sandbox entitlements",
+    "Retired callbacks refuse UI/receipts, scan cancellation retains operation/Quit ownership until actual drain"
+  ],
+  "core": {
+    "log": "build/qa/crash-recovery-core-2026-10-17.log",
+    "filter": "SupportReportTests",
+    "passed": 10,
+    "failed": 0
+  },
+  "builds": [
+    {
+      "log": "build/qa/crash-recovery-build-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 8
+    },
+    {
+      "log": "build/qa/crash-recovery-help-build-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 0
+    }
+  ],
+  "native": {
+    "log": "build/qa/crash-recovery-native-2026-10-17.log",
+    "exit_code": 0,
+    "receiver_pid": 90665,
+    "scope": [
+      "Private DiagnosticReports fixtures, exact app identity, discovery and handled suppression across service launches",
+      "Review/Dismiss, notice release, retained duplicate callbacks, busy editor retry, explicit inclusion, private preference",
+      "Held discovery cancellation/drain and late-result refusal; existing native manual picker/import/copy/export/error/read/write workflows retained"
+    ],
+    "no_actual_crash_triggered": true,
+    "owned_receiver_reaped": true,
+    "independent_ps_absence": true
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/crash-recovery-light.png",
+      "reviewed": true,
+      "scope": "Actual owned native window; inactive app appearance; no unrelated window activation"
+    },
+    {
+      "path": "docs/site/assets/crash-recovery-dark.png",
+      "reviewed": true,
+      "scope": "Actual owned native window; inactive app appearance; no unrelated window activation"
+    },
+    {
+      "path": "docs/site/assets/support-report-light.png",
+      "reviewed": true,
+      "scope": "Actual owned native window; inactive app appearance; no unrelated window activation"
+    },
+    {
+      "path": "docs/site/assets/support-report-dark.png",
+      "reviewed": true,
+      "scope": "Actual owned native window; inactive app appearance; no unrelated window activation"
+    }
+  ],
+  "help": {
+    "log": "build/qa/crash-recovery-help-2026-10-17.log",
+    "documents": 37,
+    "topics": 48,
+    "files": 51,
+    "bytes": 1976771
+  },
+  "localization": {
+    "languages": 38,
+    "safe_literal_keys": 1242,
+    "generated_catalog_changes": false
+  },
+  "hosted_observation": {
+    "macos_07467344": "39016896913 pending",
+    "pages_07467344": "39016896943 success",
+    "macos_a4811601": "39013950765 in_progress; Git integration job 117343554354 confirmed live",
+    "macos_fa3b7e69": "39016255915 cancelled"
+  },
+  "remaining": [
+    "Actual macOS system-crash report delivery and all Apple report variants",
+    "Installed signed/App Store directory access and acceptance",
+    "Physical input/VoiceOver/minimum-OS/Intel runtime acceptance",
+    "Windows assertions/minidumps, DrDump transport, solution lookup and unsaved editor/session restoration",
+    "Current full hosted CI and latest distribution checkpoint"
+  ],
+  "verification": {
+    "localization_check": "passed, 38 languages / 1242 safe literal keys",
+    "help_freshness": "passed",
+    "site": "build/qa/crash-recovery-site-2026-10-17.log; 267 documents, no unresolved fragments",
+    "coverage": "130 dialogs, 120 partial family audits, 10 pending family reviews, 0 certified; 1566 mapped / 93 pending static controls",
+    "diff_check": "passed"
+  }
+}

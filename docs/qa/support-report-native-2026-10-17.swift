@@ -15,14 +15,14 @@ import TurtleGitCore
     @MainActor static func views(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(views) }
     @MainActor static func cleanup() async {
         owners.forEach { $0.close() }; releaseHeld?(); releaseHeld = nil
-        for _ in 0..<1800 { if SupportReportWindowModel.activeReads == 0 && SupportReportWindowModel.activeWrites == 0 { break }; try? await Task.sleep(nanoseconds: 10_000_000) }
+        for _ in 0..<1800 { if SupportReportWindowModel.activeReads == 0 && SupportReportWindowModel.activeWrites == 0 && SupportReportService.activeScans == 0 { break }; try? await Task.sleep(nanoseconds: 10_000_000) }
     }
     @MainActor static func main() async {
         _ = NSApplication.shared; NSApp.setActivationPolicy(.prohibited)
         do { try await verify(); await cleanup(); print("PASS: Native support report, owned pickers, explicit inclusion, exact copy/export, held read/write ownership and retired callbacks") }
         catch { await cleanup(); fputs("Support report failed: \(error)\n", stderr); exit(1) }
     }
-    @MainActor static func capture(_ window: NSWindow) async throws {
+    @MainActor static func capture(_ window: NSWindow, prefix: String = "support-report") async throws {
         guard let directory = ProcessInfo.processInfo.environment["TURTLEGIT_SUPPORT_CAPTURE"] else { return }
         guard #available(macOS 14.4, *) else { throw Failure(description: "Owned capture API unavailable") }
         window.alphaValue = 1; window.orderFront(nil); defer { window.alphaValue = 0 }
@@ -33,14 +33,79 @@ import TurtleGitCore
             let config = SCStreamConfiguration(); config.width = Int(window.frame.width * 2); config.height = Int(window.frame.height * 2)
             config.showsCursor = false; config.ignoreShadowsSingleWindow = true; config.includeChildWindows = false
             let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: own), configuration: config)
-            try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: directory).appendingPathComponent("support-report-" + suffix + ".png"))
-            print("Captured support-report-\(suffix): \(config.width)x\(config.height)")
+            try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: directory).appendingPathComponent(prefix + "-" + suffix + ".png"))
+            print("Captured \(prefix)-\(suffix): \(config.width)x\(config.height)")
         }
+    }
+    @MainActor final class HeldCrashScan {
+        let incident:SupportCrashIncident
+        var continuation:CheckedContinuation<SupportCrashIncident?,Error>?
+        var token:OperationCancellation?
+        init(incident:SupportCrashIncident) { self.incident = incident }
+        func read(_ token:OperationCancellation) async throws -> SupportCrashIncident? {
+            self.token = token
+            return try await withCheckedThrowingContinuation { continuation = $0 }
+        }
+        func finish() { continuation?.resume(returning:incident); continuation = nil }
+    }
+    @MainActor static func verifyRecovery(root:URL) async throws {
+        let directory = root.appendingPathComponent("DiagnosticReports",isDirectory:true)
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        let suite = "TurtleGit.Recovery.Native."+UUID().uuidString, prefs = UserDefaults(suiteName:suite)!
+        defer { prefs.removePersistentDomain(forName:suite) }
+        let text = #"{"procName":"TurtleGitMac","bundleInfo":{"CFBundleIdentifier":"org.test.turtle"},"exception":{"type":"EXC_CRASH"},"fixture":"RECOVERY_BODY"}"#
+        let file = directory.appendingPathComponent("TurtleGitMac-fixture.ips"); try Data(text.utf8).write(to:file)
+        var services:[SupportReportService] = []
+        defer { services.forEach { $0.retire() } }
+        func service() -> SupportReportService {
+            let value = SupportReportService(preferences:prefs,reportsDirectory:directory,processName:"TurtleGitMac",bundleIdentifier:"org.test.turtle")
+            value.presentNotice = { $0.window!.alphaValue = 0; $0.window!.orderFront(nil) }
+            value.presentReport = { $0.window!.alphaValue = 0; $0.window!.orderFront(nil) }
+            services.append(value); return value
+        }
+        let first = service(); first.checkForPreviousCrash(); first.checkForPreviousCrash()
+        try await wait { SupportReportService.activeScans == 0 && first.recoveryNotice != nil }
+        try require(first.controller == nil && SupportCrashRecoveryPreferences.handled(in:prefs).isEmpty,"Discovery opened/included/acknowledged a report before a choice")
+        var notice = first.recoveryNotice
+        weak var releasedNotice = notice
+        try await capture(notice!.window!,prefix:"crash-recovery")
+        notice!.dismiss(); notice!.review(); notice = nil
+        try await wait { first.recoveryNotice == nil && releasedNotice == nil }
+        try require(SupportCrashRecoveryPreferences.handled(in:prefs).count == 1 && first.controller == nil,"Dismiss lost receipt or opened report")
+        let second = service(); second.checkForPreviousCrash(); try await wait { SupportReportService.activeScans == 0 }
+        try require(second.recoveryNotice == nil,"Handled crash prompted again")
+        try Data(text.replacingOccurrences(of:"EXC_CRASH",with:"EXC_BAD_ACCESS").utf8).write(to:file)
+        let review = service(); review.checkForPreviousCrash(); try await wait { review.recoveryNotice != nil && SupportReportService.activeScans == 0 }
+        review.show(); let report = review.controller!
+        report.model.picking = true; review.recoveryNotice!.review()
+        try require(review.recoveryNotice?.model.notice != nil && SupportCrashRecoveryPreferences.handled(in:prefs).count == 1,"Busy report accepted or acknowledged recovery")
+        report.model.picking = false; review.recoveryNotice!.review()
+        try require(review.recoveryNotice == nil && report.model.report?.text.contains("RECOVERY_BODY") == true && !report.model.draft.includeCrashReport && !report.model.preview.contains("RECOVERY_BODY"),"Review lost original report or silently included it")
+        report.model.field(\.includeCrashReport,context:report.model.context).wrappedValue = true
+        try require(report.model.preview.contains("RECOVERY_BODY"),"Explicit recovered inclusion missing")
+        report.model.setCrashChecking(false,context:report.model.context)
+        let disabled = service(); disabled.checkForPreviousCrash()
+        try require(SupportReportService.activeScans == 0 && disabled.recoveryNotice == nil && !SupportCrashRecoveryPreferences.enabled(in:prefs),"Disabled discovery started work")
+        report.model.setCrashChecking(true,context:report.model.context)
+        let late = service()
+        let incident = SupportCrashIncident(report:try SupportCrashReport.read(file),date:Date())
+        let held = HeldCrashScan(incident:incident)
+        releaseHeld = { held.finish() }
+        late.discover = { _,_,_,_,token in try await held.read(token) }
+        late.checkForPreviousCrash(); try await wait { held.continuation != nil }
+        let count = SupportCrashRecoveryPreferences.handled(in:prefs).count
+        late.retire()
+        try require(held.token?.isCancelled == true && SupportReportService.activeScans == 1 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Retired discovery lost cancellation/drain ownership")
+        held.finish(); releaseHeld = nil
+        try await wait { SupportReportService.activeScans == 0 }
+        try require(late.recoveryNotice == nil && SupportCrashRecoveryPreferences.handled(in:prefs).count == count,"Retired discovery published/acknowledged")
+        print("PASS: local crash discovery, exact identity, handled suppression, Review/Dismiss, busy review retry, explicit inclusion, private preference, cancellation/drain, retired callbacks and released notice")
     }
     @MainActor static func verify() async throws {
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), file = root.appendingPathComponent("TurtleGit-fixture.ips"), destination = root.appendingPathComponent("saved-report.txt")
         let body = #"{"bug_type":"309","incident_id":"fixture-only"}"# + "\n" + #"{"procName":"TurtleGitMac","exception":{"type":"EXC_BAD_ACCESS","signal":"SIGSEGV"},"procPath":"/Users/example/project/TurtleGitMac","fixture":"CRASH_MARKER","threads":[]}"#
         try Data(body.utf8).write(to: file)
+        try await verifyRecovery(root:root)
         let bundle = Bundle(url: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app"))!
         let info = ApplicationAboutInformation(application: bundle.bundleURL, version: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "", build: bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "")
         func owner() -> SupportReportWindowController {

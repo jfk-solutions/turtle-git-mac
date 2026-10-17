@@ -2105,7 +2105,7 @@ cover private Copy/Save snapshots, native chooser cancellation, late/duplicate
 replies, failed writes, retained work after owner close and release-after-close.
 Both raw appearance captures were reviewed; the receiver is absent. Generated
 Mac Help passes its freshness check. Direct Windows DrDump transport, minidumps/
-assert collection, server solutions, automatic recovery and physical/signed
+assert collection, server solutions, unsaved-session recovery and physical/signed
 acceptance remain open; original crash resource controls remain unmapped.
 See [scope and evidence](CRASH-REPORTING-PARITY.md).
 
@@ -2368,3 +2368,23 @@ was repeated for that repair. All seven receivers from diagnostics/attempts/fina
 checks were reaped and independently absent. Core was unchanged and not repeated.
 Localization generation/check and the 267-page site build pass. Full hosted and
 physical/signed acceptance remain open.
+
+
+## Local post-crash report recovery — October 17, 2026
+
+App launch now discovers recent matching Apple reports and offers native
+Review/Dismiss. Exact process/bundle matching, bounded background reads,
+regular-file/no-follow checks, age limits, private handled-content hashes and an
+opt-out preference connect discovery to the existing support editor. Review
+keeps crash inclusion off; busy editors allow retry. Closure cancels scans and
+rejects late presentation while retaining drain/Quit ownership. No report is
+uploaded, removed or silently included. See [crash parity](CRASH-REPORTING-PARITY.md#local-launch-discovery-and-recovery--october-17-2026)
+and [batch evidence](qa/crash-recovery-family-2026-10-17.json).
+
+Ten focused Core checks and the expanded grouped native support workflow pass.
+The Debug app build passes, followed by an incremental build to copy regenerated
+Help. All four raw light/dark recovery/editor captures were individually reviewed
+with visible labels and footers. Receiver 90665 was reaped and independently
+absent. Help freshness, localization and the site build are checked separately.
+Actual system-crash delivery, installed signed/App Store access, physical input
+and complete Windows collector/transport/solution parity remain open.

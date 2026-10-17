@@ -50,7 +50,48 @@ absent. Help was regenerated and its freshness check passed. Exact evidence is i
 [the checkpoint](qa/support-report-family-2026-10-17.json).
 Actual user picker gestures,
 signed file grants, every supported Apple report variant and complete physical
-keyboard/VoiceOver/layout acceptance remain open. Automatic post-crash recovery,
-Windows minidump/assert collection, direct DrDump submission and solution lookup
+keyboard/VoiceOver/layout acceptance remain open. The launch-discovery continuation
+below adds local post-crash report review. Windows minidump/assert collection, direct DrDump submission and solution lookup
 remain unported. The original crash-resource controls remain unmapped; no dialog
 is certified complete by this native adaptation.
+
+
+## Local launch discovery and recovery — October 17, 2026
+
+The native app now checks for a recent Apple report on launch and offers a
+modeless Review Report / Dismiss window. This adapts the pinned SendRpt initial
+report and consent/details sequence to Apple's OS-generated reports; it does
+not implement DrDump collection, automatic submission or solution lookup.
+The original Windows resources remain pending rather than being declared fully
+ported by this adaptation.
+
+Discovery is a cancellable background operation with a 32-candidate read bound,
+4 MiB per-file cap and 30-day age window. Filename boundaries, exact process and
+bundle identity, regular-file checks and no-follow reads exclude other apps,
+symlinks, malformed and oversized reports. Metadata-header bundleID, crash-body
+bundleInfo and legacy Identifier fields are supported. No recursive traversal
+or new sandbox entitlement is added. Unavailable/denied folders retain the manual
+chooser. Actual signed App Store access requires installed-app acceptance.
+
+Review reuses the existing support window and installs the immutable report with
+inclusion off. A busy picker/read/write keeps the notice open for retry without
+acknowledging or replacing data. Dismiss and the close button retain the report
+on disk. Accepted Review/Dismiss persist only a SHA-256 content identity in the
+64-entry handled list. The same content under another filename is suppressed.
+The report window's Check for crash reports at launch preference allows disabling
+and re-enabling discovery. Closing during a scan cancels it and retains the Quit
+count until the worker drains; late results cannot show UI or acknowledge data.
+
+See [batch evidence](qa/crash-recovery-family-2026-10-17.json). These are local
+report-recovery controls; restoration of unsaved editor/repository state,
+Windows assertions/minidumps, all report variants, physical accessibility and
+signed distribution remain outside this checkpoint.
+
+
+![Local crash-recovery notice, light](site/assets/crash-recovery-light.png)
+
+![Local crash-recovery notice, dark](site/assets/crash-recovery-dark.png)
+
+The refreshed [light report editor](site/assets/support-report-light.png) and
+[dark report editor](site/assets/support-report-dark.png) include the launch-check
+preference and explicit report-inclusion checkbox.

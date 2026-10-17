@@ -6,12 +6,13 @@ import AppKit
         if let file = Bundle.module.url(forResource: "ApplicationIcon", withExtension: "png", subdirectory: "Branding"), let icon = NSImage(contentsOf: file) { NSApp.applicationIconImage = icon }
         #endif
         TurtleGitHelp.install()
+        SupportReportService.shared.checkForPreviousCrash()
     }
     @objc func showHelp(_ sender: Any?) { TurtleGitHelp.showContext() }
     weak var repositoryModel: RepositoryModel?
     private var confirmingQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
-    func applicationWillTerminate(_ notification: Notification) { DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if sender.windows.compactMap({ $0.delegate as? RepositoryAccessWindowController }).contains(where:{ $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if MergeSourceExport.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? TextConflictWindowController }).contains(where: { $0.model.exportingSource }) { return .terminateCancel }
@@ -64,6 +65,7 @@ import AppKit
         if ReleaseUpdateModel.activeOperations > 0 { return .terminateCancel }
         if MergeRegexOperations.activeRequests > 0 { return .terminateCancel }
         if TurtleGitAboutController.activeReads > 0 {return .terminateCancel}
+        if SupportReportService.activeScans > 0 { return .terminateCancel }
         if SupportReportWindowModel.activeReads > 0 || SupportReportWindowModel.activeWrites > 0 || SupportReportWindowController.activePickers > 0 { return .terminateCancel }
         if SVNWindowModel.activeOperations > 0 { return .terminateCancel }
         if SendPatchWindowModel.activeLoads > 0 || SendPatchWindowController.activeTargetReads > 0 {return .terminateCancel}

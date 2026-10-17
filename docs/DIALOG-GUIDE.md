@@ -681,6 +681,19 @@ repository. Describe what happened and the steps needed to reproduce it. Choose
 an Apple `.ips` or `.crash` file if you have one, then explicitly enable **Include
 the selected crash report** to add it to the preview.
 
+At launch, TurtleGit checks the current user's local DiagnosticReports folder for
+recent reports matching this app's exact process and bundle identity. A notice
+offers **Review Report…** or **Dismiss**. Review opens the same report editor;
+crash text remains excluded until you enable Include. Dismiss leaves the Apple
+report on disk. Both choices remember only a content hash so the same report
+does not prompt again. Disable **Check for crash reports at launch** in the
+report window to stop automatic checking; manual import remains available.
+
+Discovery examines at most 32 recent matching candidates from the last 30 days.
+If the folder is unavailable or sandbox access is denied, choose a report
+manually. Signed App Store discovery still needs installed-app verification.
+This workflow recovers a diagnostic report; it does not restore unsaved edits.
+
 Review the complete preview. Home-folder replacement removes that path only;
 other private details can remain. **Copy Report** copies exactly the preview;
 **Save Report…** writes it to a chosen text file. **Open Issue Form** opens a blank

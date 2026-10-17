@@ -52,4 +52,71 @@ final class SupportReportTests: XCTestCase {
         let token = OperationCancellation(); token.cancel(); XCTAssertThrowsError(try SupportCrashReport.read(file, cancellation: token))
         XCTAssertThrowsError(try SupportCrashReport.read(root))
     }
+    func testDiscoveryMatchesExactAppAndSkipsHandledMalformedForeignAndSymlinkReports() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true); defer { try? FileManager.default.removeItem(at:root) }
+        let now = Date()
+        func write(_ name:String,_ text:String,_ age:TimeInterval) throws -> URL {
+            let file = root.appendingPathComponent(name); try Data(text.utf8).write(to:file)
+            try FileManager.default.setAttributes([.modificationDate:now.addingTimeInterval(-age)],ofItemAtPath:file.path); return file
+        }
+        let matching = #"{"procName":"TurtleGitMac","bundleInfo":{"CFBundleIdentifier":"org.test.turtle"},"exception":{"type":"EXC_CRASH"}}"#
+        let older = try write("TurtleGitMac-old.ips",matching,100)
+        let newest = try write("TurtleGitMac-new.ips",matching.replacingOccurrences(of:"EXC_CRASH",with:"EXC_BAD_ACCESS"),10)
+        _ = try write("TurtleGitMac-other.ips",matching.replacingOccurrences(of:"org.test.turtle",with:"org.test.other"),1)
+        _ = try write("TurtleGitMac-wrong-process.ips",matching.replacingOccurrences(of:"TurtleGitMac",with:"TurtleGitMacOther"),1)
+        _ = try write("TurtleGitMac-malformed.ips","not JSON",1)
+        _ = try write("OtherApp-reporter.ips",matching,1)
+        try FileManager.default.createSymbolicLink(at:root.appendingPathComponent("TurtleGitMac-linked.ips"),withDestinationURL:newest)
+        let first = try XCTUnwrap(SupportCrashDiscovery.latest(in:root,process:"TurtleGitMac",bundleIdentifier:"org.test.turtle",excluding:[],now:now))
+        XCTAssertEqual(first.report.fileName,newest.lastPathComponent)
+        let second = try XCTUnwrap(SupportCrashDiscovery.latest(in:root,process:"TurtleGitMac",bundleIdentifier:"org.test.turtle",excluding:[first.id],now:now))
+        XCTAssertEqual(second.report.fileName,older.lastPathComponent)
+        XCTAssertNil(try SupportCrashDiscovery.latest(in:root,process:"TurtleGitMac",bundleIdentifier:"org.test.turtle",excluding:[first.id,second.id],now:now))
+        let token = OperationCancellation(); token.cancel()
+        XCTAssertThrowsError(try SupportCrashDiscovery.latest(in:root,process:"TurtleGitMac",bundleIdentifier:"org.test.turtle",excluding:[],cancellation:token))
+    }
+    func testMetadataIdentityAndLegacyIdentityAndContentFingerprint() throws {
+        let text = #"{"bundleID":"org.test.turtle","bug_type":"309"}"# + "\n" + ips.components(separatedBy:"\n")[1]
+        let report = try SupportCrashReport.parse(Data(text.utf8),fileName:"TurtleGitMac-header.ips")
+        XCTAssertEqual(report.bundleIdentifier,"org.test.turtle")
+        let legacy = try SupportCrashReport.parse(Data("Process: TurtleGitMac [4]\nIdentifier: org.test.turtle\nException Type: EXC_CRASH\n".utf8),fileName:"TurtleGitMac-legacy.crash")
+        XCTAssertEqual(legacy.bundleIdentifier,"org.test.turtle")
+        let copy = try SupportCrashReport.parse(Data(text.utf8),fileName:"renamed.ips")
+        XCTAssertEqual(SupportCrashIncident(report:report,date:Date()).id,SupportCrashIncident(report:copy,date:.distantPast).id)
+    }
+    func testDiscoveryDateBoundsAndCandidateLimitAndDirectorySymlink() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true); defer { try? FileManager.default.removeItem(at:root) }
+        let now = Date(), valid = #"{"procName":"TurtleGitMac","bundleInfo":{"CFBundleIdentifier":"org.test.turtle"},"exception":{"type":"EXC_CRASH"}}"#
+        let good = root.appendingPathComponent("TurtleGitMac-good.ips"); try Data(valid.utf8).write(to:good)
+        try FileManager.default.setAttributes([.modificationDate:now.addingTimeInterval(-31*24*3600)],ofItemAtPath:good.path)
+        XCTAssertNil(try SupportCrashDiscovery.latest(in:root,process:"TurtleGitMac",bundleIdentifier:"org.test.turtle",excluding:[],now:now))
+        try FileManager.default.setAttributes([.modificationDate:now.addingTimeInterval(3600)],ofItemAtPath:good.path)
+        XCTAssertNil(try SupportCrashDiscovery.latest(in:root,process:"TurtleGitMac",bundleIdentifier:"org.test.turtle",excluding:[],now:now))
+        try FileManager.default.setAttributes([.modificationDate:now.addingTimeInterval(-100)],ofItemAtPath:good.path)
+        for index in 0..<SupportCrashDiscovery.maximumCandidates {
+            let file = root.appendingPathComponent("TurtleGitMac-invalid-\(index).ips"); try Data("invalid".utf8).write(to:file)
+            try FileManager.default.setAttributes([.modificationDate:now],ofItemAtPath:file.path)
+        }
+        XCTAssertNil(try SupportCrashDiscovery.latest(in:root,process:"TurtleGitMac",bundleIdentifier:"org.test.turtle",excluding:[],now:now))
+        let link = root.appendingPathComponent("linked"); try FileManager.default.createSymbolicLink(at:link,withDestinationURL:root)
+        XCTAssertNil(try SupportCrashDiscovery.latest(in:link,process:"TurtleGitMac",bundleIdentifier:"org.test.turtle",excluding:[],now:now))
+    }
+    func testRecoveryPreferencesAreBoundedPrivateAndStoreNoReportText() throws {
+        let suite = "TurtleGit.CrashRecovery."+UUID().uuidString, defaults = UserDefaults(suiteName:suite)!
+        defer { defaults.removePersistentDomain(forName:suite) }
+        XCTAssertTrue(SupportCrashRecoveryPreferences.enabled(in:defaults))
+        defaults.set(false,forKey:SupportCrashRecoveryPreferences.enabledKey); XCTAssertFalse(SupportCrashRecoveryPreferences.enabled(in:defaults))
+        var last:SupportCrashIncident?
+        for index in 0..<70 {
+            let text = "Process: TurtleGitMac [\(index)]\nIdentifier: org.test.turtle\nException Type: EXC_CRASH\nPRIVATE_BODY\n"
+            let incident = SupportCrashIncident(report:try SupportCrashReport.parse(Data(text.utf8),fileName:"TurtleGitMac-fixture.crash"),date:Date())
+            SupportCrashRecoveryPreferences.acknowledge(incident,in:defaults); last = incident
+        }
+        SupportCrashRecoveryPreferences.acknowledge(last!,in:defaults)
+        XCTAssertEqual(SupportCrashRecoveryPreferences.handled(in:defaults).count,64)
+        XCTAssertFalse(String(describing:defaults.persistentDomain(forName:suite)!).contains("PRIVATE_BODY"))
+    }
+
 }
