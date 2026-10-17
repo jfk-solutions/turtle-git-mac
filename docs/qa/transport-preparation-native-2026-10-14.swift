@@ -38,7 +38,13 @@ import TurtleGitCore
         let wrapper = root.appendingPathComponent("gated-git"), gate = root.appendingPathComponent("gate"), ready = root.appendingPathComponent("ready")
         let script = #"""
         #!/bin/sh
-        if [ -f "$3/gate" ] && [ "$4" = "$(/bin/cat "$3/gate")" ]; then
+        task_command() {
+          if [ "${1-}" = --literal-pathspecs ] || [ "${1-}" = --no-literal-pathspecs ]; then shift; fi
+          if [ "${1-}" = -C ]; then shift 2; fi
+          while [ "${1-}" = -c ]; do shift 2; done
+          printf '%s' "${1-}"
+        }
+        if [ -f "$3/gate" ] && [ "$(task_command "$@")" = "$(/bin/cat "$3/gate")" ]; then
           : > "$3/ready"; while [ -f "$3/gate" ]; do /bin/sleep 0.1; done
         fi
         exec "$TG_PREPARATION_GIT" "$@"

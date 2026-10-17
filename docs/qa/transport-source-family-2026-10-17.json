@@ -1,0 +1,236 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "3dfe6ab6df0ae0f7c185cc22cd158d8b982aa6f9",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source Push Ref/Destination/Options and shared Fetch/Pull Remote/Options/native SSH/Rebase/footer layouts",
+    "Captured base/mode/option/history/chooser guards and synchronous source/default mutations",
+    "Unique complete Push confirmation intent; stale/duplicate replies cannot execute another draft or save suppression",
+    "Exact UTF-8 native source-reference deduplication/display and remote-popup selection",
+    "Owned native radios/tri-state/combo/popup retirement and disabled/dismantled delegate guards",
+    "52 newly mapped controls: Push 29/29 and shared Pull/Fetch 25/25 total partial mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/transport-source-build-2026-10-17.log",
+      "exit": 65,
+      "failure": "New coordinator retirement checks referenced main-actor properties from nonisolated methods/autoclosures."
+    },
+    {
+      "log": "build/qa/transport-source-actor-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3,
+      "repair": "Native combo/popup coordinators explicitly main-actor isolated."
+    },
+    {
+      "log": "build/qa/transport-source-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "repair": "Raw capture review found centered Launch Rebase control; source left alignment restored."
+    }
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false,
+    "reason": "This batch changes native forms, option ownership, controls and confirmation state; Git backend unchanged. Grouped native regressions exercise real private transport/history/preparation/picker behavior."
+  },
+  "native": {
+    "distinct_case_engine_passes": 10,
+    "cases": [
+      "source",
+      "push-history",
+      "fetch-history",
+      "preparation",
+      "pickers"
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/transport-source-native-2026-10-17.log",
+        "exit": 1,
+        "passed_cases": 2,
+        "failure": "Retained Push history fixture called push while source defaults were still preparing, then expected validation error. Wait helper checked busy only."
+      },
+      {
+        "log": "build/qa/transport-source-layout-native-2026-10-17.log",
+        "exit": 0,
+        "passed_cases": 10,
+        "repair": "Retained history waits for both busy/preparing and settles source pick before submission; standalone delegate assertion now owns its native control window. Preparation helper parses global options instead of fixed argv position."
+      }
+    ],
+    "owned_receivers_reaped": [
+      28405,
+      28550,
+      28679,
+      28925,
+      29068,
+      29197,
+      29487,
+      29783,
+      29892,
+      30003,
+      30262,
+      30521,
+      30641
+    ],
+    "independently_absent_owned_receivers": [
+      28405,
+      28550,
+      28679,
+      28925,
+      29068,
+      29197,
+      29487,
+      29783,
+      29892,
+      30003,
+      30262,
+      30521,
+      30641
+    ],
+    "diagnostics": "Initial fixture compilation reported unused oldMode; removed. Final grouped log has no warning/error diagnostics."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/push-source-light.png",
+      "sha256": "cb19cf49ba382459c22f19cb97a291bb1aa9f6646b99474bcf106213e65dc040",
+      "pixels": [
+        1500,
+        1304
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/push-source-dark.png",
+      "sha256": "f9a581eef20706b494158b82bb9f939bf1936bfab22afb279b0a82abaccde09b",
+      "pixels": [
+        1500,
+        1304
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/fetch-source-light.png",
+      "sha256": "f336da60a928cbf320c98987b92a9a914520886fe93813de302d2378e0547407",
+      "pixels": [
+        1400,
+        1024
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/fetch-source-dark.png",
+      "sha256": "1014c50933454bad5adb9aadd19259ace90e35d39f135769f3b77b9240c3e189",
+      "pixels": [
+        1400,
+        1024
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/pull-source-light.png",
+      "sha256": "f5694874343f4e5fad6f8c79ed249b9b46b161979dba609e60f581e56fb0f5b2",
+      "pixels": [
+        1400,
+        1024
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/pull-source-dark.png",
+      "sha256": "1de5928d42b281679ad7184c3c04c2124f37316c1861a875a7f60e7cba2334a2",
+      "pixels": [
+        1400,
+        1024
+      ],
+      "reviewed": true
+    }
+  ],
+  "superseded_captures": [
+    {
+      "path": "build/qa/transport-source-initial-push-light.png",
+      "sha256": "fbb9888fd7b521463253166da7d1ad81e8c571957a72fd8b197c617b2a8ad941",
+      "pixels": [
+        1500,
+        1304
+      ],
+      "reason": "Replaced after source left-alignment repair; initial images remain locally preserved."
+    },
+    {
+      "path": "build/qa/transport-source-initial-push-dark.png",
+      "sha256": "f73e77a1fe0d3c9244f67b5514e39238198594cc5ed336c8ec42e44d5f99c9d8",
+      "pixels": [
+        1500,
+        1304
+      ],
+      "reason": "Replaced after source left-alignment repair; initial images remain locally preserved."
+    },
+    {
+      "path": "build/qa/transport-source-initial-fetch-light.png",
+      "sha256": "bad82b84aec23f21a3fc40947eb2126b131965cd3ef033fdb01974b7963b623e",
+      "pixels": [
+        1400,
+        1024
+      ],
+      "reason": "Replaced after source left-alignment repair; initial images remain locally preserved."
+    },
+    {
+      "path": "build/qa/transport-source-initial-fetch-dark.png",
+      "sha256": "5543e7181e08831911f612682cd0311258db0bd5ed4fefd45e869ebc4b33de79",
+      "pixels": [
+        1400,
+        1024
+      ],
+      "reason": "Replaced after source left-alignment repair; initial images remain locally preserved."
+    },
+    {
+      "path": "build/qa/transport-source-initial-pull-light.png",
+      "sha256": "048b20850b7577b836e1263ab6db18cf5eac9e38f8dd7b9be30a8af23f3efcfd",
+      "pixels": [
+        1400,
+        1024
+      ],
+      "reason": "Replaced after source left-alignment repair; initial images remain locally preserved."
+    },
+    {
+      "path": "build/qa/transport-source-initial-pull-dark.png",
+      "sha256": "694ef6158afabd4939f28fc1ec06f0ff3322383e92a70818a23db87bca85ffbe",
+      "pixels": [
+        1400,
+        1024
+      ],
+      "reason": "Replaced after source left-alignment repair; initial images remain locally preserved."
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of actual production PushWindowController and FetchWindowController (Fetch and Pull) windows. Private repositories/preferences/pasteboard text. Passive owned windows, no application activation or global input. Depth row is displayed by explicit private shallow-model injection; this capture is not evidence of a shallow transport. System-Git source case captures all six images; both Git engines execute form assertions. Initial centered-Rebase captures are retained locally under build/qa; six final captures individually reviewed.",
+  "hosted_observation": {
+    "head": "3dfe6ab6df0ae0f7c185cc22cd158d8b982aa6f9",
+    "macos": {
+      "run": 38994960859,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38994960922,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Complete physical dropdown/default-button/key/focus/VoiceOver/IME and source sorting across locales remain unverified",
+    "Shared native controls also serve Request Pull; full Request Pull workflow acceptance is not certified by control checks",
+    "Public transport, signing/hooks/credential combinations, nested sheets, Finder activation and signed sandbox/App Store acceptance remain open",
+    "Exact-name native selection does not establish all normalizing-filesystem boundaries",
+    "Local grouped passes do not certify complete hosted CI, full transport dialogs or full application parity"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/transport-source-site-2026-10-17.log"
+  },
+  "ci_grouping": "New five-family group runs both Git engines; removed the separate Push source-picker and Push-history steps because the group executes those same fixtures, preserving assertions and avoiding duplicate CI runs."
+}

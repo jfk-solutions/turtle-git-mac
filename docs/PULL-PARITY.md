@@ -240,3 +240,5 @@ Full workflow, physical and signed acceptance remain partial.
 Core cases, the Debug build and four native groups on both Git engines, including
 the argument-recorder setup repair. Complete hosted/physical/signed parity is
 not established.
+
+The October 17 [source transport form family](FETCH-PARITY.md#source-transport-forms-and-exact-native-selections--october-17-2026) replaces delayed remote updates with captured model-owned controls, guards merge/FF/depth/rebase dependencies and history/chooser ownership, and retires shared native targets. Source layout order and existing transport/recovery routes are retained. Grouped validation and physical/signed acceptance limits are recorded with that family.

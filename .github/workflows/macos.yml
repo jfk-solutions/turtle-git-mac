@@ -354,6 +354,8 @@ jobs:
         run: python3 scripts/test-branch-tag-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Switch source form and connected workflows
         run: python3 scripts/test-switch-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Source transport forms and connected workflows
+        run: python3 scripts/test-transport-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Issue Tracker source and Regex Tester workflows
         run: python3 scripts/test-issue-tracker-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native release download and App Store workflows
@@ -565,14 +567,10 @@ jobs:
         run: python3 scripts/test-reflog-actions.py
       - name: Native RefLog modeless Find and function keys
         run: python3 scripts/test-reflog-search.py
-      - name: Native Push Log and RefLog source selection
-        run: python3 scripts/test-push-source-pickers.py
       - name: Native editable history deletion
         run: python3 scripts/test-history-deletion.py
       - name: Native Push preferences and confirmations
         run: python3 scripts/test-push-preferences.py
-      - name: Native Push history and clipboard
-        run: python3 scripts/test-push-history.py
       - name: Native Push cancellation
         run: python3 scripts/test-push-cancellation.py
       - name: Native Pull and Fetch cancellation

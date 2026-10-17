@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 289,
-    "mapped_controls": 1370,
+    "pending_control_reviews": 237,
+    "mapped_controls": 1422,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -2172,8 +2172,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 25,
-      "mapped_controls": 1,
-      "pending_control_reviews": 24,
+      "mapped_controls": 25,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -2211,7 +2211,8 @@
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/transport-preparation-2026-10-14.json",
-        "docs/qa/transport-presentation-2026-10-15.json"
+        "docs/qa/transport-presentation-2026-10-15.json",
+        "docs/qa/transport-source-family-2026-10-17.json"
       ]
     },
     {
@@ -2221,8 +2222,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 29,
-      "mapped_controls": 1,
-      "pending_control_reviews": 28,
+      "mapped_controls": 29,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -2259,7 +2260,8 @@
         "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/transport-pickers-2026-10-15.json",
         "docs/qa/transport-preparation-2026-10-14.json",
-        "docs/qa/transport-presentation-2026-10-15.json"
+        "docs/qa/transport-presentation-2026-10-15.json",
+        "docs/qa/transport-source-family-2026-10-17.json"
       ]
     },
     {

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Native adaptation of PushDlg, TortoiseGit.
 import AppKit
 import SwiftUI
 import TurtleGitCore
@@ -16,7 +18,7 @@ import TurtleGitCore
     private var pendingPicker: (UUID, PickerContext, PickerKind, String?)?
     private weak var pickerFocus: NSResponder?
     private var pickerContext: PickerContext {
-        PickerContext(values: [model.options.source, model.options.destination, model.options.remote, model.url].map { GitReferenceName($0) },
+        PickerContext(values: model.submissionIdentity + [model.options.source, model.options.destination, model.options.remote, model.url].map { GitReferenceName($0) },
                       flags: [model.options.arbitraryURL, model.options.allRemotes, model.options.allBranches])
     }
     private var progressController: PushProgressWindowController?
@@ -26,9 +28,9 @@ import TurtleGitCore
         self.historyRegexExecutable = historyRegexExecutable
         model = PushWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 750, height: 590), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Push", preferences: preferences); window.minSize = NSSize(width: 720, height: 610); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: PushDialog(model: model).defaultAppStorage(preferences))
-        super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.setContentSize(NSSize(width: 750, height: 590)); window.center()
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Push", preferences: preferences); window.contentMinSize = NSSize(width: 720, height: 620); window.isReleasedWhenClosed = false
+        let host = NSHostingController(rootView: PushDialog(model: model).defaultAppStorage(preferences)); host.sizingOptions = []; window.contentViewController = host
+        super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.setContentSize(NSSize(width: 750, height: 620)); window.center()
         model.becameIdle = { [weak self] in if self?.closingPreparation == true { self?.window?.performClose(nil) } }
         model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] result in
@@ -154,7 +156,7 @@ import TurtleGitCore
     let sshSettings: SSHTransportSettings
     private var invalidated = false
     func invalidate() {
-        clientHooks.retire(); invalidated = true; choosingReference = false; generation += 1
+        clientHooks.retire(); invalidated = true; formRevision = UUID(); confirmationRequest = nil; choosingReference = false; generation += 1
         metadataToken?.cancel(); sourceToken?.cancel(); cancellation?.cancel()
         progress?.invalidate(); progress = nil; busy = false; preparingSource = false; confirmation = nil
         becameIdle = {}; close = {}
@@ -184,6 +186,8 @@ import TurtleGitCore
     private let preferences: UserDefaults
     lazy var clientHooks = ClientHookSession(preferences: preferences)
     private var postHookFailure: String?
+    @Published private(set) var formRevision = UUID()
+    private var confirmationRequest: UUID?
     @Published var options = PushOptions()
     @Published var remotes: [String] = []
     @Published var references: [CheckoutReference] = []
@@ -194,7 +198,7 @@ import TurtleGitCore
     var onPostAction: ((PushPostAction, PushOptions, URL?) -> Void)?
     func finish(_ result: PushProgressWindowModel) {
         guard progress === result, !result.busy, !confirmingCancellation else { return }
-        progress = nil; result.invalidate(); busy = false; if let postHookFailure { error = postHookFailure; return }; error = nil; close()
+        progress = nil; result.invalidate(); busy = false; formRevision = UUID(); if let postHookFailure { error = postHookFailure; return }; error = nil; close()
     }
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
@@ -206,11 +210,11 @@ import TurtleGitCore
     @Published var urls: [String] = []
     @Published var destinationHistory: [String] = []
     @Published var pushOptionHistory: [String] = []
-    @Published var managingRemotes = false
+    @Published var managingRemotes = false { didSet { if managingRemotes != oldValue { formRevision = UUID() } } }
     @Published var error: String?
     @Published var confirmation: String?
     var confirmPush: (String, Bool, Bool, @escaping (Bool, Bool) -> Void) -> Void = { _, _, _, _ in }
-    @Published var choosingReference = false
+    @Published var choosingReference = false { didSet { if choosingReference != oldValue { formRevision = UUID() } } }
     var canChooseReference: Bool { !invalidated && !busy && !preparing && !choosingReference && !preparationNeedsRetry && !options.allBranches && confirmation == nil && progress == nil }
     var pickReferences: (Bool) -> Void = { _ in }
     func browseReferences(destination: Bool) { guard canChooseReference else { return }; pickReferences(destination) }
@@ -232,7 +236,7 @@ import TurtleGitCore
     func load(source: String? = nil, preserveAllBranches: Bool = false) {
         guard !invalidated, !busy, progress == nil else { return }
         retryRemoteCatalog = false
-        loadPresetSource = source; loadPresetPreserveAll = preserveAllBranches
+        formRevision = UUID(); loadPresetSource = source; loadPresetPreserveAll = preserveAllBranches
         sourceToken?.cancel(); generation += 1
         busy = true; error = nil; preparationNeedsRetry = false
         let token = OperationCancellation(); metadataToken = token; Self.activePreparationReads += 1
@@ -269,7 +273,7 @@ import TurtleGitCore
     /// Refresh after the remote manager without resetting the user's operation draft.
     func refreshRemoteCatalog() {
         guard !invalidated, !busy, progress == nil else { return }
-        sourceToken?.cancel(); generation += 1
+        formRevision = UUID(); sourceToken?.cancel(); generation += 1
         let snapshot = options, token = OperationCancellation()
         metadataToken = token; busy = true; error = nil; preparationNeedsRetry = false; retryRemoteCatalog = true
         Self.activePreparationReads += 1
@@ -293,6 +297,52 @@ import TurtleGitCore
                 metadataLoaded = true; retryRemoteCatalog = false; adjustSettings()
             } catch { if !invalidated, metadataToken === token { preparationNeedsRetry = true; self.error = error.localizedDescription } }
         }
+    }
+    struct FormContext: Equatable {
+        let owner: ObjectIdentifier; let revision: UUID; let base: [GitReferenceName]
+    }
+    var formContext: FormContext { .init(owner:ObjectIdentifier(self),revision:formRevision,base:[options.source,options.remote,String(options.arbitraryURL),String(options.allRemotes),String(options.allBranches)].map { GitReferenceName($0) }) }
+    var canEditSource: Bool { !closed && !busy && metadataToken == nil && metadataLoaded && !choosingReference && !managingRemotes && confirmation == nil && progress == nil }
+    var canEditForm: Bool { canEditSource && !preparingSource && !preparationNeedsRetry }
+    func accepts(_ context: FormContext, source: Bool = false) -> Bool {
+        context.owner == ObjectIdentifier(self) && context.revision == formRevision && (source ? canEditSource : canEditForm && context == formContext)
+    }
+    var submissionIdentity: [GitReferenceName] {
+        [options.source,options.destination,options.remote,url,options.pushOption,String(options.arbitraryURL),String(options.allRemotes),String(options.allBranches),String(options.forceWithLease),String(options.force),String(options.includeTags),String(options.setUpstream),String(options.savePushRemote),String(options.savePushBranch),String(describing:options.submodules),String(sshSettings.enabled)].map { GitReferenceName($0) }
+    }
+    func option<Value>(_ key: WritableKeyPath<PushOptions,Value>, context: FormContext) -> Binding<Value> {
+        Binding(get:{self.options[keyPath:key]},set:{value in
+            if key == \PushOptions.source {
+                guard self.accepts(context,source:true), !self.options.allBranches else { return }
+                self.options[keyPath:key] = value; self.sourceChanged(); return
+            }
+            guard self.accepts(context) else { return }
+            if key == \PushOptions.destination, self.options.allBranches { return }
+            if key == \PushOptions.forceWithLease, self.options.force || self.options.includeTags { return }
+            if key == \PushOptions.force || key == \PushOptions.includeTags, self.options.forceWithLease { return }
+            if key == \PushOptions.setUpstream, !self.canTrack || self.options.savePushRemote || self.options.savePushBranch { return }
+            if key == \PushOptions.savePushRemote || key == \PushOptions.savePushBranch, !self.canSave { return }
+            self.options[keyPath:key] = value; self.adjustSettings()
+        })
+    }
+    func urlBinding(_ context: FormContext) -> Binding<String> { Binding(get:{self.url},set:{if self.accepts(context),self.options.arbitraryURL {self.url=$0}}) }
+    func remoteBinding(_ context: FormContext) -> Binding<String> {
+        Binding(get:{self.options.allRemotes ? "*" : self.options.remote},set:{value in
+            guard self.accepts(context),!self.options.arbitraryURL else {return}
+            self.options.allRemotes = value == "*"; if value != "*" {self.options.remote=value};self.adjustSettings()
+        })
+    }
+    func selectMode(arbitrary: Bool, context: FormContext) {
+        guard accepts(context) else {return}; if arbitrary {selectArbitraryURL()} else {options.arbitraryURL=false;adjustSettings()}
+    }
+    func manage(_ context: FormContext) {guard accepts(context),!options.arbitraryURL else{return};managingRemotes=true}
+    func deleteHistory(_ kind: Int, at index: Int, context: FormContext, entries: [String]) {
+        guard accepts(context) else{return}
+        let current = kind == 0 ? urls : kind == 1 ? destinationHistory : pushOptionHistory
+        guard current.map({GitReferenceName($0)}) == entries.map({GitReferenceName($0)}) else{return}
+        if kind == 0 {guard options.arbitraryURL else{return};deleteURLHistory(at:index)}
+        else if kind == 1 {guard !options.allBranches else{return};deleteDestinationHistory(at:index)}
+        else {deletePushOptionHistory(at:index)}
     }
     func browseSourceHistory(referenceLog: Bool) {
         guard canChooseReference else { return }
@@ -349,15 +399,15 @@ import TurtleGitCore
         options.destination = destinationHistory.first { $0.compare(normalized, options: .caseInsensitive) == .orderedSame } ?? destination
     }
     func deleteURLHistory(at index: Int) {
-        guard !busy, let result = FetchDialogHistory.removing(index, entries: urls, preferences: preferences, key: urlHistoryKey) else { return }
+        guard !invalidated, !busy, !preparing, !choosingReference, confirmation == nil, let result = FetchDialogHistory.removing(index, entries: urls, preferences: preferences, key: urlHistoryKey) else { return }
         urls = result.entries; url = result.selection
     }
     func deleteDestinationHistory(at index: Int) {
-        guard !busy, let result = FetchDialogHistory.removing(index, entries: destinationHistory, preferences: preferences, key: destinationHistoryKey) else { return }
+        guard !invalidated, !busy, !preparing, !choosingReference, confirmation == nil, let result = FetchDialogHistory.removing(index, entries: destinationHistory, preferences: preferences, key: destinationHistoryKey) else { return }
         destinationHistory = result.entries; options.destination = result.selection
     }
     func deletePushOptionHistory(at index: Int) {
-        guard !busy, let result = FetchDialogHistory.removing(index, entries: pushOptionHistory, preferences: preferences, key: pushOptionHistoryKey) else { return }
+        guard !invalidated, !busy, !preparing, !choosingReference, confirmation == nil, let result = FetchDialogHistory.removing(index, entries: pushOptionHistory, preferences: preferences, key: pushOptionHistoryKey) else { return }
         pushOptionHistory = result.entries; options.pushOption = result.selection
     }
     func selectArbitraryURL() {
@@ -392,10 +442,11 @@ import TurtleGitCore
         } else { stop() }
     }
     private func askToPush(_ message: String, allBranches: Bool, deletion: Bool) {
-        confirmation = message
+        formRevision = UUID(); let request = UUID(), draft = submissionIdentity; confirmationRequest = request; confirmation = message
         confirmPush(message, allBranches, deletion) { [weak self] proceed, remember in
-            guard let self, !self.invalidated, self.confirmation != nil else { return }
-            self.confirmation = nil
+            guard let self, !self.invalidated, self.confirmationRequest == request, self.confirmation != nil else { return }
+            self.confirmationRequest = nil; self.confirmation = nil
+            guard self.submissionIdentity == draft else { return }
             // PushDlg explicitly remembers Yes even when this invocation chose No.
             if allBranches && remember { self.preferences.set(true, forKey: "PushAllBranches") }
             if proceed { self.push(confirmed: true) }
@@ -413,7 +464,7 @@ import TurtleGitCore
                 askToPush(destination.isEmpty ? "The local branch name and the remote branch name are empty.\nContinue?" : "The local branch/tag name is empty. This results in a remote removal.\nContinue?", allBranches: false, deletion: !destination.isEmpty); return
             }
         }
-        confirmation = nil; postHookFailure = nil
+        formRevision = UUID(); confirmationRequest = nil; confirmation = nil; postHookFailure = nil
         var snapshot = options
         snapshot.showBranchRevisionNumber = preferences.bool(forKey: "ShowBranchRevisionNumber")
         snapshot.source = FetchDialogHistory.trim(snapshot.source); snapshot.destination = FetchDialogHistory.trim(snapshot.destination)
@@ -511,43 +562,45 @@ import TurtleGitCore
 private struct PushDialog: View {
     @ObservedObject var model: PushWindowModel
     var body: some View {
+        let context = model.formContext
+        let urlEntries = model.urls, destinationEntries = model.destinationHistory, optionEntries = model.pushOptionHistory
         VStack(spacing: 14) {
             Group {
             GroupBox("Ref") { VStack(alignment: .leading, spacing: 8) {
-                Toggle("Push all branches", isOn: $model.options.allBranches)
-                HStack { Text("Local:").frame(width: 115, alignment: .leading); PushRefCombo(value: $model.options.source, choices: ["HEAD"] + model.references.filter { $0.name.hasPrefix("refs/heads/") || $0.remote }.map(\.name), local: true, normalizeSource: true)
+                Toggle("Push all branches", isOn: model.option(\.allBranches,context:context))
+                HStack { Text("Local:").frame(width: 115, alignment: .leading); PushRefCombo(value: model.option(\.source,context:context), choices: ["HEAD"] + model.references.filter { $0.name.hasPrefix("refs/heads/") || $0.remote }.map(\.name), local: true, normalizeSource: true)
                     Menu {
-                        Button { model.browseReferences(destination: false) } label: { CommandLabel(title: "Browse References", icon: .repositoryBrowser) }
-                        Button { model.browseSourceHistory(referenceLog: false) } label: { CommandLabel(title: "Log", icon: .log) }
-                        Button { model.browseSourceHistory(referenceLog: true) } label: { CommandLabel(title: "RefLog", icon: .log) }
+                        Button { if model.accepts(context) { model.browseReferences(destination:false) } } label: { CommandLabel(title: "Browse References", icon: .repositoryBrowser) }
+                        Button { if model.accepts(context) { model.browseSourceHistory(referenceLog:false) } } label: { CommandLabel(title: "Log", icon: .log) }
+                        Button { if model.accepts(context) { model.browseSourceHistory(referenceLog:true) } } label: { CommandLabel(title: "RefLog", icon: .log) }
                     } label: { Text("…") }.menuStyle(.borderlessButton).fixedSize().accessibilityLabel("Choose local source using references, Log or RefLog")
                 }.disabled(model.options.allBranches)
-                HStack { Text("Remote:").frame(width: 115, alignment: .leading); FetchHistoryCombo(value: $model.options.destination, choices: model.destinationHistory, label: "Remote branch or tag", onDelete: model.deleteDestinationHistory)
-                    Button("…") { model.browseReferences(destination: true) }.accessibilityLabel("Browse remote references")
+                HStack { Text("Remote:").frame(width: 115, alignment: .leading); FetchHistoryCombo(value: model.option(\.destination,context:context), choices: model.destinationHistory, label: "Remote branch or tag", onDelete: { model.deleteHistory(1,at:$0,context:context,entries:destinationEntries) })
+                    Button("…") { if model.accepts(context) { model.browseReferences(destination:true) } }.accessibilityLabel("Browse remote references")
                 }.disabled(model.options.allBranches || model.preparingSource)
             }.padding(8) }
             GroupBox("Destination") { VStack(spacing: 8) {
-                HStack { PushDestinationRadio(title: "Remote:", selected: !model.options.arbitraryURL) { model.options.arbitraryURL = false }.frame(width: 115)
+                HStack { PushDestinationRadio(title: "Remote:", selected: !model.options.arbitraryURL) { model.selectMode(arbitrary:false,context:context) }.frame(width: 115)
                     PushRemotePopup(values: [""] + (model.remotes.count > 1 ? ["*"] : []) + model.remotes,
-                        selection: Binding(get: { model.options.allRemotes ? "*" : model.options.remote }, set: { model.options.allRemotes = $0 == "*"; if $0 != "*" { model.options.remote = $0 } })).disabled(model.options.arbitraryURL)
-                    Button("Manage") { model.managingRemotes = true }.disabled(model.options.arbitraryURL)
+                        selection: model.remoteBinding(context)).disabled(model.options.arbitraryURL)
+                    Button("Manage") { model.manage(context) }.disabled(model.options.arbitraryURL)
                 }
-                HStack { PushDestinationRadio(title: "Arbitrary URL:", selected: model.options.arbitraryURL) { model.selectArbitraryURL() }.frame(width: 115)
-                    FetchHistoryCombo(value: $model.url, choices: model.urls, label: "Destination URL or path", onDelete: model.deleteURLHistory).disabled(!model.options.arbitraryURL)
+                HStack { PushDestinationRadio(title: "Arbitrary URL:", selected: model.options.arbitraryURL) { model.selectMode(arbitrary:true,context:context) }.frame(width: 115)
+                    FetchHistoryCombo(value: model.urlBinding(context), choices: model.urls, label: "Destination URL or path", onDelete: { model.deleteHistory(0,at:$0,context:context,entries:urlEntries) }).disabled(!model.options.arbitraryURL)
                 }
             }.padding(8) }.disabled(model.preparingSource)
             GroupBox("Options") { VStack(alignment: .leading, spacing: 8) {
-                HStack { Toggle("Force with lease", isOn: $model.options.forceWithLease).disabled(model.options.force || model.options.includeTags)
-                    Toggle("Force", isOn: $model.options.force).disabled(model.options.forceWithLease); Spacer() }
-                Toggle("Include Tags", isOn: $model.options.includeTags).disabled(model.options.forceWithLease)
+                HStack { Toggle("Force with lease", isOn: model.option(\.forceWithLease,context:context)).disabled(model.options.force || model.options.includeTags)
+                    Toggle("Force", isOn: model.option(\.force,context:context)).disabled(model.options.forceWithLease); Spacer() }
+                Toggle("Include Tags", isOn: model.option(\.includeTags,context:context)).disabled(model.options.forceWithLease)
                 SSHAutoloadToggle(settings: model.sshSettings)
-                Toggle("Set upstream/track remote branch", isOn: $model.options.setUpstream).disabled(!model.canTrack || model.options.savePushRemote || model.options.savePushBranch)
-                Toggle("Always push to the selected remote archive for this local branch", isOn: $model.options.savePushRemote).disabled(!model.canSave)
-                Toggle("Always push to the selected remote branch for this local branch", isOn: $model.options.savePushBranch).disabled(!model.canSave)
-                HStack { Text("Recurse submodule").frame(width: 155, alignment: .leading); Picker("Recurse submodule", selection: $model.options.submodules) { Text("None").tag(PushSubmodules.none); Text("Check").tag(PushSubmodules.check); Text("On-demand").tag(PushSubmodules.onDemand) }.labelsHidden(); Spacer() }
-                HStack { Text("Push option:").frame(width: 155, alignment: .leading); FetchHistoryCombo(value: $model.options.pushOption, choices: model.pushOptionHistory, label: "Push option", onDelete: model.deletePushOptionHistory) }
+                Toggle("Set upstream/track remote branch", isOn: model.option(\.setUpstream,context:context)).disabled(!model.canTrack || model.options.savePushRemote || model.options.savePushBranch)
+                Toggle("Always push to the selected remote archive for this local branch", isOn: model.option(\.savePushRemote,context:context)).disabled(!model.canSave)
+                Toggle("Always push to the selected remote branch for this local branch", isOn: model.option(\.savePushBranch,context:context)).disabled(!model.canSave)
+                HStack { Text("Recurse submodule").frame(width: 155, alignment: .leading); Picker("Recurse submodule", selection: model.option(\.submodules,context:context)) { Text("None").tag(PushSubmodules.none); Text("Check").tag(PushSubmodules.check); Text("On-demand").tag(PushSubmodules.onDemand) }.labelsHidden(); Spacer() }
+                HStack { Text("Push option:").frame(width: 155, alignment: .leading); FetchHistoryCombo(value: model.option(\.pushOption,context:context), choices: model.pushOptionHistory, label: "Push option", onDelete: { model.deleteHistory(2,at:$0,context:context,entries:optionEntries) }) }
             }.padding(8) }.disabled(model.preparingSource)
-            }.disabled(model.busy || model.choosingReference)
+            }.disabled(model.busy || model.choosingReference || model.confirmation != nil || model.managingRemotes)
             Spacer(minLength: 0)
             HStack { if model.busy || model.preparingSource { ProgressView().controlSize(.small) }; if model.preparationNeedsRetry { Button("Retry loading", action: model.retryPreparation).disabled(model.busy || model.preparing) }; Spacer()
                 Button("OK") { model.push() }.keyboardShortcut(.defaultAction).disabled(model.busy || model.preparing || model.choosingReference || model.preparationNeedsRetry)
@@ -555,11 +608,6 @@ private struct PushDialog: View {
                 Button("Help") { TurtleGitHelp.show(.push) }
             }
         }.padding(16)
-        .onChange(of: model.options.source) { _ in model.sourceChanged() }
-        .onChange(of: model.options.arbitraryURL) { _ in model.adjustSettings() }
-        .onChange(of: model.options.allRemotes) { _ in model.adjustSettings() }
-        .onChange(of: model.options.allBranches) { _ in model.adjustSettings() }
-        .onChange(of: model.options.setUpstream) { _ in model.adjustSettings() }
         .alert("Push failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .sheet(isPresented: $model.managingRemotes) { PushRemoteSettings(model: model) }
     }
@@ -568,9 +616,10 @@ struct PushDestinationRadio: NSViewRepresentable {
     let title: String; let selected: Bool; let select: () -> Void
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
-    func makeNSView(context: Context) -> NSButton { NSButton(radioButtonWithTitle: title, target: context.coordinator, action: #selector(Coordinator.clicked(_:))) }
-    func updateNSView(_ button: NSButton, context: Context) { button.state = selected ? .on : .off; button.isEnabled = enabled; context.coordinator.select = select }
-    final class Coordinator: NSObject { var select: () -> Void = {}; @objc func clicked(_ sender: NSButton) { select() } }
+    func makeNSView(context: Context) -> NSButton { ReferenceChoiceButton(radioButtonWithTitle: title, target: context.coordinator, action: #selector(Coordinator.clicked(_:))) }
+    func updateNSView(_ button: NSButton, context: Context) { button.state = selected ? .on : .off; button.isEnabled = enabled && (button as? ReferenceChoiceButton)?.retired != true; context.coordinator.select = select }
+    static func dismantleNSView(_ button:NSButton,coordinator:Coordinator) {coordinator.live=false;button.isEnabled=false;button.target=nil;button.action=nil}
+    final class Coordinator: NSObject {var live=true;var select:()->Void={};@objc func clicked(_ sender:NSButton) {guard live,sender.isEnabled,sender.window != nil else{return};select()}}
 }
 
 struct PushRefCombo: NSViewRepresentable {
@@ -581,29 +630,33 @@ struct PushRefCombo: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
-        let combo = NSComboBox(); combo.delegate = context.coordinator; combo.completes = true
+        let combo = EditableHistoryCombo(); combo.delegate = context.coordinator; combo.completes = true
         combo.setContentHuggingPriority(.defaultLow, for: .horizontal); return combo
     }
     func updateNSView(_ combo: NSComboBox, context: Context) {
+        if let owned=combo as? EditableHistoryCombo,owned.lifetime.retired {owned.delegate=nil;owned.isEnabled=false;return}
         let coordinator = context.coordinator; coordinator.updating = true
         defer { coordinator.updating = false }
         coordinator.local = local; coordinator.change = { value = $0 }
-        let values = Array(Set(choices.map { normalizeSource ? PushSourcePresentation.normalized($0) : $0 })).sorted(); let labels = values.map { local && $0.hasPrefix("refs/heads/") ? String($0.dropFirst(11)) : $0 }
-        if coordinator.values != values { combo.removeAllItems(); combo.addItems(withObjectValues: labels) }
+        var seen=Set<GitReferenceName>();let values=choices.map { normalizeSource ? PushSourcePresentation.normalized($0) : $0 }.filter {seen.insert(GitReferenceName($0)).inserted}.sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}; let labels = values.map { local && $0.hasPrefix("refs/heads/") ? String($0.dropFirst(11)) : $0 }
+        if coordinator.values.map({GitReferenceName($0)}) != values.map({GitReferenceName($0)}) { combo.removeAllItems(); combo.addItems(withObjectValues: labels) }
         coordinator.values = values; coordinator.labels = labels
         let display = !normalizeSource && local && value.hasPrefix("refs/heads/") ? String(value.dropFirst(11)) : value
-        if combo.stringValue != display { combo.stringValue = display }
-        combo.isEnabled = enabled; combo.setAccessibilityLabel(local ? "Local ref or revision" : "Remote branch or tag")
+        if !GitReferenceName.equal(combo.stringValue,display) { combo.stringValue = display }
+        combo.isEnabled = enabled && (combo as? EditableHistoryCombo)?.lifetime.retired != true; combo.setAccessibilityLabel(local ? "Local ref or revision" : "Remote branch or tag")
     }
-    final class Coordinator: NSObject, NSComboBoxDelegate {
+    static func dismantleNSView(_ combo:NSComboBox,coordinator:Coordinator) {coordinator.live=false;(combo as? EditableHistoryCombo)?.lifetime.retire();combo.delegate=nil;combo.isEnabled=false}
+    @MainActor final class Coordinator: NSObject, NSComboBoxDelegate {
+        var live=true
+        func accepts(_ combo:NSComboBox)->Bool {live && combo.isEnabled && combo.window != nil && (combo as? EditableHistoryCombo)?.lifetime.retired != true}
         var values: [String] = [], labels: [String] = []; var local = false, updating = false
         var change: (String) -> Void = { _ in }
         func controlTextDidChange(_ notification: Notification) {
-            guard !updating, let combo = notification.object as? NSComboBox else { return }
-            let text = combo.stringValue; change(labels.firstIndex(of: text).map { values[$0] } ?? text)
+            guard !updating, let combo = notification.object as? NSComboBox, accepts(combo) else { return }
+            let text = combo.stringValue; change(labels.firstIndex(where:{GitReferenceName.equal($0,text)}).map { values[$0] } ?? text)
         }
         func comboBoxSelectionDidChange(_ notification: Notification) {
-            guard !updating, let combo = notification.object as? NSComboBox, values.indices.contains(combo.indexOfSelectedItem) else { return }; change(values[combo.indexOfSelectedItem])
+            guard !updating, let combo = notification.object as? NSComboBox, accepts(combo), values.indices.contains(combo.indexOfSelectedItem) else { return }; change(values[combo.indexOfSelectedItem])
         }
     }
 }
@@ -613,16 +666,18 @@ struct PushRemotePopup: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSPopUpButton {
-        let button = NSPopUpButton(frame: .zero, pullsDown: false); button.target = context.coordinator; button.action = #selector(Coordinator.changed(_:)); button.setContentHuggingPriority(.defaultLow, for: .horizontal); return button
+        let button = TransportRemotePopup(frame: .zero, pullsDown: false); button.target = context.coordinator; button.action = #selector(Coordinator.changed(_:)); button.setContentHuggingPriority(.defaultLow, for: .horizontal); return button
     }
     func updateNSView(_ button: NSPopUpButton, context: Context) {
-        if context.coordinator.values != values || button.numberOfItems == 0 { button.removeAllItems(); button.addItems(withTitles: values.map { $0 == "*" ? "– All –" : ($0.isEmpty ? "Choose remote" : $0) }) }
+        if let owned=button as? TransportRemotePopup,owned.lifetime.retired {owned.target=nil;owned.action=nil;owned.isEnabled=false;return}
+        if context.coordinator.values.map({GitReferenceName($0)}) != values.map({GitReferenceName($0)}) || button.numberOfItems == 0 { button.removeAllItems(); for value in values {button.menu?.addItem(NSMenuItem(title:value == "*" ? "– All –" : value.isEmpty ? "Choose remote" : value,action:nil,keyEquivalent:""))} }
         context.coordinator.values = values; context.coordinator.change = { selection = $0 }
-        if let index = values.firstIndex(of: selection) { button.selectItem(at: index) }
-        button.isEnabled = enabled; button.setAccessibilityLabel("Remote archive")
+        if let index = values.firstIndex(where:{GitReferenceName.equal($0,selection)}) { button.selectItem(at: index) }
+        button.isEnabled = enabled && (button as? TransportRemotePopup)?.lifetime.retired != true; button.setAccessibilityLabel("Remote archive")
     }
-    final class Coordinator: NSObject { var values: [String] = []; var change: (String) -> Void = { _ in }
-        @objc func changed(_ sender: NSPopUpButton) { guard values.indices.contains(sender.indexOfSelectedItem) else { return }; change(values[sender.indexOfSelectedItem]) }
+    static func dismantleNSView(_ button:NSPopUpButton,coordinator:Coordinator) {coordinator.live=false;(button as? TransportRemotePopup)?.lifetime.retire();button.target=nil;button.action=nil;button.isEnabled=false}
+    @MainActor final class Coordinator: NSObject {var live=true; var values: [String] = []; var change: (String) -> Void = { _ in }
+        @objc func changed(_ sender: NSPopUpButton) { guard live,sender.isEnabled,sender.window != nil,(sender as? TransportRemotePopup)?.lifetime.retired != true,values.indices.contains(sender.indexOfSelectedItem) else { return }; change(values[sender.indexOfSelectedItem]) }
     }
 }
 

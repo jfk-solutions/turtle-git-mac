@@ -5,8 +5,8 @@ import TurtleGitCore
 @main struct PushHistoryVerification {
     @MainActor static func wait(_ model: PushWindowModel, allowError: Bool = false) async throws {
         let deadline = Date().addingTimeInterval(30)
-        while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        precondition(!model.busy && (allowError || model.error == nil), model.error ?? "Push timed out")
+        while (model.busy || model.preparing) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!model.busy && !model.preparing && (allowError || model.error == nil), model.error ?? "Push timed out")
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -67,6 +67,7 @@ import TurtleGitCore
         sourceSelection.load(source: "refs/heads/collision"); try await wait(sourceSelection)
         precondition(sourceSelection.options.source == "collision" && sourceSelection.localBranch == "collision")
         if let branch = sourceSelection.references.first(where: { $0.name == "refs/heads/collision" }) { sourceSelection.pick(branch, destination: false); precondition(sourceSelection.options.source == "collision") } else { preconditionFailure("Missing local branch") }
+        try await wait(sourceSelection)
         sourceSelection.options.remote = "origin"; sourceSelection.options.destination = "blocked-sourceSelection"; sourceSelection.push(); try await wait(sourceSelection, allowError: true)
         precondition(sourceSelection.error == "Choose an unambiguous local reference or revision.")
         precondition(preferences.stringArray(forKey: branchKey) == savedBranches)
@@ -107,7 +108,9 @@ import TurtleGitCore
         // Exercise the native ordered combo and actual selection delegate without displaying a window.
         var selected = ""; let combo = FetchHistoryCombo.Coordinator(); combo.choices = ["Z", "a", "A"]; combo.change = { selected = $0 }
         let control = NSComboBox(); control.addItems(withObjectValues: combo.choices); control.selectItem(at: 2)
-        combo.comboBoxSelectionDidChange(Notification(name: NSComboBox.selectionDidChangeNotification, object: control)); precondition(selected == "A")
+        let selectionHost = NSWindow(contentRect:NSRect(x:0,y:0,width:500,height:80),styleMask:[.titled],backing:.buffered,defer:false);selectionHost.isReleasedWhenClosed=false
+        selectionHost.contentView?.addSubview(control)
+        combo.comboBoxSelectionDidChange(Notification(name: NSComboBox.selectionDidChangeNotification, object: control)); precondition(selected == "A");selectionHost.close()
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 80), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentViewController = NSHostingController(rootView: FetchHistoryCombo(value: .constant("A"), choices: ["Z", "a", "A"], label: "Push option")); window.contentView?.layoutSubtreeIfNeeded(); window.close()
         func findCombo(_ view: NSView) -> NSComboBox? { if let combo = view as? NSComboBox { return combo }; return view.subviews.compactMap { findCombo($0) }.first }

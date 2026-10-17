@@ -473,3 +473,44 @@ Full workflow, physical and signed acceptance remain partial.
 Core cases, the Debug build and four native groups on both Git engines, including
 the argument-recorder setup repair. Complete hosted/physical/signed parity is
 not established.
+
+## Source transport forms and exact native selections — October 17, 2026
+
+The connected Push/Fetch/Pull options family keeps source group, row and option
+order, with native SSH key handling in the Windows PuTTY row. Explicit hosting
+bounds keep the complete forms and footers within their native windows. Existing
+original source icons remain on Push's Browse References/Log/RefLog menu.
+
+Captured fields and radio/remote/history actions reject replaced bases, active
+pickers/managers, pending confirmations, busy or retired owners. Push still allows
+new source typing to replace an outstanding defaults read; dependent controls stay
+locked until the matching read settles. Source updates and option enablement now
+run in their model-owned mutation paths, avoiding delayed view observers. Fetch
+remote changes run once and preserve existing metadata cancellation/retry logic.
+Disabled Force/Lease/Tags, save/upstream, merge/FF, URL, branch, depth and configured
+Rebase inputs also reject retained callbacks, rather than depending only on their
+visual disabled state. History deletion captures both form and ordered list, so an
+old index cannot remove a newer entry. Accepted history scopes/save order remain.
+
+Push confirmation requests have unique identity and capture all operation options,
+URL and SSH choice. Replaced or duplicate replies cannot execute a different draft,
+dismiss a newer question or save its suppression preference. Choosers likewise
+capture the complete operation draft before return publication. Native radios,
+tri-state Tags/Prune, source/reference/history combos and remote popups retire
+with their actual owner and refuse disabled/dismantled callbacks. Native reference
+deduplication, display matching and remote popup selection use exact UTF-8 names;
+canonically equivalent Git refs/remotes remain distinct. This does not change
+source-specific history case/trim rules or persistent Git settings.
+
+The Debug build and all ten grouped native case/engine checks pass. The initial
+build needed explicit main-actor coordinator isolation. Initial source checks
+passed on both engines; a retained history fixture then submitted before source
+defaults settled. Its wait now includes preparation and settles the pick before
+submission. The final source/history/preparation/picker group passes on both
+engines. Raw review also repaired Rebase left alignment before the final group.
+Six final light/dark images were individually reviewed; all thirteen owned
+receivers from the attempts were reaped and independently absent. Core is
+unchanged and was not repeated. See [batch evidence](qa/transport-source-family-2026-10-17.json)
+for exact attempts, raw capture provenance and scope. Complete physical dropdown/key/focus/VoiceOver/IME,
+source sorting at every locale, signed nested sheets and network credentials,
+Finder activation, sandbox/App Store and full application acceptance remain open.
