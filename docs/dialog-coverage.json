@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 197,
-    "mapped_controls": 1462,
+    "pending_control_reviews": 184,
+    "mapped_controls": 1475,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -260,6 +260,7 @@
         "docs/qa/import-patch-preview-2026-10-08.json",
         "docs/qa/import-patch-quit-2026-10-08.json",
         "docs/qa/import-patch-split-2026-10-08.json",
+        "docs/qa/import-source-family-2026-10-17.json",
         "docs/qa/mail-patch-2026-10-08.json",
         "docs/qa/patch-comparison-2026-10-08.json",
         "docs/qa/patch-edit-save-2026-10-08.json",
@@ -2399,8 +2400,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 14,
-      "mapped_controls": 1,
-      "pending_control_reviews": 13,
+      "mapped_controls": 14,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -2430,6 +2431,7 @@
         "docs/qa/import-patch-preview-2026-10-08.json",
         "docs/qa/import-patch-quit-2026-10-08.json",
         "docs/qa/import-patch-split-2026-10-08.json",
+        "docs/qa/import-source-family-2026-10-17.json",
         "docs/qa/mail-patch-2026-10-08.json",
         "docs/qa/patch-comparison-2026-10-08.json",
         "docs/qa/patch-edit-save-2026-10-08.json",

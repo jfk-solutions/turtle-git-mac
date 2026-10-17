@@ -9,16 +9,23 @@ import TurtleGitCore
     let model: ImportPatchWindowModel
     var onClosed: () -> Void = {}
     private var approvedClose = false
+    private(set) var filePanel:NSOpenPanel?
+    private var filePanelID=UUID()
+    private var question:(UUID,NSAlert,(NSApplication.ModalResponse)->Void)?
+    var presentFiles:(NSOpenPanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void = {panel,owner,reply in panel.beginSheetModal(for:owner,completionHandler:reply)}
+    var selectedFiles:(NSOpenPanel)->[URL] = {$0.urls}
+    var presentQuestion:(NSAlert,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Bool = {alert,owner,reply in guard owner.attachedSheet==nil else{return false};alert.beginSheetModal(for:owner,completionHandler:reply);return true}
     private var patch: PatchWindowController?
     private var review: WorkingTreePatchWindowController?
     private var sendPatch: SendMailWorkflow?
-    var activeOperation: Bool { model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil || review?.activeOperation == true }
+    var activeOperation: Bool { model.pickingFiles || model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil || review?.activeOperation == true }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
         model = ImportPatchWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Apply Patch Serial", preferences: preferences)
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: ImportPatchDialog(model: model))
+        let host=NSHostingController(rootView: ImportPatchDialog(model:model).defaultAppStorage(preferences));host.sizingOptions=[]
+        window.contentViewController=host
         super.init(window: window); window.delegate = self
         window.setContentSize(.init(width: 800, height: 620))
         window.contentMinSize = .init(width: 660, height: 460); window.center()
@@ -93,9 +100,21 @@ import TurtleGitCore
         // Cancel is the safe keyboard default; recovery remains an explicit choice.
         alert.buttons.first?.keyEquivalent = ""; alert.buttons.last?.keyEquivalent = "\r"
         alert.window.defaultButtonCell = alert.buttons.last?.cell as? NSButtonCell
+        let response=await ask(alert)
+        return response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+    }
+    private func ask(_ alert:NSAlert) async -> NSApplication.ModalResponse {
+        guard !model.closed,question==nil,let window,window.attachedSheet==nil else{return .abort}
+        let id=UUID()
         return await withCheckedContinuation { continuation in
-            alert.beginSheetModal(for: window) { continuation.resume(returning: $0.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue) }
+            question=(id,alert,{continuation.resume(returning:$0)})
+            if !presentQuestion(alert,window,{ [weak self] response in self?.settleQuestion(id,response) }) {settleQuestion(id,.abort)}
         }
+    }
+    private func settleQuestion(_ id:UUID,_ response:NSApplication.ModalResponse) {
+        guard let pending=question,pending.0==id else{return};question=nil
+        if let parent=pending.1.window.sheetParent {parent.endSheet(pending.1.window,returnCode:.abort)}
+        pending.1.window.orderOut(nil);pending.2(response)
     }
     private func configureIdentity() async throws -> Bool {
         guard !model.closed, let window, window.attachedSheet == nil else { return false }
@@ -110,7 +129,7 @@ import TurtleGitCore
         let alert = NSAlert(); alert.messageText = "Git identity"; alert.informativeText = "Set user.name and user.email. Existing author/committer overrides remain in effect."
         alert.accessoryView = form; alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Cancel")
         alert.buttons[0].keyEquivalent = ""; alert.buttons[1].keyEquivalent = "\r"; alert.window.defaultButtonCell = alert.buttons[1].cell as? NSButtonCell
-        let response = await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
+        let response = await ask(alert)
         guard !model.closed, request?.isCancelled != true, response == .alertFirstButtonReturn else { return false }
         let userName = name.stringValue.trimmingCharacters(in: .whitespacesAndNewlines), userEmail = email.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !userName.isEmpty, !userEmail.isEmpty, !userName.contains("\0"), !userEmail.contains("\0"), !userName.contains("\n"), !userEmail.contains("\n") else { throw NSError(domain: "TurtleGit.GitIdentity", code: 1, userInfo: [NSLocalizedDescriptionKey: "Enter a nonempty Git name and email without line breaks."]) }
@@ -120,23 +139,30 @@ import TurtleGitCore
         return true
     }
     private func chooseFiles() {
-        guard !activeOperation, model.editable, let window else { return }
-        let panel = NSOpenPanel(); panel.allowsMultipleSelection = true; panel.canChooseDirectories = false
-        panel.title = "Add patches"; panel.directoryURL = model.repository.root
-        panel.beginSheetModal(for: window) { [weak self] response in
-            if response == .OK { self?.model.add(panel.urls) }
+        guard !activeOperation,model.editable,let window else{return}
+        let catalog=model.catalogRevision,flags=model.optionIdentity,id=UUID();filePanelID=id
+        let panel=NSOpenPanel();filePanel=panel;model.pickingFiles=true
+        panel.allowsMultipleSelection=true;panel.canChooseDirectories=false
+        panel.title="Add patches";panel.directoryURL=model.repository.root
+        presentFiles(panel,window) { [weak self,weak panel] response in
+            guard let self,let panel,self.filePanelID==id,self.filePanel === panel else{return}
+            self.filePanel=nil;self.model.pickingFiles=false
+            guard response == .OK,self.model.editable,self.model.catalogRevision==catalog,self.model.optionIdentity==flags else{return}
+            self.model.add(self.selectedFiles(panel))
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if approvedClose { return true }
-        guard review?.activeOperation != true, sender.attachedSheet == nil, !model.confirmingQuit, !model.receivingDrop, !model.openingViewer, !model.composingMail, patch?.model.busy != true, patch?.window?.attachedSheet == nil else { return false }
+        guard review?.activeOperation != true, sender.attachedSheet == nil, !model.confirmingQuit, !model.pickingFiles, !model.receivingDrop, !model.openingViewer, !model.composingMail, patch?.model.busy != true, patch?.window?.attachedSheet == nil else { return false }
         if let review, review.model.dirty {
             Task { [weak self] in if await review.model.resolveDraft() { self?.model.requestClose() } }
         } else { model.requestClose() }
         return false
     }
     func windowWillClose(_ notification: Notification) {
-        model.invalidate()
+        model.invalidate();filePanelID=UUID()
+        if let pending=question {settleQuestion(pending.0,.abort)}
+        if let panel=filePanel {filePanel=nil;panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil);panel.cancel(nil)}
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
         if let window { window.sheetParent?.endSheet(window) }
         patch?.close(); review?.close(); onClosed()
@@ -161,24 +187,53 @@ import TurtleGitCore
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let previewDocument: PatchWindowModel
-    @Published private(set) var items: [Item] = []
+    private(set) static var activeWorkers=0
+    private(set) var catalogRevision=UUID()
+    private var formRevision=UUID()
+    struct FormContext:Equatable {let owner:ObjectIdentifier;let revision:UUID;let catalog:UUID}
+    var formContext:FormContext {.init(owner:ObjectIdentifier(self),revision:formRevision,catalog:catalogRevision)}
+    var optionIdentity:[Bool] {[options.threeWay,options.ignoreSpaceChange,options.signOff,options.keepCR]}
+    private func accepts(_ context:FormContext)->Bool {editable && context==formContext}
+    func option(_ key:WritableKeyPath<MailPatchOptions,Bool>,context:FormContext)->Binding<Bool> {
+        Binding(get:{self.options[keyPath:key]},set:{value in guard self.accepts(context) else{return};self.options[keyPath:key]=value})
+    }
+    func select(_ ids:Set<UUID>,context:FormContext) {guard accepts(context) else{return};selection=ids.intersection(Set(items.map(\.id)))}
+    func check(_ id:UUID,_ value:Bool,context:FormContext) {guard accepts(context) else{return};check(id,value)}
+    func toggleChecks(_ ids:Set<UUID>,context:FormContext) {
+        guard accepts(context) else{return};let eligible=items.filter {ids.contains($0.id) && $0.state != .success}
+        let value = !eligible.allSatisfy(\.checked)
+        for item in eligible {check(item.id,value)}
+    }
+    func move(_ direction:Int,context:FormContext) {guard accepts(context) else{return};move(direction)}
+    func remove(context:FormContext) {guard accepts(context) else{return};remove()}
+    func addFiles(context:FormContext) {guard accepts(context) else{return};chooseFiles()}
+    func apply(context:FormContext) {guard accepts(context) else{return};apply()}
+    func perform(_ action:ContextAction,ids:Set<UUID>,context:FormContext,alternate:Bool=false) {
+        guard accepts(context) else{return}
+        switch action {case .viewPatch:viewPatch(ids,alternate:alternate);case .reviewPatch:reviewPatch(ids);case .sendMail:sendMail(ids)}
+    }
+    var canMoveUp:Bool {editable && items.indices.first(where:{selection.contains(items[$0].id)}).map {$0>0}==true}
+    var canMoveDown:Bool {editable && items.indices.last(where:{selection.contains(items[$0].id)}).map {$0<items.count-1}==true}
+    @Published var pickingFiles=false {didSet {if oldValue != pickingFiles {formRevision=UUID()}}}
+    @Published private(set) var items: [Item] = [] {didSet {catalogRevision=UUID()}}
     @Published var selection: Set<UUID> = [] { didSet { loadPreview() } }
     @Published var options = MailPatchOptions()
     @Published var tab = 0
     @Published private(set) var preview = ""
     @Published private(set) var previewNotice: String?
     @Published private(set) var output = ""
-    @Published private(set) var busy = false { didSet { onStateChanged() } }
+    @Published private(set) var busy = false { didSet { formRevision=UUID();onStateChanged() } }
     @Published private(set) var stopRequested = false
-    @Published var confirmingQuit = false { didSet { onStateChanged() } }
-    @Published private(set) var closing = false { didSet { onStateChanged() } }
-    @Published private(set) var receivingDrop = false
-    @Published private(set) var openingViewer = false
-    @Published private(set) var composingMail = false
+    @Published var confirmingQuit = false { didSet { formRevision=UUID();onStateChanged() } }
+    @Published private(set) var closing = false { didSet { formRevision=UUID();onStateChanged() } }
+    @Published private(set) var receivingDrop = false {didSet {if oldValue != receivingDrop {formRevision=UUID()}}}
+    @Published private(set) var openingViewer = false {didSet {if oldValue != openingViewer {formRevision=UUID()}}}
+    @Published private(set) var composingMail = false {didSet {if oldValue != composingMail {formRevision=UUID()}}}
     @Published var error: String?
     private var failedRow: UUID?
     private var invalidated = false
     private var operation: OperationCancellation?
+    private var dropProgress:[Progress]=[]
     var activeCancellation: OperationCancellation? { operation }
     var closed: Bool { invalidated }
     private(set) var accepted = false
@@ -197,7 +252,7 @@ import TurtleGitCore
     var onChanged: (String) -> Void = { _ in }
     var onMutationStopped: () -> Void = {}
     var finished: Bool { !items.isEmpty && items.allSatisfy { $0.state == .success || $0.state == .skipped } }
-    var editable: Bool { !confirmingQuit && !receivingDrop && !busy && !closing && !openingViewer && !composingMail && !invalidated && !childActive() }
+    var editable: Bool { !pickingFiles && !confirmingQuit && !receivingDrop && !busy && !closing && !openingViewer && !composingMail && !invalidated && !childActive() }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access
         previewDocument = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
@@ -205,10 +260,10 @@ import TurtleGitCore
     }
     func invalidate() {
         guard !invalidated else { return }
-        invalidated = true; operation?.cancel(); operation = nil
+        invalidated = true; operation?.cancel(); operation = nil;dropProgress.forEach {$0.cancel()}
         close = {}; onChanged = { _ in }; onStateChanged = {}
         previewGeneration = UUID(); items = []; selection = []
-        busy = false; closing = false; receivingDrop = false; openingViewer = false; composingMail = false
+        busy = false; closing = false; pickingFiles=false;receivingDrop = false; openingViewer = false; composingMail = false
     }
     private func live(_ request: OperationCancellation) -> Bool { !invalidated && operation === request && !request.isCancelled }
     func contextActions(_ ids: Set<UUID>) -> [ContextAction] {
@@ -218,9 +273,9 @@ import TurtleGitCore
     }
     func viewPatch(_ ids: Set<UUID>, alternate: Bool) {
         guard editable, contextActions(ids).contains(.viewPatch), let item = items.first(where: { ids.contains($0.id) }) else { return }
-        openingViewer = true
+        openingViewer = true;Self.activeWorkers+=1
         Task {
-            defer { openingViewer = false }
+            defer { Self.activeWorkers-=1;openingViewer = false }
             do {
                 // Retain the selected item and its lease through the viewer handoff.
                 // The external viewer receives an exact app-owned byte snapshot.
@@ -232,9 +287,9 @@ import TurtleGitCore
     }
     func reviewPatch(_ ids: Set<UUID>) {
         guard editable, contextActions(ids).contains(.reviewPatch), let item = items.first(where: { ids.contains($0.id) }) else { return }
-        openingViewer = true
+        openingViewer = true;Self.activeWorkers+=1
         Task {
-            defer { openingViewer = false }
+            defer { Self.activeWorkers-=1;openingViewer = false }
             do {
                 let bytes = try await Task.detached { try Data(contentsOf: item.file) }.value
                 guard !invalidated else { return }
@@ -245,8 +300,10 @@ import TurtleGitCore
     func sendMail(_ ids: Set<UUID>) {
         guard editable, contextActions(ids).contains(.sendMail) else { return }
         let selected = items.filter { ids.contains($0.id) }
-        composingMail = true
+        composingMail = true;Self.activeWorkers+=1
+        var completed=false
         composeMail(selected.map(\.file)) { [weak self] error in
+            guard !completed else{return};completed=true;Self.activeWorkers-=1
             // Capture the leases until macOS finishes composing or reports failure.
             _ = selected
             guard let self, !self.invalidated else { return }
@@ -268,18 +325,22 @@ import TurtleGitCore
         guard editable else { return false }
         let files = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
         guard !files.isEmpty else { return false }
-        receivingDrop = true
+        receivingDrop = true;Self.activeWorkers+=1
         Task {
+            defer {Self.activeWorkers-=1;dropProgress=[]}
             var urls: [URL] = []
             var failure: String?
             for provider in files {
+                guard !invalidated else{return}
                 do {
                     let data: Data = try await withCheckedThrowingContinuation { continuation in
-                        provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, error in
+                        let progress=provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, error in
                             if let data { continuation.resume(returning: data) }
                             else { continuation.resume(throwing: error ?? MailPatchFailure.file) }
                         }
+                        dropProgress.append(progress)
                     }
+                    guard !invalidated else{return}
                     guard let url = URL(dataRepresentation: data, relativeTo: nil), url.isFileURL else { throw MailPatchFailure.file }
                     urls.append(url)
                 } catch { failure = error.localizedDescription }
@@ -323,7 +384,9 @@ import TurtleGitCore
     private func loadPreview() {
         let generation = UUID(); previewGeneration = generation; preview = ""; previewNotice = nil; previewDocument.setReadOnlyDiff(Data())
         guard !invalidated, selection.count == 1, let item = items.first(where: { selection.contains($0.id) }) else { return }
+        Self.activeWorkers+=1
         Task {
+            defer {Self.activeWorkers-=1}
             let result = await Task.detached { () -> (Data?, String?) in
                 let size = (try? item.file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
                 guard size < 250 * 1024 * 1024 else { return (nil, "This patch is too large to preview. It can still be imported.") }
@@ -342,8 +405,9 @@ import TurtleGitCore
         let batch = items, flags = options
         let request = OperationCancellation(); operation = request
         busy = true; stopRequested = false; error = nil; tab = 1
+        Self.activeWorkers+=1
         Task {
-            defer { if operation === request { operation = nil; busy = false; if !invalidated { onChanged(output) } } }
+            defer { Self.activeWorkers-=1;if operation === request { operation = nil; busy = false; if !invalidated { onChanged(output) } } }
             do {
                 try checkAccess()
                 guard try await ensureIdentity(request) else { guard !invalidated else { return }; output += "\nImport cancelled before applying patches.\n"; return }
@@ -425,17 +489,19 @@ import TurtleGitCore
         if busy { requestStop(); return }
         guard editable else { return }
         let request = OperationCancellation(); operation = request; closing = true
+        Self.activeWorkers+=1
         Task {
-            defer { if operation === request { operation = nil; closing = false } }
+            defer { Self.activeWorkers-=1;if operation === request { operation = nil; closing = false } }
             if await confirmCloseState(request), live(request) { self.accepted = accepted && finished; close() }
         }
     }
     /// Quit uses the same session choices without closing windows before every
     /// other document has approved termination.
     func confirmQuit() async -> Bool {
-        guard !busy, !closing, !receivingDrop, !openingViewer, !composingMail, !invalidated else { return false }
+        guard !pickingFiles, !busy, !closing, !receivingDrop, !openingViewer, !composingMail, !invalidated else { return false }
         let request = OperationCancellation(); operation = request; closing = true
-        defer { if operation === request { operation = nil; closing = false } }
+        Self.activeWorkers+=1
+        defer { Self.activeWorkers-=1;if operation === request { operation = nil; closing = false } }
         return await confirmCloseState(request) && live(request)
     }
     private func confirmCloseState(_ request: OperationCancellation) async -> Bool {
@@ -470,63 +536,207 @@ import TurtleGitCore
 
 struct ImportPatchDialog: View {
     @ObservedObject var model: ImportPatchWindowModel
-    @AppStorage("ShowAppContextMenuIcons") private var contextIcons = true
     private func tool(_ title: String, _ icon: MenuIcon, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) { HStack { Image(nsImage: icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(title) } }
+        Button(action: action) { HStack { Image(nsImage: icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(title);Spacer(minLength:0) } }
     }
     var body: some View {
+        let context=model.formContext
         VStack(alignment: .leading, spacing: 10) {
             ImportPatchSplit(upper: AnyView(VStack(alignment: .leading, spacing: 10) {
-            HStack { Text("Patch files:"); Spacer()
-                tool("Up", .jumpUp) { model.move(-1) }.disabled(model.selection.isEmpty)
-                tool("Down", .jumpDown) { model.move(1) }.disabled(model.selection.isEmpty)
-                tool("Remove", .remove) { model.remove() }.disabled(model.selection.isEmpty)
-                tool("Add…", .add) { model.chooseFiles() }
-            }.disabled(!model.editable)
-            Table(model.items, selection: $model.selection) {
-                TableColumn("") { item in Toggle("Import \(item.file.lastPathComponent)", isOn: Binding(get: { item.checked }, set: { model.check(item.id, $0) })).labelsHidden().disabled(!model.editable || item.state == .success) }.width(28)
-                TableColumn("Path") { item in Text(item.file.path).help(item.file.path) }
-                TableColumn("Status") { item in Text(item.state.rawValue).foregroundStyle(item.state == .failed ? Color.red : item.state == .success ? .green : item.state == .applying ? .blue : .secondary) }.width(85)
-            }.contextMenu(forSelectionType: UUID.self) { ids in
-                ForEach(model.contextActions(ids), id: \.self) { action in
-                    Button {
-                        switch action {
-                        case .viewPatch: model.viewPatch(ids, alternate: NSEvent.modifierFlags.contains(.shift))
-                        case .reviewPatch: model.reviewPatch(ids)
-                        case .sendMail: model.sendMail(ids)
-                        }
-                    } label: {
-                        HStack {
-                            if contextIcons { Image(nsImage: (action == .sendMail ? MenuIcon.sendMail : .patch).image() ?? NSImage()) }
-                            Text(action.rawValue)
-                        }
-                    }
-                }
-            } primaryAction: { ids in model.viewPatch(ids, alternate: NSEvent.modifierFlags.contains(.shift)) }
-            .frame(minHeight: 120)
-            .onDrop(of: [UTType.fileURL], isTargeted: nil) { model.receiveDrop($0) }
+            HStack(alignment:.top,spacing:12) {
+                ImportPatchNativeList(model:model).frame(minHeight:120)
+                    .onDrop(of:[UTType.fileURL],isTargeted:nil) {model.receiveDrop($0)}
+                VStack(spacing:8) {
+                    tool("Add…",.add) {model.addFiles(context:context)}
+                    tool("Up",.jumpUp) {model.move(-1,context:context)}.disabled(!model.canMoveUp)
+                    tool("Down",.jumpDown) {model.move(1,context:context)}.disabled(!model.canMoveDown)
+                    tool("Remove",.remove) {model.remove(context:context)}.disabled(model.selection.isEmpty)
+                }.frame(width:100).disabled(!model.editable)
+            }
             HStack {
-                Toggle("3-way", isOn: $model.options.threeWay)
-                Toggle("Ignore space change", isOn: $model.options.ignoreSpaceChange)
-                Toggle("Sign-off", isOn: $model.options.signOff)
-                Toggle("Keep CR", isOn: $model.options.keepCR)
+                Toggle("3 way merge", isOn: model.option(\.threeWay,context:context))
+                Toggle("Ignore space change", isOn: model.option(\.ignoreSpaceChange,context:context))
+                Toggle("Add \"Signed-off-by\"", isOn: model.option(\.signOff,context:context))
+                Toggle("Keep CR", isOn: model.option(\.keepCR,context:context))
             }.disabled(!model.editable)
-            }), lower: AnyView(TabView(selection: $model.tab) {
-                Group {
-                    if let notice = model.previewNotice { ScrollView { Text(notice).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(12) } }
-                    else { PatchTextView(model: model.previewDocument) }
-                }.tabItem { Text("Patch") }.tag(0)
-                OutputView(text: model.output, usesLogFont: true).tabItem { Text("Log") }.tag(1)
-            }), preferences: model.previewDocument.appearancePreferences)
+            }), lower: AnyView(ImportPatchTabs(model:model)), preferences: model.previewDocument.appearancePreferences)
             HStack {
                 if model.busy { ProgressView().controlSize(.small); Text(model.stopRequested ? "Stopping after current command…" : "Applying patches…") }
                 Spacer()
-                Button(model.finished ? "OK" : "Apply") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.editable || model.items.isEmpty)
-                Button(model.busy ? "Abort" : "Cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.confirmingQuit || model.receivingDrop || model.closing || model.stopRequested && model.busy)
-                Button("Help") { TurtleGitHelp.show(.patches) }
+                Button(model.finished ? "OK" : "Apply") { model.apply(context:context) }.keyboardShortcut(.defaultAction).disabled(!model.editable || model.items.isEmpty)
+                Button(model.busy ? "Abort" : "Cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.pickingFiles || model.confirmingQuit || model.receivingDrop || model.closing || model.stopRequested && model.busy)
+                Button { TurtleGitHelp.show(.patches) } label: {CommandLabel(title:"Help",icon:.help)}
             }
         }.padding(16)
         .alert("Apply Patch Serial", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+    }
+}
+
+/// Keep the source Patch/Log tabs inside the preview pane on every supported macOS.
+struct ImportPatchTabs:NSViewRepresentable {
+    @ObservedObject var model:ImportPatchWindowModel
+    func makeCoordinator()->Coordinator {Coordinator()}
+    func makeNSView(context:Context)->NSTabView {
+        let tabs=NSTabView();tabs.tabViewType = .topTabsBezelBorder;tabs.font = .systemFont(ofSize:NSFont.systemFontSize);tabs.delegate=context.coordinator
+        tabs.setAccessibilityLabel("Patch and Log")
+        for (index,title) in ["Patch","Log"].enumerated() {
+            let host=NSHostingController(rootView:AnyView(EmptyView()));host.sizingOptions=[]
+            context.coordinator.hosts.append(host)
+            let item=NSTabViewItem(identifier:index);item.label=title;item.view=host.view;tabs.addTabViewItem(item)
+        };return tabs
+    }
+    func updateNSView(_ tabs:NSTabView,context:Context) {
+        let coordinator=context.coordinator;guard !coordinator.retired else{return}
+        coordinator.model=model;coordinator.updating=true;defer {coordinator.updating=false}
+        coordinator.hosts[0].rootView=AnyView(ImportPatchPreview(model:model).environment(\.colorScheme,context.environment.colorScheme).environment(\.isEnabled,context.environment.isEnabled).defaultAppStorage(model.previewDocument.appearancePreferences))
+        coordinator.hosts[1].rootView=AnyView(OutputView(text:model.output,usesLogFont:true).environment(\.colorScheme,context.environment.colorScheme).environment(\.isEnabled,context.environment.isEnabled).defaultAppStorage(model.previewDocument.appearancePreferences))
+        if tabs.selectedTabViewItem?.identifier as? Int != model.tab,tabs.tabViewItems.indices.contains(model.tab) {tabs.selectTabViewItem(at:model.tab)}
+    }
+    static func dismantleNSView(_ tabs:NSTabView,coordinator:Coordinator) {coordinator.retired=true;coordinator.model=nil;tabs.delegate=nil}
+    @MainActor final class Coordinator:NSObject,NSTabViewDelegate {
+        weak var model:ImportPatchWindowModel?
+        var hosts:[NSHostingController<AnyView>]=[]
+        var updating=false,retired=false
+        func tabView(_ tabView:NSTabView,didSelect tabViewItem:NSTabViewItem?) {
+            guard !retired,!updating,let model,!model.closed,let index=tabViewItem?.identifier as? Int else{return};model.tab=index
+        }
+    }
+}
+private struct ImportPatchPreview:View {
+    @ObservedObject var model:ImportPatchWindowModel
+    var body:some View {
+        Group {
+            if let notice=model.previewNotice {ScrollView {Text(notice).foregroundStyle(.secondary).frame(maxWidth:.infinity,alignment:.leading).padding(12)}}
+            else {PatchTextView(model:model.previewDocument)}
+        }
+    }
+}
+
+@MainActor private final class ImportPatchMenuCommand:NSObject {
+    let action:()->Void
+    init(_ action:@escaping ()->Void) {self.action=action}
+    @objc func invoke(_ sender:Any?) {action()}
+}
+@MainActor final class ImportPatchCheckButton:NSButton {
+    var toggle:(Bool)->Void={_ in}
+    convenience init() {self.init(frame:.zero);setButtonType(.switch);title="";target=self;action=#selector(changed(_:))}
+    @objc private func changed(_ sender:NSButton) {guard isEnabled,window != nil else{return};toggle(state == .on)}
+}
+@MainActor final class ImportPatchNativeTable:NSTableView {
+    let lifetime=TransportControlLifetime()
+    var buildMenu:()->NSMenu?={nil}
+    var activate:()->Void={}
+    var toggleChecks:()->Void={}
+    var contentWidth:CGFloat=300
+    override func viewDidMoveToWindow() {super.viewDidMoveToWindow();lifetime.observe(self)}
+    override func menu(for event:NSEvent)->NSMenu? {
+        guard isEnabled,!lifetime.retired else{return nil}
+        let row=self.row(at:convert(event.locationInWindow,from:nil))
+        if row>=0,!selectedRowIndexes.contains(row) {selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false)}
+        return buildMenu()
+    }
+    override func keyDown(with event:NSEvent) {
+        guard isEnabled,!lifetime.retired else{return}
+        if event.keyCode==36 {activate();return}
+        if event.keyCode==49 {toggleChecks();return}
+        super.keyDown(with:event)
+    }
+    func fitViewport(_ viewport:NSSize) {
+        let width=max(contentWidth,viewport.width)
+        if tableColumns.first?.width != width {tableColumns.first?.width=width}
+        let size=NSSize(width:width,height:max(CGFloat(numberOfRows)*(rowHeight+intercellSpacing.height),viewport.height))
+        if frame.size != size {setFrameSize(size)}
+    }
+}
+@MainActor final class ImportPatchNativeScroll:NSScrollView {
+    private var fitting=false
+    override func tile() {super.tile();guard !fitting,let table=documentView as? ImportPatchNativeTable else{return};fitting=true;defer {fitting=false};table.fitViewport(contentSize)}
+}
+struct ImportPatchNativeList:NSViewRepresentable {
+    @ObservedObject var model:ImportPatchWindowModel
+    func makeCoordinator()->Coordinator {Coordinator(model)}
+    func makeNSView(context:Context)->NSScrollView {
+        let table=ImportPatchNativeTable();table.headerView=nil;table.allowsMultipleSelection=true;table.rowHeight=24;table.columnAutoresizingStyle = .noColumnAutoresizing
+        table.setAccessibilityLabel("Patch files");table.identifier = .init("ImportPatch.Files")
+        let column=NSTableColumn(identifier:.init("path"));column.maxWidth = .greatestFiniteMagnitude;table.addTableColumn(column)
+        table.delegate=context.coordinator;table.dataSource=context.coordinator;table.target=context.coordinator;table.doubleAction=#selector(Coordinator.viewPatch(_:))
+        table.buildMenu={ [weak coordinator=context.coordinator] in coordinator?.menu() }
+        table.activate={ [weak coordinator=context.coordinator] in coordinator?.viewPatch(nil) }
+        table.toggleChecks={ [weak coordinator=context.coordinator] in guard let coordinator,coordinator.available,let context=coordinator.context else{return};coordinator.model.toggleChecks(coordinator.selectedIDs,context:context) }
+        context.coordinator.table=table
+        let scroll=ImportPatchNativeScroll();scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.borderType = .bezelBorder;scroll.documentView=table;return scroll
+    }
+    func updateNSView(_ scroll:NSScrollView,context:Context) {context.coordinator.model=model;context.coordinator.update()}
+    static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {
+        coordinator.retired=true;coordinator.table?.lifetime.retire();coordinator.table?.delegate=nil;coordinator.table?.dataSource=nil;coordinator.table?.buildMenu={nil};coordinator.table?.activate={};coordinator.table?.toggleChecks={}
+    }
+    @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate {
+        var model:ImportPatchWindowModel
+        weak var table:ImportPatchNativeTable?
+        var retired=false,updating=false
+        fileprivate var context:ImportPatchWindowModel.FormContext?
+        private var rows:[ImportPatchWindowModel.Item]=[]
+        private var renderedRevision:UUID?
+        private var applying:UUID?
+        init(_ model:ImportPatchWindowModel) {self.model=model}
+        var available:Bool {!retired && table?.lifetime.retired==false && table?.window != nil && model.editable}
+        var selectedIDs:Set<UUID> {Set(table?.selectedRowIndexes.compactMap {rows.indices.contains($0) ? rows[$0].id:nil} ?? [])}
+        func update() {
+            guard !retired,let table,!table.lifetime.retired else{return}
+            updating=true;defer {updating=false}
+            let changedContext=context != model.formContext
+            context=model.formContext
+            if renderedRevision != model.catalogRevision || changedContext {
+                let origin=table.enclosingScrollView?.contentView.bounds.origin ?? .zero
+                rows=model.items;renderedRevision=model.catalogRevision;table.reloadData()
+                table.enclosingScrollView?.contentView.scroll(to:origin)
+            }
+            let selected=IndexSet(rows.indices.filter {model.selection.contains(rows[$0].id)})
+            if selected != table.selectedRowIndexes {table.selectRowIndexes(selected,byExtendingSelection:false)}
+            table.isEnabled=model.editable
+            let font=NSFont.systemFont(ofSize:NSFont.systemFontSize)
+            table.contentWidth=max(300,rows.map {($0.file.path as NSString).size(withAttributes:[.font:font]).width+45}.max() ?? 0)
+            table.fitViewport(table.enclosingScrollView?.contentSize ?? .zero)
+            let nextApplying=rows.first(where:{$0.state == .applying})?.id
+            if nextApplying != applying,let id=nextApplying,let index=rows.firstIndex(where:{$0.id==id}) {table.scrollRowToVisible(index)}
+            applying=nextApplying
+        }
+        func numberOfRows(in tableView:NSTableView)->Int {rows.count}
+        func tableView(_ tableView:NSTableView,viewFor tableColumn:NSTableColumn?,row:Int)->NSView? {
+            guard rows.indices.contains(row),let context else{return nil}
+            let item=rows[row],cell=NSTableCellView(),button=ImportPatchCheckButton()
+            button.frame=NSRect(x:3,y:2,width:22,height:20);button.state=item.checked ? .on:.off;button.isEnabled=model.editable && item.state != .success
+            button.setAccessibilityLabel("Import "+item.file.lastPathComponent)
+            button.toggle={ [weak model,weak table] value in guard table?.lifetime.retired==false else{return};model?.check(item.id,value,context:context) }
+            let text=NSTextField(labelWithString:item.file.path);text.frame=NSRect(x:29,y:2,width:max(270,(table?.contentWidth ?? 300)-34),height:20);text.autoresizingMask=[.width]
+            text.font = item.state == .applying ? .boldSystemFont(ofSize:NSFont.systemFontSize):.systemFont(ofSize:NSFont.systemFontSize)
+            switch item.state {case .failed:text.textColor = .systemRed;case .success:text.textColor = .systemGreen;case .skipped:text.textColor = .systemBrown;default:text.textColor = .labelColor}
+            text.lineBreakMode = .byClipping;cell.addSubview(button);cell.addSubview(text);cell.textField=text;cell.toolTip=item.file.path+(item.state.rawValue.isEmpty ? "":" — "+item.state.rawValue)
+            return cell
+        }
+        func tableView(_ tableView:NSTableView,rowViewForRow row:Int)->NSTableRowView? {
+            guard rows.indices.contains(row) else{return nil}
+            let view=NSTableRowView()
+            if [.success,.failed,.skipped].contains(rows[row].state) {
+                view.backgroundColor=NSColor(name:nil) {appearance in NSColor(white:appearance.bestMatch(from:[.darkAqua,.aqua]) == .darkAqua ? 0.25:0.78,alpha:1)}
+            };return view
+        }
+        func selectionShouldChange(in tableView:NSTableView)->Bool {updating || available}
+        func tableViewSelectionDidChange(_ notification:Notification) {guard !updating,available,let context else{return};model.select(selectedIDs,context:context)}
+        @objc func viewPatch(_ sender:Any?) {guard available,let context else{return};model.perform(.viewPatch,ids:selectedIDs,context:context,alternate:NSEvent.modifierFlags.contains(.shift))}
+        func menu()->NSMenu? {
+            guard available,let context else{return nil}
+            let ids=selectedIDs,menu=NSMenu();menu.autoenablesItems=false
+            for action in model.contextActions(ids) {
+                let entry=NSMenuItem(title:action.rawValue,action:nil,keyEquivalent:"")
+                entry.image=(action == .sendMail ? MenuIcon.sendMail:.patch).contextImage(defaults:model.previewDocument.appearancePreferences)
+                let command=ImportPatchMenuCommand { [weak self,weak model] in
+                    guard let self,self.available,let model,self.model === model else{return}
+                    model.perform(action,ids:ids,context:context,alternate:NSEvent.modifierFlags.contains(.shift))
+                }
+                entry.target=command;entry.action=#selector(ImportPatchMenuCommand.invoke(_:));entry.representedObject=command;menu.addItem(entry)
+            };return menu
+        }
     }
 }
 
@@ -536,7 +746,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     let lower: AnyView
     let preferences: UserDefaults
     private func hosted(_ view: AnyView, environment: EnvironmentValues) -> AnyView {
-        AnyView(view.environment(\.self, environment).defaultAppStorage(preferences))
+        AnyView(view.environment(\.colorScheme,environment.colorScheme).environment(\.isEnabled,environment.isEnabled).defaultAppStorage(preferences))
     }
     func makeNSViewController(context: Context) -> ImportPatchSplitController {
         ImportPatchSplitController(upper: hosted(upper, environment: context.environment), lower: hosted(lower, environment: context.environment), preferences: preferences)

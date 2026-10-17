@@ -53,8 +53,9 @@ are checked using environment overrides, role-specific configuration and user
 configuration in that order. Git validates both identities. Missing fields offer
 Configure or Cancel; Configure opens a native name/email sheet with repository
 and global scopes. Saving retries the check; Cancel applies no patch. Existing
-author/committer overrides remain in effect. This is the identity portion of the
-upstream Git settings workflow; the full Git configuration page remains pending.
+author/committer overrides remain in effect. This identity sheet complements the native configuration pages described in
+[GIT-CONFIGURATION-PARITY](GIT-CONFIGURATION-PARITY.md); full source acceptance
+remains pending.
 
 [Identity QA](qa/import-patch-identity-2026-10-08.json) checks cancellation and a
 name-only configuration followed by email configuration, then two real imports
@@ -615,3 +616,45 @@ listing all initial-state and conflict preview behavior as absent is historical;
 the continuation records the implemented paths and remaining special-file scope.
 
 Binary, symbolic-link and deletion conflicts use [explicit patch recovery choices](PATCH-SPECIAL-RECOVERY-PARITY.md).
+
+## Source serial-import form and native list — October 17, 2026
+
+The serial-import window now follows `IDD_APPLY_PATCH_LIST`: a headerless checked
+path list, Add/Up/Down/Remove vertically to its right, four options below, a saved
+horizontal divider, Patch/Log tabs and Apply/Cancel/Help. Native multiple selection,
+checkboxes and Space checking retain stable row identities. Full paths scroll
+horizontally. Applying rows use bold text and scroll into view; successful, failed
+and skipped rows use green, red and brown text with an adapted gray background.
+This replaces the separate Status column and top toolbar. Native context commands
+and double-click View Patch retain original icons and captured row/catalog intent.
+
+Option/list/menu/toolbar callbacks capture their form lifetime. Busy, picker,
+Quit and catalog changes retire older callbacks. Add owns one file panel and
+compares its original catalog/options before accepting a reply. Forced closure
+cancels that panel; replacement/late/duplicate replies cannot add files. Recovery,
+close and identity questions now use one owned, once-only native alert relay;
+forced closure settles the pending answer before a retained reply can mutate Git.
+
+Actual imports, close/quit checks, drop providers, preview/viewer reads and mail
+completion retain an active worker count through their actual completion. Forced
+window closure cancels Git and suppresses late publication while keeping Quit
+ownership until work drains. Mail completion is consumed once. Underlying Core
+mail-import arguments and Git recovery behavior are unchanged in this batch.
+Physical list/drag/keyboard and sheet behavior, full Windows geometry/colors,
+large inputs and signed sandbox/Finder/App Store acceptance remain open.
+
+Patch/Log now use native in-pane tabs on macOS 13 and later, so newer macOS
+versions cannot move them into the title bar. Nested hosts propagate the explicit
+appearance and enabled state while retaining their own native environment; this
+keeps labels, checkboxes and patch colors readable in both appearances. Closing
+also cancels the item providers' Progress objects and refuses further provider
+loads after retirement; a noncooperative provider still owns Quit until it replies.
+
+[Grouped source batch evidence](qa/import-source-family-2026-10-17.json) records
+four final-build case/engine passes, initial compilation/capture/fixture repairs,
+the strengthened EOF/single-record menu assertions and all twelve receiver PIDs
+independently absent. The full retained workflow passes with both Git engines.
+
+![Apply Patch Serial, light](site/assets/import-patch-source-light.png)
+
+![Apply Patch Serial, dark](site/assets/import-patch-source-dark.png)

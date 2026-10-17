@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "76be1a71e05a1680d2619f58eb310d79c286abf7",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source headerless checked path list and right-side Add/Up/Down/Remove with original icons",
+    "Native row selection/checks/Space, full-path horizontal document, captured context menus and default viewer route",
+    "Four source option labels/defaults, movement boundary gates, saved splitter and native in-pane Patch/Log tabs",
+    "Source Applying bold/scroll and adapted successful/failed/skipped row colors/background",
+    "Captured form/catalog callbacks, owned file picker and once-only recovery/close/identity alerts",
+    "Retained task/provider/mail/preview ownership through forced closure; provider Progress cancellation and global Quit count",
+    "13 newly mapped source controls; 14/14 partial static mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/import-source-build-2026-10-17.log",
+      "exit": 65,
+      "repair": "Reference browser menu command is file-private; add an import-owned command relay."
+    },
+    {
+      "log": "build/qa/import-source-build-repair-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3
+    },
+    {
+      "log": "build/qa/import-source-tabs-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 3,
+      "reason": "Capture review found SwiftUI tabs moved into title bar. Add native in-pane tabs and cancel owned provider Progress objects."
+    },
+    {
+      "log": "build/qa/import-source-appearance-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "reason": "Capture exposed nested full-environment appearance contamination. Bridge explicit colorScheme/isEnabled and preference store rather than internal whole EnvironmentValues."
+    }
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false,
+    "reason": "Native UI/lifetime changes; real serial am/recovery, session, repository state, cancellation and editor checks retained in native workflow."
+  },
+  "native": {
+    "distinct_case_engine_passes": 4,
+    "final_build_case_engine_passes": 4,
+    "cases": [
+      "source",
+      "workflow"
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/import-source-native-2026-10-17.log",
+        "exit": "SIGTRAP 5",
+        "passed_case_engine_pairs": 2,
+        "failure": "Retained comparison fixture expected 120 rows before source EOF post-pass; actual 121."
+      },
+      {
+        "log": "build/qa/import-source-workflow-diagnostic-2026-10-17.log",
+        "exit": "SIGTRAP 5",
+        "failure": "Diagnostic confirms idle alignment 121 with no errors. Replace obsolete count with exact terminal record coordinates and byte reconstruction assertions."
+      },
+      {
+        "log": "build/qa/import-source-native-tabs-2026-10-17.log",
+        "exit": "SIGTRAP 5",
+        "passed_case_engine_pairs": 2,
+        "failure": "Retained one-line Go to Line gate fixture now has two records including final empty NoEnding. Keep enabled two-record assertion and add true no-ending single-record native disabled-menu fixture."
+      },
+      {
+        "log": "build/qa/import-source-workflow-repair-2026-10-17.log",
+        "exit": "SIGTRAP 5",
+        "failure": "New single-record helper awaited between selection/menu capture and Copy check, allowing native selection to move. Move helper after clipboard assertions; preserve four-character copy assertion."
+      },
+      {
+        "log": "build/qa/import-source-native-appearance-2026-10-17.log",
+        "exit": 0,
+        "passed_case_engine_pairs": 4,
+        "scope": "Both source and full retained workflow pass on the final appearance build, including actual checked controls/tabs, captured picker/menu, real serial imports/signoff, conflict recovery, provider cancellation/Quit, lifecycle forced Git closure, comparison editing and output ownership."
+      }
+    ],
+    "receiver_pids": [
+      41320,
+      41448,
+      41557,
+      41914,
+      42335,
+      42464,
+      42591,
+      42999,
+      43386,
+      43527,
+      43640,
+      44787
+    ],
+    "independent_ps_all_absent": true,
+    "fixture_helper_paths_absent": true,
+    "cleanup": "Each receiver is reaped with its owned group; source cleanup closes Import/Review controllers and drains active Import workers. Retained lifecycle and generator cases assert their real helper process groups disappear.",
+    "diagnostics": "Builds retain Xcode exit-zero/no-output diagnostics. Hidden native fixture warnings are not physical UI acceptance."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/import-patch-source-light.png",
+      "width": 1600,
+      "height": 1304,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit, child windows excluded, user focus preserved. Final explicit appearance bridge and native in-pane tabs."
+    },
+    {
+      "path": "docs/site/assets/import-patch-source-dark.png",
+      "width": 1600,
+      "height": 1304,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit, child windows excluded, user focus preserved. Final explicit appearance bridge and native in-pane tabs."
+    }
+  ],
+  "remaining": [
+    "Full source workflow/menu/geometry acceptance",
+    "Physical multi-selection, Space/Return, pointer drag and sheets/VoiceOver",
+    "All unusual path spellings and large files/provider failures",
+    "External viewer/mail and real identity/global-config interaction",
+    "Signed sandbox/security-scope/Finder/Keychain and minimum-macOS acceptance",
+    "Complete passing hosted macOS CI",
+    "Fresh universal preview and signed/notarized/App Store release"
+  ]
+}

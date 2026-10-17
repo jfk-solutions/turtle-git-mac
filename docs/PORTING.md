@@ -2,6 +2,15 @@
 
 *A macOS fork of TortoiseGit*
 
+The [serial-import source family](IMPORT-PATCH-PARITY.md) now uses a native
+headerless checked list with right-side source commands, colored row outcomes,
+four options, saved divider and in-pane Patch/Log tabs. Captured input/menu
+callbacks, owned picker/questions and retained worker/provider cancellation
+connect the form to real serial imports and recovery. Both source and full
+retained workflows pass with system/bundled Git on the final build; twelve
+receivers and their fixture helper paths are absent. See [batch evidence](qa/import-source-family-2026-10-17.json)
+for the capture/fixture repairs, actual screenshots and open acceptance gates.
+
 The connected [reference browser](REFERENCE-BROWSER-PARITY.md) and
 [remote-tag dialog](REMOTE-TAGS-PARITY.md) now add source filter cues, synchronous
 filter/scope handling, captured OK range choices and full-width native tag

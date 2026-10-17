@@ -47,6 +47,22 @@ import TurtleGitCore
         if let table = view as? NSTableView { return table }
         return view.subviews.compactMap { nativeTable($0) }.first
     }
+    @MainActor static func verifySingleLineNavigation(root:URL,prefs:UserDefaults,board:NSPasteboard) async throws {
+        let folder=root.appendingPathComponent("single-line-navigation");try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        let a=folder.appendingPathComponent("base"),b=folder.appendingPathComponent("mine")
+        try Data("base".utf8).write(to:a);try Data("mine".utf8).write(to:b)
+        let model=FileComparisonWindowModel(comparison:try WorkingFileComparison(base:a,destination:b),permissions:[])
+        model.editorPreferences = .load(from:prefs);model.load();defer {model.retireImageLoader()}
+        for _ in 0..<1000 {if !model.busy && !model.filtering {break};try await Task.sleep(nanoseconds:10_000_000)}
+        precondition(model.error==nil && model.alignment?.rows.count==1)
+        let host=NSHostingView(rootView:FileComparisonEditor(model:model,cells:model.alignment!.rows.map(\.destination),base:false))
+        let window=NSWindow(contentRect:NSRect(x:0,y:0,width:500,height:300),styleMask:[.titled],backing:.buffered,defer:false)
+        window.isReleasedWhenClosed=false;window.contentView=host;defer {window.close()}
+        func text(_ root:NSView)->NSTextView? {if let text=root as? NSTextView{return text};return root.subviews.compactMap {text($0)}.first}
+        for _ in 0..<1000 {host.layoutSubtreeIfNeeded();if let view=text(host),let navigation=view as? MergeLineNavigationProviding,navigation.navigationAllowed {break};try await Task.sleep(nanoseconds:10_000_000)}
+        let view=text(host)!,menu=(view as! ComparisonContextMenuProviding).comparisonContextMenu(defaults:prefs,pasteboard:board)
+        precondition(!menu.item(withTitle:"Go to Line…")!.isEnabled)
+    }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
@@ -170,7 +186,11 @@ import TurtleGitCore
                (right.documentView?.frame.height ?? 0) > right.contentView.bounds.height + 220 { break }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
-        precondition(!scrollModel.busy && scrollModel.alignment?.rows.count == 120)
+        // Source two-pane EOF repair retains a final empty NoEnding record.
+        precondition(!scrollModel.busy && scrollModel.alignment?.rows.count == 121)
+        let terminal=scrollModel.alignment!.rows.last!
+        precondition(terminal.base.text.isEmpty && terminal.destination.text.isEmpty && terminal.base.lineNumber==121 && terminal.destination.lineNumber==121)
+        precondition(scrollModel.alignment!.rows.map(\.base.text).joined()==longBefore && scrollModel.alignment!.rows.map(\.destination.text).joined()==longAfter)
         let leftScroll = scrollModel.beforeScroll!, rightScroll = scrollModel.afterScroll!
         leftScroll.contentView.scroll(to: NSPoint(x: 0, y: 220)); leftScroll.reflectScrolledClipView(leftScroll.contentView)
         for _ in 0..<1000 {
@@ -219,7 +239,7 @@ import TurtleGitCore
         precondition(prompt.ok.isEnabled && MergeLineNumberPrompt.validated("02", limit: 2) == 2)
         let comparisonMenus = editedView as! ComparisonContextMenuProviding
         let menu = comparisonMenus.comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard)
-        precondition(!menu.item(withTitle: "Go to Line…")!.isEnabled) // Source single-line gate.
+        precondition(menu.item(withTitle: "Go to Line…")!.isEnabled && edit.alignment?.rows.count==2) // Text plus source final NoEnding record.
         precondition(["Copy", "Cut", "Paste"].allSatisfy { menu.item(withTitle: $0)?.image != nil && menu.item(withTitle: $0)?.isEnabled == true })
         // Clipboard commands now own the injected private pasteboard through a
         // retained adapter. Verify its actual route instead of requiring the
@@ -253,6 +273,7 @@ import TurtleGitCore
         precondition(!beforeMenu.item(withTitle: "Cut")!.isEnabled && !beforeMenu.item(withTitle: "Paste")!.isEnabled)
         beforeView.setSelectedRange(NSRange(location: 0, length: 0)); editedView.setSelectedRange(NSRange(location: 0, length: 0)); edit.editor!.selectedRows = nil
         print("PASS: actual aligned comparison menu clipboard targets/artwork, icon-off policy without standard-selector glyph fallback, private Paste availability, read-only and busy/Quit editing metadata. No synthetic context events or general clipboard writes.")
+        try await verifySingleLineNavigation(root:root,prefs:prefs,board:menuClipboard)
         @MainActor func verifyRetiredCopy(_ editor: FileComparisonWindowModel) {
             editor.retireImageLoader()
             precondition(!editor.copyCommandsAllowed)
