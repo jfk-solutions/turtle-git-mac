@@ -394,8 +394,11 @@ jobs:
         run: python3 scripts/test-configured-smtp.py
       - name: Native bundled SSH encrypted-key loading and process cleanup
         run: python3 scripts/test-bundled-ssh-agent.py --app build/Build/Products/Debug/TurtleGitMac.app
-      - name: Native Submodule Update selection gestures without visible windows
-        run: python3 scripts/test-submodule-update-selection.py
+      - name: Grouped native Submodule Add and Update source forms, selection and progress
+        run: >-
+          python3 scripts/test-submodule-source-family.py
+          --git /usr/bin/git
+          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Grouped native RefLog comparisons, ranges and revision handoffs with one compilation
         run: >-
           python3 scripts/test-native-reflog-batch.py
@@ -421,8 +424,6 @@ jobs:
         run: python3 scripts/test-ssh-coordinator.py
       - name: Native Submodule Sync
         run: python3 scripts/test-submodule-sync.py
-      - name: Native Submodule Update progress
-        run: python3 scripts/test-submodule-update-progress.py
       - name: Native submodule progress output controls
         run: python3 scripts/test-submodule-progress-output.py
       - name: Native Log revision popup variants

@@ -2848,7 +2848,8 @@
         "docs/qa/help-book-2026-10-15.json",
         "docs/qa/submodule-add-2026-10-09.json",
         "docs/qa/submodule-add-progress-styling-2026-10-09.json",
-        "docs/qa/submodule-add-progress-window-2026-10-09.json"
+        "docs/qa/submodule-add-progress-window-2026-10-09.json",
+        "docs/qa/submodule-source-family-2026-10-17.json"
       ]
     },
     {
@@ -3371,6 +3372,7 @@
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/submodule-progress-controls-2026-10-09.json",
         "docs/qa/submodule-progress-styling-2026-10-09.json",
+        "docs/qa/submodule-source-family-2026-10-17.json",
         "docs/qa/submodule-update-progress-2026-10-09.json",
         "docs/qa/submodule-update-selection-2026-10-10.json",
         "docs/qa/temporary-files-2026-10-08.json"

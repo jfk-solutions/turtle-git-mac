@@ -7,6 +7,9 @@ import SwiftUI
     private(set) var focusedRow = -1
     var interactionEnabled = true
     var selectionChanged: (Set<String>) -> Void = { _ in }
+    let lifetime = TransportControlLifetime()
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); lifetime.observe(self) }
+    private var acceptsInput: Bool { interactionEnabled && !lifetime.retired && window != nil }
     private var configuring = false
     private var contentWidth: CGFloat = 280
     override init(frame frameRect: NSRect) {
@@ -43,13 +46,13 @@ import SwiftUI
         let cell = NSTextField(labelWithString:display(paths[row])); cell.font = .systemFont(ofSize:NSFont.systemFontSize)
         cell.lineBreakMode = .byClipping; cell.toolTip = paths[row]; return cell
     }
-    func selectionShouldChange(in tableView:NSTableView) -> Bool { configuring || interactionEnabled }
+    func selectionShouldChange(in tableView:NSTableView) -> Bool { configuring || acceptsInput }
     func tableViewSelectionDidChange(_ notification:Notification) {
-        guard !configuring,interactionEnabled else { return }
+        guard !configuring,acceptsInput else { return }
         selectionChanged(Set(selectedRowIndexes.compactMap { paths.indices.contains($0) ? paths[$0] : nil }))
     }
     override func mouseDown(with event:NSEvent) {
-        guard interactionEnabled else { return }
+        guard acceptsInput else { return }
         let row = self.row(at:convert(event.locationInWindow,from:nil))
         guard paths.indices.contains(row) else { return }
         window?.makeFirstResponder(self); focusedRow = row; toggleFocusedRow()
@@ -61,7 +64,7 @@ import SwiftUI
         selectRowIndexes(rows,byExtendingSelection:false); needsDisplay = true
     }
     override func keyDown(with event:NSEvent) {
-        guard interactionEnabled else { return }
+        guard acceptsInput else { return }
         if event.keyCode == 49 { toggleFocusedRow(); return }
         if event.keyCode == 125 || event.keyCode == 126 {
             guard !paths.isEmpty else { return }
@@ -94,10 +97,16 @@ struct SubmoduleUpdatePathList: NSViewRepresentable {
         let scroll = SubmoduleUpdatePathScroll(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.autohidesScrollers = true; scroll.borderType = .bezelBorder
         scroll.documentView = SubmoduleUpdatePathTable(frame:.zero); return scroll
     }
+    static func dismantleNSView(_ scroll: NSScrollView, coordinator: ()) {
+        guard let table = scroll.documentView as? SubmoduleUpdatePathTable else { return }
+        table.interactionEnabled = false; table.selectionChanged = { _ in }; table.lifetime.retire()
+    }
     func updateNSView(_ scroll:NSScrollView,context:Context) {
         guard let table = scroll.documentView as? SubmoduleUpdatePathTable else { return }
-        table.interactionEnabled = enabled
-        table.selectionChanged = { [weak model] selected in model?.setSelectedPaths(selected) }
+        guard !table.lifetime.retired else { table.interactionEnabled = false; table.selectionChanged = { _ in }; return }
+        let form = model.formContext
+        table.interactionEnabled = enabled && model.canEdit
+        table.selectionChanged = { [weak model] selected in model?.setSelectedPaths(selected, context: form) }
         table.configure(paths:model.paths,selection:model.selection)
     }
 }

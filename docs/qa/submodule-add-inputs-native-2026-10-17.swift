@@ -17,7 +17,8 @@ import TurtleGitCore
                 let content=try await SCShareableContent.excludingDesktopWindows(false,onScreenWindowsOnly:false)
                 guard let owned=content.windows.first(where:{$0.windowID==CGWindowID(window.windowNumber)}) else {throw Failure(description:"Owned Submodule Add capture window absent")}
                 let config=SCStreamConfiguration();config.width=Int(window.frame.width * 2);config.height=Int(window.frame.height * 2);config.showsCursor=false
-                let pixels=try await SCScreenshotManager.captureImage(contentFilter:SCContentFilter(desktopIndependentWindow:owned),configuration:config)
+                let filter=SCContentFilter(desktopIndependentWindow:owned);config.includeChildWindows=false
+                let pixels=try await SCScreenshotManager.captureImage(contentFilter:filter,configuration:config)
                 guard let png=NSBitmapImageRep(cgImage:pixels).representation(using:.png,properties:[:]) else {throw Failure(description:"No Submodule Add PNG")}
                 try png.write(to:directory.appendingPathComponent("submodule-add-inputs-"+name+".png"))
             }
@@ -55,10 +56,14 @@ import TurtleGitCore
         let combos=views(owner.window?.contentView).compactMap {$0 as? EditableHistoryCombo}
         func combo(_ name:String)->EditableHistoryCombo {combos.first {$0.accessibilityLabel()==name}!}
         let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.shift,timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:51)!
-        let url=combo("Submodule repository");url.selectItem(at:1);url.historyPopupOpen=true
+        let url=combo("Submodule repository")
+        try await wait {url.isEnabled && url.stringValue.utf8.elementsEqual(model.source.utf8)}
+        url.selectItem(at:1);url.historyPopupOpen=true
         try require(url.handleHistoryKey(event) && !model.sources.contains("ssh://host/a") && model.sources.contains("ssh://host/A"),"Repository history deletion lost case identity")
+        try await wait {url.numberOfItems==model.sources.count}
         let path=combo("Submodule path");path.selectItem(at:0);path.historyPopupOpen=true
         try require(path.handleHistoryKey(event) && model.paths==["paths/one"] && model.path=="paths/one","Path history deletion/nearest selection failed")
+        try await wait {path.numberOfItems==model.paths.count}
         let key=combo("OpenSSH private key");try await wait {key.isEnabled};key.selectItem(at:0);key.historyPopupOpen=true
         try require(key.handleHistoryKey(event) && model.keys==["/tmp/two"] && prefs.stringArray(forKey:"Clone.KeyHistory")==["/tmp/two"],"Shared key history deletion failed")
         var callbacks:[(NSApplication.ModalResponse)->Void]=[],selected=child

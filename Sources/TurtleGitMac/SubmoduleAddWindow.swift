@@ -15,14 +15,16 @@ import TurtleGitCore
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 310), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Submodule Add – TurtleGit"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 670, height: 310)
-        window.contentViewController = NSHostingController(rootView: SubmoduleAddDialog(model: model).defaultAppStorage(preferences))
+        let host = NSHostingController(rootView: SubmoduleAddDialog(model: model).defaultAppStorage(preferences))
+        host.sizingOptions = []; window.contentViewController = host
+        window.setContentSize(NSSize(width:760,height:310))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in self?.window?.makeFirstResponder(nil); self?.window?.close() }
         model.pick = { [weak self] kind in self?.pick(kind) }
         DialogGeometry.attach(window, identifier: "SubmoduleAddDlg")
     }
     private func pick(_ kind: SubmoduleAddWindowModel.Picker) {
-        guard model.canEdit, let window, window.attachedSheet == nil else { return }
+        guard model.canEdit, kind != .key || (model.useKey && model.sshAvailable), let window, window.attachedSheet == nil else { return }
         window.makeFirstResponder(nil)
         let snapshot=model.inputIdentity,identity=UUID();pickerID=identity
         let panel = NSOpenPanel(); self.panel = panel; model.picking = true
@@ -54,13 +56,35 @@ import TurtleGitCore
     private var invalidated = false, submitted = false
     @Published var source: String
     @Published var path: String
-    @Published var useBranch = false
+    @Published var useBranch = false { didSet { if useBranch != oldValue { formRevision = UUID() } } }
     @Published var branch = ""
     @Published var force = false
-    @Published var useKey = false
+    @Published var useKey = false { didSet { if useKey != oldValue { formRevision = UUID() } } }
     @Published var key = ""
-    @Published var picking = false
-    @Published var confirmingQuit = false
+    private var formRevision = UUID()
+    struct FormContext: Equatable { let owner: ObjectIdentifier; let revision: UUID }
+    var formContext: FormContext { .init(owner: ObjectIdentifier(self), revision: formRevision) }
+    private func accepts(_ context: FormContext) -> Bool { canEdit && context == formContext }
+    func field<Value>(_ key: ReferenceWritableKeyPath<SubmoduleAddWindowModel,Value>, context: FormContext) -> Binding<Value> {
+        Binding(get: { self[keyPath:key] }, set: { value in
+            guard self.accepts(context) else { return }
+            if key == \SubmoduleAddWindowModel.branch, !self.useBranch { return }
+            if key == \SubmoduleAddWindowModel.key, !self.useKey { return }
+            if key == \SubmoduleAddWindowModel.useKey, !self.sshAvailable { return }
+            self[keyPath:key] = value
+        })
+    }
+    func sourceEndedEditing(context: FormContext) { guard accepts(context) else { return }; sourceEndedEditing() }
+    func deleteHistory(_ kind: Picker, at index: Int, entries: [String], context: FormContext) {
+        guard accepts(context), kind != .key || useKey else { return }
+        let current = kind == .repository ? sources : kind == .path ? paths : keys
+        guard current.elementsEqual(entries, by: { $0.utf8.elementsEqual($1.utf8) }) else { return }
+        deleteHistory(kind,at:index); formRevision = UUID()
+    }
+    func browse(_ kind: Picker, context: FormContext) { guard accepts(context), kind != .key || (useKey && sshAvailable) else { return }; pick(kind) }
+    func apply(context: FormContext) { guard accepts(context) else { return }; apply() }
+    @Published var picking = false { didSet { if picking != oldValue { formRevision = UUID() } } }
+    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { formRevision = UUID() } } }
     @Published var error: String?
     @Published private(set) var sources: [String]
     @Published private(set) var paths: [String]
@@ -111,7 +135,7 @@ import TurtleGitCore
             error = nil
         } catch { self.error = error.localizedDescription }
     }
-    func invalidate() { invalidated = true; keyAccess = nil; sourceAccess = nil }
+    func invalidate() { invalidated = true; formRevision = UUID(); keyAccess = nil; sourceAccess = nil }
     func apply() {
         guard canApply, let onSubmit else { return }
         do {
@@ -145,18 +169,20 @@ import TurtleGitCore
 private struct SubmoduleAddDialog: View {
     @ObservedObject var model: SubmoduleAddWindowModel
     var body: some View {
+        let context = model.formContext
+        let sources = model.sources, paths = model.paths, keys = model.keys
         VStack(alignment: .leading, spacing: 12) {
             GroupBox("Submodule of Project: " + model.repository.root.path) {
                 VStack(spacing: 12) {
-                    HStack { Text("Repository:").frame(width: 80, alignment: .leading); CloneHistoryCombo(value: $model.source, choices: model.sources, label: "Submodule repository", onEndEditing: { model.sourceEndedEditing() },onDelete:{model.deleteHistory(.repository,at:$0)}); Button("…") { model.pick(.repository) } }
-                    HStack { Text("Path:").frame(width: 80, alignment: .leading); CloneHistoryCombo(value: $model.path, choices: model.paths, label: "Submodule path",onDelete:{model.deleteHistory(.path,at:$0)}); Button("…") { model.pick(.path) } }
+                    HStack { Text("Repository:").frame(width: 80, alignment: .leading); CloneHistoryCombo(value: model.field(\.source, context: context), choices: model.sources, label: "Submodule repository", onEndEditing: { model.sourceEndedEditing(context: context) },onDelete:{model.deleteHistory(.repository,at:$0,entries:sources,context:context)}); Button("…") { model.browse(.repository,context:context) } }
+                    HStack { Text("Path:").frame(width: 80, alignment: .leading); CloneHistoryCombo(value: model.field(\.path, context: context), choices: model.paths, label: "Submodule path",onDelete:{model.deleteHistory(.path,at:$0,entries:paths,context:context)}); Button("…") { model.browse(.path,context:context) } }
                 }.padding(8)
             }
-            HStack { Toggle("Branch", isOn: $model.useBranch).frame(width: 100, alignment: .leading); if model.useBranch { TextField("Branch", text: $model.branch) }; Spacer(minLength: 0) }
-            Toggle("Force", isOn: $model.force)
-            HStack { Toggle("Auto-load SSH key", isOn: $model.useKey).disabled(!model.sshAvailable); CloneHistoryCombo(value: $model.key, choices: model.keys, label: "OpenSSH private key",onDelete:{model.deleteHistory(.key,at:$0)}).disabled(!model.useKey); Button("…") { model.pick(.key) }.disabled(!model.useKey) }
-            HStack { Spacer(); Button("OK") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.canApply); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button { TurtleGitHelp.show(.submodules) } label: { CommandLabel(title: "Help", icon: .help) } }
+            HStack { Toggle("Branch", isOn: model.field(\.useBranch, context: context)).frame(width: 100, alignment: .leading); if model.useBranch { TextField("Branch", text: model.field(\.branch, context: context)) }; Spacer(minLength: 0) }
+            Toggle("Force", isOn: model.field(\.force, context: context))
+            HStack { Toggle("Auto-load SSH key", isOn: model.field(\.useKey, context: context)).disabled(!model.sshAvailable); CloneHistoryCombo(value: model.field(\.key, context: context), choices: model.keys, label: "OpenSSH private key",onDelete:{model.deleteHistory(.key,at:$0,entries:keys,context:context)}).disabled(!model.useKey); Button("…") { model.browse(.key,context:context) }.disabled(!model.useKey) }
+            HStack { Spacer(); Button("OK") { model.apply(context: context) }.keyboardShortcut(.defaultAction).disabled(!model.canApply); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button { TurtleGitHelp.show(.submodules) } label: { CommandLabel(title: "Help", icon: .help) } }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-        }.padding(12).disabled(model.picking || model.confirmingQuit)
+        }.padding(12).disabled(!model.canEdit)
     }
 }

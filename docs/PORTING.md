@@ -2,6 +2,14 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected [Submodule Add](SUBMODULE-ADD-PARITY.md) and
+[Update](SUBMODULE-UPDATE-PARITY.md) forms now retain source option layout with
+captured native fields, synchronous scope/title changes, cancellable metadata
+reads, diagnostic Retry and retired list callbacks. Eight grouped native
+case/engine checks pass after fixture repairs; all owned receivers are absent.
+Light/dark captures and remaining Unicode/physical/signed limits are recorded in
+[the batch evidence](qa/submodule-source-family-2026-10-17.json).
+
 The [native Merge command-menu family](MERGE-COMMAND-MENUS-PARITY.md) now connects
 File/Edit/Navigate/View/Help commands, active-pane Save As, F6 pane focus, named
 regex and checked comparison/view choices to the existing owners. Source icons,

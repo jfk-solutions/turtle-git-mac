@@ -107,3 +107,20 @@ source clipboard defaults, all three native history deletions, shared exact
 repository-name/path derivation and draft-bound picker acceptance. This supersedes
 the earlier missing clipboard-default statement. Narrow leases, submitted progress
 ownership and all physical/signed acceptance limits remain independent.
+
+## Connected source forms — October 17, 2026
+
+Source, destination, branch, key and option controls now capture their form owner
+and lifetime. Picker and Quit transitions retire earlier bindings; enabling Branch
+or SSH key changes its dependent control lifetime. Hidden branch/disabled key
+fields cannot accept retained edits. History deletion checks its captured list
+before using an index, and retired acceptance cannot submit twice. Existing owned
+picker/draft/grant and progress behavior remains connected. The hosting controller
+uses an explicit content size to retain the source row arrangement.
+
+The grouped Submodule source check includes the existing clipboard/history/picker
+and real Update progress fixtures. This does not certify all dialogs, physical
+interaction, filesystem Unicode variants, real SSH servers or signed distribution.
+
+[Grouped batch evidence](qa/submodule-source-family-2026-10-17.json) records the
+build, eight case/engine passes, fixture repairs and owned-process absence.

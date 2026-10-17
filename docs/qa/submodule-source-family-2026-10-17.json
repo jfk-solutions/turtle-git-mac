@@ -1,0 +1,122 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "3079eb3f5f1ad165d32d1eb124e9571e313abcaf",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Submodule Add captured native fields, dependent branch/key options, history indices, picker/Quit lifetimes and single acceptance",
+    "Submodule Update synchronous Whole Project read/persistence and source scope title, captured options/selection/acceptance",
+    "Cancelable owned metadata loading, retained worker access/read count, diagnostic Retry and stale catalog acceptance guard",
+    "Native list callback retirement and explicit Add/Update host sizes"
+  ],
+  "build": {
+    "log": "build/qa/submodule-source-build-2026-10-17.log",
+    "exit": 0,
+    "exit_zero_no_output_diagnostics": 1
+  },
+  "core": {
+    "changed": false,
+    "rerun": false,
+    "reason": "Native form/lifetime changes; grouped native cases exercise real Add/Update Git operations and cancellation."
+  },
+  "native": {
+    "distinct_case_engine_passes": 8,
+    "cases": [
+      "source",
+      "inputs",
+      "selection",
+      "progress"
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/submodule-source-native-2026-10-17.log",
+        "exit": 1,
+        "receiver_count": 0,
+        "failure": "Capture fixture put includeChildWindows on SCContentFilter; moved to SCStreamConfiguration."
+      },
+      {
+        "log": "build/qa/submodule-source-native-repair-2026-10-17.log",
+        "exit": 1,
+        "failure": "New cancellation fixture assumed false Force instead of saved true; assert opposite attempted write preserves actual prior value."
+      },
+      {
+        "log": "build/qa/submodule-source-native-final-2026-10-17.log",
+        "exit": 1,
+        "passed_cases": [
+          "source/system",
+          "source/bundled"
+        ],
+        "failure": "Existing Add input fixture dispatched retained history controls before SwiftUI reflected changed branch lifetime/source."
+      },
+      {
+        "log": "build/qa/submodule-source-native-remaining-2026-10-17.log",
+        "exit": 0,
+        "passed_cases": [
+          "inputs/system",
+          "inputs/bundled",
+          "selection/system",
+          "selection/bundled",
+          "progress/system",
+          "progress/bundled"
+        ],
+        "repair": "Wait for source string and changed history item counts before sending actual native history events. Source cases were already passing and not repeated."
+      }
+    ],
+    "receiver_pids": [
+      38021,
+      38077,
+      38100,
+      38131,
+      38187,
+      38271,
+      38346,
+      38347,
+      38348,
+      38729
+    ],
+    "independent_ps_all_absent": true,
+    "helper_cleanup": "Source cancellation fixture records real wrapper/sleep PIDs and waits for kill(pid,0) ESRCH. run_receiver reaps each owned process group."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/submodule-update-source-light.png",
+      "width": 1520,
+      "height": 1064,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit; child windows excluded; user focus preserved."
+    },
+    {
+      "path": "docs/site/assets/submodule-update-source-dark.png",
+      "width": 1520,
+      "height": 1064,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit; child windows excluded; user focus preserved."
+    },
+    {
+      "path": "docs/site/assets/submodule-add-inputs-light.png",
+      "width": 1520,
+      "height": 684,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit; child windows excluded; user focus preserved."
+    },
+    {
+      "path": "docs/site/assets/submodule-add-inputs-dark.png",
+      "width": 1520,
+      "height": 684,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit; child windows excluded; user focus preserved."
+    }
+  ],
+  "remaining": [
+    "Complete upstream dialog behavior/layout acceptance",
+    "Physical keyboard, gestures and VoiceOver",
+    "Signed installed Finder activation/menus/overlays and security scope/keychain permissions",
+    "Full hosted macOS CI",
+    "Unicode-equivalent submodule paths still use Swift String set identity; separate exact-byte review required",
+    "Real SSH/network and minimum supported macOS acceptance",
+    "Fresh universal release, Developer ID/notarization and App Store acceptance"
+  ]
+}

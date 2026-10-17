@@ -166,3 +166,32 @@ documents per-click toggling for LBS_MULTIPLESEL. The pinned Update command and
 dialog contain no LaunchPAgent call or key-autoload checkbox; the command inherits
 the current agent. No extra SSH control was added. Inherited-agent compatibility
 in signed submodule initialization/recursive transports remains unverified.
+
+## Connected source forms and metadata ownership — October 17, 2026
+
+The native window retains the source path list, two option columns and footer.
+Whole Project now synchronously persists its scope, updates the scoped title and
+owns a fresh catalog read before another form action can execute. Bindings,
+selection callbacks and acceptance capture the form lifetime; callbacks from
+before refresh or Quit confirmation cannot revive after those transitions.
+The native path table retires its event route when dismantled or its window closes.
+
+Cancel and the close button now remain available during the read-only metadata
+load. Closing cancels the owned process; its worker retains access and the active
+read count until it drains, suppressing late paths and diagnostics. A failed
+refresh displays an inline diagnostic with Retry and prevents acceptance of the
+previous catalog. Retry clears that diagnostic and keeps the current reviewed
+selection where paths survive. Explicit hosting size retains the source layout.
+
+Grouped verification covers these forms with Add inputs, actual AppKit selection
+and Update progress; the underlying Git operations are unchanged in this batch.
+Physical keyboard/VoiceOver, signed installation/Finder and complete source parity
+remain open. Canonically equivalent Unicode paths in Swift string sets also
+remain a known limitation requiring a separate byte-identity path review.
+
+[Grouped batch evidence](qa/submodule-source-family-2026-10-17.json) records the
+build, eight case/engine passes, fixture repairs and owned-process absence.
+
+![Native Submodule Update, light](site/assets/submodule-update-source-light.png)
+
+![Native Submodule Update, dark](site/assets/submodule-update-source-dark.png)
