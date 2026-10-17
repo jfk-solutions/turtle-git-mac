@@ -695,23 +695,29 @@ private enum MergeSourceSide {
         fileprivate let edit: MergeSourceBlockEdit?
         fileprivate let choice: MergeBlockChoice
         fileprivate var aligned: MergeAlignedSourceBlockEdit? = nil
+        fileprivate var lineEnding: MergeLineEnding? = nil
     }
     func sourceBlockCommand(rows: Range<Int>, choice: MergeBlockChoice) -> SourceBlockCommand? {
         guard sourceToolsAllowed, let comparison = sourceComparison,
               let mapped = resultPresentation.navigationMap.resultRange(sourceRows:rows) else { return nil }
         if alignedResultProjection != nil, let edit = try? MergeAlignedSourceBlockEdit(comparison:comparison,presentation:resultPresentation,rows:rows,choice:choice,lineEnding:resultLineEnding) {
-            return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,layoutRevision:sourceLayoutRevision,expected:resultPresentation,conflict:nil,edit:nil,choice:choice,aligned:edit)
+            return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,layoutRevision:sourceLayoutRevision,expected:resultPresentation,conflict:nil,edit:nil,choice:choice,aligned:edit,lineEnding:resultLineEnding)
         }
         // Unknown serialized mappings retain the existing atomic conflict path.
         if let conflict = blocks.first(where: { NSIntersectionRange($0.range,mapped).length > 0 || mapped.length == 0 && NSLocationInRange(mapped.location,$0.range) }) {
             if !conflict.isIgnored, let whole = resultPresentation.navigationMap.sourceRows(resultRange:conflict.range),
                let edit = MergeSourceBlockEdit(comparison:comparison,presentation:resultPresentation,rows:whole,choice:choice), edit.range == conflict.range {
-                return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,layoutRevision:sourceLayoutRevision,expected:resultPresentation,conflict:nil,edit:edit,choice:choice)
+                return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,layoutRevision:sourceLayoutRevision,expected:resultPresentation,conflict:nil,edit:edit,choice:choice,lineEnding:resultLineEnding)
             }
-            return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,layoutRevision:sourceLayoutRevision,expected:resultPresentation,conflict:conflict,edit:nil,choice:choice)
+            return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,layoutRevision:sourceLayoutRevision,expected:resultPresentation,conflict:conflict,edit:nil,choice:choice,lineEnding:resultLineEnding)
         }
         guard let edit = MergeSourceBlockEdit(comparison:comparison,presentation:resultPresentation,rows:rows,choice:choice) else { return nil }
-        return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,layoutRevision:sourceLayoutRevision,expected:resultPresentation,conflict:nil,edit:edit,choice:choice)
+        return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,layoutRevision:sourceLayoutRevision,expected:resultPresentation,conflict:nil,edit:edit,choice:choice,lineEnding:resultLineEnding)
+    }
+    fileprivate func wholeSourceFileCommand(side: MergeSourceSide) -> SourceBlockCommand? {
+        guard sourceToolsAllowed, let comparison = sourceComparison else { return nil }
+        let edit = MergeAlignedSourceBlockEdit(wholeFileFrom: comparison, presentation: resultPresentation, mine: side == .mine, lineEnding: resultLineEnding)
+        return SourceBlockCommand(owner: sourceCommandOwner, generation: loadGeneration, layoutRevision: sourceLayoutRevision, expected: resultPresentation, conflict: nil, edit: nil, choice: side == .mine ? .mine : .theirs, aligned: edit, lineEnding: resultLineEnding)
     }
     func performSourceBlock(_ command: SourceBlockCommand) {
         guard canPerformSourceBlock(command) else { return }
@@ -727,7 +733,7 @@ private enum MergeSourceSide {
         }
     }
     func canPerformSourceBlock(_ command: SourceBlockCommand) -> Bool {
-        sourceToolsAllowed && command.owner == sourceCommandOwner && command.generation == loadGeneration && command.layoutRevision == sourceLayoutRevision && command.expected == resultPresentation
+        sourceToolsAllowed && command.owner == sourceCommandOwner && command.generation == loadGeneration && command.layoutRevision == sourceLayoutRevision && command.expected == resultPresentation && (command.lineEnding == nil || command.lineEnding == resultLineEnding)
     }
     var replaceEntireResult: ((String) -> Void)?
     var replaceEntireResolvedResult: ((String) -> Void)?
@@ -1137,15 +1143,8 @@ private enum MergeSourceSide {
         catch { self.error = error.localizedDescription }
     }
     fileprivate func useFile(_ side: MergeSourceSide) {
-        guard sourceToolsAllowed, let document else { return }
-        if let comparison = sourceComparison, !comparison.rows.isEmpty,
-           let command = sourceBlockCommand(rows:0..<comparison.rows.count,choice:side == .mine ? .mine : .theirs), command.aligned != nil {
-            performSourceBlock(command); selectedConflict = 0; return
-        }
-        let contents = side == .mine ? document.mine : document.theirs
-        if let replaceEntireResolvedResult { replaceEntireResolvedResult(contents) }
-        else { resultPresentation = MergeResultPresentation(text: contents, states: MergeLineEndings.lineRanges(in: contents).map { _ in .resolved }); result = contents }
-        selectedConflict = 0
+        guard let command = wholeSourceFileCommand(side: side) else { return }
+        performSourceBlock(command); selectedConflict = 0
     }
     var chooseEmptyResult: ((String) async -> MergeEmptyResult)?
     weak var window: NSWindow?
@@ -2026,7 +2025,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
             let useFile = NSMenuItem(title: "Use this whole file", action: #selector(useSourceFile(_:)), keyEquivalent: "")
             editingItem("Save this pane as…", #selector(saveSourceAs(_:)), MenuIcon.mergeSaveAs.contextImage(defaults: defaults), model?.sourceToolsAllowed == true)
             editingItem("Compare with Base", #selector(compareSourceWithBase(_:)), MenuIcon.compare.contextImage(defaults: defaults), model?.sourceToolsAllowed == true)
-            let wholeCommand = model?.sourceComparison.flatMap { comparison in model?.sourceBlockCommand(rows:comparison.rows.indices,choice:sourceSide == .mine ? .mine : .theirs) }
+            let wholeCommand = model?.wholeSourceFileCommand(side: sourceSide)
             useFile.target = self; useFile.representedObject = wholeCommand; useFile.isEnabled = wholeCommand != nil; useFile.image = sourceSide.icon.contextImage(defaults: defaults); menu.addItem(useFile)
         }
         guard mergeEditable, let model else { return menu }

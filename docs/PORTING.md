@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [whole-source Merge recovery](TEXT-MERGE-PARITY.md#whole-source-recovery-after-free-result-editing--october-18-2026)
+now keeps Mine/Theirs whole-file choices available after custom editing invalidates
+result row mappings. Selected endings, excluded source records, complete result
+alignment and native Undo/Redo share one captured command; format changes fence
+stale menu targets. The first-attempt Debug build, 57 scoped Core passes and eight
+grouped native case/engine passes, with all owned receivers absent, are recorded
+in [batch evidence](qa/merge-whole-source-family-2026-10-18.json). Full hosted,
+physical and signed acceptance remains open.
+
+
 The connected [Compare/Merge presentation family](MERGE-WRAPPING-PARITY.md#stable-presentation-and-redraw--october-18-2026)
 now preserves settled fold and wrap geometry on unchanged hosting updates and
 keeps Find/marked-word paint until an actual input or source-style change. Both

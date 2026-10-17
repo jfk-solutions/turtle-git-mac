@@ -22,7 +22,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_LINEDIFF` | partial-native-replacement | 0/0 mapped; 0 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_FILEPATCHES` | partial-native-replacement | 3/3 mapped; 0 pending | [IMPORT-PATCH-PARITY](IMPORT-PATCH-PARITY.md); 27 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_OPENDLG` | partial-native-replacement | 24/24 mapped; 0 pending | [HELP-PARITY](HELP-PARITY.md), [MERGE-OPEN-PARITY](MERGE-OPEN-PARITY.md); 7 QA records |
-| `src/Resources/TortoiseMergeENG.rc` / `IDD_SETMAINPAGE` | partial | 24/24 mapped; 0 pending | [MERGE-DEFAULT-ENCODING-PARITY](MERGE-DEFAULT-ENCODING-PARITY.md), [MERGE-PATCH-PARITY](MERGE-PATCH-PARITY.md), [TEXT-MERGE-PARITY](TEXT-MERGE-PARITY.md), [UI-PARITY](UI-PARITY.md); 15 QA records |
+| `src/Resources/TortoiseMergeENG.rc` / `IDD_SETMAINPAGE` | partial | 24/24 mapped; 0 pending | [MERGE-DEFAULT-ENCODING-PARITY](MERGE-DEFAULT-ENCODING-PARITY.md), [MERGE-PATCH-PARITY](MERGE-PATCH-PARITY.md), [TEXT-MERGE-PARITY](TEXT-MERGE-PARITY.md), [UI-PARITY](UI-PARITY.md); 16 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_SETCOLORPAGE` | partial | 35/35 mapped; 0 pending | [APPEARANCE](APPEARANCE.md), [MERGE-COLORS-PARITY](MERGE-COLORS-PARITY.md); 15 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_FIND` | partial-native-replacement | 14/14 mapped; 0 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_ENCODING` | partial-native-replacement | 7/7 mapped; 0 pending | No recorded family document; 0 QA records |

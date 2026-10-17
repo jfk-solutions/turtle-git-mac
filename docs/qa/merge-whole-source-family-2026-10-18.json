@@ -1,0 +1,113 @@
+{
+  "date": "2026-10-18",
+  "scope": "Whole Mine/Theirs source-file recovery for unmapped custom results; selected ending and native menu/history/Save ownership",
+  "base_commit": "416e3746079dc54cc9e499167e3fbb0285bc84b2",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_review": [
+    "src/TortoiseMerge/BottomView.cpp:UseViewFile selects all view rows and calls UseBlock without serialized range requirement",
+    "BottomView.cpp:UseBlock normalizes selected result ending with NoEnding/ConflictEmpty/IdenticalRemoved exceptions, resolves row states and groups Undo",
+    "BottomView.cpp:UseBothBlocks and CleanEmptyLines source-gap and serialization behavior retained"
+  ],
+  "changes": [
+    "New whole-source immutable edit rebuilds full source/result row mapping even when prior result mapping is invalid",
+    "Mine and Theirs share the established resolved-state and selected-ending conversion; final NoEnding and excluded records retain source rules",
+    "Source/result colors, row numbering, navigation map and source-choice revision are installed in one native Undo snapshot",
+    "Native source menus and model whole-file entry use the same value command, retaining original side artwork",
+    "All captured source commands fence selected result ending alongside owner, generation, layout, exact presentation and operation/modal gates"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "executed": 57,
+      "passed": 57,
+      "skipped": 0,
+      "failures": 0,
+      "log": "build/qa/merge-whole-source-core-2026-10-18.log",
+      "filter": "MergeWholeSourceFileTests|SubversionMergePresentationTests|MergeSourceBlockEditTests|MergeResultPresentationTests",
+      "new_cases": 4,
+      "new_coverage": [
+        "Both unmapped Mine/Theirs choices with selected ending and absent EOF",
+        "Whole-source equivalence to aligned all-record UseBlock on conflict/empty/deletion sources",
+        "Recovery after both-order source-gap insertion and later free editing",
+        "Empty source recovery clears ignored conflict metadata and creates valid empty projection"
+      ]
+    },
+    "debug_build": {
+      "exit": 0,
+      "attempts": 1,
+      "log": "build/qa/merge-whole-source-build-2026-10-18.log",
+      "architecture": "arm64",
+      "SDK": "macOS27",
+      "signing": "unsigned"
+    },
+    "native": {
+      "exit": 0,
+      "attempts": 8,
+      "all_first_attempt": true,
+      "cases": [
+        "whole-file",
+        "workflow/systemGit",
+        "workflow/bundledGit",
+        "retained",
+        "blocks",
+        "aligned",
+        "copies",
+        "format"
+      ],
+      "log": "build/qa/merge-whole-source-native-2026-10-18.log",
+      "command": "python3 scripts/test-merge-ignored.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"",
+      "owned_receivers": [
+        48817,
+        48823,
+        48887,
+        48948,
+        49250,
+        49253,
+        49255,
+        49257
+      ],
+      "cleanup": "All eight receivers reported reaped; independent ps check exit1 and empty output confirms absence"
+    },
+    "new_native_assertions": [
+      "Actual source menu target and original colored icon remain enabled over a freely edited result with no projection",
+      "Both source actions recover aligned display/state and selected CRLF without adding final newline",
+      "One Undo restores scratch result/source rows and invalid mapping; Redo restores complete aligned result",
+      "Stale typing, selected-format, reload, Quit and closed targets refuse mutation",
+      "Owned Save writes exact UTF-8 result to injected native output; all three original input files remain byte-identical"
+    ],
+    "retained_native_assertions": [
+      "Ignored conflicts, modified Find/navigation, Save warning, same-byte provenance, exact staging/unrelated Git state on both engines",
+      "Three-pane navigation, bundled merge engine and result-color history",
+      "All four source block choices, partial neighboring records, stale selection/reload/Quit/close",
+      "Aligned removed/conflict-slot typing, source gaps, exact Save and Undo/Redo",
+      "Both-order insertion, source gaps/colors/numbers, partial follow-up resolution and all-pane cleanup",
+      "Encoding/line-ending/whitespace formats, native cancellation, duplicate/Save/reload/Quit guards, UTF-16BE BOM Save and lossless encoding refusal"
+    ],
+    "documentation": {
+      "site_documents": 292,
+      "unresolved_fragments": 0,
+      "log": "build/qa/merge-whole-source-site-2026-10-18.log",
+      "dialog_coverage": "130 dialogs, 120 partial reviews, 10 pending, 0 certified; 1659 static controls, 1566 mapped, 93 pending; unchanged, not a completion percentage",
+      "native_labels": "No literal UI label changes; localization regeneration not required",
+      "help": "TEXT-MERGE-PARITY.md and PORTING.md are not help-topics.json inputs"
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/MergeResultPresentation.swift": "0841b18a371f0e165e56a8cdbbcf19eaadb6c5f409c65dbd6e03153cc17d558d",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "94b448d343e354d3d794e0ffc15a218c8f2755648a57b37c6f39b1383302bff3"
+  },
+  "hosted_observation": {
+    "macOS_run": 39076545411,
+    "commit": "416e3746079dc54cc9e499167e3fbb0285bc84b2",
+    "state": "pending, no jobs yet at observation",
+    "pages_run": 39076545340,
+    "pages_conclusion": "success",
+    "scope": "Previous presentation batch; this whole-source batch is not yet pushed at this checkpoint"
+  },
+  "limits": [
+    "No new physical pointer/keyboard, accessibility or visual certification",
+    "Local macOS27.0.1 arm64 unsigned checks do not prove minimumOS/Intel, signed Finder or App Store behavior",
+    "Full current hosted integration run, including prior wrapped-editor timeout, remains required",
+    "No workflow network transfer, installed application launch, signing/export or submission; original source files unchanged"
+  ]
+}

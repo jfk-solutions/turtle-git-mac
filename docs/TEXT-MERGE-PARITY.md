@@ -693,3 +693,38 @@ The hosted d7133b3b menu check failed `Conflict menu choice lost Undo`; a local
 diagnostic passed before the change, so the exact hosted timing is not reproduced
 and a current hosted pass is still required. No complete source, physical or
 signed acceptance is claimed.
+
+## Whole-source recovery after free result editing — October 18, 2026
+
+The pinned `BottomView.cpp::UseViewFile` selects every view record and calls
+`UseBlock`; it does not require a surviving serialized result/source mapping.
+Native source menus now follow that rule even when a whole-buffer edit or a
+loaded custom result has invalidated the old result projection. Both Mine and
+Theirs rebuild a complete result projection from their captured source records.
+This supersedes the raw-source fallback and disabled-menu behavior in that case.
+
+Selected result line endings follow the same `UseBlock` normalization as aligned
+block choices, including the source's final-record/NoEnding exceptions. Removed,
+empty and resolved-empty records stay distinct from writable result text; result
+line numbering, colors, navigation and shared geometry are restored together.
+Previously inserted opposite-source gaps do not leak text into the selected
+whole file. This replaces the older exact-source-EOL description above for this
+whole-file path; original source pane payloads and disk files are preserved.
+
+The entire comparison and result presentation remain one native Undo snapshot.
+Undo restores an unmapped custom result and its prior sources; Redo reinstalls
+all-pane alignment. Same-byte choices still advance source-choice provenance.
+Captured menu targets also retain the selected result ending and refuse dispatch
+after a format change, typing, reload, Quit/sheets or owner retirement. Save uses
+the existing owned output/grant and encoding workflow. Complete source-file,
+physical-menu, accessibility and signed/App Store acceptance remain open.
+
+The [grouped checkpoint](qa/merge-whole-source-family-2026-10-18.json) passed on
+its first attempts: the Debug build, 57 focused Core cases and eight native
+case/engine checks. The new native case exercises actual original-icon menus,
+unmapped editing, both choices, format/typing/reload/Quit/closed refusal, complete
+Undo/Redo and exact output Save. The retained group covers ignored conflicts on
+both Git engines, result/source colors, all four block choices, aligned typing,
+both-order copy/cleanup and format/encoding. All eight owned receivers were reaped
+and independently absent. These checks do not certify the complete Merge dialog
+or the still-pending hosted wrapped-editor gate.

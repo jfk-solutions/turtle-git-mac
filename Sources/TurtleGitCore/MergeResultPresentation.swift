@@ -431,6 +431,36 @@ public struct MergeAlignedSourceBlockEdit: Sendable {
     public let comparison:MergeSourceComparison
     public let presentation:MergeResultPresentation
     public let selectedRows:Range<Int>
+    /// UseViewFile replaces every result record, so it needs no correspondence
+    /// with a freely edited/externally loaded result. Rebuild all result ranges
+    /// directly from the captured source view, retaining removed/gap records.
+    public init(wholeFileFrom comparison: MergeSourceComparison, presentation: MergeResultPresentation, mine: Bool, lineEnding: MergeLineEnding) {
+        var sources: [MergeSourceRow] = [], cells: [MergeSourceCell] = []
+        var entries: [MergeNavigationMap.Entry] = [], runs: [MergeResultPresentation.Run] = []
+        var text = "", number = 0
+        for (index, row) in comparison.rows.enumerated() {
+            let source = mine ? row.mine : row.theirs
+            let resolved = Self.resolved(source, row: index, count: comparison.rows.count, ending: lineEnding.rawValue, normalize: true)
+            if row.mine.state.isViewEmpty && row.theirs.state.isViewEmpty && resolved.state.isViewEmpty { continue }
+            let included = !resolved.state.isExcludedFromResult, start = text.utf16.count, position = cells.count
+            if included { number += 1; text += resolved.text }
+            cells.append(.init(text: resolved.text, lineNumber: included ? number : nil, state: resolved.state, hiddenByComparison: resolved.hiddenByComparison))
+            sources.append(row)
+            entries.append(.init(sourceRows: position..<(position + 1), resultRange: NSRange(location: start, length: text.utf16.count - start)))
+            if text.utf16.count > start { runs.append(.init(range: start..<text.utf16.count, state: resolved.state)) }
+        }
+        let map = MergeNavigationMap(entries: entries)
+        self.comparison = .init(rows: sources, navigationMap: map, alignedResultRows: cells)
+        self.presentation = presentation.installingAlignedText(text, runs: runs, ignored: [], map: map)
+        selectedRows = cells.indices
+    }
+    private static func resolved(_ cell: MergeSourceCell, row: Int, count: Int, ending: String, normalize: Bool) -> MergeSourceCell {
+        var text = cell.text
+        if normalize, MergeLineEndings.hasFinalEnding(text) || row < count - 1 && cell.state != .conflictEmpty && cell.state != .identicalRemoved {
+            text = cell.displayText + ending
+        }
+        return .init(text: text, lineNumber: cell.lineNumber, state: cell.state.resolvedState)
+    }
     public init(comparison:MergeSourceComparison,presentation:MergeResultPresentation,rows:Range<Int>,choice:MergeBlockChoice,lineEnding:MergeLineEnding? = nil) throws {
         guard !rows.isEmpty, rows.lowerBound >= 0, rows.upperBound <= comparison.rows.count,
               let projection = MergeAlignedResultProjection(comparison:comparison,presentation:presentation) else { throw FileComparisonEditFailure.range }
@@ -441,20 +471,13 @@ public struct MergeAlignedSourceBlockEdit: Sendable {
         let ending = (lineEnding ?? MergeLineEndings.predominantStyle(in:reference)).rawValue
         let gap = MergeSourceCell(text:"",lineNumber:nil,state:.empty)
         func original(_ row:Int,mine:Bool) -> MergeSourceCell { mine ? comparison.rows[row].mine : comparison.rows[row].theirs }
-        func resolved(_ cell:MergeSourceCell,row:Int,normalize:Bool) -> MergeSourceCell {
-            var text = cell.text
-            if normalize, MergeLineEndings.hasFinalEnding(text) || row < comparison.rows.count - 1 && cell.state != .conflictEmpty && cell.state != .identicalRemoved {
-                text = cell.displayText + ending
-            }
-            return .init(text:text,lineNumber:cell.lineNumber,state:cell.state.resolvedState)
-        }
         func source(_ cell:MergeSourceCell,state:MergeSourceState) -> MergeSourceCell {
             .init(text:cell.text,lineNumber:cell.lineNumber,state:cell.state.isViewEmpty ? cell.state : state)
         }
         var cells = projection.cells, sources = comparison.rows, origins:[Int?] = comparison.rows.indices.map { $0 }
-        let firstCells = rows.map { resolved(original($0,mine:firstMine),row:$0,normalize:true) }
+        let firstCells = rows.map { Self.resolved(original($0,mine:firstMine),row:$0,count:comparison.rows.count,ending:ending,normalize:true) }
         if both {
-            let secondCells = rows.map { resolved(original($0,mine:!firstMine),row:$0,normalize:false) }
+            let secondCells = rows.map { Self.resolved(original($0,mine:!firstMine),row:$0,count:comparison.rows.count,ending:ending,normalize:false) }
             let firstSources = rows.map { row -> MergeSourceRow in
                 let cell = source(original(row,mine:firstMine),state:.yoursAdded)
                 return firstMine ? .init(mine:cell,theirs:gap) : .init(mine:gap,theirs:cell)
