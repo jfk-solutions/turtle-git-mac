@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+The [primary command-line entry family](COMMAND-LINE.md) now connects startup
+readiness, repository/file authorization and editable Commit/Log presets to six
+existing native workflows. Diff reuses historical, standalone pair and directory
+routes. Remaining CLI switches and commands are listed explicitly in that guide.
+Validation records [27 distinct scoped Core passes and two complete native
+family/engine passes](qa/primary-commands-2026-10-18.json), including the actual
+Log eager-load repair, two final focused bare-repository guard passes and all
+seven owned receivers reaped. The older hosted
+wrapped-editor timeout [still persists](qa/ci-wrapped-stack-after-presentation-2026-10-18.json);
+this batch does not claim to repair it.
+
 The connected [Resolve/Rebase conflict path family](CONFLICT-PATH-IDENTITY-PARITY.md)
 now carries exact UTF-8 stage, checked and highlighted identities through both
 native lists, source binary checkboxes, refresh, captured menus and checked Rebase

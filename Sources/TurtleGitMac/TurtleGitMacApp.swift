@@ -23,7 +23,7 @@ import UniformTypeIdentifiers
             RepositoryWindow(model: model)
                 .disabled(model.confirmingQuit)
                 .onOpenURL { model.handle($0) }
-                .onAppear { applicationDelegate.repositoryModel = model; appearance.apply(); SettingsPresentationService.shared.install(workspace: model, appearance: appearance); FirstStartWizardService.shared.install(); ReleaseUpdateService.shared.install() }
+                .onAppear { appearance.apply(); SettingsPresentationService.shared.install(workspace: model, appearance: appearance); FirstStartWizardService.shared.install(); ReleaseUpdateService.shared.install(); applicationDelegate.repositoryModel = model }
                 #if DEBUG
                 .onAppear {
                     if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true, model.root == nil,

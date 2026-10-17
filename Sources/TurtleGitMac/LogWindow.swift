@@ -212,7 +212,7 @@ final class LogHistoryWindow: NSWindow {
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((LogEntry?) -> Void)?
     private var multipleSelectionCompletion: (([LogEntry]?) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil, labelDefaults: UserDefaults = .standard, savesColumnLayout: Bool = true, savesGeometry: Bool = true, initialRevision: String? = nil, historyRegexExecutable: URL? = nil, historyFileCache: HistoryFileCache = HistoryFileCache()) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil, labelDefaults: UserDefaults = .standard, savesColumnLayout: Bool = true, savesGeometry: Bool = true, initialRevision: String? = nil, historyRegexExecutable: URL? = nil, historyFileCache: HistoryFileCache = HistoryFileCache(), loadsImmediately: Bool = true) {
         findAccess = access; findPreferences = labelDefaults
         model = LogWindowModel(repository: repository, access: access, selecting: onChoose != nil || onChooseMultiple != nil, selectingMultiple: onChooseMultiple != nil, labelDefaults: labelDefaults, historyRegexExecutable: historyRegexExecutable, historyFileCache: historyFileCache)
         selectionCompletion = onChoose; multipleSelectionCompletion = onChooseMultiple
@@ -326,7 +326,7 @@ final class LogHistoryWindow: NSWindow {
                 alert.beginSheetModal(for: window) { response in continuation.resume(returning: response == .alertFirstButtonReturn) }
             }
         }
-        model.reload()
+        if loadsImmediately { model.reload() }
 
         if savesGeometry { DialogGeometry.attach(window, identifier: "LogWindowController") }
     }
@@ -1884,6 +1884,26 @@ struct LogCommandRequest: Identifiable {
         if let stored = labelDefaults.object(forKey: labelDefaultsKey) as? NSNumber, stored.intValue >= 0 {
             referenceVisibility = HistoryReferenceVisibility(rawValue: stored.intValue).intersection(.all).union([.stash, .bisect])
         }
+    }
+    func applyCommandLine(_ invocation: PrimaryCommandInvocation, paths: [String], selectedRevision: String?) {
+        guard !isInvalidated, !busy || loadingHistory else { return }
+        historyPaths = paths.contains(".") ? [] : paths; showWholeProject = historyPaths.isEmpty
+        historyWalk.followRenames = false
+        referenceScope = .current; allBranches = false; startRevisions = []; revisionRange = nil; endRevision = nil
+        if let selectedRevision { selected = [selectedRevision] }
+        if let expression = invocation.historyExpression, let selection = HistoryReferenceSelection(expression: expression) {
+            referenceScope = .current; allBranches = false; startRevisions = []
+            switch selection {
+            case .range(let range): revisionRange = range; endRevision = nil
+            case .tips(let names): revisionRange = nil; endRevision = names.count == 1 ? names[0] : nil; startRevisions = names.count > 1 ? names : []
+            }
+        }
+        if let limit = invocation.historyLimit { historyLimit = limit; initializedHistoryLimit = true }
+        // Configure directly before the requested reload; do not persist launch
+        // presets or schedule competing debounced reads as if the user typed.
+        if let fields = invocation.searchFields { searchFields = fields }
+        if let regex = invocation.searchRegex { searchRegex = regex }
+        if let search = invocation.search { self.search = search }
     }
     func selectSearchFields(_ fields: HistorySearchFields) {
         guard canEditLogFilters else { return }

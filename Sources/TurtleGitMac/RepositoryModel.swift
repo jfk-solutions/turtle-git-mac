@@ -440,7 +440,7 @@ import UniformTypeIdentifiers
         }
         throw RepositoryMetadataAccessFailure.tooManyDependencies
     }
-    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, onOpened: (() -> Void)? = nil) {
+    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, onOpened: (() -> Void)? = nil) {
         guard !busy, !confirmingQuit else { return }
         let restoreState:()->Void = { [repository,activeAccess,root,entries,selection,branch,bare,hasGitSVN,mergeActive,conflictRebase,submodules,section,output] in
             self.repository=repository;self.activeAccess=activeAccess;self.root=root;self.entries=entries;self.selection=selection
@@ -456,6 +456,16 @@ import UniformTypeIdentifiers
         Task {
             defer { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) };if adoptionCancellation === cancellation { adoptionCancellation=nil };withExtendedLifetime(lease) {} }
             do {
+                var commandSelectedRevision: String?
+                let commandMessage: String?
+                if let invocation {
+                    if let file = invocation.messageFile {
+                        guard let messageAccess, messageAccess.contains(file), !GitRuntime.isAppStoreBuild || messageAccess.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    }
+                    commandMessage = try await Task.detached { try invocation.readMessageFile(cancellation: cancellation) }.value
+                    try cancellation.check()
+                } else { commandMessage = nil }
+                defer { withExtendedLifetime(messageAccess) {} }
                 let first = selected?.paths.first ?? lease.url
                 var location = first
                 var directory: ObjCBool = false
@@ -484,6 +494,10 @@ import UniformTypeIdentifiers
                 }
                 try cancellation.check();guard adoption == adoptionGeneration else { return }
                 repository = try makeRepository(resolved); activeAccess = sessionAccess; root = resolved
+                if let revision = invocation?.selectedRevision {
+                    commandSelectedRevision = try await repository!.rebaseCommit(revision, cancellation: cancellation).hash
+                    try cancellation.check(); guard adoption == adoptionGeneration else { return }
+                }
                 restoreCloneKeyAccess(root: resolved)
                 selection = []; entries = []; branch = ""; mergeActive = false
                 section = .status
@@ -498,7 +512,9 @@ import UniformTypeIdentifiers
                     catch { self.error="The repository is open, but additional folder access could not be saved: "+error.localizedDescription }
                 }
                 busy = false
-                if let action {
+                if let invocation {
+                    activateCommandLine(invocation, message: commandMessage, selectedRevision: commandSelectedRevision, repository: repository!, access: sessionAccess)
+                } else if let action {
                     let paths = actionPaths ?? selected?.relativePaths(root: resolved) ?? []
                     if action.isFileTransfer, let request = selected, let repository, let destination = request.paths.first {
                         if let finderTransferPresentation { finderTransferPresentation(request, repository, sessionAccess) }
@@ -1130,8 +1146,13 @@ import UniformTypeIdentifiers
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
         } catch { self.error = error.localizedDescription }
     }
-    private func showCommitDialog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+    private func showCommitDialog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], invocation: PrimaryCommandInvocation? = nil, commandMessage: String? = nil) {
         let root = repository.root
+        if invocation != nil, let existing = commitWindows[root.path] {
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
+            error = "A Commit dialog is already open. Close it before opening a command-line Commit with new presets."
+            return
+        }
         let controller = commitWindows[root.path] ?? commitWindowFactory?(repository,access) ?? CommitWindowController(repository: repository, access: access)
         controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
@@ -1148,7 +1169,8 @@ import UniformTypeIdentifiers
         controller.model.onSVNDCommit = { [weak self] in self?.showSVN(.dcommit, repository: repository, access: access) }
         configureCommitInteractions(controller.model, repository: repository, access: access)
         commitWindows[root.path] = controller
-        controller.model.reload(paths: paths)
+        if let invocation { controller.model.applyCommandLine(invocation, message: commandMessage) }
+        controller.model.reload(paths: invocation?.wholeProject == true ? [] : paths)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showAdd(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
@@ -1570,7 +1592,7 @@ import UniformTypeIdentifiers
     }
     private func showRevert(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
         let root = repository.root
-        let controller = revertWindows[root.path] ?? RevertWindowController(repository: repository, access: access)
+        let controller = revertWindows[root.path] ?? RevertWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.revertWindows.removeValue(forKey: root.path) }
         controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
         controller.model.onAccepted = { [weak self] entries in self?.showRevertProgress(repository: repository, access: access, entries: entries) }
@@ -1943,7 +1965,7 @@ import UniformTypeIdentifiers
     private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = []) {
         let root = repository.root
         section = .status
-        let controller = statusWindows[root.path] ?? StatusWindowController(repository: repository, access: access)
+        let controller = statusWindows[root.path] ?? StatusWindowController(repository: repository, access: access, defaults: fileComparisonPreferences)
         controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.statusWindows.removeValue(forKey: root.path) }
         controller.model.onCopyAdd = { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
@@ -2246,21 +2268,22 @@ import UniformTypeIdentifiers
         }
         gitPropertyWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil) {
+    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil, invocation: PrimaryCommandInvocation? = nil) {
         let root = repository.root
         var baseKey = root.path
         if let revisionRange { baseKey += "\0range\0" + revisionRange.expression }
         else if let endRevision { baseKey += "\0" + endRevision }
         if !paths.isEmpty { baseKey += "\0paths\0" + paths.sorted().joined(separator: "\0") }
+        if invocation != nil { baseKey += "\0command\0" + UUID().uuidString }
         let reusable: (key: String, value: LogWindowController)?
-        if let revisionRange {
+        if let revisionRange, invocation == nil {
             reusable = logWindows.first { _, controller in
                 controller.model.repository.root == root && controller.model.repository.executable == repository.executable &&
                 controller.window?.attachedSheet == nil && controller.model.canReuseForRange(revisionRange,paths:paths)
             }
         } else { reusable = logWindows[baseKey].map { (key: baseKey, value: $0) } }
         let key = reusable?.key ?? (logWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
-        let controller = reusable?.value ?? logWindowFactory?(repository,access) ?? LogWindowController(repository: repository, access: access)
+        let controller = reusable?.value ?? logWindowFactory?(repository,access) ?? LogWindowController(repository: repository, access: access, loadsImmediately: invocation == nil)
         controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: key) }
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
@@ -2317,8 +2340,11 @@ import UniformTypeIdentifiers
         controller.model.revisionRange = revisionRange
         let location = paths.count == 1 ? root.lastPathComponent + "/" + paths[0] : root.lastPathComponent
         controller.window?.title = location + " – Log Messages" + (endRevision.map { " at " + $0.prefix(7) } ?? "") + " – TurtleGit"
-        controller.model.setPathScope(paths)
-        if let selectedRevision { ReferenceLogWindowModel.configureRevisionLog(controller.model, revision: selectedRevision) }
+        if let invocation { controller.model.applyCommandLine(invocation, paths: paths, selectedRevision: selectedRevision) }
+        else {
+            controller.model.setPathScope(paths)
+            if let selectedRevision { ReferenceLogWindowModel.configureRevisionLog(controller.model, revision: selectedRevision) }
+        }
         if let revisionRange {
             ReferenceLogWindowModel.configureRangeLog(controller.model, range: revisionRange)
             controller.model.historyPaths=paths;controller.model.showWholeProject=paths.isEmpty
@@ -2864,7 +2890,7 @@ import UniformTypeIdentifiers
         do { try comparisonMarkStore.clear(); try publishComparisonMark() }
         catch { self.error = error.localizedDescription }
     }
-    private func comparisonPermission(for file: URL) throws -> RepositoryAccessLease? {
+    private func comparisonPermission(for file: URL, messageFile: Bool = false) throws -> RepositoryAccessLease? {
         if let activeAccess, activeAccess.contains(file), !GitRuntime.isAppStoreBuild || activeAccess.hasSecurityScope { return activeAccess }
         if let accessStore {
             for saved in accessStore.repositories {
@@ -2873,8 +2899,8 @@ import UniformTypeIdentifiers
         }
         if !GitRuntime.isAppStoreBuild { return RepositoryAccessLease(url: file) }
         let panel = NSOpenPanel(); panel.canChooseFiles = true; panel.canChooseDirectories = true
-        panel.directoryURL = file.deletingLastPathComponent(); panel.prompt = "Authorize comparison"
-        panel.message = "Choose the requested file or its containing folder to allow TurtleGit to compare it."
+        panel.directoryURL = file.deletingLastPathComponent(); panel.prompt = messageFile ? "Authorize message file" : "Authorize comparison"
+        panel.message = messageFile ? "Choose the commit message file or its containing folder to allow TurtleGit to read it." : "Choose the requested file or its containing folder to allow TurtleGit to compare it."
         guard panel.runModal() == .OK, let grant = panel.url else { return nil }
         let lease = RepositoryAccessLease(url: grant)
         guard lease.hasSecurityScope, lease.contains(file) else { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -2958,7 +2984,39 @@ import UniformTypeIdentifiers
             controller.documentSession.openFile(file)
         } catch { self.error = error.localizedDescription }
     }
-    private func handleFinderRequest(_ request:FinderRequest) {
+    // Injected pickers are test-owned. Production keeps the same explicit
+    // repository/file authorization as Finder and never trusts argv as a grant.
+    var commandLineRepositoryPermission: (([URL]) throws -> RepositoryAccessLease?)?
+    var commandLineMessagePermission: ((URL) throws -> RepositoryAccessLease?)?
+    func handleCommandLine(arguments: [String], currentDirectory: String) {
+        guard !confirmingQuit else { return }
+        do {
+            guard let invocation = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) else { return }
+            guard !busy else { error = "Wait for the current repository operation before opening a command."; return }
+            let permission: RepositoryAccessLease?
+            if let file = invocation.messageFile {
+                permission = try commandLineMessagePermission.map { try $0(file) } ?? comparisonPermission(for: file, messageFile: true)
+                guard permission != nil else { return }
+            } else { permission = nil }
+            ComparisonToolInvocation.$alternate.withValue(invocation.request.alternateTool ?? false) {
+                handleFinderRequest(invocation.request, invocation: invocation, messageAccess: permission)
+            }
+        } catch { self.error = error.localizedDescription }
+    }
+    private func activateCommandLine(_ invocation: PrimaryCommandInvocation, message: String?, selectedRevision: String?, repository: GitRepository, access: RepositoryAccessLease) {
+        let paths = invocation.request.relativePaths(root: repository.root)
+        if bare && invocation.request.action.requiresWorkingTree { activate(invocation.request.action, paths: paths); return }
+        switch invocation.request.action {
+        case .commit: showCommitDialog(repository: repository, access: access, paths: paths, invocation: invocation, commandMessage: message)
+        case .log: showLog(repository: repository, access: access, paths: paths, selectedRevision: selectedRevision, invocation: invocation)
+        case .diff:
+            if let from = invocation.diffFrom, let to = invocation.diffTo {
+                showHistoricalFiles(repository: repository, access: access, from: .revision(from), to: .revision(to), paths: paths.contains(".") ? [] : paths, owner: workspaceWindow)
+            } else { activate(.diff, paths: paths) }
+        default: activate(invocation.request.action, paths: paths)
+        }
+    }
+    private func handleFinderRequest(_ request:FinderRequest, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil) {
         let action = request.action
         if action == .settings {
             let knownRoot = request.paths.first.flatMap { selected in
@@ -2994,7 +3052,7 @@ import UniformTypeIdentifiers
         }
         // A URL from Finder or another app is a request, not a sandbox permission grant.
         if let activeAccess, permissionTargets.allSatisfy({ activeAccess.contains($0) }) {
-            openSession(activeAccess, selected: request, action: action)
+            openSession(activeAccess, selected: request, action: action, invocation: invocation, messageAccess: messageAccess)
             return
         }
         if let store = accessStore {
@@ -3002,20 +3060,28 @@ import UniformTypeIdentifiers
                 guard let lease = try? store.acquire(saved.id, requireSecurityScope: GitRuntime.isAppStoreBuild),
                       permissionTargets.allSatisfy({ lease.contains($0) }) else { continue }
                 recentRepositories = store.repositories
-                openSession(lease, selected: request, action: action)
+                openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess)
                 return
             }
         }
+        if invocation != nil, let commandLineRepositoryPermission {
+            do {
+                guard let lease = try commandLineRepositoryPermission(permissionTargets) else { return }
+                guard permissionTargets.allSatisfy({ lease.contains($0) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess)
+            } catch { self.error = error.localizedDescription }
+            return
+        }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
         panel.prompt = "Authorize repository"
-        panel.message = "Choose the repository root containing the Finder selection to allow TurtleGit to work with it."
+        panel.message = "Choose the repository root containing the requested selection to allow TurtleGit to work with it."
         panel.directoryURL = permissionTargets.count > request.paths.count ? permissionTargets.last : (candidate.hasDirectoryPath ? candidate : candidate.deletingLastPathComponent())
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let lease = RepositoryAccessLease(url: url)
         guard permissionTargets.allSatisfy({ lease.contains($0) }) else {
-            error = "The selected folder does not contain every requested Finder item."; return
+            error = "The selected folder does not contain every requested item."; return
         }
-        openSession(lease, selected: request, action: action)
+        openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess)
     }
 }
 

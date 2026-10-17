@@ -1233,6 +1233,14 @@ import UniformTypeIdentifiers
         }
         return true
     }
+    private var commandLineMessageProvided = false
+    private var commandLineIssueID: String?
+    func applyCommandLine(_ invocation: PrimaryCommandInvocation, message: String?) {
+        guard !hasLoaded, !busy else { return }
+        if let message { self.message = message; commandLineMessageProvided = true }
+        commandLineIssueID = invocation.issueID
+        if let issueID = invocation.issueID { self.issueID = issueID }
+    }
     func reload(paths: [String]? = nil) {
         guard messageFocusAvailable, !issueProviderBusy, !busy, !pendingReloadCancel else { return }
         fileMenuGeneration = UUID(); busy = true
@@ -1308,7 +1316,7 @@ import UniformTypeIdentifiers
                 }
                 var nextMessage=draftMessage,nextIssueID=draftIssueID
                 if let seed {
-                    if draftMessage.isEmpty && !nextAmend {
+                    if draftMessage.isEmpty && !nextAmend && !commandLineMessageProvided {
                         let separated=(nextIssueProperties ?? issueProperties).separateIssueLine(from:seed.message)
                         nextMessage=separated.message;nextIssueID=separated.issueID
                     }
@@ -1319,6 +1327,7 @@ import UniformTypeIdentifiers
                         self.error=error.localizedDescription;busy=false;close();return
                     }
                 }
+                if !loadedMessage, let commandLineIssueID { nextIssueID = commandLineIssueID }
                 _ = try await readReload(token) { () }
                 // No suspension until every field and dependent command target
                 // belongs to the same accepted read. Native row settlement follows.

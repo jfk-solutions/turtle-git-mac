@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-18",
+  "scope": "Primary TortoiseProc-style native command entry: Commit, Working Tree, Log, Diff, Revert and Resolve",
+  "base_commit": "fb3616c19741db13d7932778708aeaccfeebf69e",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Typed legacy/native argument parsing, repeated literal native paths and exact Unicode selection",
+    "Once-only application/model readiness delivery after workspace service installation",
+    "Existing repository, metadata and external-file permission/cancellation paths; immutable invocation carried through adoption",
+    "Commit inline/file/issue/whole-project presets, explicit empty-message preservation and existing-draft refusal",
+    "Log isolated invocation window, range/tip/selected symbolic commit, limits and upstream search-mask translation before loading",
+    "Existing directory/standalone-pair/historical Diff routing with captured alternative tool choice",
+    "Revert and Resolve review without automatic mutation; explicit unsupported-option diagnostics",
+    "Native localization refresh, CLI user guide, README link and grouped hosted step"
+  ],
+  "validation": {
+    "core_initial": {
+      "exit": 1,
+      "executed": 27,
+      "failing_test_methods": 2,
+      "failure_records": 23,
+      "reason": "Test helper passed a throwing parser call directly to XCTUnwrap; expected parser rejection was recorded as an unexpected XCTest failure before XCTAssertThrowsError handled it",
+      "log": "build/qa/primary-commands-core-2026-10-18.log"
+    },
+    "core_repair": {
+      "exit": 0,
+      "executed": 8,
+      "failed": 0,
+      "scope": "Only affected PrimaryCommandInvocationTests after extracting parser result before XCTUnwrap",
+      "log": "build/qa/primary-commands-core-repair-2026-10-18.log"
+    },
+    "core_cumulative": {
+      "distinct_passing_tests": 27,
+      "remaining_failures": 0,
+      "full_suite_rerun": false
+    },
+    "debug_builds": [
+      {
+        "exit": 0,
+        "log": "build/qa/primary-commands-build-2026-10-18.log"
+      },
+      {
+        "exit": 0,
+        "reason": "Actual native Log constructor eager-read ordering repair",
+        "log": "build/qa/primary-commands-build-repair-2026-10-18.log"
+      },
+      {
+        "exit": 0,
+        "reason": "Review caught customized Commit dispatch bypassing normal bare-repository eligibility; reused ordinary activate guard",
+        "log": "build/qa/primary-commands-build-bare-2026-10-18.log"
+      }
+    ],
+    "native": {
+      "exit": 0,
+      "passing_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "distinct_complete_family_passes": 2,
+      "runtime_attempts": 7,
+      "owned_receiver_pids": [
+        76665,
+        76833,
+        77114,
+        77602,
+        77970,
+        78622,
+        78639
+      ],
+      "cleanup": "All reported reaped; independently checked absent with ps",
+      "log": "build/qa/primary-commands-native-log-repair-2026-10-18.log",
+      "earlier_failures": [
+        {
+          "log": "build/qa/primary-commands-native-2026-10-18.log",
+          "reason": "Fixture selected a retained closed Commit window instead of the current visible window; corrected helper selection without removing assertions"
+        },
+        {
+          "log": "build/qa/primary-commands-native-repair-2026-10-18.log",
+          "reason": "Real Log eager constructor read blocked preset application"
+        },
+        {
+          "log": "build/qa/primary-commands-native-diagnosis-2026-10-18.log",
+          "reason": "Same Log failure with detailed field diagnostics; range nil, paths empty, working-tree row selected"
+        }
+      ],
+      "bare_repository_affected_check": {
+        "exit": 0,
+        "passing_engines": [
+          "/usr/bin/git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "passing_cases": 2,
+        "log": "build/qa/primary-commands-native-bare-2026-10-18.log",
+        "scope": "Only the final bare guard changed after complete family passes; did not repeat unaffected six-dialog checks"
+      }
+    },
+    "localizations": {
+      "exit": 0,
+      "mode": "write then check",
+      "languages": 38,
+      "keys": 1284,
+      "log": "build/qa/primary-commands-localizations-2026-10-18.log"
+    },
+    "site": {
+      "documents": 294,
+      "unresolved_fragments": 0,
+      "log": "build/qa/primary-commands-site-2026-10-18.log"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "not_a_completion_percentage": true
+    }
+  },
+  "limits": [
+    "Not complete TortoiseProc CLI compatibility; remaining options, commands and automation/output protocols listed in COMMAND-LINE.md",
+    "Native fixture dispatches injected argv and real controllers, not a packaged Launch Services smoke test",
+    "No physical Finder, signed AppStore, minimum-supported-OS or all-dialog visual acceptance claim",
+    "Unrelated hosted wrapped-editor timeout persists; artifact evidence in ci-wrapped-stack-after-presentation-2026-10-18.json",
+    "Previously generated custom TurtleGit icon still requires recovered artwork; no new branding claim"
+  ]
+}

@@ -5,11 +5,24 @@ import AppKit
         #if SWIFT_PACKAGE
         if let file = Bundle.module.url(forResource: "ApplicationIcon", withExtension: "png", subdirectory: "Branding"), let icon = NSImage(contentsOf: file) { NSApp.applicationIconImage = icon }
         #endif
+        startupDidFinishLaunching()
         TurtleGitHelp.install()
         SupportReportService.shared.checkForPreviousCrash()
     }
     @objc func showHelp(_ sender: Any?) { TurtleGitHelp.showContext() }
-    weak var repositoryModel: RepositoryModel?
+    weak var repositoryModel: RepositoryModel? { didSet { deliverStartupCommand() } }
+    var startupArguments = Array(CommandLine.arguments.dropFirst())
+    var startupDirectory = FileManager.default.currentDirectoryPath
+    var startupCommandHandler: ((RepositoryModel, [String], String) -> Void)?
+    private var startupReady = false
+    private(set) var startupDelivered = false
+    func startupDidFinishLaunching() { startupReady = true; deliverStartupCommand() }
+    private func deliverStartupCommand() {
+        guard startupReady, !startupDelivered, let repositoryModel else { return }
+        startupDelivered = true
+        if let startupCommandHandler { startupCommandHandler(repositoryModel, startupArguments, startupDirectory) }
+        else { repositoryModel.handleCommandLine(arguments: startupArguments, currentDirectory: startupDirectory) }
+    }
     private var confirmingQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
     func applicationWillTerminate(_ notification: Notification) { SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }

@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-18",
+  "scope": "Hosted wrapped-editor timeout persists after presentation stabilization; new retained stack for next repair batch",
+  "run": 39075802416,
+  "job": 117524619810,
+  "commit": "4f347bb9",
+  "run_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39075802416",
+  "result": "completed failure in Moved blocks and wrapped editor navigation family; wrapped timed out after 300 seconds",
+  "prior_cases_passed": [
+    "ownership",
+    "terminal",
+    "margin-selection",
+    "margin",
+    "moved"
+  ],
+  "receiver": 45514,
+  "receiver_cleanup": "owned runner reports reaped after successful stack capture",
+  "artifact": {
+    "id": 12117327023,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39075802416/artifacts/12117327023",
+    "zip_sha256": "9a62a63bd5dbd71d8967a67f817cd2e9537cd486d7aae4b11aad3cc54c10fa0e",
+    "zip_bytes": 73336,
+    "saved_local": "build/qa/4f347bb9-wrapped.sample.txt",
+    "text_bytes": 346827,
+    "text_sha256": "56fef14f81af459a419ac6ac3b691400dbd707888fd51c52f816a8c466ab36dd"
+  },
+  "stack_observation": "Main-thread samples remain active in AppKit window/constraint layout, SwiftUI FileComparisonEditor.updateNSView, inline/missing-offset source projection and TextKit. This does not prove a deadlock or identify one root cause.",
+  "inference": "The local presentation passes did not resolve hosted older-OS Intel acceptance. Investigate repeated view updates and source projection within the connected wrapping/layout workflow.",
+  "limits": [
+    "Not a passing hosted claim",
+    "No editor repair or repeat test was performed in this command-line implementation batch",
+    "Later runs observed pending/in progress must be checked again rather than assumed terminal"
+  ]
+}

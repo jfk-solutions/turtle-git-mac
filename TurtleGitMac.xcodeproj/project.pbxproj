@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C81800000000000000000001 /* PrimaryCommandInvocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81800000000000000000002 /* PrimaryCommandInvocation.swift */; };
 		1A69AA4536DD6B5565199815 /* LibreOfficeComparisonAutomation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C736B7D87B43E2E36549A6B /* LibreOfficeComparisonAutomation.swift */; };
 		353324EB31D26467D5923420 /* LibreOfficeComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB112F7F921AE5646F703B59 /* LibreOfficeComparison.swift */; };
         C81660000000000000000001 /* CommitCheckboxIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81660000000000000000002 /* CommitCheckboxIndex.swift */; };
@@ -800,6 +801,7 @@
 		BA911F44B257D32227A53505 /* RemoteReferenceChoices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteReferenceChoices.swift; sourceTree = "<group>"; };
 		BA9C491D545F62D715E5BDA1 /* NetworkSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkSettings.swift; sourceTree = "<group>"; };
 		BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderRequest.swift; sourceTree = "<group>"; };
+		C81800000000000000000002 /* PrimaryCommandInvocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryCommandInvocation.swift; sourceTree = "<group>"; };
 		BEA9844D056250E1264A3B15 /* AdvancedSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettings.swift; sourceTree = "<group>"; };
 		C0C826BF8D2B76F52F29C6CD /* HistoryLanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryLanes.swift; sourceTree = "<group>"; };
 		C12C65B53D4E28A9F6C52DF1 /* ImageConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageConflictWindow.swift; sourceTree = "<group>"; };
@@ -1288,6 +1290,7 @@
 				534D2BCEF1E4DBDFF070E193 /* FinderContextMenuSettings.swift */,
 				EFA280FD82A687572025B806 /* FinderOverlaySettings.swift */,
 				BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */,
+				C81800000000000000000002 /* PrimaryCommandInvocation.swift */,
 				DDC0FDDF27A6D5E40A3A7447 /* FinderServiceAuthorization.swift */,
 				EECCE7959BF8AB6672556218 /* FinderTransfer.swift */,
 				0750171C26BC3934BA091775 /* FormatPatch.swift */,
@@ -1900,6 +1903,7 @@
 				C6CCA1EF335DB4A2C8B07B25 /* FinderContextMenuSettings.swift in Sources */,
 				31EF8A4E8017B7CAE75B4113 /* FinderOverlaySettings.swift in Sources */,
 				AC1988C449B92C1D5501A8DC /* FinderRequest.swift in Sources */,
+				C81800000000000000000001 /* PrimaryCommandInvocation.swift in Sources */,
 				A30CC79EB958693A2C11F1E8 /* FinderServiceAuthorization.swift in Sources */,
 				F985838996B74756D7DE40B9 /* FinderTransfer.swift in Sources */,
 				08649F1E93CBDC2DE8ADD500 /* FormatPatch.swift in Sources */,

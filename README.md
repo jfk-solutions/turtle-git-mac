@@ -342,3 +342,5 @@ Binary, symbolic-link and deletion conflicts use [explicit patch recovery choice
 
 Signed development builds and actual sandbox checks are described in the
 [Finder development guide](docs/SIGNED-FINDER-DEVELOPMENT.md).
+
+Primary TortoiseProc-style [command-line entry](docs/COMMAND-LINE.md) opens native Commit, Working Tree, Log, Diff, Revert and Resolve dialogs, including editable message/history presets and explicit repository/file authorization. Other legacy commands and automation switches remain open.
