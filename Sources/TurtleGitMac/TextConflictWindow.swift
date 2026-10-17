@@ -81,6 +81,7 @@ struct MergeTabControls: View {
     let changeWidth: (Int) -> Void
     let changeSpaces: (Bool) -> Void
     let changeSmart: (Bool) -> Void
+    var writable = true
     var editorConfigEnabled = false
     var editorConfigLoaded = false
     var changeEditorConfig: ((Bool) -> Void)? = nil
@@ -103,9 +104,9 @@ struct MergeTabControls: View {
             }
             if let changeEditorConfig {
                 Divider()
-                Toggle("EditorConfig", isOn: Binding(get: { editorConfigEnabled }, set: changeEditorConfig))
+                Toggle("EditorConfig", isOn: Binding(get: { editorConfigEnabled }, set: changeEditorConfig)).disabled(!editorConfigLoaded)
             }
-        }.fixedSize().accessibilityLabel("\(label) tab settings: \(settingsTitle)")
+        }.disabled(!writable).fixedSize().accessibilityLabel("\(label) tab settings: \(settingsTitle)")
     }
 }
 private enum MergeSourceSide {
@@ -551,7 +552,7 @@ private enum MergeSourceSide {
         lineWrapping.retire()
         retired = true; loadGeneration += 1; loadCancellation?.cancel(); loadCancellation = nil
         regexList?.retire(); regexList = nil
-        editorConfigRequests = [:]
+        cancelEditorConfigReads()
     }
     private var savedIgnoredConflicts: [IgnoredMergeConflict] = []
     private var savedSourceChoiceRevision: UInt64 = 0
@@ -584,7 +585,7 @@ private enum MergeSourceSide {
     @Published var selectedConflict = 0
     @Published var caret = NSRange(location: 0, length: 0)
     @Published var selectionRequest: NSRange?
-    @Published var busy = false
+    @Published var busy = false { didSet { if oldValue != busy { paneTabEpoch = UUID() } } }
     @Published private(set) var preparing = false
     @Published var confirmingQuit = false
     @Published var error: String?
@@ -613,28 +614,56 @@ private enum MergeSourceSide {
     @Published var overwriteMode = false
     private var initialEditorConfigDefault = MergeEditorPreferences.load().enableEditorConfig
     func setEditorConfig(_ enabled: Bool, pane: String) {
-        guard document != nil, !confirmingQuit else { return }
-        let request = UUID(); editorConfigRequests[pane] = request
-        editorConfigEnabled[pane] = enabled; editorConfigLoaded[pane] = false
+        guard document != nil, !retired, !confirmingQuit else { return }
+        editorConfigReads.removeValue(forKey:pane)?.cancel()
+        let request = UUID(); editorConfigRequests[pane] = request; paneTabEpoch = UUID()
+        editorConfigEnabled[pane] = enabled
+        if enabled { editorConfigLoaded[pane] = false }
         tabWidths[pane] = editorPreferences.tabWidth
         spacePanes[pane] = editorPreferences.useSpaces
         smartTabPanes[pane] = editorPreferences.smartTab
         editorConfigLoading.remove(pane)
         guard enabled else { return }
+        let read = makeEditorConfigRead(); editorConfigReads[pane] = read
         editorConfigLoading.insert(pane)
-        let file = repository.root.appendingPathComponent(path)
+        let file = FileTransferPaths.fileURL(path.hasPrefix("/") ? path : repository.root.path + "/" + path)
+        let permissions = openPermissions
         Task {
-            let resolved = await Task.detached { Result { try EditorConfigRuntime.resolve(file: file) } }.value
-            guard editorConfigRequests[pane] == request else { return }
-            editorConfigLoading.remove(pane)
+            let resolved: Result<MergeEditorConfigProperties?,Error>
+            do { resolved = .success(try await read.read(file:file,permissions:permissions,window:window)) }
+            catch { resolved = .failure(error) }
+            guard !retired, editorConfigRequests[pane] == request else { return }
+            editorConfigLoading.remove(pane); editorConfigReads.removeValue(forKey:pane); paneTabEpoch = UUID()
             switch resolved {
             case .success(let values):
+                guard let values else { return }
                 editorConfigLoaded[pane] = values.loaded
                 let settings = values.applying(to: editorPreferences)
                 tabWidths[pane] = settings.tabWidth; spacePanes[pane] = settings.useSpaces
-            case .failure(let failure): error = failure.localizedDescription
+            case .failure(let failure): if !read.cancellation.isCancelled { error = failure.localizedDescription }
             }
         }
+    }
+    private var paneTabEpoch = UUID()
+    private var editorConfigReads: [String:MergeEditorConfigRead] = [:]
+    var makeEditorConfigRead: () -> MergeEditorConfigRead = { MergeEditorConfigRead() }
+    func captureTabCommand(pane:String) -> MergePaneTabCommand {
+        .init(epoch:paneTabEpoch,writable:sourceToolsAllowed && pane == "Merged · \(resultPath)" && !editorConfigLoading.contains(pane),editorConfigLoaded:editorConfigLoaded[pane] == true)
+    }
+    func applyTabCommand(_ command:MergePaneTabCommand,pane:String,action:MergePaneTabCommand.Action) {
+        guard command.epoch == paneTabEpoch, command.writable, captureTabCommand(pane:pane).writable else { return }
+        switch action {
+        case .width(let width): guard [1,2,4,8].contains(width) else { return }; tabWidths[pane] = width
+        case .spaces(let value): spacePanes[pane] = value
+        case .smart(let value): smartTabPanes[pane] = value
+        case .editorConfig(let value): guard command.editorConfigLoaded,editorConfigLoaded[pane] == true else { return }; setEditorConfig(value,pane:pane)
+        }
+        paneTabEpoch = UUID()
+    }
+    private func cancelEditorConfigReads() {
+        paneTabEpoch = UUID(); editorConfigRequests = [:]
+        for read in editorConfigReads.values { read.cancel() }
+        editorConfigReads.removeAll(); editorConfigLoading.removeAll()
     }
     private func reloadEditorConfig() {
         guard let document else { return }
@@ -811,6 +840,7 @@ private enum MergeSourceSide {
         self.repository = repository; self.access = access; self.path = path
         preferencesSubscription = NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged).sink { [weak self] _ in
             guard let self else { return }
+            self.paneTabEpoch = UUID()
             let next = MergeEditorPreferences.load(from:self.comparisonDefaults)
             self.locatorPreferences = .load(from: self.comparisonDefaults)
             self.wrapLines = self.comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
@@ -848,6 +878,7 @@ private enum MergeSourceSide {
             case .cancel: pendingComparisonOptions = nil; return
             }
         }
+        cancelEditorConfigReads()
         busy = true; preparing = true
         loadGeneration += 1; let generation = loadGeneration, token = OperationCancellation()
         loadCancellation = token; MergeRegexOperations.activeRequests += 1
@@ -1256,6 +1287,7 @@ private struct TextConflictDialog: View {
         let useSpaces = model.spacePanes[title] ?? model.editorPreferences.useSpaces
         let smartTab = model.smartTabPanes[title] ?? model.editorPreferences.smartTab
         let encoding = editable ? model.encoding : (side == .mine ? model.document?.mineEncoding : side == .theirs ? model.document?.theirsEncoding : model.document?.baseEncoding)
+        let tabCommand = model.captureTabCommand(pane:title)
         return VStack(spacing: 0) {
             HStack {
                 Text(title).font(.headline)
@@ -1268,7 +1300,7 @@ private struct TextConflictDialog: View {
             HStack {
                 MergeFormatControls(label: title, encoding: encoding, text: editable ? model.resultFormatText : text, editable: editable && model.sourceToolsAllowed && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, showFormatDialog:model.showFormatDialog)
                 Spacer()
-                MergeTabControls(label: title, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab, changeWidth: { model.tabWidths[title] = $0 }, changeSpaces: { model.spacePanes[title] = $0 }, changeSmart: { model.smartTabPanes[title] = $0 }, editorConfigEnabled: model.editorConfigEnabled[title] == true, editorConfigLoaded: model.editorConfigLoaded[title] == true, changeEditorConfig: { model.setEditorConfig($0, pane: title) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(title))
+                MergeTabControls(label: title, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab, changeWidth: { model.applyTabCommand(tabCommand,pane:title,action:.width($0)) }, changeSpaces: { model.applyTabCommand(tabCommand,pane:title,action:.spaces($0)) }, changeSmart: { model.applyTabCommand(tabCommand,pane:title,action:.smart($0)) }, writable: tabCommand.writable, editorConfigEnabled: model.editorConfigEnabled[title] == true, editorConfigLoaded: tabCommand.editorConfigLoaded, changeEditorConfig: { model.applyTabCommand(tabCommand,pane:title,action:.editorConfig($0)) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(title))
             }.padding(.horizontal, 7).padding(.vertical, 3).background(Color(nsColor: .controlBackgroundColor))
         }
     }

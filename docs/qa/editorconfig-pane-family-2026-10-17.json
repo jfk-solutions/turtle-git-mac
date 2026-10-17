@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "bd413b2b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected comparison/conflict pane indentation commands, source writable/loaded gates, permission sheets, parser cancellation and retained read lifetime.",
+  "source": {
+    "src/TortoiseMerge/BaseView.cpp": "366693a9d1d37033f6c99222fe616e6c1dc394c5",
+    "src/TortoiseMerge/MainFrm.cpp": "0d5d08525a1ee6a3f8bfa5f15cff9bf6bcba1138"
+  },
+  "implemented": [
+    "Pane-command epochs and source writable/loaded menu availability",
+    "Retained loaded flag when disabling, saved indentation default reset and re-enable",
+    "Owned per-pane permission sheet/read session with security scopes retained until drain",
+    "OperationCancellation reaches parser process group; reads count toward shared Quit lifetime",
+    "Replacement/reload/retirement cancel own sessions and suppress late completion"
+  ],
+  "validation": {
+    "core": {
+      "passed": 9,
+      "log": "build/qa/editorconfig-pane-core-2026-10-17.log",
+      "scope": "EditorConfig, MergeEditorPreferences and BundledTextHelper tests, including real parser inheritance, prelaunch rejection and live parser leader reaping"
+    },
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/editorconfig-pane-build-2026-10-17.log"
+    },
+    "native": {
+      "passed": 2,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/editorconfig-pane-native-2026-10-17.log",
+      "scope": "Production Compare/Merge models, real pinned parser, command gates/replay, held completion after close, input/result/index preservation and actual owned folder sheet cancellation"
+    },
+    "owned_receiver_pids": [
+      58222,
+      58281
+    ],
+    "independently_absent": true,
+    "core_helper_executables_absent": true
+  },
+  "remaining": [
+    "Physical menu/keyboard/focus/theme and full visual parity acceptance",
+    "Signed App Store scope reads and ancestor permission workflow",
+    "Native timeout/failure UI and wider settings/save-prompt acceptance",
+    "No full hosted CI pass or full upstream dialog completion claim"
+  ],
+  "notes": [
+    "All relevant checks passed on the first grouped checkpoint.",
+    "Existing Xcode outdated Simulator/exit-zero compiler diagnostics remain; exit-zero build is not a clean-diagnostics claim."
+  ]
+}

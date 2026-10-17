@@ -875,6 +875,7 @@ struct MergeTypingModeControl: View {
 /// grant. Acquire it only for an explicit save, under that save's existing owner.
 @MainActor final class MergeSaveFolderAccess {
     var requireScope=GitRuntime.isAppStoreBuild
+    var readingEditorConfig = false
     var chooseFolder:((NSWindow?,URL) async -> URL?)?
     var makeLease:(URL)->RepositoryAccessLease = {RepositoryAccessLease(url:$0)}
     private(set) var panel:NSOpenPanel?
@@ -891,8 +892,8 @@ struct MergeTypingModeControl: View {
         else {
             guard let window,window.attachedSheet==nil,panel==nil else {return nil}
             let panel=NSOpenPanel();panel.canChooseFiles=false;panel.canChooseDirectories=true;panel.allowsMultipleSelection=false
-            panel.directoryURL=parent;panel.prompt="Allow Save";panel.title="Allow saving in this folder"
-            panel.message="Choose the folder containing “" + file.lastPathComponent + "” to allow saving and backups."
+            panel.directoryURL=parent;panel.prompt=readingEditorConfig ? "Read EditorConfig" : "Allow Save";panel.title=readingEditorConfig ? "Read EditorConfig" : "Allow saving in this folder"
+            panel.message=readingEditorConfig ? "Choose the folder containing “" + file.lastPathComponent + "” to read its EditorConfig settings." : "Choose the folder containing “" + file.lastPathComponent + "” to allow saving and backups."
             self.panel=panel
             let answer=await withCheckedContinuation {continuation in panel.beginSheetModal(for:window) {continuation.resume(returning:$0)}}
             self.panel=nil;selected=answer == .OK ? panel.url : nil
@@ -903,4 +904,32 @@ struct MergeTypingModeControl: View {
         guard permission.permits(file),permission.permits(parent) else {throw RepositoryAccessFailure.securityScopeUnavailable}
         return [permission]
     }
+}
+
+/// One pane read owns its folder sheet, child process and access leases until
+/// drain. Models may retire it immediately without accepting a late result.
+@MainActor final class MergeEditorConfigRead {
+    let cancellation = OperationCancellation()
+    let folderAccess = MergeSaveFolderAccess()
+    var resolve: @Sendable (URL, OperationCancellation) throws -> MergeEditorConfigProperties = {
+        try EditorConfigRuntime.resolve(file:$0,cancellation:$1)
+    }
+    init() { folderAccess.readingEditorConfig = true }
+    func cancel() { cancellation.cancel(); folderAccess.cancel() }
+    func read(file:URL, permissions:[RepositoryAccessLease], window:NSWindow?) async throws -> MergeEditorConfigProperties? {
+        MergeRegexOperations.activeRequests += 1
+        defer { MergeRegexOperations.activeRequests -= 1 }
+        guard let acquired = try await folderAccess.authorize(file:file,permissions:permissions,window:window,cancellation:cancellation) else { return nil }
+        let held = permissions + acquired
+        defer { withExtendedLifetime(held) {} }
+        let resolve = resolve, cancellation = cancellation
+        return try await Task.detached { try resolve(file,cancellation) }.value
+    }
+}
+
+struct MergePaneTabCommand {
+    enum Action { case width(Int), spaces(Bool), smart(Bool), editorConfig(Bool) }
+    let epoch: UUID
+    let writable: Bool
+    let editorConfigLoaded: Bool
 }

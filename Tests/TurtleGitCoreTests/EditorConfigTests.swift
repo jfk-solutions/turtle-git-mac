@@ -5,6 +5,31 @@ final class EditorConfigTests: XCTestCase {
     private var parser: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/editorconfig-runtime/EditorConfig/editorconfig")
     }
+    func testCancelledReadNeverLaunchesParser() {
+        let token = OperationCancellation(); token.cancel()
+        XCTAssertThrowsError(try EditorConfigRuntime.resolve(file:URL(fileURLWithPath:"/tmp/file"),executable:URL(fileURLWithPath:"/missing/parser"),cancellation:token)) {
+            XCTAssertTrue($0 is OperationCancellationFailure)
+        }
+    }
+    func testLiveParserCancellationReapsOwnedProcess() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitEditorConfigCancel-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        defer { try? FileManager.default.removeItem(at:folder) }
+        let helper = folder.appendingPathComponent("parser"), marker = folder.appendingPathComponent("pid")
+        try "#!/bin/sh\nprintf '%s' $$ > \"$0.pid.tmp\"\nmv \"$0.pid.tmp\" \"$0.pid\"\nexec /bin/sleep 60\n".write(to:helper,atomically:true,encoding:.utf8)
+        try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:helper.path)
+        let token = OperationCancellation(), pidFile = URL(fileURLWithPath:helper.path+".pid")
+        let task = Task.detached { try EditorConfigRuntime.resolve(file:marker,executable:helper,cancellation:token) }
+        for _ in 0..<300 {
+            if FileManager.default.fileExists(atPath:pidFile.path) { break }
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        let pid = try XCTUnwrap(Int32(String(contentsOf:pidFile,encoding:.utf8)))
+        token.cancel()
+        do { _ = try await task.value; XCTFail("Cancelled read returned settings") }
+        catch { XCTAssertTrue(error is OperationCancellationFailure) }
+        XCTAssertEqual(kill(pid,0),-1); XCTAssertEqual(errno,ESRCH)
+    }
     func testOfficialRuntimeResolvesInheritedRulesAndMapsOnlyPaneIndentation() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitEditorConfigTest-" + UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

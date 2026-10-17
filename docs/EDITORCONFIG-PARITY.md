@@ -101,12 +101,42 @@ is explicit upstream behavior rather than stricter property validation. See
 Full preference reload/save-prompt acceptance,
 native failure/timeout and race acceptance, signed sandbox reads with folder
 bookmarks, ancestor permissions, dark/narrow layouts and actual Intel/macOS13
-execution remain pending. Exact writable/loaded menu availability still differs:
-upstream gates menu commands by view writability and the EditorConfig loaded
-state; native read-only panes currently allow view-setting changes. Full source
-editing and those gates remain partial. The 358 local tests and unsigned app builds
+execution remain pending. The October 17 connected pane checkpoint below replaces the earlier native
+read-only/loaded gate difference. Full source editing and physical menu
+availability acceptance remain partial. The 358 local tests and unsigned app builds
 do not establish full EditorConfig parity or App Store readiness.
 
 Sources: [TortoiseMerge wrapper](https://raw.githubusercontent.com/TortoiseGit/TortoiseGit/master/src/TortoiseMerge/EditorConfigWrapper.cpp),
 [official C core](https://github.com/editorconfig/editorconfig-core-c),
 [EditorConfig specification](https://spec.editorconfig.org/).
+
+
+## Connected pane commands and read ownership — October 17
+
+Comparison and conflict status menus now gate indentation commands by pane
+writability; the EditorConfig toggle additionally requires a successfully loaded
+configuration. Disabling resets tab/mode/Smart defaults while retaining the
+loaded flag, allowing re-enable as in `BaseView::SetEditorConfigEnabled`.
+This follows pinned `MainFrm::OnUpdateTabMode`; defaults disabled globally do
+not turn an unprobed pane into an enabled EditorConfig toggle.
+
+Width, Space/Tab, Smart and EditorConfig callbacks capture a pane-command epoch.
+Accepted commands retire previous callbacks. Busy transitions, refreshed
+preferences, new reads, reload and owner retirement also invalidate commands.
+These native commands change pane settings without changing text or Undo.
+
+Both models now use an owned read session. It presents a folder permission sheet
+instead of a nested modal loop when necessary, retains existing/acquired scopes
+until the parser returns, and counts the complete authorization/read interval in
+the shared operation lifetime used by Quit. Replaced reads, reload and close
+cancel their own parser operation and sheet. Late results cannot change retired
+models or replace newer settings. Core resolution passes the cancellation token
+to the existing bounded process-group runner, including prelaunch rejection and
+live process termination/reaping.
+
+[Checkpoint evidence](qa/editorconfig-pane-family-2026-10-17.json) records nine
+focused Core passes and two native system/bundled-Git runs. The native receivers
+exercise the real pinned parser, both production editor models, writable/loaded
+gates, stale callbacks, retained loaded/default reset, a held late read, owned
+folder-sheet cancellation and unchanged input/result/index bytes. No signed
+scope, physical menu gestures, timeout/failure UI or full visual parity is claimed.

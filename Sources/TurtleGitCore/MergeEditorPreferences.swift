@@ -47,13 +47,13 @@ public enum EditorConfigRuntime {
     }
     /// Call off the main thread. The parser reads configurations only; a bounded
     /// child process and disk-backed output avoid UI and pipe stalls.
-    public static func resolve(file: URL, executable: URL? = nil, bundle: Bundle = .main) throws -> MergeEditorConfigProperties {
+    public static func resolve(file: URL, executable: URL? = nil, bundle: Bundle = .main, cancellation: OperationCancellation? = nil) throws -> MergeEditorConfigProperties {
         guard file.isFileURL, file.path.hasPrefix("/"), !file.path.contains("\0") else { throw EditorConfigFailure.invalidPath }
-        try Task.checkCancellation()
+        try Task.checkCancellation(); try cancellation?.check()
         let parser = try executable ?? Self.executable(bundle: bundle)
         guard FileManager.default.isExecutableFile(atPath: parser.path) else { throw EditorConfigFailure.runtimeMissing }
         let data: Data
-        do { data = try BundledTextHelper.capture(executable: parser, arguments: [file.path]) }
+        do { data = try BundledTextHelper.capture(executable: parser, arguments: [file.path], cancellation: cancellation) }
         catch BundledTextHelperFailure.timedOut { throw EditorConfigFailure.timedOut }
         catch BundledTextHelperFailure.failed(let message) { throw EditorConfigFailure.failed(message) }
         guard let text = String(data: data, encoding: .utf8) else { throw EditorConfigFailure.failed("Invalid parser output.") }

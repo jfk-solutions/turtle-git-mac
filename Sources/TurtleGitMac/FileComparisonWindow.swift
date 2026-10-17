@@ -607,7 +607,7 @@ private extension FileComparisonDocument {
     }
     private var loadSession: FileListComparisonSession?
     private var closeAfterLoad = false
-    @Published var busy = false
+    @Published var busy = false { didSet { if oldValue != busy { paneTabEpoch = UUID() } } }
     @Published var confirmingQuit = false
     @Published var error: String?
     @Published var difference = -1
@@ -662,42 +662,57 @@ private extension FileComparisonDocument {
     @Published var editorConfigLoading: Set<Bool> = []
     private var editorConfigRequests: [Bool: UUID] = [:]
     func setEditorConfig(_ enabled: Bool, base: Bool) {
-        guard let document, !confirmingQuit else { return }
+        guard let document, !retired, !confirmingQuit else { return }
+        editorConfigReads.removeValue(forKey:base)?.cancel()
         let content = base ? document.base : document.destination
-        let file = content.path.hasPrefix("/") ? URL(fileURLWithPath: content.path) : snapshot.root.appendingPathComponent(content.path)
-        if enabled, GitRuntime.isAppStoreBuild {
-            let parent = file.deletingLastPathComponent()
-            let permissions = workingPermissions + [access].compactMap { $0 }
-            if !permissions.contains(where: { $0.hasSecurityScope && $0.contains(parent) }) {
-                let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true
-                panel.directoryURL = parent; panel.prompt = "Read EditorConfig"
-                panel.message = "Choose the folder containing “" + file.lastPathComponent + "” to read its EditorConfig settings."
-                guard panel.runModal() == .OK, let folder = panel.url else { return }
-                let permission = RepositoryAccessLease(url: folder)
-                guard permission.hasSecurityScope, permission.contains(parent) else { error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
-                workingPermissions.append(permission)
-            }
-        }
-        let request = UUID(); editorConfigRequests[base] = request
-        editorConfigEnabled[base] = enabled; editorConfigLoaded[base] = false
+        let file = FileTransferPaths.fileURL(content.path.hasPrefix("/") ? content.path : snapshot.root.path + "/" + content.path)
+        let request = UUID(); editorConfigRequests[base] = request; paneTabEpoch = UUID()
+        editorConfigEnabled[base] = enabled
+        if enabled { editorConfigLoaded[base] = false }
         tabWidths[base] = editorPreferences.tabWidth
         spacePanes[base] = editorPreferences.useSpaces
         smartTabPanes[base] = editorPreferences.smartTab
         editorConfigLoading.remove(base)
         guard enabled else { return }
+        let read = makeEditorConfigRead(); editorConfigReads[base] = read
         editorConfigLoading.insert(base)
+        let permissions = openPermissions
         Task {
-            let resolved = await Task.detached { Result { try EditorConfigRuntime.resolve(file: file) } }.value
-            guard editorConfigRequests[base] == request else { return }
-            editorConfigLoading.remove(base)
+            let resolved: Result<MergeEditorConfigProperties?,Error>
+            do { resolved = .success(try await read.read(file:file,permissions:permissions,window:window)) }
+            catch { resolved = .failure(error) }
+            guard !retired, editorConfigRequests[base] == request else { return }
+            editorConfigLoading.remove(base); editorConfigReads.removeValue(forKey:base); paneTabEpoch = UUID()
             switch resolved {
             case .success(let values):
+                guard let values else { return }
                 editorConfigLoaded[base] = values.loaded
                 let settings = values.applying(to: editorPreferences)
                 tabWidths[base] = settings.tabWidth; spacePanes[base] = settings.useSpaces
-            case .failure(let failure): error = failure.localizedDescription
+            case .failure(let failure): if !read.cancellation.isCancelled { error = failure.localizedDescription }
             }
         }
+    }
+    private var paneTabEpoch = UUID()
+    private var editorConfigReads: [Bool:MergeEditorConfigRead] = [:]
+    var makeEditorConfigRead: () -> MergeEditorConfigRead = { MergeEditorConfigRead() }
+    func captureTabCommand(base:Bool) -> MergePaneTabCommand {
+        .init(epoch:paneTabEpoch,writable:canTransfer(toBase:base) && !retired && window?.attachedSheet == nil && !editorConfigLoading.contains(base),editorConfigLoaded:editorConfigLoaded[base] == true)
+    }
+    func applyTabCommand(_ command:MergePaneTabCommand,base:Bool,action:MergePaneTabCommand.Action) {
+        guard command.epoch == paneTabEpoch, command.writable, captureTabCommand(base:base).writable else { return }
+        switch action {
+        case .width(let width): guard [1,2,4,8].contains(width) else { return }; tabWidths[base] = width
+        case .spaces(let value): spacePanes[base] = value
+        case .smart(let value): smartTabPanes[base] = value
+        case .editorConfig(let value): guard command.editorConfigLoaded,editorConfigLoaded[base] == true else { return }; setEditorConfig(value,base:base)
+        }
+        paneTabEpoch = UUID()
+    }
+    private func cancelEditorConfigReads() {
+        paneTabEpoch = UUID(); editorConfigRequests = [:]
+        for read in editorConfigReads.values { read.cancel() }
+        editorConfigReads.removeAll(); editorConfigLoading.removeAll()
     }
     private func reloadEditorConfig() {
         for base in editorConfigEnabled.keys where editorConfigEnabled[base] == true { setEditorConfig(true, base: base) }
@@ -707,6 +722,7 @@ private extension FileComparisonDocument {
     func useSpaces(base: Bool) -> Bool { spacePanes[base] ?? editorPreferences.useSpaces }
     func smartTab(base: Bool) -> Bool { smartTabPanes[base] ?? editorPreferences.smartTab }
     func refreshPreferences() {
+        paneTabEpoch = UUID()
         let general = MergeGeneralPreferences.load(from: comparisonDefaults)
         if general != generalPreferences { generalPreferences = general; inlineCache = [:] }
         if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
@@ -1155,6 +1171,7 @@ private extension FileComparisonDocument {
         externalAttempted = true; viewerSelection = .image
     }
     func retireImageLoader() {
+        cancelEditorConfigReads()
         if let request = projectionChange { finishProjectionChange(request) }
         folding.retire()
         loadSession?.cancel(); closeAfterLoad = false
@@ -1236,6 +1253,7 @@ private extension FileComparisonDocument {
     func beginTransferredDocument() { initialLoadDeferred = false; load() }
     func load(discardingDraft: Bool = false) {
         guard !initialLoadDeferred, !retired, !busy, !hasPendingEditorChoice, !confirmingQuit, window?.attachedSheet == nil else { return }
+        cancelEditorConfigReads()
         attemptedAppearanceLoad = true
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
@@ -1712,7 +1730,8 @@ private struct FileComparisonDialog: View {
             HStack {
                 MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { model.changeEncoding($0, base: base) }, changeEnding: { model.changeLineEnding($0, base: base) }, showFormatDialog:{ model.showFormatDialog(base:base) })
                 Spacer()
-                MergeTabControls(label: base ? "Base" : "Mine", tabWidth: model.tabWidth(base: base), useSpaces: model.useSpaces(base: base), smartTab: model.smartTab(base: base), changeWidth: { model.tabWidths[base] = $0 }, changeSpaces: { model.spacePanes[base] = $0 }, changeSmart: { model.smartTabPanes[base] = $0 }, editorConfigEnabled: model.editorConfigEnabled[base] == true, editorConfigLoaded: model.editorConfigLoaded[base] == true, changeEditorConfig: { model.setEditorConfig($0, base: base) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(base))
+                let tabCommand = model.captureTabCommand(base:base)
+                MergeTabControls(label: base ? "Base" : "Mine", tabWidth: model.tabWidth(base: base), useSpaces: model.useSpaces(base: base), smartTab: model.smartTab(base: base), changeWidth: { model.applyTabCommand(tabCommand,base:base,action:.width($0)) }, changeSpaces: { model.applyTabCommand(tabCommand,base:base,action:.spaces($0)) }, changeSmart: { model.applyTabCommand(tabCommand,base:base,action:.smart($0)) }, writable: tabCommand.writable, editorConfigEnabled: model.editorConfigEnabled[base] == true, editorConfigLoaded: tabCommand.editorConfigLoaded, changeEditorConfig: { model.applyTabCommand(tabCommand,base:base,action:.editorConfig($0)) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(base))
                 Text("\(content?.isDeleted == true ? "Deleted" : content?.mode ?? "Absent") · \(content?.bytes.count ?? 0) saved bytes").font(.caption).foregroundStyle(.secondary)
             }
         }.padding(8).frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)

@@ -99,3 +99,9 @@ All 24 static resource controls now have explicit partial mappings, including
 the native Ribbon adaptation. The Debug build and four grouped native families have passing checks: source form/profile ownership, live fonts/preferences, default encoding and patch settings/export. The build catch-shadowing error and three fixture issues are recorded with their focused repairs; no app rebuild followed those fixture changes. Both raw light/dark captures were individually reviewed: source groups, paired controls, fonts and additional options fit. All seven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-editor-source-family-2026-10-17.json) for exact attempts, capture scope and acceptance limits. Physical sheets/fonts/completion/keyboard/VoiceOver, every consumer and
 large-file/encoding boundary, signed sandbox and full application parity remain
 open.
+
+
+The [October 17 connected pane batch](EDITORCONFIG-PARITY.md#connected-pane-commands-and-read-ownership--october-17)
+adds source writable/loaded indentation-menu gates, captured commands, retained
+loaded flags and owned cancellable EditorConfig authorization/parser reads in
+both comparison and conflict editors. It does not certify the full General page.

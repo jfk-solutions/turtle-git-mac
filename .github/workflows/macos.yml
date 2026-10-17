@@ -403,6 +403,8 @@ jobs:
         run: python3 scripts/test-merge-regex-source.py
       - name: Native Encoding source sheet and editor transactions
         run: python3 scripts/test-merge-format-source.py
+      - name: Native EditorConfig pane commands and owned read workflows
+        run: python3 scripts/test-editorconfig-pane-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Merge Editor source form and profile ownership
         run: python3 scripts/test-merge-editor-source.py
       - name: Native Merge Colors source and shared palette contexts
