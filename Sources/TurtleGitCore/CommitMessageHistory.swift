@@ -3,6 +3,11 @@ import Foundation
 public protocol MessageHistory {
     var entries: [String] { get }
     func remove(_ messages: Set<String>)
+    func removeExact(_ messages: [String])
+}
+
+extension MessageHistory {
+    public func removeExact(_ messages:[String]) { remove(Set(messages)) }
 }
 
 /// User-local message history. Each mutation reloads storage so other open dialogs aren't overwritten.
@@ -17,11 +22,15 @@ public final class CommitMessageHistory: MessageHistory {
     public var entries: [String] { Array((defaults.stringArray(forKey: key) ?? []).prefix(limit)) }
     public func add(_ message: String) {
         guard !message.isEmpty else { return }
-        var values = entries.filter { $0 != message }; values.insert(message, at: 0)
+        var values = entries.filter { !GitReferenceName.equal($0,message) }; values.insert(message, at: 0)
         defaults.set(Array(values.prefix(limit)), forKey: key)
     }
     public func remove(_ messages: Set<String>) {
-        defaults.set(entries.filter { !messages.contains($0) }, forKey: key)
+        removeExact(Array(messages))
+    }
+    public func removeExact(_ messages:[String]) {
+        let removed = Set(messages.map { GitReferenceName($0) })
+        defaults.set(entries.filter { !removed.contains(GitReferenceName($0)) },forKey:key)
     }
 }
 

@@ -1866,12 +1866,20 @@
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/CommitMessageEditor.swift",
-          "origin": "recorded-control-mapping"
+          "anchor": "final class MessageHistoryPickerView"
+        },
+        {
+          "path": "Sources/TurtleGitCore/CommitMessageHistory.swift",
+          "anchor": "public protocol MessageHistory"
         }
       ],
       "missing_native_references": [],
-      "parity_documents": [],
-      "qa_records": []
+      "parity_documents": [
+        "docs/MESSAGE-HISTORY-PARITY.md"
+      ],
+      "qa_records": [
+        "docs/qa/message-history-source-2026-10-17.json"
+      ]
     },
     {
       "resource": "src/Resources/TortoiseProcENG.rc",

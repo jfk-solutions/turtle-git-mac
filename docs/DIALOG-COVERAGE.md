@@ -62,7 +62,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_DIFFFILES` | partial-native-replacement | 15/15 mapped; 0 pending | [COMPARE-WORKFLOW-PARITY](COMPARE-WORKFLOW-PARITY.md), [LOG-PARITY](LOG-PARITY.md), [SUBMODULE-DIFF-PARITY](SUBMODULE-DIFF-PARITY.md), [UI-PARITY](UI-PARITY.md); 86 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSCOLORS_2` | partial-native-replacement | 12/12 mapped; 0 pending | [APPEARANCE](APPEARANCE.md), [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 19 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSSAVEDDATA` | partial-native-replacement | 19/19 mapped; 0 pending | [SAVED-DATA](SAVED-DATA.md); 0 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_HISTORYDLG` | partial-native-replacement | 3/3 mapped; 0 pending | No recorded family document; 0 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_HISTORYDLG` | partial-native-replacement | 3/3 mapped; 0 pending | [MESSAGE-HISTORY-PARITY](MESSAGE-HISTORY-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSHOOKS` | partial | 5/5 mapped; 0 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSHOOKCONFIG` | partial | 15/15 mapped; 0 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_EXPORT` | partial | 18/18 mapped; 0 pending | [EXPORT-PARITY](EXPORT-PARITY.md), [REVISION-EXPORT](REVISION-EXPORT.md), [SYNCHRONIZATION-PARITY](SYNCHRONIZATION-PARITY.md), [UI-PARITY](UI-PARITY.md); 48 QA records |

@@ -56,10 +56,10 @@ import TurtleGitCore
         guard let window, window.attachedSheet == nil, historyWindow == nil, !model.busy, model.pickerTarget == nil, !model.closed else { return }
         let child = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 320), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         child.title = "Log History – TurtleGit"; child.minSize = NSSize(width: 400, height: 260); child.isReleasedWhenClosed = false
-        child.contentViewController = NSHostingController(rootView: CommitMessageHistoryDialog(history: model.messageHistory) { [weak self, weak window, weak child] text in
+        child.contentView = MessageHistoryPickerView(history: model.messageHistory) { [weak self, weak window, weak child] text in
             guard let self, let child, self.historyWindow === child, !self.model.closed else { return }; window?.endSheet(child); child.orderOut(nil); self.historyWindow = nil
             if let text { insert(text) }
-        })
+        }
         DialogGeometry.attach(child, identifier: "HistoryDlg")
         historyWindow = child; window.beginSheet(child)
     }

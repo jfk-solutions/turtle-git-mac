@@ -268,11 +268,11 @@ import UniformTypeIdentifiers
               logPicker == nil, let history = model.messageHistory, historyWindow == nil else { return }
         let child = makeHistoryWindow(); child.isReleasedWhenClosed = false
         child.title = "Log History – TurtleGit"; child.minSize = NSSize(width: 400, height: 260)
-        child.contentViewController = NSHostingController(rootView: CommitMessageHistoryDialog(history: history) { [weak self, weak window, weak child] text in
+        child.contentView = MessageHistoryPickerView(history: history) { [weak self, weak window, weak child] text in
             guard let self, !self.closingCommit, let child, self.historyWindow === child else { return }
             self.historyWindow = nil; window?.endSheet(child); child.orderOut(nil); child.close()
             if let text { insert(text) }
-        })
+        }
         DialogGeometry.attach(child, identifier: "HistoryDlg")
         historyWindow = child; window.beginSheet(child)
     }
@@ -446,7 +446,7 @@ import UniformTypeIdentifiers
     @Published var branch = ""
     @Published var createBranch = false
     @Published var newBranch = ""
-    @Published var message = "" { didSet { if message != oldValue { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
+    @Published var message = "" { didSet { if !GitReferenceName.equal(message,oldValue) { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
     @Published var projectSettings = ProjectDialogSettings()
     var projectIconAccess: RepositoryAccessLease? { access }
     static private(set) var activeIssueProviderOperations = 0
@@ -526,7 +526,7 @@ import UniformTypeIdentifiers
         }
     }
     private let snippetLoader = MessageSnippetLoader()
-    @Published var issueID = "" { didSet { if issueID != oldValue { cancelHistoryIssueUpdate() } } }
+    @Published var issueID = "" { didSet { if !GitReferenceName.equal(issueID,oldValue) { cancelHistoryIssueUpdate() } } }
     private func cancelHistoryIssueUpdate() {
         historyIssueGeneration = UUID()
         historyIssueCancellation?.cancel(); historyIssueTask?.cancel()
@@ -544,7 +544,7 @@ import UniformTypeIdentifiers
                 MessageEditorStylingSession.beginOperation()
                 defer { MessageEditorStylingSession.endOperation() }
                 let styles = try await worker.styles(properties: properties, message: text, formattingEnabled: formatting, cancellation: cancellation)
-                guard !Task.isCancelled, let self, self.message == text, self.issueProperties == properties, self.formattingEnabled == formatting else { return }
+                guard !Task.isCancelled, let self, GitReferenceName.equal(self.message,text), self.issueProperties == properties, self.formattingEnabled == formatting else { return }
                 self.issueMessageStyles = styles
             } catch { /* Invalid/stale styling does not interrupt text entry. Commit validation reports configuration failures. */ }
         }
@@ -563,7 +563,7 @@ import UniformTypeIdentifiers
             guard let id = try? await query(properties, selectedMessage, token), !id.isEmpty,
                   !Task.isCancelled, !token.isCancelled, let self, self.messageFocusAvailable,
                   self.historyIssueGeneration == generation,
-                  self.message == text, self.issueID == previousID, self.issueProperties == properties else { return }
+                  GitReferenceName.equal(self.message,text), GitReferenceName.equal(self.issueID,previousID), self.issueProperties == properties else { return }
             self.issueID = id
         }
     }
@@ -1722,7 +1722,7 @@ import UniformTypeIdentifiers
                     try validatePreflight(preflight,preflightToken)
                     guard proceed else { busy = false; return }
                 }
-                if !messageTemplate.isEmpty && rawMessage == messageTemplate && !dialogDefaults.bool(forKey: "Commit.TemplateNotEdited.Proceed") {
+                if !messageTemplate.isEmpty && GitReferenceName.equal(rawMessage,messageTemplate) && !dialogDefaults.bool(forKey: "Commit.TemplateNotEdited.Proceed") {
                     let proceed = await withCheckedContinuation { continuation in confirmUneditedTemplate { continuation.resume(returning: $0) } }
                     try validatePreflight(preflight,preflightToken)
                     guard proceed else { busy = false; return }
@@ -1809,7 +1809,7 @@ import UniformTypeIdentifiers
                 catch { postHookFailure = (postHookFailure.map { $0 + "\n\n" } ?? "") + "The commit succeeded, but its post-commit hook failed.\n\n" + error.localizedDescription }
                 try validatePreflight(preflight,preflightToken)
                 messageHistory?.add(written.draft)
-                if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
+                if options.amend && !nonAmendMessage.isEmpty && !GitReferenceName.equal(nonAmendMessage,messageTemplate) { messageHistory?.add(nonAmendMessage) }
                 if !result.isAbandoned { onCommitted(output) }
                 result.complete(output: output + (postHookFailure.map { "\n" + $0 } ?? ""), success: true, cancelled: false, postActions: replaySplit == nil && historyCombine == nil ? (isGitSVN ? [.svnDCommit, .push, .pull, .recommit, .createTag] : [.push, .pull, .recommit, .createTag]) : [])
                 if action != .commit || replaySplit != nil || historyCombine != nil || !presented || result.isAbandoned { result.choose(nil) }
@@ -1918,7 +1918,7 @@ import UniformTypeIdentifiers
                     self.cancel(closeWindow: closeWindow, completion: completion, confirmationAccepted: true)
                 }
             }
-            let changed = !message.isEmpty && message != (amend ? originalAmendMessage : messageTemplate)
+            let changed = !message.isEmpty && !GitReferenceName.equal(message,amend ? originalAmendMessage : messageTemplate)
             if !confirmationAccepted, (changed || !entries.isEmpty), !dialogDefaults.bool(forKey: "Commit.SkipCancelConfirmation") {
                 confirmCancel(stop)
             } else { stop(true) }
@@ -1927,11 +1927,11 @@ import UniformTypeIdentifiers
         if let token = lfsOwnerCancellation { token.cancel(); completion?(false); return }
         if let commitProgress { commitProgress.cancel(); completion?(false); return }
         guard !busy, !confirmingQuit || !closeWindow else { completion?(false); return }
-        let changed = !message.isEmpty && message != (amend ? originalAmendMessage : messageTemplate)
+        let changed = !message.isEmpty && !GitReferenceName.equal(message,amend ? originalAmendMessage : messageTemplate)
         let finish = { [weak self] in
             guard let self, self.messageFocusAvailable else { completion?(false); return }
             if changed { self.messageHistory?.add(self.message) }
-            if self.amend && !self.nonAmendMessage.isEmpty && self.nonAmendMessage != self.messageTemplate { self.messageHistory?.add(self.nonAmendMessage) }
+            if self.amend && !self.nonAmendMessage.isEmpty && !GitReferenceName.equal(self.nonAmendMessage,self.messageTemplate) { self.messageHistory?.add(self.nonAmendMessage) }
             if closeWindow { self.restoreCopies.removeAll(); self.close() }
             completion?(true)
         }

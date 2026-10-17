@@ -529,3 +529,8 @@ were refreshed with the real Git exit-code status and timed failure footer. See
 The commit-revision row now uses the shared [editable session combo](VERSION-COMBO-PARITY.md),
 including programmatic custom choices, exact native Git token identity and
 disabled/retired/focus guards. Physical popup and complete dialog acceptance remain open.
+
+The [October 17 shared message-history continuation](MESSAGE-HISTORY-PARITY.md)
+connects the complete native AppKit picker, exact history removals, captured
+commands and forced-owner retirement. The Merge editor now reflects raw-only
+Unicode spelling changes. Full Merge and physical/signed acceptance remain open.

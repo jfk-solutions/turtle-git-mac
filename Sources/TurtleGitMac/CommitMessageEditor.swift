@@ -239,7 +239,7 @@ final class CommitMessageTextView: ProjectMessageTextView {
         model?.showMessageHistory { [weak self] message in
             guard let self, let model = self.model else { return }
             if !self.string.utf16.starts(with: message.utf16) {
-                if self.string == model.messageTemplate {
+                if GitReferenceName.equal(self.string,model.messageTemplate) {
                     self.insertText(message, replacementRange: NSRange(location: 0, length: (self.string as NSString).length))
                 } else { self.insertText(message + (self.string.isEmpty ? "" : "\n"), replacementRange: self.selectedRange()) }
                 model.updateIssueFromHistory(message, insertedInto: self.string)
@@ -336,99 +336,188 @@ struct CommitEditorSettings: View {
 
 @MainActor final class MessageHistoryPickerModel: ObservableObject {
     private let history: any MessageHistory
+    private let owner = UUID()
+    private var revision = UUID()
+    private(set) var retired = false
+    var onChange: (() -> Void)?
     @Published private(set) var entries: [String]
-    @Published var selection = IndexSet()
+    @Published var selection = IndexSet() { didSet { if oldValue != selection { revision = UUID(); onChange?() } } }
+    struct Context {
+        fileprivate let owner: UUID, revision: UUID
+        let selection: IndexSet
+    }
     init(history: any MessageHistory) { self.history = history; entries = history.entries }
     var selectedMessage: String {
         entries.indices.filter { selection.contains($0) }.map { entries[$0] }.joined(separator: "\n\n")
     }
+    func capture() -> Context { .init(owner:owner,revision:revision,selection:selection) }
+    func accepts(_ context:Context) -> Bool {
+        !retired && context.owner == owner && context.revision == revision && context.selection == selection
+    }
+    func retire() { retired = true; revision = UUID(); onChange = nil }
     func deleteRow(_ index: Int) {
-        guard entries.indices.contains(index) else { return }
-        history.remove([entries[index]]); entries = history.entries
+        guard !retired, entries.indices.contains(index) else { return }
+        history.removeExact([entries[index]]); entries = history.entries; revision = UUID()
         selection = entries.isEmpty ? [] : [min(index, entries.count - 1)]
+        onChange?()
     }
 }
 
+/// Compatibility host for existing embedded consumers; the complete dialog,
+/// including buttons, is native AppKit in every host.
 struct CommitMessageHistoryDialog: View {
     @StateObject private var model: MessageHistoryPickerModel
     let finish: (String?) -> Void
-    init(history: any MessageHistory, finish: @escaping (String?) -> Void) {
-        self.init(model: MessageHistoryPickerModel(history: history), finish: finish)
+    init(history:any MessageHistory,finish:@escaping (String?)->Void) {
+        self.init(model:MessageHistoryPickerModel(history:history),finish:finish)
     }
-    init(model: MessageHistoryPickerModel, finish: @escaping (String?) -> Void) {
-        _model = StateObject(wrappedValue: model); self.finish = finish
+    init(model:MessageHistoryPickerModel,finish:@escaping (String?)->Void) {
+        _model = StateObject(wrappedValue:model); self.finish = finish
     }
-    var body: some View {
-        VStack {
-            CommitHistoryList(entries: model.entries, selection: $model.selection, accept: finish, delete: model.deleteRow)
-            HStack { Spacer()
-                Button("OK") { finish(model.selectedMessage) }.keyboardShortcut(.defaultAction)
-                Button("Cancel") { finish(nil) }.keyboardShortcut(.cancelAction)
-            }
-        }.padding(12).frame(minWidth: 400, minHeight: 230)
-    }
+    var body:some View { CommitHistoryNativeHost(model:model,finish:finish).frame(minWidth:400,minHeight:230) }
+}
+private struct CommitHistoryNativeHost:NSViewRepresentable {
+    let model:MessageHistoryPickerModel
+    let finish:(String?)->Void
+    func makeNSView(context:Context)->MessageHistoryPickerView { .init(model:model,finish:finish) }
+    func updateNSView(_ view:MessageHistoryPickerView,context:Context) { view.refresh() }
+    static func dismantleNSView(_ view:MessageHistoryPickerView,coordinator:()) { view.retire() }
 }
 
-private struct CommitHistoryList: NSViewRepresentable {
-    let entries: [String]
-    @Binding var selection: IndexSet
-    let accept: (String?) -> Void
-    let delete: (Int) -> Void
-    func makeNSView(context: Context) -> NSScrollView {
-        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder
-        let table = HistoryTable(); table.headerView = nil; table.allowsMultipleSelection = true
+@MainActor final class MessageHistoryPickerView:NSView,NSTableViewDataSource,NSTableViewDelegate {
+    let model:MessageHistoryPickerModel
+    let table = MessageHistoryNativeTable()
+    let scroll = NSScrollView()
+    let ok = NSButton(title:"OK",target:nil,action:nil)
+    let cancel = NSButton(title:"Cancel",target:nil,action:nil)
+    private let finish:(String?)->Void
+    private var rendered:[String] = []
+    private var updating = false, scheduled = false, completed = false
+    private var closeObserver:NSObjectProtocol?
+    private weak var attachedWindow:NSWindow?
+    private var focused = false
+    convenience init(history:any MessageHistory,finish:@escaping (String?)->Void) {
+        self.init(model:MessageHistoryPickerModel(history:history),finish:finish)
+    }
+    init(model:MessageHistoryPickerModel,finish:@escaping (String?)->Void) {
+        self.model = model; self.finish = finish
+        super.init(frame:.init(x:0,y:0,width:600,height:320))
+        table.headerView = nil; table.allowsMultipleSelection = true
         table.columnAutoresizingStyle = .noColumnAutoresizing; table.rowHeight = 22
-        table.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("message")))
-        table.delegate = context.coordinator; table.dataSource = context.coordinator
-        table.target = context.coordinator; table.doubleAction = #selector(Coordinator.acceptRow(_:))
+        table.addTableColumn(NSTableColumn(identifier:.init("message")))
+        table.delegate = self; table.dataSource = self; table.target = self; table.doubleAction = #selector(acceptClicked(_:))
         table.setAccessibilityLabel("Recent messages")
-        scroll.documentView = table; return scroll
+        scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder; scroll.documentView = table
+        ok.bezelStyle = .rounded; ok.keyEquivalent = "\r"; ok.action = #selector(ActionTarget.invoke(_:))
+        cancel.bezelStyle = .rounded; cancel.keyEquivalent = "\u{1b}"; cancel.action = #selector(ActionTarget.invoke(_:))
+        for view in [scroll,ok,cancel] { view.translatesAutoresizingMaskIntoConstraints = false; addSubview(view) }
+        NSLayoutConstraint.activate([
+            scroll.leadingAnchor.constraint(equalTo:leadingAnchor,constant:12),scroll.trailingAnchor.constraint(equalTo:trailingAnchor,constant:-12),scroll.topAnchor.constraint(equalTo:topAnchor,constant:12),scroll.bottomAnchor.constraint(equalTo:ok.topAnchor,constant:-10),
+            cancel.trailingAnchor.constraint(equalTo:trailingAnchor,constant:-12),cancel.bottomAnchor.constraint(equalTo:bottomAnchor,constant:-12),cancel.widthAnchor.constraint(equalToConstant:80),
+            ok.trailingAnchor.constraint(equalTo:cancel.leadingAnchor,constant:-8),ok.bottomAnchor.constraint(equalTo:cancel.bottomAnchor),ok.widthAnchor.constraint(equalToConstant:80)
+        ])
+        model.onChange = { [weak self] in self?.scheduleRefresh() }
+        refresh()
     }
-    func updateNSView(_ scroll: NSScrollView, context: Context) {
-        guard let table = scroll.documentView as? HistoryTable else { return }
-        let coordinator = context.coordinator
-        coordinator.parent = self; coordinator.updating = true
-        if coordinator.entries.count != entries.count || !zip(coordinator.entries, entries).allSatisfy({ Array($0.0.utf16).elementsEqual($0.1.utf16) }) { coordinator.entries = entries; table.reloadData() }
-        let width = entries.map { ($0.replacingOccurrences(of: "\r", with: "").replacingOccurrences(of: "\n", with: " ") as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: NSFont.systemFontSize)]).width }.max() ?? 0
-        let columnWidth = max(380, width + 15)
-        table.tableColumns.first?.maxWidth = CGFloat.greatestFiniteMagnitude
-        table.tableColumns.first?.width = columnWidth
-        // sizeToFit() fits columns to the table's initial zero-width frame and collapses
-        // the message column. Keep the document width large enough for the full text.
-        table.setFrameSize(NSSize(width: columnWidth, height: max(22, CGFloat(entries.count) * table.rowHeight)))
-        table.selectRowIndexes(selection.intersection(IndexSet(entries.indices)), byExtendingSelection: false)
-        table.deleteRow = delete; coordinator.updating = false
+    required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
+    deinit { if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) } }
+    override var isOpaque:Bool { true }
+    override func draw(_ dirtyRect:NSRect) { NSColor.windowBackgroundColor.setFill();dirtyRect.fill() }
+    override func viewDidChangeEffectiveAppearance() {super.viewDidChangeEffectiveAppearance();needsDisplay = true}
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let window else { if attachedWindow != nil { retire() }; return }
+        guard attachedWindow !== window else { return }
+        if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
+        attachedWindow = window
+        closeObserver = NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in
+            MainActor.assumeIsolated {self?.retire()}
+        }
+        refreshCommands()
+        if !focused { focused = true; window.makeFirstResponder(table) }
     }
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-    final class Coordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource {
-        var parent: CommitHistoryList
-        var entries: [String] = []
-        var updating = false
-        init(_ parent: CommitHistoryList) { self.parent = parent }
-        func numberOfRows(in tableView: NSTableView) -> Int { entries.count }
-        func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-            let text = NSTextField(labelWithString: entries[row].replacingOccurrences(of: "\r", with: "").replacingOccurrences(of: "\n", with: " "))
-            text.font = .systemFont(ofSize: NSFont.systemFontSize); text.toolTip = entries[row]
-            return text
-        }
-        func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !updating, let table = notification.object as? NSTableView else { return }
-            parent.selection = table.selectedRowIndexes.intersection(IndexSet(entries.indices))
-        }
-        @objc func acceptRow(_ table: NSTableView) {
-            if entries.indices.contains(table.clickedRow) { parent.accept(entries[table.clickedRow]) }
+    func retire() { completed = true; model.retire(); table.onDelete = {};table.onReturn = {};table.onCancel = {} }
+    private var canAct:Bool {
+        guard !completed,!model.retired,let window,window === attachedWindow,window.attachedSheet == nil else { return false }
+        if let parent = window.sheetParent,parent.attachedSheet !== window {return false}
+        return rendered.count == model.entries.count && zip(rendered,model.entries).allSatisfy { GitReferenceName.equal($0,$1) }
+    }
+    private func scheduleRefresh() {
+        guard !scheduled,!completed else {return};scheduled = true
+        DispatchQueue.main.async { [weak self] in guard let self else {return};self.scheduled = false;self.refresh() }
+    }
+    func refresh() {
+        guard !completed else {return};updating = true;defer {updating = false}
+        let entries = model.entries
+        if rendered.count != entries.count || !zip(rendered,entries).allSatisfy({GitReferenceName.equal($0,$1)}) {rendered = entries;table.reloadData()}
+        table.selectRowIndexes(model.selection.intersection(IndexSet(rendered.indices)),byExtendingSelection:false)
+        resizeColumn();refreshCommands()
+    }
+    override func layout() {super.layout();resizeColumn()}
+    private func resizeColumn() {
+        let font = NSFont.systemFont(ofSize:NSFont.systemFontSize)
+        let measured = rendered.map { (Self.flatten($0) as NSString).size(withAttributes:[.font:font]).width }.max() ?? 0
+        let width = max(380,max(scroll.contentSize.width,measured+15))
+        if table.tableColumns.first?.width != width {table.tableColumns.first?.maxWidth = .greatestFiniteMagnitude;table.tableColumns.first?.width = width}
+        let size = NSSize(width:width,height:max(22,CGFloat(rendered.count)*table.rowHeight))
+        if table.frame.size != size {table.setFrameSize(size)}
+    }
+    static func flatten(_ value:String)->String {value.replacingOccurrences(of:"\r",with:"").replacingOccurrences(of:"\n",with:" ")}
+    func numberOfRows(in tableView:NSTableView)->Int {rendered.count}
+    func tableView(_ tableView:NSTableView,viewFor tableColumn:NSTableColumn?,row:Int)->NSView? {
+        guard rendered.indices.contains(row) else {return nil}
+        let text = NSTextField(labelWithString:Self.flatten(rendered[row]));text.font = .systemFont(ofSize:NSFont.systemFontSize)
+        text.lineBreakMode = .byClipping;text.cell?.usesSingleLineMode = true;text.toolTip = rendered[row]
+        text.setAccessibilityLabel(rendered[row]);return text
+    }
+    func tableViewSelectionDidChange(_ notification:Notification) {
+        guard !updating,canAct else {return};model.selection = table.selectedRowIndexes.intersection(IndexSet(rendered.indices));refreshCommands()
+    }
+    enum Action {case accept,cancel,delete}
+    @MainActor final class ActionTarget:NSObject {
+        weak var view:MessageHistoryPickerView?
+        let context:MessageHistoryPickerModel.Context,action:Action
+        private var used = false
+        init(view:MessageHistoryPickerView,context:MessageHistoryPickerModel.Context,action:Action) {self.view=view;self.context=context;self.action=action}
+        @objc func invoke(_ sender:Any?) {guard !used else {return};used=true;view?.invoke(action,context:context)}
+    }
+    private var actionTargets:[ActionTarget] = []
+    private func refreshCommands() {
+        let context = model.capture()
+        let accept = ActionTarget(view:self,context:context,action:.accept),cancel = ActionTarget(view:self,context:context,action:.cancel)
+        actionTargets = [accept,cancel];ok.target=accept;self.cancel.target=cancel
+        table.onDelete = { [weak self] in self?.invoke(.delete,context:context) }
+        table.onReturn = { [weak self] in self?.invoke(.accept,context:context) }
+        table.onCancel = { [weak self] in self?.invoke(.cancel,context:context) }
+    }
+    func invoke(_ action:Action,context:MessageHistoryPickerModel.Context) {
+        guard canAct,model.accepts(context) else {return}
+        switch action {
+        case .accept:complete(model.selectedMessage)
+        case .cancel:complete(nil)
+        case .delete:deleteCurrent()
         }
     }
-    private final class HistoryTable: NSTableView {
-        var deleteRow: (Int) -> Void = { _ in }
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            window?.makeFirstResponder(self)
-        }
-        override func keyDown(with event: NSEvent) {
-            if (event.keyCode == 51 || event.keyCode == 117), selectedRow >= 0 { deleteRow(selectedRow) }
-            else { super.keyDown(with: event) }
-        }
+    func acceptSelection() {invoke(.accept,context:model.capture())}
+    private func complete(_ message:String?) {
+        guard canAct else {return};completed = true;model.retire();finish(message)
+    }
+    private func deleteCurrent() {
+        guard canAct,table.selectedRow >= 0 else {return}
+        model.deleteRow(table.selectedRow);refresh()
+    }
+    @objc private func acceptClicked(_ sender:NSTableView) {
+        guard sender === table,canAct,rendered.indices.contains(table.clickedRow) else {return};complete(rendered[table.clickedRow])
+    }
+}
+@MainActor final class MessageHistoryNativeTable:NSTableView {
+    var onDelete:()->Void = {},onReturn:()->Void = {},onCancel:()->Void = {}
+    override func keyDown(with event:NSEvent) {
+        let modifiers = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if modifiers.isEmpty && (event.keyCode == 51 || event.keyCode == 117) {onDelete()}
+        else if modifiers.isEmpty && (event.keyCode == 36 || event.keyCode == 76) {onReturn()}
+        else if modifiers.isEmpty && event.keyCode == 53 {onCancel()}
+        else {super.keyDown(with:event)}
     }
 }
 

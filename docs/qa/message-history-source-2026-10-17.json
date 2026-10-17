@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "d427e251",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected Commit/Merge history storage, full native picker, message identities, issue callback and draft retention guards.",
+  "source": {
+    "src/TortoiseProc/HistoryDlg.cpp": "852cfd7591ab464bd29685795c5099a4ace2ae03",
+    "src/Utils/RegHistory.cpp": "23a4466ba7bb413767a874a0043717caf3c1b3a8",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "implemented": [
+    "Full AppKit history list, scrolling, default/cancel buttons and initial list focus in both production sheets",
+    "Exact Commit deduplication and shared exact removal; legacy storage/removal API retained",
+    "Native commands retain owner/data/selection generations, reject ABA/foreign/closed actions and finish once",
+    "Persistent Delete/next-row selection; source ordered multi-message joining, empty OK and clicked-row acceptance",
+    "Exact Commit template/draft history retention, history issue extraction/styling guards and Merge editor text update"
+  ],
+  "validation": {
+    "core": {
+      "passed": 7,
+      "log": "build/qa/message-history-core-2026-10-17.log",
+      "scope": "CommitMessageHistory and MergeMessageHistory, exact peers, interleaved storage, limits, isolation and Saved Data"
+    },
+    "builds": [
+      {
+        "log": "build/qa/message-history-build-2026-10-17.log",
+        "exit_code": 65,
+        "repair": "Nested Objective-C action target required explicit @MainActor annotation."
+      },
+      {
+        "log": "build/qa/message-history-build-fixed-2026-10-17.log",
+        "exit_code": 0
+      }
+    ],
+    "native": {
+      "passed": 7,
+      "log": "build/qa/message-history-native-2026-10-17.log",
+      "cases": {
+        "source": [
+          "system Git",
+          "bundled Git"
+        ],
+        "picker": [
+          "shared, no Git-dependent behavior"
+        ],
+        "commit": [
+          "system Git",
+          "bundled Git"
+        ],
+        "merge": [
+          "system Git",
+          "bundled Git"
+        ]
+      },
+      "note": "First grouped native run passed all cases. Core was unchanged after its pass and was not repeated for native actor/message guard changes."
+    },
+    "owned_receiver_pids": [
+      59541,
+      59565,
+      59574,
+      59582,
+      59644,
+      59726,
+      59739
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/message-history-light.png",
+        "sha256": "d1c70140a567de9b4b0a0797aad4ed6671e57d15643abae03cda32424baa439c",
+        "width": 1400,
+        "height": 764,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/message-history-dark.png",
+        "sha256": "6d5baace037126155cca6abf85661fc7bbe8eea69a813484ea0186ecd3835a4b",
+        "width": 1400,
+        "height": 764,
+        "individually_viewed": true
+      }
+    ]
+  },
+  "remaining": [
+    "Physical pointer/keyboard/VoiceOver/IME and extended-selection caret conventions",
+    "Separate exhaustive programmatic canonical-message redraw and all template/amend combinations",
+    "Concurrent writers in separate processes and upstream legacy codepages",
+    "Signed App Store and complete dialog parity; no full hosted CI claim"
+  ],
+  "notes": [
+    "Unaltered compositor captures show the native shared surface in a standalone QA window, not physical sheet placement.",
+    "Existing environment/outdated Simulator and implicit strong capture diagnostics remain."
+  ]
+}

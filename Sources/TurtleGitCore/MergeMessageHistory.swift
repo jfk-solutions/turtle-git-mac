@@ -23,8 +23,10 @@ public final class MergeMessageHistory: MessageHistory {
         let saveLimit = limit == Int.max ? limit : limit + 1
         defaults.set(Array(values.prefix(saveLimit)), forKey: Self.key)
     }
-    public func remove(_ messages: Set<String>) {
-        defaults.set(entries.filter { value in !messages.contains(where: { Array($0.utf16).elementsEqual(value.utf16) }) }, forKey: Self.key)
+    public func remove(_ messages: Set<String>) { removeExact(Array(messages)) }
+    public func removeExact(_ messages:[String]) {
+        let removed = Set(messages.map { GitReferenceName($0) })
+        defaults.set(entries.filter { !removed.contains(GitReferenceName($0)) },forKey:Self.key)
     }
 }
 

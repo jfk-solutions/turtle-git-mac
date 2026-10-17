@@ -160,6 +160,14 @@ import Darwin
         model.message = "temporary edit"; model.message = stableMessage
         try require(gate.requests[request].token.isCancelled)
         gate.finish(request, "stale message"); try await settle(); try require(model.issueID == stableID)
+        model.message = "café";model.issueID = "café"
+        request = try await pending();model.message = "cafe\u{301}"
+        try require(gate.requests[request].token.isCancelled)
+        gate.finish(request,"canonical stale message");try await settle();try require(model.issueID.utf8.elementsEqual("café".utf8))
+        request = try await pending();model.issueID = "cafe\u{301}"
+        try require(gate.requests[request].token.isCancelled)
+        gate.finish(request,"canonical stale field");try await settle();try require(model.issueID.utf8.elementsEqual("cafe\u{301}".utf8))
+        model.message = stableMessage;model.issueID = stableID
         request = try await pending()
         model.issueProperties = IssueTrackerProperties(); model.issueProperties = stableProperties
         try require(gate.requests[request].token.isCancelled)

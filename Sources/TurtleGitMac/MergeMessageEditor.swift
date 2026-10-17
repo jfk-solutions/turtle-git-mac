@@ -28,7 +28,7 @@ struct MergeMessageEditor: NSViewRepresentable {
         let font = MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: preferences.object(forKey: "LogFontSize") as? Int ?? MessageEditorFont.defaultSize)
         editor.spellingPreferences = model.messageEditorPreferences
         editor.applyProjectSettings(model.projectSettings)
-        if editor.string != model.message {
+        if !GitReferenceName.equal(editor.string,model.message) {
             let selection = editor.selectedRange()
             editor.string = model.message
             editor.setSelectedRange(.init(location: min(selection.location, (model.message as NSString).length), length: 0))

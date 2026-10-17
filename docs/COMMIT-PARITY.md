@@ -2606,3 +2606,12 @@ source layout and staging semantics are retained. See
 failures and remaining physical/signed acceptance.
 
 The connected [workspace file workflow continuation](WORKSPACE-FILE-WORKFLOWS.md) covers exact overview selection, Finder reopening, shared viewer caches and Add/Commit drop identities. Earlier workspace-selection limitations describe the prior checkpoint; complete physical/signed and application parity remain open.
+
+## Connected native message-history continuation — October 17
+
+The [shared message-history family](MESSAGE-HISTORY-PARITY.md) now uses full
+AppKit controls in both production sheets, exact Commit/Merge message storage,
+captured picker commands and owner retirement. Commit's template/draft retention,
+message styling and history issue extraction now also distinguish raw Unicode
+spellings. Earlier history checkpoints remain evidence for their recorded scope;
+physical/signed and complete Commit parity remain open.
