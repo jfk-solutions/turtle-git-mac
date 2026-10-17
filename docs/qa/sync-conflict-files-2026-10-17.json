@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/TortoiseProc/SyncDlg.cpp conflict list Init mask: Extension/Status/Added/Deleted plus Path; Explore/Open/Log/Conflict/Resolve",
+    "src/Git/GitStatusListCtrl.cpp selected-count/status menu gates and native list interactions"
+  ],
+  "scope": "Connected native Sync conflict status table, shared Working Tree action/profile backend, repository dispatch and optional resolution refresh. Wider path identity remains open.",
+  "implemented": [
+    "Native multi-selection/source five-column list with actual status/statistics, shared colors and original status/watermark artwork",
+    "Shared native list font, focus/selection, column/header/clipboard adapter and an isolated ConflictSyncDlg preference/reset profile",
+    "Source-narrow Edit conflict, current/Mine/Theirs resolution with rebase wording, Log/editor/Open/Open With/Finder and clipboard routes; unrelated commands excluded",
+    "Captured mark/row/generation gates, operation/child/tab/Quit ownership and retired callbacks",
+    "Owned application chooser with forced cancellation, actual worker drain/security-scope retention and late-launch refusal",
+    "Optional source conflict-refresh policy, F5 and valid empty active conflict tab"
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false
+  },
+  "builds": [
+    {
+      "log": "build/qa/sync-conflict-files-build-2026-10-17.log",
+      "exit_code": 65,
+      "empty_output_exit_zero_diagnostics": 0
+    },
+    {
+      "log": "build/qa/sync-conflict-files-build-repair-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 4
+    },
+    {
+      "log": "build/qa/sync-conflict-files-palette-build-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 1
+    },
+    {
+      "log": "build/qa/sync-conflict-files-empty-tab-build-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 2
+    }
+  ],
+  "build_notes": "Initial missing row closure parameter repaired. Subsequent pre-native review aligned Status with shared palette and retained empty active Conflicts tab. Existing warnings and out-of-date iOS simulator support diagnostics remain; macOS final build exits zero.",
+  "native": {
+    "exit_code": 0,
+    "case_engine_combinations": 4,
+    "commands": [
+      "python3 scripts/test-sync-conflict-files.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git --captures docs/site/assets",
+      "python3 scripts/test-primary-file-menus.py --only working-tree-file-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+    ],
+    "logs": [
+      "build/qa/sync-conflict-files-native-2026-10-17.log",
+      "build/qa/sync-conflict-working-tree-native-2026-10-17.log"
+    ],
+    "invocations_per_family": 1,
+    "receiver_pids": [
+      87426,
+      87589,
+      87757,
+      87823
+    ],
+    "independently_absent": true,
+    "cases": [
+      "Actual five-column NSTableView and multi-selection source mask",
+      "Single Edit/quick Resolve/Log captured dispatch; multi resolution and single-only/unsupported command gates",
+      "Private relative-path clipboard; captured Open and alternative editor injected launch paths",
+      "Selection-away/return, refresh and retired menu rejection",
+      "Independent Sync column settings/reset and ordinary Working Tree defaults",
+      "F5 routing and actual Mine/Theirs resolution with optional refresh policy, retained rows while disabled and explicit refresh to empty",
+      "Actual owned application chooser gates Close/Quit; forced retirement reaps backend operation without late launch",
+      "Real unresolved index stage entries restored, HEAD unchanged",
+      "Existing Working Tree file-menu gates, rename/Blame/pair routing, Open/chooser/editor/export, No/Yes deletion, unrelated-index preservation and late panel/Quit checks"
+    ],
+    "limits": "New table routes Edit/quick Resolve/Log to injected callbacks; repository wiring uses existing editor/Resolve/Log workflows. Actual Core Mine/Theirs mutation is separately exercised. Open/editor launches are injected; Finder reveal is offered but not physically activated."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/sync-conflict-files-dark.png",
+      "width": 1720,
+      "height": 1064,
+      "sha256": "8fd35411609e2ed0b98b1372884a3c49eaaca800befc5ca432c3bce3178b7501",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Five source columns, two selected conflict rows, original icons and watermark, and root footer fit in light/dark. Inactive native selection uses the native foreground. Fixture has no remote configuration and disabled transport controls; no network/physical input acceptance claim."
+    },
+    {
+      "path": "docs/site/assets/sync-conflict-files-light.png",
+      "width": 1720,
+      "height": 1064,
+      "sha256": "3b4ce952d6bf43bb77bcbf04a9ef510afe6ae1ed68d0b94029565e803a1f31a5",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Five source columns, two selected conflict rows, original icons and watermark, and root footer fit in light/dark. Inactive native selection uses the native foreground. Fixture has no remote configuration and disabled transport controls; no network/physical input acceptance claim."
+    }
+  ],
+  "coverage": {
+    "new_control_mappings": 0,
+    "certified_dialogs": 0
+  },
+  "hosted": {
+    "terminal_run": 39008624452,
+    "commit": "33391321",
+    "conclusion": "failure",
+    "step": "Moved blocks and wrapped editor navigation family",
+    "failure": "Discard/reload did not restore move mapping",
+    "receiver_reaped": 24007,
+    "newer_run": 39013950765,
+    "newer_commit": "a4811601",
+    "newer_status_at_observation": "in_progress",
+    "pending_run": 39014702461,
+    "pending_commit": "a0138ef3",
+    "pages_run": 39014702464,
+    "pages_commit": "a0138ef3",
+    "pages_conclusion": "success",
+    "full_current_macos_pass": false
+  },
+  "remaining": [
+    "Wider working-file parser/selection/metadata/restore-copy exact path identity migration",
+    "Physical context menus, double-click/F5/clipboard/VoiceOver, every header/mixed conflict/submodule variant",
+    "Signed AppStore/security scopes and installed Finder integration",
+    "Hosted moved-block discard/reload failure and complete current CI; earlier Undo/folding failures remain tracked",
+    "Refresh previous preview/archive at next distribution checkpoint"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "78c9310dcd7a0a47753fc19e95ae3337448c4c31d47236338a774dbb328db15c",
+    "Sources/TurtleGitMac/StatusWindow.swift": "351a514462d48e381a2745791f0b2856fbd1aada1de7568992bd640917d64a9a",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "a2053829abbb26d0e8f7c1613429ea387cc843ddfc1cb63fa3262d7ca377e4f7",
+    "scripts/test-sync-conflict-files.py": "938bd4ae398ac951d0f3423179de71da2fa8e3371837d3b046e4e576e6662ad2",
+    "docs/qa/sync-conflict-files-native-2026-10-17.swift": "facebc0a00e4875a19c3a4066770c190ad11e9fab375a9d5946671e0d8323c2a",
+    ".github/workflows/macos.yml": "83f849f3c8257225e92a1dc58896cd2e5f5c7e4eb519630ff773c63b20b4c475"
+  }
+}

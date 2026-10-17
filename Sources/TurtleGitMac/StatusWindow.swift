@@ -214,6 +214,7 @@ final class StatusNativeWindow: NSWindow {
     var embeddedReload: (() -> Void)?
     var actionOwnerAvailable: () -> Bool = {true}
     var groupsEnabled = true
+    var showsStagedStatus = true
     var clipboard = NSPasteboard.general
     func installEmbeddedFiles(_ rows:[WorkingTreeFile],statistics:[String:CommitFile],metadata:[String:StatusListMetadata],submodules:Set<String>,hasHead:Bool,rebase:Bool,hasLFS:Bool) {
         guard !retired,!busy else {return};menuGeneration = UUID()
@@ -232,7 +233,8 @@ final class StatusNativeWindow: NSWindow {
     @Published var fileColumns: StatusListColumnSettings
     @Published var fileMetadata: [String: StatusListMetadata] = [:]
     var showLFSOwners: Bool { fileColumns.visible.contains(.lfsOwner) }
-    private static let columnKey = "WorkingTree.FileColumns"
+    private let columnKey: String
+    private let initialColumns: StatusListColumnSettings
     static var defaultColumns: StatusListColumnSettings { StatusListColumnSettings(visible: Set(StatusListColumn.defaultColumns + [.lastModified])) }
     var visibleColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) && ($0 != .lfsOwner || hasLFS) } }
     var availableColumns: Set<StatusListColumn> { Set(StatusListColumn.allCases.filter { $0 != .lfsOwner || hasLFS }) }
@@ -293,14 +295,15 @@ final class StatusNativeWindow: NSWindow {
     var onPasteFiles: (Bool, [URL]) -> Void = { _, _ in }
     var onAction: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onChanged: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard, columnKey: String = "WorkingTree.FileColumns", initialColumns: StatusListColumnSettings? = nil) {
         self.repository = repository; self.access = access; self.defaults = defaults
+        self.columnKey = columnKey; self.initialColumns = initialColumns ?? Self.defaultColumns
         readStatus = { try await repository.workingTreeStatus(cancellation: $0) }
-        if defaults.integer(forKey: Self.columnKey + ".Version") == 1 {
-            fileColumns = .load(from: defaults, key: Self.columnKey)
+        if defaults.integer(forKey: columnKey + ".Version") == 1 {
+            fileColumns = .load(from: defaults, key: columnKey)
         } else {
-            var columns = Self.defaultColumns
-            if defaults.bool(forKey: "WorkingTree.LFSOwnerVisible") { columns.visible.insert(.lfsOwner) }
+            var columns = self.initialColumns
+            if initialColumns == nil && defaults.bool(forKey: "WorkingTree.LFSOwnerVisible") { columns.visible.insert(.lfsOwner) }
             fileColumns = columns
         }
         queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
@@ -315,25 +318,25 @@ final class StatusNativeWindow: NSWindow {
     func setShowLFSOwners(_ visible: Bool) {
         guard !retired, hasLFS, !busy, !confirmingQuit else { return }
         if visible { fileColumns.visible.insert(.lfsOwner) } else { fileColumns.visible.remove(.lfsOwner) }
-        fileColumns.save(to: defaults, key: Self.columnKey)
+        fileColumns.save(to: defaults, key: columnKey)
         if visible { reload() } else { lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false }
     }
     func setColumn(_ column: StatusListColumn, visible: Bool) {
         guard column != .path, availableColumns.contains(column), !busy, !confirmingQuit else { return }
         if column == .lfsOwner { setShowLFSOwners(visible); return }
         if visible { fileColumns.visible.insert(column) } else { fileColumns.visible.remove(column) }
-        fileColumns.save(to: defaults, key: Self.columnKey)
+        fileColumns.save(to: defaults, key: columnKey)
     }
     @discardableResult func saveColumnLayout(order: [StatusListColumn], widths: [StatusListColumn: Double]) -> Bool {
         guard !retired, !busy, !confirmingQuit else { return false }
         let next = StatusListColumnSettings(visible: fileColumns.visible, order: order, widths: widths)
-        if fileColumns != next { fileColumns = next; fileColumns.save(to: defaults, key: Self.columnKey) }
+        if fileColumns != next { fileColumns = next; fileColumns.save(to: defaults, key: columnKey) }
         return true
     }
     func requestResetColumns(choose: @escaping () async -> Bool, onAccepted: @escaping () -> Void) {
         runOperation("Reset columns…", operation: { [self] token in
             guard await choose(), isLive(token), !confirmingQuit else { return }
-            fileColumns = Self.defaultColumns; fileColumns.save(to: defaults, key: Self.columnKey)
+            fileColumns = initialColumns; fileColumns.save(to: defaults, key: columnKey)
             lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
             onAccepted()
         })
@@ -685,7 +688,7 @@ final class StatusNativeWindow: NSWindow {
         case .path: return StatusListClipboard.displayedPath(row.file.entry)
         case .fileName: return row.fileName
         case .fileExtension: return row.fileExtension
-        case .status: return row.status
+        case .status: return showsStagedStatus ? row.status : row.file.status
         case .added: return row.addedText
         case .removed: return row.removedText
         case .lastModified: return row.metadata?.dateText ?? "–"

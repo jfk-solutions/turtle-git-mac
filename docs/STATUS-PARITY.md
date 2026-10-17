@@ -422,3 +422,12 @@ the explicit commit. All owned receivers were reaped. Final raw captures:
 
 ![Working Tree changelists, light](site/assets/working-tree-changelists-light.png)
 ![Working Tree changelists, dark](site/assets/working-tree-changelists-dark.png)
+
+
+The [Sync conflict status-list family](SYNCHRONIZATION-PARITY.md#conflict-status-table-and-source-action-family--october-17-2026)
+now reuses the Working Tree file-action, clipboard, metadata, ownership and native
+interaction backend with the narrower source menu/column mask. Column preferences
+and reset defaults use a separate ConflictSyncDlg profile; ordinary Working Tree
+defaults remain unchanged. The grouped conflict-table and existing Working Tree
+menu checks pass on both Git engines. Wider path identity and physical/signed
+acceptance remain open.

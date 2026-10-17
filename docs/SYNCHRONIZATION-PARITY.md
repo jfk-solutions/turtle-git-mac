@@ -1703,3 +1703,47 @@ Sync/ProgressDlg acceptance remain open.
 ![Commit opened by Sync recovery, light](site/assets/sync-recovery-commit-light.png)
 
 ![Commit opened by Sync recovery, dark](site/assets/sync-recovery-commit-dark.png)
+
+
+### Conflict status table and source action family — October 17, 2026
+
+The conflict tab now uses a native multi-select status table with Path, Extension,
+Status, Lines added and Lines removed, matching SyncDlg's conflict-list column mask.
+The shared Working Tree backend supplies actual status/statistics, rebase state,
+source status colors, file actions and repository access lifetime. The common
+native interaction adapter supplies list font, original artwork, selection mark,
+clipboard shortcuts and header customization. Its column profile is isolated under
+ConflictSyncDlg; default Working Tree columns retain their existing profile.
+
+The source mask exposes Edit conflict for one file, Resolved/Mine/Theirs for a
+selection, single-file Log, alternative editor, Open, Open With and Finder reveal,
+and clipboard formats. Rebase labels follow the actual repository state. Double
+click opens the marked conflict directly through the existing text/image/delete/
+submodule editor dispatcher. Quick resolutions use the existing Resolve workflow.
+Unrelated Add/Delete/Move/Ignore/flags/Blame/Export commands are excluded.
+
+File-menu snapshots retain the shared row/mark/generation checks. Tab, transport,
+child and Quit state gate dispatch, and actual file actions retain worker/lease
+ownership. Open With uses an owned application sheet on Sync; forced closure
+cancels it, retires the backend and rejects late application launches. Explicit
+F5 refreshes the conflict file list. Successful conflict changes refresh this list
+through the existing optional RefreshFileListAfterResolvingConflict callback;
+disabling it retains the displayed rows until explicit refresh.
+
+The Debug build and grouped native conflict-table/Working Tree menu families pass
+with system and bundled Git. Actual five-column rendering, selection/mask routes,
+private relative-path Copy, Open/editor injection, isolated column/reset settings,
+F5, real Mine/Theirs resolution and optional refresh, and owned Open With retirement
+are covered. All four receivers were reaped and independently absent. Both raw
+light/dark captures were reviewed: five columns, selected conflict rows and source
+artwork fit; the private fixture has no configured remote, so transport state is
+not an acceptance claim. Core was unchanged and not repeated. The first build
+needed one missing table-row parameter; final review also aligned Status with the
+shared palette and retained an empty active Conflicts tab. See
+[batch evidence](qa/sync-conflict-files-2026-10-17.json). Wider exact working-path
+identity, physical menus/keyboard/VoiceOver, every column/header variant and signed/
+Finder/AppStore acceptance remain open.
+
+![Sync conflict status table, light](site/assets/sync-conflict-files-light.png)
+
+![Sync conflict status table, dark](site/assets/sync-conflict-files-dark.png)

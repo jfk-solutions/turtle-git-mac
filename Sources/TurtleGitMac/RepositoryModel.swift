@@ -1001,6 +1001,7 @@ import UniformTypeIdentifiers
         ConflictListRefreshPolicy.perform(preferences:fileComparisonPreferences) {
             revertWindows[root.path]?.model.requestReload(); statusWindows[root.path]?.model.requestReload();commitWindows[root.path]?.model.reload()
             for resolve in resolveWindows.values where resolve.model.repository.root == root {resolve.model.load()}
+            synchronizationWindows[root.path]?.model.refreshConflictFiles()
         }
         rebaseWindows[root.path]?.model.refreshState();refreshRepositoryLogs(root)
     }
@@ -1363,6 +1364,12 @@ import UniformTypeIdentifiers
         controller.model.onReferenceCompare = { [weak self] old, new in self?.showRevisionComparison(repository: repository, access: access, from: .revision(old), to: .revision(new)) }
         controller.model.onHistoryCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         controller.model.onResolve = { [weak self] paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: nil) }
+        controller.model.onConflictAction = { [weak self, weak controller] action, paths in
+            guard let self, let controller, !controller.model.closed else { return }
+            if action == .editConflict, let path=paths.first { self.showConflictEditor(repository:repository,access:access,path:path,owner:controller.window) }
+            else if action == .log { self.showLog(repository:repository,access:access,paths:paths) }
+            else if action.resolveChoice != nil { self.showResolve(repository:repository,access:access,paths:paths,quick:action.resolveChoice) }
+        }
         controller.configureOptions = { [weak self] child in
             self?.configureFetchInteractions(child, repository: repository, access: access, followUp: PullFollowUp())
         }

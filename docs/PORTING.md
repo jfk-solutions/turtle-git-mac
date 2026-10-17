@@ -2314,3 +2314,36 @@ fixture-only fixes. All three owned receivers were reaped and independently
 absent. Core was unchanged and not repeated. Physical/signed behavior, full
 Commit/Sync parity and current hosted CI remain open. See
 [batch evidence](qa/sync-recovery-2026-10-17.json).
+
+
+## Synchronization conflict status-list family — October 17, 2026
+
+The generic conflict List has been replaced by a native multi-select five-column
+status table matching SyncDlg's column mask. It shares Working Tree actual status/
+statistics, colors, file operation ownership, list font/artwork, focus mark and
+clipboard/header adapter. Its ConflictSyncDlg column profile and reset defaults
+are independent of Working Tree.
+
+The captured source action mask now provides direct conflict editing, current/
+Mine/Theirs resolution with rebase labels, Log, alternative editor, Open/Open With,
+Finder reveal and clipboard formats. It excludes unrelated destructive/flag/
+changelist commands. Real conflict changes use the existing optional refresh
+policy; F5 explicitly reloads. The active empty conflict tab remains valid. An
+owned application chooser gates Close/Quit and is cancelled/retired on forced
+closure, retaining the actual worker/security-scope lifetime and rejecting late
+launches.
+
+Four grouped case/engine combinations pass: new Sync conflict files and existing
+Working Tree menus with system and bundled Git. Actual Mine/Theirs resolution,
+stale/retired routes, isolated settings, native chooser cleanup, unchanged HEAD and
+restored unresolved stage entries are covered. Both actual light/dark captures
+were reviewed; all four receivers were reaped and independently absent. Core was
+unchanged and not repeated. The first build needed a missing row parameter; the
+final pre-native review aligned Status colors and retained the empty active tab.
+See [batch evidence](qa/sync-conflict-files-2026-10-17.json). Full source, physical,
+path-identity and signed acceptance remain open.
+
+The latest inspected terminal hosted 33391321 run failed the moved-block family
+with `Discard/reload did not restore move mapping`, with receiver 24007 reaped.
+The newer a4811601 run was in progress and a0138ef3 pending at observation. Pages
+deployed a0138ef3 successfully. A full current macOS pass is still required.
