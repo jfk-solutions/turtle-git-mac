@@ -12,10 +12,23 @@ import time
 import unittest
 from unittest.mock import patch
 
-from native_receiver import fingerprint, run_receiver, signal_receiver_group
+from native_receiver import fingerprint, run_receiver, sample_receiver, signal_receiver_group
 
 
 class ReceiverContracts(unittest.TestCase):
+    def test_timeout_sample_targets_only_owned_pid_and_is_bounded(self):
+        with tempfile.TemporaryDirectory() as temporary, patch('native_receiver.subprocess.run', return_value=subprocess.CompletedProcess([], 0, '', '')) as sample, contextlib.redirect_stdout(io.StringIO()):
+            path = Path(temporary) / 'stacks' / 'owned.txt'
+            sample_receiver(12345, path)
+            sample.assert_called_once_with(['/usr/bin/sample', '12345', '2', '10', '-file', str(path.resolve())], capture_output=True, text=True, timeout=10)
+            self.assertTrue(path.parent.is_dir())
+
+    def test_sample_failure_does_not_replace_receiver_failure(self):
+        for error in [OSError('sampling unavailable'), subprocess.TimeoutExpired('sample', 10)]:
+            with tempfile.TemporaryDirectory() as temporary, patch('native_receiver.subprocess.run', side_effect=error), contextlib.redirect_stdout(io.StringIO()) as output:
+                sample_receiver(12345, Path(temporary) / 'owned.txt')
+                self.assertIn('stack sample unavailable', output.getvalue())
+
     def run_owned(self, script, **kwargs):
         with contextlib.redirect_stdout(io.StringIO()):
             return run_receiver([sys.executable, '-c', script], **kwargs)

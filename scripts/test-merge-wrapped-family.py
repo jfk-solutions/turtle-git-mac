@@ -25,6 +25,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-wrapped-editors-') as tempora
         if args.captures and case in ['terminal','margin-selection','margin','wrapped','moved']:
             args.captures.mkdir(parents=True,exist_ok=True);env['TURTLEGIT_WRAP_CAPTURE']=str(args.captures.absolute())
         print('Checking wrapped editor '+case,flush=True)
-        result=run_receiver([str(receiver)],cwd=root,env=env,capture_output=True,text=True)
+        result=run_receiver([str(receiver)],cwd=root,env=env,capture_output=True,text=True,
+                            timeout_sample=root/'build/qa/native-timeouts'/('wrapped-'+case+'.sample.txt'))
         print(result.stdout,end='');print(result.stderr,end='');result.check_returncode()
         if 'PASS: wrapped editor case completed' not in result.stdout:raise SystemExit('Wrapped editor receiver exited before completion.')

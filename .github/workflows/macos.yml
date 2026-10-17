@@ -281,6 +281,17 @@ jobs:
           xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac
           -configuration Debug -destination 'platform=macOS'
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      # Run the unresolved hosted editor gate immediately after its app build.
+      # Keep it once; a failing family should not wait behind the full Core run.
+      - name: Moved blocks and wrapped editor navigation family
+        run: python3 scripts/test-merge-wrapped-family.py
+      - name: Retain failed wrapped editor stack samples
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wrapped-editor-timeout-stacks
+          path: build/qa/native-timeouts/*.sample.txt
+          if-no-files-found: ignore
       - name: Pinned moved-block detector oracle
         run: python3 scripts/test-moved-block-source.py
       - name: Git integration tests
@@ -349,8 +360,6 @@ jobs:
         run: python3 scripts/test-merge-view-family.py --only typing --only lifecycle --only menus
       - name: Merge view switching, native chrome and saved splits
         run: python3 scripts/test-merge-view-family.py --only view --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
-      - name: Moved blocks and wrapped editor navigation family
-        run: python3 scripts/test-merge-wrapped-family.py
       - name: Inline engine native consumers
         run: python3 scripts/test-inline-native.py
       - name: Working copy revision utility and upstream templates

@@ -107,3 +107,27 @@ earlier About test compiler repair, and progressed into native checks. A full
 current implementation hosted pass and the earlier folding timeout root cause
 remain open. Physical input, exact visual comparison, large-document end-to-end
 performance and signed acceptance remain open.
+
+
+## Hosted Collapse stall diagnosis — October 17, 2026
+
+The completed b818417d hosted run passed all 1,809 Core tests (two skipped)
+and the first ten wrapped-editor cases, then timed out at 300 seconds in folding.
+The retained stderr ends at `pair loaded; collapsing`, before the fixture reaches
+its TextKit measurement phase. Receiver 81749 was reaped. The same folding case
+passes locally, so the blocked code and a production repair remain unproven.
+
+The wrapped family now opts into a two-second stack sample of its own live
+receiver after a timeout and before mandatory process-group cleanup. Sampling
+has a separate ten-second command bound; its failure preserves the original
+timeout. CI retains the stack file as a failure artifact. The family runs once
+immediately after the Debug app build, allowing this known failure to report
+before the full Core suite. No assertion, case or timeout was relaxed.
+See [diagnostic evidence](qa/ci-folding-sample-2026-10-17.json).
+
+A current universal Debug build and the same full folding case under x86_64
+Rosetta also pass locally (receiver 11027). This is not a macOS 15 Intel hardware
+reproduction. The nine receiver contracts pass; their initial ResourceWarnings
+exposed captured pipes retained through timeout tracebacks. Explicit pipe closure
+after reaping fixes that defect, and only those affected contracts were repeated.
+No timeout/assertion was relaxed and no production Collapse fix is claimed.

@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-17",
+  "scope": "Diagnose the current hosted Collapse stall; no production fix or complete CI claim.",
+  "hosted": {
+    "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39055414986",
+    "commit": "b818417d",
+    "job": 117463980447,
+    "core": "1809 tests; two skipped; no failures",
+    "native": "Ten preceding wrapped-editor cases passed, then folding timed out at 300 seconds.",
+    "last_phase": "pair loaded; collapsing",
+    "owned_receiver": 81749,
+    "cleanup": "reaped in downloaded terminal job log"
+  },
+  "changes": [
+    "Opt-in owned receiver stack sampling before timeout cleanup, with two seconds sampling and ten seconds command bound. No success-path sampling and no timeout increase.",
+    "Sampling errors preserve the primary timeout; existing mandatory group cleanup remains.",
+    "Wrapped editor family runs once immediately after the Debug app build, before the full Core suite; no tests removed or duplicated.",
+    "Failure-only artifact upload retains native stack files.",
+    "Close captured subprocess pipes explicitly after mandatory reaping, including timeout tracebacks that otherwise retain Popen and emit ResourceWarnings."
+  ],
+  "validation": {
+    "receiver_contracts": {
+      "tests": 9,
+      "failures": 0,
+      "log": "build/qa/ci-folding-sample-contracts-recheck-2026-10-17.log",
+      "diagnostics": "Initial nine-test pass emitted ResourceWarnings for captured pipes retained by timeout tracebacks. Explicit pipe cleanup repaired that defect; affected nine contracts passed again without those warnings. No Core or unaffected native families repeated."
+    },
+    "arm_native_folding": {
+      "exit_code": 0,
+      "owned_receiver": 9001,
+      "log": "build/qa/ci-folding-diagnostic-2026-10-17.log",
+      "scope": "Existing local production Debug objects, full folding assertions retained; does not reproduce hosted stall."
+    },
+    "universal_debug_build": {
+      "exit_code": 0,
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "log": "build/qa/ci-folding-universal-build-2026-10-17.log",
+      "reason": "Hosted runner uses Intel; existing local Debug framework was arm64 only. Build both slices before the focused Intel diagnostic.",
+      "diagnostics": "Existing compiler warnings and unrelated CoreSimulator version diagnostic retained; build exits zero."
+    },
+    "intel_native_folding": {
+      "exit_code": 0,
+      "architecture": "x86_64 under Rosetta on local macOS",
+      "owned_receiver": 11027,
+      "log": "build/qa/ci-folding-intel-diagnostic-2026-10-17.log",
+      "scope": "Full folding assertions retained against current universal Debug objects; not a macOS 15 Intel hardware reproduction."
+    },
+    "independent_ps_audit": "Receivers 9001 and 11027 absent; no other test receiver/app remained.",
+    "site": "286 documents; no unresolved fragments",
+    "coverage": "130 dialogs, 120 partial family audits, 10 pending; no certified dialogs"
+  },
+  "remaining": [
+    "Collect hosted stack if the stall repeats; do not infer root cause from a local pass.",
+    "Full current hosted CI and all port/release requirements remain open."
+  ]
+}

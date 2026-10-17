@@ -158,7 +158,23 @@ def close_receiver(receiver):
     signal_receiver_group(receiver.pid, signal.SIGKILL)
 
 
-def run_receiver(command, *, timeout=300, **kwargs):
+def sample_receiver(pid, destination):
+    """Capture only an explicitly owned timed-out receiver before reaping it."""
+    destination = Path(destination).resolve()
+    try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        result = subprocess.run(['/usr/bin/sample', str(pid), '2', '10', '-file', str(destination)],
+                                capture_output=True, text=True, timeout=10)
+        print('Owned receiver stack sample: ' + str(destination) + ' (exit ' + str(result.returncode) + ')', flush=True)
+        if result.returncode:
+            print((result.stdout + result.stderr)[-2000:], flush=True)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        # Sampling is diagnostic only. The original receiver timeout and its
+        # mandatory process-group cleanup must remain authoritative.
+        print('Owned receiver stack sample unavailable: ' + str(error), flush=True)
+
+
+def run_receiver(command, *, timeout=300, timeout_sample=None, **kwargs):
     """subprocess.run-compatible native execution with owned bounded cleanup."""
     check = kwargs.pop('check', False)
     input_data = kwargs.pop('input', None)
@@ -178,6 +194,8 @@ def run_receiver(command, *, timeout=300, **kwargs):
             result.check_returncode()
         return result
     except subprocess.TimeoutExpired as error:
+        if timeout_sample is not None and receiver.poll() is None:
+            sample_receiver(receiver.pid, timeout_sample)
         # communicate retains captured bytes on TimeoutExpired, including when
         # text=True. Preserve the original exception and emit bounded tails so
         # CI does not lose the fixture's last owned phase before cleanup.
@@ -187,5 +205,15 @@ def run_receiver(command, *, timeout=300, **kwargs):
                 print('Native receiver timeout ' + name + ' (last 65536 characters):\n' + message[-65536:], flush=True)
         raise
     finally:
-        close_receiver(receiver)
+        try:
+            close_receiver(receiver)
+        finally:
+            # A timeout retains Popen through its exception traceback. Reaping
+            # alone leaves its captured pipes open until that traceback dies.
+            for stream in (receiver.stdin, receiver.stdout, receiver.stderr):
+                if stream is not None:
+                    try:
+                        stream.close()
+                    except OSError:
+                        pass
         print('Owned receiver reaped: ' + str(receiver.pid), flush=True)
