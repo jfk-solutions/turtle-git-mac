@@ -44,7 +44,7 @@ python3 scripts/build-distribution.py --configuration AppStore --derived-data bu
 ```
 
 Use `--configuration Release` for a future direct-distribution candidate, or
-`--audit-existing` to inspect an already built candidate without another build.
+`--audit-existing` to recheck a candidate with its original complete audit without another build. A raw Xcode build alone does not establish the measured input provenance.
 The command creates `distribution-audit.json` only after package and cache-service
 audits succeed. The report includes code hashes and slices and explicitly leaves
 signing, sandbox execution and App Store submission unverified. A failed run clears

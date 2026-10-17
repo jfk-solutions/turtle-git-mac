@@ -2108,3 +2108,32 @@ Mac Help passes its freshness check. Direct Windows DrDump transport, minidumps/
 assert collection, server solutions, automatic recovery and physical/signed
 acceptance remain open; original crash resource controls remain unmapped.
 See [scope and evidence](CRASH-REPORTING-PARITY.md).
+
+
+## Fresh universal distribution candidates — October 17, 2026
+
+Release and AppStore archive builds now measure repository input bytes and modes
+before and after compilation and retain the actual build revision and dirty-input
+flag. Reusing an audit requires its original complete source/bundle inventory;
+changed resources, aliases, modes and stale source inputs are refused. Local
+preview packaging verifies the unsigned copy before signing and compares the
+signed app against its independently extracted ZIP. CI uses the measuring build
+entry point directly. These guards establish recorded source/bundle provenance;
+they do not claim hermetic or bit-reproducible builds.
+
+Seven provenance contract checks pass. One fresh universal Release build and one
+fresh unsigned AppStore archive pass their package/cache audits; eight archived
+app components have matching universal dSYMs. One ad-hoc preview packaging run
+passes app and extracted-ZIP seals and inventory matching. The 349,429,725-byte
+local ZIP is retained under `build/previews/TurtleGit-2026-10-17`, with checksums,
+license notices and a manifest. Existing unrelated work was measured and preserved.
+No app was installed, launched, registered, uploaded or submitted by packaging.
+
+Hosted integration remains open: one run timed out in the native folding case.
+A focused local reproduction with temporary phase diagnostics passed, and its
+owned receiver was reaped and independently absent; this is not a production fix.
+Another run exposed a hosted compiler type-check limit in the About water oracle
+test. The pixel expression now uses explicit typed RGB components with the same
+reference assertions. All three affected Core checks pass locally, including 96
+reference RGB frames; full hosted confirmation remains open. See [batch evidence](qa/distribution-provenance-preview-2026-10-17.json)
+for exact artifacts, validation and outstanding physical/signed/full-parity gates.

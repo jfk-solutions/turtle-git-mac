@@ -10,7 +10,12 @@ final class AboutWaterEffectTests:XCTestCase {
         for test in oracle.cases {
             let width=test.width,height=test.height
             var effect=try XCTUnwrap(AboutWaterEffect(width:width,height:height));effect.density=test.density
-            let source=(0..<(width*height)).map {i in UInt32(0xFF000000)|UInt32((i*13+17)&255)|(UInt32((i*7+23)&255)<<8)|(UInt32((i*3+91)&255)<<16)}
+            let source: [UInt32] = (0..<(width * height)).map { index in
+                let red = UInt32((index * 13 + 17) & 255)
+                let green = UInt32((index * 7 + 23) & 255) << 8
+                let blue = UInt32((index * 3 + 91) & 255) << 16
+                return UInt32(0xFF000000) | red | green | blue
+            }
             var result=source
             for frame in 0..<24 {
                 if frame==0 {effect.blob(x:width/2,y:height/2,radius:2,strength:800)}
