@@ -70,3 +70,12 @@ Actual [light](site/assets/patch-recovery-light.png) and
 and initial states. They precede the fixture-only reselection correction and use
 the same built app as the passing native run. They certify that displayed state,
 not every physical input/menu transition or every completed-save view.
+
+## Captured text codecs — October 17
+
+The [connected patch-codec family](PATCH-CODEC-WORKFLOWS.md) now applies one
+captured policy through row inspection, file previews, recorded-base merge and
+per-file recovery. Legacy text reaches the embedded editor, and unrepresentable
+automatic output retains a manual Preview/encoding-change continuation. Existing
+binary/special choices and raw application bytes remain. Physical/signed and
+wider raw-patch text decoding acceptance are still open.

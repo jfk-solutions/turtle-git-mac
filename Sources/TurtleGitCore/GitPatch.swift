@@ -257,7 +257,7 @@ public struct WorkingTreePatchBatchResult: Sendable {
 extension GitRepository {
     /// FilePatchesDlg patches in list order, reports a failed file and continues.
     /// Whole checked-file application remains a separate, atomic Git operation.
-    public func applyWorkingTreePatchBatch(_ review: WorkingTreePatchReview, fileIDs: Set<Int>, mergeConfiguration:SubversionMergeConfiguration? = nil, cancellation: OperationCancellation? = nil,
+    public func applyWorkingTreePatchBatch(_ review: WorkingTreePatchReview, fileIDs: Set<Int>, mergeConfiguration:SubversionMergeConfiguration? = nil,textEncodingPolicy:MergeTextEncodingPolicy? = nil, cancellation: OperationCancellation? = nil,
         onResult: (@Sendable (WorkingTreePatchFileResult) -> Void)? = nil) throws -> WorkingTreePatchBatchResult {
         guard review.repositoryRoot == root, !fileIDs.isEmpty,
               fileIDs.isSubset(of: Set(review.files.map(\.id))) else { throw WorkingTreePatchFailure.review }
@@ -271,7 +271,7 @@ extension GitRepository {
                 let selected = try reviewWorkingTreePatchFiles(review, fileIDs: ids, cancellation: cancellation)
                 if let failure = selected.validationError {
                     if let mergeConfiguration {
-                        let comparison = try compareWorkingTreePatchFile(review,fileID:file.id,cancellation:cancellation)
+                        let comparison = try compareWorkingTreePatchFile(review,fileID:file.id,textEncodingPolicy:textEncodingPolicy,cancellation:cancellation)
                         if comparison.recoveryKind != .text {
                             result = .init(pathBytes:file.pathBytes,success:false,output:"Preview this file to choose its current or patched state.\n" + failure,requiresMerge:true)
                             results.append(result);onResult?(result)
@@ -289,7 +289,9 @@ extension GitRepository {
                     result = .init(pathBytes: file.pathBytes, success: true, output: output)
                 }
             } catch {
-                result = .init(pathBytes: file.pathBytes, success: false, output: error.localizedDescription)
+                let needsFormat:Bool
+                if case FileComparisonEditFailure.encoding = error {needsFormat=true} else {needsFormat=false}
+                result = .init(pathBytes: file.pathBytes, success: false, output: error.localizedDescription,requiresMerge:needsFormat)
             }
             results.append(result); onResult?(result)
             if cancellation?.isCancelled == true { return .init(files: results, cancelled: true) }
@@ -416,6 +418,7 @@ public struct WorkingTreePatchFileComparison: Sendable {
     fileprivate let outputs: [String: ComparisonFileContent]
     /// Recorded version-control base used when the working file rejects the patch.
     public let recoveryBase: ComparisonFileContent?
+    public let textEncodingPolicy:MergeTextEncodingPolicy?
     public var requiresMerge:Bool { recoveryBase != nil }
     public enum RecoveryKind:String,Sendable {case text,binary,symbolicLink,deletion}
     public var recoveryKind:RecoveryKind? {
@@ -437,7 +440,7 @@ public struct WorkingTreePatchFileComparison: Sendable {
 }
 
 extension GitRepository {
-    public func compareWorkingTreePatchFile(_ review: WorkingTreePatchReview, fileID: Int, cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchFileComparison {
+    public func compareWorkingTreePatchFile(_ review: WorkingTreePatchReview, fileID: Int,textEncodingPolicy:MergeTextEncodingPolicy? = nil, cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchFileComparison {
         try cancellation?.check()
         guard review.repositoryRoot == root, review.includePatterns.isEmpty,
               let file = review.files.first(where: { $0.id == fileID }) else { throw WorkingTreePatchFailure.selection }
@@ -482,7 +485,8 @@ extension GitRepository {
                     return ComparisonFileContent(path: path, revision: .workingTree, bytes: Data(), mode: nil)
                 }
                 let value = try WorkingFileComparison.workingContent(at: location)
-                return ComparisonFileContent(path: path, revision: .workingTree, bytes: value.bytes, mode: value.mode, permissions: value.permissions)
+                let content=ComparisonFileContent(path:path,revision:.workingTree,bytes:value.bytes,mode:value.mode,permissions:value.permissions)
+                return textEncodingPolicy?.applying(content) ?? content
             }
             var before: ComparisonFileContent?
             var inputs: [String: ComparisonFileContent] = [:]
@@ -544,7 +548,8 @@ extension GitRepository {
                     let mode = recordedMode ?? (fields.count > 2 ? String(fields[2]) : inputs[name]?.mode ?? "100644")
                     guard ["100644","100755","120000"].contains(mode) else {throw directFailure}
                     let baseBytes = object.allSatisfy({$0 == "0"}) ? Data() : try run(["cat-file","blob",object],environmentOverrides:["GIT_NO_LAZY_FETCH":"1"],cancellation:cancellation).stdout
-                    let base = ComparisonFileContent(path:name,revision:.revision(object),bytes:baseBytes,mode:mode,permissions:inputs[name]?.permissions ?? (mode == "100755" ? 0o755 : 0o644))
+                    let rawBase = ComparisonFileContent(path:name,revision:.revision(object),bytes:baseBytes,mode:mode,permissions:inputs[name]?.permissions ?? (mode == "100755" ? 0o755 : 0o644))
+                    let base=textEncodingPolicy?.applying(rawBase) ?? rawBase
                     if name == source {recoveryBase = base}
                     if !object.allSatisfy({$0 == "0"}) {
                         let copy = temporary.appendingPathComponent(name);try checkParents(copy,anchor:temporary)
@@ -565,7 +570,7 @@ extension GitRepository {
             guard let before else { throw WorkingTreePatchFailure.metadata }
             try cancellation?.check()
             let outputs = try Dictionary(uniqueKeysWithValues: paths.map { ($0, try read(temporary.appendingPathComponent($0), path: $0, anchor: temporary)) })
-            return WorkingTreePatchFileComparison(document: FileComparisonDocument(base: before, destination: outputs[destination]!), fileID: fileID, review: selected, inputs: inputs, outputs: outputs,recoveryBase:recoveryBase)
+            return WorkingTreePatchFileComparison(document: FileComparisonDocument(base: before, destination: outputs[destination]!), fileID: fileID, review: selected, inputs: inputs, outputs: outputs,recoveryBase:recoveryBase,textEncodingPolicy:textEncodingPolicy)
         }
     }
 }
@@ -671,7 +676,7 @@ public struct WorkingTreePatchFileInspection:Sendable {
 }
 extension GitRepository {
     /// Source FilePatchesDlg initializes every row from a dry-run result.
-    public func inspectWorkingTreePatchFiles(_ review:WorkingTreePatchReview,excluding:Set<Data> = [],cancellation:OperationCancellation? = nil) throws -> [Data:WorkingTreePatchFileInspection] {
+    public func inspectWorkingTreePatchFiles(_ review:WorkingTreePatchReview,excluding:Set<Data> = [],textEncodingPolicy:MergeTextEncodingPolicy? = nil,cancellation:OperationCancellation? = nil) throws -> [Data:WorkingTreePatchFileInspection] {
         try cancellation?.check()
         guard review.repositoryRoot == root,review.includePatterns.isEmpty else {throw WorkingTreePatchFailure.review}
         var result:[Data:WorkingTreePatchFileInspection] = [:]
@@ -680,7 +685,7 @@ extension GitRepository {
             if review.canApply {result[file.pathBytes] = .init(state:.ready,diagnostic:"");continue}
             try cancellation?.check()
             do {
-                let comparison = try compareWorkingTreePatchFile(review,fileID:file.id,cancellation:cancellation)
+                let comparison = try compareWorkingTreePatchFile(review,fileID:file.id,textEncodingPolicy:textEncodingPolicy,cancellation:cancellation)
                 result[file.pathBytes] = .init(state:comparison.requiresMerge ? .conflict : .ready,diagnostic:comparison.requiresMerge ? (comparison.recoveryKind == .text ? "The current file differs from the patch base. Preview to merge the recorded base, current file and patched file." : "Preview to choose the current or patched file state.") : "")
             } catch {
                 try cancellation?.check()

@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "41a0c6d2",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected patch file text decoding, recorded-base preview/merge, automatic application and manual encoding-error continuation.",
+  "source": {
+    "src/Git/GitPatch.cpp": "5dd70de4a8c898ae80a229aabd82832e7b590d1f",
+    "src/TortoiseMerge/MainFrm.cpp": "0d5d08525a1ee6a3f8bfa5f15cff9bf6bcba1138"
+  },
+  "implemented": [
+    "Captured MergeTextEncodingPolicy for inspection, preview, recorded-base/current/patched snapshots and per-file batch recovery",
+    "Explicit Refresh captures a new policy; in-flight/accepted review and internal refresh retain the prior one",
+    "Regional text enters the three-way editor; pane codecs survive later preference changes",
+    "Unrepresentable automatic output stays unchanged and retains manual Preview for explicit UTF8 Save",
+    "Legacy fallback retains binary classification rather than promoting NUL payloads via a permissive UTF16 guess"
+  ],
+  "validation": {
+    "core": {
+      "distinct_cases": 35,
+      "initial": {
+        "log": "build/qa/patch-codec-core-2026-10-17.log",
+        "cases": 35,
+        "failures": 1
+      },
+      "affected_recheck": {
+        "log": "build/qa/patch-codec-binary-core-2026-10-17.log",
+        "cases": 4,
+        "failures": 0
+      },
+      "note": "35 distinct cases pass across retained and affected checks, not 39 different cases."
+    },
+    "builds": [
+      {
+        "log": "build/qa/patch-codec-build-2026-10-17.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/patch-codec-binary-build-2026-10-17.log",
+        "exit_code": 0
+      }
+    ],
+    "native": {
+      "passed": 8,
+      "log": "build/qa/patch-codec-native-2026-10-17.log",
+      "cases": [
+        "codec system Git",
+        "codec bundled Git",
+        "recovery system Git",
+        "recovery bundled Git",
+        "special system Git",
+        "special bundled Git",
+        "panel system Git",
+        "panel bundled Git"
+      ],
+      "scope": "Production review and embedded editor, source inspection, direct/manual/automatic recovery, changed preferences, unrepresentable-result Preview and explicit UTF8 Save, stale generations, exact file bytes/modes/local edits and preserved HEAD/raw index"
+    },
+    "owned_receiver_pids": [
+      65997,
+      66265,
+      66540,
+      66727,
+      66934,
+      67178,
+      67438,
+      67553
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/patch-codec-light.png",
+        "sha256": "8f3e6086aff7e97f9666dfe7d20f6870df0484552c44da0f8c18f8f41e719cf5",
+        "width": 2200,
+        "height": 1606,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/patch-codec-dark.png",
+        "sha256": "ce6041bbb6e7a63b3a7a41a6ad9e6e14399832abc3fdb7d34a7984d64abfa805",
+        "width": 2200,
+        "height": 1606,
+        "individually_viewed": true
+      }
+    ]
+  },
+  "failure_and_repair": "The new binary-boundary Core case found permissive source UTF16 guessing could classify NUL binary payloads as text. Retained the prior Unicode/binary decision for such payloads, reran the four affected codec cases only and rebuilt before the first grouped native run.",
+  "remaining": [
+    "Original-patch, serial-import and wider unified-diff legacy display decoding",
+    "Wider filename aliases, all codepage mappings and physical/accessibility acceptance",
+    "Existing inactive toolbar fading in captures and full visual acceptance",
+    "Signed sandbox/App Store and complete hosted CI acceptance"
+  ],
+  "notes": [
+    "All eight grouped native workflows passed on the first native run.",
+    "Existing environment/outdated Simulator and exit-zero compiler diagnostics remain; exit-zero builds are not clean-diagnostics claims."
+  ]
+}

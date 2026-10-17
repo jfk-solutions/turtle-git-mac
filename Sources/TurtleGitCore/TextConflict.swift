@@ -391,8 +391,10 @@ extension TextConflictDocument {
 
 extension WorkingTreePatchFileComparison {
     public func patchMergeDocument(engine:SubversionMergeConfiguration,preferUTF8:Bool? = nil,legacyEncoding:ComparisonTextEncoding = .windows1252,cancellation:OperationCancellation? = nil) throws -> TextConflictDocument {
-        guard let recoveryBase,recoveryKind == .text else {throw WorkingTreePatchFailure.review}
-        func content(_ value:ComparisonFileContent)->ComparisonFileContent {preferUTF8.map {value.usingMergeEncoding(preferUTF8:$0,legacyEncoding:legacyEncoding)} ?? value}
+        guard let recoveryBase else {throw WorkingTreePatchFailure.review}
+        let policy=textEncodingPolicy ?? preferUTF8.map {MergeTextEncodingPolicy(preferUTF8:$0,legacyEncoding:legacyEncoding)}
+        guard [recoveryBase,document.base,document.destination].allSatisfy({$0.mode != nil && $0.mode != "120000"}),policy != nil || recoveryKind == .text else {throw WorkingTreePatchFailure.review}
+        func content(_ value:ComparisonFileContent)->ComparisonFileContent {policy?.applying(value) ?? value}
         let base = content(recoveryBase),mine = content(document.base),theirs = content(document.destination)
         guard let baseText = base.text,let mineText = mine.text,let theirsText = theirs.text,let encoding = mine.encoding ?? theirs.encoding else {throw TextConflictFailure.encoding}
         let merged = try SubversionMergePresentation(plan:engine.plan(base:baseText,mine:mineText,theirs:theirsText,cancellation:cancellation))

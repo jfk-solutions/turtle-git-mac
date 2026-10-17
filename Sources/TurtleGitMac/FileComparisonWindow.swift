@@ -1155,7 +1155,7 @@ private extension FileComparisonDocument {
     }
     init(patchComparison: WorkingTreePatchFileComparison, access: RepositoryAccessLease?, preferences: UserDefaults) {
         repository = nil; self.access = access; snapshot = patchComparison.snapshot; path = patchComparison.document.destination.path
-        let value = patchComparison.editingDocument.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: preferences),legacyEncoding:.legacyEncoding(from:preferences))
+        let value = (patchComparison.textEncodingPolicy ?? MergeTextEncodingPolicy(defaults:preferences)).applying(patchComparison.editingDocument)
         document = value; originalPaneDocument = value; drafts = FileComparisonDrafts(value)
         comparisonDefaults = preferences; comparisonOptions = .load(from:preferences)
         drafts?.setEditing(false, base: false); showInlineDiff = false

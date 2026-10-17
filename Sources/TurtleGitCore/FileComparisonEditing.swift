@@ -228,6 +228,29 @@ public enum ComparisonTextEncoding: String, CaseIterable, Sendable {
     }
 }
 
+/// One captured load policy, independent of later preference edits.
+public struct MergeTextEncodingPolicy:Equatable,Sendable {
+    public let preferUTF8:Bool
+    public let legacyEncoding:ComparisonTextEncoding
+    public init(preferUTF8:Bool,legacyEncoding:ComparisonTextEncoding = .windows1252) {
+        self.preferUTF8=preferUTF8
+        self.legacyEncoding=legacyEncoding.legacyCodePage == nil ? .windows1252:legacyEncoding
+    }
+    public init(defaults:UserDefaults) {
+        self.init(preferUTF8:ComparisonTextEncoding.preferUTF8(from:defaults),legacyEncoding:.legacyEncoding(from:defaults))
+    }
+    public func applying(_ content:ComparisonFileContent)->ComparisonFileContent {
+        // A legacy fallback must not promote binary patch content via the
+        // source detector's permissive BOM-less UTF16 guess. Keep the original
+        // Unicode/binary decision for NUL-containing payloads.
+        if content.bytes.contains(0),ComparisonTextEncoding.detect(content.bytes) == nil {return content}
+        return content.usingMergeEncoding(preferUTF8:preferUTF8,legacyEncoding:legacyEncoding)
+    }
+    public func applying(_ document:FileComparisonDocument)->FileComparisonDocument {
+        FileComparisonDocument(base:applying(document.base),destination:applying(document.destination))
+    }
+}
+
 public enum FileComparisonEditFailure: LocalizedError {
     case unsupported, changed, readOnly, range, encoding
     public var errorDescription: String? {

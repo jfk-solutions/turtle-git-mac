@@ -907,6 +907,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var openPreferences: UserDefaults { preferences }
     var openPermissions: [RepositoryAccessLease] { [access, fileAccess].compactMap { $0 } + (editor?.openPermissions ?? []) + (conflictEditor?.openPermissions ?? []) }
     private let preferences: UserDefaults
+    private(set) var reviewEncodingPolicy=MergeTextEncodingPolicy(preferUTF8:false)
     private let access: RepositoryAccessLease?
     private let fileAccess: RepositoryAccessLease?
     private let bytes: Data
@@ -964,7 +965,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             do {
                 try checkAccess()
                 var engine = try? SubversionMergeConfiguration.bundled();engine?.options = .load(from:preferences)
-                let batch = try await repository.applyWorkingTreePatchBatch(review, fileIDs: targets, mergeConfiguration:engine, cancellation: token) { [weak self] result in
+                let batch = try await repository.applyWorkingTreePatchBatch(review, fileIDs: targets, mergeConfiguration:engine,textEncodingPolicy:reviewEncodingPolicy, cancellation: token) { [weak self] result in
                     Task { @MainActor [weak self] in
                         guard let self, !self.retired, self.operation === token else { return }
                         self.fileResults[result.pathBytes] = result
@@ -1058,7 +1059,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1) {
         self._stripCount = Published(initialValue: initialStripCount)
         self.directoryMode = directoryMode; self.isGitWorkingTree = isGitWorkingTree
-        self.repository = repository; self.access = access; self.fileAccess = fileAccess; self.bytes = bytes; self.preferences = preferences
+        self.repository = repository; self.access = access; self.fileAccess = fileAccess; self.bytes = bytes; self.preferences = preferences;reviewEncodingPolicy=MergeTextEncodingPolicy(defaults:preferences)
         previewDocument = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
         previewDocument.setReadOnlyDiff(bytes); previewDocument.refreshAvailable = false
     }
@@ -1076,22 +1077,23 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     func refresh(completion: (() -> Void)? = nil) {
         guard canReplaceComparison, let token = begin() else { completion?(); return }; selectedReview = nil; appliedPaths = []; keptCurrentPaths = []; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil; beforeScroll = nil; afterScroll = nil
         fileResults = [:];fileInspections = [:]
-        let reverse = reversed, strip = stripCount
+        let reverse = reversed, strip = stripCount,policy=MergeTextEncodingPolicy(defaults:preferences)
         Task {
             defer { finish(token); completion?() }
-            do { try checkAccess(); try await load(reverse: reverse, strip: strip, token: token) }
+            do { try checkAccess(); try await load(reverse: reverse, strip: strip, token: token,encodingPolicy:policy) }
             catch { if !retired && !token.isCancelled { review = nil; selected = []; notice = error.localizedDescription } }
         }
     }
-    private func load(reverse: Bool, strip: Int, token: OperationCancellation, retainingSavedComparison: Bool = false) async throws {
+    private func load(reverse: Bool, strip: Int, token: OperationCancellation, retainingSavedComparison: Bool = false,encodingPolicy:MergeTextEncodingPolicy? = nil) async throws {
         try ensure(token)
         let next = try await repository.reviewWorkingTreePatch(bytes, reversed: reverse, stripCount: strip, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, cancellation: token)
         try ensure(token)
+        reviewEncodingPolicy=encodingPolicy ?? reviewEncodingPolicy
         review = next; requiresRefresh = false; fileListGeneration = UUID()
         highlightedFiles.formIntersection(Set(next.files.map(\.id)))
         selected = Set(next.files.filter { !appliedPaths.contains($0.pathBytes) }.map(\.id))
         try await validateSelection(token)
-        let inspections = try await repository.inspectWorkingTreePatchFiles(next,excluding:appliedPaths,cancellation:token)
+        let inspections = try await repository.inspectWorkingTreePatchFiles(next,excluding:appliedPaths,textEncodingPolicy:reviewEncodingPolicy,cancellation:token)
         try ensure(token);fileInspections = inspections
         if !retainingSavedComparison { await loadComparison(token) }
     }
@@ -1130,7 +1132,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         focusedFile = file.id
         do {
             try checkAccess()
-            let value = try await repository.compareWorkingTreePatchFile(review, fileID: file.id, cancellation: token)
+            let value = try await repository.compareWorkingTreePatchFile(review, fileID: file.id,textEncodingPolicy:reviewEncodingPolicy, cancellation: token)
             try ensure(token)
             comparison = value
             if value.requiresMerge {

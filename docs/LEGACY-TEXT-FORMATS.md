@@ -63,3 +63,8 @@ whole-app parity.
 
 ![Legacy encoding dialog, light](site/assets/legacy-format-light.png)
 ![Legacy encoding dialog, dark](site/assets/legacy-format-dark.png)
+
+The later [patch-codec workflow continuation](PATCH-CODEC-WORKFLOWS.md) connects
+legacy file preview/classification, captured recorded-base recovery and automatic
+application, including a manual UTF-8 continuation for unrepresentable output.
+Original-patch/serial-import text presentation remains a separate open family.
