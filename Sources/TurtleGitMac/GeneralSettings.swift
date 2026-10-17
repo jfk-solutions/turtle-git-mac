@@ -15,10 +15,33 @@ import TurtleGitCore
     @Published var version = ""
     @Published var error: String?
     private let preferences: UserDefaults
+    @Published private(set) var language: String
+    private var savedLanguage: String
+    private var languageRevision = UUID()
+    var languageModified: Bool { language != savedLanguage }
+    func chooseLanguage(_ id: String) {
+        guard canEditPage, AppLanguageChoice.isAvailable(id) else { return }
+        language = id; languageRevision = UUID()
+    }
+    func languageBinding() -> Binding<String> {
+        let context = lifecycle, revision = languageRevision
+        return Binding(get: { self.language }, set: { id in
+            guard self.lifecycle == context, self.languageRevision == revision else { return }
+            self.chooseLanguage(id)
+        })
+    }
+    func applyLanguage() -> Bool {
+        guard !busy, !selecting, !confirmingUpdates else { return false }
+        guard languageModified else { return true }
+        do { try AppLanguageChoice.save(language, to: preferences); savedLanguage = language; languageRevision = UUID(); return true }
+        catch { self.error = error.localizedDescription; return false }
+    }
+    func cancelLanguage() { language = savedLanguage; languageRevision = UUID() }
     private var saved: GitEnginePreferences
     init(preferences: UserDefaults = .standard) {
         self.preferences = preferences
         let value = GitEnginePreferences.load(from:preferences); draft = value; saved = value
+        let language = AppLanguageChoice.selected(in: preferences); self.language = language; savedLanguage = language
     }
     private var token: OperationCancellation?
     private var request = UUID()
@@ -47,7 +70,13 @@ import TurtleGitCore
         return GitRuntime.isAppStoreBuild || draft.valid ? nil:"Choose a valid Git executable and absolute Extra PATH directories."
     }
     var modified: Bool { draft != saved }
-    func activate() { active = true }
+    func activate() {
+        if !languageModified {
+            let current = AppLanguageChoice.selected(in: preferences)
+            if current != savedLanguage { language = current; savedLanguage = current; languageRevision = UUID() }
+        }
+        active = true
+    }
     func suspend() {
         active=false;lifecycle=UUID();request=UUID();token?.cancel();token=nil;busy=false;checking=false;cancellingCheck=false
         cancelBrowse();cancelUpdateQuestion()
@@ -166,6 +195,14 @@ import TurtleGitCore
         return values.keys.sorted().map { $0 + "=" + values[$0]! }.joined(separator: "\n")
     }
 }
+struct AppLanguageLabel: View {
+    let choice: AppLanguageChoice
+    var body: some View {
+        if choice.id == AppLanguageChoice.system { Text("System Language") }
+        else { Text(verbatim: choice.title) }
+    }
+}
+
 struct GeneralSettings: View {
     @ObservedObject var appearance: SettingsAppearanceDraft
     @StateObject private var model: GeneralGitSettingsModel
@@ -188,7 +225,13 @@ struct GeneralSettings: View {
         VStack(alignment: .leading, spacing: 16) {
             GroupBox("TurtleGit for Mac") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Picker("Language:", selection: .constant("en")) { Text("English").tag("en") }
+                    Picker("Language:", selection: model.languageBinding()) {
+                        ForEach(AppLanguageChoice.choices) { AppLanguageLabel(choice: $0).tag($0.id) }
+                    }
+                    HStack(alignment: .top) {
+                        Text("Restart TurtleGit to apply a language change. Some text is still in English.").font(.caption).foregroundStyle(.secondary)
+                        Spacer(); Button("Language help") { TurtleGitHelp.show(.languages) }.buttonStyle(.link)
+                    }
                     HStack {
                         LogPreferenceCheckbox(title: "Automatically check for newer versions every week", value: Binding(get: { updates }, set: { enabled in
                             if enabled { updates = true } else { model.confirmDisableUpdates { updates = false } }
@@ -212,7 +255,7 @@ struct GeneralSettings: View {
                         Button("Browse…", action: model.browse)
                     }.disabled(!model.canEditEngine || model.draft.choice != .custom)
                     HStack {Text("Extra PATH:").frame(width:100,alignment:.leading);TextField("",text:$model.draft.extraPath).accessibilityLabel("Git Extra PATH")}.disabled(!model.canEditEngine)
-                    HStack { Text("Version: " + model.version); Spacer(); Button("Check now", action: model.check).disabled(!model.canCheck) }
+                    HStack { Text("Version:"); Text(verbatim: model.version); Spacer(); Button("Check now", action: model.check).disabled(!model.canCheck) }
                     Button("Show Environment Variables") { environment = model.environment() }.disabled(!model.canCheck)
                     if model.busy {HStack {ProgressView().controlSize(.small);if model.checking {Button(model.cancellingCheck ? "Cancelling…":"Cancel check",action:model.cancelCheck).disabled(model.cancellingCheck)}}}
                     if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
@@ -224,6 +267,7 @@ struct GeneralSettings: View {
         .onAppear { model.activate() }.onDisappear { model.suspend() }
         .settingsParticipant("general", page: .general, value: appearance.choice, modified: { appearance.changed }, apply: { appearance.apply(); return true }, cancel: appearance.cancel)
         .settingsParticipant("general.updates", page: .general, value: updates, modified: { updates != savedUpdates }, apply: { preferences.set(updates, forKey: "VersionCheck"); savedUpdates = updates; return true }, cancel: { updates = savedUpdates })
+        .settingsParticipant("general.language", page: .general, value: model.language, modified: { model.languageModified }, apply: { model.applyLanguage() }, cancel: model.cancelLanguage)
         .settingsParticipant("general.git", page: .general, value: model.draft, modified: { model.modified }, validate: {model.validationError}, apply: { await model.apply() }, cancel: model.cancel)
         .sheet(isPresented: Binding(get: { environment != nil }, set: { if !$0 { environment = nil } })) {
             VStack(alignment: .leading) {

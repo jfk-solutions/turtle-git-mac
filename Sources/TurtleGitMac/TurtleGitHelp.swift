@@ -9,7 +9,7 @@ enum TurtleGitHelpTopic: String, CaseIterable {
     case synchronization, ignore, lfs
     case patches, export, bisect, settings, finder, folderAccess, statistics
     case revisionGraph, blame, compare, images, unifiedDiff, svn, authentication
-    case ssh, savedData, privacy, notes, moving
+    case ssh, savedData, privacy, notes, moving, languages
 }
 
 @MainActor final class TurtleGitHelpService {

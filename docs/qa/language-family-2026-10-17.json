@@ -1,0 +1,148 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected native language resources, General Apply/Cancel, First Start page save, safe command labels and offline Help; partial UI translation.",
+  "resources": {
+    "languages_including_english": 38,
+    "safe_literal_keys": 1242,
+    "manifest": "Sources/TurtleGitMac/Resources/LocalizationManifest.json",
+    "translator_notices": "Sources/TurtleGitMac/Resources/LocalizationCredits.txt"
+  },
+  "core": {
+    "tests": 3,
+    "failures": 0,
+    "log": "build/qa/language-family-core-2026-10-17.log",
+    "affected_recheck": {
+      "tests": 1,
+      "failures": 0,
+      "log": "build/qa/language-family-core-locale-repair-2026-10-17.log",
+      "reason": "Actual Xcode Serbian Cyrillic folder is sr.lproj; align IDs and English-first selector order."
+    }
+  },
+  "contracts": {
+    "tests": 5,
+    "failures": 0,
+    "log": "build/qa/language-catalog-contracts-2026-10-17.log"
+  },
+  "build": {
+    "configuration": "Debug arm64, unsigned",
+    "final_log": "build/qa/language-family-locale-build-2026-10-17.log",
+    "warnings": "Existing actor isolation warnings remain. No Release/Store build claim for this batch.",
+    "initial_failure": "Duplicate caption helper accidentally inserted in TurtleGitContextMenu; removed.",
+    "repair_log": "build/qa/language-family-build-repair-2026-10-17.log"
+  },
+  "native": {
+    "exit_code": 0,
+    "log": "build/qa/language-family-native-repair-2026-10-17.log",
+    "locales": [
+      "de",
+      "fr",
+      "en"
+    ],
+    "receiver_pids": [
+      79443,
+      79584,
+      79590
+    ],
+    "independently_absent": true,
+    "cases": [
+      "Compiled native lookup and missing-key English fallback in three fresh private app bundles",
+      "Localized command caption and verbatim user-derived caption retained together",
+      "All 37 foreign compiled locale tables match their manifest counts",
+      "General language-only Apply without Git inspection, Cancel, stale/inactive callbacks and cached-page reload",
+      "First Start captured revision, Next saves language before Welcome, later close retains saved page",
+      "System clears only app-owned override; isolated preference domains",
+      "Four owned German light/dark form captures"
+    ],
+    "initial_failure": "Fixture compilation missing final closing brace; no receiver launched on that attempt.",
+    "diagnostics": "Private direct-launched QA bundles emitted sandbox_extension_issue_file_to_process warnings; receivers completed. This is not signed sandbox acceptance."
+  },
+  "help": {
+    "exit_code": 0,
+    "topics": 48,
+    "receiver_pid": 79614,
+    "independently_absent": true,
+    "log": "build/qa/language-family-help-native-2026-10-17.log"
+  },
+  "bundle_audit": {
+    "exit_code": 0,
+    "log": "build/qa/language-family-bundle-audit-repair-2026-10-17.log",
+    "initial_failure": "sr-Cyrl expected but Xcode canonicalized to sr.lproj; generator, IDs and project corrected. Apple strings normalized via plutil before Python plist parsing."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/first-start-language-de-dark.png",
+      "width": 1400,
+      "height": 1184,
+      "sha256": "23682e531510b9a7375ad555e9eb870bc964af8809f5daa0a04909c6affe51e0",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "German labels, native source order, selector, restart notice and footer fit in light/dark. Some labels/window titles remain English; no complete translation or physical input claim."
+    },
+    {
+      "path": "docs/site/assets/first-start-language-de-light.png",
+      "width": 1400,
+      "height": 1184,
+      "sha256": "bee75e45939a6529e7da03f55542cbcc11018836149a8f447d39fb0a7dfc1822",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "German labels, native source order, selector, restart notice and footer fit in light/dark. Some labels/window titles remain English; no complete translation or physical input claim."
+    },
+    {
+      "path": "docs/site/assets/general-language-de-dark.png",
+      "width": 1800,
+      "height": 1624,
+      "sha256": "ef6189967610b73575bd610624fe73f54d8419d8773a8cda02d1282d9f10363c",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "German labels, native source order, selector, restart notice and footer fit in light/dark. Some labels/window titles remain English; no complete translation or physical input claim."
+    },
+    {
+      "path": "docs/site/assets/general-language-de-light.png",
+      "width": 1800,
+      "height": 1624,
+      "sha256": "be552c62bc156b65c596fbe93053af3e8745e309ab313cf97061e7d43d3a6339",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "German labels, native source order, selector, restart notice and footer fit in light/dark. Some labels/window titles remain English; no complete translation or physical input claim."
+    }
+  ],
+  "coverage": {
+    "new_control_mappings": 0,
+    "certified_dialogs": 0
+  },
+  "remaining": [
+    "Full dynamic/AppKit/formatted/plural and native-only translation",
+    "RTL layouts, physical keyboard and VoiceOver in translated locales",
+    "Signed sandbox and installed/Finder locale acceptance",
+    "Current full hosted CI",
+    "Regenerate preview/archive at next distribution checkpoint; existing snapshots predate this batch"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/AppLanguagePreferences.swift": "35e827918ab86188e5c528d8085f14c8f0d7e1d93af2d2cfe285734fa2a18946",
+    "Sources/TurtleGitCore/AppLanguages.generated.swift": "da49ac444f35e69fdf8337562eacb71f0669d379fb62cbf475d012169fe09b3c",
+    "Sources/TurtleGitMac/CommandLabel.swift": "cbcf1e48fd04d18bd3ba78d74d565032341b1cc568293940f8bee9f54e048ae1",
+    "Sources/TurtleGitMac/GeneralSettings.swift": "039bf45b2a3de0c558ca3764b23f6a82b1fa58ce925caef637e301823476fd43",
+    "Sources/TurtleGitMac/FirstStartWizard.swift": "286310d78d3f606f2842328f9d410a1870bfa9e4814a83f0f244ca41aec2f575",
+    "Configuration/NativeTranslations.json": "11eb2ccfe8300964b2ad6ab513f3311c302c335f4d126c54b1bb745a42f81fd8",
+    "scripts/build-localizations.py": "56f3057f94fed241d539fa4f8de87deb42b7143be1e98d3c515f674f98063a01",
+    "scripts/test-language-family.py": "d52b5438cbc515749e367b13b8da08cfd6163fd3d34b4fc91d0db5d2dfe0d502",
+    "scripts/validate-app-bundle.py": "d077fba4e6e720584e1d954fe7ef0eab172077f2b4c1d3017bb9266228c6ffe9",
+    "docs/qa/language-family-native-2026-10-17.swift": "3f3673a3b7395e81863d7dd279ef98871485aa40334cf1caf78f4444e6155fa3"
+  },
+  "documentation": {
+    "coverage_reconciled": true,
+    "help": {
+      "documents": 37,
+      "topics": 48,
+      "files": 51,
+      "bytes": 1974890,
+      "mode": "check"
+    },
+    "site": {
+      "documents": 267,
+      "unresolved_fragments": [],
+      "log": "build/qa/language-family-site-2026-10-17.log"
+    }
+  }
+}

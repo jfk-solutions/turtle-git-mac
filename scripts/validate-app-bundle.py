@@ -8,6 +8,7 @@ import hashlib
 import json
 import pathlib
 import plistlib
+import subprocess
 
 parser = argparse.ArgumentParser()
 parser.add_argument('app', type=pathlib.Path)
@@ -36,10 +37,25 @@ assert info['CFBundleIdentifier'] == 'org.turtlegit.macos'
 assert (app / 'Contents/MacOS' / info['CFBundleExecutable']).is_file()
 resources = app / 'Contents/Resources'
 assert (resources / 'LICENSE').is_file() and (resources / 'NOTICE').is_file()
+localization = json.loads((resources / 'LocalizationManifest.json').read_text())
+assert localization['schema'] == 1 and localization['keys'] > 0
+assert (resources / 'LocalizationCredits.txt').is_file()
+def compiled_strings(path):
+    # CopyStringsFile can emit UTF-16 XML with its original UTF-8 declaration.
+    # Use the system parser for supported Apple string-table encodings.
+    return plistlib.loads(subprocess.check_output(['/usr/bin/plutil', '-convert', 'xml1', '-o', '-', str(path)], stderr=subprocess.PIPE))
+english = compiled_strings(resources / 'en.lproj/Localizable.strings')
+assert len(english) == localization['keys'] and all(key == value for key, value in english.items())
+for language in localization['languages']:
+    path = resources / (language['id'] + '.lproj') / 'Localizable.strings'
+    assert path.is_file(), 'Missing compiled localization: ' + language['id']
+    table = compiled_strings(path)
+    assert isinstance(table, dict) and len(table) == language['translated_keys'], language['id']
+print('Pinned native label localizations verified:', len(localization['languages']) + 1, 'languages including English')
+
 framework = app / 'Contents/Frameworks/TurtleGitCore.framework'
 smtp = app / 'Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP'
 assert smtp.is_file(), 'Configured SMTP framework missing'
-import subprocess
 architectures = subprocess.check_output(['/usr/bin/lipo', '-archs', str(smtp)], text=True).split()
 for architecture in architectures:
     smtp_links = subprocess.check_output(['/usr/bin/otool', '-arch', architecture, '-L', str(smtp)], text=True).splitlines()[1:]

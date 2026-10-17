@@ -2208,3 +2208,28 @@ hosted folding timeout returns; no timeout/assertion is weakened. The earlier
 hosted implementation has now passed Git integration and reached native checks,
 but full current hosted and physical/signed acceptance remain open. See
 [batch evidence](qa/merge-folding-transactions-2026-10-17.json).
+
+
+## Native language resources and selection — October 17, 2026
+
+The connected General/First Start language family now bundles English and 37
+pinned TortoiseGit PO catalogs as native String Catalog resources. There are
+1,242 safe matching literal keys; this is resource coverage, not complete UI
+translation. Fuzzy, ambiguous, formatted and plural entries retain English
+fallback. Translator headers, source blob pins and notices travel with the app.
+
+General Language participates in Apply/Cancel with captured lifecycle/revision
+bindings. First Start saves Language on Next and retains that save after later
+Cancel. System removes the app-specific override; no global preference is changed.
+The app asks for a restart. Shared source-icon command captions and AppKit
+checkboxes localize while user-derived names remain verbatim. A bundled Languages
+guide is available offline.
+
+Five PO contracts and three Core preference cases passed; after correcting Xcode's
+Serbian locale canonicalization only the affected choice case was repeated. The
+Debug app, full bundle audit, German/French/English native checks and 48-topic Help
+receiver passed. Four actual German light/dark captures were reviewed; partial
+English remains visible. All owned receivers were reaped and independently absent.
+See [batch evidence](qa/language-family-2026-10-17.json) for failures and repairs.
+Full dynamic/AppKit/formatted/plural/RTL translation, physical input and signed
+acceptance remain open. No source dialog is newly certified complete.

@@ -81,6 +81,10 @@ jobs:
           echo "fingerprint=$turtlegit_toolchain_fingerprint" >> "$GITHUB_OUTPUT"
       - name: Pinned inventory regression
         run: python3 scripts/check-inventory-pin.py
+      - name: Pinned native translation labels
+        run: |
+          python3 scripts/test-localizations.py
+          python3 scripts/build-localizations.py
       - name: Native reference group coverage contracts
         run: python3 scripts/test-native-reference-groups-contracts.py
       - name: Native receiver cache and process ownership contracts
@@ -627,6 +631,8 @@ jobs:
         run: python3 scripts/test-commit-message-encoding.py
       - name: Native Commit and Rebase message-file receiver
         run: python3 scripts/test-commit-message-file.py
+      - name: Native language settings and compiled app resources
+        run: python3 scripts/test-language-family.py
       - name: Native exact changelist Commit and Working Tree family
         run: python3 scripts/test-changelist-family.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native Commit settings and selection receiver

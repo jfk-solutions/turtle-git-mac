@@ -219,6 +219,10 @@
     {
       "id": "lfs",
       "document": "LFS.md"
+    },
+    {
+      "id": "languages",
+      "document": "LANGUAGES.md"
     }
   ],
   "additional_guides": [

@@ -66,3 +66,16 @@ commands. The hosted SDK currently has that limit even when the newer local SDK
 accepts a larger body. Add commands within cohesive App/editor/repository providers
 rather than growing the Scene builder to its limit. Preserve provider placement,
 relative order, shortcuts and observed model bindings when regrouping commands.
+
+
+## Native translation resources
+
+The Xcode app compiles Localizable.xcstrings from pinned TortoiseGit PO labels.
+After changing literal native UI labels, run `python3 scripts/build-localizations.py
+--write` before the batch build, then `--check` before committing. Preserve English
+fallback for missing/fuzzy/ambiguous/formatted/plural entries; never translate Git
+arguments, references, paths, user text or arbitrary server diagnostics. CommandLabel
+uses localized captions by default; pass localized: false for user-derived titles.
+Keep the generated locale IDs, manifest and translator notices together. Do not
+claim complete localization from label-resource counts. The SwiftPM executable is
+an unbundled development entry point; localized distribution uses the Xcode app.

@@ -2908,7 +2908,7 @@ struct LogDialog: View {
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
     @ViewBuilder private var startReferenceActions: some View {
         Button { model.browseStartReference() } label: { CommandLabel(title: "Browse references…", icon: .branch) }
-        Button { model.chooseStartReference("HEAD") } label: { CommandLabel(title: model.currentBranch.isEmpty ? "HEAD" : "HEAD → \"\(model.currentBranch)\"", icon: .branch) }
+        Button { model.chooseStartReference("HEAD") } label: { CommandLabel(title: model.currentBranch.isEmpty ? "HEAD" : "HEAD → \"\(model.currentBranch)\"", icon: .branch, localized: false) }
         Button { model.chooseFetchHead() } label: { CommandLabel(title: "FETCH_HEAD", icon: .fetch) }.disabled(model.fetchHeadRevision == nil)
         ForEach([HistoryReferenceScope.all, .basic, .local], id: \.self) { scope in
             Button { model.chooseReferenceScope(scope) } label: { CommandLabel(title: scope.title, icon: .log) }.disabled(model.historyWalk.followRenames)
@@ -2916,7 +2916,7 @@ struct LogDialog: View {
         if !model.recentReferences.isEmpty {
             Divider()
             ForEach(Array(model.recentReferences.enumerated()), id: \.offset) { _, reference in
-                Button { model.chooseStartReference(reference, remember: true) } label: { CommandLabel(title: reference.count > 150 ? String(reference.prefix(150)) + "…" : reference, icon: .log) }.help(reference)
+                Button { model.chooseStartReference(reference, remember: true) } label: { CommandLabel(title: reference.count > 150 ? String(reference.prefix(150)) + "…" : reference, icon: .log, localized: false) }.help(reference)
             }
         }
     }
@@ -3149,7 +3149,7 @@ struct LogDialog: View {
         Divider()
         Button { model.markForComparison(ids) } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil)
         if let mark = model.comparisonMark {
-            Button { model.compareWithMarkedFile(ids) } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil || model.onPreparedFileCompare == nil)
+            Button { model.compareWithMarkedFile(ids) } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare, localized: false) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil || model.onPreparedFileCompare == nil)
         }
     }
     @ViewBuilder private func historicalFileActions(_ ids: Set<String>) -> some View {
@@ -3169,10 +3169,10 @@ struct LogPreferenceCheckbox: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSButton {
-        NSButton(checkboxWithTitle: title, target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
+        NSButton(checkboxWithTitle: NSLocalizedString(title, comment: ""), target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
     }
     func updateNSView(_ button: NSButton, context: Context) {
-        button.title = title; button.state = value ? .on : .off; button.isEnabled = enabled
+        button.title = NSLocalizedString(title, comment: ""); button.state = value ? .on : .off; button.isEnabled = enabled
         context.coordinator.change = { value = $0 }
     }
     final class Coordinator: NSObject {

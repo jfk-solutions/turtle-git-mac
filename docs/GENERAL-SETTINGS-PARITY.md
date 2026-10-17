@@ -4,9 +4,9 @@ Reference: pinned SetMainPage.cpp and IDD_SETTINGSMAIN at
 `7338078f8ddd924b8cddee35f512f2286072136d`.
 
 General now uses an application group and Git for macOS group instead of only
-appearance controls. The application group exposes the installed English UI and
-shared System/Light/Dark draft. English is currently the only implemented UI
-translation; other languages are not offered as if translated.
+appearance controls. The application group exposes bundled language selection and the shared
+System/Light/Dark draft. Matching native labels now use English and 37 source
+translation catalogs; complete localization remains open. See [Languages](LANGUAGES.md).
 
 The Git group provides automatic/bundled, system and custom engine selection,
 Git executable path, owned native Browse, Extra PATH, version Check now and Show
@@ -99,10 +99,31 @@ Abort as its default and accepts Disable only once for its captured live page.
 Suspension, view dismantling and actual owner closure cancel both native dialogs;
 Settings close/navigation and application Quit account for their ownership.
 
-Fifteen of sixteen static source controls now have partial mappings. Language is
-still English only; its mapping does not claim source localization support. The
+Fifteen of sixteen static source controls now have partial mappings. Language now offers the bundled partial label translations; its mapping does not
+claim complete source localization support. The
 Windows Create Library control remains pending: no Finder Library equivalent has
 been implemented. The environment viewer is a native read-only sheet rather than
 a temporary file opened in a Windows editor. Physical keyboard/sheets, translation
 assets, signed grants and complete source/App Store acceptance remain open.
 Four distinct native case/engine combinations pass with system and bundled Git, with two affected source rechecks after the checkbox layout repair. Both raw light/dark captures were individually reviewed: compact groups, persistent labels and footers fit without clipping. All seven owned receivers were reaped and independently absent; source receivers also assert real child-process cleanup. Core was unchanged and not repeated. See [batch evidence](qa/general-source-family-2026-10-17.json) for the build/capture failures, repairs and remaining acceptance.
+
+
+## Bundled language choices — October 17, 2026
+
+General Language is now a real draft participating in property-sheet Apply/Cancel.
+The app owns its language override independently of system/global settings and
+retains the original macOS language order when the page is merely read. Old field
+callbacks and inactive owners cannot change a new draft; cached hidden pages may
+participate in Apply. Re-activation reloads a wizard-saved choice when there is no
+unapplied draft. System removes the app override. All languages use the same
+native selector in AppStore builds; no external language package is executed.
+Restart is explicit, preserving other open windows rather than forcing a relaunch.
+The grouped native language workflow passed, including Apply/Cancel, stale callbacks,
+wizard persistence and System reset. German light/dark captures were reviewed;
+remaining English fallback is visible. All owned receivers were reaped. See
+[language batch evidence](qa/language-family-2026-10-17.json). Complete localization,
+physical language/RTL layouts and signed acceptance remain open.
+
+![General language settings in German, light](site/assets/general-language-de-light.png)
+
+![General language settings in German, dark](site/assets/general-language-de-dark.png)

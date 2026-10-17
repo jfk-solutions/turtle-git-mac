@@ -4,14 +4,18 @@ import TurtleGitCore
 struct CommandLabel: View {
     let title: String
     let icon: MenuIcon
+    var localized = true
     @Environment(\.turtleGitContextMenu) private var contextMenu
     @AppStorage("ShowAppContextMenuIcons") private var showContextIcons = true
+    @ViewBuilder private var caption: some View {
+        if localized { Text(LocalizedStringKey(title)) } else { Text(verbatim: title) }
+    }
     var body: some View {
         if contextMenu && !showContextIcons {
-            Text(title)
+            caption
         } else {
             Label {
-                Text(title)
+                caption
             } icon: {
                 if let image = icon.image() {
                     Image(nsImage: image).renderingMode(image.isTemplate ? .template : .original).resizable().frame(width: 16, height: 16)

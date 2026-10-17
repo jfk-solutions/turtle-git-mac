@@ -51,6 +51,12 @@ import TurtleGitCore
             self[keyPath:key]=value
         })
     }
+    func language(context: FormContext) -> Binding<String> {
+        Binding(get: { self.git.language }, set: { id in
+            guard self.accepts(context), self.page == .language, AppLanguageChoice.isAvailable(id) else { return }
+            self.git.chooseLanguage(id); self.formRevision = UUID()
+        })
+    }
     func gitChoice(context:FormContext)->Binding<GitEngineChoice> {
         Binding(get:{GitRuntime.isAppStoreBuild ? .automatic:self.git.draft.choice},set:{value in
             guard self.accepts(context),self.page == .git,self.git.canEditEngine else{return}
@@ -161,7 +167,11 @@ import TurtleGitCore
     func next() {
         guard canNavigate else { return }
         error = nil
-        if page == .language || page == .welcome { page = Page(rawValue: page.rawValue + 1)!; return }
+        if page == .language {
+            guard git.applyLanguage() else { error = git.error; return }
+            page = .welcome; return
+        }
+        if page == .welcome { page = .git; return }
         let current = page, submittedName = name, submittedEmail = email, submittedHelper = helper
         let skipIdentity = skipUser, skipCredentials = skipHelper || advanced, token = OperationCancellation()
         self.token = token; busy = true; Self.activeWrites += 1
@@ -233,7 +243,7 @@ private struct FirstStartWizardDialog: View {
         let context=model.formContext
         VStack(alignment: .leading, spacing: 18) {
             HStack {
-                Text(model.title).font(.title2)
+                Text(LocalizedStringKey(model.title)).font(.title2)
                 Spacer(); if let image = MenuIcon.turtle.image(size: 40) { Image(nsImage: image).frame(width: 40, height: 40) }
             }
             Divider()
@@ -241,8 +251,11 @@ private struct FirstStartWizardDialog: View {
                 switch model.page {
                 case .language:
                     Text("Select the language used by TurtleGit for Mac.")
-                    Picker("Language:", selection: .constant("en")) { Text("English").tag("en") }
-                    Text("English is the installed translation. Additional native translations will appear when available.").foregroundStyle(.secondary)
+                    Picker("Language:", selection: model.language(context: context)) {
+                        ForEach(AppLanguageChoice.choices) { AppLanguageLabel(choice: $0).tag($0.id) }
+                    }
+                    Text("Restart TurtleGit to apply a language change. Some text is still in English.").foregroundStyle(.secondary)
+                    Button("Language help") { TurtleGitHelp.show(.languages) }.buttonStyle(.link)
                 case .welcome:
                     Text("This wizard configures your Git engine, user information and authentication defaults.")
                     Button("Read the TurtleGit documentation") { TurtleGitHelp.show(.overview) }.buttonStyle(.link)
@@ -307,7 +320,7 @@ private struct FirstStartWizardDialog: View {
                 Text("Step \(model.page.rawValue + 1) of 5").foregroundStyle(.secondary)
                 if blocked { ProgressView().controlSize(.small) }
                 Spacer(); Button("Back") {model.back(context:context)}.disabled(blocked || model.page == .language)
-                Button(model.page == .authentication ? "Finish" : "Next") {model.next(context:context)}.keyboardShortcut(.defaultAction).disabled(blocked)
+                Button {model.next(context:context)} label: {Text(LocalizedStringKey(model.page == .authentication ? "Finish" : "Next"))}.keyboardShortcut(.defaultAction).disabled(blocked)
                 Button("Cancel") { model.window?.performClose(nil) }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
             }
         }.padding(24)

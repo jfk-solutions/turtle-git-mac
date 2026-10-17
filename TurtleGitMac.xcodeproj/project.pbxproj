@@ -404,6 +404,11 @@
 		021AF1C818653E97DEA04F20 /* AboutBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E6517691D32FD82A04653A /* AboutBannerView.swift */; };
 		8D46503584AC495DB4D2E1BD /* SupportReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B621D3F09F47D4A5C389BC /* SupportReport.swift */; };
 		62A7B20150324C54905F1E4C /* SupportReportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B73ECC690A4C9392BB4120 /* SupportReportWindow.swift */; };
+		C267ED94A846C9653E5F8544 /* AppLanguagePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22EB10667D3B5E11CC5F3C47 /* AppLanguagePreferences.swift */; };
+		76111A76A05F98075EFEBD54 /* AppLanguages.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72BF05E5B2D37529302ADBF1 /* AppLanguages.generated.swift */; };
+		88621D2529A2A8C2C4EA701B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B6A118BB321240B0BBC7C7CD /* Localizable.xcstrings */; };
+		E1152A9034E41DA028A9026D /* LocalizationManifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 82D09E622E81DE3113C5517C /* LocalizationManifest.json */; };
+		D7C442B7B51E53DF203B3DED /* LocalizationCredits.txt in Resources */ = {isa = PBXBuildFile; fileRef = 696F71712EA2A3BA32CF5A86 /* LocalizationCredits.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -906,6 +911,11 @@
 		96E6517691D32FD82A04653A /* AboutBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutBannerView.swift; sourceTree = "<group>"; };
 		01B621D3F09F47D4A5C389BC /* SupportReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportReport.swift; sourceTree = "<group>"; };
 		B3B73ECC690A4C9392BB4120 /* SupportReportWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportReportWindow.swift; sourceTree = "<group>"; };
+		22EB10667D3B5E11CC5F3C47 /* AppLanguagePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppLanguagePreferences.swift"; sourceTree = "<group>"; };
+		72BF05E5B2D37529302ADBF1 /* AppLanguages.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppLanguages.generated.swift"; sourceTree = "<group>"; };
+		B6A118BB321240B0BBC7C7CD /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = "Resources/Localizable.xcstrings"; sourceTree = "<group>"; };
+		82D09E622E81DE3113C5517C /* LocalizationManifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Resources/LocalizationManifest.json"; sourceTree = "<group>"; };
+		696F71712EA2A3BA32CF5A86 /* LocalizationCredits.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LocalizationCredits.txt"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1048,6 +1058,9 @@
 				C21010170000000000000002 /* LFSProgressTable.swift */,
 				C21010180000000000000002 /* LFSLocksTable.swift */,
 				C210101600000000000000F4 /* TurtleGitHelp.help */,
+				696F71712EA2A3BA32CF5A86 /* LocalizationCredits.txt */,
+				82D09E622E81DE3113C5517C /* LocalizationManifest.json */,
+				B6A118BB321240B0BBC7C7CD /* Localizable.xcstrings */,
 				C210101500000000000000A2 /* PatchDocumentSession.swift */,
 				C210101500000000000000B2 /* ExternalDocumentApplication.swift */,
 				C12C65B53D4E28A9F6C52DF1 /* ImageConflictWindow.swift */,
@@ -1328,6 +1341,8 @@
 				2CB65DE5B95683158C03E395 /* UnifiedDiffCaseFold.swift */,
 				2D459C3F707507F6C5EC8D57 /* UnifiedDiffSearch.swift */,
 				0D36E66F24DAED7F61A00764 /* MergeFolding.swift */,
+				72BF05E5B2D37529302ADBF1 /* AppLanguages.generated.swift */,
+				22EB10667D3B5E11CC5F3C47 /* AppLanguagePreferences.swift */,
 				EB40C59EBABEDD9F1D57C74C /* MergeInlineComparison.swift */,
 				2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */,
 				8D6B27BE15EAF8BC2A39D565 /* MergeMessageHistory.swift */,
@@ -1670,8 +1685,45 @@
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				Base,
-				en,
+				"Base",
+				"bg",
+				"ca",
+				"cs",
+				"da",
+				"de",
+				"el",
+				"en",
+				"es",
+				"fa",
+				"fi",
+				"fr",
+				"he",
+				"hu",
+				"id",
+				"it",
+				"ja",
+				"ko",
+				"lt",
+				"nl",
+				"oc",
+				"pl",
+				"pt-BR",
+				"pt-PT",
+				"ro",
+				"ru",
+				"sk",
+				"sl",
+				"sq",
+				"sr",
+				"sr-Latn",
+				"sv",
+				"ta",
+				"th",
+				"tr",
+				"uk",
+				"vi",
+				"zh-Hans",
+				"zh-Hant",
 			);
 			mainGroup = 4C67C511FAC3AAB8E4226B2B;
 			minimizedProjectReferenceProxies = 1;
@@ -1712,6 +1764,9 @@
 				DD16EA85352150A590AED3FB /* LICENSE in Resources */,
 				B325035DE8116D7F3CCCC3FD /* NOTICE in Resources */,
 				C210101600000000000000F3 /* TurtleGitHelp.help in Resources */,
+				D7C442B7B51E53DF203B3DED /* LocalizationCredits.txt in Resources */,
+				E1152A9034E41DA028A9026D /* LocalizationManifest.json in Resources */,
+				88621D2529A2A8C2C4EA701B /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1890,6 +1945,8 @@
 				42CED1EA0AFABD6EDF528C23 /* UnifiedDiffCaseFold.swift in Sources */,
 				5A91D716C60613490CE3F819 /* UnifiedDiffSearch.swift in Sources */,
 				09EA632E68319841F63DCCDC /* MergeFolding.swift in Sources */,
+				76111A76A05F98075EFEBD54 /* AppLanguages.generated.swift in Sources */,
+				C267ED94A846C9653E5F8544 /* AppLanguagePreferences.swift in Sources */,
 				3094584FBFF93568DEBA8626 /* MergeInlineComparison.swift in Sources */,
 				F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */,
 				2006DACDA67B90A4E15DCE8A /* MergeMessageHistory.swift in Sources */,

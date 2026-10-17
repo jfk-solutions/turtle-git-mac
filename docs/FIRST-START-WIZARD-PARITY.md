@@ -6,7 +6,7 @@ pages at `7338078f8ddd924b8cddee35f512f2286072136d`.
 The native wizard uses the source five-stage order, page titles, Back/Next/Finish
 and Cancel. General's Re-run First Start Wizard and the application menu reuse
 one wizard window. The header uses the original turtle artwork. Language offers
-only the installed English translation. Welcome explains the setup and links to
+English and the bundled partial source label translations. Welcome explains the setup and links to
 this fork's documentation. Git uses the shared native engine/path/Extra PATH
 model, Browse and Check now. Next checks Git even if unchanged, saves the engine
 and creates a configuration reader using that engine. AppStore Git stays bundled.
@@ -159,8 +159,8 @@ available after configuration reads; old requests cannot focus a revisited page.
 
 Fourteen previously unreviewed source controls receive partial native mappings:
 ten Git controls, three installed-language controls and the Welcome text/link.
-The three language download/Refresh controls remain pending: this app ships only
-English, and cannot install Windows DLL language packs. The three source
+The three language download/Refresh controls remain pending: translations are bundled with the native app, which cannot install Windows DLL
+language packs. The three source
 Cygwin/MSYS workaround controls remain pending adaptations and have no native
 checkboxes: their Windows runtime compatibility behavior does not apply to the
 native Git process. Arbitrary SSH client selection, native localization,
@@ -177,3 +177,22 @@ source order and footer fit without clipping. Receivers use prohibited activatio
 and never make a window key. Core was unchanged and was not repeated. The build
 retains existing isolation warnings and one exit-zero/no-output diagnostic;
 this is not a clean diagnostics claim. See [batch evidence](qa/first-start-source-family-2026-10-17.json).
+
+
+## Native bundled language page — October 17, 2026
+
+The Language page uses the shared native locale choices and captured page/revision
+binding. Next saves the app-specific language override before moving to Welcome;
+later Cancel retains that saved page. Old/retired/page-mismatched bindings cannot
+change its replacement. This operation does not inspect Git or touch global Git
+identity/credential files. The app asks for a restart to apply the language rather
+than copying Windows' forced process relaunch. See [Languages](LANGUAGES.md) for
+partial coverage and English fallback; full translated/RTL/physical/signed
+acceptance remains open. Grouped German/French/English native checks and the
+48-topic Help receiver passed. Four owned light/dark captures were reviewed and
+all receiver PIDs were independently absent. See
+[language batch evidence](qa/language-family-2026-10-17.json).
+
+![First Start language page in German, light](site/assets/first-start-language-de-light.png)
+
+![First Start language page in German, dark](site/assets/first-start-language-de-dark.png)

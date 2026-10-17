@@ -182,10 +182,10 @@ struct IgnoreSelectionMenu: View {
             }
         } else {
         Menu {
-            Button { action(deleting ? .ignoreDelete : .ignore, paths) } label: { CommandLabel(title: paths.count == 1 ? (paths[0] as NSString).lastPathComponent : "Ignore \(paths.count) items by name", icon: .ignore) }
+            Button { action(deleting ? .ignoreDelete : .ignore, paths) } label: { CommandLabel(title: paths.count == 1 ? (paths[0] as NSString).lastPathComponent : "Ignore \(paths.count) items by name", icon: .ignore, localized: false) }
             let suffixes = paths.map { ($0 as NSString).pathExtension }
             if Set(suffixes.map { $0.lowercased() }).count == 1, let suffix = suffixes.first, !suffix.isEmpty {
-                Button { action(deleting ? .ignoreDeleteMask : .ignoreMask, paths) } label: { CommandLabel(title: paths.count == 1 ? "*." + suffix : "Ignore \(paths.count) items by extension", icon: .ignore) }
+                Button { action(deleting ? .ignoreDeleteMask : .ignoreMask, paths) } label: { CommandLabel(title: paths.count == 1 ? "*." + suffix : "Ignore \(paths.count) items by extension", icon: .ignore, localized: false) }
             }
             if paths.count == 1 && !deleting {
                 let folder = (paths[0] as NSString).deletingLastPathComponent

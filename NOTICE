@@ -1544,3 +1544,8 @@ or later: Copyright (C) 2023, 2025 TortoiseGit; Copyright (C) 2003-2006, 2008-20
 2012-2013 TortoiseSVN. AboutBannerView.swift renders the renamed banner and original
 artwork with that effect. Native bitmap alpha, dimensions and accessibility/timer
 ownership are adapted for AppKit. The original GPL notice applies to this port.
+
+Translations: matching native labels reuse the pinned TortoiseGit PO catalogs
+under the same GPL-2.0-or-later terms. Bundled LocalizationCredits.txt retains the
+upstream translator notices; LocalizationManifest.json identifies each source
+blob and the pinned upstream commit. Missing or incompatible entries use English.

@@ -793,7 +793,7 @@ struct ReferenceBrowserDialog: View {
                 Button("Current Branch") { model.currentBranch() }.disabled(!model.canChooseCurrentBranch)
                 if !model.pickRangeChoices.isEmpty {
                     Menu("OK") {
-                        Button { if let rangeContext { model.accept(context:rangeContext) } } label: { CommandLabel(title: model.selectedRows.map { $0.reference.name.browserShortName }.joined(separator: " "), icon: .log) }
+                        Button { if let rangeContext { model.accept(context:rangeContext) } } label: { CommandLabel(title: model.selectedRows.map { $0.reference.name.browserShortName }.joined(separator: " "), icon: .log, localized: false) }
                         ForEach(Array(model.pickRangeChoices.enumerated()), id: \.offset) { index, range in
                             Button { if let rangeContext { model.acceptRange(index,context:rangeContext) } } label: { CommandLabel(title: range.expression, icon: .log) }
                         }

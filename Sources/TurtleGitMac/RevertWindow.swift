@@ -455,7 +455,7 @@ private struct RevertDialog:View {
                         if model.canMarkForComparison(snapshot) {
                             Button {model.markForComparison(snapshot)} label:{CommandLabel(title:"Mark for comparison",icon:.compare)}
                             if let mark = prepared.marked {
-                                Button {model.compareWithMarkedFile(prepared)} label:{CommandLabel(title:"Compare with " + mark.label(for:snapshot.mark?.path ?? ""),icon:.compare)}.disabled(model.onPreparedFileCompare == nil)
+                                Button {model.compareWithMarkedFile(prepared)} label:{CommandLabel(title:"Compare with " + mark.label(for:snapshot.mark?.path ?? ""),icon:.compare,localized:false)}.disabled(model.onPreparedFileCompare == nil)
                             }
                         }
                         if snapshot.commands.contains(.delete) {fileCommand(.delete,snapshot:snapshot)}

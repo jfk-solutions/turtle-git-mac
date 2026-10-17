@@ -210,7 +210,7 @@ private struct ReleaseUpdateDialog: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 ForEach(model.assets) { asset in
                                     HStack(alignment: .top) {
-                                        Toggle(isOn: Binding(get: { model.selected.contains(asset.id) }, set: { model.select(asset, checked: $0, context: context) })) { CommandLabel(title: asset.name, icon: .export) }.disabled(!model.canSelect(asset))
+                                        Toggle(isOn: Binding(get: { model.selected.contains(asset.id) }, set: { model.select(asset, checked: $0, context: context) })) { CommandLabel(title: asset.name, icon: .export, localized: false) }.disabled(!model.canSelect(asset))
                                         Spacer()
                                         Text(model.statuses[asset.id] ?? (asset.downloadable ? ByteCountFormatter.string(fromByteCount: asset.size, countStyle: .file) : "SHA-256 download unavailable"))
                                             .font(.caption).foregroundStyle(model.statuses[asset.id]?.hasPrefix("Downloaded") == true ? Color.green : Color.secondary)

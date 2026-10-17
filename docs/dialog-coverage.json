@@ -981,7 +981,8 @@
       ],
       "qa_records": [
         "docs/qa/general-setup-batch-2026-10-11.json",
-        "docs/qa/general-source-family-2026-10-17.json"
+        "docs/qa/general-source-family-2026-10-17.json",
+        "docs/qa/language-family-2026-10-17.json"
       ]
     },
     {
@@ -2606,7 +2607,8 @@
         "docs/qa/authentication-settings-batch-2026-10-11.json",
         "docs/qa/first-start-family-2026-10-15.json",
         "docs/qa/first-start-source-family-2026-10-17.json",
-        "docs/qa/general-setup-batch-2026-10-11.json"
+        "docs/qa/general-setup-batch-2026-10-11.json",
+        "docs/qa/language-family-2026-10-17.json"
       ]
     },
     {
@@ -3921,7 +3923,8 @@
         "docs/qa/authentication-settings-batch-2026-10-11.json",
         "docs/qa/first-start-family-2026-10-15.json",
         "docs/qa/first-start-source-family-2026-10-17.json",
-        "docs/qa/general-setup-batch-2026-10-11.json"
+        "docs/qa/general-setup-batch-2026-10-11.json",
+        "docs/qa/language-family-2026-10-17.json"
       ]
     },
     {
@@ -3948,7 +3951,8 @@
         "docs/qa/authentication-settings-batch-2026-10-11.json",
         "docs/qa/first-start-family-2026-10-15.json",
         "docs/qa/first-start-source-family-2026-10-17.json",
-        "docs/qa/general-setup-batch-2026-10-11.json"
+        "docs/qa/general-setup-batch-2026-10-11.json",
+        "docs/qa/language-family-2026-10-17.json"
       ]
     },
     {
@@ -3975,7 +3979,8 @@
         "docs/qa/authentication-settings-batch-2026-10-11.json",
         "docs/qa/first-start-family-2026-10-15.json",
         "docs/qa/first-start-source-family-2026-10-17.json",
-        "docs/qa/general-setup-batch-2026-10-11.json"
+        "docs/qa/general-setup-batch-2026-10-11.json",
+        "docs/qa/language-family-2026-10-17.json"
       ]
     },
     {
@@ -4002,7 +4007,8 @@
         "docs/qa/authentication-settings-batch-2026-10-11.json",
         "docs/qa/first-start-family-2026-10-15.json",
         "docs/qa/first-start-source-family-2026-10-17.json",
-        "docs/qa/general-setup-batch-2026-10-11.json"
+        "docs/qa/general-setup-batch-2026-10-11.json",
+        "docs/qa/language-family-2026-10-17.json"
       ]
     },
     {

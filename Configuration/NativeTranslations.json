@@ -1,0 +1,20 @@
+{
+  "de": {
+    "System Language": "Systemsprache",
+    "Select language": "Sprache auswählen",
+    "Select the language used by TurtleGit for Mac.": "Wählen Sie die Sprache für TurtleGit for Mac.",
+    "Restart TurtleGit to apply a language change. Some text is still in English.": "Starten Sie TurtleGit neu, um die Sprache zu ändern. Einige Texte sind weiterhin auf Englisch.",
+    "Next": "Weiter",
+    "Back": "Zurück",
+    "Finish": "Fertigstellen",
+    "Git for macOS": "Git für macOS",
+    "Git engine:": "Git-Implementierung:",
+    "Git executable:": "Git-Programm:",
+    "System Git": "System-Git",
+    "Custom Git": "Eigenes Git",
+    "Automatic (bundled when available)": "Automatisch (mitgeliefertes Git, wenn vorhanden)",
+    "Extra PATH:": "Zusätzlicher PATH:",
+    "Appearance:": "Darstellung:",
+    "Language help": "Hilfe zur Sprache"
+  }
+}
