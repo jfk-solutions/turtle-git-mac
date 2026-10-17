@@ -161,7 +161,7 @@ extension GitRepository {
                 } catch let error as NSError where error.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(error.code) { return nil }
             }
             guard case .revision(let hash) = revision else { throw RevisionComparisonFailure.range }
-            for record in try read(["ls-tree", "-z", hash, "--", path]).stdout.split(separator: 0) {
+            for record in try read(["-c", "core.precomposeunicode=false", "ls-tree", "-z", hash, "--", path]).stdout.split(separator: 0) {
                 guard let tab = record.firstIndex(of: 9), Data(record[record.index(after: tab)...]) == Data(path.utf8) else { continue }
                 let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
                 guard header.count == 3, ["100644", "100755", "120000", "160000"].contains(String(header[0])) else { throw RevisionComparisonFailure.selection }
@@ -170,11 +170,11 @@ extension GitRepository {
             return nil
         }
         var files: [CommitFile] = []
-        for path in Set(paths).sorted() {
+        for path in GitPathSet(paths).sorted(by: { $0.utf8.lexicographicallyPrecedes($1.utf8) }) {
             try cancellation?.check()
-            let existing = snapshot.files.first { $0.path == path || $0.oldPath == path }
+            let existing = snapshot.files.first { GitReferenceName.equal($0.path,path) || GitReferenceName.equal(path,$0.oldPath) }
             let destination = existing?.path ?? path, original = existing?.oldPath ?? path
-            guard !files.contains(where: { $0.path == destination }) else { continue }
+            guard !files.contains(where: { GitReferenceName.equal($0.path,destination) }) else { continue }
             let oldMode = try mode(snapshot.from, original), newMode = try mode(snapshot.to, destination)
             guard oldMode != nil || newMode != nil else { continue }
             let isSubmodule = oldMode == "160000" || newMode == "160000"
@@ -213,10 +213,10 @@ extension GitRepository {
     }
     public func revisionComparisonPatchData(_ snapshot: RevisionComparisonSnapshot, paths: [String] = [], cancellation: OperationCancellation? = nil) throws -> Data {
         let token = cancellation ?? OperationCancellation(); try token.check()
-        guard snapshot.root == root, paths.allSatisfy({ path in snapshot.files.contains { $0.path == path } }) else { throw RevisionComparisonFailure.selection }
-        let selected = paths.isEmpty ? snapshot.scopePaths : snapshot.files.filter { paths.contains($0.path) }.flatMap { [$0.path] + ($0.oldPath.map { [$0] } ?? []) }
+        guard snapshot.root == root, paths.allSatisfy({ path in snapshot.files.contains { GitReferenceName.equal($0.path,path) } }) else { throw RevisionComparisonFailure.selection }
+        let selected = paths.isEmpty ? snapshot.scopePaths : snapshot.files.filter { GitPathSet(paths).contains($0.path) }.flatMap { [$0.path] + ($0.oldPath.map { [$0] } ?? []) }
         for path in selected { _ = try restoreLocation(path) }
-        return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options, detection: snapshot.diffDetection, cancellation: token) + ["--"] + Set(selected).sorted(), cancellation: token).stdout
+        return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options, detection: snapshot.diffDetection, cancellation: token) + ["--"] + GitPathSet(selected).sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }, cancellation: token).stdout
     }
     private func comparisonDetails(_ side: ComparisonRevision, useMailmap: Bool, cancellation: OperationCancellation? = nil) throws -> ComparisonRevisionDetails? {
         guard case .revision(let hash) = side else { return nil }
@@ -233,7 +233,7 @@ extension GitRepository {
             switch side { case .revision(let value): return value; case .emptyTree: return try run(["mktree"], cancellation: cancellation).text.trimmingCharacters(in: .newlines); case .workingTree: throw RevisionComparisonFailure.range }
         }
         let detection = detection ?? diffDetection
-        var args = ["diff", "--no-ext-diff", "--no-color", detection.renameArgument] + options.arguments(detection: detection)
+        var args = ["-c", "core.precomposeunicode=false", "diff", "--no-ext-diff", "--no-color", detection.renameArgument] + options.arguments(detection: detection)
         if from == .workingTree { args += ["-R", try hash(to)] }
         else if to == .workingTree { args += [try hash(from)] }
         else { args += [try hash(from), try hash(to)] }

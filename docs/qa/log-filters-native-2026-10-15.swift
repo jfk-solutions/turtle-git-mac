@@ -110,7 +110,7 @@ import TurtleGitCore
         try require(late.model.entries.count == 4 && late.model.searchFilterError == nil, "Closed validation published a late result")
         model.select([blue.hash]); try await wait { !model.busy && model.files.count == 2 }
         try require(model.information.revisionCount == 4 && model.information.selectedRevisionCount == 1 && model.information.newest == String(model.entries.first!.hash.prefix(8)), "Native information range/counts wrong")
-        model.fileTableSelection.wrappedValue = Set(model.files.map(\.id))
+        model.fileTableSelection.wrappedValue = Set(model.files.map { GitPathRowIdentity.encode($0.id) })
         try require(model.information.selectedFileCount == 2 && model.information.renamed == 1 && model.information.modified == 2 && model.information.addedLines == 2, "Native source statistics or occurrence selection wrong")
         model.editPathFilter("repository -README", submit: true)
         try require(model.visibleFiles.count == 1 && model.visibleFiles.first?.path == "Implementation.swift" && model.information.selectedFileCount == 1, "Old-name query or hidden-selection cleanup failed")

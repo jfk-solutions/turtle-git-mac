@@ -34,6 +34,19 @@ final class HistoryPresentationTests: XCTestCase {
         XCTAssertEqual(info.modified, 3); XCTAssertEqual(info.added, 1); XCTAssertEqual(info.deleted, 1); XCTAssertEqual(info.renamed, 1)
         XCTAssertEqual(info.addedLines, 7); XCTAssertEqual(info.removedLines, 4); XCTAssertEqual(info.selectedFileCount, 1)
     }
+    func testExactFileSelectionCountsKeepUnicodeAndParentOccurrences() {
+        let a = "café.txt", b = "cafe\u{301}.txt"
+        let row = LogEntry(hash: "hash", author: "", date: "", subject: "merge")
+        let files = [a,b].flatMap { path in (0...1).map { parent in
+            CommitFile(path: path, oldPath: nil, action: "M", added: 1, removed: 1, hasStatistics: true, isSubmodule: false, parentIndex: parent)
+        } }
+        let ids = files.map(\.id)
+        let all = HistoryInformation(entries: [row], selected: [row.hash], files: files, selectedFiles: ids, visibleFileIDs: ids)
+        XCTAssertEqual(all.selectedFileCount, 4)
+        let oneSpelling = files.filter { GitReferenceName.equal($0.path,a) }.map(\.id)
+        XCTAssertEqual(HistoryInformation(entries: [row], selected: [row.hash], files: files, selectedFiles: ids, visibleFileIDs: oneSpelling).selectedFileCount, 2)
+        XCTAssertEqual(HistoryInformation(entries: [row], selected: [row.hash], files: files, selectedFiles: [files[0].id], visibleFileIDs: [files[2].id]).selectedFileCount, 0)
+    }
     func testWholeProjectDefaultsAndPersistenceAreRepositoryAndStoreScoped() {
         let suite = "TurtleGit.HistoryPresentation." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }

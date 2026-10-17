@@ -277,13 +277,13 @@ public struct HistoryInformation: Equatable, Sendable {
     public let revisionCount: Int, selectedRevisionCount: Int, selectedFileCount: Int
     public let oldest: String, newest: String
     public let addedLines: Int, removedLines: Int, modified: Int, added: Int, deleted: Int, renamed: Int
-    public init(entries: [LogEntry], selected: Set<String>, files: [CommitFile], selectedFiles: Set<String>, visibleFileIDs: Set<String>) {
+    public init(entries: [LogEntry], selected: Set<String>, files: [CommitFile], selectedFiles: some Sequence<String>, visibleFileIDs: some Sequence<String>) {
         let start = entries.count > 1 && entries.first?.hash.isEmpty == true ? 1 : 0
         revisionCount = entries.count - start
         newest = entries.indices.contains(start) ? String(entries[start].hash.prefix(8)) : ""
         oldest = entries.last.map { String($0.hash.prefix(8)) } ?? ""
         selectedRevisionCount = entries.filter { selected.contains($0.hash) }.count
-        selectedFileCount = selectedRevisionCount > 0 ? selectedFiles.intersection(visibleFileIDs).count : 0
+        selectedFileCount = selectedRevisionCount > 0 ? GitPathSet(selectedFiles).intersection(visibleFileIDs).count : 0
         func total(_ key: KeyPath<CommitFile, Int?>) -> Int {
             files.reduce(0) { partial, file in
                 let value = max(0, file[keyPath: key] ?? 0), next = partial.addingReportingOverflow(value)
@@ -1418,7 +1418,7 @@ extension GitRepository {
         for file in files {
             let index = file.parentIndex ?? 0
             guard let group = groups.first(where: { $0.id == index }),
-                  group.files.contains(where: { $0.path == file.path && $0.oldPath == file.oldPath && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
+                  group.files.contains(where: { GitReferenceName.equal($0.path, file.path) && $0.oldPath.map { GitReferenceName($0) } == file.oldPath.map { GitReferenceName($0) } && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
             let path = file.oldPath ?? file.path
             _ = try restoreLocation(path)
             let revision: String

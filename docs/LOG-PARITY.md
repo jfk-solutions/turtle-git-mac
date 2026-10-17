@@ -2803,3 +2803,9 @@ preserves distinct valid UTF-8 spellings through status/rename/statistics reads,
 amend joins, per-path metadata and index flags. Native row IDs and highlighted/
 checked String sets still require their separate migration; this is not full
 filename-selection parity.
+
+
+[Log file identity parity](LOG-FILE-IDENTITY-PARITY.md) continues this work through
+native changed-file selection, parent occurrence identities, captured file menus,
+clipboard statuses, async target fencing and owned file choosers. See its batch
+evidence and acceptance limits; the whole Log window remains partial.

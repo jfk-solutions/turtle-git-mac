@@ -31,7 +31,7 @@ import TurtleGitCore
         let probe=views(controller.window!.contentView!).compactMap {$0 as? CommitFileInteraction.Probe}.first!
         try await wait {probe.groupHeaders?.headings.count == 2}
         let table=probe.groupHeaders!.table!
-        try require(table.tableColumns.count == 5 && probe.leadingColumnCount == 0 && probe.itemIDs == model.fileTableRows.map(\.id),"Log file table semantic identity/columns missing")
+        try require(table.tableColumns.count == 5 && probe.leadingColumnCount == 0 && probe.itemIDs == model.fileTableRows.map(\.rawID),"Log file table semantic identity/columns missing")
         try require(probe.groupHeaders!.headings.allSatisfy {$0.rect.width == table.visibleRect.width && $0.rect.width > table.tableColumns.first!.width},"Parent headings still constrained to Path column")
         try require(probe.groupHeaders!.hitTest(.zero) == nil,"Heading overlay intercepts pointer events")
         let menu=probe.columnMenu();try require(menu.items.map(\.title) == ["Reset columns","","Extension","Status","Lines added","Lines removed"],"Header menu does not match source five-column mask")
@@ -43,8 +43,8 @@ import TurtleGitCore
         model.setChangedFileSort([LogChangedFileSort(column:.path)]);let rows=model.fileTableRows
         let names=rows.compactMap(\.file).filter {$0.parentIndex == 0}.map(\.path)
         try require(names.firstIndex(of:"file2.txt")! < names.firstIndex(of:"file10.txt")!,"Path sort lost numeric collation")
-        let headers=rows.filter {$0.header != nil}.map(\.id);model.setChangedFileSort([LogChangedFileSort(column:.path,order:.reverse)])
-        try require(model.fileTableRows.filter {$0.header != nil}.map(\.id) == headers,"Sort moved files across parent groups")
+        let headers=rows.filter {$0.header != nil}.map(\.rawID);model.setChangedFileSort([LogChangedFileSort(column:.path,order:.reverse)])
+        try require(model.fileTableRows.filter {$0.header != nil}.map(\.rawID) == headers,"Sort moved files across parent groups")
         let duplicateFiles=model.fileTableRows.compactMap(\.file).filter {$0.path == "shared.txt"}
         try require(duplicateFiles.count == 2 && duplicateFiles[0].id != duplicateFiles[1].id,"Parent-specific file identities collapsed")
         model.fileTableSelection.wrappedValue=Set(model.fileTableRows.map(\.id));try require(model.selectedFiles.count == model.files.count,"Group header was accepted as file selection")

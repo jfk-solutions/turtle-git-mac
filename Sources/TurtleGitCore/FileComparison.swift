@@ -131,7 +131,7 @@ extension GitRepository {
             try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
         }
 
-        guard paths.count == 2, paths[0] != paths[1] else { throw RevisionComparisonFailure.selection }
+        guard paths.count == 2, !GitReferenceName.equal(paths[0],paths[1]) else { throw RevisionComparisonFailure.selection }
         var head: ComparisonRevision?
         func side(_ path: String) throws -> ComparisonRevision {
             let location = try restoreLocation(path)
@@ -161,7 +161,7 @@ extension GitRepository {
             try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
         }
 
-        guard files.count == 2, files[0].path != files[1].path, files.allSatisfy({ !$0.isSubmodule }) else { throw RevisionComparisonFailure.selection }
+        guard files.count == 2, !GitReferenceName.equal(files[0].path, files[1].path), files.allSatisfy({ !$0.isSubmodule }) else { throw RevisionComparisonFailure.selection }
         let hash = try read(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
         func side(_ file: CommitFile) throws -> ComparisonRevision {
             guard file.action.hasPrefix("D") else { return .revision(hash) }
@@ -202,7 +202,7 @@ extension GitRepository {
         try cancellation?.check()
 
         let snapshot = try revisionFileComparison(from: .emptyTree, to: .revision(revision), paths: [path], cancellation: cancellation)
-        guard snapshot.files.contains(where: { $0.path == path && !$0.isSubmodule }) else { throw RevisionComparisonFailure.selection }
+        guard snapshot.files.contains(where: { GitReferenceName.equal($0.path,path) && !$0.isSubmodule }) else { throw RevisionComparisonFailure.selection }
         return try comparisonFile(snapshot, path: path, cancellation: cancellation).destination
     }
     public func comparisonFile(_ snapshot: RevisionComparisonSnapshot, path: String, replacements: [Bool: ComparisonFileContent] = [:], cancellation: OperationCancellation? = nil) throws -> FileComparisonDocument {
@@ -211,7 +211,7 @@ extension GitRepository {
             try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
         }
 
-        guard snapshot.root == root, let file = snapshot.files.first(where: { $0.path == path }), !file.isSubmodule else { throw RevisionComparisonFailure.selection }
+        guard snapshot.root == root, let file = snapshot.files.first(where: { GitReferenceName.equal($0.path,path) }), !file.isSubmodule else { throw RevisionComparisonFailure.selection }
         func content(_ revision: ComparisonRevision, _ path: String, absent: Bool) throws -> ComparisonFileContent {
             try cancellation?.check()
             if absent || revision == .emptyTree { return ComparisonFileContent(path: path, revision: revision, bytes: Data(), mode: nil) }
@@ -228,7 +228,7 @@ extension GitRepository {
             }
             guard case .revision(let hash) = revision else { throw RevisionComparisonFailure.range }
             // Literal, NUL-delimited tree lookup handles colons, tabs and newlines.
-            let records = try read(["ls-tree", "-z", hash, "--", path]).stdout.split(separator: 0)
+            let records = try read(["-c", "core.precomposeunicode=false", "ls-tree", "-z", hash, "--", path]).stdout.split(separator: 0)
             for record in records {
                 guard let tab = record.firstIndex(of: 9), Data(record[record.index(after: tab)...]) == Data(path.utf8) else { continue }
                 let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
@@ -270,7 +270,7 @@ public struct WorkingFileComparison: Sendable {
         return FileComparisonDocument(base: try replacements[true] ?? Self.workingContent(at: base), destination: try replacements[false] ?? Self.workingContent(at: destination))
     }
     public func save(_ document: FileComparisonDocument, base editingBase: Bool, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> FileComparisonDocument {
-        guard document.base.path == base.path, document.destination.path == destination.path else { throw RevisionComparisonFailure.selection }
+        guard GitReferenceName.equal(document.base.path,base.path), GitReferenceName.equal(document.destination.path,destination.path) else { throw RevisionComparisonFailure.selection }
         let original = editingBase ? document.base : document.destination
         let saved = try FileComparisonEditing.saveWorkingContent(at: editingBase ? base : destination, original: original, text: text, encoding: encoding, options: options)
         return FileComparisonDocument(base: editingBase ? saved : document.base, destination: editingBase ? document.destination : saved)
@@ -283,7 +283,7 @@ public struct HistoricalWorkingFileComparison: Sendable {
     public let snapshot: RevisionComparisonSnapshot
     public let path: String
     public func saveBase(_ document: FileComparisonDocument, text: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> FileComparisonDocument {
-        guard document.base.path == workingFile.path, document.destination.path == path,
+        guard GitReferenceName.equal(document.base.path,workingFile.path), GitReferenceName.equal(document.destination.path,path),
               document.destination.revision == snapshot.to else { throw RevisionComparisonFailure.selection }
         let saved = try FileComparisonEditing.saveWorkingContent(at: workingFile, original: document.base, text: text, encoding: encoding, options: options)
         return FileComparisonDocument(base: saved, destination: document.destination)

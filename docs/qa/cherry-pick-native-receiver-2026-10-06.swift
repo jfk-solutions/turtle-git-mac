@@ -922,8 +922,8 @@ import TurtleGitCore
     let permanentPath = "0-permanent.txt"
     try Data("permanent\n".utf8).write(to: root.appendingPathComponent(permanentPath))
     log.reload(); try await until { !log.busy }; log.select([""])
-    log.fileTableSelection.wrappedValue = ["tracked"]
-    log.fileTableSelection.wrappedValue = ["tracked", permanentPath]
+    log.fileTableSelection.wrappedValue = Set((["tracked"]).map(GitPathRowIdentity.encode))
+    log.fileTableSelection.wrappedValue = Set((["tracked", permanentPath]).map(GitPathRowIdentity.encode))
     precondition(log.fileSelectionMark == permanentPath && log.canDeleteWorkingFiles([permanentPath, "tracked"]))
     log.deleteWorkingFiles([permanentPath, "tracked"], permanently: true)
     try await until { !log.busy && log.workingDeleteResult?.removedIndexPaths == ["tracked"] }
@@ -1052,8 +1052,8 @@ import TurtleGitCore
     var requests: [([String], WorkingFileAddMode)] = []
     log.onWorkingAdd = { requests.append(($0, $1)) }
     log.showUnversionedFiles = true; log.reload(); try await until { !log.busy }; log.select([""])
-    log.fileTableSelection.wrappedValue = ["tracked"]; precondition(!log.canWorkingAdd(["tracked", executablePath], mode: .executable))
-    log.fileTableSelection.wrappedValue = ["tracked", executablePath]
+    log.fileTableSelection.wrappedValue = Set((["tracked"]).map(GitPathRowIdentity.encode)); precondition(!log.canWorkingAdd(["tracked", executablePath], mode: .executable))
+    log.fileTableSelection.wrappedValue = Set((["tracked", executablePath]).map(GitPathRowIdentity.encode))
     precondition(log.canWorkingAdd(["tracked", executablePath], mode: .executable))
     log.requestWorkingAdd(["tracked", executablePath], mode: .executable); try await until { !log.busy }
     precondition(requests.last?.1 == .executable && requests.last?.0 == ["tracked", executablePath])
@@ -1142,7 +1142,7 @@ import TurtleGitCore
     model.setPatchPreview(true); try await until { !model.busy && !model.patchPreviewLoading && model.patchPreviewVisible }
     precondition(model.patchPreviewError == nil && String(decoding: model.patchPreviewData, as: UTF8.self).contains("files changed"))
     let revision = model.revision!, selected = model.files.first { $0.path == path }!
-    model.fileTableSelection.wrappedValue = [selected.id]; try await until { !model.patchPreviewLoading }
+    model.fileTableSelection.wrappedValue = Set(([selected.id]).map(GitPathRowIdentity.encode)); try await until { !model.patchPreviewLoading }
     let expected = try await repo.logPatchPreviewData(revision, files: [selected]); precondition(model.patchPreviewData == expected)
     model.select([revision.hash, base]); precondition(model.patchPreviewData.isEmpty && !model.patchPreviewLoading)
     model.select([base]); try await until { !model.patchPreviewLoading }; precondition(model.patchPreviewData.isEmpty)
@@ -1150,7 +1150,7 @@ import TurtleGitCore
     var held: CheckedContinuation<Data, Error>?
     model.readPatchPreview = { _, _, _ in try await withCheckedThrowingContinuation { held = $0 } }
     model.refreshPatchPreview(); try await until { held != nil }
-    model.readPatchPreview = nil; model.fileTableSelection.wrappedValue = [selected.id]
+    model.readPatchPreview = nil; model.fileTableSelection.wrappedValue = Set(([selected.id]).map(GitPathRowIdentity.encode))
     held!.resume(returning: Data("stale preview".utf8)); held = nil
     try await until { !model.patchPreviewLoading && model.patchPreviewData == expected }
     precondition(!displayed.contains(Data("stale preview".utf8)))
@@ -1280,7 +1280,7 @@ import TurtleGitCore
     precondition(rgb(model.fileForeground(renamed, selected: false)) == [10,20,30])
     precondition(model.fileForeground(outside, selected: false) == .secondary && model.fileForeground(inside, selected: true) == .primary)
     let revisions = model.entries.map(\.hash), selection = model.selected
-    model.fileTableSelection.wrappedValue = [outside.id]
+    model.fileTableSelection.wrappedValue = Set(([outside.id]).map(GitPathRowIdentity.encode))
     precondition(model.fileSelectionMark == outside.id)
     model.toggleUnrelatedPaths(.hide)
     precondition(!model.busy && model.entries.map(\.hash) == revisions && model.selected == selection)
@@ -1718,12 +1718,12 @@ import TurtleGitCore
     try await until { log.files.count == 2 && log.parentMetadata[duplicateMerge]?.count == 2 }
     let duplicates = Set(log.files.map(\.id)); precondition(duplicates.count == 2 && log.files.allSatisfy { $0.path == "keep" })
     precondition(log.fileTableRows.count == 4 && log.fileTableRows.filter { $0.header != nil }.count == 2)
-    log.fileTableSelection.wrappedValue = Set(log.fileTableRows.map(\.id)); precondition(log.selectedFiles == duplicates)
+    log.fileTableSelection.wrappedValue = Set(log.fileTableRows.map(\.id)); precondition(log.selectedFiles == GitPathSet(duplicates))
     log.filterPaths = "missing"; precondition(log.fileTableRows.isEmpty); log.filterPaths = ""
     let rightID = log.files.first { $0.parentIndex == 1 }!.id
     let leftID = log.files.first { $0.parentIndex == 0 }!.id
-    log.fileTableSelection.wrappedValue = [leftID]
-    log.fileTableSelection.wrappedValue = duplicates
+    log.fileTableSelection.wrappedValue = Set(([leftID]).map(GitPathRowIdentity.encode))
+    log.fileTableSelection.wrappedValue = Set((duplicates).map(GitPathRowIdentity.encode))
     precondition(log.fileSelectionMark == rightID && log.fileParentComparisonTitle(duplicates)?.contains(String(right.prefix(8))) == true)
     precondition(log.fileParentComparisonTitle([rightID])?.contains(String(right.prefix(8))) == true)
     var batches: [[(ComparisonRevision, ComparisonRevision, [String])]] = []

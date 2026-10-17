@@ -214,6 +214,36 @@ final class GitPathIdentityTests: XCTestCase {
         let finalHead = try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(finalHead,head)
     }
 
+    func testHistoricalPairAndRevertValidateExactCanonicalNames() async throws {
+        let (root,repo,_) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at:root) }
+        let a = "café.txt", b = "cafe\u{301}.txt"
+        func blob(_ text:String) async throws -> String { try await repo.run(["hash-object","-w","--stdin"],input:Data(text.utf8)).text.trimmingCharacters(in:.newlines) }
+        let old = try await blob("old\n"), new = try await blob("new\n")
+        _ = try await repo.run(["update-index","-z","--index-info"],input:Data([a,b].map { "100644 \(old)\t\($0)\0" }.joined().utf8))
+        _ = try await repo.commit(message:"canonical pair")
+        _ = try await repo.run(["update-index","-z","--index-info"],input:Data("100644 \(new)\t\(a)\0".utf8))
+        _ = try await repo.commit(message:"one exact path changed")
+        let rows = try await repo.log()
+        let row = try XCTUnwrap(rows.first)
+        let changed = try await repo.files(in:row)
+        let selected = try XCTUnwrap(changed.first { GitReferenceName.equal($0.path,a) })
+        let peer = CommitFile(path:b,oldPath:nil,action:selected.action,added:selected.added,removed:selected.removed,hasStatistics:selected.hasStatistics,isSubmodule:false)
+        let scoped = try await repo.revisionFileComparison(from:.emptyTree,to:.revision(row.hash),paths:[a,b])
+        XCTAssertEqual(GitPathSet(scoped.files.map(\.path)),GitPathSet([a,b]))
+        let exactB = try await repo.revisionFileComparison(from:.emptyTree,to:.revision(row.hash),paths:[b])
+        XCTAssertEqual(exactB.files.count,1); XCTAssertTrue(GitReferenceName.equal(exactB.files[0].path,b))
+        let patch = try await repo.revisionComparisonPatchData(scoped,paths:[b])
+        XCTAssertTrue(String(decoding:patch,as:UTF8.self).contains("+old"))
+        XCTAssertFalse(String(decoding:patch,as:UTF8.self).contains("+new"))
+        let pair = try await repo.historicalFilePairComparison(revision:row.hash,files:[selected,peer])
+        let content = try await repo.comparisonFile(pair,path:b)
+        XCTAssertEqual(content.base.bytes,Data("new\n".utf8)); XCTAssertEqual(content.destination.bytes,Data("old\n".utf8))
+        XCTAssertTrue(GitReferenceName.equal(content.base.path,a)); XCTAssertTrue(GitReferenceName.equal(content.destination.path,b))
+        do { _ = try await repo.prepareLogFileRevert(row,files:[peer],parent:false); XCTFail("Unchanged canonical peer accepted as a changed Log file") }
+        catch { XCTAssertTrue(error is RevisionComparisonFailure) }
+        let targets = try await repo.prepareLogFileRevert(row,files:[selected],parent:false)
+        XCTAssertEqual(targets.count,1); XCTAssertTrue(GitReferenceName.equal(targets[0].path,a))
+    }
     func testCheckedOperationOrderIsOrdinalAndPreservesDistinctGitNames() {
         let a = "café",b = "cafe\u{301}"
         let result = GitPathOperationOrder.sorted(["file2","B","a","file10","A",a,b,"B"])

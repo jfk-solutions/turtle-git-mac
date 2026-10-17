@@ -956,7 +956,7 @@ struct RebaseReferenceRequest {
             let stats=menu.statistics[entry.path]
             return CommitFile(path:entry.path,oldPath:entry.originalPath,action:stats?.action ?? "M",added:stats?.added,removed:stats?.removed,hasStatistics:stats?.hasStatistics ?? false,isSubmodule:stats?.isSubmodule ?? false)
         }
-        let statuses=Dictionary(uniqueKeysWithValues:zip(files,menu.rows).map {($0.0.id,conflictStatus($0.1,flags:menu.indexFlags))})
+        let statuses=GitPathMap(uniqueKeysWithValues:zip(files,menu.rows).map {($0.0.id,conflictStatus($0.1,flags:menu.indexFlags))})
         return StatusListClipboard.text(files,root:repository.root,statuses:statuses,copy:copy,visibleColumns:menu.columns)
     }
     func copyConflictFiles(_ menu: ConflictFileMenu, copy: StatusListCopy) {

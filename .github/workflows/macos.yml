@@ -298,6 +298,7 @@ jobs:
           python3 scripts/test-commit-command-family.py --only identities --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-add-revert-identities.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-add-revert-file-flow.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+          python3 scripts/test-log-file-identities.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: LFS captured interactions and progress notifications
         run: python3 scripts/test-lfs-interaction.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Bundled Mac help and contextual dispatch

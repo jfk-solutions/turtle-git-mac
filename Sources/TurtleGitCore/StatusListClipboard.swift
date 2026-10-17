@@ -72,7 +72,7 @@ public enum StatusListClipboard {
 
     /// Log merge parents can contain different occurrences of the same path.
     /// Read each occurrence's own statistics and use its ID for displayed statuses.
-    public static func text(_ files: [CommitFile], root: URL, statuses: [String: String], copy: StatusListCopy, visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns) -> String {
+    public static func text(_ files: [CommitFile], root: URL, statuses: GitPathMap<String>, copy: StatusListCopy, visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns) -> String {
         func cell(_ file: CommitFile, _ column: StatusListColumn) -> String {
             switch column {
             case .path: return displayedPath(file)

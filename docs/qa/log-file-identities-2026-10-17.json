@@ -1,0 +1,200 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation_baseline": "f34b33db",
+  "scope": "Connected Log changed-file native selection, exact parent occurrences, captured menus, preflight/chooser ownership and historical comparison/export path fidelity.",
+  "source": [
+    "src/TortoiseProc/LogDlg.cpp IDC_LOGMSG column/mask initialization",
+    "src/Git/GitStatusListCtrl.cpp OnContextMenu selection mark, selected-row iteration and IDGITLC_COMPARETWOFILES"
+  ],
+  "implemented": [
+    "Lossless encoded native row IDs; raw exact IDs in shared native table probe, GitPathSet selection and parent prefixes",
+    "Exact selection marks/focus, working index/submodule joins, information counts and clipboard status maps",
+    "One-use owner/selection/projection receipts on all changed-file menu leaves and nested actions",
+    "Async file preflight and result dispatch generation includes exact selection/focus/mark, revision and details replacement",
+    "Save/Export/Open With panels use OwnedFilePanelSession and busy gating until sheet release; cancelled/retired/changed-target responses refused",
+    "Historical selection, lookup, comparison pair, raw patch paths and revert validation use exact Git paths with precomposition disabled",
+    "Export deduplicates exact occurrences and refuses canonical destination filename collisions before writing; unselected canonical peers cannot export",
+    "File actions iterate current displayed file-row order while comparisons retain actual merge-parent endpoints"
+  ],
+  "build_attempts": [
+    {
+      "log": "build/qa/log-file-identities-build-2026-10-17.log",
+      "exit_code": 65,
+      "reason": "Shared Rebase clipboard caller still supplied a String dictionary; migrated to GitPathMap"
+    },
+    {
+      "log": "build/qa/log-file-identities-build-repair-2026-10-17.log",
+      "exit_code": 0
+    },
+    {
+      "log": "build/qa/log-file-identities-build-order-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Displayed action order source comparison"
+    },
+    {
+      "log": "build/qa/log-file-identities-build-comparison-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Exact historical blob lookup"
+    },
+    {
+      "log": "build/qa/log-file-identities-build-export-2026-10-17.log",
+      "exit_code": 0
+    },
+    {
+      "log": "build/qa/log-file-identities-build-final-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Final exact comparison selection/patch and export backend"
+    }
+  ],
+  "core_attempts": [
+    {
+      "log": "build/qa/log-file-identities-core-2026-10-17.log",
+      "exit_code": 1,
+      "reason": "New optional exact-name initializer reference made overload inference ambiguous; use explicit closures"
+    },
+    {
+      "log": "build/qa/log-file-identities-core-repair-2026-10-17.log",
+      "exit_code": 1,
+      "reason": "New fixture called nonexistent log(limit:); corrected to log()"
+    },
+    {
+      "log": "build/qa/log-file-identities-core-final-2026-10-17.log",
+      "exit_code": 1,
+      "reason": "Rebase clipboard API caller compile failure, no test pass claimed"
+    },
+    {
+      "log": "build/qa/log-file-identities-core-checkpoint-2026-10-17.log",
+      "exit_code": 1,
+      "tests": 113,
+      "passed": 112,
+      "reason": "New historical canonical-pair case exposed normalized Git lookup"
+    },
+    {
+      "log": "build/qa/log-file-identities-core-comparison-repair-2026-10-17.log",
+      "exit_code": 0,
+      "tests": 54,
+      "reason": "Affected exact identity, text/image/one-pane comparisons and in-place document checks"
+    },
+    {
+      "log": "build/qa/log-file-identities-export-core-2026-10-17.log",
+      "exit_code": 1,
+      "tests": 9,
+      "passed": 8,
+      "reason": "New single historical export exposed canonical collapse in shared selectedFileComparison"
+    },
+    {
+      "log": "build/qa/log-file-identities-core-final-affected-2026-10-17.log",
+      "exit_code": 0,
+      "tests": 75,
+      "classes": {
+        "GitPathIdentityTests": 14,
+        "FileComparisonTests": 13,
+        "ImageFileComparisonTests": 3,
+        "OnePaneFileComparisonTests": 12,
+        "RevisionComparisonTests": 24,
+        "WorkingFileExportTests": 9
+      }
+    }
+  ],
+  "core_distinct_passes_across_retained_and_affected_runs": 158,
+  "core_scope_note": "Final affected run passed 75 cases. Other distinct passes retained from the original grouped checkpoint and preceding comparison run; all 158 were not replayed after the last change.",
+  "native_attempts": [
+    {
+      "log": "build/qa/log-file-identities-native-2026-10-17.log",
+      "exit_code": 1,
+      "reason": "New historical pair read failed before chooser tests; exposed exact blob lookup gap",
+      "pids": [
+        21966
+      ]
+    },
+    {
+      "log": "build/qa/log-file-identities-native-repair-2026-10-17.log",
+      "exit_code": 1,
+      "reason": "Native selection assertion timed out after rapid sort/filter/busy transitions. Added explicit native/model projection and current-selection readiness before the next injected selection. No unique physical-input production root cause claimed.",
+      "pids": [
+        25297
+      ]
+    },
+    {
+      "log": "build/qa/log-file-identities-native-final-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_passes": 2,
+      "scope": "Actual native NFC/NFD selection and four parent occurrences; copy/compare/mark endpoints; production menu receipt consumption/staleness; stale preview and skip-worktree confirmation; real Save/Export panel cancellation/reuse/retirement; unchanged HEAD/index"
+    },
+    {
+      "log": "build/qa/log-file-identities-columns-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_passes": 2,
+      "scope": "Retained native full-width group headers, source five-column layout/mask/order/width/persistence/reset, per-parent numeric sort, Home/End and ordered copy; light/dark changes"
+    },
+    {
+      "log": "build/qa/log-file-identities-filters-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_passes": 2,
+      "scope": "Retained private native Log filters, menus, invalid query/recovery, coalescing, footer counts, hidden selection, whole-project/follow/close and repository invariants"
+    }
+  ],
+  "native_distinct_final_case_engine_passes": 6,
+  "compile_only": {
+    "tool_session": 85237,
+    "exit_code": 0,
+    "fixture": "docs/qa/cherry-pick-native-receiver-2026-10-06.swift",
+    "scope": "Affected encoded selection binding and explicit GitPathSet equality callers compile against final app/Core objects; not executed"
+  },
+  "cleanup": {
+    "pids": [
+      21966,
+      25297,
+      26007,
+      26140,
+      26305,
+      26311,
+      26377,
+      26454,
+      26949
+    ],
+    "ps_exit": 1,
+    "remaining": ""
+  },
+  "hosted_previous_head": {
+    "head": "f34b33db",
+    "run": 39026026679,
+    "job": 117377252532,
+    "application_and_embedded_finder_extension": "success",
+    "integration_tests": "in_progress at observation; no full CI-green claim",
+    "pages_run": 39026026614,
+    "pages": "success"
+  },
+  "appearance": "No new window layout or screenshot acceptance claimed. Existing Log artwork/colors/column layout retained; native theme changes checked in retained columns fixture.",
+  "remaining": [
+    "Physical popup tracking/selection gestures and VoiceOver",
+    "Signed Save/Export/Open With grants and external application delivery/completion ownership",
+    "Destination filesystem case-folding/alias rules beyond canonical destination check",
+    "Full Log reference/view/group appearance and source menu/state comparison",
+    "Signed Finder integration, release distribution regeneration and App Store acceptance",
+    "Full hosted CI for the new commit"
+  ],
+  "static_validation": {
+    "localizations": {
+      "exit_code": 0,
+      "languages": 38,
+      "safe_keys": 1242
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93
+    },
+    "site": {
+      "exit_code": 0,
+      "documents": 271,
+      "unresolved_fragments": []
+    },
+    "workflow_yaml": "Ruby Psych parse passed",
+    "diff_check": "passed"
+  }
+}

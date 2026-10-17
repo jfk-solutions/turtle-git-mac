@@ -20,8 +20,8 @@ struct PreparedFileComparisonMark {
     var isDirectory = false
     func label(for path: String) -> String {
         if let workingAccess { return workingAccess.file.path }
-        if revision.isEmpty { return self.path == path ? "Working tree" : self.path + ":Working tree" }
-        return self.path == path ? revision : self.path + ":" + String(revision.prefix(8))
+        if revision.isEmpty { return GitReferenceName.equal(self.path, path) ? "Working tree" : self.path + ":Working tree" }
+        return GitReferenceName.equal(self.path, path) ? revision : self.path + ":" + String(revision.prefix(8))
     }
 }
 
@@ -107,6 +107,7 @@ final class LogHistoryWindow: NSWindow {
 }
 
 @MainActor final class LogWindowController: NSWindowController, NSWindowDelegate {
+    private(set) lazy var filePanels = OwnedFilePanelSession(window: window)
     private(set) static var activeReferencePickers = 0
     private var startReferenceRequest: UUID?
     private(set) var startReferencePicker: ReferenceBrowserWindowController?
@@ -215,6 +216,7 @@ final class LogHistoryWindow: NSWindow {
         }
         model.finishSelection = { [weak self] revision in self?.finishSelection(revision) }
         model.finishMultipleSelection = { [weak self] revisions in self?.finishMultipleSelection(revisions) }
+        model.cancelFileChoice = { [weak self] in self?.filePanels.cancel() }
         model.presentHistoricalSave = { [weak self] content, short in
             // Let the originating context-menu tracking finish before presenting AppKit UI.
             DispatchQueue.main.async { [weak self] in self?.saveHistoricalFile(content, short: short) }
@@ -247,13 +249,24 @@ final class LogHistoryWindow: NSWindow {
 
         if savesGeometry { DialogGeometry.attach(window, identifier: "LogWindowController") }
     }
+    private func chooseFile(_ panel: NSSavePanel, accepted: @escaping (URL) -> Void) {
+        guard !model.busy, !model.isInvalidated, window?.attachedSheet == nil else { return }
+        let selection = model.fileSelectionGeneration
+        model.busy = true
+        Task { [weak self] in
+            guard let self else { return }
+            let target = await filePanels.choose(panel)
+            model.busy = false
+            guard !model.isInvalidated, selection == model.fileSelectionGeneration, let target else { return }
+            accepted(target)
+        }
+    }
     private func chooseHistoricalExport(revision: String, files: [CommitFile]) {
         guard let window, window.attachedSheet == nil else { return }
         let panel = NSOpenPanel(); panel.title = "Export selected files"; panel.prompt = "Export"
         panel.canChooseFiles = false; panel.canChooseDirectories = true
         panel.canCreateDirectories = true; panel.allowsMultipleSelection = false
-        panel.beginSheetModal(for: window) { [weak model] response in
-            guard response == .OK, let folder = panel.url else { return }
+        chooseFile(panel) { [weak model] folder in
             model?.exportHistoricalFiles(revision: revision, files: files, to: folder)
         }
     }
@@ -272,8 +285,7 @@ final class LogHistoryWindow: NSWindow {
             openPanel.allowsMultipleSelection = false; panel = openPanel
         }
         panel.canCreateDirectories = true
-        panel.beginSheetModal(for: window) { [weak model] response in
-            guard response == .OK, let target = panel.url else { return }
+        chooseFile(panel) { [weak model] target in
             model?.copyWorkingFiles(paths, to: target, save: save)
         }
     }
@@ -283,8 +295,7 @@ final class LogHistoryWindow: NSWindow {
             let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
             panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
             panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
-            panel.beginSheetModal(for: window) { [weak self] response in
-                guard response == .OK, let app = panel.url else { return }
+            chooseFile(panel) { [weak self] app in
                 self?.launchWorkingFile(file, action: action, application: app)
             }
         } else { launchWorkingFile(file, action: action) }
@@ -308,8 +319,7 @@ final class LogHistoryWindow: NSWindow {
             let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
             panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
             panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
-            panel.beginSheetModal(for: window) { [weak self] response in
-                guard response == .OK, let app = panel.url else { return }
+            chooseFile(panel) { [weak self] app in
                 self?.launchHistoricalFile(content, action: action, application: app)
             }
         } else { launchHistoricalFile(content, action: action) }
@@ -340,9 +350,13 @@ final class LogHistoryWindow: NSWindow {
         panel.allowedContentTypes = [UTType(filenameExtension: ext) ?? .data]; panel.allowsOtherFileTypes = true
         panel.canCreateDirectories = true
         panel.directoryURL = model.repository.root.appendingPathComponent(content.path).deletingLastPathComponent()
-        panel.beginSheetModal(for: window) { [weak model] response in
-            guard response == .OK, let url = panel.url else { return }
-            do { try content.bytes.write(to: url, options: .atomic) } catch { model?.error = error.localizedDescription }
+        chooseFile(panel) { [weak model] url in
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            do {
+                if GitRuntime.isAppStoreBuild && !scoped { throw RepositoryAccessFailure.securityScopeUnavailable }
+                try content.bytes.write(to: url, options: .atomic)
+            } catch { model?.error = error.localizedDescription }
         }
     }
     private func finishSelection(_ revision: LogEntry?) {
@@ -466,6 +480,7 @@ final class LogHistoryWindow: NSWindow {
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
+        filePanels.retire()
         window?.makeFirstResponder(nil)
         retireStartReferencePicker()
         notePresenter?.close()
@@ -723,21 +738,28 @@ struct LogCommandRequest: Identifiable {
     @Published var showUnversionedFiles = true
     @Published private(set) var workingTreeSnapshot: WorkingTreeHistory?
     @Published private(set) var workingIndexFiles: [WorkingTreeFile] = []
-    private var workingSubmodules = Set<String>()
+    private var workingSubmodules = GitPathSet()
     var selectedWorkingTree: Bool { selected == [""] && workingTreeSnapshot != nil }
     var includesWorkingTree: Bool { selected.contains("") && workingTreeSnapshot != nil }
     func updateWorkingFiles() {
         guard selectedWorkingTree, let snapshot = workingTreeSnapshot else { return }
-        let tracked = Set(snapshot.files.map(\.path))
+        let tracked = GitPathSet(snapshot.files.map(\.path))
         let ignored = workingIndexFiles.filter { ($0.assumeUnchanged || $0.skipWorktree) && !tracked.contains($0.id) }.map {
             CommitFile(path: $0.id, oldPath: nil, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: workingSubmodules.contains($0.id))
         }
         files = snapshot.files + ignored + (showUnversionedFiles ? snapshot.unversioned.filter { !tracked.contains($0.path) } : [])
     }
     static let changedFileColumnsKey="Log.ChangedFileColumns"
-    @Published var changedFileColumns:StatusListColumnSettings
-    @Published private(set) var changedFileSort=[LogChangedFileSort(column:.path)]
-    @Published var focusedChangedFile:String?
+    @Published var changedFileColumns:StatusListColumnSettings { didSet { fileMenuGeneration = UUID() } }
+    @Published private(set) var changedFileSort=[LogChangedFileSort(column:.path)] { didSet { fileMenuGeneration = UUID() } }
+    @Published var focusedChangedFile:String? {
+        didSet {
+            if oldValue.map { GitReferenceName($0) } != focusedChangedFile.map { GitReferenceName($0) } {
+                if let focusedChangedFile, selectedFileIDs.contains(focusedChangedFile) { fileSelectionMark = focusedChangedFile }
+                invalidateFileSelection()
+            }
+        }
+    }
     @Published private(set) var resettingChangedFileColumns=false
     private var changedFileColumnRequest=UUID()
     var canChangeFileColumns:Bool { !isInvalidated && !busy && !resettingChangedFileColumns && window?.attachedSheet == nil }
@@ -785,7 +807,7 @@ struct LogCommandRequest: Identifiable {
     }
     func copyChangedFileIDs(_ ids:[String],status:Bool=false,column:StatusListColumn?=nil) {
         guard !busy,!isInvalidated else {return}
-        let ids=Set(ids),chosen=fileTableRows.compactMap(\.file).filter {ids.contains($0.id)}
+        let ids=GitPathSet(ids),chosen=fileTableRows.compactMap(\.file).filter {ids.contains($0.id)}
         guard !chosen.isEmpty else {return}
         let text=chosen.map {file in
             if let column {return changedFileText(file,column:column)}
@@ -879,17 +901,55 @@ struct LogCommandRequest: Identifiable {
     var revertAvailable: Bool { revision != nil && !bare && !mergeActive && !selectedIsStash && revision?.parents.isEmpty == false }
     var canRevertRevision: Bool { revertAvailable && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil }
     @Published var graph: [CommitGraphRow] = []
-    @Published var selected = Set<String>()
-    @Published var files: [CommitFile] = []
-    @Published var fileGroups: [LogFileGroup] = []
-    @Published var selectedFiles = Set<String>() { didSet { refreshPatchPreview() } }
-    private(set) var fileSelectionMark: String?
-    func markedFile(_ ids: Set<String>) -> CommitFile? {
-        if let fileSelectionMark, ids.contains(fileSelectionMark), let file = visibleFiles.first(where: { $0.id == fileSelectionMark }) { return file }
+    @Published var selected = Set<String>() { didSet { if selected != oldValue { invalidateFileSelection() } } }
+    @Published var files: [CommitFile] = [] { didSet { invalidateFileSelection() } }
+    @Published var fileGroups: [LogFileGroup] = [] { didSet { invalidateFileSelection() } }
+    private var selectedFileIDs = GitPathSet()
+    /// ASCII identities at the SwiftUI boundary; Git IDs retain their UTF-8 bytes,
+    /// including parent-group prefixes, in every command and shared table probe.
+    @Published var nativeFileSelection = Set<String>() {
+        didSet {
+            guard nativeFileSelection != oldValue else { return }
+            let valid = GitPathRowIdentity.paths(nativeFileSelection).intersection(visibleFiles.map(\.id))
+            let added = valid.subtracting(selectedFileIDs)
+            selectedFileIDs = valid
+            if added.count == 1 { fileSelectionMark = added.first }
+            else if fileSelectionMark.map({ !valid.contains($0) }) ?? true { fileSelectionMark = visibleFiles.first { valid.contains($0.id) }?.id }
+            let encoded = Set(valid.map(GitPathRowIdentity.encode))
+            if nativeFileSelection != encoded { nativeFileSelection = encoded }
+            invalidateFileSelection(); refreshPatchPreview()
+        }
+    }
+    var selectedFiles: GitPathSet {
+        get { selectedFileIDs }
+        set { let ids = Set(newValue.map(GitPathRowIdentity.encode)); if nativeFileSelection != ids { nativeFileSelection = ids } }
+    }
+    private(set) var fileSelectionMark: String? {
+        didSet { if oldValue.map { GitReferenceName($0) } != fileSelectionMark.map { GitReferenceName($0) } { invalidateFileSelection() } }
+    }
+    private(set) var fileSelectionGeneration = UUID()
+    private var fileMenuGeneration = UUID()
+    private func invalidateFileSelection() { fileSelectionGeneration = UUID(); fileMenuGeneration = UUID() }
+    func markedFile(_ ids: some Sequence<String>) -> CommitFile? {
+        let ids = GitPathSet(ids)
+        if let fileSelectionMark, ids.contains(fileSelectionMark), let file = visibleFiles.first(where: { GitReferenceName.equal($0.id, fileSelectionMark) }) { return file }
         return visibleFiles.first { ids.contains($0.id) }
     }
+    func fileMenuSnapshot(_ ids: GitPathSet) -> LogFileMenuSnapshot {
+        LogFileMenuSnapshot(owner: self, menuGeneration: fileMenuGeneration, selectionGeneration: fileSelectionGeneration, ids: ids, visible: visibleFiles)
+    }
+    func withFileMenu(_ snapshot: LogFileMenuSnapshot, action: () -> Void) {
+        guard snapshot.owner === self, !snapshot.consumed, !isInvalidated, !busy, !jumping, !loadingNote, !savingNote,
+              !findBlocked, !orderingBlocked, !referencePickerBlocked, !copyingDetails, !unifiedViewerBusy,
+              noteRequest == nil, window?.attachedSheet == nil, !resettingChangedFileColumns,
+              snapshot.menuGeneration == fileMenuGeneration, snapshot.selectionGeneration == fileSelectionGeneration,
+              snapshot.visible == visibleFiles, !snapshot.ids.isEmpty,
+              snapshot.ids.isSubset(of: GitPathSet(visibleFiles.map(\.id))) else { return }
+        snapshot.consumed = true
+        action()
+    }
     private var lastImportedWorkingMark: UUID?
-    @Published var comparisonMark: PreparedFileComparisonMark?
+    @Published var comparisonMark: PreparedFileComparisonMark? { didSet { fileMenuGeneration = UUID() } }
     @Published var allBranches = false
     @Published private(set) var referenceScope = HistoryReferenceScope.current
     @Published private(set) var startRevisions: [String] = []
@@ -1029,14 +1089,14 @@ struct LogCommandRequest: Identifiable {
     func grayFile(_ file: CommitFile) -> Bool { unrelatedPathMode == .gray && unrelatedFile(file) }
     func toggleUnrelatedPaths(_ mode: HistoryUnrelatedPathMode) {
         guard !busy, !isInvalidated, mode != .all else { return }
-        unrelatedPathMode.toggle(mode)
-        selectedFiles.formIntersection(Set(visibleFiles.map(\.id)))
+        invalidateFileSelection(); unrelatedPathMode.toggle(mode)
+        selectedFiles.formIntersection(GitPathSet(visibleFiles.map(\.id)))
         if fileSelectionMark.map({ !selectedFiles.contains($0) }) == true { fileSelectionMark = visibleFiles.first { selectedFiles.contains($0.id) }?.id }
     }
     func toggleUnversionedFiles() {
         guard !busy, !isInvalidated else { return }
         showUnversionedFiles.toggle(); labelDefaults.set(showUnversionedFiles, forKey: "AddBeforeCommit"); updateWorkingFiles()
-        selectedFiles.formIntersection(Set(visibleFiles.map(\.id)))
+        selectedFiles.formIntersection(GitPathSet(visibleFiles.map(\.id)))
     }
     var colorPreferences: UserDefaults { labelDefaults }
     func fileForeground(_ file: CommitFile, selected: Bool) -> Color {
@@ -1394,8 +1454,9 @@ struct LogCommandRequest: Identifiable {
         }
     }
     @Published var filterPaths = "" { didSet {
+        invalidateFileSelection()
         pathFilterDraft = filterPaths
-        let visible = Set(visibleFiles.map(\.id)), retained = selectedFiles.intersection(visible)
+        let visible = GitPathSet(visibleFiles.map(\.id)), retained = selectedFiles.intersection(visible)
         if fileSelectionMark.map({ !retained.contains($0) }) == true { fileSelectionMark = visibleFiles.first { retained.contains($0.id) }?.id }
         if focusedChangedFile.map({ !visible.contains($0) }) == true { focusedChangedFile = nil }
         if retained != selectedFiles { selectedFiles = retained } else { refreshPatchPreview() }
@@ -1430,7 +1491,7 @@ struct LogCommandRequest: Identifiable {
         to = max(date, from); historyLimit.until = HistoryLimitScope.endOfDay(to); reload()
     }
     @Published var busy = false {
-        didSet { if !busy { scheduleRepositoryRefresh() } }
+        didSet { if busy != oldValue { fileMenuGeneration = UUID() }; if !busy { scheduleRepositoryRefresh() } }
     }
     private var pendingRepositoryRefresh = false
     private var repositoryRefreshTask: Task<Void, Never>?
@@ -1669,6 +1730,7 @@ struct LogCommandRequest: Identifiable {
     var onFollowedFileComparison: ((RevisionComparisonSnapshot, OperationCancellation) -> Void)?
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
+    var cancelFileChoice: () -> Void = {}
     var presentHistoricalSave: (ComparisonFileContent, String) -> Void = { _, _ in }
     var presentHistoricalOpen: (ComparisonFileContent, HistoricalOpenAction) -> Void = { _, _ in }
     var presentHistoricalExport: (String, [CommitFile]) -> Void = { _, _ in }
@@ -1697,7 +1759,7 @@ struct LogCommandRequest: Identifiable {
         let filter = HistoryFileFilter(filterPaths)
         return files.filter { (unrelatedPathMode != .hide || !unrelatedFile($0)) && filter.matches($0) }
     }
-    var information: HistoryInformation { .init(entries: entries, selected: selected, files: files, selectedFiles: selectedFiles, visibleFileIDs: Set(visibleFiles.map(\.id))) }
+    var information: HistoryInformation { .init(entries: entries, selected: selected, files: files, selectedFiles: selectedFiles, visibleFileIDs: GitPathSet(visibleFiles.map(\.id))) }
     @Published private(set) var appliedMessageSearch = HistoryMessageOptions()
     private(set) var messageLinkGeneration = UUID()
     var canFollowMessageLink: Bool {
@@ -1831,6 +1893,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        cancelFileChoice(); invalidateFileSelection()
         messageLinkGeneration = UUID()
         if let jumpAlert, let parent = jumpAlert.window.sheetParent { parent.endSheet(jumpAlert.window, returnCode: .abort) }; jumpAlert = nil
         cancelSearchFilter(); pathFilterGeneration += 1; pathFilterTask?.cancel(); pathFilterTask = nil
@@ -1920,7 +1983,7 @@ struct LogCommandRequest: Identifiable {
                 let svnRevisions = Dictionary(uniqueKeysWithValues: zip(result.map(\.hash), svnValues))
                 let working = showWorkingTree && includeWorkingTreeChanges && !selecting && !bare ? try await repository.workingTreeHistory(cancellation: cancellation) : nil
                 let indexFiles = working == nil ? [] : try await repository.workingTreeStatus(refreshIndex:false,cancellation:cancellation)
-                let submodules = working == nil ? Set<String>() : try await repository.submodulePaths(cancellation:cancellation)
+                let submodules = working == nil ? GitPathSet() : GitPathSet(try await repository.submodulePathNames(cancellation:cancellation).map(\.rawValue))
                 if let working { result.insert(working.entry, at: 0) }
                 guard request == generation else { return }
                 let formatter = ISO8601DateFormatter()
@@ -2268,10 +2331,12 @@ struct LogCommandRequest: Identifiable {
     enum CopyFileInformation: String, CaseIterable {
         case fullPaths = "Full paths", relativePaths = "Relative paths", names = "File/folder names", all = "Copy all information to clipboard"
     }
-    func canCopyFiles(_ ids: Set<String>) -> Bool {
-        !busy && !isInvalidated && visibleFiles.contains { ids.contains($0.id) }
+    func canCopyFiles(_ ids: some Sequence<String>) -> Bool {
+        let ids = GitPathSet(ids)
+        return !busy && !isInvalidated && visibleFiles.contains { ids.contains($0.id) }
     }
-    func copyFiles(_ ids: Set<String>, information: CopyFileInformation) {
+    func copyFiles(_ ids: some Sequence<String>, information: CopyFileInformation) {
+        let ids = GitPathSet(ids)
         guard canCopyFiles(ids) else { return }
         let selected = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         let kind: StatusListCopy
@@ -2281,10 +2346,11 @@ struct LogCommandRequest: Identifiable {
         case .names: kind = .names
         case .all: kind = .all
         }
-        let statuses = Dictionary(uniqueKeysWithValues: selected.map { ($0.id, fileStatus($0)) })
+        let statuses = GitPathMap(uniqueKeysWithValues: selected.map { ($0.id, fileStatus($0)) })
         copy(StatusListClipboard.text(selected, root: repository.root, statuses: statuses, copy: kind))
     }
-    func fileLog(_ ids: Set<String>, oldName: Bool = false) {
+    func fileLog(_ ids: some Sequence<String>, oldName: Bool = false) {
+        let ids = GitPathSet(ids)
         if selectedWorkingTree, !busy, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), file.action != "?", let onFileLog {
             onFileLog(oldName ? file.oldPath ?? file.path : file.path, nil); return
         }
@@ -2295,12 +2361,15 @@ struct LogCommandRequest: Identifiable {
         } else { onFileLog(file.path, revision.hash) }
     }
     var onSubmoduleFileLog: ((URL, String?) -> Void)?
-    func canShowSubmoduleFileLog(_ ids: Set<String>) -> Bool {
-        !busy && !isInvalidated && !bare && onSubmoduleFileLog != nil && ids.count == 1 && visibleFiles.contains { ids.contains($0.id) && $0.isSubmodule && $0.action != "?" }
+    func canShowSubmoduleFileLog(_ ids: some Sequence<String>) -> Bool {
+        let ids = GitPathSet(ids)
+        return !busy && !isInvalidated && !bare && onSubmoduleFileLog != nil && ids.count == 1 && visibleFiles.contains { ids.contains($0.id) && $0.isSubmodule && $0.action != "?" }
     }
-    func showSubmoduleFileLog(_ ids: Set<String>) {
+    func showSubmoduleFileLog(_ ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         guard canShowSubmoduleFileLog(ids), let file = visibleFiles.first(where: { ids.contains($0.id) }) else { return }
         let request = generation, selection = selected, fileSelection = selectedFiles
+        let fileRequest = fileSelectionGeneration
         let working = selectedWorkingTree, revision = self.revision
         let pinRevision = UserDefaults.standard.object(forKey: "LogSubmoduleShowRevision") == nil || UserDefaults.standard.bool(forKey: "LogSubmoduleShowRevision")
         busy = true
@@ -2310,12 +2379,12 @@ struct LogCommandRequest: Identifiable {
                 try validateWorkingFileAccess(repository.root.appendingPathComponent(file.path))
                 let from: String, to: String?
                 if working {
-                    guard let fresh = try await repository.workingTreeHistory(), fresh.files.contains(where: { $0.path == file.path && $0.isSubmodule && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
+                    guard let fresh = try await repository.workingTreeHistory(), fresh.files.contains(where: { GitReferenceName.equal($0.path, file.path) && $0.isSubmodule && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
                     from = fresh.entry.parents.first ?? ""; to = nil
                 } else {
                     guard let revision else { throw RevisionComparisonFailure.selection }
                     let groups = try await repository.logFileGroups(in: revision)
-                    guard let group = groups.first(where: { $0.id == (file.parentIndex ?? 0) }), group.files.contains(where: { $0.path == file.path && $0.isSubmodule && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
+                    guard let group = groups.first(where: { $0.id == (file.parentIndex ?? 0) }), group.files.contains(where: { GitReferenceName.equal($0.path, file.path) && $0.isSubmodule && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
                     from = file.action.hasPrefix("D") ? group.parent ?? "" : revision.hash
                     to = revision.hash
                 }
@@ -2327,51 +2396,59 @@ struct LogCommandRequest: Identifiable {
                     guard module.to.available, let hash = module.to.revision else { throw LogSubmoduleHistoryFailure.unavailableRevision }
                     endRevision = hash
                 } else { endRevision = nil }
-                guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
+                guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
                 busy = false; onSubmoduleFileLog?(checkout, endRevision)
-            } catch { if request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription } }
+            } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription } }
         }
     }
-    func canBlameFile(_ ids: Set<String>) -> Bool {
+    func canBlameFile(_ ids: some Sequence<String>) -> Bool {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, onBlame != nil, ids.count == 1,
               let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return false }
         if selectedWorkingTree { return !bare && workingTreeSnapshot?.entry.parents.first != nil && file.action != "?" && !file.action.hasPrefix("A") }
         return revision != nil
     }
-    func workingConflictPaths(_ ids: Set<String>) -> [String] {
+    func workingConflictPaths(_ ids: some Sequence<String>) -> [String] {
+        let ids = GitPathSet(ids)
         guard selectedWorkingTree, !bare else { return [] }
         return visibleFiles.filter { ids.contains($0.id) && $0.action.hasPrefix("U") }.map(\.path)
     }
-    func canWorkingConflict(_ action: RepositoryAction, ids: Set<String>) -> Bool {
+    func canWorkingConflict(_ action: RepositoryAction, ids: some Sequence<String>) -> Bool {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, onConflictAction != nil, !workingConflictPaths(ids).isEmpty else { return false }
         return action == .editConflict ? ids.count == 1 : action.resolveChoice != nil
     }
-    func requestWorkingConflict(_ action: RepositoryAction, ids: Set<String>) {
+    func requestWorkingConflict(_ action: RepositoryAction, ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         guard canWorkingConflict(action, ids: ids), let onConflictAction else { return }
         let paths = workingConflictPaths(ids), selection = selected, request = generation, rebase = conflictRebase
+        let fileRequest = fileSelectionGeneration
         busy = true
         Task {
             defer { busy = false }
             do {
                 for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
                 let fresh = try await repository.conflicts(paths: paths)
-                guard Set(fresh.map(\.path)) == Set(paths) else { throw ResolveFailure.stale }
+                guard GitPathSet(fresh.map(\.path)) == GitPathSet(paths) else { throw ResolveFailure.stale }
                 if action == .resolveMine || action == .resolveTheirs {
                     guard try await repository.conflictIsRebase() == rebase else { throw ResolveFailure.stale }
                 }
-                guard !isInvalidated, request == generation, selected == selection else { return }
+                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration, selected == selection else { return }
                 busy = false; onConflictAction(action, paths)
-            } catch { if !isInvalidated, request == generation, selected == selection { self.error = error.localizedDescription } }
+            } catch { if !isInvalidated, request == generation, fileRequest == fileSelectionGeneration, selected == selection { self.error = error.localizedDescription } }
         }
     }
-    func primaryFileAction(_ ids: Set<String>) {
+    func primaryFileAction(_ ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         if canWorkingConflict(.editConflict, ids: ids) { requestWorkingConflict(.editConflict, ids: ids) }
         else { compareFiles(ids) }
     }
-    func blameFile(_ ids: Set<String>) {
+    func blameFile(_ ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         guard canBlameFile(ids), let onBlame, let file = visibleFiles.first(where: { ids.contains($0.id) }) else { return }
         if !selectedWorkingTree { if let revision { onBlame(file.path, revision.hash) }; return }
         let request = generation, selection = selected
+        let fileRequest = fileSelectionGeneration
         busy = true
         Task {
             defer { busy = false }
@@ -2380,14 +2457,15 @@ struct LogCommandRequest: Identifiable {
                 _ = try await repository.workingFileOpenLocation(path: file.path)
                 let content = try await repository.historicalFile(revision: "HEAD", path: file.path)
                 guard ["100644", "100755"].contains(content.mode ?? ""), case .revision(let hash) = content.revision else { throw GitBlameFailure.unsupported }
-                guard !isInvalidated, request == generation, selected == selection else { return }
+                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration, selected == selection else { return }
                 busy = false; onBlame(file.path, hash)
-            } catch { if !isInvalidated, request == generation, selected == selection { self.error = error.localizedDescription } }
+            } catch { if !isInvalidated, request == generation, fileRequest == fileSelectionGeneration, selected == selection { self.error = error.localizedDescription } }
         }
     }
-    func chooseHistoricalExport(_ ids: Set<String>) {
+    func chooseHistoricalExport(_ ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, window?.attachedSheet == nil else { return }
-        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         guard chosen.contains(where: { !$0.isSubmodule && !$0.action.hasPrefix("D") }) else { return }
         if selectedWorkingTree { presentWorkingExport(chosen.filter { !$0.isSubmodule && !$0.action.hasPrefix("D") }.map(\.path)) }
         else if let revision { presentHistoricalExport(revision.hash, chosen) }
@@ -2414,7 +2492,8 @@ struct LogCommandRequest: Identifiable {
             }
         } catch { self.error = error.localizedDescription }
     }
-    func saveHistoricalFile(_ ids: Set<String>) {
+    func saveHistoricalFile(_ ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         if selectedWorkingTree {
             guard !busy, !isInvalidated, !bare, ids.count == 1, window?.attachedSheet == nil,
                   let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
@@ -2422,6 +2501,7 @@ struct LogCommandRequest: Identifiable {
         }
         guard !busy, let revision, ids.count == 1, let window, window.attachedSheet == nil,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+        let request = generation, fileRequest = fileSelectionGeneration
         busy = true
         Task {
             do {
@@ -2429,37 +2509,43 @@ struct LogCommandRequest: Identifiable {
                 let content = try await repository.historicalFile(revision: revision.hash, path: file.path)
                 guard case .revision(let hash) = content.revision else { throw RevisionComparisonFailure.range }
                 let short = try await repository.run(["rev-parse", "--short", hash]).text.trimmingCharacters(in: .newlines)
+                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration else { busy = false; return }
                 busy = false; presentHistoricalSave(content, short)
-            } catch { self.error = error.localizedDescription; busy = false }
+            } catch { if !isInvalidated, request == generation, fileRequest == fileSelectionGeneration { self.error = error.localizedDescription }; busy = false }
         }
     }
-    func openHistoricalFile(_ ids: Set<String>, action: HistoricalOpenAction) {
+    func openHistoricalFile(_ ids: some Sequence<String>, action: HistoricalOpenAction) {
+        let ids = GitPathSet(ids)
         if selectedWorkingTree { openWorkingFile(ids, action: action); return }
         guard !busy, let revision, ids.count == 1, let window, window.attachedSheet == nil,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+        let request = generation, fileRequest = fileSelectionGeneration
         busy = true
         Task {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let content = try await repository.historicalFile(revision: revision.hash, path: file.path)
+                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration else { busy = false; return }
                 busy = false; presentHistoricalOpen(content, action)
-            } catch { self.error = error.localizedDescription; busy = false }
+            } catch { if !isInvalidated, request == generation, fileRequest == fileSelectionGeneration { self.error = error.localizedDescription }; busy = false }
         }
     }
     func validateWorkingFileAccess(_ file: URL) throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true || access?.contains(file) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
-    private func openWorkingFile(_ ids: Set<String>, action: HistoricalOpenAction) {
+    private func openWorkingFile(_ ids: some Sequence<String>, action: HistoricalOpenAction) {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, !bare, ids.count == 1, window?.attachedSheet == nil,
               let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
         let request = generation, selection = selected
+        let fileRequest = fileSelectionGeneration
         busy = true
         Task {
             defer { busy = false }
             do {
                 try validateWorkingFileAccess(repository.root.appendingPathComponent(file.path))
                 let location = try await repository.workingFileOpenLocation(path: file.path)
-                guard !isInvalidated, request == generation, selection == selected else { return }
+                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration, selection == selected else { return }
                 try validateWorkingFileAccess(location)
                 busy = false; presentWorkingOpen(location, action)
             } catch { if !isInvalidated, request == generation { self.error = error.localizedDescription } }
@@ -2484,53 +2570,61 @@ struct LogCommandRequest: Identifiable {
         lastImportedWorkingMark = access.mark.id
         comparisonMark = PreparedFileComparisonMark(path: access.file.path, revision: "", workingAccess: access)
     }
-    func markForComparison(_ ids: Set<String>) {
+    func markForComparison(_ ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, ids.count == 1, let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
         comparisonMark = PreparedFileComparisonMark(path: file.path, revision: selectedWorkingTree ? "" : revision!.hash)
     }
-    func compareWithMarkedFile(_ ids: Set<String>) {
+    func compareWithMarkedFile(_ ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, let comparisonMark, let onPreparedFileCompare, ids.count == 1,
               let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
         let current = PreparedFileComparisonMark(path: file.path, revision: selectedWorkingTree ? "" : revision!.hash)
         onPreparedFileCompare(comparisonMark, current)
     }
-    func revealFile(_ ids: Set<String>) {
+    func revealFile(_ ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         guard !busy, !bare, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), !file.action.hasPrefix("D") else { return }
+        let request = generation, fileRequest = fileSelectionGeneration
         busy = true
         Task {
             defer { busy = false }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let destination = try await repository.fileRevealDestination(path: file.path)
+                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration else { return }
                 switch destination {
                 case .select(let url): NSWorkspace.shared.activateFileViewerSelecting([url])
                 case .openDirectory(let url): if !NSWorkspace.shared.open(url) { self.error = "Could not open the file's containing folder in Finder." }
                 }
-            } catch { self.error = error.localizedDescription }
+            } catch { if !isInvalidated, request == generation, fileRequest == fileSelectionGeneration { self.error = error.localizedDescription } }
         }
     }
     @Published private(set) var historicalRevertTrash: [URL] = []
     @Published private(set) var workingDeleteTrash: [URL] = []
     @Published private(set) var workingDeleteResult: WorkingFileDeleteResult?
     var confirmWorkingDelete: (Int, Bool) async -> Bool = { _, _ in false }
-    func canDeleteWorkingFiles(_ ids: Set<String>, keyboard: Bool = false) -> Bool {
+    func canDeleteWorkingFiles(_ ids: some Sequence<String>, keyboard: Bool = false) -> Bool {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, !bare, selectedWorkingTree,
               let file = markedFile(ids),
-              let mark = workingIndexFiles.first(where: { $0.id == file.path }) else { return false }
+              let mark = workingIndexFiles.first(where: { GitReferenceName.equal($0.id, file.path) }) else { return false }
         return keyboard ? mark.entry.canDeleteWithKeyboard : mark.entry.canDeleteFromStatusList
     }
-    func deleteWorkingFiles(_ ids: Set<String>, permanently: Bool = false, keyboard: Bool = false) {
+    func deleteWorkingFiles(_ ids: some Sequence<String>, permanently: Bool = false, keyboard: Bool = false) {
+        let ids = GitPathSet(ids)
         guard canDeleteWorkingFiles(ids, keyboard: keyboard) else { return }
-        let chosen = visibleFiles.filter { ids.contains($0.id) }
-        let rows = chosen.compactMap { file in workingIndexFiles.first { $0.id == file.path }?.entry }
-        guard rows.count == chosen.count, let marked = markedFile(ids), let mark = rows.first(where: { $0.path == marked.path }) else { return }
+        let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
+        let rows = chosen.compactMap { file in workingIndexFiles.first { GitReferenceName.equal($0.id, file.path) }?.entry }
+        guard rows.count == chosen.count, let marked = markedFile(ids), let mark = rows.first(where: { GitReferenceName.equal($0.path, marked.path) }) else { return }
         let request = generation, selection = selected, fileSelection = selectedFiles
+        let fileRequest = fileSelectionGeneration
         workingDeleteTrash = []; workingDeleteResult = nil; busy = true
         Task {
             defer { busy = false }
-            guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated,
+            guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated,
                   await confirmWorkingDelete(rows.count, permanently),
-                  request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
+                  request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
             do {
                 for row in rows { try validateWorkingFileAccess(repository.root.appendingPathComponent(row.path)) }
                 let result = try await repository.deleteWorkingFiles(rows, selectionMark: mark, permanently: permanently)
@@ -2541,19 +2635,21 @@ struct LogCommandRequest: Identifiable {
                     workingDeleteTrash = failure.trashedFiles
                     if !failure.removedPaths.isEmpty { onRevisionChanged(failure.localizedDescription); requestRepositoryRefresh() }
                 }
-                if request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription }
+                if request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription }
             }
         }
     }
     var onIgnoreFiles: ((RepositoryAction, [String]) -> Void)?
-    func canIgnoreFiles(_ ids: Set<String>) -> Bool {
+    func canIgnoreFiles(_ ids: some Sequence<String>) -> Bool {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, !bare, onIgnoreFiles != nil,
               let mark = markedFile(ids) else { return false }
         return mark.action == "?" || mark.action.hasPrefix("D")
     }
-    func requestIgnoreFiles(_ ids: Set<String>, mask: Bool = false, folder: Bool = false) {
+    func requestIgnoreFiles(_ ids: some Sequence<String>, mask: Bool = false, folder: Bool = false) {
+        let ids = GitPathSet(ids)
         guard canIgnoreFiles(ids) else { return }
-        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         var paths = chosen.map(\.path)
         if folder {
             guard chosen.count == 1 else { return }
@@ -2564,6 +2660,7 @@ struct LogCommandRequest: Identifiable {
         do { _ = try IgnoreOptions(paths: paths, mask: mask) }
         catch { self.error = error.localizedDescription; return }
         let request = generation, selection = selected, fileSelection = selectedFiles
+        let fileRequest = fileSelectionGeneration
         let working = selectedWorkingTree, revision = self.revision
         let ignorePaths = paths
         busy = true
@@ -2579,33 +2676,36 @@ struct LogCommandRequest: Identifiable {
                     guard let revision else { throw RevisionComparisonFailure.selection }
                     available = try await repository.logFileGroups(in: revision).flatMap { group in group.files.map { $0.inParentGroup(group.id) } }
                 }
-                guard chosen.allSatisfy({ file in available.contains { $0.path == file.path && $0.oldPath == file.oldPath && $0.action == file.action && (working || $0.parentIndex == (file.parentIndex ?? 0)) } }) else { throw RevisionComparisonFailure.selection }
-                guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
+                guard chosen.allSatisfy({ file in available.contains { GitReferenceName.equal($0.path, file.path) && $0.oldPath.map { GitReferenceName($0) } == file.oldPath.map { GitReferenceName($0) } && $0.action == file.action && (working || $0.parentIndex == (file.parentIndex ?? 0)) } }) else { throw RevisionComparisonFailure.selection }
+                guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
                 busy = false; onIgnoreFiles?(mask ? .ignoreMask : .ignore, ignorePaths)
-            } catch { if request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription } }
+            } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription } }
         }
     }
     var handleHistoricalRevertFailure: (String) async -> Bool = { _ in false }
     var showHistoricalRevertResult: (String) -> Void = { _ in }
-    func canRevertHistoricalFiles(_ ids: Set<String>, parent: Bool) -> Bool {
+    func canRevertHistoricalFiles(_ ids: some Sequence<String>, parent: Bool) -> Bool {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, !bare, !selectedWorkingTree, let revision,
               let marked = markedFile(ids) else { return false }
         return parent ? revision.parents.indices.contains(marked.parentIndex ?? 0) : !marked.action.hasPrefix("D")
     }
-    func revertHistoricalFiles(_ ids: Set<String>, parent: Bool) {
+    func revertHistoricalFiles(_ ids: some Sequence<String>, parent: Bool) {
+        let ids = GitPathSet(ids)
         guard canRevertHistoricalFiles(ids, parent: parent), let revision else { return }
-        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         let request = generation, selection = selected, fileSelection = selectedFiles
+        let fileRequest = fileSelectionGeneration
         historicalRevertTrash = []; busy = true
         Task {
             var restored: [String: Int] = [:], failures = 0
             let recycle = UserDefaults.standard.object(forKey: "RevertWithRecycleBin") == nil || UserDefaults.standard.bool(forKey: "RevertWithRecycleBin")
             for file in chosen {
-                guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { break }
+                guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated else { break }
                 do {
                     try validateWorkingFileAccess(repository.root.appendingPathComponent(file.oldPath ?? file.path))
                     let targets = try await repository.prepareLogFileRevert(revision, files: [file], parent: parent)
-                    guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { break }
+                    guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated else { break }
                     for target in targets {
                         historicalRevertTrash += try await repository.revertLogFile(target, recycle: recycle)
                         restored[target.revision, default: 0] += 1
@@ -2613,7 +2713,7 @@ struct LogCommandRequest: Identifiable {
                 } catch {
                     if let failure = error as? WorkingFileRevertFailure { historicalRevertTrash += failure.trashedFiles }
                     failures += 1
-                    guard request == generation, selection == selected, !isInvalidated else { break }
+                    guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated else { break }
                     if !(await handleHistoricalRevertFailure(file.path + "\n\n" + error.localizedDescription)) { break }
                 }
             }
@@ -2621,44 +2721,49 @@ struct LogCommandRequest: Identifiable {
                 onRevisionChanged("Historical files reverted"); requestRepositoryRefresh()
             }
             busy = false
-            guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
+            guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
             let message = restored.keys.sorted().map { "\(restored[$0]!) file(s) reverted to \($0)." }.joined(separator: "\n")
             showHistoricalRevertResult(message + (failures == 0 ? "" : "\n\(failures) file(s) failed."))
         }
     }
     var confirmWorkingFlags: (IndexFlagAction) async -> Bool = { _ in false }
-    func workingFlagMark(_ ids: Set<String>) -> WorkingTreeFile? {
+    func workingFlagMark(_ ids: some Sequence<String>) -> WorkingTreeFile? {
+        let ids = GitPathSet(ids)
         guard selectedWorkingTree, let file = markedFile(ids) else { return nil }
-        return workingIndexFiles.first { $0.id == file.path }
+        return workingIndexFiles.first { GitReferenceName.equal($0.id, file.path) }
     }
-    func canWorkingFlag(_ action: IndexFlagAction, ids: Set<String>) -> Bool {
+    func canWorkingFlag(_ action: IndexFlagAction, ids: some Sequence<String>) -> Bool {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, !bare, let mark = workingFlagMark(ids) else { return false }
         return action.isAvailable(for: [mark])
     }
-    func setWorkingFlag(_ action: IndexFlagAction, ids: Set<String>) {
+    func setWorkingFlag(_ action: IndexFlagAction, ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         guard canWorkingFlag(action, ids: ids), let mark = workingFlagMark(ids) else { return }
-        let paths = visibleFiles.filter { ids.contains($0.id) }.map(\.path)
+        let paths = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }.map(\.path)
         let request = generation, selection = selected
+        let fileRequest = fileSelectionGeneration
         busy = true
         Task {
             defer { busy = false }
-            guard await confirmWorkingFlags(action), request == generation, selection == selected, !isInvalidated else { return }
+            guard await confirmWorkingFlags(action), request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated else { return }
             do {
                 for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
                 try await repository.setIndexFlags(action, paths: paths, markedPath: mark.id)
                 onRevisionChanged(action.rawValue); requestRepositoryRefresh()
             } catch {
                 if let partial = error as? IndexFlagPartialFailure, !partial.updatedPaths.isEmpty { onRevisionChanged(partial.localizedDescription); requestRepositoryRefresh() }
-                if request == generation, !isInvalidated { self.error = error.localizedDescription }
+                if request == generation, fileRequest == fileSelectionGeneration, !isInvalidated { self.error = error.localizedDescription }
             }
         }
     }
     func fileStatus(_ file: CommitFile) -> String {
-        if selectedWorkingTree, let flags = workingIndexFiles.first(where: { $0.id == file.path }), flags.assumeUnchanged || flags.skipWorktree { return flags.status }
+        if selectedWorkingTree, let flags = workingIndexFiles.first(where: { GitReferenceName.equal($0.id, file.path) }), flags.assumeUnchanged || flags.skipWorktree { return flags.status }
         return file.status
     }
     var onWorkingAdd: (([String], WorkingFileAddMode) -> Void)?
-    func canWorkingAdd(_ ids: Set<String>, mode: WorkingFileAddMode = .normal) -> Bool {
+    func canWorkingAdd(_ ids: some Sequence<String>, mode: WorkingFileAddMode = .normal) -> Bool {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, !bare, selectedWorkingTree,
               onWorkingAdd != nil || mode == .normal && onWorkingFiles != nil,
               let mark = markedFile(ids), mark.action == "?" || workingFlagMark(ids)?.entry.hasUnversionedCopy == true else { return false }
@@ -2666,10 +2771,12 @@ struct LogCommandRequest: Identifiable {
         guard !mark.isSubmodule, let type = try? FileManager.default.attributesOfItem(atPath: repository.root.appendingPathComponent(mark.path).path)[.type] as? FileAttributeType else { return false }
         return type != .typeDirectory
     }
-    func requestWorkingAdd(_ ids: Set<String>, mode: WorkingFileAddMode = .normal) {
+    func requestWorkingAdd(_ ids: some Sequence<String>, mode: WorkingFileAddMode = .normal) {
+        let ids = GitPathSet(ids)
         guard canWorkingAdd(ids, mode: mode), let mark = markedFile(ids) else { return }
-        let paths = visibleFiles.filter { ids.contains($0.id) }.map(\.path)
+        let paths = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }.map(\.path)
         let request = generation, selection = selected, fileSelection = selectedFiles
+        let fileRequest = fileSelectionGeneration
         busy = true
         Task {
             defer { busy = false }
@@ -2677,29 +2784,32 @@ struct LogCommandRequest: Identifiable {
                 for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
                 guard let fresh = try await repository.workingTreeHistory() else { throw RevisionComparisonFailure.selection }
                 let available = fresh.files + fresh.unversioned
-                guard Set(paths).isSubset(of: Set(available.map(\.path))), fresh.unversioned.contains(where: { $0.path == mark.path }) else { throw RevisionComparisonFailure.selection }
+                guard GitPathSet(paths).isSubset(of: GitPathSet(available.map(\.path))), fresh.unversioned.contains(where: { GitReferenceName.equal($0.path, mark.path) }) else { throw RevisionComparisonFailure.selection }
                 if mode != .normal, try await !repository.addSelectionIsFiles([mark.path]) { throw RevisionComparisonFailure.selection }
-                guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
+                guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
                 busy = false
                 if let onWorkingAdd { onWorkingAdd(paths, mode) }
                 else if mode == .normal { onWorkingFiles?(.add, paths) }
-            } catch { if request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription } }
+            } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription } }
         }
     }
-    func canWorkingFiles(_ action: RepositoryAction, ids: Set<String>) -> Bool {
+    func canWorkingFiles(_ action: RepositoryAction, ids: some Sequence<String>) -> Bool {
+        let ids = GitPathSet(ids)
         if action == .add { return canWorkingAdd(ids) }
         guard !busy, !isInvalidated, !bare, selectedWorkingTree, onWorkingFiles != nil else { return false }
-        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         guard !chosen.isEmpty else { return false }
         if action == .revert { return chosen.contains { $0.action != "?" } }
         if action == .commit, let mark = workingFlagMark(ids), mark.assumeUnchanged || mark.skipWorktree { return false }
         return action == .commit
     }
-    func requestWorkingFiles(_ action: RepositoryAction, ids: Set<String>) {
+    func requestWorkingFiles(_ action: RepositoryAction, ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         if action == .add { requestWorkingAdd(ids); return }
         guard canWorkingFiles(action, ids: ids), let onWorkingFiles else { return }
-        let paths = visibleFiles.filter { ids.contains($0.id) && (action != .revert || $0.action != "?") }.map(\.path)
+        let paths = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) && (action != .revert || $0.action != "?") }.map(\.path)
         let request = generation, selection = selected
+        let fileRequest = fileSelectionGeneration
         busy = true
         Task {
             defer { busy = false }
@@ -2707,18 +2817,20 @@ struct LogCommandRequest: Identifiable {
                 for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
                 guard let fresh = try await repository.workingTreeHistory() else { throw RevisionComparisonFailure.selection }
                 let available = fresh.files + fresh.unversioned
-                guard Set(paths).isSubset(of: Set(available.map(\.path))) else { throw RevisionComparisonFailure.selection }
-                guard request == generation, selection == selected, !isInvalidated else { return }
+                guard GitPathSet(paths).isSubset(of: GitPathSet(available.map(\.path))) else { throw RevisionComparisonFailure.selection }
+                guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated else { return }
                 busy = false; onWorkingFiles(action, paths)
-            } catch { if request == generation, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
+            } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
         }
     }
-    func selectedFileDiff(_ ids: Set<String>, alternate: Bool = false) {
+    func selectedFileDiff(_ ids: some Sequence<String>, alternate: Bool = false) {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, !unifiedViewerBusy, selectedWorkingTree || revision != nil else { return }
         let working = selectedWorkingTree, revision = self.revision
-        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         guard !chosen.isEmpty, !working || workingTreeSnapshot?.entry.parents.first != nil && chosen.allSatisfy({ $0.action != "?" }) else { return }
         let request = generation, selection = selected
+        let fileRequest = fileSelectionGeneration
         let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults)
         unifiedSessions[id] = session; busy = true
         Task {
@@ -2730,42 +2842,47 @@ struct LogCommandRequest: Identifiable {
                     if working { bytes = try await repository.workingTreeFileDiffData(files: chosen, cancellation: token) }
                     else if let revision { bytes = try await repository.revisionFileDiffData(revision, files: chosen, cancellation: token) }
                     else { return }
-                    guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                    guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                     else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: working ? "Selected working-tree changes" : "Selected revision changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
-                        guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                        guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated, !token.isCancelled else { return }
                         unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: working ? "Selected working-tree changes" : "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
-            } catch { if request == generation, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
+            } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func canCompareFilePair(_ ids: Set<String>) -> Bool {
-        let chosen = visibleFiles.filter { ids.contains($0.id) }
-        return chosen.count == 2 && chosen[0].path != chosen[1].path && chosen.allSatisfy { !$0.isSubmodule }
+    func canCompareFilePair(_ ids: some Sequence<String>) -> Bool {
+        let ids = GitPathSet(ids)
+        let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
+        return chosen.count == 2 && !GitReferenceName.equal(chosen[0].path, chosen[1].path) && chosen.allSatisfy { !$0.isSubmodule }
     }
-    func compareFilePair(_ ids: Set<String>) {
+    func compareFilePair(_ ids: some Sequence<String>) {
+        let ids = GitPathSet(ids)
         if selectedWorkingTree {
             guard !busy, !isInvalidated, !bare, canCompareFilePair(ids), let onWorkingFilePairCompare else { return }
-            onWorkingFilePairCompare(visibleFiles.filter { ids.contains($0.id) }.map(\.path)); return
+            onWorkingFilePairCompare(fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }.map(\.path)); return
         }
         guard !busy, let revision, let onFilePairCompare else { return }
-        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         guard chosen.count == 2, chosen.allSatisfy({ !$0.isSubmodule }) else { return }
         onFilePairCompare(revision.hash, chosen)
     }
-    func fileParentComparisonTitle(_ ids: Set<String>) -> String? {
+    func fileParentComparisonTitle(_ ids: some Sequence<String>) -> String? {
+        let ids = GitPathSet(ids)
         guard !selectedWorkingTree, let revision else { return nil }
         let index = markedFile(ids)?.parentIndex ?? 0
         guard let parent = parentChoices(for: revision).first(where: { $0.number == index + 1 }) else { return nil }
         return "Compare parent with working tree: " + parent.title
     }
-    func canCompareFilesWithParent(_ ids: Set<String>) -> Bool {
-        !busy && !isInvalidated && !bare && !selectedWorkingTree && revision?.parents.first != nil && (onFileCompare != nil || onFileComparisons != nil) && visibleFiles.contains { ids.contains($0.id) }
+    func canCompareFilesWithParent(_ ids: some Sequence<String>) -> Bool {
+        let ids = GitPathSet(ids)
+        return !busy && !isInvalidated && !bare && !selectedWorkingTree && revision?.parents.first != nil && (onFileCompare != nil || onFileComparisons != nil) && visibleFiles.contains { ids.contains($0.id) }
     }
-    func compareFiles(_ ids: Set<String>, workingTree: Bool = false, parentWorkingTree: Bool = false) {
+    func compareFiles(_ ids: some Sequence<String>, workingTree: Bool = false, parentWorkingTree: Bool = false) {
+        let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, onFileCompare != nil || onFileComparisons != nil else { return }
-        let chosen = visibleFiles.filter { ids.contains($0.id) }; guard !chosen.isEmpty else { return }
+        let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }; guard !chosen.isEmpty else { return }
         var requests: [(ComparisonRevision, ComparisonRevision, [String])] = []
         if selectedWorkingTree {
             guard !workingTree, !parentWorkingTree, let snapshot = workingTreeSnapshot else { return }
@@ -2848,8 +2965,20 @@ struct LogCommandRequest: Identifiable {
     }
 }
 
+@MainActor final class LogFileMenuSnapshot {
+    fileprivate weak var owner: LogWindowModel?
+    fileprivate let menuGeneration: UUID, selectionGeneration: UUID
+    let ids: GitPathSet
+    fileprivate let visible: [CommitFile]
+    fileprivate var consumed = false
+    fileprivate init(owner: LogWindowModel, menuGeneration: UUID, selectionGeneration: UUID, ids: GitPathSet, visible: [CommitFile]) {
+        self.owner = owner; self.menuGeneration = menuGeneration; self.selectionGeneration = selectionGeneration; self.ids = ids; self.visible = visible
+    }
+}
+
 struct LogFileTableRow: Identifiable {
-    let id: String
+    let rawID: String
+    var id: String { GitPathRowIdentity.encode(rawID) }
     let file: CommitFile?
     let header: String?
     var status=""
@@ -2871,9 +3000,9 @@ struct LogChangedFileSort:SortComparator {
 
 extension LogWindowModel {
     private func sortedChangedFiles(_ files:[CommitFile])->[LogFileTableRow] {
-        files.map {LogFileTableRow(id:$0.id,file:$0,header:nil,status:fileStatus($0))}.sorted {a,b in
+        files.map {LogFileTableRow(rawID:$0.id,file:$0,header:nil,status:fileStatus($0))}.sorted {a,b in
             for comparator in changedFileSort {let result=comparator.compare(a,b);if result != .orderedSame {return result == .orderedAscending}}
-            return a.id.utf8.lexicographicallyPrecedes(b.id.utf8)
+            return a.rawID.utf8.lexicographicallyPrecedes(b.rawID.utf8)
         }
     }
     var fileTableRows: [LogFileTableRow] {
@@ -2885,17 +3014,11 @@ extension LogWindowModel {
             let visible = visibleFiles.filter { $0.parentIndex == group.id }
             if (!filterPaths.isEmpty || unrelatedPathMode == .hide) && visible.isEmpty { return [] }
             let title = "Diff with parent \(group.id + 1): " + (group.parent.map { String($0.prefix(8)) } ?? "Empty tree")
-            return [LogFileTableRow(id: "\0header\(group.id)", file: nil, header: title)] + sortedChangedFiles(visible)
+            return [LogFileTableRow(rawID: "\0header\(group.id)", file: nil, header: title)] + sortedChangedFiles(visible)
         }
     }
     var fileTableSelection: Binding<Set<String>> {
-        Binding(get: { self.selectedFiles }, set: { ids in
-            let valid = ids.intersection(Set(self.visibleFiles.map(\.id)))
-            let added = valid.subtracting(self.selectedFiles)
-            if added.count == 1 { self.fileSelectionMark = added.first }
-            else if self.fileSelectionMark.map({ !valid.contains($0) }) ?? true { self.fileSelectionMark = self.visibleFiles.first { valid.contains($0.id) }?.id }
-            self.selectedFiles = valid
-        })
+        Binding(get: { self.nativeFileSelection }, set: { self.nativeFileSelection = $0 })
     }
 }
 
@@ -2963,7 +3086,7 @@ struct LogDialog: View {
                     .onChange(of: shortDate) { _ in model.objectWillChange.send() }
                     .onChange(of: relativeTimes) { _ in model.objectWillChange.send() }
                     .onChange(of: useSystemLocale) { _ in model.objectWillChange.send() }
-                Table(model.fileTableRows,selection:model.fileTableSelection,sortOrder:Binding(get:{model.changedFileSort},set:model.setChangedFileSort)) {
+                Table(model.fileTableRows,selection:$model.nativeFileSelection,sortOrder:Binding(get:{model.changedFileSort},set:model.setChangedFileSort)) {
                     TableColumn("Path",sortUsing:LogChangedFileSort(column:.path)) { row in
                         if let header = row.header {
                             Text(header).fontWeight(.semibold).foregroundStyle(Color.accentColor).accessibilityAddTraits(.isHeader)
@@ -2971,17 +3094,17 @@ struct LogDialog: View {
                             HStack(spacing:4) { if let icon=model.changedFileIcon(file) {Image(nsImage:icon)};Text(model.changedFileText(file,column:.path)) }.foregroundStyle(model.fileForeground(file, selected: model.selectedFiles.contains(file.id))).repositoryFileHelp(repository: model.repository.root, path: file.path, detail: file.oldPath.map { "Renamed from " + $0 } ?? "", preferences: model.colorPreferences)
                         }
                     }.width(min: 260, ideal: 460)
-                    TableColumn("Extension",sortUsing:LogChangedFileSort(column:.fileExtension)) { row in Text(row.file.map { StatusListClipboard.fileExtension($0.path, isDirectory: $0.isSubmodule) } ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.id)) } ?? .primary) }.width(80)
-                    TableColumn("Status",sortUsing:LogChangedFileSort(column:.status)) { row in Text(row.file.map(model.fileStatus) ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.id)) } ?? .primary) }.width(95)
-                    TableColumn("Lines added",sortUsing:LogChangedFileSort(column:.added)) { row in Text(row.file?.addedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.id)) } ?? .primary) }.width(90)
-                    TableColumn("Lines removed",sortUsing:LogChangedFileSort(column:.removed)) { row in Text(row.file?.removedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.id)) } ?? .primary) }.width(105)
+                    TableColumn("Extension",sortUsing:LogChangedFileSort(column:.fileExtension)) { row in Text(row.file.map { StatusListClipboard.fileExtension($0.path, isDirectory: $0.isSubmodule) } ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(80)
+                    TableColumn("Status",sortUsing:LogChangedFileSort(column:.status)) { row in Text(row.file.map(model.fileStatus) ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(95)
+                    TableColumn("Lines added",sortUsing:LogChangedFileSort(column:.added)) { row in Text(row.file?.addedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(90)
+                    TableColumn("Lines removed",sortUsing:LogChangedFileSort(column:.removed)) { row in Text(row.file?.removedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(105)
                 }.fileListFont().frame(minHeight: 130, idealHeight: 180)
                 .background(CommitFileInteraction(rows:model.fileTableRows.map {row in
                     if let title=row.header {return .group(.changelist(title))}
                     return row.statusEntry.map(StatusListRow.file) ?? .group(.changelist(""))
                 },leadingColumnCount:0,keyboardDeleteEnabled:model.selectedWorkingTree,nativeColumns:StatusListColumn.defaultColumns,
                     rowTexts:model.fileTableRows.map {row in Dictionary(uniqueKeysWithValues:StatusListColumn.defaultColumns.map {column in (column,row.file.map {file in model.changedFileText(file,column:column)} ?? "")})},
-                    itemIDs:model.fileTableRows.map(\.id),copyIDs:{model.copyChangedFileIDs($0,status:$1)},copyColumnIDs:{model.copyChangedFileIDs($0,column:$1)},
+                    itemIDs:model.fileTableRows.map(\.rawID),copyIDs:{model.copyChangedFileIDs($0,status:$1)},copyColumnIDs:{model.copyChangedFileIDs($0,column:$1)},
                     preferences:model.colorPreferences,visibleColumns:model.changedFileColumns.visible,availableColumns:Set(StatusListColumn.defaultColumns),columnText:{_,_ in ""},
                     savedOrder:model.changedFileColumns.order,savedWidths:model.changedFileColumns.widths,saveLayout:{model.saveChangedFileLayout(order:$0,widths:$1)},
                     setColumnVisible:model.setChangedFileColumn,resetColumns:{model.resetChangedFileColumns(choose:$0,accepted:$1)},focusedPath:$model.focusedChangedFile,
@@ -2991,10 +3114,10 @@ struct LogDialog: View {
                 .onDeleteCommand { model.deleteWorkingFiles(model.selectedFiles, permanently: NSEvent.modifierFlags.contains(.shift), keyboard: true) }
                 .contextMenu(forSelectionType: String.self) { ids in
                     TurtleGitContextMenu {
-                        fileContextActions(ids)
+                        fileContextActions(GitPathRowIdentity.paths(ids))
                     }
                 } primaryAction: { ids in
-                    model.selectedFiles = ids; model.primaryFileAction(ids)
+                    let paths = GitPathRowIdentity.paths(ids); model.selectedFiles = paths; model.primaryFileAction(paths)
                 }
             }
             Text(model.information.text).font(.system(size: 11)).lineLimit(2)
@@ -3061,103 +3184,104 @@ struct LogDialog: View {
         .sheet(item: $model.commandRequest) { request in LogRevisionDialog(model: model, request: request) }
 
     }
-    @ViewBuilder private func fileContextActions(_ ids: Set<String>) -> some View {
+    @ViewBuilder private func fileContextActions(_ ids: GitPathSet) -> some View {
+        let snapshot = model.fileMenuSnapshot(ids)
         if model.selectedWorkingTree {
             if model.markedFile(ids)?.action == "?" || model.workingFlagMark(ids)?.entry.hasUnversionedCopy == true {
-                Button { model.requestWorkingFiles(.add, ids: ids) } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canWorkingFiles(.add, ids: ids))
+                Button { model.withFileMenu(snapshot) { model.requestWorkingFiles(.add, ids: ids) } } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canWorkingFiles(.add, ids: ids))
                 if NSEvent.modifierFlags.contains(.shift) {
                     ForEach([WorkingFileAddMode.executable, .symlink], id: \.self) { mode in
                         if model.canWorkingAdd(ids, mode: mode) {
-                            Button { model.requestWorkingAdd(ids, mode: mode) } label: { CommandLabel(title: mode.rawValue, icon: .add) }
+                            Button { model.withFileMenu(snapshot) { model.requestWorkingAdd(ids, mode: mode) } } label: { CommandLabel(title: mode.rawValue, icon: .add) }
                         }
                     }
                 }
             }
-            Button { model.requestWorkingFiles(.commit, ids: ids) } label: { CommandLabel(title: "Commit…", icon: .commit) }.disabled(!model.canWorkingFiles(.commit, ids: ids))
+            Button { model.withFileMenu(snapshot) { model.requestWorkingFiles(.commit, ids: ids) } } label: { CommandLabel(title: "Commit…", icon: .commit) }.disabled(!model.canWorkingFiles(.commit, ids: ids))
             if model.visibleFiles.contains(where: { ids.contains($0.id) && $0.action != "?" }) {
-                Button { model.requestWorkingFiles(.revert, ids: ids) } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!model.canWorkingFiles(.revert, ids: ids))
+                Button { model.withFileMenu(snapshot) { model.requestWorkingFiles(.revert, ids: ids) } } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!model.canWorkingFiles(.revert, ids: ids))
             }
             if let mark = model.workingFlagMark(ids) {
-                IndexFlagsMenu(files: model.workingIndexFiles.filter { ids.contains($0.id) }, selectionMark: mark) { model.setWorkingFlag($0, ids: ids) }.disabled(model.busy || model.isInvalidated || model.bare)
+                IndexFlagsMenu(files: model.workingIndexFiles.filter { ids.contains($0.id) }, selectionMark: mark) { action in model.withFileMenu(snapshot) { model.setWorkingFlag(action, ids: ids) } }.disabled(model.busy || model.isInvalidated || model.bare)
             }
             Divider()
         }
         let conflicts = model.workingConflictPaths(ids)
         if !conflicts.isEmpty {
-            ResolveSelectionMenu(paths: conflicts, rebase: model.conflictRebase, canEdit: ids.count == 1) { action, _ in model.requestWorkingConflict(action, ids: ids) }
+            ResolveSelectionMenu(paths: conflicts, rebase: model.conflictRebase, canEdit: ids.count == 1) { action, _ in model.withFileMenu(snapshot) { model.requestWorkingConflict(action, ids: ids) } }
                 .disabled(model.busy || model.isInvalidated || model.onConflictAction == nil)
             Divider()
         }
-        Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
-        Button { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy || (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first == nil || model.visibleFiles.contains { ids.contains($0.id) && $0.action == "?" } : model.revision == nil))
-        Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || model.busy)
+        Button { model.withFileMenu(snapshot) { model.compareFiles(ids) } } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
+        Button { model.withFileMenu(snapshot) { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy || (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first == nil || model.visibleFiles.contains { ids.contains($0.id) && $0.action == "?" } : model.revision == nil))
+        Button { model.withFileMenu(snapshot) { model.compareFiles(ids, workingTree: true) } } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || model.busy)
         if !model.bare, let title = model.fileParentComparisonTitle(ids) {
-            Button { model.compareFiles(ids, parentWorkingTree: true) } label: { CommandLabel(title: title, icon: .compare) }.disabled(!model.canCompareFilesWithParent(ids))
+            Button { model.withFileMenu(snapshot) { model.compareFiles(ids, parentWorkingTree: true) } } label: { CommandLabel(title: title, icon: .compare) }.disabled(!model.canCompareFilesWithParent(ids))
         }
         if model.canCompareFilePair(ids) {
-            Button { model.compareFilePair(ids) } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || (model.selectedWorkingTree ? model.onWorkingFilePairCompare == nil || model.bare : model.revision == nil || model.onFilePairCompare == nil))
+            Button { model.withFileMenu(snapshot) { model.compareFilePair(ids) } } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || (model.selectedWorkingTree ? model.onWorkingFilePairCompare == nil || model.bare : model.revision == nil || model.onFilePairCompare == nil))
         }
         if !model.selectedWorkingTree && !model.bare {
             if model.canRevertHistoricalFiles(ids, parent: false) || model.busy {
-                Button { model.revertHistoricalFiles(ids, parent: false) } label: { CommandLabel(title: "Revert to this revision", icon: .revert) }.disabled(!model.canRevertHistoricalFiles(ids, parent: false))
+                Button { model.withFileMenu(snapshot) { model.revertHistoricalFiles(ids, parent: false) } } label: { CommandLabel(title: "Revert to this revision", icon: .revert) }.disabled(!model.canRevertHistoricalFiles(ids, parent: false))
             }
             if let parentTitle = model.fileParentComparisonTitle(ids) {
-                Button { model.revertHistoricalFiles(ids, parent: true) } label: { CommandLabel(title: parentTitle.replacingOccurrences(of: "Compare parent with working tree", with: "Revert to parent revision"), icon: .revert) }.disabled(!model.canRevertHistoricalFiles(ids, parent: true))
+                Button { model.withFileMenu(snapshot) { model.revertHistoricalFiles(ids, parent: true) } } label: { CommandLabel(title: parentTitle.replacingOccurrences(of: "Compare parent with working tree", with: "Revert to parent revision"), icon: .revert) }.disabled(!model.canRevertHistoricalFiles(ids, parent: true))
             }
         }
         Divider()
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }) {
-            Button { model.fileLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.onFileLog == nil || model.selectedWorkingTree && file.action == "?")
+            Button { model.withFileMenu(snapshot) { model.fileLog(ids) } } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.onFileLog == nil || model.selectedWorkingTree && file.action == "?")
             if file.isSubmodule && !model.bare {
-                Button { model.showSubmoduleFileLog(ids) } label: { CommandLabel(title: "Show submodule log", icon: .log) }.disabled(!model.canShowSubmoduleFileLog(ids))
+                Button { model.withFileMenu(snapshot) { model.showSubmoduleFileLog(ids) } } label: { CommandLabel(title: "Show submodule log", icon: .log) }.disabled(!model.canShowSubmoduleFileLog(ids))
             }
             if file.oldPath != nil {
-                Button { model.fileLog(ids, oldName: true) } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
+                Button { model.withFileMenu(snapshot) { model.fileLog(ids, oldName: true) } } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
             }
             if !file.isSubmodule && !file.action.hasPrefix("D") {
-                Button { model.blameFile(ids) } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(!model.canBlameFile(ids))
+                Button { model.withFileMenu(snapshot) { model.blameFile(ids) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(!model.canBlameFile(ids))
             }
             Divider()
         }
-        Button { model.chooseHistoricalExport(ids) } label: { CommandLabel(title: "Export…", icon: .export) }
+        Button { model.withFileMenu(snapshot) { model.chooseHistoricalExport(ids) } } label: { CommandLabel(title: "Export…", icon: .export) }
             .disabled(model.busy || !model.selectedWorkingTree && model.revision == nil || !model.visibleFiles.contains(where: { ids.contains($0.id) && !$0.isSubmodule && !$0.action.hasPrefix("D") }))
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.isSubmodule && !file.action.hasPrefix("D") {
-            historicalFileActions(ids)
+            historicalFileActions(ids, snapshot: snapshot)
         }
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.action.hasPrefix("D"), !model.bare {
-            Button { model.revealFile(ids) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }.disabled(model.busy)
+            Button { model.withFileMenu(snapshot) { model.revealFile(ids) } } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }.disabled(model.busy)
         }
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") {
-            preparedComparisonActions(ids, file: file)
+            preparedComparisonActions(ids, file: file, snapshot: snapshot)
         }
         if model.canDeleteWorkingFiles(ids) {
-            Button { model.deleteWorkingFiles(ids, permanently: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Delete", icon: .remove) }
+            Button { model.withFileMenu(snapshot) { model.deleteWorkingFiles(ids, permanently: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Delete", icon: .remove) }
         }
         if model.canIgnoreFiles(ids) {
             let paths = model.visibleFiles.filter { ids.contains($0.id) }.map(\.path)
             IgnoreSelectionMenu(paths: paths) { action, selected in
-                model.requestIgnoreFiles(ids, mask: action.ignoresByExtension, folder: selected != paths)
+                model.withFileMenu(snapshot) { model.requestIgnoreFiles(ids, mask: action.ignoresByExtension, folder: GitPathSet(selected) != GitPathSet(paths)) }
             }
         }
         Menu {
             ForEach(LogWindowModel.CopyFileInformation.allCases, id: \.self) { information in
-                Button { model.copyFiles(ids, information: information) } label: { CommandLabel(title: information.rawValue, icon: .copy) }
+                Button { model.withFileMenu(snapshot) { model.copyFiles(ids, information: information) } } label: { CommandLabel(title: information.rawValue, icon: .copy) }
             }
         } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(!model.canCopyFiles(ids))
     }
-    @ViewBuilder private func preparedComparisonActions(_ ids: Set<String>, file: CommitFile) -> some View {
+    @ViewBuilder private func preparedComparisonActions(_ ids: GitPathSet, file: CommitFile, snapshot: LogFileMenuSnapshot) -> some View {
         Divider()
-        Button { model.markForComparison(ids) } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil)
+        Button { model.withFileMenu(snapshot) { model.markForComparison(ids) } } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil)
         if let mark = model.comparisonMark {
-            Button { model.compareWithMarkedFile(ids) } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare, localized: false) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil || model.onPreparedFileCompare == nil)
+            Button { model.withFileMenu(snapshot) { model.compareWithMarkedFile(ids) } } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare, localized: false) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil || model.onPreparedFileCompare == nil)
         }
     }
-    @ViewBuilder private func historicalFileActions(_ ids: Set<String>) -> some View {
+    @ViewBuilder private func historicalFileActions(_ ids: GitPathSet, snapshot: LogFileMenuSnapshot) -> some View {
         let unavailable = model.busy || !model.selectedWorkingTree && model.revision == nil
-        Button { model.saveHistoricalFile(ids) } label: { CommandLabel(title: model.selectedWorkingTree ? "Save As…" : "Save revision to…", icon: .saveAs) }.disabled(unavailable)
-        Button { model.openHistoricalFile(ids, action: .alternativeEditor) } label: { CommandLabel(title: model.selectedWorkingTree ? "View in alternative editor" : "View revision in alternative editor", icon: .editor) }.disabled(unavailable)
-        Button { model.openHistoricalFile(ids, action: .open) } label: { CommandLabel(title: "Open", icon: .open) }.disabled(unavailable)
-        Button { model.openHistoricalFile(ids, action: .openWith) } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(unavailable)
+        Button { model.withFileMenu(snapshot) { model.saveHistoricalFile(ids) } } label: { CommandLabel(title: model.selectedWorkingTree ? "Save As…" : "Save revision to…", icon: .saveAs) }.disabled(unavailable)
+        Button { model.withFileMenu(snapshot) { model.openHistoricalFile(ids, action: .alternativeEditor) } } label: { CommandLabel(title: model.selectedWorkingTree ? "View in alternative editor" : "View revision in alternative editor", icon: .editor) }.disabled(unavailable)
+        Button { model.withFileMenu(snapshot) { model.openHistoricalFile(ids, action: .open) } } label: { CommandLabel(title: "Open", icon: .open) }.disabled(unavailable)
+        Button { model.withFileMenu(snapshot) { model.openHistoricalFile(ids, action: .openWith) } } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(unavailable)
     }
 
 }

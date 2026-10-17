@@ -85,6 +85,26 @@ final class WorkingFileExportTests: XCTestCase {
         do { _ = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file(path)], to: root); XCTFail("Source overwrite") } catch WorkingFileExportFailure.source {}
         do { _ = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file(".git/index")], to: folder); XCTFail("Metadata export") } catch {}
     }
+    func testHistoricalExportRejectsCanonicalDestinationCollisionAndUnselectedPeer() async throws {
+        let (root,repo,_) = try await GitPatchTests().fixture()
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root); try? FileManager.default.removeItem(at:folder) }
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        let a = "café.txt", b = "cafe\u{301}.txt"
+        let blob = try await repo.run(["hash-object","-w","--stdin"],input:Data("original\n".utf8)).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["update-index","-z","--index-info"],input:Data([a,b].map { "100644 \(blob)\t\($0)\0" }.joined().utf8))
+        _ = try await repo.commit(message:"export pair")
+        let files = [a,b].map { CommitFile(path:$0,oldPath:nil,action:"M",added:1,removed:0,hasStatistics:true,isSubmodule:false) }
+        do { _ = try await repo.prepareHistoricalExport(revision:"HEAD",files:files,to:folder); XCTFail("Canonical export silently dropped/overwrote a Git path") }
+        catch WorkingFileExportFailure.collision {}
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath:folder.path).isEmpty)
+        let export = try await repo.prepareHistoricalExport(revision:"HEAD",files:[files[0],files[0].inParentGroup(1)],to:folder)
+        XCTAssertEqual(export.paths.count,1)
+        do { try await repo.exportHistoricalFile(export,path:b); XCTFail("Unselected canonical peer exported") }
+        catch { XCTAssertTrue(error is RevisionComparisonFailure) }
+        try await repo.exportHistoricalFile(export,path:a)
+        XCTAssertEqual(try Data(contentsOf:folder.appendingPathComponent(a)),Data("original\n".utf8))
+    }
     func testHistoricalFailureCanContinueAndDestinationAliasCannotEscape() async throws {
         let manager = FileManager.default
         let (root, repo, path) = try await GitPatchTests().fixture()

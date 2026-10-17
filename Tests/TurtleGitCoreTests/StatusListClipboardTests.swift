@@ -53,11 +53,21 @@ final class StatusListClipboardTests: XCTestCase {
         XCTAssertEqual(StatusListClipboard.text(entries, root: root, statistics: stats, copy: .all, visibleColumns: []), "")
         XCTAssertEqual(StatusListClipboard.text([], root: root, statistics: stats, copy: .all), "")
     }
+    func testLogStatusClipboardKeepsExactUnicodeAndParentOccurrences() {
+        let paths = ["café.txt", "cafe\u{301}.txt"]
+        let files = paths.flatMap { path in (0...1).map { parent in
+            CommitFile(path: path, oldPath: nil, action: "M", added: parent, removed: 0, hasStatistics: true, isSubmodule: false, parentIndex: parent)
+        } }
+        let statuses = GitPathMap(uniqueKeysWithValues: files.enumerated().map { ($0.element.id,"status\($0.offset)") })
+        XCTAssertEqual(StatusListClipboard.text(files, root: root, statuses: statuses, copy: .column(.status)), "status0\nstatus1\nstatus2\nstatus3\n")
+        let bytes = StatusListClipboard.text(files, root: root, statuses: statuses, copy: .relativePaths)
+        XCTAssertEqual(Data(bytes.utf8),Data(files.map { $0.path+"\n" }.joined().utf8))
+    }
     func testLogOccurrencesRetainParentStatisticsDisplayedFlagsAndRenameLabels() {
         let first = CommitFile(path: "雪/new.txt", oldPath: "old.txt", action: "R100", added: 2, removed: 1, hasStatistics: true, isSubmodule: false, parentIndex: 0)
         let second = CommitFile(path: first.path, oldPath: nil, action: "M", added: 7, removed: 0, hasStatistics: true, isSubmodule: false, parentIndex: 1)
         let module = CommitFile(path: "module.name", oldPath: nil, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: true)
-        let files = [second, first, module], statuses = [second.id: "Skip worktree"]
+        let files = [second, first, module], statuses: GitPathMap<String> = [second.id: "Skip worktree"]
         XCTAssertEqual(StatusListClipboard.text(files, root: root, statuses: statuses, copy: .all), "Path\tExtension\tStatus\tLines added\tLines removed\n雪/new.txt\t.txt\tSkip worktree\t7\t0\n雪/new.txt (from old.txt)\t.txt\tRenamed\t2\t1\nmodule.name\t\tModified\t–\t–\n")
         XCTAssertEqual(StatusListClipboard.text(files, root: root, statuses: statuses, copy: .relativePaths), "雪/new.txt\n雪/new.txt\nmodule.name\n")
         XCTAssertEqual(StatusListClipboard.text(files, root: root, statuses: statuses, copy: .names), "new.txt\nnew.txt\nmodule.name\n")
