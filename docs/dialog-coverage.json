@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 237,
-    "mapped_controls": 1422,
+    "pending_control_reviews": 214,
+    "mapped_controls": 1445,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -2683,12 +2683,16 @@
       "status": "partial-native",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 24,
-      "mapped_controls": 1,
-      "pending_control_reviews": 23,
+      "mapped_controls": 24,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/RebaseWindow.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitMac/RebaseReplayTable.swift",
           "origin": "recorded-control-mapping"
         },
         {
@@ -2723,6 +2727,7 @@
         "docs/qa/rebase-revision-files-2026-10-16.json",
         "docs/qa/rebase-row-drag-2026-10-13.json",
         "docs/qa/rebase-session-refresh-2026-10-14.json",
+        "docs/qa/rebase-source-family-2026-10-17.json",
         "docs/qa/rebase-split-return-2026-10-06.json",
         "docs/qa/recovery-family-2026-10-13.json",
         "docs/qa/saved-data-2026-10-08.json",

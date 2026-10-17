@@ -607,3 +607,45 @@ or incomplete-reference draft, retry and merge-parent reads/questions together.
 Late results after Cancel, changed inputs or closure cannot publish or start replay.
 Preparation retains its repository grant and Quit ownership until worker drain.
 Physical, complete source and signed acceptance remain open.
+
+## Source form and reviewed replay intent — October 17, 2026
+
+Rebase and Cherry Pick retain the source reference header, native report/action
+row, splitter/tabs, progress and footer hierarchy. Hosting has explicit native
+bounds. Idle Rebase keeps the source Abort label (closing the unstarted dialog),
+and a fast-forward plan uses `Start (FastFwd)`. Edit/Split stays beside continuation.
+
+Captured reference, Force/Preserve/attribution, row-move/Add, tab, message, Split
+and footer callbacks reject replaced, busy, picking, active/finished-ineligible or
+retired contexts. Force/Preserve synchronously replace the plan; Cherry Pick
+attribution synchronously updates the plan/preference. Queued view observers no
+longer repeat these effects. Picker return intent includes every plan option and
+Onto state, so unchanged reference text cannot conceal a changed operation.
+Active message edits retain their phase while allowing exact Unicode keystrokes.
+Native bulk/completion segments retire with their actual window and cannot be
+reactivated by a retained host update.
+
+Start, Skip and Abort confirmations now have a unique typed action and complete
+captured intent: plan targets, occurrence actions/mainlines, session/step, selected
+conflict paths, message and Split state. No action is inferred from displayed text.
+A replaced or duplicate answer cannot execute another plan or dismiss a newer
+question. The retained request survives presentation dismissal so binding/action
+ordering cannot turn Abort or Skip into Start. Pending questions fence options,
+normal close and Quit; forced retirement discards replies. Continue still uses
+the existing owned replay, Split and checked-conflict routes. Backend validation
+and external-writer protections remain as before; this is not atomic Git locking.
+
+Both Debug builds pass. Ten distinct native case/engine checks have passing
+evidence across grouped runs. The first source fixture incorrectly assumed the
+Cherry Pick internal Force default; its repaired assertion verifies the hidden
+control cannot change that value. The retained reference-cancellation helper also
+needed global-option parsing. Inspection then found incoming refresh/Fetch loads
+could replace a reviewed question; they now queue until its resolution, with
+revision menus and conflict check mutations fenced too. Both affected source
+cases passed after that repair without repeating eight unaffected cases. Six final
+raw light/dark captures were individually reviewed. All fourteen owned receivers
+were reaped and independently absent. Core is unchanged and was not repeated.
+See [batch evidence](qa/rebase-source-family-2026-10-17.json) for actual scope,
+attempts and capture provenance. Hidden reference split-view warnings remain. Full physical alert/default-button/key/focus/VoiceOver,
+all hooks/signing/filesystem/locale combinations, signed Finder/sandbox/App Store
+and complete Rebase/Cherry Pick acceptance remain open.

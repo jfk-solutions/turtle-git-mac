@@ -2,7 +2,7 @@
 
 The pinned inventory contains **130 dialogs**: **120 have partial family audits**, **10 await a family review**, and **none are certified complete**.
 
-There are 1659 inventoried static controls. 1422 have recorded native mappings; 237 still have pending control reviews. Dynamic menus, runtime-created controls, full layout and signed acceptance require separate evidence. A partial family audit never clears its unmapped controls. Recorded control mappings also remain partial; they do not prove all associated behavior.
+There are 1659 inventoried static controls. 1445 have recorded native mappings; 214 still have pending control reviews. Dynamic menus, runtime-created controls, full layout and signed acceptance require separate evidence. A partial family audit never clears its unmapped controls. Recorded control mappings also remain partial; they do not prove all associated behavior.
 
 This generated table links explicit implementation/parity reviews and existing QA. Missing links indicate missing recorded evidence, rather than proof that a feature is absent. The full machine-readable ledger is [dialog coverage](dialog-coverage.json). Review decisions live in `dialog-coverage-reviews.json`; regeneration is pinned to the source commit.
 
@@ -88,7 +88,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSCOLORS_1` | partial-native-replacement | 21/21 mapped; 0 pending | [APPEARANCE](APPEARANCE.md), [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 19 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSCOLORS_3` | partial-native-replacement | 22/22 mapped; 0 pending | [APPEARANCE](APPEARANCE.md), [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 19 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_RESET` | partial | 19/19 mapped; 0 pending | [RESET-PARITY](RESET-PARITY.md), [UI-PARITY](UI-PARITY.md); 10 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_REBASE` | partial-native | 1/24 mapped; 23 pending | [HELP-PARITY](HELP-PARITY.md), [MESSAGE-LINK-INTERACTION-PARITY](MESSAGE-LINK-INTERACTION-PARITY.md), [REBASE-ACTION-CONTROLS](REBASE-ACTION-CONTROLS.md), [REBASE-PARITY](REBASE-PARITY.md), [REBASE-REFERENCE-PREPARATION-PARITY](REBASE-REFERENCE-PREPARATION-PARITY.md), [REBASE-REVISION-FILES](REBASE-REVISION-FILES.md), [UI-PARITY](UI-PARITY.md); 25 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_REBASE` | partial-native | 24/24 mapped; 0 pending | [HELP-PARITY](HELP-PARITY.md), [MESSAGE-LINK-INTERACTION-PARITY](MESSAGE-LINK-INTERACTION-PARITY.md), [REBASE-ACTION-CONTROLS](REBASE-ACTION-CONTROLS.md), [REBASE-PARITY](REBASE-PARITY.md), [REBASE-REFERENCE-PREPARATION-PARITY](REBASE-REFERENCE-PREPARATION-PARITY.md), [REBASE-REVISION-FILES](REBASE-REVISION-FILES.md), [UI-PARITY](UI-PARITY.md); 26 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_RESOLVE_CONFLICT` | partial | 14/14 mapped; 0 pending | [DELETE-CONFLICT-PARITY](DELETE-CONFLICT-PARITY.md), [UI-PARITY](UI-PARITY.md); 8 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REFLOG` | partial | 8/8 mapped; 0 pending | [REFLOG-PARITY](REFLOG-PARITY.md), [UI-PARITY](UI-PARITY.md); 20 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SUBMODULE_ADD` | partial | 1/16 mapped; 15 pending | [HELP-PARITY](HELP-PARITY.md), [SUBMODULE-ADD-PARITY](SUBMODULE-ADD-PARITY.md); 4 QA records |

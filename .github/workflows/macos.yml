@@ -356,6 +356,8 @@ jobs:
         run: python3 scripts/test-switch-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Source transport forms and connected workflows
         run: python3 scripts/test-transport-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Rebase source forms and connected workflows
+        run: python3 scripts/test-rebase-source.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Issue Tracker source and Regex Tester workflows
         run: python3 scripts/test-issue-tracker-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native release download and App Store workflows
@@ -439,8 +441,8 @@ jobs:
         run: python3 scripts/test-commit-refresh-family.py --only snapshot --only position
       - name: Native Commit staging activation and preference lifetime
         run: python3 scripts/test-commit-staging-mode.py --only list --only mode --only checkbox --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
-      - name: Rebase action controls and structural row behavior
-        run: python3 scripts/test-rebase-action-controls.py --only preparation --only controls --only row-drag --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+      - name: Rebase structural row behavior
+        run: python3 scripts/test-rebase-action-controls.py --only row-drag --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Rebase Revision Files and shared Changed Files workflows
         run: python3 scripts/test-rebase-revision-files.py --only recovery --only rebase-files --only changed-files --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Canonical Log integration and Rebase reference workflows

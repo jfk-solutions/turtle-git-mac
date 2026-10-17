@@ -28,6 +28,7 @@ import AppKit
         if RenameWindowModel.activeOperations > 0 || ReferenceBrowserWindowModel.activeMutations > 0 { return .terminateCancel }
         if RemoveWindowModel.activeOperations > 0 { return .terminateCancel }
         if RebaseWindowModel.activeReplayOperations > 0 { return .terminateCancel }
+        if sender.windows.compactMap({$0.delegate as? RebaseWindowController}).contains(where:{$0.model.pendingConfirmation != nil || $0.model.hasReplayQuestion || $0.model.confirmingReplayCancellation || $0.window?.attachedSheet != nil}) {return .terminateCancel}
         if RebaseWindowModel.activePreparationReads > 0 || RebaseWindowController.activeReferencePickers > 0 || RebaseWindowController.activeCommitPickers > 0 { return .terminateCancel }
         if RebaseWindowModel.activeColumnReads > 0 { return .terminateCancel }
         if RebaseWindowModel.activeStashRestorations > 0 { return .terminateCancel }

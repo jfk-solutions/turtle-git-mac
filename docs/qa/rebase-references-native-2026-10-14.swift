@@ -4,9 +4,9 @@ import TurtleGitCore
 @main struct RebaseReferencesVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
-    @MainActor static func wait(_ ready: () -> Bool) async throws {
+    @MainActor static func wait(_ ready: () -> Bool, line: UInt = #line) async throws {
         for _ in 0..<2000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(description: "Rebase reference timeout")
+        throw Failure(description: "Rebase reference timeout at \(line)")
     }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Rebase references failed: \(error)\n", stderr); exit(1) } }
@@ -90,7 +90,20 @@ import TurtleGitCore
         try require(model.retired && model.options.upstream == previous && RebaseWindowController.activeReferencePickers == 0, "Retired picker changed fields")
         // Initial-load Git children stay cancellable/owned after the source is removed.
         let helper = root.appendingPathComponent("slow-reference-git"), marker = root.appendingPathComponent("reference-started")
-        let script = "#!/bin/sh\nif [ \"$4\" = for-each-ref ]; then\n : > \"$3/reference-started\"\n /bin/sleep 30\nfi\nexec \"$TG_REBASE_REF_GIT\" \"$@\"\n"
+        let script = #"""
+        #!/bin/sh
+        task_command() {
+          if [ "${1-}" = --literal-pathspecs ] || [ "${1-}" = --no-literal-pathspecs ]; then shift; fi
+          if [ "${1-}" = -C ]; then shift 2; fi
+          while [ "${1-}" = -c ]; do shift 2; done
+          printf '%s' "${1-}"
+        }
+        if [ "$(task_command "$@")" = for-each-ref ]; then
+          : > "$3/reference-started"
+          /bin/sleep 30
+        fi
+        exec "$TG_REBASE_REF_GIT" "$@"
+        """#
         try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
         setenv("TG_REBASE_REF_GIT", git.path, 1); defer { unsetenv("TG_REBASE_REF_GIT") }
         let slow = RebaseWindowModel(repository: GitRepository(root: root, executable: helper), access: nil, messageDefaults: prefs)

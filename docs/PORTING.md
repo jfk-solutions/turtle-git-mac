@@ -1934,3 +1934,14 @@ The Debug build, 14 focused Core checks and six native case/engine checks pass. 
 ### Push/Fetch/Pull source forms — October 17, 2026
 
 This connected three-form family now owns synchronous source/remote mutations, captured option/mode/history/chooser actions, exact Unicode native ref/remote choices and unique captured Push confirmations. Native targets retire with their owners, disabled dependencies reject callbacks and explicit hosting bounds retain source order. All 52 previously pending static controls have partial mappings. See [transport form parity](PUSH-PARITY.md#source-transport-forms-and-exact-native-selections--october-17-2026). The Debug build and ten native case/engine checks pass across system and bundled Git. Build repair added explicit main-actor coordinator isolation; a retained history fixture now waits for source preparation before submission. Raw review repaired Rebase left alignment. Six final captures were individually reviewed and all thirteen owned receivers from the attempts were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/transport-source-family-2026-10-17.json) for exact attempts and acceptance limits.
+
+### Rebase/Cherry Pick source form and reviewed intent — October 17, 2026
+
+The connected source form/reference/action/replay family now captures field and
+phase callbacks, updates Force/Preserve/attribution synchronously, protects full
+picker intent and retires native split segments. Typed one-use confirmations
+retain reviewed plans/messages/conflict choices across presentation dismissal;
+Close/Quit honor their lifetime. Fast-forward/idle footer labels match source.
+All 23 previously pending static controls receive partial mappings. See
+[Rebase parity](REBASE-PARITY.md#source-form-and-reviewed-replay-intent--october-17-2026).
+Both Debug builds pass, with ten distinct native case/engine passes across system and bundled Git. Repairs corrected the source fixture’s internal Cherry Pick Force assumption, the retained reference helper’s global-option parsing and incoming refresh/Fetch ownership during confirmation. Only affected source cases were repeated after that final app repair. Six final raw captures were individually reviewed; all fourteen owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/rebase-source-family-2026-10-17.json) for cumulative scope and remaining acceptance.

@@ -1,0 +1,190 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "cb9e569d1500facfcf93dc9c7f1a4590e33bdabf",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source Rebase/Cherry Pick header/report/actions/splitter/tabs/progress/footer, explicit native host bounds",
+    "Source Start (FastFwd) and idle Abort labels",
+    "Captured references/options/move/Add/tab/message/Split/footer contexts and synchronous Force/Preserve/Cherry attribution",
+    "Complete reference picker option intent and window-owned split retirement",
+    "Unique typed Start/Skip/Abort confirmation intent, duplicate/stale/dismissal and Close/Quit guards",
+    "Queued session refresh and incoming Fetch targets wait for confirmation; menus/conflict check mutations fenced",
+    "23 newly mapped source controls; 24/24 total partial mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/rebase-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/rebase-source-handoff-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2,
+      "repair": "Inspection found incoming load/refresh could replace a reviewed question. Queue until resolution and guard menus/conflict choices; affected source cases repeated only."
+    }
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false,
+    "reason": "Native form/presentation/phase ownership changes; grouped native checks exercise actual Git replay, structural actions, cancellation and restored repositories."
+  },
+  "native": {
+    "distinct_case_engine_passes": 10,
+    "cases": [
+      "source",
+      "references",
+      "controls",
+      "add",
+      "replay"
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/rebase-source-native-2026-10-17.log",
+        "exit": 1,
+        "passed_cases": 0,
+        "failure": "New source fixture assumed Cherry Pick internal Force default false; Core cherryPickPlan intentionally sets true. Guard assertion repaired to attempt the opposite and require original retained."
+      },
+      {
+        "log": "build/qa/rebase-source-force-native-2026-10-17.log",
+        "exit": 1,
+        "passed_cases": 2,
+        "failure": "Retained initial-reference cancellation helper assumed for-each-ref at argv[4]; new command-only -c options prevented holding it, causing timeout."
+      },
+      {
+        "log": "build/qa/rebase-source-reference-native-2026-10-17.log",
+        "exit": 0,
+        "passed_cases": 8,
+        "repair": "Helper skips global pathspec/-C/-c options; cancellation/Quit and unchanged-HEAD/index assertions retained. Added timeout call-site diagnostics."
+      },
+      {
+        "log": "build/qa/rebase-source-handoff-native-2026-10-17.log",
+        "exit": 0,
+        "passed_cases": 2,
+        "scope": "Affected source cases only after confirmation handoff repair; includes actual Start/Edit/Abort restoration, queued refresh/new target, menu/Close/Quit fences and final captures."
+      }
+    ],
+    "interpretation": "Ten distinct case/engine checks have passing evidence across grouped runs. Eight unaffected cases were not repeated after the final pending-confirmation gate repair; not a fresh ten-case pass on the last build.",
+    "owned_receivers_reaped": [
+      31390,
+      31858,
+      32338,
+      32791,
+      33251,
+      33622,
+      33994,
+      34372,
+      34749,
+      35036,
+      35342,
+      35665,
+      36091,
+      36664
+    ],
+    "independently_absent_owned_receivers": [
+      31390,
+      31858,
+      32338,
+      32791,
+      33251,
+      33622,
+      33994,
+      34372,
+      34749,
+      35036,
+      35342,
+      35665,
+      36091,
+      36664
+    ],
+    "diagnostics": "Hidden reference browser NSSplitView arranged-view warnings remain in retained reference cases."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/rebase-source-light.png",
+      "sha256": "44d6d75a741e288e2a017458ae4e5f657ffa3db968fd71b68ea9b6380585fe9f",
+      "pixels": [
+        2080,
+        1504
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/rebase-source-dark.png",
+      "sha256": "21348ea361f9db89b249cb754ae5fbe4b6110c81ece69cf7923427a726375e40",
+      "pixels": [
+        2080,
+        1504
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/rebase-edit-source-light.png",
+      "sha256": "0601749bf7ef565539a048751f0fc14130440670de940cac8bc90b6d2e038b9a",
+      "pixels": [
+        2080,
+        1504
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/rebase-edit-source-dark.png",
+      "sha256": "ceb5f578335fc30b8006ee3861d682a79699554482f3112887d6c137587c6bb8",
+      "pixels": [
+        2080,
+        1504
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/cherry-pick-source-light.png",
+      "sha256": "2ec6d195a64f49f091f4a25c0d87569d7ccbdded7ae83bd2fc0fc82269fbc76e",
+      "pixels": [
+        2080,
+        1504
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/cherry-pick-source-dark.png",
+      "sha256": "f4fc7c1104eb992ec01d8b558ab4ed44f5397aea56946e3b7cd1c7333cd459c3",
+      "pixels": [
+        2080,
+        1504
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of production RebaseWindowController/RebaseDialog in ordinary plan, actual Edit pause and Cherry Pick modes. Private repositories/preferences/sample commits; passive owned compositor windows, no app activation/global input. Six final images individually reviewed after final build. Confirmation callbacks are answered synchronously in the fixture without physical alert interaction; model guards and real replay effects are exercised, not displayed modal-button/focus acceptance.",
+  "ci_grouping": "Five related families share one receiver compilation and run with system and packaged app Git in CI. Existing action-controls step retains structural row-drag only; Add and control fixtures move into this group without losing assertions or repeating them.",
+  "hosted_observation": {
+    "head": "cb9e569d1500facfcf93dc9c7f1a4590e33bdabf",
+    "macos": {
+      "run": 38995715131,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38995715132,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Backend external-writer protection unchanged; no atomic Git transaction claimed",
+    "All source alert/default-button/key/focus, VoiceOver/IME and locale/font/filesystem boundaries remain unverified",
+    "Broader hooks, signing, conflict/Split/stash and interrupted recovery combinations remain incomplete",
+    "Signed Finder/sandbox/App Store/distribution acceptance remains open",
+    "Focused cumulative local evidence does not certify complete hosted CI, complete Rebase/Cherry Pick or full app parity"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/rebase-source-site-2026-10-17.log"
+  }
+}

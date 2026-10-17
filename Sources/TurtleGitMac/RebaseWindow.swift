@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Native Rebase/Cherry Pick form adapted from RebaseDlg, TortoiseGit.
 import AppKit
 import SwiftUI
 import Combine
@@ -99,9 +101,9 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = RebaseWindowModel(repository: repository, access: access, messageDefaults: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Rebase", preferences: preferences); window.minSize = NSSize(width: 930, height: 620); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: RebaseDialog(model: model).defaultAppStorage(preferences))
-        super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Rebase", preferences: preferences); window.contentMinSize = NSSize(width: 930, height: 600); window.isReleasedWhenClosed = false
+        let host = NSHostingController(rootView: RebaseDialog(model: model).defaultAppStorage(preferences)); host.sizingOptions = []; window.contentViewController = host
+        super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.setContentSize(NSSize(width:1040,height:720)); window.center(); model.close = { [weak window] in window?.close() }
         model.revisionMenuLog.window = window
         model.revisionFiles.window = window
         revisionFilePresenter=RevisionFileActionPresenter(model:model.revisionFiles,window:window)
@@ -308,7 +310,7 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.replaying { model.cancelReplay(); return false }
-        if model.hasReplayQuestion || model.confirmingReplayCancellation { return false }
+        if model.hasReplayQuestion || model.confirmingReplayCancellation || model.pendingConfirmation != nil { return false }
         if model.cancelPreparation() { return false }
         guard !conflictUnifiedWindows.values.contains(where:{$0.model.busy || $0.window?.attachedSheet != nil}),model.pickingReference == nil, !model.busy, !model.selectingSplit, !(model.active && model.hasReplayStash), sender.attachedSheet == nil else { return false }
         if !model.active && model.hasReplayStash { model.finishReplay(); return false }
@@ -324,6 +326,7 @@ struct RebaseReferenceRequest {
     let branch: String
     let upstream: String
     let onto: String
+    let intent: [GitReferenceName]
 }
 
 @MainActor final class RebaseWindowModel: ObservableObject {
@@ -492,6 +495,7 @@ struct RebaseReferenceRequest {
     var onCompletedMail: ((FormatPatchPreset) -> Void)?
     @Published var error: String?
     @Published var confirmation: String?
+    @Published private(set) var pendingConfirmation: ActionConfirmation?
     @Published private(set) var pickingReference: RebaseReferenceTarget?
     var pickReference: (RebaseReferenceTarget) -> Void = { _ in }
     private var referenceRequest: RebaseReferenceRequest?
@@ -521,6 +525,59 @@ struct RebaseReferenceRequest {
         revisionFiles.cancelEmbeddedPreparation()
         cancellingPreparation = true; insertionCancellation?.cancel(); mainlineCancellation?.cancel(); if preparingMainline { cancelMainlineQuestion() };pendingSessionRefresh=false;sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); return true
     }
+    struct FormContext: Equatable {
+        let owner: ObjectIdentifier; let controls: UUID; let generation: Int
+        let active: Bool; let finished: Bool; let step: Int; let head: String
+    }
+    var formContext: FormContext { .init(owner:ObjectIdentifier(self),controls:controlMenuGeneration,generation:planGeneration,active:active,finished:finished,step:state?.currentStep ?? 0,head:conflictHead) }
+    private func matches(_ context: FormContext) -> Bool { !retired && context == formContext }
+    private var referenceIntent: [GitReferenceName] { [options.branch,options.upstream,options.onto,String(ontoEnabled),String(options.force),String(options.preserveMerges),String(options.isCherryPick),String(options.addCherryPickedFrom),String(options.squashDate.rawValue)].map { GitReferenceName($0) } }
+    func referenceBinding(branch: Bool, context: FormContext) -> Binding<String> {
+        Binding(get:{branch ? self.options.branch:self.options.upstream},set:{value in
+            guard self.matches(context),self.editable,!self.isCherryPick else{return}
+            if branch {self.chooseBranch(value)} else {self.chooseUpstream(value)}
+        })
+    }
+    func option(_ key: WritableKeyPath<RebaseOptions,Bool>, context: FormContext) -> Binding<Bool> {
+        Binding(get:{self.options[keyPath:key]},set:{value in
+            guard self.matches(context),self.editable else{return}
+            if key == \RebaseOptions.addCherryPickedFrom {guard self.isCherryPick else{return}}
+            else {guard !self.isCherryPick else{return}}
+            self.options[keyPath:key]=value
+            if key == \RebaseOptions.addCherryPickedFrom {self.updateAttribution()} else {self.reloadPlan()}
+        })
+    }
+    var canEditMessage: Bool { !retired && !busy && !revisionFiles.busy && pickingReference == nil && !pickingCommits && !selectingSplit && pendingConfirmation == nil && confirmation == nil && (fileRecovery || state?.squashMessage != nil || state?.isEditPause == true || state?.split != nil) }
+    func messageBinding(_ context: FormContext) -> Binding<String> { Binding(get:{self.amendMessage},set:{if self.matches(context),self.canEditMessage {self.amendMessage=$0}}) }
+    func splitBinding(_ context: FormContext) -> Binding<Bool> { Binding(get:{self.splitCommit},set:{if self.matches(context),self.canSplit,self.state?.split == nil {self.splitCommit=$0}}) }
+    func tabBinding(_ context: FormContext) -> Binding<Int> { Binding(get:{self.tab},set:{if self.matches(context),!self.busy,!self.selectingSplit,self.pickingReference == nil,self.pendingConfirmation == nil {self.tab=$0}}) }
+    func reverseReferences(_ context: FormContext) {guard matches(context) else{return};reverseReferences()}
+    func browseReference(_ target:RebaseReferenceTarget,context:FormContext) {guard matches(context),editable,!isCherryPick else{return};pickReference(target)}
+    func move(up:Bool,toEnd:Bool,context:FormContext) {guard matches(context) else{return};move(up:up,toEnd:toEnd)}
+    func add(_ context:FormContext) {guard matches(context),canAdd else{return};pickAdditionalCommits()}
+    func primary(_ context:FormContext) {guard matches(context),pendingConfirmation == nil else{return};if finished {finishReplay()} else {request(active ? "continue":"start")}}
+    func abort(_ context:FormContext) {guard matches(context),pendingConfirmation == nil else{return};if active {request("abort")} else {finishReplay()}}
+    func request(_ action:String,context:FormContext) {guard matches(context) else{return};request(action)}
+    struct ActionConfirmation: Identifiable {
+        let id=UUID();let action:String;let message:String;let context:FormContext;let intent:[GitReferenceName]
+    }
+    private var replayIntent:[GitReferenceName] {
+        let targets=[plan?.branchHash ?? "",plan?.upstreamHash ?? "",plan?.ontoHash ?? "",amendMessage,String(splitCommit)].map {GitReferenceName($0)}
+        let rows=(plan?.entries ?? replayRows).flatMap {[$0.id,$0.action.rawValue,String($0.mainline ?? 0)]}.map {GitReferenceName($0)}
+        let paths=checkedConflicts.sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}.map {GitReferenceName($0)}
+        return referenceIntent + targets + rows + paths
+    }
+    func answerConfirmation(_ question:ActionConfirmation,proceed:Bool) {
+        guard !retired,pendingConfirmation?.id == question.id else{return}
+        let accepted=matches(question.context) && replayIntent == question.intent
+        pendingConfirmation=nil;confirmation=nil
+        defer {loadPendingHandoff()}
+        guard proceed,accepted,canRequest(question.action) else{return};execute(question.action)
+    }
+    private func canRequest(_ action:String)->Bool {
+        guard !retired,!busy,!revisionFiles.busy,pickingReference == nil,!pickingCommits,!selectingSplit,pendingConfirmation == nil,confirmation == nil,!hasReplayQuestion,!confirmingReplayCancellation else{return false}
+        switch action {case "start":return canStart;case "continue","skip","abort":return active;default:return false}
+    }
     func referenceChoices(_ target: RebaseReferenceTarget?) -> [CheckoutReference] {
         let selected = target == nil ? options.branch : options.upstream
         var result = target == nil ? references.filter { $0.target == .branch && !$0.isFetchHead } : references
@@ -535,11 +592,11 @@ struct RebaseReferenceRequest {
     func beginReferenceSelection(_ target: RebaseReferenceTarget) -> RebaseReferenceRequest? {
         guard editable, !isCherryPick else { return nil }
         planCancellation?.cancel()
-        let request = RebaseReferenceRequest(target: target, branch: options.branch, upstream: options.upstream, onto: options.onto)
+        let request = RebaseReferenceRequest(target: target, branch: options.branch, upstream: options.upstream, onto: options.onto, intent: referenceIntent)
         referenceRequest = request; pickingReference = target; return request
     }
     private func acceptsReference(_ request: RebaseReferenceRequest) -> Bool {
-        !retired && referenceRequest?.id == request.id && GitReferenceName.equal(options.branch, request.branch) && GitReferenceName.equal(options.upstream, request.upstream) && GitReferenceName.equal(options.onto, request.onto)
+        !retired && referenceRequest?.id == request.id && referenceIntent == request.intent && GitReferenceName.equal(options.branch, request.branch) && GitReferenceName.equal(options.upstream, request.upstream) && GitReferenceName.equal(options.onto, request.onto)
     }
     func abandonReferenceSelection(_ request: RebaseReferenceRequest) {
         guard referenceRequest?.id == request.id else { return }; referenceRequest = nil; pickingReference = nil
@@ -600,9 +657,9 @@ struct RebaseReferenceRequest {
     var chooseStashBeforeReplay: () async -> Bool = { false }
     var chooseRestoreReplayStash: () async -> Bool = { false }
     var restoreReplayStash: (Int) async -> Void = { _ in }
-    func retire() { retired = true; insertionCancellation?.cancel(); mainlineCancellation?.cancel(); cancelMainlineQuestion(); additionalSelection = nil; pickingCommits = false;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
+    func retire() { retired = true; pendingConfirmation=nil;confirmation=nil; insertionCancellation?.cancel(); mainlineCancellation?.cancel(); cancelMainlineQuestion(); additionalSelection = nil; pickingCommits = false;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
     func finishReplay(after: (() -> Void)? = nil) {
-        guard !retired, !busy, !revisionFiles.busy, !active, !selectingSplit, !pickingCommits else { return }
+        guard !retired, pendingConfirmation == nil, !busy, !revisionFiles.busy, !active, !selectingSplit, !pickingCommits else { return }
         // Preserve immediate completion routing when there is no stash question
         // or restore operation to await.
         if !hasReplayStash { if let after { after() } else { close() }; return }
@@ -641,7 +698,7 @@ struct RebaseReferenceRequest {
     var editorExecutable: URL? = Bundle.main.executableURL
     var isCherryPick: Bool { options.isCherryPick || state?.isCherryPick == true }
     var operationTitle: String { isCherryPick ? "Cherry Pick" : "Rebase" }
-    var startTitle: String { isCherryPick ? "Continue" : "Start Rebase" }
+    var startTitle: String { isCherryPick ? "Continue" : plan?.disposition == .fastForward ? "Start (FastFwd)" : "Start Rebase" }
     private var planGeneration = 0
     private var detailGeneration = 0
     private var conflictIdentity:RebaseConflictIdentity?
@@ -688,7 +745,7 @@ struct RebaseReferenceRequest {
         return ConflictFileMenu(generation: conflictMenuGeneration, identity: conflictIdentity, head: conflictHead, rows: rows, conflicts: conflicts.filter { ids.contains($0.id) }, statistics: conflictStatistics,columns:visibleConflictColumns,indexFlags:conflictIndexFlags,mark:(markedPath ?? focusedConflictPath).flatMap {id in rows.contains(where:{$0.id==id}) ? id:nil} ?? rows.first?.id ?? "",comparisonMark:conflictComparisonMark,amendToParent:state?.stoppedAction == .squash)
     }
     private func acceptsConflictFileMenu(_ menu: ConflictFileMenu, duringRequest: Bool = false) -> Bool {
-        !retired && (duringRequest || !busy) && !viewingConflictBase && !selectingSplit && fileRecovery &&
+        !retired && pendingConfirmation == nil && (duringRequest || !busy) && !viewingConflictBase && !selectingSplit && fileRecovery &&
         menu.generation == conflictMenuGeneration && menu.identity == conflictIdentity && menu.head == conflictHead &&
         !menu.rows.isEmpty && menu.rows.allSatisfy { conflictRows.contains($0) }
     }
@@ -907,11 +964,11 @@ struct RebaseReferenceRequest {
         guard !text.isEmpty else { return }; conflictPasteboard.clearContents(); conflictPasteboard.setString(text, forType: .string)
     }
     func setConflictChecked(_ path:String,checked:Bool) {
-        guard !retired,!busy,!selectingSplit,canCheckConflictFiles,conflictRows.contains(where:{$0.path==path}) else {return}
+        guard !retired,pendingConfirmation == nil,!busy,!selectingSplit,canCheckConflictFiles,conflictRows.contains(where:{$0.path==path}) else {return}
         if checked {checkedConflicts.insert(path)} else {checkedConflicts.remove(path)}
     }
     func toggleConflictChecks(_ ids: Set<String>, mark: String?) {
-        guard !retired, !busy, !selectingSplit, fileRecovery, canCheckConflictFiles else { return }
+        guard !retired, pendingConfirmation == nil, !busy, !selectingSplit, fileRecovery, canCheckConflictFiles else { return }
         let available = Set(conflictRows.map(\.id)), selected = ids.intersection(available)
         guard !selected.isEmpty else { return }
         let shouldCheck = !(mark.map { checkedConflicts.contains($0) } ?? selected.allSatisfy { checkedConflicts.contains($0) })
@@ -963,14 +1020,14 @@ struct RebaseReferenceRequest {
     private var completion = "Rebase finished"
     private var pendingLoad: (upstream: String?, autoStart: Bool, preserveMerges: Bool, cherryPick: [String]?)?
     private func loadPendingHandoff() {
-        guard !retired,!busy,pickingReference == nil,!pickingCommits,!selectingSplit else {return}
+        guard !retired,!busy,pendingConfirmation == nil,pickingReference == nil,!pickingCommits,!selectingSplit else {return}
         if pendingSessionRefresh {pendingSessionRefresh=false;refreshState();return}
         guard let pending=pendingLoad else {return}
         pendingLoad = nil
         load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges, cherryPick: pending.cherryPick)
     }
     var active: Bool { state?.active == true }
-    var editable: Bool { !retired && !busy && !revisionFiles.busy && pickingReference == nil && !active && !finished && !pickingCommits && !selectingSplit }
+    var editable: Bool { confirmation == nil && pendingConfirmation == nil && !retired && !busy && !revisionFiles.busy && pickingReference == nil && !active && !finished && !pickingCommits && !selectingSplit }
     var canAdd: Bool { editable && !options.preserveMerges }
     // Upstream displays newest first, while replay proceeds from the oldest commit.
     var entries: [RebaseEntry] {
@@ -1066,7 +1123,7 @@ struct RebaseReferenceRequest {
         self.fullCommitMessageOnLogLine = messageDefaults.bool(forKey: "FullCommitMessageOnLogLine")
         revisionFilesObservation=revisionFiles.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
     }
-    var revisionMenuAvailable: Bool { !retired && !busy && !revisionFiles.busy && !selectingSplit && !pickingCommits && revisionMenuLog.noteRequest == nil && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
+    var revisionMenuAvailable: Bool { pendingConfirmation == nil && !retired && !busy && !revisionFiles.busy && !selectingSplit && !pickingCommits && revisionMenuLog.noteRequest == nil && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
     func revisionMenuRows(_ ids: Set<String>) -> [RebaseEntry] { entries.filter { ids.contains($0.id) } }
     @discardableResult func prepareRevisionMenu(_ ids: Set<String>) -> LogWindowModel? {
         let rows = revisionMenuRows(ids)
@@ -1150,6 +1207,10 @@ struct RebaseReferenceRequest {
     }
     func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil) {
         guard !retired else { return }
+        if pendingConfirmation != nil {
+            if upstream != nil || cherryPick != nil {pendingLoad=(upstream,autoStart,preserveMerges,cherryPick)}
+            return
+        }
         if hasReplayStash && !active && !busy {
             finishReplay { [weak self] in self?.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick) }
             return
@@ -1472,7 +1533,7 @@ struct RebaseReferenceRequest {
     }
     func refreshState() {
         guard !retired,pickingReference == nil,!selectingSplit,!pickingCommits else {return}
-        if busy || revisionFiles.busy {pendingSessionRefresh=true;return}
+        if busy || revisionFiles.busy || pendingConfirmation != nil {pendingSessionRefresh=true;return}
         let request=UUID(),token=OperationCancellation(),previous=conflictIdentity,wasActive=active
         sessionGeneration=request;sessionCancellation=token;refreshingSession=true;cancellingPreparation=false;busy=true
         Self.activePreparationReads += 1
@@ -1496,16 +1557,20 @@ struct RebaseReferenceRequest {
         }
     }
     func request(_ action: String) {
+        guard canRequest(action) else{return}
         if action == "continue", splitCommit || state?.split != nil && state?.split?.conflictRecovery != true { beginSplitSelection(); return }
         if action == "continue", state?.split?.conflictRecovery == true { resumeConflictSelection(); return }
         if action == "start", isCherryPick { prepareCherryPick(); return }
-        if action == "start" { guard canStart else { return }; confirmation = "Start rewriting the selected branch using this commit plan?" }
-        else if action == "abort" { confirmation = "Abort this \(operationTitle.lowercased()) and restore its original branch? Current conflict-resolution edits will be discarded." }
-        else if action == "skip" { confirmation = "Skip the current commit? Its changes and current conflict-resolution edits will be discarded." }
-        else { execute(action) }
+        let message:String
+        if action == "start" {message="Start rewriting the selected branch using this commit plan?"}
+        else if action == "abort" {message="Abort this \(operationTitle.lowercased()) and restore its original branch? Current conflict-resolution edits will be discarded."}
+        else if action == "skip" {message="Skip the current commit? Its changes and current conflict-resolution edits will be discarded."}
+        else {execute(action);return}
+        let question=ActionConfirmation(action:action,message:message,context:formContext,intent:replayIntent)
+        pendingConfirmation=question;confirmation=message
     }
     func execute(_ action: String) {
-        guard !retired, !busy, !revisionFiles.busy, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
+        guard !retired, pendingConfirmation == nil, confirmation == nil, !busy, !revisionFiles.busy, pickingReference == nil, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
         let snapshot = plan, draftMessage = amendMessage, previouslyFinished = finished
         let continuationState=state,continuationPaths=checkedConflicts,continuationHead=conflictHead
         let continuationRecovery=fileRecovery,usesCheckedSelection=supportsConflictSelection
@@ -1604,7 +1669,7 @@ struct RebaseReferenceRequest {
             }
         }
     }
-    var canSplit: Bool { !busy && !revisionFiles.busy && !selectingSplit && state?.canSplit == true }
+    var canSplit: Bool { !retired && pendingConfirmation == nil && confirmation == nil && !busy && !revisionFiles.busy && !selectingSplit && state?.canSplit == true }
     func beginSplitSelection() {
         guard canSplit else { return }; busy = true; Self.beginReplayWork()
         Task {
@@ -1662,6 +1727,10 @@ enum RebaseBulkAction:String,CaseIterable {
 
 /// Native split control: the main segment repeats the chosen command, while
 /// the arrow exposes source-ordered commands with their original artwork.
+final class RebaseNativeSplitControl:NSSegmentedControl {
+    let lifetime=TransportControlLifetime()
+    override func viewDidMoveToWindow() {super.viewDidMoveToWindow();lifetime.observe(self)}
+}
 struct RebaseSplitControl:NSViewRepresentable {
     let title:String
     let items:[(String,MenuIcon)]
@@ -1672,13 +1741,14 @@ struct RebaseSplitControl:NSViewRepresentable {
     @Environment(\.isEnabled) private var environmentEnabled
     func makeCoordinator()->Coordinator {Coordinator()}
     func makeNSView(context:Context)->NSSegmentedControl {
-        let control=NSSegmentedControl(labels:[title,""],trackingMode:.momentary,target:context.coordinator,action:#selector(Coordinator.clicked(_:)))
+        let control=RebaseNativeSplitControl(labels:[title,""],trackingMode:.momentary,target:context.coordinator,action:#selector(Coordinator.clicked(_:)))
         control.segmentStyle = .rounded;control.setWidth(130,forSegment:0);control.setWidth(24,forSegment:1)
         control.setShowsMenuIndicator(true,forSegment:1);control.setAccessibilityLabel(label)
         context.coordinator.control=control;return control
     }
     func updateNSView(_ control:NSSegmentedControl,context:Context) {
         let coordinator=context.coordinator
+        if let owned=control as? RebaseNativeSplitControl,owned.lifetime.retired {control.isEnabled=false;control.target=nil;control.action=nil;return}
         coordinator.live=true;coordinator.primary=primary;coordinator.captureMenu=captureMenu
         control.isEnabled=enabled && environmentEnabled;control.setLabel(title,forSegment:0)
         control.toolTip=title
@@ -1695,6 +1765,7 @@ struct RebaseSplitControl:NSViewRepresentable {
         for item in control.menu(forSegment:1)?.items ?? [] {item.state=item.title==title ? .on:.off;item.isEnabled=control.isEnabled}
     }
     static func dismantleNSView(_ control:NSSegmentedControl,coordinator:Coordinator) {
+        (control as? RebaseNativeSplitControl)?.lifetime.retire()
         coordinator.live=false;coordinator.invoke=nil;coordinator.primary={};coordinator.captureMenu={nil}
         control.menu(forSegment:1)?.delegate=nil;control.setMenu(nil,forSegment:1);control.target=nil;control.action=nil;control.isEnabled=false
     }
@@ -1766,6 +1837,7 @@ struct RebaseDialog: View {
     private var dates: HistoryDateSettings { .init(shortDate: shortDate, relative: relativeTimes, useSystemLocale: systemDates) }
     private var messageFont: Font { Font(MessageEditorFont.resolve(name: fontName, size: fontSize)) }
     var body: some View {
+        let context=model.formContext
         VStack(spacing: 10) {
             HStack {
                 if model.isCherryPick {
@@ -1774,11 +1846,11 @@ struct RebaseDialog: View {
                     Text("Upstream:"); TextField("", text: .constant("HEAD")).disabled(true)
                     Button("…") {}.disabled(true); Toggle("Onto", isOn: .constant(false)).toggleStyle(.button).disabled(true)
                 } else {
-                Text("Branch:"); ReferencePopup(references: model.referenceChoices(nil), selection: Binding(get: { model.options.branch }, set: model.chooseBranch), accessibilityLabel: "Branch", displaysIcons: true, tooltip:model.referenceTooltip(branch:true))
-                Button { model.reverseReferences() } label: { Image(nsImage: MenuIcon.reverse.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }.accessibilityLabel("Reverse branch and upstream")
-                Text("Upstream:"); ReferencePopup(references: model.referenceChoices(.upstream), selection: Binding(get: { model.options.upstream }, set: model.chooseUpstream), accessibilityLabel: "Upstream", displaysIcons: true, tooltip:model.referenceTooltip(branch:false))
-                Button("…") { model.pickReference(.upstream) }.accessibilityLabel("Browse upstream references")
-                Toggle("Onto", isOn: Binding(get: { model.ontoEnabled }, set: { _ in model.pickReference(.onto) })).toggleStyle(.button).help(model.options.onto)
+                Text("Branch:"); ReferencePopup(references: model.referenceChoices(nil), selection: model.referenceBinding(branch:true,context:context), accessibilityLabel: "Branch", displaysIcons: true, tooltip:model.referenceTooltip(branch:true))
+                Button { model.reverseReferences(context) } label: { Image(nsImage: MenuIcon.reverse.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }.accessibilityLabel("Reverse branch and upstream")
+                Text("Upstream:"); ReferencePopup(references: model.referenceChoices(.upstream), selection: model.referenceBinding(branch:false,context:context), accessibilityLabel: "Upstream", displaysIcons: true, tooltip:model.referenceTooltip(branch:false))
+                Button("…") { model.browseReference(.upstream,context:context) }.accessibilityLabel("Browse upstream references")
+                Toggle("Onto", isOn: Binding(get: { model.ontoEnabled }, set: { _ in model.browseReference(.onto,context:context) })).toggleStyle(.button).help(model.options.onto)
                 }
             }.disabled(!model.editable)
             VSplitView {
@@ -1787,15 +1859,15 @@ struct RebaseDialog: View {
                         .background(RebaseColumnLayout(model: model)).background(RebaseListInteraction(model: model))
                     HStack {
                         RebaseSplitControl(title:model.bulkAction.rawValue,items:RebaseBulkAction.allCases.map {($0.rawValue,$0.action.icon)},label:"Rebase bulk actions",enabled:model.canUseBulkActions,primary:{model.chooseBulkAction(model.bulkAction)},captureMenu:model.captureBulkAction).frame(width:158,height:24)
-                        Button("Up") { model.move(up: true, toEnd: NSEvent.modifierFlags.contains(.shift)) }.disabled(!model.canMove(up: true, toEnd: true))
-                        Button("Down") { model.move(up: false, toEnd: NSEvent.modifierFlags.contains(.shift)) }.disabled(!model.canMove(up: false, toEnd: true))
-                        Button { model.pickAdditionalCommits() } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canAdd)
+                        Button("Up") { model.move(up:true,toEnd:NSEvent.modifierFlags.contains(.shift),context:context) }.disabled(!model.canMove(up: true, toEnd: true))
+                        Button("Down") { model.move(up:false,toEnd:NSEvent.modifierFlags.contains(.shift),context:context) }.disabled(!model.canMove(up: false, toEnd: true))
+                        Button { model.add(context) } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canAdd)
                         Spacer()
-                        if model.isCherryPick { Toggle("add \"cherry picked from\"", isOn: $model.options.addCherryPickedFrom) }
-                        else { Toggle("Preserve merges", isOn: $model.options.preserveMerges).help("Preserve merge commits while replaying the branch; see Help for structural rebase behavior."); Toggle("Force Rebase", isOn: $model.options.force).help("Force replay even if the branch is already a descendant of the upstream commit.") }
+                        if model.isCherryPick { Toggle("add \"cherry picked from\"", isOn: model.option(\.addCherryPickedFrom,context:context)) }
+                        else { Toggle("Preserve merges", isOn: model.option(\.preserveMerges,context:context)).help("Preserve merge commits while replaying the branch; see Help for structural rebase behavior."); Toggle("Force Rebase", isOn: model.option(\.force,context:context)).help("Force replay even if the branch is already a descendant of the upstream commit.") }
                     }.disabled(!model.editable)
                 }.frame(minHeight: 180)
-                TabView(selection: $model.tab) {
+                TabView(selection: model.tabBinding(context)) {
                     Group {
                     if model.fileRecovery { RebaseConflictFiles(model: model) }
                     else {
@@ -1810,7 +1882,7 @@ struct RebaseDialog: View {
                         if model.fileRecovery || model.state?.squashMessage != nil || model.state?.isEditPause == true || model.state?.split != nil {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(model.state?.squashMessage != nil ? "Combined commit message:" : "Edit commit message:")
-                                ProjectMessageEditor(text: $model.amendMessage, settings: model.projectSettings, label: model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message", preferences: model.messageEditorPreferences, issueProperties: model.issueProperties)
+                                ProjectMessageEditor(text: model.messageBinding(context), settings: model.projectSettings, label: model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message", preferences: model.messageEditorPreferences, issueProperties: model.issueProperties)
                                 if let squash = model.state?.squashMessage { Text("Author: first commit • Author date: " + (squash.datePolicy == .first ? "first commit" : squash.datePolicy == .latest ? "latest commit" : "current time")).font(.caption) }
                             }.padding(8)
                         } else { ScrollView { Text(model.message).font(messageFont).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(8) } }
@@ -1819,7 +1891,7 @@ struct RebaseDialog: View {
                 }.frame(minHeight: 150)
             }
             if model.active {
-                HStack { Button("Open Working Tree") { model.onShowStatus() }; Button("Refresh State") { model.refreshState() }; Spacer(); Button("Skip") { model.request("skip") } }
+                HStack { Button("Open Working Tree") { model.onShowStatus() }; Button("Refresh State") { model.refreshState() }; Spacer(); Button("Skip") { model.request("skip",context:context) } }
             }
             if model.busy { ProgressView().progressViewStyle(.linear) }
             else { ProgressView(value: model.finished ? 1 : Double(model.state?.currentStep ?? 0), total: model.finished ? 1 : Double(max(model.state?.total ?? 1, 1))) }
@@ -1829,9 +1901,9 @@ struct RebaseDialog: View {
                     RebaseSplitControl(title:model.completionAction.rawValue,items:model.completionActions.map {($0.rawValue,$0.icon)},label:"Rebase completion actions",enabled:model.canPerformCompletionAction(model.completionAction),primary:{model.performCompletionAction(model.completionAction)},captureMenu:model.captureCompletionAction).frame(width:158,height:24)
                 }
                 Spacer()
-                if model.state?.canSplit == true {Toggle("Edit/Split commit",isOn:$model.splitCommit).disabled(!model.canSplit || model.state?.split != nil)}
-                Button(model.primaryActionTitle) { if model.finished { model.finishReplay() } else { model.request(model.active ? "continue" : "start") } }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
-                Button(model.active || model.isCherryPick ? "Abort" : "Cancel") { if model.active { model.request("abort") } else { model.finishReplay() } }.keyboardShortcut(.cancelAction).help(model.active ? "Recover to the status before rebase":"Close this dialog")
+                if model.state?.canSplit == true {Toggle("Edit/Split commit",isOn:model.splitBinding(context)).disabled(!model.canSplit || model.state?.split != nil)}
+                Button(model.primaryActionTitle) { model.primary(context) }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
+                Button("Abort") { model.abort(context) }.keyboardShortcut(.cancelAction).help(model.active ? "Recover to the status before rebase":"Close this dialog")
                 Button("Help") { TurtleGitHelp.show(model.isCherryPick ? .cherryPick : .rebase) }
             }
         }.padding(12).disabled(model.busy || model.selectingSplit || model.pickingReference != nil)
@@ -1845,16 +1917,13 @@ struct RebaseDialog: View {
             }
         }
         .modifier(RebaseRevisionMenuPresentation(log: model.revisionMenuLog))
-        .onChange(of: model.options.addCherryPickedFrom) { _ in model.updateAttribution() }
-        .onChange(of: model.options.force) { _ in model.reloadPlan() }
-        .onChange(of: model.options.preserveMerges) { _ in model.reloadPlan() }
         .onChange(of: model.busy) { if !$0 { model.refreshColumnMetadata() } }
         .onChange(of: model.selection) { _ in model.selectCommit() }
         .alert(model.operationTitle, isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } message: { Text(model.error ?? "") }
-        .alert("Confirm " + model.operationTitle, isPresented: Binding(get: { model.confirmation != nil }, set: { if !$0 { model.confirmation = nil } })) {
-            Button("Continue") { let text = model.confirmation ?? ""; model.confirmation = nil; model.execute(text.hasPrefix("Abort") ? "abort" : text.hasPrefix("Skip") ? "skip" : "start") }
-            Button("Cancel", role: .cancel) {}
-        } message: { Text(model.confirmation ?? "") }
+        .alert("Confirm " + model.operationTitle,isPresented:Binding(get:{model.confirmation != nil},set:{if !$0 {model.confirmation=nil}}),presenting:model.pendingConfirmation) {question in
+            Button("Continue") {model.answerConfirmation(question,proceed:true)}
+            Button("Cancel",role:.cancel) {model.answerConfirmation(question,proceed:false)}
+        } message: {question in Text(question.message)}
         .sheet(isPresented: Binding(get: { model.conflictPatch != nil }, set: { if !$0 { model.conflictPatch = nil } })) {
             VStack { Text("Compare with base").font(.headline); OutputView(text: model.conflictPatch ?? "").frame(minWidth: 850, minHeight: 520); Button("Close") { model.conflictPatch = nil }.keyboardShortcut(.cancelAction) }.padding(12)
         }
