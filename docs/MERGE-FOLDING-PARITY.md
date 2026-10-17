@@ -60,3 +60,50 @@ wrapping/resize, Unicode typing/selection, Undo/Redo, marks, BOM/CRLF saves and
 merge Save/discard/Cancel/reload. Both owned receivers were reaped. Appearance
 switching and accessibility action presence do not prove visual matching or
 actual VoiceOver behavior. See [validation evidence](qa/merge-folding-2026-10-14.json).
+
+
+## Atomic folding and aligned-result expansion — October 17, 2026
+
+A multi-row reveal now mutates each folded run once and publishes one complete
+controller projection/expansion batch. TextKit fold application and restoration
+use editing transactions, so storage observers do not receive a half-restored or
+partially hidden map. Attribute restoration, original text coordinates and Undo
+semantics remain intact. Result-to-source expansion uses shared source row
+coordinates when the result has an aligned projection; serialized conflict-marker
+rows are used only through exact anchors in the free-result fallback. Source and
+result expansion now synchronize once per batch. Exact result anchor lookup uses
+an offset-to-row index instead of scanning every result line for every anchor.
+
+The native folding receiver now mounts its own invisible windows before checking
+layout, matching production window attachment. It retains phase diagnostics for
+transactions, layout, selection, combined mode, anchored/aligned expansion,
+appearance and retirement. A timeout now prints bounded captured output tails
+before the existing owned-process cleanup and rethrows the original timeout.
+No timeout limit or behavioral assertion is relaxed. The earlier hosted timeout
+is still unresolved until the new hosted result supplies evidence; these changes
+do not establish its root cause.
+
+The Debug build, all 23 focused Core checks and seven native-receiver ownership
+contracts pass. The eight-case grouped native pass covers folding, wrapping,
+wrapped navigation, block navigation, three-pane navigation, initial navigation,
+Find and viewport ownership. Atomic apply/restore each emit one complete editing
+notification; multi-run reveal publishes one projection/expansion batch. The native
+regression expands the aligned result after serialized conflict markers and verifies
+all matching source rows are shown without changing text, anchors, dirty or Undo.
+Core also verifies 12,000 exact UTF-16 row anchors and invalid middle offsets.
+
+The initial native fixture captured its baseline before AppKit substituted the
+emoji fallback font. A focused diagnostic proved one notification but different
+system font attributes. The fixture now normalizes its baseline with fixAttributes
+before retaining it; strict full attribute restoration and all behavioral checks
+remain. Core and the app build were not repeated. The aligned coordinate fixture was then strengthened to use a short section
+between two conflicts; it proves the wrong serialized candidates cannot expose
+the desired source range. Only that folding case was rerun and passed, with no
+Core/build repeat. All eleven owned native receivers from the attempts were
+reaped and independently absent. See [batch evidence](qa/merge-folding-transactions-2026-10-17.json).
+
+The older hosted implementation passed its Git integration step, confirming the
+earlier About test compiler repair, and progressed into native checks. A full
+current implementation hosted pass and the earlier folding timeout root cause
+remain open. Physical input, exact visual comparison, large-document end-to-end
+performance and signed acceptance remain open.

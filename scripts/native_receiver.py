@@ -177,6 +177,15 @@ def run_receiver(command, *, timeout=300, **kwargs):
         if check:
             result.check_returncode()
         return result
+    except subprocess.TimeoutExpired as error:
+        # communicate retains captured bytes on TimeoutExpired, including when
+        # text=True. Preserve the original exception and emit bounded tails so
+        # CI does not lose the fixture's last owned phase before cleanup.
+        for name, payload in [('stdout', error.stdout), ('stderr', error.stderr)]:
+            if payload:
+                message = payload if isinstance(payload, str) else payload.decode('utf-8', errors='replace')
+                print('Native receiver timeout ' + name + ' (last 65536 characters):\n' + message[-65536:], flush=True)
+        raise
     finally:
         close_receiver(receiver)
         print('Owned receiver reaped: ' + str(receiver.pid), flush=True)

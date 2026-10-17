@@ -2186,3 +2186,25 @@ selection, metadata dictionary, checked-path and restore-copy identity migration
 remains open, along with physical and signed acceptance. This is a changelist
 family improvement, not full filename or application certification. See
 [batch evidence](qa/changelist-identities-2026-10-17.json).
+
+
+## Atomic folding and aligned-result expansion — October 17, 2026
+
+The shared comparison folding family now reveals selected folded runs in one
+mutation/projection/expansion batch. Attributed fold application/restoration uses
+TextKit editing transactions; result anchors use an exact UTF-16 offset index.
+Aligned result expansion uses source display coordinates rather than serialized
+conflict-marker row positions. Source/result synchronization runs once per batch,
+while gates, original text, attributes, anchors and Undo state remain intact.
+
+One Debug build, 23 focused Core checks, seven receiver ownership contracts and
+all eight grouped native cases pass. A fixture-only repair normalizes AppKit's
+emoji fallback font before capturing the restoration baseline; its strict full
+attribute assertion remains. No Core/build repeat followed. A stronger short-section/two-conflict coordinate fixture also passed its focused
+folding recheck without repeating other cases. All eleven owned native receivers
+from the attempts were reaped and independently absent. Persistent
+native phase diagnostics and bounded timeout output tails retain evidence if the
+hosted folding timeout returns; no timeout/assertion is weakened. The earlier
+hosted implementation has now passed Git integration and reached native checks,
+but full current hosted and physical/signed acceptance remain open. See
+[batch evidence](qa/merge-folding-transactions-2026-10-17.json).

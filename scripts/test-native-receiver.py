@@ -30,6 +30,20 @@ class ReceiverContracts(unittest.TestCase):
         self.assertEqual(caught.exception.returncode, 7)
         self.assertEqual(caught.exception.stdout, 'failed\n')
 
+    def test_timeout_preserves_phase_tails_and_original_exception(self):
+        output = io.StringIO()
+        script = 'import sys,time; print("owned stdout marker",flush=True); print("folding phase: layout",file=sys.stderr,flush=True); time.sleep(60)'
+        with contextlib.redirect_stdout(output), self.assertRaises(subprocess.TimeoutExpired) as caught:
+            run_receiver([sys.executable, '-c', script], timeout=1, capture_output=True, text=True)
+        self.assertIn('owned stdout marker', output.getvalue())
+        self.assertIn('folding phase: layout', output.getvalue())
+        self.assertIn(b'owned stdout marker', caught.exception.stdout)
+        self.assertIn(b'folding phase: layout', caught.exception.stderr)
+        self.assertIn('Owned receiver reaped:', output.getvalue())
+        pid = int(output.getvalue().split('Owned receiver reaped: ')[-1].strip())
+        with self.assertRaises(ProcessLookupError): os.kill(pid, 0)
+        with self.assertRaises(ChildProcessError): os.waitpid(pid, os.WNOHANG)
+
     def test_timeout_reaps_exact_owned_process(self):
         with tempfile.TemporaryDirectory() as temporary:
             pidfile = Path(temporary) / 'pid'

@@ -284,11 +284,19 @@ private enum MergeSourceSide {
     }()
     lazy var resultFolding: MergeFoldingController = {
         let value = makeFoldingController()
-        value.expanded = { [weak self] range in
+        value.expanded = { [weak self] ranges in
             guard let self else { return }
-            let mapping = self.resultPresentation.foldAnchors.resultRows(in: self.result)
-            for (source, resultRow) in mapping where range.contains(resultRow) { _ = self.folding.reveal(sourceRow: source) }
-            self.synchronizeResultFolding()
+            let resultRows = Set(ranges.flatMap { Array($0) })
+            let sourceRows: [Int]
+            if self.alignedResultProjection != nil {
+                // Aligned display rows already share source coordinates. Engine
+                // anchors describe serialized result rows, including fewer gaps.
+                sourceRows = Array(resultRows)
+            } else {
+                let mapping = self.resultPresentation.foldAnchors.resultRows(in: self.result)
+                sourceRows = mapping.compactMap { resultRows.contains($0.value) ? $0.key : nil }
+            }
+            if !self.folding.reveal(sourceRows: sourceRows) { self.synchronizeResultFolding() }
         }
         return value
     }()

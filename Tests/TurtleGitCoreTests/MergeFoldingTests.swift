@@ -2,6 +2,28 @@ import XCTest
 @testable import TurtleGitCore
 
 final class MergeFoldingTests: XCTestCase {
+    func testBatchRevealMatchesSequentialRunsAndIgnoresInvalidRows() {
+        var batch = MergeFolding(visibility: [.marker,.hidden,.shown,.hidden,.marker,.hidden,.shown,.marker,.hidden])
+        var sequential = batch
+        let requests = [8,1,4,3,8,0,-1,Int.max,Int.min]
+        for row in requests { _ = sequential.reveal(row: row) }
+        let ranges = batch.reveal(rows: requests)
+        XCTAssertEqual(batch, sequential)
+        XCTAssertEqual(ranges, [0..<2,3..<4,4..<6,7..<9])
+        XCTAssertEqual(batch.reveal(rows: requests), [])
+        XCTAssertEqual(MergeFoldProjection(folding: batch, collapsed: true).rows.count, 9)
+    }
+    func testLargeAnchorMapUsesExactUTF16StartsAndRejectsMiddleOffsets() {
+        let text = (0..<12_000).map { "row \($0) 🐢\n" }.joined()
+        let ranges = MergeLineEndings.lineRanges(in: text)
+        var offsets = Dictionary(uniqueKeysWithValues: ranges.enumerated().map { ($0.offset, $0.element.location) })
+        offsets[-1] = ranges[500].location + 1
+        let result = MergeFoldAnchors(offsets: offsets).resultRows(in: text)
+        XCTAssertEqual(result.count, ranges.count)
+        XCTAssertNil(result[-1])
+        for index in [0,500,ranges.count-1] { XCTAssertEqual(result[index], index) }
+    }
+
     func testPinnedForwardContextAndMarkers() {
         let folding = MergeFolding(unchanged: [true, true, true, false, true, true, true, true, true, false, true, true, true])
         // Pin the source's forward loop: it starts at i+1, retaining a hidden

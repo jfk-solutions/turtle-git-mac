@@ -1,0 +1,140 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected folding reveal/attribute transactions, source/result expansion coordinates and anchor lookup; timeout evidence for an unresolved hosted failure. No full parity/CI/signed claim.",
+  "implemented": [
+    "Reveal distinct folded runs once and publish one controller projection/expansion batch for a multi-row selection.",
+    "Restore and apply fold attributes in NSTextStorage editing transactions so observers see complete maps.",
+    "Use source-aligned result row coordinates when an aligned projection exists; retain exact serialized anchors for fallback results.",
+    "Synchronize source/result expansion once per batch.",
+    "Map exact UTF-16 result-row offsets through a row index instead of an anchor-by-line nested search.",
+    "Mount only owned invisible native folding windows before layout checks.",
+    "Retain folding phase stderr; communicate timeout prints at most the last 65,536 characters per captured stream then rethrows the original timeout and reaps the owned group."
+  ],
+  "build": {
+    "log": "build/qa/merge-folding-batch-build-2026-10-17.log",
+    "exit_code": 0,
+    "invocations": 1,
+    "empty_output_exit_zero_diagnostics": 1,
+    "warnings": "Existing warnings remain; no clean diagnostics claim."
+  },
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'MergeFoldingTests|MergeResultPresentationTests|MergeSourceBlockEditTests'",
+    "log": "build/qa/merge-folding-batch-core-2026-10-17.log",
+    "exit_code": 0,
+    "tests": 23,
+    "failures": 0,
+    "duration_seconds": 0.067,
+    "invocations": 1,
+    "covered": [
+      "Batch reveal equivalence with sequential expansion, duplicate/invalid indices and distinct marker/orphan ranges.",
+      "12,000 UTF-16 row anchors retain exact starts and reject mid-line offsets.",
+      "Existing folding, result presentation and source block editing checks."
+    ]
+  },
+  "receiver_contracts": {
+    "command": "python3 scripts/test-native-receiver.py",
+    "log": "build/qa/merge-folding-receiver-contracts-2026-10-17.log",
+    "exit_code": 0,
+    "tests": 7,
+    "duration_seconds": 2.216,
+    "invocations": 1,
+    "new_check": "Private timeout child emits stdout/stderr phase markers. Original TimeoutExpired bytes remain, parent log includes the markers and exact child is exited/reaped. Existing cleanup/cache contracts remain."
+  },
+  "native": {
+    "command": "python3 scripts/test-merge-wrapped-family.py --only folding --only wrapping --only wrapped --only navigation --only three-pane --only initial --only find --only ownership",
+    "log": "build/qa/merge-folding-batch-native-repair-2026-10-17.log",
+    "exit_code": 0,
+    "cases": 8,
+    "failures_before_pass": [
+      {
+        "log": "build/qa/merge-folding-batch-native-2026-10-17.log",
+        "result": "Stopped before navigation cases: initial baseline did not match restored font attributes."
+      },
+      {
+        "log": "build/qa/merge-folding-transaction-diagnostic-2026-10-17.log",
+        "result": "One editing notification, but AppKit fixed the emoji glyph to AppleColorEmojiUI and retained NSOriginalFont after the baseline snapshot."
+      }
+    ],
+    "repair": "Fixture calls fixAttributes before capturing its original attributed snapshot. Strict full restored attributes, one-notification and all behavioral assertions remain; no production change or Core/build repeat.",
+    "owned_pids": [
+      74864,
+      74967,
+      75012,
+      75016,
+      75020,
+      75033,
+      75047,
+      75049,
+      75055,
+      75104,
+      75297
+    ],
+    "independently_absent": true,
+    "covered": [
+      "One complete apply/restore editing notification and exact original attributed text.",
+      "Multi-run reveal increments projection revision and invokes geometry/expansion once, with busy/retired refusal.",
+      "Actual collapsed TextKit geometry, hidden selection reveal and combined mode.",
+      "Anchored three-pane expansion and aligned result expansion beyond serialized conflict markers preserve source row coordinates, result text, anchors, dirty/Undo and input files.",
+      "Retained wrapping, wrapped navigation, block/three-pane/initial navigation, Find and viewport ownership families.",
+      "Both appearance drawing paths; no new screenshot or pixel comparison claim."
+    ],
+    "coordinate_regression": {
+      "command": "python3 scripts/test-merge-wrapped-family.py --only folding",
+      "log": "build/qa/merge-folding-coordinate-regression-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Strengthened fixture uses a short unchanged section between two conflicts. It proves serialized marker-offset candidates are already shown outside the targeted source range, then expands the actual aligned target. The old coordinate route therefore cannot accidentally pass by expanding the same long end section.",
+      "app_rebuild": false,
+      "core_repeat": false,
+      "unaffected_native_cases_repeated": false
+    },
+    "focused_additional_passes": 1
+  },
+  "hosted_evidence": {
+    "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39007075056",
+    "commit": "d7133b3b",
+    "job_id": 117322204918,
+    "git_integration": "passed 2026-10-17 06:20:40 UTC",
+    "latest_observation": "Native Scoped Merge menus and pane shortcuts running at 06:29:55 UTC",
+    "limits": "This older run predates the current folding changes and does not prove a complete hosted pass or the timeout root cause."
+  },
+  "coverage": {
+    "new_control_mappings": 0,
+    "certified_dialogs": 0,
+    "mapped_controls": 1566,
+    "pending_controls": 93,
+    "pending_family_reviews": 10
+  },
+  "remaining": [
+    "Root cause/hosted confirmation of the earlier folding timeout and full current hosted integration",
+    "Physical input/VoiceOver/exact Windows/macOS visual acceptance",
+    "Large-document end-to-end performance beyond the exact 12k-anchor fixture",
+    "Signed sandbox/Finder/AppStore acceptance",
+    "Complete application parity and remaining filename identity migration"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/MergeFolding.swift": "9460233f76d956864ea4062914f837f456d85b6443a9b5a8fd90c0a6f53c0742",
+    "Sources/TurtleGitMac/MergeFoldingController.swift": "935b595b158d887113c0307320306a255e568c97e5bfab29f10f86f503d602fb",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "71aa3c337c37c82cf002161fb1cabdd9efe6975b0d16717924206f300c77b202",
+    "Tests/TurtleGitCoreTests/MergeFoldingTests.swift": "6e564fc01c7747d4456309c2585c937570317629f7916962576136419debe7fd",
+    "docs/qa/merge-folding-native-2026-10-14.swift": "e43ef2bcf67a31359b1380c64caa0da1c398f7bea4c6ec6c3254309b647e10fd",
+    "scripts/native_receiver.py": "36304662896abc1cca48036b99bd3942ee7d0e2af0b9c03e310ac4a175cdaf89",
+    "scripts/test-native-receiver.py": "81f64d64757e57951fb73519a9028dfdc1f620af6466d39a783e7c2f0156efcf"
+  },
+  "documentation": {
+    "help_check": {
+      "exit_code": 0,
+      "documents": 36,
+      "topics": 47,
+      "files": 50,
+      "bytes": 1971555
+    },
+    "coverage_reconciled": true,
+    "site": {
+      "exit_code": 0,
+      "documents": 266,
+      "unresolved_fragments": [],
+      "log": "build/qa/merge-folding-batch-site-2026-10-17.log"
+    }
+  }
+}

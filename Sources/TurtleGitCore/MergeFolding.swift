@@ -80,6 +80,18 @@ public struct MergeFolding: Sendable, Equatable {
         return start..<end
     }
 
+    /// Reveal each folded run once and return all actual changed source ranges.
+    /// The owner can publish one projection after a multi-line selection.
+    @discardableResult public mutating func reveal(rows: [Int]) -> [Range<Int>] {
+        let requested = Set(rows.filter { visibility.indices.contains($0) }).sorted()
+        var changed: [Range<Int>] = []
+        for row in requested {
+            if let last = changed.last, last.contains(row) { continue }
+            if let range = reveal(row: row) { changed.append(range) }
+        }
+        return changed
+    }
+
     public func screenRow(forSourceRow row: Int, collapsed: Bool) -> Int? {
         guard visibility.indices.contains(row) else { return nil }
         if !collapsed { return row }
@@ -160,10 +172,11 @@ public struct MergeFoldAnchors: Sendable, Equatable {
     }
     public func resultRows(in text: String) -> [Int: Int] {
         let ranges = MergeLineEndings.lineRanges(in: text)
+        let rowAtOffset = Dictionary(ranges.enumerated().map { ($0.element.location, $0.offset) }, uniquingKeysWith: { first, _ in first })
         var result: [Int: Int] = [:]
         for (source, offset) in offsets {
             // An anchor must still start a result row, not an edited line suffix.
-            if let row = ranges.firstIndex(where: { $0.location == offset }) { result[source] = row }
+            if let row = rowAtOffset[offset] { result[source] = row }
         }
         return result
     }

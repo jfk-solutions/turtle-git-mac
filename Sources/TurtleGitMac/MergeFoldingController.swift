@@ -14,7 +14,7 @@ import TurtleGitCore
     private var retired = false
     private(set) var revision = 0
     var geometryChanged: () -> Void = {}
-    var expanded: (Range<Int>) -> Void = { _ in }
+    var expanded: ([Range<Int>]) -> Void = { _ in }
     var actionsAllowed: () -> Bool = { true }
 
     init(preferences: UserDefaults = .standard) {
@@ -43,11 +43,16 @@ import TurtleGitCore
     @discardableResult func expand(screenRow: Int) -> Bool {
         guard !retired, actionsAllowed(), collapsed, projection.rows.indices.contains(screenRow),
               case .marker(let range) = projection.rows[screenRow], let expandedRange = folding.expand(marker: range.lowerBound) else { return false }
-        refresh(); expanded(expandedRange); return true
+        refresh(); expanded([expandedRange]); return true
     }
     @discardableResult func reveal(sourceRow: Int) -> Bool {
-        guard !retired, actionsAllowed(), collapsed, let range = folding.reveal(row: sourceRow) else { return false }
-        refresh(); expanded(range); return true
+        reveal(sourceRows: [sourceRow])
+    }
+    @discardableResult func reveal(sourceRows: [Int]) -> Bool {
+        guard !retired, actionsAllowed(), collapsed else { return false }
+        let ranges = folding.reveal(rows: sourceRows)
+        guard !ranges.isEmpty else { return false }
+        refresh(); expanded(ranges); return true
     }
     func install(visibility: [MergeFolding.Visibility]) {
         guard !retired, folding.visibility != visibility else { return }
@@ -88,6 +93,7 @@ extension NSAttributedString.Key {
     private var originals: [(NSRange, [NSAttributedString.Key: Any])] = []
     func prepare(_ view: NSTextView) {
         guard let storage = view.textStorage else { return }
+        storage.beginEditing(); defer { storage.endEditing() }
         for (range, attributes) in originals where NSMaxRange(range) <= storage.length && range.length > 0 {
             if storage.attribute(.mergeFoldHidden, at: range.location, effectiveRange: nil) != nil || storage.attribute(.mergeFoldMarker, at: range.location, effectiveRange: nil) != nil {
                 storage.setAttributes(attributes, range: range)
@@ -98,6 +104,8 @@ extension NSAttributedString.Key {
     func apply(to view: NSTextView, controller: MergeFoldingController) {
         self.controller = controller
         guard let storage = view.textStorage else { return }
+        // Observers must see a complete fold map, never restored/half-hidden rows.
+        storage.beginEditing(); defer { storage.endEditing() }
         prepare(view)
         ranges = MergeLineEndings.lineRanges(in: view.string)
         states = controller.collapsed && ranges.count == controller.folding.visibility.count ? controller.folding.visibility : Array(repeating: .shown, count: ranges.count)
@@ -165,14 +173,14 @@ extension NSAttributedString.Key {
         return controller.expand(screenRow: screen)
     }
     func reveal(selection: NSRange, in view: NSTextView? = nil, includeMarker: Bool = false) {
-        guard let controller, controller.collapsed else { return }
-        let end = NSMaxRange(selection)
-        var changed = false
-        for (row, range) in ranges.enumerated() where range.location <= end && NSMaxRange(range) >= selection.location && (states[row] == .hidden || selection.length > 0 || includeMarker) {
-            changed = controller.reveal(sourceRow: row) || changed
+        guard let controller, controller.collapsed, selection.location >= 0, selection.location != NSNotFound, selection.length >= 0 else { return }
+        let (end, overflow) = selection.location.addingReportingOverflow(selection.length)
+        guard !overflow else { return }
+        let rows = ranges.enumerated().compactMap { row, range -> Int? in
+            range.location <= end && NSMaxRange(range) >= selection.location && (states[row] == .hidden || selection.length > 0 || includeMarker) ? row : nil
         }
-        if changed, let view {
-            prepare(view); apply(to: view, controller: controller)
+        if controller.reveal(sourceRows: rows), let view {
+            apply(to: view, controller: controller)
             if let container = view.textContainer { view.layoutManager?.ensureLayout(for: container) }
             view.needsDisplay = true
         }
