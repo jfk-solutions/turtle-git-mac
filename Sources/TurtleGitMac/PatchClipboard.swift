@@ -5,8 +5,8 @@ import TurtleGitCore
 /// The registered Windows TGIT_UNIFIEDDIFF format becomes a native macOS UTI.
 /// Clipboard reads occur only on an explicit action, never during menu polling.
 @MainActor enum PatchClipboard {
-    static let unifiedDiff = NSPasteboard.PasteboardType("org.turtlegit.unified-diff")
-    static let legacyUnifiedDiff = NSPasteboard.PasteboardType("org.tortoisegit.unified-diff")
+    static let unifiedDiff = NSPasteboard.PasteboardType(FinderPatchHandoff.clipboardType)
+    static let legacyUnifiedDiff = NSPasteboard.PasteboardType(FinderPatchHandoff.legacyClipboardType)
     static func snapshot(from pasteboard: NSPasteboard = .general) -> Data? {
         for type in [unifiedDiff, legacyUnifiedDiff] {
             if let bytes = pasteboard.data(forType: type), !bytes.isEmpty { return bytes }

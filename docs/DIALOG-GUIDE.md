@@ -364,7 +364,7 @@ prepares a request describing the selected range and repository URL. Credentials
 and mail-client permissions depend on the selected delivery method.
 
 Apply Patch Serial applies a patch series through Git's corresponding operation.
-Review/apply single patch uses the comparison/review workflow. Resolve a failed
+Review/apply single patch uses the comparison/review workflow. Its source-file chooser offers Use Clipboard Patch, capturing the copied diff before target selection. Finder’s existing eligible Review action also uses registered patch clipboard data when the selected file is not a patch. Opening a review does not apply it. Resolve a failed
 or conflicted application in its owning dialog before continuing. A Unified Diff
 document can be edited and saved without staging those edits automatically.
 

@@ -73,15 +73,20 @@ import os
         let carriedPayload = sender.representedObject is FinderMenuCommand
         Self.handoffLog.notice("Finder callback received; tag: \(sender.tag, privacy: .public), represented payload present: \(carriedPayload, privacy: .public)")
         guard let command = menuDispatch.claim(sender),
-              let url = command.url(control: NSEvent.modifierFlags.contains(.control),alternate:NSEvent.modifierFlags.contains(.shift)) else { return }
-        guard let application = FinderMenuDispatch.containingApplication(for: Bundle(for: FinderSync.self).bundleURL) else {
-            Self.handoffLog.error("Finder containing application is unavailable")
-            return
-        }
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.activates = true; configuration.createsNewApplicationInstance = false
-        NSWorkspace.shared.open([url], withApplicationAt: application, configuration: configuration) { _, error in
-            if let error { Self.handoffLog.error("Finder application handoff failed: \((error as NSError).code, privacy: .public)") }
+              let raw = command.url(control: NSEvent.modifierFlags.contains(.control), alternate: NSEvent.modifierFlags.contains(.shift)),
+              let request = FinderRequest(url: raw),
+              let application = FinderMenuDispatch.containingApplication(for: Bundle(for: FinderSync.self).bundleURL) else { return }
+        Task { @MainActor in
+            let captured = await FinderPatchReviewCapture.request(request, pasteboard: .general, store: .current)
+            guard let url = captured.url else { return }
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true; configuration.createsNewApplicationInstance = false
+            NSWorkspace.shared.open([url], withApplicationAt: application, configuration: configuration) { _, error in
+                if let error {
+                    Self.handoffLog.error("Finder application handoff failed: \((error as NSError).code, privacy: .public)")
+                    if let receipt = captured.clipboardPatch, let store = FinderPatchHandoff.current { store.discard(receipt) }
+                }
+            }
         }
     }
 }
@@ -126,7 +131,7 @@ final class FinderMenuCommand: NSObject {
         if control && request.action == .diffLater {
             return FinderRequest(action: .clearComparisonMark, paths: request.paths).url
         }
-        return FinderRequest(action:request.action,paths:request.paths,sources:request.sources,alternateTool:alternate ?? request.alternateTool).url
+        return FinderRequest(action:request.action,paths:request.paths,sources:request.sources,alternateTool:alternate ?? request.alternateTool,clipboardPatch:request.clipboardPatch).url
     }
 }
 
@@ -300,5 +305,22 @@ enum FinderMenuBuilder {
         parent.image = image(.turtle)
         parent.submenu = submenu; menu.addItem(parent)
         return menu
+    }
+}
+
+
+/// The existing source Review action prefers a selected patch file. Only an
+/// explicit invocation on another file reads registered patch clipboard bytes;
+/// popup construction does not inspect patch contents or broaden source clauses.
+@MainActor enum FinderPatchReviewCapture {
+    static let types = [NSPasteboard.PasteboardType(FinderPatchHandoff.clipboardType), NSPasteboard.PasteboardType(FinderPatchHandoff.legacyClipboardType)]
+    static func request(_ request: FinderRequest, pasteboard: NSPasteboard, store: FinderPatchHandoff?) async -> FinderRequest {
+        guard request.action == .reviewPatch, request.paths.count == 1,
+              !["patch", "diff"].contains(request.paths[0].pathExtension.lowercased()) else { return request }
+        guard let bytes = types.lazy.compactMap({ pasteboard.data(forType: $0) }).first(where: { !$0.isEmpty }) else { return request }
+        let receipt: String
+        if let store { receipt = (try? await Task.detached { try store.publish(bytes) }.value) ?? FinderPatchHandoff.unavailable }
+        else { receipt = FinderPatchHandoff.unavailable }
+        return FinderRequest(action: request.action, paths: request.paths, alternateTool: request.alternateTool, clipboardPatch: receipt)
     }
 }

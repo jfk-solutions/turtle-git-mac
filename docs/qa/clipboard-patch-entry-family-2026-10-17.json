@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "23a54b4e1383939b4783fd72a80d7f9b8b76056f",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Source-eligible Finder clipboard patch capture and one-use shared cache receipt, app routing, native source chooser accessory and owned source/target responses",
+  "source_inputs_sha256": {
+    "FinderSync/FinderSync.swift": "f4bb6b89e84c88adf6837da84600195a911fc1fa01a81a504647323d7b08070e",
+    "Sources/TurtleGitCore/FinderRequest.swift": "e8d367d25eb0153f5ff0bc977b949504fa9c6a295136fedcc5e0d49440bae76c",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "5e391a42e08b64ddf2a0ab6d5a662fd1fd6d25468b3d0e9aa22fb269c6833468",
+    "Sources/TurtleGitMac/ReviewPatchWorkflow.swift": "37f076a7496d6b6aaaddd0b61018422a0931bcc194959c7098bc5043b2b94ef8",
+    "Sources/TurtleGitMac/PatchClipboard.swift": "b47c5d824e36c5f2cc2804c93ceb65ba29496a103cfb9926862d807ca73ce44a",
+    "Tests/TurtleGitCoreTests/FinderPatchHandoffTests.swift": "39e3cc2efbd707ff904cd3a0537adcc819c092e87d0235935c955473ddca6ff9",
+    "docs/qa/clipboard-patch-entry-native-2026-10-17.swift": "55710e574d97a83ddaec7bff9939d606415b3461e320501660d36c009677881f",
+    "scripts/test-clipboard-patch-entry.py": "7c615d4f3bc2feb6b51a44f1f0998cb438fa991790b0b5ca6dac62519c1bc6a8"
+  },
+  "attempts": [
+    {
+      "kind": "Core focused",
+      "log": "build/qa/clipboard-patch-entry-core-2026-10-17.log",
+      "result": "20 cases passed: 5 new handoff cases and 15 retained FinderRequest cases. Covers exact raw bytes, modes, reopen, concurrent single claim, URI guards, malformed/expired/symlink/FIFO/oversized refusal, namespace/count pruning and discard."
+    },
+    {
+      "kind": "Initial Debug",
+      "log": "build/qa/clipboard-patch-entry-build-2026-10-17.log",
+      "result": "exit 65: catch error shadowed RepositoryModel.error; corrected to self.error"
+    },
+    {
+      "kind": "Debug repair",
+      "log": "build/qa/clipboard-patch-entry-build-repair-2026-10-17.log",
+      "result": "exit 0. Default entitled handoff location also moved under App Group Library/Caches. Injected-root Core behavior unchanged; no Core repeat. Existing SDK/simulator and compiler diagnostics retained."
+    },
+    {
+      "kind": "Grouped native",
+      "log": "build/qa/clipboard-patch-entry-native-2026-10-17.log",
+      "receivers": [
+        36893,
+        37008
+      ],
+      "result": "2 cases passed with system/bundled Git for explicit chooser/review workflows. App RepositoryModel dispatch uses its normal native-fixture default Git runtime. Production Finder capture/URL reconstruction, receipt byte isolation, patch-file precedence, unavailable-container error, non-review/plain-text refusal, duplicate app URI refusal, actual native accessory target/action, invalid source retry, snapshot through target selection, explicit plain-folder apply, and retired panel/button refusal passed."
+    }
+  ],
+  "cleanup": {
+    "receiver_report": "36893 and37008 reaped",
+    "independent_ps": "both absent",
+    "resources": "owned prep/review/panel windows closed; private named pasteboard released; disposable target, handoff and output directories removed",
+    "user_state": "workspace not adopted; user general pasteboard and unrelated applications untouched"
+  },
+  "checks": {
+    "localization": "38 languages /1281 keys --check passed",
+    "help": "38 documents /48 topics /58 files --check passed after Dialog Guide update",
+    "ledger": "Reconciled, counts unchanged; not a feature-completion percentage",
+    "diff": "git diff --check",
+    "site": "289 documents, zero unresolved fragments; build/qa/clipboard-patch-entry-site-2026-10-17.log"
+  },
+  "limits": [
+    "Physical Finder popup and installed signed extension/app interoperability",
+    "Entitled cross-process App Group access, bookmark and target grants",
+    "Clipboard privacy prompts and real Open panel accessory geometry/keyboard/VoiceOver",
+    "Large-patch performance and all mixed-prefix/encoding/format behavior",
+    "Budget pruning is best effort during publication; no timer deletes files while app/extension is not running",
+    "Finder registered private formats only; plain text remains explicit app/accessory interoperability",
+    "Native routing fixture does not prove a full hosted CI or signed App Store pass",
+    "No screenshots added: physical system file chooser presentation not captured"
+  ]
+}

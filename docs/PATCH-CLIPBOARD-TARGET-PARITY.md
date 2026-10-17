@@ -59,3 +59,9 @@ snapshot retention across clipboard replacement, suggested/selected folder
 choices and real plain-directory patch application. It used a private named
 pasteboard and disposable targets, then exited and cleaned up its resources.
 See `qa/clipboard-target-batch-2026-10-12.json` for repair history and limits.
+
+The [clipboard entry continuation](PATCH-CLIPBOARD-ENTRY-PARITY.md) connects the
+existing eligible Finder Review action to a one-use byte receipt, and adds Use
+Clipboard Patch to the native patch source chooser. This supersedes those two
+entry gaps within the documented source clauses; physical/signed and broad format
+acceptance remain open.

@@ -15,8 +15,11 @@ command. The File menu also opens it without requiring an active repository.
 
 A patch inside a known working copy defaults to its containing folder, matching
 the source `/wc` behavior. An outside patch asks for its target folder; a command
-without a patch opens a file chooser. The Extended non-patch-file route opens
-the patch chooser instead of interpreting arbitrary file bytes as a diff. Native
+without a patch opens a file chooser with Use Clipboard Patch. The Extended
+non-patch-file Finder route uses registered patch clipboard bytes when available;
+otherwise it opens the patch chooser instead of interpreting arbitrary selected
+file bytes as a diff. A selected patch file retains priority. See
+[clipboard entry and captured handoff](PATCH-CLIPBOARD-ENTRY-PARITY.md). Native
 owned panels retain real grants and fence late replies after closure. Finder
 requests do not grant sandbox permission and do not change the app's active
 repository.

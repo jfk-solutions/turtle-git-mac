@@ -151,6 +151,7 @@ for baseline and update rules.
 - [Finder command handoffs and native Settings ownership](FINDER-COMMAND-HANDOFF-PARITY.md)
 - [Clipboard patches and target-folder matching](PATCH-CLIPBOARD-TARGET-PARITY.md)
 - [Review/apply single patch and ordinary-folder targets](REVIEW-PATCH-PARITY.md)
+- [Copied patches through Finder and the native chooser](PATCH-CLIPBOARD-ENTRY-PARITY.md)
 - [SVN DCommit, Fetch, Rebase and Ignore](SVN-PARITY.md)
 - [Private universal Perl/Subversion runtime](GIT-SVN-RUNTIME.md)
 - [Git daemon warning, progress and process ownership](DAEMON-PARITY.md)

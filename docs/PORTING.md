@@ -2497,3 +2497,26 @@ helper-only repair. Raw light/dark captures were individually reviewed; receiver
 [evidence](qa/certificate-inspector-family-2026-10-17.json) retain scope/limits.
 Live TLS, physical/AX, signed helper/save grants and full application parity remain
 open. Dialog inventory counts are unchanged.
+
+### Clipboard patch Finder/chooser entry family, 2026-10-17
+
+The existing source-eligible Finder Review action now captures registered patch
+clipboard bytes for a non-patch selection, while a selected patch file retains
+priority. A one-use App Group cache receipt carries exact bytes without putting
+the patch in a URL or treating it as repository permission. The app loads that
+snapshot through its owned review preparation, rejects recent repeated receipts,
+and retains folder authorization/target matching and explicit Apply.
+
+The native patch source chooser offers Use Clipboard Patch with original artwork.
+It validates only on explicit activation, retains the chosen bytes through the
+later target chooser, and keeps invalid text in the file chooser for retry.
+Source/target responses wait for sheet release and reject cancelled, repeated,
+old or closed-owner callbacks. The existing Merge Open checkbox remains.
+
+Twenty focused Core cases and two grouped native cases passed. Initial Debug
+caught a catch-variable naming error; the repair passed. The default shared
+cache path moved under Library/Caches; injected-root Core checks were not repeated.
+Both receiver PIDs 36893/37008 were reaped and independently absent. [Scope](PATCH-CLIPBOARD-ENTRY-PARITY.md)
+and [evidence](qa/clipboard-patch-entry-family-2026-10-17.json) retain physical,
+privacy, signed/cross-process and format/performance limits. No full hosted CI,
+App Store or complete dialog/application parity is certified.

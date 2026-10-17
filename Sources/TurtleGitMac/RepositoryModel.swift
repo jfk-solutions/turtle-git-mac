@@ -205,6 +205,8 @@ import UniformTypeIdentifiers
     var patchDocumentPresentation: ((PatchWindowController) -> Void)?
     var configurePatchDocument: (PatchWindowController) -> Void = { _ in }
     var reviewPatchPreferences: UserDefaults = .standard
+    var finderPatchHandoff: FinderPatchHandoff? = .current
+    private var finderPatchReceipts: [String] = []
     var reviewPatchPreparation: ((ReviewPatchWorkflow) -> Void)?
     var reviewPatchPresentation: ((WorkingTreePatchWindowController) -> Void)?
     private var finderMailWorkflows: [UUID: SendMailWorkflow] = [:]
@@ -1284,6 +1286,32 @@ import UniformTypeIdentifiers
         do {
             let workflow = ReviewPatchWorkflow(file: nil, target: root, preferred: root, grants: activeAccess.map { [$0] } ?? [],
                 executable: try GitRuntime.executable(), preferences: reviewPatchPreferences, clipboardBytes: bytes)
+            presentReview(workflow)
+        } catch { self.error = error.localizedDescription }
+    }
+    private func showFinderClipboardPatch(_ request: FinderRequest, receipt: String) {
+        guard !busy, !confirmingQuit, let selected = request.paths.first else { return }
+        guard receipt != FinderPatchHandoff.unavailable, let handoff = finderPatchHandoff else {
+            error = "Finder could not pass the clipboard patch. Use Review Clipboard Patch in TurtleGit to try again."; return
+        }
+        guard !finderPatchReceipts.contains(receipt) else { return }
+        finderPatchReceipts.append(receipt); if finderPatchReceipts.count > 128 { finderPatchReceipts.removeFirst() }
+        let known = FinderSnapshot.read()?.roots.first { selected.path == $0 || selected.path.hasPrefix($0 + "/") }
+            ?? root.flatMap { selected.path == $0.path || selected.path.hasPrefix($0.path + "/") ? $0.path : nil }
+        let target = known == nil ? nil : selected.deletingLastPathComponent()
+        var grants = activeAccess.map { [$0] } ?? []
+        if GitRuntime.isAppStoreBuild, let accessStore {
+            for saved in accessStore.repositories {
+                if let lease = try? accessStore.acquire(saved.id, requireSecurityScope: true), lease.contains(selected) { grants.append(lease) }
+            }
+        }
+        do {
+            let workflow = ReviewPatchWorkflow(file: nil, target: target, preferred: selected.deletingLastPathComponent(), grants: grants,
+                executable: try GitRuntime.executable(), preferences: reviewPatchPreferences, clipboardLoader: { token in
+                    try await Task.detached {
+                        try token.check(); let bytes = try handoff.consume(receipt); try token.check(); return bytes
+                    }.value
+                })
             presentReview(workflow)
         } catch { self.error = error.localizedDescription }
     }
@@ -2942,7 +2970,10 @@ import UniformTypeIdentifiers
             guard canChangeSettingsContext() else { return }
         } else if action.isApplicationUtility { activate(action); return }
         guard !busy else { return }
-        if action == .reviewPatch { showReviewPatch(files: request.paths); return }
+        if action == .reviewPatch {
+            if let receipt = request.clipboardPatch { showFinderClipboardPatch(request, receipt: receipt) }
+            else { showReviewPatch(files: request.paths) }; return
+        }
         if action == .sendMail { showFinderSendMail(files: request.paths); return }
         if action == .clearComparisonMark { clearComparisonMark(); return }
         if action == .diffLater {
