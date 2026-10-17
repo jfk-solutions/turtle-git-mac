@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "17d791f74445d831fbe98236ca54e12a5ccc91bb",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Native source-shaped pane/Encoding/EOL/OK/Cancel chooser with nine encodings and ten line endings",
+    "Single-response validation, native Cancel, model retirement and independent pending-request Quit accounting",
+    "Retained two-pane transaction and three-pane formatting/Undo/Save regressions"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/merge-format-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 5
+    }
+  ],
+  "native": {
+    "log": "build/qa/merge-format-source-native-2026-10-17.log",
+    "exit": 0,
+    "distinct_family_passes": 3,
+    "families": [
+      "source native prompt and held three-pane request retirement",
+      "two-pane format transactions",
+      "three-pane formatting, Undo/Redo and Save"
+    ],
+    "owned_receivers_reaped": [
+      15531,
+      15535,
+      15547
+    ],
+    "independently_absent_owned_receivers": [
+      15531,
+      15535,
+      15547
+    ],
+    "failures": []
+  },
+  "core": {
+    "repeated": false,
+    "reason": "Core encoding/conversion/serialization unchanged; native fixtures exercise existing consumers."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/merge-encoding-source-light.png",
+      "sha256": "733ea67424200aac6fddfaed6f84f26c1650d68d992a195e1c93e1e6903a6aed",
+      "pixels": [
+        880,
+        496
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/merge-encoding-source-dark.png",
+      "sha256": "8083506eb8e820a30a9c9ab70617447a91787ead0b81e7026f2076204a2d8c72",
+      "pixels": [
+        880,
+        496
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of the actual production MergeFormatPrompt in a standalone passive owned window with private data. Actual attached sheets and model ownership asserted separately; standalone capture avoids compositor sheet-group scaling. No global focus or input.",
+  "hosted_observation": {
+    "head": "17d791f74445d831fbe98236ca54e12a5ccc91bb",
+    "macos": {
+      "run": 38989564562,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38989564511,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Source ASCII remains the explicit Windows-1252 adaptation",
+    "Physical popup/key/VoiceOver acceptance, full legacy-codepage and format/Save boundaries remain open",
+    "Signed sandbox, full hosted CI and complete dialog parity are not certified"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/merge-format-source-site-2026-10-17.log"
+  }
+}

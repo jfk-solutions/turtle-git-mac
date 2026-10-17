@@ -1858,3 +1858,12 @@ profile-only recovery preserve unrelated drafts; a failed file save cannot save
 other preferences. All 24 source controls receive partial mappings. See
 [General parity](MERGE-GENERAL-SETTINGS-PARITY.md#source-form-and-comment-profile-ownership--october-17-2026).
 The Debug build and four grouped native families have passing checks: source form/profile ownership, live fonts/preferences, default encoding and patch settings/export. The build catch-shadowing error and three fixture issues are recorded with their focused repairs; no app rebuild followed those fixture changes. Both raw light/dark captures were individually reviewed: source groups, paired controls, fonts and additional options fit. All seven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-editor-source-family-2026-10-17.json) for exact attempts, capture scope and acceptance limits.
+
+### Native source Encoding sheet and editor lifetime — October 17, 2026
+
+Encoding/EOL now uses a native pane/Encoding/EOL/OK/Cancel sheet with source
+choices and one-response cancellation. Compare retains and retires its prompt;
+three-pane requests keep independent Quit accounting until an actual response
+drains after forced closure. All seven source controls receive partial mappings.
+See [format parity](MERGE-FORMAT-PARITY.md#source-encoding-sheet-and-independent-drain--october-17-2026).
+The Debug build and all three grouped native families passed on their first attempt: source prompt/retirement, retained two-pane format transactions and three-pane formatting/Undo/Save. Both raw light/dark captures were individually reviewed; pane, labels, choices and lower-right buttons fit. All three owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-format-source-family-2026-10-17.json) for build diagnostics, capture provenance and acceptance limits.

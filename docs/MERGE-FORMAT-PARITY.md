@@ -35,3 +35,29 @@ exercised two-pane acceptance/Cancel/stale-close and three-pane acceptance, plus
 actual attached-sheet Close/Quit guards. See the
 [dated QA record](qa/merge-format-2026-10-12.json) for the compiler-fixture repair
 and exact scope. No new captures were published.
+
+## Source Encoding sheet and independent drain — October 17, 2026
+
+Encoding now uses a native source-shaped sheet instead of a generic alert. Pane
+name, permanent Encoding/EOL labels, source-ordered nine/ten native popups and
+lower-right OK/Cancel retain the resource hierarchy. The pane prefixes the window
+title. Invalid programmatic selection leaves the sheet open with native inline
+validation; normal popups retain the selected initial values.
+
+Acceptance, Cancel/Escape, external sheet completion and owner closure settle
+once and disable the old controls. Native prompt lifetime is tracked independently
+for Quit. Compare now retains its actual prompt and cancels it on model retirement,
+including when an editor window is retained for replacement. Both model routes
+refuse retired/pre-start/window-changed contexts before presenting a chooser.
+
+Three-pane retirement now retires delivery immediately but keeps operation
+accounting until an injected/native chooser actually drains. The prior immediate
+counter release for a held injected continuation was not worker completion. Native
+cancellation settles the prompt; a genuinely suspended injected choice still guards
+Quit until its late reply is discarded. Existing format snapshots, source-state
+projection, Auto/EOL conversion, encoding validation and Save/Undo semantics remain.
+
+All seven static resource controls have partial mappings. The Debug build and all three grouped native families passed on their first attempt: source prompt/retirement, retained two-pane format transactions and three-pane formatting/Undo/Save. Both raw light/dark captures were individually reviewed; pane, labels, choices and lower-right buttons fit. All three owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-format-source-family-2026-10-17.json) for build diagnostics, capture provenance and acceptance limits.
+
+Source ASCII remains the explicit Windows1252 adaptation; physical popups/keys/VoiceOver, full legacy codepages and format/Save
+boundaries, signed sandbox and complete upstream parity remain open.

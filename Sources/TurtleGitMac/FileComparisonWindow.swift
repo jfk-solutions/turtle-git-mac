@@ -807,7 +807,8 @@ private extension FileComparisonDocument {
     func encoding(base: Bool) -> ComparisonTextEncoding? { drafts?.encoding(base: base) }
     private var formatRequest: UUID?
     var hasPendingEditorChoice: Bool { exporting || formatRequest != nil || paneSave != nil || projectionChange != nil }
-    var chooseFormat: (NSWindow, String, MergeFormatSelection) async -> MergeFormatSelection? = MergeFormatPrompt.choose
+    var chooseFormat: ((NSWindow, String, MergeFormatSelection) async -> MergeFormatSelection?)?
+    private var formatPrompt: MergeFormatPrompt?
     func showFormatDialog(base: Bool) {
         guard canTransfer(toBase: base), let window, window.attachedSheet == nil,
               let originalEncoding = encoding(base: base) else { return }
@@ -818,13 +819,21 @@ private extension FileComparisonDocument {
             defer {
                 withExtendedLifetime(permissions) {}
                 Self.activePaneExports -= 1
-                if formatRequest == request { formatRequest = nil; onExportStateChanged() }
+                if formatRequest == request { formatRequest = nil; formatPrompt = nil; onExportStateChanged() }
             }
-            guard let choice = await chooseFormat(window, base ? "Base" : "Mine", .initial(encoding: originalEncoding, text: original)),
-                  !retired, formatRequest == request, alignmentGeneration == generation,
+            guard !retired, formatRequest == request, self.window === window else { return }
+            let initial = MergeFormatSelection.initial(encoding: originalEncoding, text: original)
+            let choice: MergeFormatSelection?
+            if let chooseFormat { choice = await chooseFormat(window, base ? "Base" : "Mine", initial) }
+            else {
+                let prompt = MergeFormatPrompt(pane: base ? "Base" : "Mine", selection: initial); formatPrompt = prompt
+                choice = await prompt.choose(window: window)
+            }
+            guard let choice,
+                  !retired, formatRequest == request, alignmentGeneration == generation, self.window === window, window.attachedSheet == nil,
                   draftText(base: base).utf8.elementsEqual(original.utf8), encoding(base: base) == originalEncoding else { return }
             // Release this chooser's lock before applying its captured result.
-            formatRequest = nil; onExportStateChanged()
+            formatRequest = nil; formatPrompt = nil; onExportStateChanged()
             guard canTransfer(toBase: base) else { return }
             do {
                 let converted = try choice.applying(to: original)
@@ -1139,7 +1148,7 @@ private extension FileComparisonDocument {
         loadSession?.cancel(); closeAfterLoad = false
         lineWrapping.retire(); viewportNavigation.removeAll()
         cancelOutput(); cancelPaneSave()
-        formatRequest = nil; previewRow = nil
+        formatPrompt?.cancel(); formatPrompt = nil; formatRequest = nil; previewRow = nil
         onExportStateChanged = {}
         retired = true; movedBlockRecords = []; retainedMoveLinks = nil; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
         imageLoader?.retire(); imageLoader = nil
@@ -2561,34 +2570,86 @@ extension MergeLineNavigationProviding where Self: NSTextView {
     }
 }
 
-/// Transactional native Encoding/EOL chooser shared by both Merge viewers.
-@MainActor final class MergeFormatPrompt {
-    let alert = NSAlert()
+/// Native IDD_ENCODING, adapted from EncodingDlg (TortoiseGit 2023, 2026;
+/// TortoiseSVN 2013, 2020), GPL-2.0-or-later. Pane/Encoding/EOL and OK/Cancel
+/// retain source order while macOS owns the sheet and cancellation lifecycle.
+@MainActor final class MergeFormatPrompt: NSWindowController, NSWindowDelegate {
+    static private(set) var activeDialogs = 0
     let encoding = NSPopUpButton(), ending = NSPopUpButton()
+    let paneLabel = NSTextField(labelWithString: ""), status = NSTextField(labelWithString: "")
+    let ok = NSButton(title: "OK", target: nil, action: nil)
     let endings: [MergeLineEnding?] = [nil,.crlf,.lf,.cr,.lfcr,.verticalTab,.formFeed,.nextLine,.lineSeparator,.paragraphSeparator]
+    private let initial: MergeFormatSelection
+    private var completion: ((MergeFormatSelection?) -> Void)?
+    private var ownerObserver: NSObjectProtocol?
+    private var finished = false, registered = false
     init(pane: String, selection: MergeFormatSelection) {
-        alert.messageText = pane + " Encoding"
-        alert.addButton(withTitle:"OK"); alert.addButton(withTitle:"Cancel")
-        encoding.addItems(withTitles:MergeFormatSelection.encodings.map(\.rawValue))
-        encoding.selectItem(at:MergeFormatSelection.encodings.firstIndex(of:selection.encoding) ?? 7)
-        ending.addItems(withTitles:endings.map { $0?.menuTitle ?? "Auto" })
-        ending.selectItem(at:endings.firstIndex(where:{ $0 == selection.ending }) ?? 0)
-        let grid = NSGridView(views:[[NSTextField(labelWithString:pane),NSView()], [NSTextField(labelWithString:"Encoding"),encoding], [NSTextField(labelWithString:"EOL"),ending]])
-        grid.columnSpacing = 14; grid.rowSpacing = 10
-        encoding.widthAnchor.constraint(equalToConstant:240).isActive = true
-        grid.frame = NSRect(origin:.zero,size:grid.fittingSize)
+        initial = selection
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 216), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = pane + " Encoding"; window.isReleasedWhenClosed = false
+        super.init(window: window); window.delegate = self
+        paneLabel.stringValue = pane; paneLabel.isSelectable = true; paneLabel.setAccessibilityLabel("Encoding pane")
+        encoding.addItems(withTitles: MergeFormatSelection.encodings.map(\.rawValue))
+        encoding.selectItem(at: MergeFormatSelection.encodings.firstIndex(of: selection.encoding) ?? 7)
+        ending.addItems(withTitles: endings.map { $0?.menuTitle ?? "Auto" })
+        ending.selectItem(at: endings.firstIndex(where: { $0 == selection.ending }) ?? 0)
+        encoding.widthAnchor.constraint(equalToConstant: 300).isActive = true
         encoding.setAccessibilityLabel(pane + " encoding"); ending.setAccessibilityLabel(pane + " line endings")
-        alert.accessoryView = grid; alert.window.initialFirstResponder = encoding
+        let grid = NSGridView(views: [[NSTextField(labelWithString: "Encoding"), encoding], [NSTextField(labelWithString: "EOL"), ending]])
+        grid.columnSpacing = 14; grid.rowSpacing = 10
+        ok.target = self; ok.action = #selector(accept); ok.keyEquivalent = "\r"
+        let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancelClicked)); cancel.keyEquivalent = "\u{1b}"
+        let buttons = NSStackView(views: [ok, cancel]); buttons.spacing = 10
+        let footer = NSView(); footer.widthAnchor.constraint(equalToConstant: 408).isActive = true; footer.heightAnchor.constraint(equalToConstant: 32).isActive = true
+        footer.addSubview(buttons); buttons.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([buttons.trailingAnchor.constraint(equalTo: footer.trailingAnchor), buttons.centerYAnchor.constraint(equalTo: footer.centerYAnchor)])
+        status.isSelectable = true; status.maximumNumberOfLines = 2; status.textColor = .systemRed
+        status.setAccessibilityLabel("Encoding validation"); status.widthAnchor.constraint(equalToConstant: 408).isActive = true; status.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        let stack = NSStackView(views: [paneLabel, grid, status, footer]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 10
+        let host = NSView(); window.contentView = host; host.addSubview(stack); stack.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 16), stack.topAnchor.constraint(equalTo: host.topAnchor, constant: 14)])
+        window.initialFirstResponder = encoding
     }
-    var selection: MergeFormatSelection {
-        .init(encoding:MergeFormatSelection.encodings[max(0,encoding.indexOfSelectedItem)], ending:endings[max(0,ending.indexOfSelectedItem)])
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
+    private var validatedSelection: MergeFormatSelection? {
+        guard MergeFormatSelection.encodings.indices.contains(encoding.indexOfSelectedItem), endings.indices.contains(ending.indexOfSelectedItem) else { return nil }
+        return .init(encoding: MergeFormatSelection.encodings[encoding.indexOfSelectedItem], ending: endings[ending.indexOfSelectedItem])
     }
+    var selection: MergeFormatSelection { validatedSelection ?? initial }
+    @objc func accept() {
+        guard !finished else { return }
+        guard let choice = validatedSelection else { status.stringValue = "Choose an encoding and a line ending."; return }
+        finish(choice)
+    }
+    func cancel() { finish(nil) }
+    private func finish(_ value: MergeFormatSelection?, closing: Bool = false) {
+        guard !finished else { return }; finished = true
+        if registered { registered = false; Self.activeDialogs -= 1 }
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver); self.ownerObserver = nil }
+        if let window, let parent = window.sheetParent { parent.endSheet(window, returnCode: value == nil ? .cancel : .OK); window.orderOut(nil) }
+        encoding.isEnabled = false; ending.isEnabled = false; ok.isEnabled = false
+        let callback = completion; completion = nil; if !closing { close() }; callback?(value)
+    }
+    func present(owner: NSWindow, completion: @escaping (MergeFormatSelection?) -> Void) {
+        guard !finished, self.completion == nil else { completion(nil); return }
+        guard owner.attachedSheet == nil, let window else { completion(nil); cancel(); return }
+        self.completion = completion; registered = true; Self.activeDialogs += 1
+        ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.cancel() } }
+        owner.beginSheet(window) { [weak self] response in
+            guard let self, !self.finished else { return }
+            if response == .OK || response == .alertFirstButtonReturn { self.accept() } else { self.cancel() }
+        }
+        window.makeFirstResponder(encoding)
+    }
+    func windowWillClose(_ notification: Notification) { finish(nil, closing: true) }
+    @objc private func cancelClicked() { cancel() }
     static func choose(window: NSWindow, pane: String, selection: MergeFormatSelection) async -> MergeFormatSelection? {
-        await MergeFormatPrompt(pane:pane,selection:selection).choose(window:window)
+        await MergeFormatPrompt(pane: pane, selection: selection).choose(window: window)
     }
-    func choose(window:NSWindow) async -> MergeFormatSelection? {
-        let response = await withCheckedContinuation { continuation in alert.beginSheetModal(for:window) { continuation.resume(returning:$0) } }
-        return response == .alertFirstButtonReturn ? selection : nil
+    func choose(window: NSWindow) async -> MergeFormatSelection? {
+        let result: MergeFormatSelection? = await withCheckedContinuation { continuation in present(owner: window) { continuation.resume(returning: $0) } }
+        withExtendedLifetime(self) {}; return result
     }
 }
 

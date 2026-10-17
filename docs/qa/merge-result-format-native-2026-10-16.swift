@@ -96,12 +96,12 @@ struct MergeResultFormatVerification {
         try await wait { !model.busy && view.isEditable }
         try require(model.error == nil && Data(contentsOf:output) == ComparisonTextEncoding.utf16BEBOM.encode(saving.text) && !model.dirty,"Saved BOM/text/format baseline differ")
         model.undo(); try await wait { model.resultPresentation == initial && model.encoding == initialEncoding && model.dirty && view.isEditable }
-        // A closed owner releases accounting immediately and refuses a late answer.
+        // A closed owner retires delivery; independent accounting drains with the held reply.
         model.showFormatDialog(); try await wait { answer != nil && model.formatPending }
         owner.close()
-        try require(model.retired && !model.formatPending && MergeRegexOperations.activeRequests == 0,"Closed format owner leaked operation accounting")
+        try require(model.retired && !model.formatPending && MergeRegexOperations.activeRequests == 1,"Closed injected format choice lost independent drain accounting")
         answer!.resume(returning:.init(encoding:.utf32LE,ending:.paragraphSeparator)); answer = nil
-        await Task.yield()
+        try await ThreePaneEngineVerification.wait { MergeRegexOperations.activeRequests == 0 }
         try require(model.resultPresentation == initial && model.encoding == initialEncoding,"Late format response changed closed document")
         try require(try Data(contentsOf:base) == Data(b.utf8) && Data(contentsOf:mine) == Data(m.utf8) && Data(contentsOf:theirs) == Data(t.utf8),"Format workflow rewrote read-only input files")
         // A legacy-encoded Mine can have Unicode in the other conflict side.

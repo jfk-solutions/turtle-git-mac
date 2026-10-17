@@ -2,7 +2,7 @@ import AppKit
 import TurtleGitCore
 struct MergeFormatNativeVerification {
     @MainActor static func verify() async throws {
-        let prompt = MergeFormatPrompt(pane:"Mine",selection:.init(encoding:.utf8BOM))
+        let prompt = MergeFormatPrompt(pane:"Mine",selection:.init(encoding:.utf8BOM)); defer { prompt.close() }
         precondition(prompt.encoding.numberOfItems == 9 && prompt.ending.numberOfItems == 10 && prompt.selection == .init(encoding:.utf8BOM))
         prompt.encoding.selectItem(at:1); prompt.ending.selectItem(at:1)
         precondition(prompt.selection == .init(encoding:.utf16LE,ending:.crlf))
@@ -19,11 +19,11 @@ struct MergeFormatNativeVerification {
         model.activatePane(base:false); model.editingEnabled = true
         owner.window?.contentView?.layoutSubtreeIfNeeded()
         try await TwoPaneEngineVerification.wait { model.canTransfer(toBase:false) && TwoPaneEngineVerification.editors(owner.window?.contentView).contains { $0.isEditable } }
-        prompt.alert.beginSheetModal(for:owner.window!) { _ in }
-        owner.window?.orderOut(nil); prompt.alert.window.orderOut(nil)
+        prompt.present(owner:owner.window!) { _ in }
+        owner.window?.orderOut(nil); prompt.window?.orderOut(nil)
         precondition(!owner.windowShouldClose(owner.window!))
         precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
-        owner.window?.endSheet(prompt.alert.window,returnCode:.alertSecondButtonReturn); prompt.alert.window.close()
+        prompt.cancel()
         model.chooseFormat = { _,_,_ in nil }; model.showFormatDialog(base:false)
         try await Task.sleep(nanoseconds:30_000_000)
         precondition(model.encoding(base:false) == .windows1252 && model.draftText(base:false) == String(decoding:bytes,as:UTF8.self))

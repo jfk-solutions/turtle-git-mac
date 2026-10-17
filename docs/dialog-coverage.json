@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 426,
-    "mapped_controls": 1233,
+    "pending_control_reviews": 419,
+    "mapped_controls": 1240,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -413,10 +413,15 @@
       "status": "partial-native-replacement",
       "source_blob": "b0c19b52528f5dc6a7adb62095e5cd7260abe5dd",
       "static_controls": 7,
-      "mapped_controls": 0,
-      "pending_control_reviews": 7,
+      "mapped_controls": 7,
+      "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/FileComparisonWindow.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [],
       "qa_records": []

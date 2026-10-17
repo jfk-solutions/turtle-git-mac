@@ -709,11 +709,10 @@ private enum MergeSourceSide {
     private func finishFormatChoice(_ token:UUID) {
         guard formatToken == token else { return }
         formatToken = nil; formatPending = false; formatTask = nil; formatPrompt = nil
-        MergeRegexOperations.activeRequests -= 1
     }
     private func retireFormatChoice() {
         guard let token = formatToken else { return }
-        if let prompt = formatPrompt, prompt.alert.window.sheetParent === window { window?.endSheet(prompt.alert.window,returnCode:.cancel) }
+        formatPrompt?.cancel()
         formatTask?.cancel(); finishFormatChoice(token)
     }
     func showFormatDialog() {
@@ -722,8 +721,10 @@ private enum MergeSourceSide {
         let generation = loadGeneration, layout = sourceLayoutRevision, token = UUID()
         formatToken = token; formatPending = true; MergeRegexOperations.activeRequests += 1
         formatTask = Task { [weak self] in
+            defer { MergeRegexOperations.activeRequests -= 1 }
             guard let self else { return }
             defer { self.finishFormatChoice(token) }
+            guard !retired, formatToken == token, !Task.isCancelled, self.window === window else { return }
             let initial = MergeFormatSelection(encoding:originalEncoding,ending:originalEnding)
             let choice:MergeFormatSelection?
             if let chooseFormat { choice = await chooseFormat(window,"Merged",initial) }

@@ -2,7 +2,7 @@
 
 The pinned inventory contains **130 dialogs**: **120 have partial family audits**, **10 await a family review**, and **none are certified complete**.
 
-There are 1659 inventoried static controls. 1233 have recorded native mappings; 426 still have pending control reviews. Dynamic menus, runtime-created controls, full layout and signed acceptance require separate evidence. A partial family audit never clears its unmapped controls. Recorded control mappings also remain partial; they do not prove all associated behavior.
+There are 1659 inventoried static controls. 1240 have recorded native mappings; 419 still have pending control reviews. Dynamic menus, runtime-created controls, full layout and signed acceptance require separate evidence. A partial family audit never clears its unmapped controls. Recorded control mappings also remain partial; they do not prove all associated behavior.
 
 This generated table links explicit implementation/parity reviews and existing QA. Missing links indicate missing recorded evidence, rather than proof that a feature is absent. The full machine-readable ledger is [dialog coverage](dialog-coverage.json). Review decisions live in `dialog-coverage-reviews.json`; regeneration is pinned to the source commit.
 
@@ -25,7 +25,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_SETMAINPAGE` | partial | 24/24 mapped; 0 pending | [MERGE-DEFAULT-ENCODING-PARITY](MERGE-DEFAULT-ENCODING-PARITY.md), [MERGE-PATCH-PARITY](MERGE-PATCH-PARITY.md), [TEXT-MERGE-PARITY](TEXT-MERGE-PARITY.md), [UI-PARITY](UI-PARITY.md); 14 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_SETCOLORPAGE` | partial | 35/35 mapped; 0 pending | [APPEARANCE](APPEARANCE.md), [MERGE-COLORS-PARITY](MERGE-COLORS-PARITY.md); 15 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_FIND` | partial-native-replacement | 14/14 mapped; 0 pending | No recorded family document; 0 QA records |
-| `src/Resources/TortoiseMergeENG.rc` / `IDD_ENCODING` | partial-native-replacement | 0/7 mapped; 7 pending | No recorded family document; 0 QA records |
+| `src/Resources/TortoiseMergeENG.rc` / `IDD_ENCODING` | partial-native-replacement | 7/7 mapped; 0 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_GOTO` | partial-native-replacement | 4/4 mapped; 0 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_REGEXFILTERS` | partial-native-replacement | 0/6 mapped; 6 pending | [MERGE-REGEX-FILTERS-PARITY](MERGE-REGEX-FILTERS-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseMergeENG.rc` / `IDD_REGEXFILTER` | partial-native-replacement | 0/8 mapped; 8 pending | [MERGE-REGEX-FILTERS-PARITY](MERGE-REGEX-FILTERS-PARITY.md); 1 QA records |
