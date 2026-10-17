@@ -431,7 +431,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
 public enum FinderCacheServiceIdentity {
     public static let bundleIdentifier="org.turtlegit.macos.cache"
     public static let appIdentifier="org.turtlegit.macos"
-    public static let machService="group.org.turtlegit.macos.cache"
+    public static let machService=FinderIntegration.group+".cache"
     public static let agentPlist="org.turtlegit.macos.cache.plist"
     public static func currentTeam() throws -> String {
         var code:SecCode?,staticCode:SecStaticCode?,information:CFDictionary?

@@ -8,7 +8,7 @@
 	<string>org.turtlegit.macos.cache</string>
 	<key>MachServices</key>
 	<dict>
-		<key>group.org.turtlegit.macos.cache</key>
+		<key>$(TeamIdentifierPrefix)org.turtlegit.macos.cache</key>
 		<true/>
 	</dict>
 	<key>ProcessType</key>

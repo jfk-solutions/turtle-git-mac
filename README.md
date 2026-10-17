@@ -337,3 +337,6 @@ file states, embedded three-pane conflict review and clean three-way continuatio
 for Patch all/selected while preserving captured Save checks.
 
 Binary, symbolic-link and deletion conflicts use [explicit patch recovery choices](docs/PATCH-SPECIAL-RECOVERY-PARITY.md).
+
+Signed development builds and actual sandbox checks are described in the
+[Finder development guide](docs/SIGNED-FINDER-DEVELOPMENT.md).

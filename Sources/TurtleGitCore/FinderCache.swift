@@ -3,13 +3,20 @@ import Darwin
 import Security
 
 public enum FinderIntegration {
-    public static let group = "group.org.turtlegit.macos"
+    public static let groupSuffix = "org.turtlegit.macos"
+    /// macOS authorizes this namespace from the signature's developer team;
+    /// unlike a registered group.* identifier it needs no profile group entry.
+    public static func groupIdentifier(team: String) -> String? {
+        guard team.count == 10, team.utf8.allSatisfy({ (65...90).contains($0) || (48...57).contains($0) }) else { return nil }
+        return team + "." + groupSuffix
+    }
+    public static let group = (try? FinderCacheServiceIdentity.currentTeam()).flatMap(groupIdentifier) ?? groupSuffix
     public static let notification = "org.turtlegit.macos.statusChanged"
     public static var container: URL? {
         // Unsigned development builds cannot access the signed app's shared cache.
         // Merely constructing a group-container path can otherwise trigger protected
         // data access and stall startup on recent macOS versions.
-        guard let task = SecTaskCreateFromSelf(nil),
+        guard group != groupSuffix, let task = SecTaskCreateFromSelf(nil),
               let groups = SecTaskCopyValueForEntitlement(task, "com.apple.security.application-groups" as CFString, nil) as? [String],
               groups.contains(group) else { return nil }
         return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)

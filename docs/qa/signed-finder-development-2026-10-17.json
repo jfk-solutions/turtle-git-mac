@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-17",
+  "scope": "Signed universal development candidate, native macOS team-qualified Finder group/Mach namespace and inherited Lexilla packaging. Partial integration evidence; no installed Finder or release claim.",
+  "implemented": [
+    "Derive native macOS group from the actual code-signature team and require explicit task group membership before container lookup.",
+    "Expand all app/extension/cache entitlement templates and packaged agent Mach service consistently; retain fixed peer identifiers and Apple/team authenticated XPC requirements.",
+    "Keep full source/hash/architecture/linkage checks for inherited Lexilla and audit its exact signature/entitlements instead of launching it from an unsandboxed build script.",
+    "Exercise real sandboxed packaged Git and Lexilla, independent App Group sharing and nonmember read denial using disposable signed clones; clean only the private UUID fixture and reap all processes."
+  ],
+  "validation": {
+    "core": {
+      "tests": 3,
+      "failures": 0,
+      "log": "build/qa/team-group-core-2026-10-17.log"
+    },
+    "group_embedding": {
+      "tests": 4,
+      "failures": 0,
+      "log": "build/qa/team-group-embedding-2026-10-17.log"
+    },
+    "lexilla_embedding": {
+      "tests": 1,
+      "modes": [
+        "unsigned",
+        "ordinary ad-hoc signed",
+        "inherited ad-hoc signed"
+      ],
+      "failures": 0,
+      "log": "build/qa/team-group-lexilla-embedding-2026-10-17.log"
+    },
+    "signed_universal_build": {
+      "configuration": "AppStore",
+      "identity_kind": "Apple Development",
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "exit_code": 0,
+      "log": "build/qa/team-group-signed-build-recheck-2026-10-17.log"
+    },
+    "signed_runtime": {
+      "team": "A49SCA5S8K",
+      "group": "A49SCA5S8K.org.turtlegit.macos",
+      "app": "build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+      "actual_peer_signatures": 3,
+      "packaged_git_inherits_sandbox": true,
+      "cases": [
+        {
+          "mode": "writer",
+          "passed": true
+        },
+        {
+          "mode": "reader",
+          "passed": true
+        },
+        {
+          "mode": "denied",
+          "passed": true
+        },
+        {
+          "mode": "cleanup",
+          "passed": true
+        }
+      ],
+      "finder_activation": "not performed",
+      "service_registration": "not performed",
+      "packaged_lexilla_runs_from_sandbox": true
+    },
+    "owned_receiver_pids": [
+      8775,
+      8796,
+      8797,
+      8801
+    ],
+    "independent_ps_audit": "All four PIDs absent after terminal execution; no Finder extension or LaunchAgent registered.",
+    "site": "286 documents; no unresolved fragments",
+    "localization": "38 languages, 1281 keys; check passed",
+    "coverage": "130 dialogs, 120 partial reviews, 10 pending; zero fully certified; not a completion percentage"
+  },
+  "failures_and_repairs": [
+    "Initial signing attempt lacked managed profiles; Xcode automatic provisioning created three development profiles. Existing registered group.* template was not authorized by those profiles; no baseline physical container denial was executed. Switched to documented macOS team-qualified namespace.",
+    "Stopped the first baseline build before changing its source inputs; no source edits during a live build.",
+    "First team-qualified signed build failed when its validator launched inherited Lexilla from Python (SIGTRAP). Repaired signed audit path, then affected universal build passed; Core was not repeated.",
+    "First signed probe stopped at static signature verification because codesign -R treated inline text as a filename. Added required = inline prefix; affected probe passed all four modes."
+  ],
+  "hosted": {
+    "run": 39055414986,
+    "commit": "b818417d",
+    "core": "1809 tests, 2 skipped, 0 failures",
+    "native_failure": "folding timed out after pair loaded; collapsing",
+    "owned_failed_receiver": 81749,
+    "cleanup": "reaped by receiver wrapper",
+    "latest_run": 39058837911,
+    "latest_commit": "03d15e28",
+    "latest_state": "in progress; not certified"
+  },
+  "limits": [
+    "Apple Development candidate only; not Developer ID/App Store distribution export, notarization, submission or fresh release archive/ZIP.",
+    "Actual peers statically verified; runtime sharing used disposable QA main executables, not live installed Finder/service roles.",
+    "Installed Finder activation, overlay/menu interaction, XPC/service registration, external repository bookmarks, Keychain/SSH and network acceptance remain open.",
+    "Switching developer teams changes the App Group namespace. No credential/bookmark migration workaround.",
+    "Full upstream dialog/layout/behavior and hosted CI remain incomplete."
+  ]
+}

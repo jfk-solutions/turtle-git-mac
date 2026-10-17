@@ -95,8 +95,11 @@ must match an existing permitted folder or be authorized through a file picker.
 
 The Finder extension receives file paths and status badges, not repository access
 bookmarks or credentials. Parent and extension share an App Group. That group
-must be registered under the distributor's team and updated consistently in
-both entitlements and `FinderIntegration.group`.
+uses the macOS `$(TeamIdentifierPrefix)org.turtlegit.macos` format. The app,
+Finder extension and cache service receive that same team-qualified entitlement;
+the launch-agent Mach service uses the corresponding `.cache` suffix. Runtime
+identity comes from the actual signing team, and unsigned processes refuse
+container access. See the [signed Finder development guide](SIGNED-FINDER-DEVELOPMENT.md).
 
 The AppStore configuration uses these capabilities:
 

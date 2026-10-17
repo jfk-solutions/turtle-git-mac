@@ -20,6 +20,6 @@ if os.environ.get('CODE_SIGNING_ALLOWED')=='YES':
     p=target/'provenance.json';manifest=json.loads(p.read_text())
     manifest['unsigned_binary_sha256']=manifest['files']['lexilla']
     manifest['files']['lexilla']=hashlib.sha256((target/'lexilla').read_bytes()).hexdigest()
-    manifest['sandbox_inherited']=inherited;p.write_text(json.dumps(manifest,indent=2)+'\n')
+    manifest['signed']=True;manifest['sandbox_inherited']=inherited;p.write_text(json.dumps(manifest,indent=2)+'\n')
 subprocess.run(['/usr/bin/python3',ROOT/'scripts/validate-lexilla-runtime.py',target],check=True)
 print('Embedded verified Lexilla helper.')
