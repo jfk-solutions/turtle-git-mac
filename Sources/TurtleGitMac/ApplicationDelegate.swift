@@ -64,6 +64,7 @@ import AppKit
         if ReleaseUpdateModel.activeOperations > 0 { return .terminateCancel }
         if MergeRegexOperations.activeRequests > 0 { return .terminateCancel }
         if TurtleGitAboutController.activeReads > 0 {return .terminateCancel}
+        if SupportReportWindowModel.activeReads > 0 || SupportReportWindowModel.activeWrites > 0 || SupportReportWindowController.activePickers > 0 { return .terminateCancel }
         if SVNWindowModel.activeOperations > 0 { return .terminateCancel }
         if SendPatchWindowModel.activeLoads > 0 || SendPatchWindowController.activeTargetReads > 0 {return .terminateCancel}
         if ImportPatchWindowModel.activeWorkers > 0 {return .terminateCancel}

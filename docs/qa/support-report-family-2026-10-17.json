@@ -1,0 +1,134 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "cb83f96609dce759c59fe9e0e09ae48158058530",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "New native Help problem-report review/export workflow",
+    "Bounded Apple IPS/legacy crash text import and metadata",
+    "Explicit inclusion and home-path replacement with exact selectable payload",
+    "Owned chooser/snapshot export/read/write/Quit lifetime"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/support-report-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 5
+    },
+    {
+      "log": "build/qa/support-report-ownership-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "reason": "Pre-native code review found strong SwiftUI root/controller cycle; make root owner weak."
+    }
+  ],
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter SupportReportTests",
+    "log": "build/qa/support-report-core-2026-10-17.log",
+    "exit": 0,
+    "tests": 6,
+    "failures": 0,
+    "seconds": 0.015,
+    "coverage": [
+      "Apple two-object and standalone exported IPS",
+      "Legacy Process/Exception/Termination and original Unicode text",
+      "Malformed/incomplete/invalid UTF-8/NUL/oversized input refusal",
+      "Crash data excluded until explicit inclusion; literal/escaped home path replacement",
+      "Description bounds and home replacement limits (other secrets remain)",
+      "Real regular file read, final symlink refusal and pre-cancellation"
+    ],
+    "repeated_after_native_only_change": false
+  },
+  "native": {
+    "driver": "scripts/test-support-report-family.py",
+    "log": "build/qa/support-report-native-2026-10-17.log",
+    "exit": 0,
+    "receivers": [
+      65217
+    ],
+    "engine_matrix": false,
+    "reason": "No Git backend operation in this workflow.",
+    "coverage": [
+      "Controller release-after-close",
+      "Private native report import and duplicate/stale replies",
+      "Explicit inclusion, home replacement and read-only selectable preview",
+      "Private pasteboard matches preview",
+      "Issue action resolves only blank fixed fork form with no query data",
+      "Export saves pre-sheet immutable bytes despite a newer draft",
+      "Failed writer leaves previous report and reports error",
+      "Remove drops crash text",
+      "Actual private-directory Open panel attaches to exact owner and cancels cleanly",
+      "Forced close retires pending picker once",
+      "Held uncooperative read retains cancelled token/Quit accounting and rejects late data/error",
+      "Accepted write retains Quit count through forced closure and saves captured bytes with no late UI publication",
+      "Closed fields/Copy/issue actions are inert"
+    ],
+    "ownership": {
+      "pid_independently_absent": true,
+      "private_paths_absent": true,
+      "activation": "Prohibited; owned windows orderFront only",
+      "maximum_visible_fixture_windows": "One at a time; alpha zero except own raw capture.",
+      "cleanup": "Close every owner and resume held continuations, drain read/write counts; driver reaps receiver group.",
+      "inputs": "Private fixture report, output files and pasteboard; no real user crash reports read, no issue submitted or external browser launched. Open acceptance/Save URL/write failure boundaries injected; native Open cancellation uses private directory."
+    },
+    "diagnostics": [
+      "Fixture weak-variable mutability warning; no native assertion failure."
+    ]
+  },
+  "captures": {
+    "directory": "docs/site/assets",
+    "files": [
+      "support-report-light.png",
+      "support-report-dark.png"
+    ],
+    "raw": true,
+    "child_windows_included": false,
+    "individually_reviewed": true,
+    "pixels": "1680x1544",
+    "observation": "Native orange heading, selected report, inclusion choices, redacted preview, saved status and footer visible in both appearances. Preview scrolls the full synthetic IPS payload."
+  },
+  "help": {
+    "generation_log": "build/qa/support-report-help-generate-2026-10-17.log",
+    "check_log": "build/qa/support-report-help-check-2026-10-17.log",
+    "exit": 0,
+    "documents": 36,
+    "topics": 47,
+    "files": 50,
+    "bytes": 1971010
+  },
+  "ledger": {
+    "mapped_controls": 1566,
+    "pending_controls": 93,
+    "new_mappings": 0,
+    "certified_dialogs": 0,
+    "note": "Original five Windows crash resources remain unmapped; native manual review/export is not a DrDump implementation."
+  },
+  "hosted_observed": {
+    "commit": "cb83f96609dce759c59fe9e0e09ae48158058530",
+    "macos": {
+      "id": 39005135437,
+      "status": "pending"
+    },
+    "pages": {
+      "id": 39005135432,
+      "conclusion": "success"
+    }
+  },
+  "references": [
+    "https://developer.apple.com/documentation/xcode/interpreting-the-json-format-of-a-crash-report",
+    "https://developer.apple.com/documentation/xcode/acquiring-crash-reports-and-diagnostic-logs",
+    "https://help.apple.com/xcode/mac/current/en.lproj/dev675635e70.html"
+  ],
+  "remaining": [
+    "Automatic post-crash recovery, Windows minidump/assert collection and DrDump transport/solutions",
+    "Every Apple report variant, physical selection/keyboard/VoiceOver/full resizing",
+    "Signed App Store file grants and distribution acceptance",
+    "Complete hosted macOS CI and current universal preview"
+  ],
+  "certified_complete": false,
+  "site": {
+    "log": "build/qa/support-report-site-2026-10-17.log",
+    "exit": 0,
+    "documents": 266,
+    "unresolved_fragments": 0
+  }
+}

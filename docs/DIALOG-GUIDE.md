@@ -673,3 +673,17 @@ text retains ordinary Copy behavior. Closing cancels an unfinished version check
 
 The app and Merge banners respond to pointer movement and clicks. They respect
 macOS Reduce Motion and pause when their window is hidden or minimized.
+
+## Report a problem
+
+Choose **Help → Report a Problem…** to prepare a support report without opening a
+repository. Describe what happened and the steps needed to reproduce it. Choose
+an Apple `.ips` or `.crash` file if you have one, then explicitly enable **Include
+the selected crash report** to add it to the preview.
+
+Review the complete preview. Home-folder replacement removes that path only;
+other private details can remain. **Copy Report** copies exactly the preview;
+**Save Report…** writes it to a chosen text file. **Open Issue Form** opens a blank
+form for this fork; paste the reviewed report or attach the saved file yourself.
+Selecting or previewing a report does not upload it. Direct Windows DrDump
+submission and automatic solution lookup remain unported.

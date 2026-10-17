@@ -72,6 +72,7 @@ import UniformTypeIdentifiers
         }
         CommandGroup(replacing: .help) {
             Button("TurtleGit Help") { SettingsPresentationService.showHelp() }.keyboardShortcut("?", modifiers: .command)
+            Button { SupportReportService.shared.show() } label: { CommandLabel(title: "Report a Problem…", icon: .help) }
         }
         CommandGroup(after: .appInfo) {
             Button("Check for Updates…") { ReleaseUpdateService.shared.show() }

@@ -402,6 +402,8 @@
 		42CED1EA0AFABD6EDF528C23 /* UnifiedDiffCaseFold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB65DE5B95683158C03E395 /* UnifiedDiffCaseFold.swift */; };
 		9A89D04DC196E4C71DD3A42F /* AboutWaterEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87CBC3447E5F7FB05628FB75 /* AboutWaterEffect.swift */; };
 		021AF1C818653E97DEA04F20 /* AboutBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E6517691D32FD82A04653A /* AboutBannerView.swift */; };
+		8D46503584AC495DB4D2E1BD /* SupportReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B621D3F09F47D4A5C389BC /* SupportReport.swift */; };
+		62A7B20150324C54905F1E4C /* SupportReportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B73ECC690A4C9392BB4120 /* SupportReportWindow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -902,6 +904,8 @@
 		2CB65DE5B95683158C03E395 /* UnifiedDiffCaseFold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffCaseFold.swift; sourceTree = "<group>"; };
 		87CBC3447E5F7FB05628FB75 /* AboutWaterEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWaterEffect.swift; sourceTree = "<group>"; };
 		96E6517691D32FD82A04653A /* AboutBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutBannerView.swift; sourceTree = "<group>"; };
+		01B621D3F09F47D4A5C389BC /* SupportReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportReport.swift; sourceTree = "<group>"; };
+		B3B73ECC690A4C9392BB4120 /* SupportReportWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportReportWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1014,6 +1018,7 @@
 				BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */,
 				A142607F55CD34E13938FD40 /* FileComparisonWindow.swift */,
 				96E6517691D32FD82A04653A /* AboutBannerView.swift */,
+				B3B73ECC690A4C9392BB4120 /* SupportReportWindow.swift */,
 				B24D3EE6E5499487E3423341 /* FileCopyWindow.swift */,
 				95978CF1E0733DA580F5F3E2 /* FileDropTransferWindow.swift */,
 				70196B2A8593EF35543D4620 /* FileMoveWindow.swift */,
@@ -1319,6 +1324,7 @@
 				35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */,
 				FF1FD77D0F8E1D8790692A3D /* MergeFind.swift */,
 				87CBC3447E5F7FB05628FB75 /* AboutWaterEffect.swift */,
+				01B621D3F09F47D4A5C389BC /* SupportReport.swift */,
 				2CB65DE5B95683158C03E395 /* UnifiedDiffCaseFold.swift */,
 				2D459C3F707507F6C5EC8D57 /* UnifiedDiffSearch.swift */,
 				0D36E66F24DAED7F61A00764 /* MergeFolding.swift */,
@@ -1880,6 +1886,7 @@
 				3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */,
 				7A195B9D8BADF699347BD5D7 /* MergeFind.swift in Sources */,
 				9A89D04DC196E4C71DD3A42F /* AboutWaterEffect.swift in Sources */,
+				8D46503584AC495DB4D2E1BD /* SupportReport.swift in Sources */,
 				42CED1EA0AFABD6EDF528C23 /* UnifiedDiffCaseFold.swift in Sources */,
 				5A91D716C60613490CE3F819 /* UnifiedDiffSearch.swift in Sources */,
 				09EA632E68319841F63DCCDC /* MergeFolding.swift in Sources */,
@@ -2025,6 +2032,7 @@
 				D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */,
 				70EA762F97100350401F85ED /* FileComparisonWindow.swift in Sources */,
 				021AF1C818653E97DEA04F20 /* AboutBannerView.swift in Sources */,
+				62A7B20150324C54905F1E4C /* SupportReportWindow.swift in Sources */,
 				3AA2AF5E3D5C21A539D1C793 /* FileCopyWindow.swift in Sources */,
 				EAF90B30F543060C0CB095AD /* FileDropTransferWindow.swift in Sources */,
 				564344059CE4E64FF08A09FF /* FileMoveWindow.swift in Sources */,

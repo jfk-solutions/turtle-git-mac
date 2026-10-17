@@ -2087,3 +2087,24 @@ native cases repeated. Four raw captures were reviewed; all 13 receivers are abs
 Fifteen Add source controls gain explicit partial mappings. Existing working-file
 String-set models, filesystem-specific aliases, physical/signed Finder and App
 Store acceptance remain open. See [scope and evidence](SUBMODULE-UPDATE-PARITY.md#exact-submodule-path-identities--october-17-2026).
+
+
+## Native problem-report review and export — October 17, 2026
+
+Help → Report a Problem now supplies captured bundle versions, reproduction steps,
+owned Apple IPS/legacy crash import, explicit inclusion, home-path replacement,
+a selectable exact preview and local Copy/Save. A separate action opens the blank
+fork issue form without report data in its URL. Reads, accepted snapshot exports,
+pickers, cancellation/closure, scopes and application Quit counts are connected.
+The SwiftUI root retains its controller weakly so closed windows can release.
+
+Six Core cases and one grouped native workflow pass. Core covers supported Apple
+formats, original Unicode text, invalid/binary/oversized input, file type/symlink/
+cancellation boundaries and explicit inclusion/redaction limits. Native checks
+cover private Copy/Save snapshots, native chooser cancellation, late/duplicate
+replies, failed writes, retained work after owner close and release-after-close.
+Both raw appearance captures were reviewed; the receiver is absent. Generated
+Mac Help passes its freshness check. Direct Windows DrDump transport, minidumps/
+assert collection, server solutions, automatic recovery and physical/signed
+acceptance remain open; original crash resource controls remain unmapped.
+See [scope and evidence](CRASH-REPORTING-PARITY.md).
