@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-18",
+  "scope": "Retained hosted wrapped-editor timeout stack; diagnosis input, no source fix or passing hosted claim",
+  "run": 39073252669,
+  "job": 117516372834,
+  "commit": "bdf35802d2d71acd979731e6c7456e8b3a081c4e",
+  "run_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39073252669",
+  "result": "completed failure in Moved blocks and wrapped editor navigation family; wrapped receiver timed out after 300 seconds",
+  "receiver": 24807,
+  "receiver_cleanup": "reaped by owned receiver runner after stack capture",
+  "prior_cases_passed": [
+    "ownership",
+    "terminal",
+    "margin-selection",
+    "margin",
+    "moved"
+  ],
+  "environment": {
+    "OS": "macOS 15.7.9 (24G830)",
+    "architecture": "x86_64",
+    "SDK": "Xcode 16.4 macOS 15.5, per compiler log"
+  },
+  "artifact": {
+    "id": 12116955617,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39073252669/artifacts/12116955617",
+    "zip_sha256": "e1ae577c08e469eb6172d9c1c08791cbf43fec6258bb7e142cdf61eaa5c5ad19",
+    "zip_bytes": 63638,
+    "file": "wrapped-wrapped.sample.txt",
+    "saved_local": "build/qa/bdf35802-wrapped.sample.txt",
+    "text_sha256": "ab34df75c460855cdc22c16820c6af45708ac20fe5afe5d2c791ee9ea4c03b4e",
+    "text_bytes": 252763,
+    "verification": "downloaded through the GitHub artifact connector; archive digest matches the upload log"
+  },
+  "stack_observation": "Main-thread samples include the AppKit event loop, SwiftUI view updates, FileComparisonEditor.updateNSView, MergeFindHighlights.refresh, TextKit layout and text/ruler/preview drawing. The sample is not evidence of a single blocked Git operation or a confirmed deadlock.",
+  "inference": "Repeated UI layout/draw invalidation is a candidate for the next connected editor investigation; cause and repair remain unproven.",
+  "source_comparison": {
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": {
+      "current_sha256": "b36e19ad87682ecc070fe8f8425007eb6afd1a5e4982079b46a44e4e901ce068",
+      "matches_bdf35802": true
+    },
+    "Sources/TurtleGitMac/MergeFindWindow.swift": {
+      "current_sha256": "ea4b16c334c0414f6d620b8b803b9e6e5f6b1bbbc8290ed5b86826b4a2eb4c12",
+      "matches_bdf35802": true
+    },
+    "Sources/TurtleGitMac/MergeComparisonControls.swift": {
+      "current_sha256": "bf7a40fe5013a14007ef0c18e16c9ce61c463f6d914c70b386972631cb25258f",
+      "matches_bdf35802": true
+    },
+    "Sources/TurtleGitMac/TextConflictWindow.swift": {
+      "current_sha256": "9a8095319f39813f4fe919eef66038f569eed2dfd7abec96f6a48e97ba407e18",
+      "matches_bdf35802": true
+    }
+  },
+  "limits": [
+    "This checkpoint neither repairs nor reruns the hosted failure",
+    "Later Finder commits retain these inspected editor source bytes, but that alone does not prove an identical runtime trace",
+    "A passing local current-SDK fixture does not establish older-SDK/OS/Intel acceptance"
+  ]
+}

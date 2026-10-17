@@ -7,6 +7,31 @@ The full port, signed runtime tests and licensing clearance remain incomplete.
 Development builds can use the installed Git executable. The App Store
 configuration requires a prepared pinned runtime and refuses external fallback.
 
+## Current local artifacts — 18 October 2026
+
+The current local Release preview and unsigned AppStore archive use application
+source revision `ae48b26a`. [Dated evidence](qa/distribution-current-preview-2026-10-18.json)
+retains the measured input fingerprint, dirty script inputs, complete inventory
+hashes and actual build/packaging results. This includes the recent certificate,
+clipboard-patch, Log opening/cache and Finder root/query work.
+
+- Preview: `build/previews/TurtleGit-2026-10-18/TurtleGit-for-Mac-0.1.0-local-preview.zip`
+  (353,375,136 bytes), with adjacent app, checksum, notices and manifest.
+- Archive: `build/archives/TurtleGit-AppStore-2026-10-18.xcarchive`, with its adjacent
+  audit and offline export settings. All eight app components and matching dSYMs
+  contain arm64 and x86_64; the archive inventory has 6,303 members.
+
+The packager verified the ad-hoc app and extracted ZIP against matching complete
+inventories. No app was installed/launched or uploaded, and no extension/service
+was registered. [Trying the preview](LOCAL-PREVIEW.md) explains its separate signed
+Finder channel: ad-hoc processes cannot access the authorized App Group. The Store
+archive is unsigned and requires a separately signed archive before export.
+
+The [hosted wrapped-editor timeout](qa/ci-wrapped-stack-2026-10-18.json) remains
+unresolved; actual macOS 15.7.9 Intel samples include active UI layout/drawing.
+Packaging does not clear that release blocker, prove signed runtime behavior or
+certify the complete TortoiseGit port.
+
 ## Build channels
 
 | Channel | Configuration / scheme | Repository access | Git engine |

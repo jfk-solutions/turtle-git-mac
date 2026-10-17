@@ -2558,3 +2558,24 @@ exact-root/foreground/event/cross-process workflows pass. All owned processes
 exited. Full Core/unrelated families were not repeated. Synchronous snapshot
 reading/reload, huge/remote-volume performance, physical Finder and signed/App
 Store acceptance remain open. No whole dialog or port certification is implied.
+
+### Current universal preview and AppStore archive, 2026-10-18
+
+Refreshed the actual local app/ZIP and unsigned archive at ae48b26a. Each build
+ran once using its existing derived-data cache; both generic-macOS builds and
+package/cache audits passed. Eight app components have both architectures, and
+the archive's eight matching dSYMs and 6,303 members are inventoried. The separate
+preview's app and extracted ZIP pass ad-hoc code seal/full-inventory checks. It
+contains exact LICENSE/NOTICE copies, checksum and measured build provenance.
+Preview notes now state that an ad-hoc process cannot access Finder's App Group.
+No GUI installation/launch, registration, distribution export/upload or submission
+was performed. No full Core or native workflow suite was repeated.
+
+[Artifact evidence](qa/distribution-current-preview-2026-10-18.json) preserves
+both builds' shared input hash and dirty script state, including unrelated
+pre-existing development work that remains unstaged. Hosted bdf35802 separately
+failed after five wrapped cases passed; the wrapped receiver timed out and was
+reaped. Its uploaded stack was downloaded and verified against the upload digest;
+[stack evidence](qa/ci-wrapped-stack-2026-10-18.json) records active UI layout/draw
+frames without claiming a cause or repair. That blocker, physical/current signed
+acceptance and complete port/App Store clearance remain open.

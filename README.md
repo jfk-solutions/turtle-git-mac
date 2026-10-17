@@ -122,8 +122,10 @@ python3 scripts/package-local-preview.py --audit build-distribution/distribution
 The fresh output directory contains the app, a ZIP, checksum, license notices and
 installation notes. Packaging preserves the audited build and finalized runtime
 payloads, seals a separate copy ad hoc, and does not install, launch or upload it.
-The preview is not notarized or App Store signed. See the
-[release blockers](docs/RELEASE-BLOCKERS.md) for the remaining acceptance work.
+The preview is not notarized or App Store signed. Its ad-hoc signature cannot
+authorize Finder status sharing. See [trying the local preview](docs/LOCAL-PREVIEW.md)
+and the [release blockers](docs/RELEASE-BLOCKERS.md) for the signed channel and
+remaining acceptance work.
 
 ## Finder integration
 

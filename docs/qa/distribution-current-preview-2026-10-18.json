@@ -1,0 +1,214 @@
+{
+  "date": "2026-10-18",
+  "scope": "Fresh measured-input universal Release preview and unsigned AppStore archive; current signed ZIP round trip and retained hosted timeout evidence",
+  "implementation_commit": "ae48b26a9d6e0d9c5e1cfb09bc480ea8d0efb67d",
+  "input_sha256": "66bea7d7c4089f1a787db32f48313f59f192df8bce60300b935456d9c1304c9e",
+  "dirty_inputs": true,
+  "dirty_input_note": "Build inputs retain the packaging-note change and the pre-existing scripts/test-native-reference-batch.py work. That unrelated work remains unstaged; no clean/hermetic build claim.",
+  "release": {
+    "command": "python3 scripts/build-distribution.py --configuration Release --derived-data build/preview-2026-10-15",
+    "log": "build/qa/distribution-release-2026-10-18.log",
+    "exit_code": 0,
+    "audit": "build/preview-2026-10-15/distribution-audit.json",
+    "audit_sha256": "671b572c8fe079f5bb52870e8c1e3a36bfa2f04d0a6638d91ddf9cfe55e019a7",
+    "app": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/preview-2026-10-15/Build/Products/Release/TurtleGitMac.app",
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "bundle_members": 6270,
+    "build_invocations": 1
+  },
+  "app_store_archive": {
+    "command": "python3 scripts/archive-distribution.py --configuration AppStore --derived-data build-archive --archive-path build/archives/TurtleGit-AppStore-2026-10-18.xcarchive --team-id A49SCA5S8K",
+    "log": "build/qa/distribution-store-archive-2026-10-18.log",
+    "exit_code": 0,
+    "audit": "build/archives/TurtleGit-AppStore-2026-10-18.archive-audit.json",
+    "audit_sha256": "7c4e149bebb73a4f718f702e4f42968825ce0213cc910957c70c069e4edd55f5",
+    "archive": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/archives/TurtleGit-AppStore-2026-10-18.xcarchive",
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "debug_symbols": {
+      "Contents/MacOS/TurtleGitMac": {
+        "uuids": {
+          "x86_64": "01AC4C0B-D0DA-33C7-A68A-89E59944C1EB",
+          "arm64": "A1CDFA1A-929D-3F18-9817-CB7301C445A9"
+        },
+        "dsym": "dSYMs/TurtleGitMac.app.dSYM/Contents/Resources/DWARF/TurtleGitMac"
+      },
+      "Contents/MacOS/TurtleGitWCRev": {
+        "uuids": {
+          "x86_64": "0D82A930-5ED9-3C58-900D-1505875D5B1E",
+          "arm64": "317DD3A6-2704-3950-931E-8255E16CC208"
+        },
+        "dsym": "dSYMs/TurtleGitWCRev.dSYM/Contents/Resources/DWARF/TurtleGitWCRev"
+      },
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": {
+        "uuids": {
+          "x86_64": "6B9DBB12-EF14-3588-BE3D-1E7252D60578",
+          "arm64": "A46A1066-1E1F-397C-90E6-AC564B7107D9"
+        },
+        "dsym": "dSYMs/TurtleGitCore.framework.dSYM/Contents/Resources/DWARF/TurtleGitCore"
+      },
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": {
+        "uuids": {
+          "x86_64": "6253089E-D5DB-3F04-8786-856237E950C7",
+          "arm64": "E81FA50A-383F-3C36-AF89-895C7277749F"
+        },
+        "dsym": "dSYMs/TurtleGitSMTP.framework.dSYM/Contents/Resources/DWARF/TurtleGitSMTP"
+      },
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": {
+        "uuids": {
+          "x86_64": "67B332B2-FE98-3B35-8C74-F856F2CBB81D",
+          "arm64": "CC9468BF-473E-372D-9328-A5FC1CBEF689"
+        },
+        "dsym": "dSYMs/TurtleGitFinder.appex.dSYM/Contents/Resources/DWARF/TurtleGitFinder"
+      },
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": {
+        "uuids": {
+          "x86_64": "8099B45B-751F-3FD2-BD7F-084AFC2383AF",
+          "arm64": "C01061E2-6737-3D69-AFC2-F631ED170208"
+        },
+        "dsym": "dSYMs/TurtleGitCache.app.dSYM/Contents/Resources/DWARF/TurtleGitCache"
+      },
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": {
+        "uuids": {
+          "x86_64": "748EE9B9-C71F-3FAE-8A12-B0EE96011BEF",
+          "arm64": "20D909C9-67AB-32EF-AFE0-62B6C6E7D3C6"
+        },
+        "dsym": "dSYMs/TurtleGitSSHAskpass.dSYM/Contents/Resources/DWARF/TurtleGitSSHAskpass"
+      },
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": {
+        "uuids": {
+          "x86_64": "4252175D-23D4-3B5F-A803-9271A83BC914",
+          "arm64": "D693F42D-223C-3EA0-BAF4-FF68CE00938E"
+        },
+        "dsym": "dSYMs/TurtleGitGitAskpass.dSYM/Contents/Resources/DWARF/TurtleGitGitAskpass"
+      }
+    },
+    "archive_members": 6303,
+    "offline_export_settings": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/archives/TurtleGit-AppStore-2026-10-18.ExportOptions.plist",
+    "build_invocations": 1,
+    "signing_export_submission": "not performed"
+  },
+  "preview": {
+    "command": "python3 scripts/package-local-preview.py --audit build/preview-2026-10-15/distribution-audit.json --output build/previews/TurtleGit-2026-10-18",
+    "log": "build/qa/distribution-preview-2026-10-18.log",
+    "exit_code": 0,
+    "directory": "build/previews/TurtleGit-2026-10-18",
+    "manifest": "build/previews/TurtleGit-2026-10-18/preview-manifest.json",
+    "manifest_sha256": "dd4d572eab75665d05c4d8f3666eed954e0dad6cdf1f2c806b4bc7d360c6a82f",
+    "zip": "build/previews/TurtleGit-2026-10-18/TurtleGit-for-Mac-0.1.0-local-preview.zip",
+    "zip_bytes": 353375136,
+    "zip_sha256": "007d569f0a96862cf83e44b22a49c4e3fdcb28d0422a31e2b73edf70bfa78366",
+    "signed_bundle_members": 6275,
+    "code_seal": "ad-hoc; deep strict verification passed on app and extracted ZIP",
+    "license_and_notice": "exact root files copied; SHA256SUMS matches manifest filename/digest",
+    "notes": "Preview explicitly says ad-hoc processes cannot access Finder App Group; signed development channel is separate",
+    "packaging_invocations": 1
+  },
+  "source_inputs_sha256": {
+    "scripts/package-local-preview.py": "6556fde243ff92c2cdd31b63f7275140aa8f90801c76f7352c8913363b51ac0e",
+    "scripts/build-distribution.py": "03e6ec2a78cff48383747f097e5fd96c9884e71a5a34f6ccf421456d50bd37cb",
+    "scripts/archive-distribution.py": "83635edd4b2b66c122a58575dd46636c2c1e624cf50474dbf72f8f03941068bc",
+    "scripts/distribution_provenance.py": "faf58a8bd659f8c7050723c2bc8dd63ee8fa472249df200f126bcc47d7189144",
+    "scripts/distribution_archive.py": "aaebb52b588bcebe4cf5713c0d45f9b5354123a7f44f36064dc12a4370fc4b23",
+    "scripts/preview_signing.py": "4ff68291e04b4d20c4780f28bf8b03e15ad4455c897bb22e53370cccc3cdb9b7"
+  },
+  "hosted_state": {
+    "run": 39073252669,
+    "job": 117516372834,
+    "result": "completed failure: five wrapped-editor cases passed, wrapped navigation receiver24807 timed out after300s and was reaped",
+    "stack_artifact": 12116955617,
+    "evidence": "docs/qa/ci-wrapped-stack-2026-10-18.json",
+    "repair": "not performed by this packaging batch"
+  },
+  "cleanup": {
+    "build_sessions": [
+      97299,
+      97999
+    ],
+    "packaging_session": 93335,
+    "status": "all terminal exit0; temporary packaging and extracted-round-trip directories removed by the owned packager",
+    "user_apps": "No app GUI launched, user installation replaced, Finder extension activated or launch agent registered",
+    "uploads": "No preview/release uploaded, notarized, exported or submitted; repository documentation is published separately",
+    "independent_ps": "both owned xcodebuild PIDs absent; unsigned cache helper auditor also reports owned process exited/reaped"
+  },
+  "limits": [
+    "The full TortoiseGit port is unfinished",
+    "Hosted wrapped-editor timeout remains unresolved",
+    "Ad-hoc preview cannot authorize shared Finder state",
+    "Unsigned archive is not a signed App Store candidate",
+    "Physical GUI/receiving app and signed sandbox tests not repeated",
+    "Intel/minimum OS execution and full licensing/distribution-term clearance remain open",
+    "Build input measurement and inventories do not prove reproducible or hermetic builds"
+  ],
+  "documentation_checks": {
+    "site": "292 documents, zero unresolved fragments; build/qa/distribution-current-site-2026-10-18.log",
+    "coverage": "reconciled unchanged; no newly certified dialog",
+    "diff": "git diff --check passed",
+    "Pages": "ae48b26a run39074660721 completed success before the current documentation commit"
+  }
+}
