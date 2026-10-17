@@ -47,6 +47,42 @@ final class HistoryPresentationTests: XCTestCase {
         XCTAssertEqual(HistoryInformation(entries: [row], selected: [row.hash], files: files, selectedFiles: ids, visibleFileIDs: oneSpelling).selectedFileCount, 2)
         XCTAssertEqual(HistoryInformation(entries: [row], selected: [row.hash], files: files, selectedFiles: [files[0].id], visibleFileIDs: [files[2].id]).selectedFileCount, 0)
     }
+    func testReferenceScopeUsesSourceNumericValuesAndRepositoryStore() {
+        let suite = "TurtleGit.LogScope." + UUID().uuidString, prefs = UserDefaults(suiteName:suite)!
+        defer { prefs.removePersistentDomain(forName:suite) }
+        let root = URL(fileURLWithPath:"/tmp/Harbor"), other = URL(fileURLWithPath:"/tmp/Other")
+        XCTAssertEqual(HistoryReferenceScopePreference.load(root:root,defaults:prefs),.current)
+        for (scope,value) in [(HistoryReferenceScope.current,0),(.all,1),(.local,2),(.basic,3)] {
+            HistoryReferenceScopePreference.save(scope,root:root,defaults:prefs)
+            XCTAssertEqual(prefs.integer(forKey:HistoryReferenceScopePreference.key(root:root)),value)
+            XCTAssertEqual(HistoryReferenceScopePreference.load(root:root.appendingPathComponent("."),defaults:prefs),scope)
+            XCTAssertEqual(HistoryReferenceScopePreference.load(root:other,defaults:prefs),.current)
+        }
+        prefs.set(99,forKey:HistoryReferenceScopePreference.key(root:root))
+        XCTAssertEqual(HistoryReferenceScopePreference.load(root:root,defaults:prefs),.current)
+    }
+    func testPaneLayoutKeepsProportionsAndClampsAllThreeMinimums() throws {
+        let layout = try XCTUnwrap(HistoryPaneLayout(heights:[600,200,200]))
+        XCTAssertEqual(layout.heights(available:1000),[600,200,200])
+        let small = layout.heights(available:500)
+        XCTAssertEqual(small.reduce(0,+),500,accuracy:0.0001)
+        for (height,minimum) in zip(small,HistoryPaneLayout.minimumHeights) { XCTAssertGreaterThanOrEqual(height,minimum) }
+        XCTAssertEqual(layout.heights(available:440),[200,110,130])
+        XCTAssertEqual(layout.heights(available:220),[100,55,65])
+        XCTAssertEqual(layout.heights(available:.infinity),[0,0,0])
+        XCTAssertEqual(layout.heights(available:0),[0,0,0])
+    }
+    func testPaneLayoutRejectsCorruptionAndRestoresSuppliedPreferenceStore() throws {
+        let suite = "TurtleGit.LogPanes." + UUID().uuidString, prefs = UserDefaults(suiteName:suite)!
+        defer { prefs.removePersistentDomain(forName:suite) }
+        for invalid in [[Double](),[1,2],[1,0,1],[-1,2,3],[.nan,1,1],[.infinity,1,1],[Double.leastNonzeroMagnitude,Double.greatestFiniteMagnitude,1]] { XCTAssertNil(HistoryPaneLayout(heights:invalid)) }
+        XCTAssertNil(HistoryPaneLayout.load(defaults:prefs))
+        let layout = try XCTUnwrap(HistoryPaneLayout(heights:[450,160,290])); layout.save(defaults:prefs)
+        XCTAssertEqual(HistoryPaneLayout.load(defaults:prefs)?.heights(available:900),[450,160,290])
+        prefs.set([1,2],forKey:HistoryPaneLayout.key); XCTAssertNil(HistoryPaneLayout.load(defaults:prefs))
+        prefs.set([1,2,3],forKey:HistoryPaneLayout.key); prefs.set(2,forKey:HistoryPaneLayout.key + ".Version")
+        XCTAssertNil(HistoryPaneLayout.load(defaults:prefs))
+    }
     func testWholeProjectDefaultsAndPersistenceAreRepositoryAndStoreScoped() {
         let suite = "TurtleGit.HistoryPresentation." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }

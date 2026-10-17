@@ -480,6 +480,7 @@ final class LogHistoryWindow: NSWindow {
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
+        model.saveLogViewPreferences(); model.savePaneLayout()
         filePanels.retire()
         window?.makeFirstResponder(nil)
         retireStartReferencePicker()
@@ -656,8 +657,8 @@ struct LogCommandRequest: Identifiable {
     // Upstream CGitLogListBase retains the index across Find close/reopen and reload.
     var findSearchIndex = 0
     var onFindReferenceRefresh: (() -> Void)?
-    @Published var findBlocked = false
-    @Published var orderingBlocked = false
+    @Published var findBlocked = false { didSet { if findBlocked != oldValue { retireLogControlMenus() } } }
+    @Published var orderingBlocked = false { didSet { if orderingBlocked != oldValue { retireLogControlMenus() } } }
     private(set) var historyProjectionEpoch = UUID()
     @Published var entries: [LogEntry] = [] { didSet { historyProjectionEpoch = UUID() } }
     // IsSelectionContinuous compares the displayed and raw walk counts. Search,
@@ -901,7 +902,7 @@ struct LogCommandRequest: Identifiable {
     var revertAvailable: Bool { revision != nil && !bare && !mergeActive && !selectedIsStash && revision?.parents.isEmpty == false }
     var canRevertRevision: Bool { revertAvailable && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil }
     @Published var graph: [CommitGraphRow] = []
-    @Published var selected = Set<String>() { didSet { if selected != oldValue { invalidateFileSelection() } } }
+    @Published var selected = Set<String>() { didSet { if selected != oldValue { invalidateFileSelection(); retireLogControlMenus() } } }
     @Published var files: [CommitFile] = [] { didSet { invalidateFileSelection() } }
     @Published var fileGroups: [LogFileGroup] = [] { didSet { invalidateFileSelection() } }
     private var selectedFileIDs = GitPathSet()
@@ -956,10 +957,30 @@ struct LogCommandRequest: Identifiable {
     @Published private(set) var fetchHeadRevision: String?
     @Published private(set) var recentReferences: [String] = []
     @Published var referencePickerBlocked = false {
-        didSet { if !referencePickerBlocked { scheduleRepositoryRefresh() } }
+        didSet { if referencePickerBlocked != oldValue { retireLogControlMenus() }; if !referencePickerBlocked { scheduleRepositoryRefresh() } }
     }
     var onBrowseStartReference: () -> Void = {}
     var configureStartReferenceBrowser: (ReferenceBrowserWindowModel) -> Void = { _ in }
+    var savePaneLayout: () -> Void = {}
+    func saveLogViewPreferences() {
+        guard !isInvalidated else { return }
+        HistoryReferenceScopePreference.save(effectiveReferenceScope, root: repository.root, defaults: labelDefaults)
+    }
+    private(set) var logControlsEpoch = UUID()
+    func retireLogControlMenus() { logControlsEpoch = UUID() }
+    var canChangeLogControls: Bool {
+        canChangeStartReference && !resettingChangedFileColumns
+    }
+    func toggleWorkingTreeDisplay() {
+        guard canChangeLogControls, canShowWorkingTree else { return }
+        showWorkingTree.toggle(); reload()
+    }
+    func withLogControls(_ receipt: LogControlMenuReceipt, action: () -> Void) {
+        guard receipt.owner === self, !receipt.used, canChangeLogControls,
+              receipt.epoch == logControlsEpoch, receipt.generation == contextMenuGeneration,
+              receipt.projection == historyProjectionEpoch, receipt.selection == selected else { return }
+        receipt.used = true; retireLogControlMenus(); action()
+    }
     private var startReferenceCancellation: OperationCancellation?
     private(set) static var activeReferenceReads = 0
     var canChangeStartReference: Bool { !isInvalidated && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && !unifiedViewerBusy && !findBlocked && !orderingBlocked && !referencePickerBlocked && window?.attachedSheet == nil }
@@ -973,6 +994,7 @@ struct LogCommandRequest: Identifiable {
     }
     func chooseStartReference(_ expression: String, remember: Bool = false) {
         guard canChangeStartReference, let selection = HistoryReferenceSelection(expression: expression) else { return }
+        retireLogControlMenus()
         allBranches = false; referenceScope = .current; startRevisions = []
         switch selection {
         case .range(let range): revisionRange = range; endRevision = nil
@@ -981,9 +1003,12 @@ struct LogCommandRequest: Identifiable {
         if remember { recentReferences = HistoryReferenceRecents(root: repository.root, defaults: labelDefaults).add(expression) }
         reload()
     }
-    func chooseReferenceScope(_ scope: HistoryReferenceScope) {
+    func chooseReferenceScope(_ scope: HistoryReferenceScope, persistImmediately: Bool = false) {
         guard canChangeStartReference, scope == .current || !historyWalk.followRenames else { return }
-        endRevision = nil; revisionRange = nil; startRevisions = []; referenceScope = scope; allBranches = scope == .all
+        // The source keeps GetRange() while a reference-set mask is active.
+        // Turning All branches off returns to that range rather than HEAD.
+        referenceScope = scope; allBranches = scope == .all
+        if persistImmediately { saveLogViewPreferences() }
         reload()
     }
     func browseStartReference() { guard canChangeStartReference else { return }; onBrowseStartReference() }
@@ -1022,6 +1047,7 @@ struct LogCommandRequest: Identifiable {
     private var gravatarDefaultsKey: String { "LogDialog.ShowGravatar." + repository.root.standardizedFileURL.path }
     func toggleGravatar() {
         guard !busy, !isInvalidated else { return }
+        retireLogControlMenus()
         showGravatar.toggle(); labelDefaults.set(showGravatar, forKey: gravatarDefaultsKey)
         refreshGravatar()
     }
@@ -1049,6 +1075,7 @@ struct LogCommandRequest: Identifiable {
     func visibleReferences(for entry: LogEntry) -> [RevisionReference] { entry.references.filter { referenceVisibility.shows($0) } }
     func toggleHistoryLabel(_ command: HistoryLabelCommand) {
         guard !busy, !isInvalidated else { return }
+        retireLogControlMenus()
         if referenceVisibility.contains(command.flag) { referenceVisibility.remove(command.flag) }
         else { referenceVisibility.insert(command.flag) }
         labelDefaults.set(referenceVisibility.rawValue, forKey: labelDefaultsKey)
@@ -1060,12 +1087,17 @@ struct LogCommandRequest: Identifiable {
     }
     func toggleHistoryWalk(_ command: HistoryWalkCommand) {
         guard canToggleHistoryWalk(command) else { return }
+        retireLogControlMenus()
         historyWalk.toggle(command)
         if historyWalk.followRenames { allBranches = false; referenceScope = .current; showWholeProject = false }
         reload()
     }
-    @Published var endRevision: String?
-    @Published var revisionRange: HistoryRevisionRange?
+    @Published var endRevision: String? {
+        didSet { if let endRevision, endRevision != "HEAD" { referenceScope = .current; allBranches = false } }
+    }
+    @Published var revisionRange: HistoryRevisionRange? {
+        didSet { if revisionRange != nil { referenceScope = .current; allBranches = false } }
+    }
     @Published var historyPaths: [String] = []
     @Published var showWholeProject = true
     var canChangeWholeProject: Bool { !busy && canEditPathFilter && !historyPaths.isEmpty && !historyWalk.followRenames }
@@ -1089,12 +1121,14 @@ struct LogCommandRequest: Identifiable {
     func grayFile(_ file: CommitFile) -> Bool { unrelatedPathMode == .gray && unrelatedFile(file) }
     func toggleUnrelatedPaths(_ mode: HistoryUnrelatedPathMode) {
         guard !busy, !isInvalidated, mode != .all else { return }
+        retireLogControlMenus()
         invalidateFileSelection(); unrelatedPathMode.toggle(mode)
         selectedFiles.formIntersection(GitPathSet(visibleFiles.map(\.id)))
         if fileSelectionMark.map({ !selectedFiles.contains($0) }) == true { fileSelectionMark = visibleFiles.first { selectedFiles.contains($0.id) }?.id }
     }
     func toggleUnversionedFiles() {
         guard !busy, !isInvalidated else { return }
+        retireLogControlMenus()
         showUnversionedFiles.toggle(); labelDefaults.set(showUnversionedFiles, forKey: "AddBeforeCommit"); updateWorkingFiles()
         selectedFiles.formIntersection(GitPathSet(visibleFiles.map(\.id)))
     }
@@ -1491,7 +1525,7 @@ struct LogCommandRequest: Identifiable {
         to = max(date, from); historyLimit.until = HistoryLimitScope.endOfDay(to); reload()
     }
     @Published var busy = false {
-        didSet { if busy != oldValue { fileMenuGeneration = UUID() }; if !busy { scheduleRepositoryRefresh() } }
+        didSet { if busy != oldValue { fileMenuGeneration = UUID(); retireLogControlMenus() }; if !busy { scheduleRepositoryRefresh() } }
     }
     private var pendingRepositoryRefresh = false
     private var repositoryRefreshTask: Task<Void, Never>?
@@ -1569,6 +1603,7 @@ struct LogCommandRequest: Identifiable {
     private var patchPreferenceGeneration = 0
     func setPatchPreview(_ visible: Bool) {
         guard !busy, !isInvalidated, visible != patchPreviewVisible else { return }
+        retireLogControlMenus()
         changePatchPreview(visible)
     }
     func patchPreviewClosed() {
@@ -1800,6 +1835,8 @@ struct LogCommandRequest: Identifiable {
         sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
         self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple; self.labelDefaults = labelDefaults; showWorkingTree = includeWorkingTreeChanges && !selecting
         showGravatar = labelDefaults.object(forKey: gravatarDefaultsKey) == nil ? labelDefaults.bool(forKey: "EnableGravatar") : labelDefaults.bool(forKey: gravatarDefaultsKey)
+        referenceScope = HistoryReferenceScopePreference.load(root: repository.root, defaults: labelDefaults)
+        allBranches = referenceScope == .all
         recentReferences = HistoryReferenceRecents(root: repository.root, defaults: labelDefaults).entries
         showUnversionedFiles = labelDefaults.object(forKey: "AddBeforeCommit") == nil || labelDefaults.bool(forKey: "AddBeforeCommit")
         if let stored = labelDefaults.object(forKey: labelDefaultsKey) as? NSNumber, stored.intValue >= 0 {
@@ -1893,6 +1930,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        retireLogControlMenus()
         cancelFileChoice(); invalidateFileSelection()
         messageLinkGeneration = UUID()
         if let jumpAlert, let parent = jumpAlert.window.sheetParent { parent.endSheet(jumpAlert.window, returnCode: .abort) }; jumpAlert = nil
@@ -1939,7 +1977,7 @@ struct LogCommandRequest: Identifiable {
         }
         cancelClipboardRead()
         generation += 1; let request = generation
-        var options = HistoryOptions(); options.endRevision = endRevision; options.revisionRange = revisionRange; options.allBranches = allBranches; options.referenceScope = referenceScope; options.startRevisions = startRevisions; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex
+        var options = HistoryOptions(); options.endRevision = effectiveReferenceScope == .current ? endRevision:nil; options.revisionRange = effectiveReferenceScope == .current ? revisionRange:nil; options.allBranches = allBranches; options.referenceScope = referenceScope; options.startRevisions = effectiveReferenceScope == .current ? startRevisions:[]; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex
         options.useMailmap = labelDefaults.usesMailmap
         options.ordering = HistoryOrdering.load(defaults: labelDefaults)
         options.walk = historyWalk; options.regexExecutable = historyRegexExecutable
@@ -3029,26 +3067,10 @@ struct LogDialog: View {
     @AppStorage("LogDateFormat") private var shortDate = true
     @AppStorage("RelativeTimes") private var relativeTimes = false
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
-    @ViewBuilder private var startReferenceActions: some View {
-        Button { model.browseStartReference() } label: { CommandLabel(title: "Browse references…", icon: .branch) }
-        Button { model.chooseStartReference("HEAD") } label: { CommandLabel(title: model.currentBranch.isEmpty ? "HEAD" : "HEAD → \"\(model.currentBranch)\"", icon: .branch, localized: false) }
-        Button { model.chooseFetchHead() } label: { CommandLabel(title: "FETCH_HEAD", icon: .fetch) }.disabled(model.fetchHeadRevision == nil)
-        ForEach([HistoryReferenceScope.all, .basic, .local], id: \.self) { scope in
-            Button { model.chooseReferenceScope(scope) } label: { CommandLabel(title: scope.title, icon: .log) }.disabled(model.historyWalk.followRenames)
-        }
-        if !model.recentReferences.isEmpty {
-            Divider()
-            ForEach(Array(model.recentReferences.enumerated()), id: \.offset) { _, reference in
-                Button { model.chooseStartReference(reference, remember: true) } label: { CommandLabel(title: reference.count > 150 ? String(reference.prefix(150)) + "…" : reference, icon: .log, localized: false) }.help(reference)
-            }
-        }
-    }
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 6) {
-                Button(model.startReferenceTitle) { model.browseStartReference() }.buttonStyle(.link).lineLimit(1).frame(minWidth: 55, idealWidth: 115, maxWidth: 145, alignment: .leading)
-                    .help(model.referenceExpression).disabled(!model.canChangeStartReference)
-                    .contextMenu { TurtleGitContextMenu { startReferenceActions } }
+                LogControlMenuButton(model: model, kind: .reference).frame(minWidth: 125, idealWidth: 135, maxWidth: 145)
                 Menu(model.historyLimitTitle) {
                     Button("No limitation") { model.chooseHistoryLimit(.noLimit) }
                     if model.defaultHistoryLimitScale.requiresNumber && model.historyLimit.number > 0 {
@@ -3120,14 +3142,15 @@ struct LogDialog: View {
                     let paths = GitPathRowIdentity.paths(ids); model.selectedFiles = paths; model.primaryFileAction(paths)
                 }
             }
+            .background(LogPaneLayoutBridge(model: model))
             Text(model.information.text).font(.system(size: 11)).lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).help(model.information.text)
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Toggle("Show Whole Project", isOn: Binding(get: { model.showWholeProject }, set: model.setWholeProject)).toggleStyle(.checkbox).disabled(!model.canChangeWholeProject)
                         .help(model.historyPaths.joined(separator: "\n"))
-                LogReferenceScopeCheckbox(scope: model.effectiveReferenceScope, enabled: model.canChangeStartReference && !model.historyWalk.followRenames) { model.chooseReferenceScope($0 ? .all : .current) }
-                    .contextMenu { TurtleGitContextMenu { startReferenceActions } }
+                LogReferenceScopeCheckbox(model: model, scope: model.effectiveReferenceScope, enabled: model.canChangeStartReference && !model.historyWalk.followRenames) { model.chooseReferenceScope($0 ? .all : .current, persistImmediately: true) }
+
                 }.frame(width: 220, alignment: .leading)
                 LogFilterField(model: model, kind: .paths).frame(minWidth: 180, maxWidth: .infinity)
                 Button("Help") { TurtleGitHelp.show(.log) }
@@ -3135,34 +3158,8 @@ struct LogDialog: View {
             HStack {
                 Button("Refresh") { model.reload() }.disabled(model.busy)
                 Button("Statistics") { model.showStatistics() }.disabled(model.busy || model.entries.isEmpty || model.isInvalidated)
-                Menu {
-                    ForEach([HistoryWalkCommand.firstParent, .noMerges, .followRenames, .fullHistory], id: \.self) { command in
-                        Toggle(command.rawValue, isOn: Binding(get: { model.historyWalk.contains(command) }, set: { _ in model.toggleHistoryWalk(command) })).disabled(!model.canToggleHistoryWalk(command))
-                    }
-                    Divider()
-                    ForEach([HistoryWalkCommand.compressed, .labeled], id: \.self) { command in
-                        Toggle(command.rawValue, isOn: Binding(get: { model.historyWalk.contains(command) }, set: { _ in model.toggleHistoryWalk(command) })).disabled(!model.canToggleHistoryWalk(command))
-                    }
-                } label: { Text(model.historyWalk.isActive ? "✓ Walk Behavior" : "Walk Behavior") }.disabled(model.busy || model.isInvalidated)
-                Menu("View") {
-                    Toggle("Hide Unrelated Changed Paths", isOn: Binding(get: { model.unrelatedPathMode == .hide }, set: { _ in model.toggleUnrelatedPaths(.hide) }))
-                    Toggle("Gray Unrelated Changed Paths", isOn: Binding(get: { model.unrelatedPathMode == .gray }, set: { _ in model.toggleUnrelatedPaths(.gray) }))
-                    Divider()
-                    Toggle("Show Unversioned Files", isOn: Binding(get: { model.showUnversionedFiles }, set: { _ in model.toggleUnversionedFiles() }))
-                    Divider()
-                    Menu("Labels") {
-                        ForEach(HistoryLabelCommand.allCases, id: \.self) { command in
-                            Toggle(command.rawValue, isOn: Binding(get: { model.referenceVisibility.contains(command.flag) }, set: { _ in model.toggleHistoryLabel(command) }))
-                        }
-                    }
-                    Divider()
-                    Toggle("Gravatar", isOn: Binding(get: { model.showGravatar }, set: { _ in model.toggleGravatar() }))
-                    Toggle("View Patch", isOn: Binding(get: { model.patchPreviewVisible }, set: { model.setPatchPreview($0) }))
-                    if !model.selecting && !model.bare {
-                        Divider()
-                        Toggle("Show Working Tree Changes", isOn: $model.showWorkingTree).disabled(!model.canShowWorkingTree).onChange(of: model.showWorkingTree) { _ in model.reload() }
-                    }
-                }.disabled(model.busy || model.isInvalidated)
+                LogControlMenuButton(model: model, kind: .walk).fixedSize()
+                LogControlMenuButton(model: model, kind: .view).fixedSize()
                 Spacer()
                 if model.busy { ProgressView().controlSize(.small); if model.loadingHistory { Text("Read \(model.loadedRevisionCount) revisions…").font(.caption).foregroundStyle(.secondary) } }
                 if model.patchPreviewLoading { ProgressView("Reading patch…").controlSize(.small) }
@@ -3284,6 +3281,202 @@ struct LogDialog: View {
         Button { model.withFileMenu(snapshot) { model.openHistoricalFile(ids, action: .openWith) } } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(unavailable)
     }
 
+}
+
+@MainActor final class LogControlMenuReceipt {
+    weak var owner: LogWindowModel?
+    let epoch: UUID, projection: UUID, generation: Int, selection: Set<String>
+    var used = false
+    init(_ model: LogWindowModel) {
+        owner = model; epoch = model.logControlsEpoch; projection = model.historyProjectionEpoch
+        generation = model.contextMenuGeneration; selection = model.selected
+    }
+}
+
+enum LogControlMenuKind: String { case reference, walk, view }
+
+/// An item retains its own target because NSMenuItem.target is weak. Every leaf
+/// in a popup shares one receipt, including nested label choices and recents.
+@MainActor final class LogControlMenuItem: NSMenuItem {
+    private let invokeBody: () -> Void
+    init(title: String, invoke: @escaping () -> Void) {
+        invokeBody = invoke
+        super.init(title: title, action: #selector(invokeCaptured), keyEquivalent: "")
+        target = self
+    }
+    required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    @objc func invokeCaptured() { guard isEnabled else { return }; invokeBody() }
+}
+
+@MainActor enum LogControlMenus {
+    static func make(model: LogWindowModel, kind: LogControlMenuKind) -> NSMenu {
+        let menu = NSMenu(); menu.autoenablesItems = false
+        let receipt = LogControlMenuReceipt(model)
+        @discardableResult func item(_ title: String, icon: MenuIcon, checked: Bool? = nil, enabled: Bool = true, localized: Bool = true, in target: NSMenu? = nil, action: @escaping (LogWindowModel) -> Void) -> NSMenuItem {
+            let entry = LogControlMenuItem(title: localized ? NSLocalizedString(title, comment: ""):title) { [weak model] in
+                guard let model else { return }
+                model.withLogControls(receipt) { action(model) }
+            }
+            entry.image = icon.contextImage(defaults: model.colorPreferences)
+            entry.isEnabled = enabled && model.canChangeLogControls
+            if let checked { entry.state = checked ? .on:.off }
+            (target ?? menu).addItem(entry); return entry
+        }
+        switch kind {
+        case .reference:
+            item("Browse references…", icon: .branch) { $0.browseStartReference() }
+            let head = model.currentBranch.isEmpty ? "HEAD":"HEAD → \"" + model.currentBranch + "\""
+            item(head, icon: .branch, localized: false) { $0.chooseStartReference("HEAD") }
+            item("FETCH_HEAD", icon: .fetch, enabled: model.fetchHeadRevision != nil, localized: false) { $0.chooseFetchHead() }
+            for scope in [HistoryReferenceScope.all,.basic,.local] {
+                item(scope == .all ? "All":scope.title, icon: .log, enabled: !model.historyWalk.followRenames) { $0.chooseReferenceScope(scope) }
+            }
+            if !model.recentReferences.isEmpty {
+                menu.addItem(.separator())
+                for reference in model.recentReferences {
+                    let title = reference.count > 150 ? String(reference.prefix(150)) + "…":reference
+                    item(title, icon: .log, localized: false) { $0.chooseStartReference(reference,remember: true) }.toolTip = reference
+                }
+            }
+        case .walk:
+            for command in [HistoryWalkCommand.firstParent,.noMerges,.followRenames,.fullHistory] {
+                item(command.rawValue, icon: .log, checked: model.historyWalk.contains(command), enabled: model.canToggleHistoryWalk(command)) { $0.toggleHistoryWalk(command) }
+            }
+            menu.addItem(.separator())
+            for command in [HistoryWalkCommand.compressed,.labeled] {
+                item(command.rawValue, icon: .revisionGraph, checked: model.historyWalk.contains(command), enabled: model.canToggleHistoryWalk(command)) { $0.toggleHistoryWalk(command) }
+            }
+        case .view:
+            item("Hide Unrelated Changed Paths", icon: .status, checked: model.unrelatedPathMode == .hide) { $0.toggleUnrelatedPaths(.hide) }
+            item("Gray Unrelated Changed Paths", icon: .status, checked: model.unrelatedPathMode == .gray) { $0.toggleUnrelatedPaths(.gray) }
+            menu.addItem(.separator())
+            item("Show Unversioned Files", icon: .add, checked: model.showUnversionedFiles) { $0.toggleUnversionedFiles() }
+            menu.addItem(.separator())
+            let labels = NSMenu(); labels.autoenablesItems = false
+            let parent = NSMenuItem(title: NSLocalizedString("Labels",comment:""), action: nil, keyEquivalent: "")
+            parent.image = MenuIcon.tag.contextImage(defaults:model.colorPreferences); parent.submenu = labels; parent.isEnabled = model.canChangeLogControls; menu.addItem(parent)
+            for command in HistoryLabelCommand.allCases {
+                item(command.rawValue, icon: command == .tags ? .tag:.branch, checked: model.referenceVisibility.contains(command.flag), in: labels) { $0.toggleHistoryLabel(command) }
+            }
+            menu.addItem(.separator())
+            item("Gravatar", icon: .log, checked: model.showGravatar) { $0.toggleGravatar() }
+            item("View Patch", icon: .unifiedDiff, checked: model.patchPreviewVisible) { $0.setPatchPreview(!$0.patchPreviewVisible) }
+            if !model.selecting && !model.bare {
+                menu.addItem(.separator())
+                item("Show Working Tree Changes", icon: .status, checked: model.showWorkingTree, enabled: model.canShowWorkingTree) { $0.toggleWorkingTreeDisplay() }
+            }
+        }
+        return menu
+    }
+}
+
+@MainActor final class LogControlButton: NSButton {
+    var buildMenu: (() -> NSMenu?)?
+    var primary: (() -> Void)?
+    override func menu(for event: NSEvent) -> NSMenu? { buildMenu?() }
+    @objc func activateControl() {
+        guard isEnabled else { return }
+        if let primary { primary(); return }
+        guard let menu = buildMenu?() else { return }
+        menu.popUp(positioning:nil,at:NSPoint(x:0,y:bounds.maxY+3),in:self)
+    }
+}
+struct LogControlMenuButton: NSViewRepresentable {
+    @ObservedObject var model: LogWindowModel
+    let kind: LogControlMenuKind
+    func makeNSView(context: Context) -> LogControlButton {
+        let button = LogControlButton(); button.target = button; button.action = #selector(LogControlButton.activateControl)
+        button.setButtonType(.momentaryPushIn); button.font = .systemFont(ofSize:12)
+        button.bezelStyle = kind == .reference ? .inline:.rounded; button.isBordered = kind != .reference
+        button.alignment = kind == .reference ? .left:.center; button.lineBreakMode = .byTruncatingMiddle
+        if kind != .reference { button.image = NSImage(systemSymbolName:"chevron.down",accessibilityDescription:nil); button.imagePosition = .imageTrailing; button.imageHugsTitle = true }
+        button.setContentHuggingPriority(.required,for:.vertical)
+        return button
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: LogControlButton, context: Context) -> CGSize? {
+        let size = nsView.fittingSize
+        return CGSize(width:kind == .reference ? min(proposal.width ?? size.width,size.width):size.width+12,height:size.height)
+    }
+    func updateNSView(_ button: LogControlButton, context: Context) {
+        button.identifier = .init("Log.Control." + kind.rawValue)
+        switch kind {
+        case .reference:
+            button.title = model.startReferenceTitle; button.toolTip = model.referenceExpression
+            button.contentTintColor = .linkColor; button.setAccessibilityLabel("Start reference: " + model.startReferenceTitle)
+            button.primary = { [weak model] in model?.browseStartReference() }
+        case .walk:
+            button.title = (model.historyWalk.isActive ? "✓ ":"") + NSLocalizedString("Walk Behavior",comment:"")
+            button.setAccessibilityLabel(NSLocalizedString("Walk Behavior",comment:"")); button.primary = nil
+        case .view:
+            button.title = NSLocalizedString("View",comment:""); button.setAccessibilityLabel(button.title); button.primary = nil
+        }
+        button.isEnabled = model.canChangeLogControls
+        button.buildMenu = { [weak model] in model.map { LogControlMenus.make(model:$0,kind:kind) } }
+    }
+    static func dismantleNSView(_ button: LogControlButton, coordinator: ()) {
+        button.isEnabled = false; button.buildMenu = nil; button.primary = nil; button.target = nil; button.action = nil
+    }
+}
+
+/// Attach to the existing SwiftUI VSplitView's AppKit split; keep its delegate,
+/// dragging and keyboard/accessibility implementation. Restore only once after
+/// real bounds exist and persist only on owner close, as SaveSplitterPos does.
+struct LogPaneLayoutBridge: NSViewRepresentable {
+    @ObservedObject var model: LogWindowModel
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ probe: Probe, context: Context) {
+        probe.model = model
+        model.savePaneLayout = { [weak probe] in probe?.save() }
+        probe.scheduleBinding()
+    }
+    static func dismantleNSView(_ probe: Probe, coordinator: ()) { probe.retire() }
+    @MainActor final class Probe: NSView {
+        weak var model: LogWindowModel?
+        private(set) weak var split: NSSplitView?
+        private(set) var restored = false
+        private var observer: NSObjectProtocol?
+        private var queued = false, retired = false
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); scheduleBinding() }
+        override func viewDidMoveToSuperview() { super.viewDidMoveToSuperview(); scheduleBinding() }
+        func scheduleBinding() {
+            guard !retired, !queued else { return }; queued = true
+            DispatchQueue.main.async { [weak self] in guard let self else { return }; self.queued = false; self.bindAndRestore() }
+        }
+        private func findSplit(_ view: NSView) -> NSSplitView? {
+            if let split = view as? NSSplitView, !split.isVertical, split.arrangedSubviews.count == 3 { return split }
+            for child in view.subviews { if let split = findSplit(child) { return split } }
+            return nil
+        }
+        private func bindAndRestore() {
+            guard !retired, let model, !model.isInvalidated, let root = window?.contentView else { return }
+            if split == nil, let found = findSplit(root) {
+                split = found; found.identifier = .init("Log.Panes")
+                observer = NotificationCenter.default.addObserver(forName:NSSplitView.didResizeSubviewsNotification,object:found,queue:.main) { [weak self] _ in DispatchQueue.main.async { self?.restoreIfNeeded() } }
+            }
+            restoreIfNeeded()
+        }
+        private func restoreIfNeeded() {
+            guard !retired, !restored, let model, !model.isInvalidated, let split, split.bounds.height > 0 else { return }
+            let available = Double(split.bounds.height - split.dividerThickness*2)
+            guard available >= HistoryPaneLayout.minimumHeights.reduce(0,+) else { return }
+            restored = true
+            guard let layout = HistoryPaneLayout.load(defaults:model.colorPreferences) else { return }
+            let heights = layout.heights(available:available)
+            split.setPosition(heights[0],ofDividerAt:0)
+            split.setPosition(heights[0] + Double(split.dividerThickness) + heights[1],ofDividerAt:1)
+        }
+        func save() {
+            guard !retired, let model, !model.isInvalidated, let window, !window.isMiniaturized, let split,
+                  split.arrangedSubviews.count == 3,
+                  let layout = HistoryPaneLayout(heights:split.arrangedSubviews.map { Double($0.frame.height) }) else { return }
+            layout.save(defaults:model.colorPreferences)
+        }
+        func retire() {
+            retired = true
+            if let observer { NotificationCenter.default.removeObserver(observer) }; observer = nil; split = nil
+        }
+    }
 }
 
 /// Native settings checkbox with the same two-way preference binding as the Dialogs page.
@@ -4506,12 +4699,13 @@ struct LogRevisionDialog: View {
 
 /// Source all-branches control uses an indeterminate state for basic/local refs.
 struct LogReferenceScopeCheckbox: NSViewRepresentable {
+    @ObservedObject var model: LogWindowModel
     let scope: HistoryReferenceScope
     let enabled: Bool
     let change: (Bool) -> Void
     func makeCoordinator() -> Coordinator { Coordinator(change: change) }
     func makeNSView(context: Context) -> NSButton {
-        let button = NSButton(checkboxWithTitle: "All Branches", target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
+        let button = LogScopeCheckboxButton(checkboxWithTitle: "All Branches", target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
         button.allowsMixedState = true
         button.setContentHuggingPriority(.required,for:.vertical)
         button.setContentCompressionResistancePriority(.required,for:.vertical)
@@ -4521,12 +4715,18 @@ struct LogReferenceScopeCheckbox: NSViewRepresentable {
     func updateNSView(_ button: NSButton, context: Context) {
         button.state = scope == .current ? .off : scope == .all ? .on : .mixed
         button.isEnabled = enabled; button.toolTip = scope.title
+        (button as? LogScopeCheckboxButton)?.buildMenu = { [weak model] in model.map { LogControlMenus.make(model:$0,kind:.reference) } }
         context.coordinator.change = change; context.coordinator.next = scope == .current
     }
-    static func dismantleNSView(_ button: NSButton, coordinator: Coordinator) { button.target = nil; button.action = nil; button.isEnabled = false; coordinator.change = { _ in } }
+    static func dismantleNSView(_ button: NSButton, coordinator: Coordinator) { (button as? LogScopeCheckboxButton)?.buildMenu = nil; button.target = nil; button.action = nil; button.isEnabled = false; coordinator.change = { _ in } }
     final class Coordinator: NSObject {
         var change: (Bool) -> Void, next = true
         init(change: @escaping (Bool) -> Void) { self.change = change }
         @objc func clicked(_ sender: NSButton) { guard sender.isEnabled else { return }; change(next) }
     }
+}
+
+@MainActor final class LogScopeCheckboxButton: NSButton {
+    var buildMenu: (() -> NSMenu?)?
+    override func menu(for event: NSEvent) -> NSMenu? { buildMenu?() }
 }

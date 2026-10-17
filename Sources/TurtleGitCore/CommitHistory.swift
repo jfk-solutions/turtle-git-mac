@@ -547,6 +547,65 @@ public enum HistoryReferenceScope: String, CaseIterable, Sendable {
     }
 }
 
+/// LogDlg's per-repository AllBranch setting uses 0/1/2/3 for
+/// current/all/local/basic. Keep it independent from reference-label visibility.
+public enum HistoryReferenceScopePreference {
+    public static func key(root: URL) -> String { "LogDialog.AllBranch." + root.standardizedFileURL.path }
+    public static func load(root: URL, defaults: UserDefaults = .standard) -> HistoryReferenceScope {
+        switch defaults.integer(forKey: key(root: root)) {
+        case 1: return .all
+        case 2: return .local
+        case 3: return .basic
+        default: return .current
+        }
+    }
+    public static func save(_ scope: HistoryReferenceScope, root: URL, defaults: UserDefaults = .standard) {
+        let value: Int
+        switch scope { case .current: value = 0; case .all: value = 1; case .local: value = 2; case .basic: value = 3 }
+        defaults.set(value, forKey: key(root: root))
+    }
+}
+
+/// Native adaptation of SaveSplitterPos: retain the three pane proportions,
+/// then clamp to the source-style minimum content sizes on a different window.
+public struct HistoryPaneLayout: Equatable, Sendable {
+    public static let key = "LogDialog.PaneLayout.v1"
+    public static let minimumHeights: [Double] = [200,110,130]
+    public let fractions: [Double]
+    public init?(heights: [Double]) {
+        guard heights.count == 3, heights.allSatisfy({ $0.isFinite && $0 > 0 }) else { return nil }
+        let total = heights.reduce(0,+)
+        guard total.isFinite, total > 0 else { return nil }
+        let values = heights.map { $0 / total }
+        guard values.allSatisfy({ $0.isFinite && $0 > 0 }) else { return nil }
+        fractions = values
+    }
+    public func heights(available: Double) -> [Double] {
+        guard available.isFinite, available > 0 else { return [0,0,0] }
+        let minimum = Self.minimumHeights, minimumTotal = minimum.reduce(0,+)
+        if available < minimumTotal { return minimum.map { $0 * available / minimumTotal } }
+        var result = [0.0,0,0], remaining = available, active = Set(0..<3)
+        while !active.isEmpty {
+            let weight = active.reduce(0.0) { $0 + fractions[$1] }
+            let fixed = active.filter { remaining * fractions[$0] / weight < minimum[$0] }
+            if fixed.isEmpty {
+                for index in active { result[index] = remaining * fractions[index] / weight }
+                break
+            }
+            for index in fixed { result[index] = minimum[index]; remaining -= minimum[index]; active.remove(index) }
+        }
+        return result
+    }
+    public static func load(defaults: UserDefaults = .standard) -> Self? {
+        guard defaults.integer(forKey: key + ".Version") == 1,
+              let values = defaults.array(forKey: key) as? [Double] else { return nil }
+        return Self(heights: values)
+    }
+    public func save(defaults: UserDefaults = .standard) {
+        defaults.set(fractions,forKey:Self.key); defaults.set(1,forKey:Self.key + ".Version")
+    }
+}
+
 /// Browser selections/recents contain Git tokens, never shell command text.
 public enum HistoryReferenceSelection: Equatable, Sendable {
     case tips([String]), range(HistoryRevisionRange)

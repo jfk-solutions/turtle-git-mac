@@ -2809,3 +2809,10 @@ filename-selection parity.
 native changed-file selection, parent occurrence identities, captured file menus,
 clipboard statuses, async target fencing and owned file choosers. See its batch
 evidence and acceptance limits; the whole Log window remains partial.
+
+
+[Log controls and pane layout](LOG-CONTROLS-LAYOUT-PARITY.md) adds remembered
+reference scopes, retained ranges under All/basic/local masks, native source-order
+Walk/View/reference menus and three-pane divider restoration. It supersedes the
+corresponding older pending control/persistence notes, while retaining its explicit
+physical, accessibility, signed and complete-window acceptance limits.

@@ -1,0 +1,153 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation_baseline": "9361c571",
+  "scope": "Connected Log reference/view/walk controls, source scope/range state, saved native pane proportions and primary presentation.",
+  "source": [
+    "src/TortoiseProc/LogDlg.cpp constructor/destructor, SetParams and per-repository AllBranch preference",
+    "LogDlg::OnContextMenu / OnBnClickedAllBranch / OnBnClickedWalkBehaviour / OnBnClickedView",
+    "LogDlg::SaveSplitterPos and source three-pane reference screenshot",
+    "src/TortoiseProc/LogDlg.h AllBranchType enum numeric current=0 all=1 local=2 basic=3"
+  ],
+  "implemented": [
+    "Native reference link left click opens owned multi-ref/range browser; right click shows source Browse/HEAD/FETCH_HEAD/All/basic/local/recents hierarchy",
+    "Native Walk/View menus with original command artwork, checked/conditional states and shared application context-icon setting",
+    "One-use popup receipt retained by leaf targets; nested choices cannot dispatch after accepted action, busy/child/projection/selection transitions or retirement",
+    "All/basic/local masks preserve the underlying explicit branch, tip list or range; disabling mask returns to it while active masks omit it from the actual Git query",
+    "Source numeric per-repository scope preference; immediate checkbox persistence and close persistence, explicit initial revision override",
+    "Noninteractive native VSplitView bridge retains existing delegate/gestures and restores saved three-pane proportions with minimum heights, schema validation, minimized-close exclusion and retirement guards",
+    "Dedicated reference-caption width and native footer caption/arrow spacing corrected after raw visual review; split observer hops explicitly to main queue"
+  ],
+  "build_attempts": [
+    {
+      "log": "build/qa/log-controls-layout-build-2026-10-17.log",
+      "exit_code": 0
+    },
+    {
+      "log": "build/qa/log-controls-layout-build-label-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Exact resource caption All rather than header title All branches"
+    },
+    {
+      "log": "build/qa/log-controls-layout-build-spacing-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Raw-capture review reference/footer sizing correction"
+    },
+    {
+      "log": "build/qa/log-controls-layout-build-final-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Explicit main-queue split observer; final app/Core objects"
+    }
+  ],
+  "core": [
+    {
+      "log": "build/qa/log-controls-layout-core-2026-10-17.log",
+      "exit_code": 0,
+      "tests": 9,
+      "scope": "HistoryPresentationTests and HistoryRangeTests: scope numeric/store/path persistence, pane geometry validation/proportions/minimums/versioning, retained real range behavior"
+    }
+  ],
+  "native": [
+    {
+      "log": "build/qa/log-controls-layout-native-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_passes": 2,
+      "scope": "New complete controls/layout fixture, system/bundled Git; actual menus/picker/native split and real Git effects invariants"
+    },
+    {
+      "log": "build/qa/log-controls-layout-retained-native-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_passes": 4,
+      "scope": "Existing reference-navigation and changed-file list receivers, both Git engines"
+    },
+    {
+      "log": "build/qa/log-controls-layout-native-final-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_passes": 2,
+      "scope": "Affected new receiver after caption spacing/main-queue changes; full control/layout assertions and final captures"
+    }
+  ],
+  "distinct_native_case_engine_passes": 6,
+  "validation_scope_note": "Nine Core cases passed before native-only caption/observer changes. Six distinct native case/engine combinations passed across retained/affected runs; retained four were not replayed after the final native-only spacing/observer repair.",
+  "captures": [
+    {
+      "path": "docs/site/assets/log-controls-light.png",
+      "width": 2240,
+      "height": 1864,
+      "sha256": "51338a4a25f54ad018994cdbe3947d1a680e94014139f246eaf5b7572b6f712e",
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/log-controls-dark.png",
+      "width": 2240,
+      "height": 1864,
+      "sha256": "1d5d02362a35409a0fd69f7cb2c7ab118f5d86df1add95e757690cf76c73f4fa",
+      "reviewed": true
+    }
+  ],
+  "reference_image": {
+    "path": "doc/images/en/LogMessages.png",
+    "blob": "9552d96437d5588b0076c84b4d56637c33fa80d9",
+    "pinned_and_viewed_file_blobs_equal": true,
+    "review": "Three panes, graph before list, source field/footer order and colored command/status/ref artwork retained with native controls; fixture has three commits and inactive selection styling, not complete Log visual acceptance."
+  },
+  "review_changes": [
+    "First successful runtime capture showed reference caption truncated and footer title crowded; corrected dedicated width/caption spacing before final captures.",
+    "No runtime assertion failures in this batch.",
+    "Retained two-pane zero-bounds NSSplitView warning during shared child handling is also present in earlier October 14 reference-navigation logs. Unique production root cause not identified; no warning-resolution claim."
+  ],
+  "cleanup": {
+    "pids": [
+      28966,
+      29442,
+      30062,
+      30067,
+      30709,
+      30775,
+      31414,
+      31732,
+      32218
+    ],
+    "independent_ps_exit": 1,
+    "remaining": ""
+  },
+  "hosted": {
+    "previous_head": "9361c571",
+    "pages_run": 39027332378,
+    "pages": "success",
+    "macos_run": 39027332377,
+    "macos": "pending at observation",
+    "earlier_macos_run": 39026026679,
+    "earlier_macos": "in_progress at observation; app and Finder build succeeded, integration stage running"
+  },
+  "remaining": [
+    "Physical native popup tracking and divider dragging",
+    "Keyboard/accessibility/VoiceOver acceptance of the complete Log window",
+    "Retained shared reference-picker zero-bounds warning",
+    "Other Log group/view/ref variants and complete source control/state comparison",
+    "Signed Finder, security-scoped deployment, refreshed distribution and App Store acceptance",
+    "Full hosted CI for this commit"
+  ],
+  "static_validation": {
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93
+    },
+    "localizations": {
+      "languages": 38,
+      "safe_keys": 1242,
+      "check_exit_code": 0
+    },
+    "site": {
+      "documents": 272,
+      "unresolved_fragments": [],
+      "exit_code": 0
+    },
+    "workflow_yaml": "Ruby Psych parse passed",
+    "diff_check": "passed"
+  }
+}
