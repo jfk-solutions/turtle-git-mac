@@ -344,4 +344,77 @@ final class GitPathIdentityTests: XCTestCase {
         XCTAssertEqual(try sensitive.resolving("Case/a"),"Case/a")
     }
 
+    func testFinderWorkspaceSelectionKeepsExactPeersAndParentNamespaces() throws {
+        let root=URL(fileURLWithPath:"/tmp/WorkspaceSelection-"+UUID().uuidString),a="café",b="cafe\u{301}"
+        let paths=[a+".txt",b+".txt",a+"/first",b+"/second"]
+        let rows=paths.map {StatusEntry(path:$0,originalPath:nil,index:"M",worktree:" ")}
+        func chosen(_ path:String)->GitPathSet {FinderRequest(action:.status,paths:[FileTransferPaths.fileURL(root.path+"/"+path)]).selectedStatusPaths(root:root,entries:rows)}
+        XCTAssertEqual(chosen(a+".txt"),GitPathSet([a+".txt"]))
+        XCTAssertEqual(chosen(b+".txt"),GitPathSet([b+".txt"]))
+        XCTAssertEqual(chosen(a),GitPathSet([a+"/first"]))
+        XCTAssertEqual(chosen(b),GitPathSet([b+"/second"]))
+        XCTAssertTrue(chosen(a+"/second").isEmpty)
+        XCTAssertEqual(FinderRequest(action:.status,paths:[root]).selectedStatusPaths(root:root,entries:rows),GitPathSet(paths))
+        let unique=FinderRequest(action:.status,paths:[FileTransferPaths.fileURL(root.path+"/"+b+".txt")]).selectedStatusPaths(root:root,entries:[rows[0]])
+        XCTAssertEqual(unique,GitPathSet([a+".txt"]))
+    }
+    func testWorkspaceDiffBlameAndHistoryRetainSelectedGitSpelling() async throws {
+        let (root,repo)=try await CommitSelectionTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let a="café.txt",b="cafe\u{301}.txt"
+        _ = try await repo.run(["config","core.precomposeunicode","true"])
+        func install(_ path:String,_ text:String) async throws {
+            let hash=try await repo.run(["hash-object","-w","--stdin"],input:Data(text.utf8)).text.trimmingCharacters(in:.newlines)
+            _ = try await repo.run(["update-index","-z","--index-info"],input:Data("100644 \(hash)\t\(path)\0".utf8))
+        }
+        try await install(a,"base A\n");try await install(b,"base B\n");_ = try await repo.commit(message:"base")
+        try await install(a,"next A\n");try await install(b,"next B\n")
+        let patch=try await repo.diff(paths:[b],staged:true)
+        XCTAssertTrue(patch.contains("next B"));XCTAssertFalse(patch.contains("next A"))
+        _ = try await repo.commit(message:"both")
+        let bCommit=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        try await install(a,"latest A\n");_ = try await repo.commit(message:"A only")
+        let aCommit=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let first=try await repo.blame(path:a),second=try await repo.blame(path:b)
+        XCTAssertEqual(first.contents,Data("latest A\n".utf8));XCTAssertEqual(second.contents,Data("next B\n".utf8))
+        XCTAssertEqual(first.lines.first?.hash,aCommit);XCTAssertEqual(second.lines.first?.hash,bCommit)
+        let history=try await repo.blameHistory(second,options:GitBlameOptions())
+        XCTAssertTrue(history.contains {$0.hash==bCommit});XCTAssertFalse(history.contains {$0.hash==aCommit})
+    }
+    func testFileAndDirectoryDropsKeepIndexNamesAndConfiguredNewNames() async throws {
+        let (root,repo)=try await CommitSelectionTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let a="café.txt",b="cafe\u{301}.txt",directory="dir-cafe\u{301}",known="known-cafe\u{301}.txt",fresh="new-café.txt"
+        _ = try await repo.run(["config","core.precomposeunicode","true"])
+        func install(_ path:String,_ text:String) async throws {
+            let hash=try await repo.run(["hash-object","-w","--stdin"],input:Data(text.utf8)).text.trimmingCharacters(in:.newlines)
+            _ = try await repo.run(["update-index","-z","--index-info"],input:Data("100644 \(hash)\t\(path)\0".utf8))
+        }
+        try await install(a,"index A\n");try await install(b,"index B\n");try await install(directory+"/"+known,"index child\n")
+        _ = try await repo.commit(message:"exact index")
+        try Data("working alias\n".utf8).write(to:root.appendingPathComponent(a))
+        let selected=try await repo.addDroppedCommitFiles([FileTransferPaths.fileURL(root.path+"/"+b)])
+        XCTAssertEqual(selected.map {GitReferenceName($0.path)},[GitReferenceName(b)]);XCTAssertTrue(selected.allSatisfy(\.added))
+        let retained=try await repo.run(["-c","core.precomposeunicode=false","show",":"+a]).stdout
+        XCTAssertEqual(retained,Data("index A\n".utf8))
+        let folder=root.appendingPathComponent(directory);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        try Data("child working\n".utf8).write(to:folder.appendingPathComponent(known));try Data("new child\n".utf8).write(to:folder.appendingPathComponent(fresh))
+        try Data("*.ignored\n".utf8).write(to:root.appendingPathComponent(".gitignore"));try Data("ignored\n".utf8).write(to:folder.appendingPathComponent("omit.ignored"))
+        let dropped=try await repo.addDroppedCommitFiles([FileTransferPaths.fileURL(root.path+"/"+directory)])
+        XCTAssertTrue(dropped.allSatisfy(\.added))
+        let names=try await repo.run(["-c","core.precomposeunicode=false","ls-files","-z"]).stdout.split(separator:0).map {String(decoding:$0,as:UTF8.self)}
+        XCTAssertEqual(GitPathSet(names),GitPathSet([a,b,directory+"/"+known,directory+"/"+fresh]))
+        let child=try await repo.run(["-c","core.precomposeunicode=false","show",":"+directory+"/"+known]).stdout
+        XCTAssertEqual(child,Data("child working\n".utf8))
+    }
+    func testFinderCollectionRetainsExactGitlinkNamesAndOrdinaryPeer() async throws {
+        let (root,repo)=try await CommitSelectionTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let a="café",b="cafe\u{301}"
+        _ = try await repo.run(["commit","--allow-empty","-m","base"])
+        let hash=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let blob=try await repo.run(["hash-object","-w","--stdin"],input:Data("ordinary\n".utf8)).text.trimmingCharacters(in:.newlines)
+        let records="100644 \(blob)\t\(a)\0"+[b,"module-"+a,"module-"+b].map {"160000 \(hash)\t\($0)\0"}.joined()
+        _ = try await repo.run(["update-index","-z","--index-info"],input:Data(records.utf8))
+        let result=try await repo.collectFinderRepository(authorizedRoot:root)
+        XCTAssertEqual(result.submodules,GitPathSet([b,"module-"+a,"module-"+b]));XCTAssertFalse(result.submodules.contains(a))
+    }
+
 }

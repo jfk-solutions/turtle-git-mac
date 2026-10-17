@@ -135,6 +135,15 @@ import UniformTypeIdentifiers
     }
 }
 
+struct WorkspaceStatusRow:Identifiable {
+    let entry:StatusEntry
+    var id:String {GitPathRowIdentity.encode(entry.path)}
+    var path:String {entry.path}
+    var originalPath:String? {entry.originalPath}
+    var state:FileState {entry.state}
+    var staged:Bool {entry.staged}
+}
+
 struct RepositoryWindow: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: RepositoryModel
@@ -249,42 +258,65 @@ struct RepositoryWindow: View {
     }
     var status: some View {
         VStack(spacing: 8) {
-            Table(model.visibleEntries, selection: $model.selection) {
+            Table(model.visibleEntries.map {WorkspaceStatusRow(entry:$0)}, selection: $model.nativeSelection) {
                 TableColumn("Status") { entry in
-                    CommandLabel(title: entry.state.rawValue.capitalized, icon: entry.state.icon).foregroundStyle(entry.state.textColor)
+                    CommandLabel(title: entry.state.rawValue.capitalized, icon: entry.state.icon).foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences))
                 }.width(min: 120, ideal: 145, max: 180)
-                TableColumn("Staged") { entry in Text(entry.staged ? "✓" : "") }.width(55)
-                TableColumn("File") { entry in Text(entry.path).help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }
+                TableColumn("Staged") { entry in Text(entry.staged ? "✓" : "").foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences)) }.width(55)
+                TableColumn("File") { entry in Text(entry.path).foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences)).help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }
             }.fileListFont()
+            .onCopyCommand {
+                let context = model.captureWorkspaceMenu()
+                guard model.claimWorkspaceMenu(context),!context.paths.isEmpty else{return []}
+                return [NSItemProvider(object:context.paths.joined(separator:"\n") as NSString)]
+            }
             .frame(minHeight: 140)
             .onDrop(of: [UTType.fileURL], isTargeted: nil) { model.receiveTransferDrop($0) }
-            .contextMenu {
+            .contextMenu(forSelectionType:String.self) { ids in
+                let context = model.captureWorkspaceMenu(GitPathRowIdentity.paths(ids))
                 TurtleGitContextMenu {
-                    Button { model.showDiff() } label: { CommandLabel(title: "Diff", icon: .compare) }
-                    Button { model.stage() } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(model.selection.isEmpty)
-                    Button { model.unstage() } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(model.selection.isEmpty)
-                    Button { model.activate(.revert) } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!model.canRevertSelection)
-                    Button { model.activate(.clean) } label: { CommandLabel(title: RepositoryAction.clean.title, icon: .clean) }.disabled(model.bare || model.busy || model.confirmingQuit)
-                    Button { model.activate(.rename) } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!model.canRenameSelection)
-                    if model.canResolveSelection && !model.selectedPaths.isEmpty {
-                        ResolveSelectionMenu(paths: model.selectedPaths, rebase: model.conflictRebase, canEdit: model.selection.count == 1 && model.entries.contains(where: { model.selection.contains($0.id) && $0.state == .conflicted })) { action, paths in model.activate(action, paths: paths) }
+                    Button { if model.claimWorkspaceMenu(context) { model.showDiff(paths:context.paths) } } label: { CommandLabel(title: "Diff", icon: .compare) }
+                    Button { if model.claimWorkspaceMenu(context) { model.stage(paths:context.paths) } } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(context.paths.isEmpty)
+                    Button { if model.claimWorkspaceMenu(context) { model.unstage(paths:context.paths) } } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(context.paths.isEmpty)
+                    Button { if model.claimWorkspaceMenu(context) { model.activate(.revert,paths:context.paths) } } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!context.canRevert)
+                    Button { if model.claimWorkspaceMenu(context) { model.activate(.clean,paths:context.paths) } } label: { CommandLabel(title: RepositoryAction.clean.title, icon: .clean) }.disabled(context.bare || model.busy || model.confirmingQuit)
+                    Button { if model.claimWorkspaceMenu(context) { model.activate(.rename,paths:context.paths) } } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!context.canRename)
+                    if context.canResolve && !context.paths.isEmpty {
+                        ResolveSelectionMenu(paths: context.paths, rebase: context.rebase, canEdit: context.entries.count == 1 && context.entries.contains(where: { $0.state == .conflicted })) { action, paths in if model.claimWorkspaceMenu(context) { model.activate(action, paths: paths) } }
                     }
-                    if model.mergeActive {
-                        Button { model.activate(.mergeAbort) } label: { CommandLabel(title: RepositoryAction.mergeAbort.title, icon: .mergeAbort) }.disabled(model.busy || model.confirmingQuit)
+                    if context.merging {
+                        Button { if model.claimWorkspaceMenu(context) { model.activate(.mergeAbort,paths:context.paths) } } label: { CommandLabel(title: RepositoryAction.mergeAbort.title, icon: .mergeAbort) }.disabled(model.busy || model.confirmingQuit)
                     }
-                    if model.canIgnoreSelection(.ignore) {
-                        IgnoreSelectionMenu(paths: model.selectedPaths) { action, paths in model.activate(action, paths: paths) }
+                    if context.canIgnore(.ignore) {
+                        IgnoreSelectionMenu(paths: context.paths) { action, paths in if model.claimWorkspaceMenu(context) { model.activate(action, paths: paths) } }
                     }
-                    if model.canIgnoreSelection(.ignoreDelete) {
-                        IgnoreSelectionMenu(paths: model.selectedPaths, deleting: true) { action, paths in model.activate(action, paths: paths) }
+                    if context.canIgnore(.ignoreDelete) {
+                        IgnoreSelectionMenu(paths: context.paths, deleting: true) { action, paths in if model.claimWorkspaceMenu(context) { model.activate(action, paths: paths) } }
+                    }
+                    Group {
+                        Divider()
+                        Button {if model.claimWorkspaceMenu(context) {model.activate(.move,paths:context.paths)}} label:{CommandLabel(title:"Move…",icon:.rename)}.disabled(!context.canMove)
+                        Button {if model.claimWorkspaceMenu(context) {model.activate(.log,paths:context.paths)}} label:{CommandLabel(title:"Show log",icon:.log)}
+                        if context.paths.count == 1 {Button {if model.claimWorkspaceMenu(context) {model.activate(.blame,paths:context.paths)}} label:{CommandLabel(title:"Blame",icon:.blame)}.disabled(!context.canBlame)}
+                        Button {if model.claimWorkspaceMenu(context) {model.revealWorkspaceFiles(model.workspaceURLs(context.paths))}} label:{CommandLabel(title:"Show in Finder",icon:.explore)}.disabled(context.paths.isEmpty)
+                        Button {if model.claimWorkspaceMenu(context) {model.copyWorkspaceFiles(context.paths)}} label:{CommandLabel(title:"Copy files",icon:.copy)}.disabled(context.paths.isEmpty)
+                        Button {if model.claimWorkspaceMenu(context) {model.copyWorkspaceItems(context.paths)}} label:{CommandLabel(title:"Copy and Add…",icon:.add)}.disabled(context.paths.isEmpty)
+                        Menu {
+                            Button {if model.claimWorkspaceMenu(context) {model.copyWorkspacePaths(context.paths)}} label:{CommandLabel(title:"Relative paths",icon:.copy)}
+                            Button {if model.claimWorkspaceMenu(context) {model.copyWorkspacePaths(context.paths,full:true)}} label:{CommandLabel(title:"Full paths",icon:.copy)}
+                            Button {if model.claimWorkspaceMenu(context) {model.copyWorkspacePaths(context.paths,names:true)}} label:{CommandLabel(title:"File/folder names",icon:.copy)}
+                        } label:{CommandLabel(title:"Copy to clipboard",icon:.copy)}.disabled(context.paths.isEmpty)
                     }
                     Divider()
-                    if model.selectedPaths.count == 1 {
-                        Button { model.activate(.diffLater) } label: { CommandLabel(title: model.comparisonMarkTitle, icon: .compare) }.disabled(model.busy || model.confirmingQuit)
+                    if context.paths.count == 1 {
+                        Button { if model.claimWorkspaceMenu(context) { model.activate(.diffLater,paths:context.paths) } } label: { CommandLabel(title: model.comparisonMarkTitle, icon: .compare) }.disabled(model.busy || model.confirmingQuit)
                     }
-                    Button { model.activate(.remove) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(!model.canRemoveSelection)
-                    Button { model.activate(.removeKeep) } label: { CommandLabel(title: "Delete (keep local)", icon: .remove) }.disabled(!model.canRemoveSelection)
-                }
+                    Button { if model.claimWorkspaceMenu(context) { model.activate(.remove,paths:context.paths) } } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(!context.canRemove)
+                    Button { if model.claimWorkspaceMenu(context) { model.activate(.removeKeep,paths:context.paths) } } label: { CommandLabel(title: "Delete (keep local)", icon: .remove) }.disabled(!context.canRemove)
+                }.disabled(model.busy || model.confirmingQuit)
+            } primaryAction:{ids in
+                let context = model.captureWorkspaceMenu(GitPathRowIdentity.paths(ids))
+                if model.claimWorkspaceMenu(context) {model.showDiff(paths:context.paths)}
             }
             HStack {
                 Button("Add / Stage selected") { model.stage() }.disabled(model.selection.isEmpty || model.busy)

@@ -152,7 +152,7 @@ final class FinderRequestTests: XCTestCase {
         let request = FinderRequest(action: .status, paths: [root.appendingPathComponent("dir"), root.appendingPathComponent("other")])
         XCTAssertEqual(request.selectedStatusPaths(root: root, entries: entries), ["dir/a", "dir/b", "other"])
         XCTAssertEqual(request.relativePaths(root: root), ["dir", "other"])
-        XCTAssertEqual(FinderRequest(action: .status, paths: [root]).selectedStatusPaths(root: root, entries: entries), Set(entries.map(\.path)))
+        XCTAssertEqual(FinderRequest(action: .status, paths: [root]).selectedStatusPaths(root: root, entries: entries), GitPathSet(entries.map(\.path)))
     }
     func testDiscoveredRootUsesTheSameMacOSAliasSpellingAsFinderSelection() async throws {
         let root = URL(fileURLWithPath: "/private/tmp").appendingPathComponent(UUID().uuidString)

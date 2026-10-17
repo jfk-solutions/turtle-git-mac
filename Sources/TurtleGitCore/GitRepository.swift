@@ -136,7 +136,7 @@ public actor GitRepository {
         try diff(paths: path.map { [$0] } ?? [], staged: staged)
     }
     public func diff(paths: [String], staged: Bool = false) throws -> String {
-        var args = ["diff", "--no-ext-diff", "--no-color"]
+        var args = ["-c","core.precomposeunicode=false","diff", "--no-ext-diff", "--no-color"]
         if staged { args.append("--cached") }
         args.append("--")
         args += paths

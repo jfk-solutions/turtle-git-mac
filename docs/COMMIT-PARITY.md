@@ -2604,3 +2604,5 @@ It is shared by refresh and group-skipping keyboard navigation. The original
 source layout and staging semantics are retained. See
 [batch evidence](qa/working-selection-identities-2026-10-17.json) for actual checks,
 failures and remaining physical/signed acceptance.
+
+The connected [workspace file workflow continuation](WORKSPACE-FILE-WORKFLOWS.md) covers exact overview selection, Finder reopening, shared viewer caches and Add/Commit drop identities. Earlier workspace-selection limitations describe the prior checkpoint; complete physical/signed and application parity remain open.

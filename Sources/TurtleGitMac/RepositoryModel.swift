@@ -74,31 +74,78 @@ import UniformTypeIdentifiers
         loader.onClosed = { [weak self] in self?.imageLoader = nil }
         loader.present(parent: workspaceWindow)
     }
-    weak var workspaceWindow: NSWindow?
+    weak var workspaceWindow: NSWindow? { didSet { retireWorkspaceMenus() } }
     var onSettings: (Bool) -> Void = { _ in }
     var canChangeSettingsContext: () -> Bool = { true }
     var onHelp: () -> Void = {}
     var onAbout: () -> Void = {}
-    @Published var root: URL?
+    @Published var root: URL? { didSet { retireWorkspaceMenus(); pendingWorkspaceSelection=nil } }
     @Published var branch = ""
     @Published var hasGitSVN = false
-    @Published var bare = false
-    @Published var conflictRebase = false
-    @Published var mergeActive = false
-    @Published var submodules = Set<String>()
-    @Published var entries: [StatusEntry] = []
-    @Published var selection = Set<String>()
+    @Published var bare = false { didSet { retireWorkspaceMenus() } }
+    @Published var conflictRebase = false { didSet { retireWorkspaceMenus() } }
+    @Published var mergeActive = false { didSet { retireWorkspaceMenus() } }
+    @Published var submodules = GitPathSet() { didSet { retireWorkspaceMenus() } }
+    @Published var entries: [StatusEntry] = [] { didSet { retireWorkspaceMenus() } }
+    private var workspaceSelectedPaths = GitPathSet()
+    private var pendingWorkspaceSelection:GitPathSet?
+    private var settingWorkspaceSelection=false
+    @Published var nativeSelection = Set<String>() {
+        didSet {
+            guard nativeSelection != oldValue else{return}
+            if !settingWorkspaceSelection {pendingWorkspaceSelection=nil}
+            workspaceSelectedPaths = GitPathRowIdentity.paths(nativeSelection).intersection(visibleEntries.map(\.path))
+            let valid = Set(workspaceSelectedPaths.map(GitPathRowIdentity.encode))
+            if nativeSelection != valid {nativeSelection=valid}
+            retireWorkspaceMenus()
+        }
+    }
+    var selection:GitPathSet {
+        get {workspaceSelectedPaths}
+        set {settingWorkspaceSelection=true;defer{settingWorkspaceSelection=false};nativeSelection = Set(newValue.intersection(visibleEntries.map(\.path)).map(GitPathRowIdentity.encode))}
+    }
+    private let workspaceMenuOwner = UUID()
+    private var workspaceMenuEpoch = UUID()
+    private func retireWorkspaceMenus() { workspaceMenuEpoch = UUID() }
+    final class FileMenuSnapshot {
+        fileprivate let owner:UUID, epoch:UUID
+        fileprivate var used = false
+        let entries:[StatusEntry]
+        let bare:Bool, rebase:Bool, merging:Bool
+        let gitlinks:GitPathSet
+        var paths:[String] { entries.map(\.path) }
+        var canRevert:Bool { !bare && !entries.isEmpty && entries.allSatisfy {![FileState.untracked,.ignored].contains($0.state)} }
+        var canRename:Bool { !bare && entries.count == 1 && ![FileState.untracked,.ignored,.deleted].contains(entries[0].state) }
+        var canBlame:Bool {canRename && entries[0].index != "A" && entries[0].index != "D" && entries[0].worktree != "A" && !gitlinks.contains(entries[0].path)}
+        var canMove:Bool { !bare && !entries.isEmpty && entries.allSatisfy {![FileState.untracked,.ignored,.deleted].contains($0.state)} }
+        var canRemove:Bool { !bare && !entries.isEmpty && entries.allSatisfy {$0.index != "A" && $0.index != "D" && ![FileState.untracked,.ignored].contains($0.state)} }
+        var canResolve:Bool { !bare && entries.contains {$0.state == .conflicted} }
+        func canIgnore(_ action:RepositoryAction) -> Bool {
+            !bare && !entries.isEmpty && entries.allSatisfy {action.removesWhenIgnoring ? ![FileState.untracked,.ignored,.deleted].contains($0.state) : [FileState.untracked,.deleted].contains($0.state)}
+        }
+        fileprivate init(owner:UUID,epoch:UUID,entries:[StatusEntry],bare:Bool,rebase:Bool,merging:Bool,gitlinks:GitPathSet) {self.owner=owner;self.epoch=epoch;self.entries=entries;self.bare=bare;self.rebase=rebase;self.merging=merging;self.gitlinks=gitlinks}
+
+    }
+    func captureWorkspaceMenu(_ requested:GitPathSet? = nil) -> FileMenuSnapshot {
+        let ids = requested ?? selection
+        return .init(owner:workspaceMenuOwner,epoch:workspaceMenuEpoch,entries:visibleEntries.filter {ids.contains($0.path)},bare:bare,rebase:conflictRebase,merging:mergeActive,gitlinks:submodules)
+    }
+    func claimWorkspaceMenu(_ context:FileMenuSnapshot) -> Bool {
+        guard !context.used,context.owner==workspaceMenuOwner,context.epoch==workspaceMenuEpoch,!busy,!confirmingQuit,let window=workspaceWindow,window.isVisible,window.attachedSheet==nil,repository != nil else{return false}
+        context.used=true;return true
+    }
+
     @Published var output = "Open a repository to get started."
-    @Published var busy = false { didSet { repositoryAccessWindow?.model.objectWillChange.send();if !busy { eventRefresh?.kick() } } }
-    @Published var confirmingQuit = false { didSet { repositoryAccessWindow?.model.objectWillChange.send();if !confirmingQuit { eventRefresh?.kick() } } }
-    @Published var error: String?
-    @Published var section = RepositoryAction.status
-    @Published var dialog: RepositoryAction?
+    @Published var busy = false { didSet { if busy != oldValue { retireWorkspaceMenus() };repositoryAccessWindow?.model.objectWillChange.send();if !busy { eventRefresh?.kick() } } }
+    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { retireWorkspaceMenus() };repositoryAccessWindow?.model.objectWillChange.send();if !confirmingQuit { eventRefresh?.kick() } } }
+    @Published var error: String? { didSet {retireWorkspaceMenus()} }
+    @Published var section = RepositoryAction.status { didSet { if section != oldValue {retireWorkspaceMenus()} } }
+    @Published var dialog: RepositoryAction? { didSet {retireWorkspaceMenus()} }
     @Published var message = ""
-    @Published var stagedDiff = false
-    @Published var showIgnored = false
+    @Published var stagedDiff = false { didSet { if stagedDiff != oldValue { retireWorkspaceMenus() } } }
+    @Published var showIgnored = false { didSet { if showIgnored != oldValue { retireWorkspaceMenus() };selection.formIntersection(visibleEntries.map(\.path)) } }
     @Published var finderStatus = "Finder cache not configured"
-    @Published var workingComparisonMark: WorkingComparisonMarkSnapshot?
+    @Published var workingComparisonMark: WorkingComparisonMarkSnapshot? { didSet {retireWorkspaceMenus()} }
     private let comparisonMarkStore:WorkingComparisonMarkStore
     var comparisonMarkTitle: String { workingComparisonMark.map { "Compare with " + $0.path } ?? RepositoryAction.diffLater.title }
     @Published var recentRepositories: [SavedRepository] = [] { didSet { repositoryAccessWindow?.model.refresh() } }
@@ -133,8 +180,8 @@ import UniformTypeIdentifiers
     private var requestPullWindows: [String: RequestPullWindowController] = [:]
     private var importPatchWindows: [String: ImportPatchWindowController] = [:]
     private var formatPatchWindows: [String: FormatPatchWindowController] = [:]
-    private var blameWindows: [String: BlameWindowController] = [:]
-    private var blameRecentDocuments:BlameRecentDocuments?
+    private(set) var blameWindows = GitPathMap<BlameWindowController>()
+    var blameRecentDocuments:BlameRecentDocuments?
     private var rebaseWindows: [String: RebaseWindowController] = [:]
     private var fetchWindows: [String: FetchWindowController] = [:]
     private var pushWindows: [String: PushWindowController] = [:]
@@ -180,14 +227,14 @@ import UniformTypeIdentifiers
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     var finderTransferPresentation: ((FinderRequest, GitRepository, RepositoryAccessLease) -> Void)?
     private var copyWindows: [UUID: FileCopyWindowController] = [:]
-    private var moveWindows: [String: FileMoveWindowController] = [:]
+    private(set) var moveWindows: [String: FileMoveWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
-    private var imageConflictWindows: [String: ImageConflictWindowController] = [:]
-    private var textConflictWindows: [String: TextConflictWindowController] = [:]
-    private var submoduleDiffWindows: [String: SubmoduleDiffWindowController] = [:]
+    private(set) var imageConflictWindows = GitPathMap<ImageConflictWindowController>()
+    private(set) var textConflictWindows = GitPathMap<TextConflictWindowController>()
+    private(set) var submoduleDiffWindows = GitPathMap<SubmoduleDiffWindowController>()
     private var revisionComparisonWindows: [String: RevisionComparisonWindowController] = [:]
     private var imageLoader: ImageLoadWindowController?
-    private var fileComparisonWindows: [String: FileComparisonWindowController] = [:]
+    private(set) var fileComparisonWindows = GitPathMap<FileComparisonWindowController>()
     private var submoduleSyncWindows: [UUID: SubmoduleSyncWindowController] = [:]
     private var submoduleAddWindows: [String: SubmoduleAddWindowController] = [:]
     private var submoduleAddProgressWindows: [UUID: SubmoduleAddProgressWindowController] = [:]
@@ -486,7 +533,7 @@ import UniformTypeIdentifiers
         let collected=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in if !token.isCancelled { await self?.monitorFiles(directories) } })
         try token.check()
         bare=collected.bare;entries=collected.entries;conflictRebase=collected.conflictIsRebase;submodules=collected.submodules
-        selection.formIntersection(Set(entries.map(\.id)))
+        selection = (pendingWorkspaceSelection ?? selection).intersection(visibleEntries.map(\.path));pendingWorkspaceSelection=nil
         branch=collected.branch;hasGitSVN=collected.metadata.hasGitSVN;mergeActive=collected.metadata.mergeActive
         var cached=FinderSnapshot(roots:monitoredRoots,states:cacheStates,repositories:cacheRepositories,overlayEntries:cacheOverlayEntries,indexFlags:cacheIndexFlags)
         cached.replaceSubtree(root:root,snapshots:collected.snapshots)
@@ -510,17 +557,18 @@ import UniformTypeIdentifiers
         } catch { finderStatus = "Finder cache unavailable: " + error.localizedDescription }
     }
     func perform(_ operation: @escaping (GitRepository) async throws -> String) {
-        guard let repository, !busy else { return }
+        guard let repository, !busy, !confirmingQuit else { return }
         busy = true
+        let access = activeAccess
         Task {
-            defer { busy = false }
+            defer { busy = false; withExtendedLifetime(access) {} }
             do { output = try await operation(repository); try await reload() }
             catch { self.error = error.localizedDescription; try? await reload() }
             if let root { statusWindows[root.path]?.model.requestReload() }
         }
     }
-    func stage() { let paths = selectedPaths; perform { try await $0.stage(paths); return "Staged \(paths.count) file(s)." } }
-    func unstage() { let paths = selectedPaths; perform { try await $0.unstage(paths); return "Unstaged \(paths.count) file(s)." } }
+    func stage(paths requested:[String]? = nil) { let paths = requested ?? selectedPaths; guard !paths.isEmpty else {return}; perform { try await $0.stage(paths); return "Staged \(paths.count) file(s)." } }
+    func unstage(paths requested:[String]? = nil) { let paths = requested ?? selectedPaths; guard !paths.isEmpty else {return}; perform { try await $0.unstage(paths); return "Unstaged \(paths.count) file(s)." } }
     func showDiff(paths requested: [String]? = nil) {
         let paths = requested ?? selectedPaths, staged = stagedDiff
         if paths.count == 1, submodules.contains(paths[0]), let repository {
@@ -531,6 +579,22 @@ import UniformTypeIdentifiers
             return text.isEmpty ? "No diff in this view. Untracked files must be staged before Git can show their diff." : text
         }
     }
+    func didMoveWorkspacePath(_ source:String,to destination:String) {
+        let mapped = GitPathSet((pendingWorkspaceSelection ?? selection).map {FileTransferPaths.remapping($0,source:source,destination:destination)})
+        pendingWorkspaceSelection=mapped;selection=mapped
+    }
+    var workspaceClipboard:NSPasteboard = .general
+    var revealWorkspaceFiles:([URL])->Void = {NSWorkspace.shared.activateFileViewerSelecting($0)}
+    func workspaceURLs(_ paths:[String]) -> [URL] {
+        guard let root else{return []};return paths.map {FileTransferPaths.fileURL(root.path + "/" + $0)}
+    }
+    func copyWorkspaceFiles(_ paths:[String]) { FileTransferClipboard.copy(workspaceURLs(paths),pasteboard:workspaceClipboard) }
+    func copyWorkspacePaths(_ paths:[String],full:Bool = false,names:Bool = false) {
+        guard !paths.isEmpty else{return}
+        let values = full ? workspaceURLs(paths).map(\.path) : names ? paths.map {$0.split(separator:"/").last.map(String.init) ?? $0} : paths
+        workspaceClipboard.clearContents();workspaceClipboard.setString(values.joined(separator:"\n"),forType:.string)
+    }
+    func copyWorkspaceItems(_ paths:[String]) {guard let repository else{return};showCopy(repository:repository,access:activeAccess,sources:workspaceURLs(paths))}
     func showCommit(_ hash: String) { perform { try await $0.run(["show", "--no-ext-diff", "--no-color", hash, "--"]).text } }
     func commit() {
         let text = message
@@ -574,7 +638,7 @@ import UniformTypeIdentifiers
             showLog(repository: repository, access: activeAccess, paths: paths)
         case .diffLater:
             let selected = paths.isEmpty ? selectedPaths : paths
-            if selected.count == 1, let root { handleComparisonMark(file: root.appendingPathComponent(selected[0])) }
+            if selected.count == 1, let root { handleComparisonMark(file: FileTransferPaths.fileURL(root.path + "/" + selected[0])) }
             else {
                 let panel = NSOpenPanel(); panel.canChooseFiles = true; panel.canChooseDirectories = false
                 panel.prompt = workingComparisonMark == nil ? "Mark for comparison" : "Compare"
@@ -793,7 +857,7 @@ import UniformTypeIdentifiers
             self.revertWindows[root.path]?.model.didRename(old,to:new); self.statusWindows[root.path]?.model.didRename(old, to: new)
             self.commitWindows[root.path]?.model.didRename(old, to: new)
             if self.root == root {
-                self.selection = Set(self.selection.map { FileTransferPaths.remapping($0,source:old,destination:new) })
+                self.didMoveWorkspacePath(old,to:new)
                 self.output = output.isEmpty ? "Renamed \(old) to \(new)." : output
             }
         }
@@ -810,7 +874,7 @@ import UniformTypeIdentifiers
         controller.onClosed = { [weak self] in self?.moveWindows.removeValue(forKey: key) }
         controller.model.onMoved = { [weak self] old, new, text in
             guard let self else { return }; self.revertWindows[root.path]?.model.didRename(old,to:new); self.statusWindows[root.path]?.model.didRename(old, to: new); self.commitWindows[root.path]?.model.didRename(old, to: new)
-            if self.root == root { self.selection = Set(self.selection.map { FileTransferPaths.remapping($0,source:old,destination:new) }); self.output = text.isEmpty ? "Moved \(old) to \(new)." : text }
+            if self.root == root { self.didMoveWorkspacePath(old,to:new); self.output = text.isEmpty ? "Moved \(old) to \(new)." : text }
         }
         controller.model.onChanged = { [weak self] in
             self?.revertWindows[root.path]?.model.requestReload(); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
@@ -892,7 +956,7 @@ import UniformTypeIdentifiers
                     let entry: ConflictEntry
                     if let readConflictEditorEntry { entry = try await readConflictEditorEntry(repository, path, token) }
                     else { entry = try await repository.conflictEditorEntry(path: path, cancellation: token) }
-                    guard entry.path == path else { throw ResolveFailure.stale }; try token.check()
+                    guard GitReferenceName.equal(entry.path,path) else { throw ResolveFailure.stale }; try token.check()
                 if entry.isDeleteModify {
                     try await validateConflictEditorEntry(entry, repository: repository, token: token)
                     request.dismissProgress(); if let conflictEditorPresentation { conflictEditorPresentation(.deleteModify, repository, path, nil) }
@@ -1667,8 +1731,9 @@ import UniformTypeIdentifiers
         }
     }
     func showWorkingFiles(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], amendToParent: Bool = false, owner: NSWindow? = nil) {
-        let conflicts = paths.filter { path in entries.contains { $0.path == path && $0.state == .conflicted } }
-        let ordinary = paths.filter { !conflicts.contains($0) }
+        let conflicts = paths.filter { path in entries.contains { GitReferenceName.equal($0.path,path) && $0.state == .conflicted } }
+        let conflictPaths = GitPathSet(conflicts)
+        let ordinary = paths.filter { !conflictPaths.contains($0) }
         prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: owner) { [self] token in
             for path in conflicts {
                 guard !token.isCancelled, !confirmingQuit else { return }
@@ -2078,7 +2143,7 @@ import UniformTypeIdentifiers
         let key=repository.root.path+"\0"+path+"\0"+revision
         var recentFailure:String?
         if blameRecentDocuments==nil { do { blameRecentDocuments=try BlameRecentDocuments.production() } catch { recentFailure="Recent files could not be loaded: "+error.localizedDescription } }
-        let controller=blameWindows[key] ?? BlameWindowController(repository:repository,access:access,path:path,revision:revision,options:options ?? GitBlamePreferences.load(),recentDocuments:blameRecentDocuments)
+        let controller=blameWindows[key] ?? BlameWindowController(repository:repository,access:access,path:path,revision:revision,options:options ?? GitBlamePreferences.load(from:fileComparisonPreferences),preferences:fileComparisonPreferences,recentDocuments:blameRecentDocuments)
         controller.model.recentHistoryError=recentFailure
         configureBlameRoutes(controller)
         controller.onClosed={ [weak self,weak controller] in guard let self,let controller else { return };self.blameWindows=self.blameWindows.filter { $0.value !== controller } }

@@ -1407,3 +1407,5 @@ Windows equivalence.
 ![Native Blame Go To Line in light appearance](site/assets/blame-go-to-light.png)
 
 ![Native Blame Go To Line in dark appearance](site/assets/blame-go-to-dark.png)
+
+The connected [workspace file workflow continuation](WORKSPACE-FILE-WORKFLOWS.md) covers exact overview selection, Finder reopening, shared viewer caches and Add/Commit drop identities. Earlier workspace-selection limitations describe the prior checkpoint; complete physical/signed and application parity remain open.

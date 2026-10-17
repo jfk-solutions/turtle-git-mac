@@ -83,13 +83,12 @@ public struct FinderRequest: Sendable {
     }
     /// Expand selected directories to changed rows, with component boundaries.
     /// Selecting the repository itself includes its complete status list.
-    public func selectedStatusPaths(root: URL, entries: [StatusEntry]) -> Set<String> {
-        let prefix = root.standardizedFileURL.path
-        return Set(entries.filter { entry in
-            let full = root.appendingPathComponent(entry.path).standardizedFileURL.path
-            return paths.contains { selected in
-                selected.path == prefix || full == selected.path || full.hasPrefix(selected.path + "/")
-            }
-        }.map(\.path))
+    public func selectedStatusPaths(root: URL, entries: [StatusEntry]) -> GitPathSet {
+        let index = FileTransferIndex(paths:entries.map(\.path),caseSensitive:(try? root.resourceValues(forKeys:[.volumeSupportsCaseSensitiveNamesKey]).volumeSupportsCaseSensitiveNames) ?? true)
+        let selected = relativePaths(root:root).compactMap {path -> String? in
+            if path == "." {return "."}
+            return try? index.resolvingForIndex(path)
+        }
+        return GitPathSet(entries.filter {entry in selected.contains {path in path == "." || FileTransferPaths.contains(entry.path,in:path)} }.map(\.path))
     }
 }

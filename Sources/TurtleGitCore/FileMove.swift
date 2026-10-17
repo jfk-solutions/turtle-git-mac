@@ -117,6 +117,24 @@ struct FileTransferIndex {
         }
         return components.joined(separator:"/")
     }
+    /// Index-only reads/adds may select an exact peer without changing its
+    /// filesystem alias. Lock each chosen parent before resolving the next name.
+    func resolvingForIndex(_ path:String) throws -> String {
+        var parent = ""
+        for component in path.split(separator:"/") {
+            let requested = parent.isEmpty ? String(component) : parent + "/" + component
+            let aliases = prefixes[localKey(requested)]?.filter { candidate in
+                let owner = candidate.split(separator:"/").dropLast().joined(separator:"/")
+                return GitReferenceName.equal(owner,parent)
+            } ?? []
+            if aliases.contains(where:{GitReferenceName.equal($0,requested)}) {parent=requested}
+            else if aliases.count == 1,let candidate=aliases.first {parent=candidate}
+            else if aliases.isEmpty {parent=requested}
+            else {throw FileMoveFailure.ambiguousPath}
+        }
+        return parent
+    }
+    func localEquivalent(_ a:String,_ b:String) -> Bool {localKey(a) == localKey(b)}
     func without(_ source:String) -> Self { Self(paths:paths.filter {!FileTransferPaths.contains($0,in:source)},caseSensitive:caseSensitive) }
 }
 

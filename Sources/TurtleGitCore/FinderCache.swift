@@ -760,7 +760,7 @@ public struct FinderRepositoryCollection:Sendable {
     public let entries:[StatusEntry]
     public let branch:String
     public let conflictIsRebase:Bool
-    public let submodules:Set<String>
+    public let submodules:GitPathSet
     public let metadata:FinderRepositoryMetadata
     public let watchDirectories:[URL]
     public let snapshots:[FinderSnapshot]
@@ -782,7 +782,7 @@ extension GitRepository {
         try cancellation?.check()
         let entries=try bare ? [] : status(refreshIndex:false,cancellation:cancellation)
         let conflict=try bare ? false : conflictIsRebase(cancellation:cancellation)
-        let submodules=try bare ? Set<String>() : submodulePaths(cancellation:cancellation)
+        let submodules=try bare ? GitPathSet() : GitPathSet(submodulePathNames(cancellation:cancellation).map(\.rawValue))
         let branch=try self.branch(cancellation:cancellation)
         let tracked=try bare ? [] : trackedPaths(cancellation:cancellation)
         let metadata=try finderMetadata(knownBare:bare,cancellation:cancellation)

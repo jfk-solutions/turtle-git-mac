@@ -452,3 +452,5 @@ text remains in captions and operation arguments. See
 [batch evidence](qa/working-selection-identities-2026-10-17.json). This supersedes
 the earlier pending selection migration for this dialog; other dialog models,
 LFS owner maps, Finder states and filesystem alias behavior remain open.
+
+The connected [workspace file workflow continuation](WORKSPACE-FILE-WORKFLOWS.md) covers exact overview selection, Finder reopening, shared viewer caches and Add/Commit drop identities. Earlier workspace-selection limitations describe the prior checkpoint; complete physical/signed and application parity remain open.

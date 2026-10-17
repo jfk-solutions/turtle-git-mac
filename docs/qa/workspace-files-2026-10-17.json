@@ -1,0 +1,164 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation_baseline": "2bf40fdd",
+  "scope": "Connected workspace file selection/actions, Finder expansion/reopening, shared viewer caches and Add/Commit drop identity.",
+  "source": {
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/TortoiseGitBlame/TortoiseGitBlameDoc.cpp": "6530683a8d6917914fe3ff1b3d13abd3a3d03f68"
+  },
+  "implemented": [
+    "Exact model selection and encoded native table row IDs; all three columns use source status colors/native selection contrast",
+    "Clicked-selection one-use menu receipts expire across selection/refresh/filter/staged/operation/modal/mark/repository states and closed owners",
+    "Workspace Move, Log, Blame, Finder reveal, file URLs, Copy/Add and text copy commands join existing file menus with original icons",
+    "Pending exact remaps retain selection through actual Move/Rename and replacement status snapshots",
+    "Finder expansion prefers exact identities and locks parent namespaces; exact gitlink collection prevents ordinary peer misclassification",
+    "Shared comparison/Blame/conflict/submodule viewer maps and conflict classification retain raw path identity",
+    "Scoped diff and Blame blob/annotation/history/parent reads preserve raw paths and original selected contents",
+    "Shared drop resolver preserves logical path spelling while validating actual containment/ownership; non-forced directory Add expands Git candidate lists into exact stdin paths with configured new-name normalization"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/workspace-files-build-2026-10-17.log",
+      "exit_code": 0
+    },
+    {
+      "log": "build/qa/workspace-files-build-drop-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Current objects after directory scanning correction"
+    }
+  ],
+  "core": [
+    {
+      "log": "build/qa/workspace-files-core-2026-10-17.log",
+      "exit_code": 1,
+      "cases": 73,
+      "failures": 1,
+      "passed_suites": {
+        "BlameReadCancellationTests": 1,
+        "CommitFileDropTests": 4,
+        "FinderCollectionTests": 4,
+        "FinderRequestTests": 15,
+        "GitBlameTests": 20,
+        "GitPatchTests": 8
+      },
+      "affected_suite": "GitPathIdentityTests: 21 cases, one failure"
+    },
+    {
+      "log": "build/qa/workspace-files-core-drop-2026-10-17.log",
+      "exit_code": 0,
+      "cases": 25,
+      "failures": 0,
+      "scope": "Affected CommitFileDropTests 4 and GitPathIdentityTests 21 after directory Add correction; unchanged suites retain their preceding passes"
+    }
+  ],
+  "distinct_core_cases": 73,
+  "core_repair": "The new directory-drop case found a newly scanned composed filename missing despite successful Git Add. A private real-Git reproduction showed -c core.precomposeunicode=false silently skips that stdin name when scanning its filesystem spelling. Directory Add now retains configured scanning with exact stdin paths; existing index names and configured new names pass. No full Core suite was repeated.",
+  "native": [
+    {
+      "log": "build/qa/workspace-files-native-2026-10-17.log",
+      "exit_code": 1,
+      "launched_receivers": 0,
+      "scope": "New fixture compile only: internal StatusEntry memberwise initializer was inaccessible. Replaced fixture construction with the public porcelain parser; production API was not widened."
+    },
+    {
+      "log": "build/qa/workspace-files-native-fixture-2026-10-17.log",
+      "exit_code": 0,
+      "combinations": 10,
+      "scope": "Workspace, retained comparison launch, Commit drop, Add drop and Finder transfers, each with system/bundled Git"
+    },
+    {
+      "log": "build/qa/workspace-files-native-layout-2026-10-17.log",
+      "exit_code": 0,
+      "combinations": 2,
+      "scope": "Affected workspace case only, both engines, after adding actual minimum-size/constraints to the standalone NSHostingController fixture and a capture-size guard"
+    }
+  ],
+  "distinct_native_combinations": 10,
+  "new_native_effects": [
+    "Actual independently selectable canonical-peer rows and clicked/one-use/foreign/stale menu claims",
+    "Private relative/full/file-URL clipboard and captured Finder reveal URLs",
+    "Actual Stage/Unstage and scoped staged Diff leave the unselected peer untouched",
+    "Real Finder URL adoption reopens and compares only its exact selected path",
+    "Two actual historical comparison windows and two actual Blame windows retain independent paths and distinct pinned bytes",
+    "Ordinary paths do not route to conflict/gitlink peers",
+    "Actual Move updates the workspace selection after refreshed rows arrive without changing HEAD"
+  ],
+  "captures": {
+    "files": [
+      "docs/site/assets/workspace-files-light.png",
+      "docs/site/assets/workspace-files-dark.png"
+    ],
+    "pixels": [
+      2240,
+      1704
+    ],
+    "raw_individual_review": true,
+    "scope": "Production workspace view hosted in an owned native window; no equivalent TortoiseGit main-workspace screenshot is claimed. Original sidebar/status icons, three colored columns, selected-row contrast, staged patch and footer fit. The sidebar scrolls. Finder cache unavailable footer reflects intentionally disabled unsigned fixture publication.",
+    "discarded_attempt": "The initial standalone host collapsed to 2x168-pixel captures. Added native content minimum, hosting constraints and an explicit size; repeated only the workspace cases and replaced both files."
+  },
+  "diagnostics": [
+    "Workspace receiver emitted NSTableView reentrant-operation warnings. The same diagnostic exists in earlier Revert/Working Tree logs (for example build/qa/revert-planning-native-2026-10-16.log); no unique production cause or resolution is established.",
+    "Retained comparison receiver emitted the previously recorded zero-size two-pane NSSplitView warning.",
+    "Unsigned private file-URL clipboard receivers emitted sandbox_extension_consume failed: 1 (Operation not permitted); byte/URL assertions passed. Signed grants remain unproven.",
+    "Debug builds exited zero with existing environment/exit-zero compile diagnostics; no clean-diagnostics claim."
+  ],
+  "cleanup": {
+    "owned_receiver_pids": [
+      50358,
+      50616,
+      50861,
+      51471,
+      52092,
+      52258,
+      52436,
+      52502,
+      52575,
+      52658,
+      52774,
+      53021
+    ],
+    "live_owned_pids": [],
+    "independent_scan": "All 12 receiver PIDs absent; no receiver or tg-workspace-files helper remains."
+  },
+  "validation": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1240,
+      "check": "passed"
+    },
+    "workflow_yaml": "passed",
+    "git_diff_check": "passed",
+    "site": {
+      "documents": 274,
+      "unresolved_fragments": [],
+      "log": "build/qa/workspace-files-site-2026-10-17.log",
+      "exit_code": 0
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial": 120,
+      "pending": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1566,
+      "pending_controls": 93
+    }
+  },
+  "hosted_observation": {
+    "head": "2bf40fdd",
+    "macos_run": 39033447993,
+    "macos_status": "in_progress",
+    "pages_run": 39033447991,
+    "pages_conclusion": "success",
+    "full_hosted_success_not_established": true
+  },
+  "limits": [
+    "Physical context-menu/keyboard/drag/VoiceOver and all multi-window focus variations",
+    "Installed Finder reveal/context menus/badges and signed sandbox grants",
+    "Every source dialog/menu/Blame variant, external tools and cross-volume filesystem cases",
+    "No full Finder state-cache representation migration; exact collection/selection does not certify all overlays",
+    "Repository checks and transfer/Stage actions are not cross-process transactions or rollback",
+    "Complete application parity, full hosted CI and signed distribution remain unfinished"
+  ]
+}

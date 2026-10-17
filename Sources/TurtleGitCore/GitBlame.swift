@@ -326,7 +326,7 @@ extension GitRepository {
             return result
         }
         if options.usesCompleteLog {
-            let args = ["log", "--encoding=UTF-8", "--topo-order", format] + (options.usesFollowRenames ? ["--follow"] : [])
+            let args = ["-c","core.precomposeunicode=false","log", "--encoding=UTF-8", "--topo-order", format] + (options.usesFollowRenames ? ["--follow"] : [])
             return try records(run(args + [snapshot.revision, "--", snapshot.path],cancellation:cancellation).stdout).map { $0.0 }
         }
         let hashes = Set(snapshot.lines.map(\.hash)).sorted()
@@ -355,8 +355,8 @@ extension GitRepository {
     /// commit, falling back to the displayed file for complete-history-only rows.
     public func blameHistoryParentComparisons(_ snapshot:GitBlameSnapshot,revision:String,cancellation:OperationCancellation? = nil) throws -> [GitBlameParentComparison] {
         try cancellation?.check()
-        let hash=try run(["rev-parse","--verify","--end-of-options",revision+"^{commit}"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
-        let origins=Set(snapshot.lines.filter { $0.hash==hash }.map(\.filename))
+        let hash=try run(["-c","core.precomposeunicode=false","rev-parse","--verify","--end-of-options",revision+"^{commit}"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        let origins=GitPathSet(snapshot.lines.filter { $0.hash==hash }.map(\.filename))
         return try blameParentComparisons(revision:hash,paths:origins.isEmpty ? [snapshot.path] : origins.sorted(),cancellation:cancellation)
     }
     private func blameParentComparisons(revision:String,paths:[String],cancellation:OperationCancellation?) throws -> [GitBlameParentComparison] {
@@ -368,7 +368,7 @@ extension GitRepository {
             try cancellation?.check()
             let range=try revisionComparison(from:.revision(parent),to:.revision(revision),cancellation:cancellation)
             for path in paths {
-                guard let changed=range.files.first(where:{ $0.path==path }),!changed.isSubmodule,["M","R","T"].contains(String(changed.action.prefix(1))) else { continue }
+                guard let changed=range.files.first(where:{ GitReferenceName.equal($0.path,path) }),!changed.isSubmodule,["M","R","T"].contains(String(changed.action.prefix(1))) else { continue }
                 let comparison=RevisionComparisonSnapshot(root:root,from:range.from,to:range.to,fromDetails:range.fromDetails,toDetails:range.toDetails,files:[changed],options:range.options,scopePaths:[changed.path]+(changed.oldPath.map { [$0] } ?? []),diffDetection:range.diffDetection)
                 result.append(GitBlameParentComparison(parentNumber:index+1,revision:parent,path:changed.oldPath ?? changed.path,comparison:comparison))
             }
@@ -378,8 +378,8 @@ extension GitRepository {
     /// A pinned single-file read, without diffing the entire repository tree.
     private func blameContents(revision:String,path:String,cancellation:OperationCancellation?) throws -> ComparisonFileContent {
         _ = try restoreLocation(path)
-        let resolved=try run(["rev-parse","--verify","--end-of-options",revision+"^{commit}"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
-        for record in try run(["ls-tree","-z",resolved,"--",path],cancellation:cancellation).stdout.split(separator:0) {
+        let resolved=try run(["-c","core.precomposeunicode=false","rev-parse","--verify","--end-of-options",revision+"^{commit}"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        for record in try run(["-c","core.precomposeunicode=false","ls-tree","-z",resolved,"--",path],cancellation:cancellation).stdout.split(separator:0) {
             guard let tab=record.firstIndex(of:9),Data(record[record.index(after:tab)...])==Data(path.utf8) else { continue }
             let header=String(decoding:record[..<tab],as:UTF8.self).split(separator:" ")
             guard header.count==3,header[1]=="blob",["100644","100755"].contains(String(header[0])) else { throw GitBlameFailure.unsupported }
@@ -395,7 +395,7 @@ extension GitRepository {
               case .revision(let hash) = content.revision else { throw GitBlameFailure.unsupported }
         let encoding = try options.encoding ?? GitBlameEncoding.detect(content.bytes)
         try encoding.validate(content.bytes)
-        var args = ["-c", "blame.blankBoundary=false", "blame", "--line-porcelain", "--no-progress", "--no-textconv"]
+        var args = ["-c","core.precomposeunicode=false","-c", "blame.blankBoundary=false", "blame", "--line-porcelain", "--no-progress", "--no-textconv"]
         if options.ignoreWhitespace { args.append("-w") }
         if options.onlyFirstParent { args.append("--first-parent") }
         args += options.detectionArguments

@@ -118,3 +118,5 @@ The native run retained all six families with system and bundled Git. All twelve
 owned receiver PIDs were reaped and independently absent. No full Core suite was
 rerun and no screenshot or full visual audit is added. Unsigned clipboard
 sandbox-extension diagnostics do not prove signed permission delivery.
+
+The connected [workspace file workflow continuation](WORKSPACE-FILE-WORKFLOWS.md) covers exact overview selection, Finder reopening, shared viewer caches and Add/Commit drop identities. Earlier workspace-selection limitations describe the prior checkpoint; complete physical/signed and application parity remain open.
