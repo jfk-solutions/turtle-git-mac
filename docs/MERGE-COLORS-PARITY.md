@@ -101,3 +101,28 @@ The [navigation/layout batch evidence](qa/settings-navigation-layout-2026-10-16.
 [Line-change margins](MERGE-MARGINS-PARITY.md) now complement the state palette
 with the original colored status icons. Palette edits retain the original icon
 artwork; they do not recolor or rewrite those assets.
+
+## Source palette contexts and footer — October 17, 2026
+
+The source Line differences / Inline differences / Misc groups and 17 channels
+remain. Palette to edit and Restore Default now share the bottom row, preserving
+the source placement of dark-mode/reset choices. Independent Light/Dark palette
+editing remains the macOS adaptation; General controls the app's appearance.
+
+Swatches, palette choice and Restore capture their model, palette and edit
+revision. Palette changes, Apply/Cancel, reset, visibility and owner changes
+invalidate earlier edits. A hidden cached page keeps its draft and still accepts
+authorized shared Settings Apply, but cannot accept old visible-page controls.
+Window closure retires delivery. The page owner probe and native controls share
+panel/visibility ownership.
+
+Shared native Automatic/More colors items are now captured single-use invocations.
+Reopening the menu creates fresh items. A changed context rejects old menu items
+even when its RGB values are identical. Context changes close only the owned
+panel; continuous RGB edits within that context retain normal panel ownership.
+The native palette control checks enabled/attached/retired state and detaches its
+target on removal. Source channel identifiers and serialized color data stay stable.
+
+All 35 static source controls now have explicit partial mappings. The Debug build and all three grouped native families pass on their first attempt: source contexts, retained Merge Colors and the six shared Settings color pages. Both raw light/dark page captures were individually reviewed; all 17 swatches, source columns/groups and palette/reset footer fit. All three owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-colors-source-family-2026-10-17.json) for build diagnostics, capture provenance and acceptance limits. Physical color-panel interaction,
+VoiceOver, every renderer/state alias, high contrast and signed App Store acceptance
+remain open; this is not full Colors certification.

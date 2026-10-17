@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 480,
-    "mapped_controls": 1179,
+    "pending_control_reviews": 445,
+    "mapped_controls": 1214,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -366,10 +366,15 @@
       "status": "partial",
       "source_blob": "b0c19b52528f5dc6a7adb62095e5cd7260abe5dd",
       "static_controls": 35,
-      "mapped_controls": 0,
-      "pending_control_reviews": 35,
+      "mapped_controls": 35,
+      "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/MergeEditorSettings.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/APPEARANCE.md",
@@ -386,6 +391,7 @@
         "docs/qa/log-status-colors-2026-10-09.json",
         "docs/qa/merge-colors-2026-10-12.json",
         "docs/qa/merge-colors-controls-2026-10-12.json",
+        "docs/qa/merge-colors-source-family-2026-10-17.json",
         "docs/qa/settings-color-choices-2026-10-16.json",
         "docs/qa/settings-navigation-layout-2026-10-16.json",
         "docs/qa/status-color-settings-2026-10-09.json",

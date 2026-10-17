@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "a70215ac6d656e81b38274f80639fbdcb35fc65c",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source Line/Inline/Misc groups and all 17 source swatches retained; palette/reset row moved to source footer position",
+    "Model/palette/revision edit contexts reject stale reset/palette/Apply/Cancel/hidden/foreign/closed actions",
+    "Hidden cached page retains draft and accepts authorized shared Settings Apply",
+    "Captured single-use Automatic/More colors items; fresh invocation on menu reopening; identical-RGB context changes invalidate old menus",
+    "Owned color-panel release on context changes, enabled/attached/retired palette target gates and native owner probe",
+    "All 35 source static controls receive explicit partial mappings"
+  ],
+  "build": {
+    "log": "build/qa/merge-colors-source-build-2026-10-17.log",
+    "exit": 0,
+    "exit_zero_no_output_diagnostics": 8
+  },
+  "native": {
+    "distinct_family_passes": 3,
+    "families": [
+      "source contexts and native menus/panel",
+      "retained Merge Colors 17-channel/Apply/Cancel workflow",
+      "six actual Settings color pages/shared controls"
+    ],
+    "log": "build/qa/merge-colors-source-native-2026-10-17.log",
+    "exit": 0,
+    "owned_receivers_reaped": [
+      13499,
+      13512,
+      13513
+    ],
+    "independently_absent_owned_receivers": [
+      13499,
+      13512,
+      13513
+    ],
+    "first_attempt_pass": true
+  },
+  "core": {
+    "repeated": false,
+    "reason": "Color schema, persistence encoding, palette defaults and renderer algorithms unchanged; native cases exercise actual preference serialization and Apply notifications."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/merge-colors-source-light.png",
+      "sha256": "78664b79bef223e57ecb98cf2dc5f709443149462931f5b75c7ae4a13ed62ff1",
+      "pixels": [
+        1640,
+        1704
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/merge-colors-source-dark.png",
+      "sha256": "8f089c218b42065987f6b142e480040938fe703467e504bf3f7a5c767a891056",
+      "pixels": [
+        1640,
+        1704
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of the actual MergeColorsSettings page with production SettingsPageViewport and four-edge host constraints. Private sample RGB preferences; no user activation/global input. Both appearances edit the light palette to demonstrate appearance/palette independence. Shared Settings navigation and Apply/Cancel are separately exercised by the retained receiver.",
+  "hosted_observation": {
+    "head": "a70215ac6d656e81b38274f80639fbdcb35fc65c",
+    "macos": {
+      "run": 38988090768,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38988090804,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Windows Use dark mode is adapted to independent light/dark palette editing; global macOS appearance stays in General",
+    "Physical color-panel/menu/keyboard/drop/VoiceOver behavior and high contrast remain separate acceptance",
+    "All renderer state aliases, whole-window/minimum-OS and signed App Store/full hosted CI acceptance remain open",
+    "Partial mappings and passing focused checks do not certify full source dialog parity"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/merge-colors-source-site-2026-10-17.log"
+  }
+}

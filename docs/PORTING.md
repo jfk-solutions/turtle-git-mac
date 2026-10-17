@@ -1838,3 +1838,13 @@ viewport/history writes by visible owner/slot and retires native pane callbacks
 without removing a newer replacement. Dirty drafts survive repeated appearance.
 See [navigation parity](MERGE-NAVIGATION-PARITY.md#attached-pane-startup-and-deferred-writers--october-17-2026).
 The Debug build and six grouped native families have passing runs: deterministic ownership, initial navigation, wrapping, margin, folding and Find. The first margin run timed out at editability; the unchanged assertion passed after adding diagnostics, without an app change. That intermittent timeout remains open. All seven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-viewport-ownership-2026-10-17.json) for the exact attempts and limits. The earlier intermittent initial-navigation observation is not treated as proven fixed merely from these changes.
+
+### Merge Colors source contexts and footer — October 17, 2026
+
+Merge Colors now captures palette/edit ownership across swatches, reset and
+visibility changes, preserves authorized hidden-page Apply, and shares captured
+single-use Automatic/More colors menus with other Settings pages. Source groups
+and 17 channels remain; palette/reset choices now share the source footer row.
+All 35 static resource controls receive explicit partial mappings. See
+[Colors parity](MERGE-COLORS-PARITY.md#source-palette-contexts-and-footer--october-17-2026).
+The Debug build and all three grouped native families pass on their first attempt: source contexts, retained Merge Colors and the six shared Settings color pages. Both raw light/dark page captures were individually reviewed; all 17 swatches, source columns/groups and palette/reset footer fit. All three owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-colors-source-family-2026-10-17.json) for build diagnostics, capture provenance and acceptance limits.

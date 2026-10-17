@@ -228,7 +228,33 @@ private struct MergeSettingsWindowProbe: NSViewRepresentable {
 @MainActor final class MergeColorsSettingsModel: ObservableObject {
     let preferences: UserDefaults
     @Published private(set) var draft: MergeColorPreferences
-    @Published var dark: Bool
+    @Published var dark: Bool { didSet { if oldValue != dark { editRevision = UUID() } } }
+    @Published private(set) var active = true
+    @Published private(set) var editRevision = UUID()
+    private var retired = false
+    private weak var ownerWindow: NSWindow?
+    private var ownerObserver: NSObjectProtocol?
+    struct EditContext: Equatable {
+        let owner: ObjectIdentifier
+        let revision: UUID
+        let dark: Bool
+        var identity: String { revision.uuidString + (dark ? ".dark" : ".light") }
+    }
+    var editContext: EditContext { .init(owner: ObjectIdentifier(self), revision: editRevision, dark: dark) }
+    func accepts(_ context: EditContext) -> Bool { !retired && active && context == editContext }
+    func setActive(_ value: Bool) { guard !retired, active != value else { return }; active = value; editRevision = UUID() }
+    func attach(to window: NSWindow?) {
+        guard !retired, ownerWindow !== window else { return }
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }; ownerObserver = nil
+        ownerWindow = window; editRevision = UUID(); setActive(window != nil)
+        if let window {
+            ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { guard let self else { return }; self.active = false; self.retired = true; self.editRevision = UUID() }
+            }
+        }
+    }
+    deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
+    func selectPalette(_ value: Bool, context: EditContext) { guard accepts(context) else { return }; dark = value }
     @Published private(set) var error: String?
     init(preferences: UserDefaults = .standard, dark: Bool? = nil) {
         self.preferences = preferences; draft = .load(from: preferences)
@@ -243,18 +269,21 @@ private struct MergeSettingsWindowProbe: NSViewRepresentable {
         let colors = MergeColorPreferences.standard(role, dark: dark)
         return foreground ? colors.foreground : colors.background
     }
-    func setColor(_ value: UInt32, role: MergeColorRole, foreground: Bool) {
-        guard value <= 0xffffff, foreground ? role.supportsForeground : role.supportsBackground else { return }
+    func setColor(_ value: UInt32, role: MergeColorRole, foreground: Bool) { setColor(value, role: role, foreground: foreground, context: editContext) }
+    func setColor(_ value: UInt32, role: MergeColorRole, foreground: Bool, context: EditContext) {
+        guard accepts(context), value <= 0xffffff, foreground ? role.supportsForeground : role.supportsBackground else { return }
         var colors = draft.colors(role, dark: dark)
         if foreground { colors.foreground = value } else { colors.background = value }
         if dark { draft.dark[role] = colors } else { draft.light[role] = colors }
         error = nil
     }
-    func restoreDefault() { draft.restore(dark: dark); error = nil }
-    func discard() { draft = .load(from: preferences); error = nil }
+    func restoreDefault() { restoreDefault(context: editContext) }
+    func restoreDefault(context: EditContext) { guard accepts(context) else { return }; draft.restore(dark: dark); editRevision = UUID(); error = nil }
+    func discard() { draft = .load(from: preferences); editRevision = UUID(); error = nil }
     func apply() -> Bool {
+        guard !retired else { return false }
         do {
-            try draft.save(to: preferences); MergePalette.reload(defaults: preferences)
+            try draft.save(to: preferences); editRevision = UUID(); MergePalette.reload(defaults: preferences)
             NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
             error = nil; return true
         } catch { self.error = error.localizedDescription; return false }
@@ -267,9 +296,10 @@ private struct MergeSettingsWindowProbe: NSViewRepresentable {
     private let rows: [MergeColorRole] = [.normal, .added, .removed, .modified, .conflicted, .resolved, .empty, .filtered]
     init(model: MergeColorsSettingsModel? = nil) { _model = StateObject(wrappedValue: model ?? MergeColorsSettingsModel()) }
     private func swatch(_ role: MergeColorRole, foreground: Bool) -> some View {
-        NativeSettingsColorChoice(value: model.color(role, foreground: foreground), automatic: model.automatic(role, foreground: foreground),
+        let context = model.editContext
+        return NativeSettingsColorChoice(value: model.color(role, foreground: foreground), automatic: model.automatic(role, foreground: foreground), contextIdentity: context.identity,
             label: ([MergeColorRole.inlineAdded, .inlineRemoved].contains(role) ? "Inline " : "") + role.title + (foreground ? " foreground" : " background"), identifier: role.rawValue + (foreground ? ".foreground" : ".background"),
-            changed: { model.setColor($0, role: role, foreground: foreground) })
+            changed: { model.setColor($0, role: role, foreground: foreground, context: context) })
             .frame(width: 76, height: 26)
     }
     private func row(_ role: MergeColorRole) -> some View {
@@ -280,18 +310,36 @@ private struct MergeSettingsWindowProbe: NSViewRepresentable {
         }
     }
     var body: some View {
-        ScrollView { VStack(alignment: .leading, spacing: 16) {
-            NativeSettingsPaletteChoice(dark: $model.dark).frame(height: 26)
+        let context = model.editContext
+        return ScrollView { VStack(alignment: .leading, spacing: 16) {
             HStack { Text(" ").frame(width: 140); Text("Foreground").frame(maxWidth: .infinity); Text("Background").frame(maxWidth: .infinity) }
             GroupBox("Line differences") { VStack(spacing: 10) { ForEach(rows, id: \.self) { row($0) } }.padding(8) }
             GroupBox("Inline differences") { VStack(spacing: 10) { row(.inlineAdded); row(.inlineRemoved) }.padding(8) }
             GroupBox("Misc") { row(.whitespace).padding(8) }
-            HStack { Spacer(); Button("Restore Default") { model.restoreDefault() } }
+            HStack {
+                Text("Palette to edit:")
+                NativeSettingsPaletteChoice(dark: Binding(get: { model.dark }, set: { model.selectPalette($0, context: context) })).frame(width: 150, height: 26)
+                Spacer()
+                Button("Restore Default") { model.restoreDefault(context: context) }
+            }
             Text("Use each swatch’s menu for Automatic or More colors. Apply updates open merge panes, locator stripes and whitespace markers. App appearance is controlled in General.").font(.caption).foregroundStyle(.secondary)
             if let error = model.error { Text(error).foregroundStyle(.red) }
             if transaction == nil { HStack { Spacer(); Button("Cancel") { model.discard() }; Button("Apply") { _ = model.apply() }.disabled(!model.changed) } }
-        }.padding(20) }
+        }.padding(20).disabled(!model.active) }
+        .background(MergeColorsOwnerProbe(model: model).frame(width: 0, height: 0))
+        .onAppear { model.setActive(true) }.onDisappear { model.setActive(false) }
         .settingsParticipant("mergeColors", page: .mergeColors, value: model.draft, modified: { model.changed }, apply: { model.apply() }, cancel: { model.discard() })
+    }
+}
+
+private struct MergeColorsOwnerProbe: NSViewRepresentable {
+    let model: MergeColorsSettingsModel
+    func makeNSView(context: Context) -> Probe { let view = Probe(); view.model = model; return view }
+    func updateNSView(_ view: Probe, context: Context) { model.attach(to: view.window) }
+    static func dismantleNSView(_ view: Probe, coordinator: ()) { view.model?.attach(to: nil); view.model = nil }
+    final class Probe: NSView {
+        weak var model: MergeColorsSettingsModel?
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.attach(to: window) }
     }
 }
 
@@ -304,12 +352,14 @@ struct NativeSettingsPaletteChoice: NSViewRepresentable {
         control.identifier = NSUserInterfaceItemIdentifier(identifier); control.setAccessibilityLabel("Palette to edit")
         return control
     }
-    func updateNSView(_ control: NSSegmentedControl, context: Context) { context.coordinator.binding = $dark; control.selectedSegment = dark ? 1 : 0; control.isEnabled = enabled }
+    func updateNSView(_ control: NSSegmentedControl, context: Context) { guard !context.coordinator.retired else { return }; context.coordinator.binding = $dark; control.selectedSegment = dark ? 1 : 0; control.isEnabled = enabled }
     func makeCoordinator() -> Coordinator { Coordinator(binding: $dark) }
+    static func dismantleNSView(_ control: NSSegmentedControl, coordinator: Coordinator) { coordinator.retired = true; control.target = nil; control.isEnabled = false }
     final class Coordinator: NSObject {
+        var retired = false
         var binding: Binding<Bool>
         init(binding: Binding<Bool>) { self.binding = binding }
-        @objc func choose(_ control: NSSegmentedControl) { binding.wrappedValue = control.selectedSegment == 1 }
+        @objc func choose(_ control: NSSegmentedControl) { guard !retired, control.isEnabled, control.window != nil, (0...1).contains(control.selectedSegment) else { return }; binding.wrappedValue = control.selectedSegment == 1 }
     }
 }
 
@@ -318,11 +368,12 @@ struct NativeSettingsColorChoice: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
     var namespace = "MergeColors"
     let value: UInt32, automatic: UInt32
+    var contextIdentity: String? = nil
     let label: String, identifier: String
     let changed: (UInt32) -> Void
     func makeNSView(context: Context) -> MergeColorChoiceView { MergeColorChoiceView() }
     func updateNSView(_ view: MergeColorChoiceView, context: Context) {
-        view.configure(value:value, automatic:automatic, label:label, identifier:identifier, namespace:namespace, enabled:enabled, changed:changed)
+        view.configure(value:value, automatic:automatic, label:label, identifier:identifier, namespace:namespace, enabled:enabled, contextIdentity:contextIdentity, changed:changed)
     }
     static func dismantleNSView(_ view: MergeColorChoiceView, coordinator: ()) { view.retire() }
 }
@@ -335,7 +386,7 @@ enum SettingsColorValue {
 }
 
 /// A native color well plus the source Automatic/More colors dropdown.
-@MainActor final class MergeColorChoiceView: NSView {
+@MainActor final class MergeColorChoiceView: NSView, NSMenuDelegate {
     let well = MergeSettingsColorWell()
     let arrow = NSButton()
     let choices = NSMenu()
@@ -344,16 +395,22 @@ enum SettingsColorValue {
     private var ownerObserver: NSObjectProtocol?
     private var retired = false
     private var enabled = true
+    private var contextIdentity: String?
+    private var configuredValue: UInt32?
+    private var generation = UUID()
+    private final class MenuChoice: NSObject {
+        let generation: UUID
+        let automatic: UInt32
+        var used = false
+        init(generation: UUID, automatic: UInt32) { self.generation = generation; self.automatic = automatic }
+    }
     var presentPanel: (NSColorPanel) -> Void = { $0.orderFront(nil) }
     override init(frame: NSRect) {
         super.init(frame: frame)
         well.target = self; well.action = #selector(colorChanged(_:))
         arrow.title = "▾"; arrow.bezelStyle = .rounded; arrow.target = self; arrow.action = #selector(showChoices(_:))
         addSubview(well); addSubview(arrow)
-        let automaticItem = NSMenuItem(title: "Automatic", action: #selector(useAutomatic(_:)), keyEquivalent: "")
-        automaticItem.target = self; choices.addItem(automaticItem); choices.addItem(.separator())
-        let custom = NSMenuItem(title: "More colors…", action: #selector(moreColors(_:)), keyEquivalent: "")
-        custom.target = self; choices.addItem(custom)
+        choices.delegate = self; rebuildChoices()
     }
     convenience init() { self.init(frame: .zero) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -362,8 +419,13 @@ enum SettingsColorValue {
         arrow.frame = NSRect(x: bounds.width - 20, y: 0, width: 20, height: bounds.height)
     }
     private static func color(_ rgb: UInt32) -> NSColor { NSColor(srgbRed: CGFloat(rgb >> 16 & 255) / 255, green: CGFloat(rgb >> 8 & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1) }
-    func configure(value: UInt32, automatic: UInt32, label: String, identifier: String, namespace:String = "MergeColors", enabled:Bool = true, changed: @escaping (UInt32) -> Void) {
+    func configure(value: UInt32, automatic: UInt32, label: String, identifier: String, namespace:String = "MergeColors", enabled:Bool = true, contextIdentity:String? = nil, changed: @escaping (UInt32) -> Void) {
         guard !retired else { return }
+        let identity = namespace + "." + identifier + "." + (contextIdentity ?? "default")
+        let contextChanged = self.contextIdentity != identity
+        let choicesChanged = contextChanged || configuredValue != value || self.automatic != automatic || self.enabled != enabled
+        if contextChanged { choices.cancelTracking(); closeOwnedPanel() }
+        self.contextIdentity = identity; configuredValue = value
         self.enabled = enabled
         if !enabled { choices.cancelTracking(); closeOwnedPanel() }
         well.isEnabled = enabled; arrow.isEnabled = enabled
@@ -373,9 +435,23 @@ enum SettingsColorValue {
         well.identifier = NSUserInterfaceItemIdentifier(namespace + "." + identifier + ".well")
         arrow.identifier = NSUserInterfaceItemIdentifier(namespace + "." + identifier + ".choices")
         arrow.setAccessibilityLabel(label + " choices"); choices.title = label
-        choices.items.first?.state = value == automatic ? .on : .off
-        let image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in Self.color(automatic).setFill(); rect.fill(); return true }
-        choices.items.first?.image = image
+        if choicesChanged { generation = UUID(); rebuildChoices() }
+    }
+    private func rebuildChoices() {
+        choices.removeAllItems()
+        let automaticItem = NSMenuItem(title: "Automatic", action: #selector(useAutomatic(_:)), keyEquivalent: "")
+        automaticItem.target = self; automaticItem.representedObject = MenuChoice(generation: generation, automatic: automatic)
+        automaticItem.state = configuredValue == automatic ? .on : .off
+        automaticItem.image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { [automatic] rect in Self.color(automatic).setFill(); rect.fill(); return true }
+        choices.addItem(automaticItem); choices.addItem(.separator())
+        let custom = NSMenuItem(title: "More colors…", action: #selector(moreColors(_:)), keyEquivalent: "")
+        custom.target = self; custom.representedObject = MenuChoice(generation: generation, automatic: automatic); choices.addItem(custom)
+    }
+    func menuNeedsUpdate(_ menu: NSMenu) { guard menu === choices, enabled, !retired else { return }; generation = UUID(); rebuildChoices() }
+    private func take(_ sender: Any?) -> MenuChoice? {
+        guard enabled, !retired, window != nil, let item = sender as? NSMenuItem,
+              let request = item.representedObject as? MenuChoice, request.generation == generation, !request.used else { return nil }
+        request.used = true; return request
     }
     @objc private func colorChanged(_ sender: Any?) {
         guard enabled, !retired, window != nil, let changed, let color = well.color.usingColorSpace(.sRGB) else { return }
@@ -383,8 +459,8 @@ enum SettingsColorValue {
         let rgb = channel(color.redComponent) << 16 | channel(color.greenComponent) << 8 | channel(color.blueComponent)
         well.color = Self.color(rgb); changed(rgb)
     }
-    @objc private func useAutomatic(_ sender: Any?) { guard enabled, !retired, window != nil, let changed else { return }; well.color = Self.color(automatic); changed(automatic) }
-    @objc private func moreColors(_ sender: Any?) { guard enabled, !retired, window != nil, changed != nil else { return }; well.activate(true); presentPanel(.shared) }
+    @objc private func useAutomatic(_ sender: Any?) { guard let request = take(sender), let changed else { return }; well.color = Self.color(request.automatic); changed(request.automatic) }
+    @objc private func moreColors(_ sender: Any?) { guard take(sender) != nil, changed != nil else { return }; well.activate(true); presentPanel(.shared) }
     @objc private func showChoices(_ sender: Any?) { guard enabled, !retired, window != nil, changed != nil else { return }; choices.popUp(positioning: nil, at: NSPoint(x: bounds.minX, y: bounds.minY), in: self) }
     private func closeOwnedPanel() { if well.isActive { well.deactivate(); NSColorPanel.shared.orderOut(nil) } }
     override func viewWillMove(toWindow newWindow: NSWindow?) { if window !== newWindow { choices.cancelTracking(); closeOwnedPanel() }; super.viewWillMove(toWindow: newWindow) }
@@ -398,7 +474,7 @@ enum SettingsColorValue {
         }
     }
     func retire() {
-        retired = true; choices.cancelTracking(); closeOwnedPanel(); changed = nil
+        retired = true; generation = UUID(); choices.cancelTracking(); closeOwnedPanel(); changed = nil; choices.delegate = nil
         well.target = nil; arrow.target = nil; well.isEnabled = false; arrow.isEnabled = false
         if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }; ownerObserver = nil
     }
