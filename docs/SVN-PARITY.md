@@ -149,3 +149,48 @@ certificate passphrases, native certificate information/explicit trust choices
 and owned client-certificate file selection. See
 [SVN authentication parity](SVN-AUTHENTICATION-PARITY.md). Public server/TLS,
 physical and signed grant/Keychain acceptance remain open.
+
+
+## Source forms and accepted workflow state — October 17, 2026
+
+`IDD_SVNDCOMMITTYPE` retains its DCommit Type group, Normal SVN / Git Style
+(--rmdir) radio choices, Remember selection and OK/Cancel/Help. `IDD_SVNIGNORE`
+retains Type, overwrite-exclude / create-.gitignore radio choices and OK/Cancel.
+The two native option windows use compact source ordering and grow into a
+resizable progress window with the existing native colored log, original Diff/Log
+icons and persistent footer. Hosting bounds and effective native minimum
+constraints replace the older unconstrained host/contentMinSize setup. Window
+controls and output menus use the captured preferences and private pasteboard
+when provided.
+
+OK snapshots the complete options before any capability check or stash prompt.
+Remember and the executed --rmdir flag share that accepted value. Import Ignore
+captures its destination, and Retry preserves the originally accepted workflow
+instead of rereading fields after a failure. A failure during initial runtime or
+repository validation repeats that validation on Retry and presents the original
+options after recovery, before allowing a mutation.
+
+Native option fields, OK/Retry/Cancel and fetched Diff/Log actions capture their
+owner and form generation. Busy/phase transitions and owned questions invalidate
+retained actions. Questions gate ordinary Close and other actions even with an
+injected presenter; responses settle once and late/replayed answers cannot revive
+old controls. The nonaccepting choice is the native Return default for two-choice
+questions. Forced closure still retires prompts and backend publication while
+retaining operation/Quit accounting until completion.
+
+All twelve resource controls receive partial mappings. Public authenticated
+transports, actual divergent Rebase handoff/stash conflicts, physical keyboard/
+VoiceOver gestures, signed grants/Keychain and App Store sandbox acceptance remain
+open.
+
+Both Debug builds exited 0. Four distinct source/workflow case-engine combinations
+passed across system and bundled Git. Visual review found wrapping repository
+paths; the final layout uses one line with the full path in a tooltip and effective
+native minimum constraints matching the compact forms. Only the two affected
+source checks were repeated after this layout change; the prior retained workflow
+passes were not repeated. All eight final raw light/dark captures were individually
+reviewed: radio groups, Remember, footer, colored logs and original Diff/Log icons
+fit. All four owned receivers were reaped and independently absent, with no private
+SVN helper paths left. Core was unchanged and not repeated. Each build retains one
+exit-zero/no-output diagnostic plus existing warnings, so this is not a clean
+diagnostics claim. See [batch evidence](qa/svn-source-family-2026-10-17.json).

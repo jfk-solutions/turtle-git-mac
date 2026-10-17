@@ -10,9 +10,10 @@ import TurtleGitCore
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let operation: GitSVNOperation
-    @Published private(set) var phase = Phase.loading
-    @Published private(set) var busy = false
-    @Published private(set) var confirmingCancellation = false
+    @Published private(set) var phase = Phase.loading {didSet {if oldValue != phase {formRevision=UUID();onPhaseChanged()}}}
+    @Published private(set) var busy = false {didSet {if oldValue != busy {formRevision=UUID()}}}
+    @Published private(set) var confirmingCancellation = false {didSet {if oldValue != confirmingCancellation {formRevision=UUID()}}}
+    @Published private(set) var hasQuestion=false {didSet {if oldValue != hasQuestion {formRevision=UUID()}}}
     @Published var removeEmptyDirectories = false
     @Published var remember = false
     @Published var ignoreDestination = GitSVNIgnoreDestination.exclude
@@ -27,6 +28,7 @@ import TurtleGitCore
     let outputPreferences: UserDefaults
     let outputClipboard: NSPasteboard
     var close: () -> Void = {}
+    var onPhaseChanged: () -> Void = {}
     var confirmStash: () async -> Bool = { false }
     var confirmPop: () async -> Bool = { false }
     var confirmCancel: () async -> Bool = { false }
@@ -44,6 +46,41 @@ import TurtleGitCore
     private var pump: Task<Void, Never>?
     private var opened = false, retired = false, closeAfterCancel = false
     private var stashHash: String?
+    private var formRevision=UUID()
+    private struct Options {
+        let removeEmptyDirectories:Bool
+        let remember:Bool
+        let ignoreDestination:GitSVNIgnoreDestination
+    }
+    private var submitted:Options?
+    struct FormContext:Equatable {let owner:ObjectIdentifier;let revision:UUID;let phase:Phase}
+    var formContext:FormContext {.init(owner:ObjectIdentifier(self),revision:formRevision,phase:phase)}
+    private func accepts(_ context:FormContext)->Bool {!retired && context==formContext}
+    var canStart:Bool {!retired && !busy && !hasQuestion && !confirmingCancellation && phase == .options}
+    var canRetry:Bool {!retired && !busy && !hasQuestion && !confirmingCancellation && phase == .finished && error != nil}
+    var canCancel:Bool {!retired && !hasQuestion && !confirmingCancellation && (!busy || !token.isCancelled)}
+    private var options:Options {.init(removeEmptyDirectories:removeEmptyDirectories,remember:remember,ignoreDestination:ignoreDestination)}
+    func option<Value>(_ key:ReferenceWritableKeyPath<SVNWindowModel,Value>,context:FormContext)->Binding<Value> {
+        Binding(get:{self[keyPath:key]},set:{value in
+            guard self.accepts(context),self.canStart else{return}
+            if key == \SVNWindowModel.ignoreDestination {guard self.operation == .ignore else{return}}
+            else {guard self.operation == .dcommit else{return}}
+            self[keyPath:key]=value
+        })
+    }
+    func start(context:FormContext) {guard accepts(context) else{return};start()}
+    func retry(context:FormContext) {guard accepts(context) else{return};retry()}
+    func cancel(context:FormContext) {guard accepts(context),canCancel else{return};cancel()}
+    func questionPresented(_ presented:Bool) {hasQuestion=presented}
+    var canShowFetched:Bool {!retired && !busy && !hasQuestion && !confirmingCancellation && phase == .finished && operation == .fetch && fetched?.changed == true}
+    func compare(_ result:GitSVNFetchResult,context:FormContext) {
+        guard accepts(context),canShowFetched,fetched?.oldHash==result.oldHash,fetched?.newHash==result.newHash else{return}
+        onCompare(result.oldHash,result.newHash)
+    }
+    func log(_ result:GitSVNFetchResult,context:FormContext) {
+        guard accepts(context),canShowFetched,fetched?.oldHash==result.oldHash,fetched?.newHash==result.newHash else{return}
+        onLog(result)
+    }
     var title: String {
         switch operation { case .dcommit: return "SVN DCommit"; case .fetch: return "SVN Fetch"; case .rebase: return "SVN Rebase"; case .ignore: return "Import SVN Ignore" }
     }
@@ -58,28 +95,35 @@ import TurtleGitCore
     }
     func load() {
         guard !opened, !retired else { return }; opened = true
-        launch {
-            try self.checkAccess(); try await self.repository.checkGitSVNRuntime(cancellation: self.token)
-            try self.checkAccess()
-            guard try await self.repository.finderMetadata().hasGitSVN else { throw GitSVNFailure.remote }
-            guard try await !self.repository.isBare() else { throw FinderCommandFailure.selection }
-            try self.checkAccess()
-            if self.operation == .dcommit {
-                if let type = try await self.repository.svnCommitType(cancellation: self.token) {
-                    try self.checkAccess(); self.removeEmptyDirectories = type; try await self.execute()
-                } else { try self.checkAccess(); self.phase = .options }
-            } else if self.operation == .ignore { self.phase = .options }
-            else { try await self.execute() }
-        }
+        launch {try await self.prepareWorkflow()}
+    }
+    private func prepareWorkflow() async throws {
+        try checkAccess(); try await repository.checkGitSVNRuntime(cancellation:token)
+        try checkAccess()
+        guard try await repository.finderMetadata().hasGitSVN else {throw GitSVNFailure.remote}
+        guard try await !repository.isBare() else {throw FinderCommandFailure.selection}
+        try checkAccess()
+        if operation == .dcommit {
+            if let type=try await repository.svnCommitType(cancellation:token) {
+                try checkAccess();removeEmptyDirectories=type;submitted=options
+                try await execute(submitted!)
+            } else {try checkAccess();phase = .options}
+        } else if operation == .ignore {phase = .options}
+        else {submitted=options;try await execute(submitted!)}
     }
     func start() {
-        guard !busy, !retired, phase == .options else { return }
-        launch { try await self.execute() }
+        guard canStart else {return}
+        let accepted=options;submitted=accepted
+        launch {try await self.execute(accepted)}
     }
     func retry() {
-        guard !busy, !retired, !confirmingCancellation, phase == .finished, error != nil else { return }
-        token = OperationCancellation(); parser = GitCliOutputParser(limit: visible.limit); visible.reset(); output = ""; error = nil; fetched = nil
-        launch { try await self.execute() }
+        guard canRetry else {return}
+        token=OperationCancellation();parser=GitCliOutputParser(limit:visible.limit);visible.reset();output="";error=nil;fetched=nil
+        let accepted=submitted
+        launch {
+            if let accepted {try await self.execute(accepted)}
+            else {try await self.prepareWorkflow()}
+        }
     }
     private func launch(_ action: @escaping () async throws -> Void) {
         guard !busy, !retired else { return }
@@ -119,13 +163,13 @@ import TurtleGitCore
         }
     }
     private func drain() { guard !retired else { return }; visible.consume(parser.processPending(), parser: parser); output = visible.output; currentWork = visible.currentWork; percentage = visible.percentage }
-    private func execute() async throws {
+    private func execute(_ accepted:Options) async throws {
         try checkAccess(); try await repository.checkGitSVNRuntime(cancellation: token)
         try checkAccess(); phase = .progress; status = "\(title) is running…"; error = nil
         let parser = parser
         let emit: @Sendable (GitOutputChunk) -> Void = { parser.appendChunk($0.data) }
         if operation == .dcommit || operation == .rebase {
-            if operation == .dcommit && remember { try await repository.rememberSVNCommitType(removeEmptyDirectories: removeEmptyDirectories, cancellation: token) }
+            if operation == .dcommit && accepted.remember { try await repository.rememberSVNCommitType(removeEmptyDirectories: accepted.removeEmptyDirectories, cancellation: token) }
             let dirty = try await repository.svnTrackedChanges(cancellation: token); try checkAccess()
             if dirty {
                 let accepted = await confirmStash(); try checkAccess()
@@ -137,7 +181,7 @@ import TurtleGitCore
         }
         switch operation {
         case .dcommit:
-            _ = try await repository.svnDCommit(removeEmptyDirectories: removeEmptyDirectories, cancellation: token, onOutput: emit)
+            _ = try await repository.svnDCommit(removeEmptyDirectories: accepted.removeEmptyDirectories, cancellation: token, onOutput: emit)
             try checkAccess(); status = "SVN DCommit completed."; onChanged(); try await restoreCreatedStash()
         case .fetch:
             let result = try await repository.svnFetch(cancellation: token, onOutput: emit)
@@ -163,16 +207,16 @@ import TurtleGitCore
             if pendingRebaseLog && !retired { pendingRebaseLog = false; onRepositoryLog() }
         case .ignore:
             var excludeAccess: RepositoryAccessLease?
-            if ignoreDestination == .exclude {
+            if accepted.ignoreDestination == .exclude {
                 let file = try await repository.svnIgnoreExcludeURL(cancellation: token)
                 if GitRuntime.isAppStoreBuild {
                     guard access?.hasSecurityScope == true, access?.contains(file) == true else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(file.path) }
                     excludeAccess = access
                 }
             }
-            let result = try await repository.svnImportIgnore(ignoreDestination, excludeAccess: excludeAccess, cancellation: token, onOutput: emit)
+            let result = try await repository.svnImportIgnore(accepted.ignoreDestination, excludeAccess: excludeAccess, cancellation: token, onOutput: emit)
             try checkAccess()
-            if ignoreDestination == .exclude { parser.appendChunk(Data(("\n" + result).utf8)) }; status = "SVN ignore patterns imported."; onChanged()
+            if accepted.ignoreDestination == .exclude { parser.appendChunk(Data(("\n" + result).utf8)) }; status = "SVN ignore patterns imported."; onChanged()
         }
         try checkAccess(); success = true; phase = .finished
     }
@@ -183,7 +227,7 @@ import TurtleGitCore
         try checkAccess(); parser.appendChunk(Data(result.utf8)); stashHash = nil; onChanged()
     }
     func cancel(closeWhenStopped: Bool = false) {
-        guard !retired, !confirmingCancellation else { return }
+        guard canCancel else { return }
         if !busy { close(); return }
         let request = token; confirmingCancellation = true
         Task {
@@ -195,7 +239,7 @@ import TurtleGitCore
     func retire() {
         retired = true; token.cancel(); pump?.cancel(); pump = nil
         confirmStash = { false }; confirmPop = { false }; confirmCancel = { false }; openRebase = { _ in false }
-        onCompare = { _, _ in }; onLog = { _ in }; onChanged = {}; onRepositoryLog = {}; confirmInformation = { _ in }; close = {}
+        onPhaseChanged = {}; onCompare = { _, _ in }; onLog = { _ in }; onChanged = {}; onRepositoryLog = {}; confirmInformation = { _ in }; close = {}
     }
 }
 
@@ -204,14 +248,19 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     private var retired = false
     private var question: NSAlert?
+    private var heightMinimum:NSLayoutConstraint?
     private var reply: ((Bool) -> Void)?
     var presentQuestion: ((NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, operation: GitSVNOperation, preferences: UserDefaults = .standard, clipboard: NSPasteboard = .general) {
         model = SVNWindowModel(repository: repository, access: access, operation: operation, preferences: preferences, clipboard: clipboard)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 740, height: 460), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "\(model.title)", preferences: preferences); window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 600, height: 310)
-        window.contentViewController = NSHostingController(rootView: SVNDialog(model: model))
-        super.init(window: window); window.delegate = self; window.center()
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "\(model.title)", preferences: preferences); window.isReleasedWhenClosed = false
+        let host=NSHostingController(rootView:SVNDialog(model:model).defaultAppStorage(preferences));host.sizingOptions=[]
+        window.contentViewController=host;window.setContentSize(.init(width:740,height:460))
+        let minimum=host.view.heightAnchor.constraint(greaterThanOrEqualToConstant:310)
+        NSLayoutConstraint.activate([host.view.widthAnchor.constraint(greaterThanOrEqualToConstant:600),minimum])
+        super.init(window: window);heightMinimum=minimum;window.delegate = self; window.center()
+        model.onPhaseChanged={ [weak self] in self?.updateLayout() }
         model.close = { [weak self] in self?.window?.close() }
         model.confirmInformation = { [weak self] message in _ = await self?.ask(message, yes: "OK", no: nil) }
         model.confirmStash = { [weak self] in await self?.ask("Your working tree contains changes. Stash them before continuing?", yes: "Stash", no: "Abort") ?? false }
@@ -219,24 +268,38 @@ import TurtleGitCore
         model.confirmCancel = { [weak self] in await self?.ask("Abort the running Git operation?", yes: "Abort", no: "Keep Running") ?? false }
         DialogGeometry.attach(window, identifier: "SVN." + operation.rawValue)
     }
+    private func updateLayout() {
+        guard !retired,let window else{return}
+        if model.phase == .options {
+            heightMinimum?.constant=model.operation == .ignore ? 260:300
+            window.setContentSize(.init(width:model.operation == .ignore ? 740:620,height:model.operation == .ignore ? 260:300))
+        } else if model.phase == .progress {
+            heightMinimum?.constant=310;window.setContentSize(.init(width:740,height:460))
+        }
+    }
     func ask(_ message: String, yes: String, no: String?) async -> Bool {
         guard !retired, question == nil, let window, window.attachedSheet == nil else { return false }
         let alert = NSAlert(); alert.messageText = message; alert.informativeText = model.repository.root.path
-        alert.addButton(withTitle: yes); if let no { alert.addButton(withTitle: no) }; question = alert
+        alert.addButton(withTitle:yes)
+        if let no {
+            alert.addButton(withTitle:no);alert.buttons[0].keyEquivalent="";alert.buttons[1].keyEquivalent="\r"
+            alert.window.defaultButtonCell=alert.buttons[1].cell as? NSButtonCell
+        }
+        question=alert;model.questionPresented(true)
         return await withCheckedContinuation { continuation in
             var answered = false
             let finish: (Bool) -> Void = { value in guard !answered else { return }; answered = true; continuation.resume(returning: value) }
             reply = finish
             let response: (NSApplication.ModalResponse) -> Void = { [weak self] result in
                 guard let self, self.question === alert, !self.retired else { finish(false); return }
-                self.question = nil; self.reply = nil; finish(result == .alertFirstButtonReturn)
+                self.question = nil; self.reply = nil; self.model.questionPresented(false); finish(result == .alertFirstButtonReturn)
             }
             if let presentQuestion { presentQuestion(alert, window, response) }
             else { alert.beginSheetModal(for: window, completionHandler: response) }
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard sender.attachedSheet == nil else { return false }
+        guard !model.hasQuestion, sender.attachedSheet == nil else { return false }
         if model.busy { model.cancel(closeWhenStopped: true); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
@@ -246,7 +309,7 @@ import TurtleGitCore
         if let alert, let parent = alert.window.sheetParent { parent.endSheet(alert.window, returnCode: .abort) }
         alert?.window.orderOut(nil)
         let finish = reply; reply = nil; finish?(false)
-        model.retire()
+        model.retire();model.questionPresented(false)
         if let child = window?.attachedSheet {
             window?.endSheet(child, returnCode: .abort)
             if child.delegate is RebaseWindowController { child.makeKeyAndOrderFront(nil) }
@@ -260,23 +323,24 @@ import TurtleGitCore
 private struct SVNDialog: View {
     @ObservedObject var model: SVNWindowModel
     var body: some View {
+        let context=model.formContext
         VStack(alignment: .leading, spacing: 12) {
             Text(model.title).font(.headline)
-            Text(model.repository.root.path).foregroundStyle(.secondary).textSelection(.enabled)
+            Text(model.repository.root.path).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle).help(model.repository.root.path).textSelection(.enabled)
             if model.phase == .options {
                 if model.operation == .dcommit {
                     GroupBox("DCommit Type") {
-                        Picker("DCommit Type", selection: $model.removeEmptyDirectories) {
+                        Picker("DCommit Type", selection: model.option(\.removeEmptyDirectories,context:context)) {
                             Text("Normal SVN Commit").tag(false); Text("Git Style Commit (--rmdir)").tag(true)
-                        }.pickerStyle(.radioGroup).labelsHidden().disabled(model.busy).frame(maxWidth: .infinity, alignment: .leading).padding(8)
+                        }.pickerStyle(.radioGroup).labelsHidden().disabled(!model.canStart).frame(maxWidth: .infinity, alignment: .leading).padding(8)
                     }
-                    Toggle("Remember selection (\"svn.rmdir\" option)", isOn: $model.remember).disabled(model.busy)
+                    Toggle("Remember selection (\"svn.rmdir\" option)", isOn: model.option(\.remember,context:context)).disabled(!model.canStart)
                 } else {
                     GroupBox("Type") {
-                        Picker("Type", selection: $model.ignoreDestination) {
+                        Picker("Type", selection: model.option(\.ignoreDestination,context:context)) {
                             Text("Import svn ignore file to .git/info/exclude file (file will be overwritten)").tag(GitSVNIgnoreDestination.exclude)
                             Text("Create .gitignore file").tag(GitSVNIgnoreDestination.gitignore)
-                        }.pickerStyle(.radioGroup).labelsHidden().disabled(model.busy).frame(maxWidth: .infinity, alignment: .leading).padding(8)
+                        }.pickerStyle(.radioGroup).labelsHidden().disabled(!model.canStart).frame(maxWidth: .infinity, alignment: .leading).padding(8)
                     }
                 }
                 Spacer()
@@ -290,13 +354,13 @@ private struct SVNDialog: View {
             HStack {
                 if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
                 if model.phase == .finished, model.operation == .fetch, let result = model.fetched, result.changed {
-                    Button { model.onCompare(result.oldHash, result.newHash) } label: { CommandLabel(title: "Diff", icon: .compare) }
-                    Button { model.onLog(result) } label: { CommandLabel(title: "Log", icon: .log) }
+                    Button { model.compare(result,context:context) } label: { CommandLabel(title: "Diff", icon: .compare) }.disabled(!model.canShowFetched)
+                    Button { model.log(result,context:context) } label: { CommandLabel(title: "Log", icon: .log) }.disabled(!model.canShowFetched)
                 }
                 Spacer()
-                if model.phase == .options { Button("OK") { model.start() }.keyboardShortcut(.defaultAction).disabled(model.busy) }
-                if model.phase == .finished && model.error != nil { Button("Retry") { model.retry() } }
-                Button(model.phase == .finished ? "Close" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction)
+                if model.phase == .options { Button("OK") { model.start(context:context) }.keyboardShortcut(.defaultAction).disabled(!model.canStart) }
+                if model.phase == .finished && model.error != nil { Button("Retry") { model.retry(context:context) }.disabled(!model.canRetry) }
+                Button(model.phase == .finished ? "Close" : "Cancel") { model.cancel(context:context) }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
                 if model.operation != .ignore { Button("Help") { TurtleGitHelp.show(.svn) } }
             }
         }.padding(16)

@@ -1993,3 +1993,19 @@ All ten raw light/dark captures were individually reviewed and both owned receiv
 were reaped and independently absent. Core was unchanged and not repeated. See
 [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md) and
 [batch evidence](qa/first-start-source-family-2026-10-17.json) for scope and limitations.
+
+
+## SVN source forms and accepted operations — October 17, 2026
+
+DCommit and Import Ignore now capture all accepted choices before runtime checks
+or stash questions, preserve that submission on Retry, and revalidate failed
+initial eligibility before presenting options. Native option/result actions
+retire across operations and owned questions; source-order compact forms grow
+into explicit progress bounds with effective native minimum constraints. All twelve
+source controls receive partial mappings. Four distinct source/workflow case-engine
+combinations pass across system and bundled Git, with only affected source checks
+repeated after the path-layout repair. All eight final raw captures were reviewed
+and all four owned receivers were reaped and independently absent. Core was
+unchanged and not repeated. See [SVN parity](SVN-PARITY.md) and
+[batch evidence](qa/svn-source-family-2026-10-17.json) for scope and remaining
+public transport, physical and signed acceptance.

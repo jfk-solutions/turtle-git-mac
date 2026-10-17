@@ -1,0 +1,139 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "f5727c44fd1bfd52255cd415dcb2b636bae42b50",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "DCommit Type group, Normal/Git Style radio options, Remember and OK/Cancel/Help",
+    "Import SVN Ignore Type/radios and OK/Cancel",
+    "Snapshot accepted options before awaits; retain them for Retry",
+    "Revalidate failed initial runtime/repository eligibility on Retry and return to options",
+    "Captured native fields/footer/result actions, owned question gates and one-response settlement",
+    "Explicit compact options/progress bounds, effective native minimum constraints and single-line repository path with full tooltip"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/svn-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/svn-source-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "reason": "Raw visual review found long repository paths wrapping; single-line full-tooltip presentation and compact minimum heights."
+    }
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false,
+    "reason": "Native workflow submission, Retry, actions and geometry. Grouped native receiver performs actual private Git config/stash/reset/file writes using injected SVN transport."
+  },
+  "native": {
+    "driver": "scripts/test-svn-source-family.py",
+    "source_fixture": "docs/qa/svn-source-native-2026-10-17.swift",
+    "retained_fixture": "docs/qa/svn-native-2026-10-12.swift",
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "distinct_case_engine_passes": 4,
+    "cases": [
+      "source",
+      "workflow"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/svn-source-native-2026-10-17.log",
+        "exit": 0,
+        "source_and_workflow_each_engine": true,
+        "receivers": [
+          48869,
+          49172
+        ]
+      },
+      {
+        "log": "build/qa/svn-source-layout-native-2026-10-17.log",
+        "exit": 0,
+        "source_only_each_engine": true,
+        "receivers": [
+          49531,
+          49662
+        ]
+      }
+    ],
+    "ownership": {
+      "all_receivers_independently_absent": true,
+      "private_helper_paths_absent": true,
+      "capture_activation": "prohibited; alpha-zero owners with orderFront only, no makeKey/global input",
+      "cleanup": "Owned windows close on completion/failure; receiver process groups reaped; all repositories reside inside driver TemporaryDirectory."
+    },
+    "coverage": [
+      "Complete accepted DCommit options survive direct field mutation and held stash confirmation; actual svn.rmdir and --rmdir match submission",
+      "Exclude failure/Retry retains captured destination despite late .gitignore mutation",
+      "Failed initial missing-marker Retry repeats eligibility, runs no ignore mutation, then returns to options after recovery",
+      "Current/old/retired fetched Diff/Log actions and owned-question generation boundaries",
+      "Question Close/Cancel gates, nonaccepting Return default and duplicate/late response",
+      "Effective native compact geometry and Auto Layout minimum constraints",
+      "Retained Fetch range, actual private stash/pop, exact exclude bytes, fast-forward and information callback",
+      "Retained frozen retired publication/Quit accounting, scoped workspace handoff/reuse and cancellation fences",
+      "Retained native progress links/colors/fonts/private clipboard/menu, completion/error and Retry reset"
+    ],
+    "fixture_adaptations": [
+      "Private copied GitSVNFixture redirects repositories into driver-owned temporary directory and skips command-only global Git options when identifying injected SVN commands. Production Core fixture is unchanged."
+    ],
+    "ci": "New source-only group runs both engines; existing reference workflow remains, avoiding another complete retained workflow run."
+  },
+  "captures": {
+    "directory": "docs/site/assets",
+    "files": [
+      "svn-dcommit-source-dark.png",
+      "svn-dcommit-source-light.png",
+      "svn-error-source-dark.png",
+      "svn-error-source-light.png",
+      "svn-fetch-source-dark.png",
+      "svn-fetch-source-light.png",
+      "svn-ignore-source-dark.png",
+      "svn-ignore-source-light.png"
+    ],
+    "raw": true,
+    "child_windows_included": false,
+    "individually_reviewed": true,
+    "dimensions": {
+      "dcommit": "1240x664",
+      "ignore": "1480x584",
+      "error_and_fetch": "1480x984"
+    },
+    "observations": "Compact source-order groups, Remember and footers fit; full paths remain available in tooltips. Error and successful progress logs follow native light/dark colors with original Diff/Log icons."
+  },
+  "ledger": {
+    "new_partial_mappings": 12,
+    "mapped_controls": 1514,
+    "pending_controls": 145,
+    "certified_dialogs": 0
+  },
+  "remaining": [
+    "Physical keyboard/VoiceOver and all window/progress/post-action states",
+    "Real divergent Rebase handoff and stash conflicts",
+    "Public authenticated HTTP/SVN/SSH transports and trust prompts",
+    "Signed grants/Keychain/common-directory/App Store sandbox acceptance",
+    "Complete hosted macOS CI and refreshed universal preview"
+  ],
+  "hosted_observed": {
+    "commit": "f5727c44fd1bfd52255cd415dcb2b636bae42b50",
+    "macos": {
+      "id": 39000155800,
+      "status": "pending"
+    },
+    "pages": {
+      "id": 39000155835,
+      "conclusion": "success"
+    }
+  },
+  "certified_complete": false,
+  "site": {
+    "log": "build/qa/svn-source-site-2026-10-17.log",
+    "exit": 0,
+    "documents": 265,
+    "unresolved_fragments": 0
+  }
+}
