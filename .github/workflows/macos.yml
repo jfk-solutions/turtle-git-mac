@@ -350,6 +350,11 @@ jobs:
         run: python3 scripts/test-merge-diff-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Grouped native LFS and Send Mail receivers with one compilation
         run: python3 scripts/test-native-lfs-mail-batch.py
+      - name: Native Send Mail source forms and owned target preparation
+        run: >-
+          python3 scripts/test-send-source-family.py --only source
+          --git /usr/bin/git
+          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native Branch and Tag source forms and connected workflows
         run: python3 scripts/test-branch-tag-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Switch source form and connected workflows

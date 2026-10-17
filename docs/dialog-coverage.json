@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 184,
-    "mapped_controls": 1475,
+    "pending_control_reviews": 171,
+    "mapped_controls": 1488,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -2919,13 +2919,17 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 14,
-      "mapped_controls": 1,
-      "pending_control_reviews": 13,
+      "mapped_controls": 14,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/SendPatchWindow.swift",
           "anchor": "SendPatchWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SendPatchList.swift",
+          "origin": "recorded-control-mapping"
         },
         {
           "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
@@ -2939,7 +2943,8 @@
       ],
       "qa_records": [
         "docs/qa/help-book-2026-10-15.json",
-        "docs/qa/send-mail-cancellation-2026-10-13.json"
+        "docs/qa/send-mail-cancellation-2026-10-13.json",
+        "docs/qa/send-source-family-2026-10-17.json"
       ]
     },
     {

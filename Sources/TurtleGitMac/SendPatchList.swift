@@ -3,10 +3,16 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+@MainActor final class SendPatchCheckButton:NSButton {var rowID:UUID?;var eventEpoch:UUID?}
 @MainActor final class SendPatchTable: NSTableView, NSTableViewDataSource, NSTableViewDelegate {
     private(set) var rows: [SendPatchRow] = []
     private(set) var checked = Set<UUID>()
-    var interactionEnabled = true
+    let lifetime=TransportControlLifetime()
+    private var eventEpoch=UUID()
+    var formIdentity:SendPatchWindowModel.FormContext? {didSet {if oldValue != formIdentity {eventEpoch=UUID()}}}
+    override func viewDidMoveToWindow() {super.viewDidMoveToWindow();lifetime.observe(self)}
+    private var acceptsInput:Bool {interactionEnabled && !lifetime.retired && window != nil}
+    var interactionEnabled = true {didSet {if oldValue != interactionEnabled {eventEpoch=UUID()}}}
     var checksChanged: (Set<UUID>) -> Void = { _ in }
     var highlightChanged: (Set<UUID>) -> Void = { _ in }
     var openPatch: (UUID) -> Void = { _ in }
@@ -32,9 +38,10 @@ import TurtleGitCore
     func configure(rows: [SendPatchRow], checked: Set<UUID>, highlighted: Set<UUID>) {
         updating = true; defer { updating = false }
         self.checked = checked
-        if self.rows != rows { self.rows = rows; reloadData() }
+        if self.rows != rows {eventEpoch=UUID();self.rows = rows; reloadData() }
         for index in rows.indices {
-            if let button = view(atColumn: 0, row: index, makeIfNecessary: false) as? NSButton {
+            if let button = view(atColumn: 0, row: index, makeIfNecessary: false) as? SendPatchCheckButton {
+                button.rowID=rows[index].id;button.eventEpoch=eventEpoch
                 button.state = checked.contains(rows[index].id) ? .on : .off; button.isEnabled = interactionEnabled
             }
         }
@@ -56,8 +63,8 @@ import TurtleGitCore
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard rows.indices.contains(row) else { return nil }
         if tableColumn?.identifier.rawValue == "check" {
-            let button = NSButton(checkboxWithTitle: "", target: self, action: #selector(checkClicked(_:)))
-            button.tag = row; button.state = checked.contains(rows[row].id) ? .on : .off; button.isEnabled = interactionEnabled
+            let button = SendPatchCheckButton(checkboxWithTitle: "", target: self, action: #selector(checkClicked(_:)))
+            button.tag = row;button.rowID=rows[row].id;button.eventEpoch=eventEpoch; button.state = checked.contains(rows[row].id) ? .on : .off; button.isEnabled = interactionEnabled
             button.setAccessibilityLabel("Send " + rows[row].file.path); return button
         }
         let cell = NSTableCellView(), image = NSImageView(), text = NSTextField(labelWithString: display(rows[row].file.path))
@@ -67,33 +74,32 @@ import TurtleGitCore
         NSLayoutConstraint.activate([image.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 3), image.centerYAnchor.constraint(equalTo: cell.centerYAnchor), image.widthAnchor.constraint(equalToConstant: 16), image.heightAnchor.constraint(equalToConstant: 16), text.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 5), text.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -3), text.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
         return cell
     }
-    func selectionShouldChange(in tableView: NSTableView) -> Bool { updating || interactionEnabled }
+    func selectionShouldChange(in tableView: NSTableView) -> Bool { updating || acceptsInput }
     func tableViewSelectionDidChange(_ notification: Notification) {
-        guard !updating, interactionEnabled else { return }
+        guard !updating, acceptsInput else { return }
         highlightChanged(Set(selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].id : nil }))
     }
     @objc private func checkClicked(_ sender: NSButton) {
-        guard interactionEnabled, rows.indices.contains(sender.tag) else { return }
-        let id = rows[sender.tag].id
+        guard acceptsInput,sender.isEnabled,let button=sender as? SendPatchCheckButton,button.eventEpoch==eventEpoch,let id=button.rowID,rows.contains(where:{$0.id==id}) else{return}
         if sender.state == .on { checked.insert(id) } else { checked.remove(id) }
         checksChanged(checked)
     }
     @objc private func doubleClicked() {
-        guard interactionEnabled, clickedColumn != 0, rows.indices.contains(clickedRow) else { return }
+        guard acceptsInput, clickedColumn != 0, rows.indices.contains(clickedRow) else { return }
         viewPatch(rows[clickedRow].id, alternate: NSEvent.modifierFlags.contains(.shift))
     }
     private final class MenuRequest: NSObject {
-        let ids: Set<UUID>; let kind: Int
-        init(_ ids: Set<UUID>, _ kind: Int) { self.ids = ids; self.kind = kind }
+        let ids: Set<UUID>; let kind: Int;let epoch:UUID
+        init(_ ids: Set<UUID>, _ kind: Int,_ epoch:UUID) { self.ids = ids; self.kind = kind;self.epoch=epoch }
     }
     func contextMenuForSelection() -> NSMenu? {
-        guard interactionEnabled else { return nil }
+        guard acceptsInput else { return nil }
         let ids = Set(selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].id : nil })
         guard !ids.isEmpty else { return nil }
         let menu = NSMenu(); menu.autoenablesItems = false
         func item(_ title: String, _ kind: Int, _ icon: MenuIcon, _ enabled: Bool) {
             let item = NSMenuItem(title: title, action: #selector(runMenu(_:)), keyEquivalent: "")
-            item.target = self; item.representedObject = MenuRequest(ids, kind); item.isEnabled = enabled
+            item.target = self; item.representedObject = MenuRequest(ids, kind,eventEpoch); item.isEnabled = enabled
             item.image = icon.contextImage(defaults: menuPreferences)
             if kind == 0 { item.attributedTitle = NSAttributedString(string: title, attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.menuFont(ofSize: 0).pointSize)]) }
             menu.addItem(item)
@@ -106,7 +112,7 @@ import TurtleGitCore
         return menu
     }
     override func menu(for event: NSEvent) -> NSMenu? {
-        guard interactionEnabled else { return nil }
+        guard acceptsInput else { return nil }
         let hit = row(at: convert(event.locationInWindow, from: nil))
         if rows.indices.contains(hit) && !selectedRowIndexes.contains(hit) {
             selectRowIndexes(IndexSet(integer: hit), byExtendingSelection: false)
@@ -114,7 +120,7 @@ import TurtleGitCore
         return contextMenuForSelection()
     }
     @objc private func runMenu(_ item: NSMenuItem) {
-        guard interactionEnabled, let request = item.representedObject as? MenuRequest else { return }
+        guard acceptsInput, let request = item.representedObject as? MenuRequest,request.epoch==eventEpoch else { return }
         let valid = request.ids.intersection(rows.map(\.id))
         if request.kind == 2 { guard !valid.isEmpty else { return }; applyPatches?(valid) }
         else if valid.count == 1, let id = valid.first {
@@ -123,24 +129,24 @@ import TurtleGitCore
         }
     }
     func viewPatch(_ id: UUID, alternate: Bool) {
-        guard interactionEnabled, canViewPatch, rows.contains(where: { $0.id == id }) else { return }
+        guard acceptsInput, canViewPatch, rows.contains(where: { $0.id == id }) else { return }
         if alternate, let openAlternatePatch { openAlternatePatch(id) } else { openPatch(id) }
     }
     private func dropURLs(_ pasteboard: NSPasteboard) -> [URL] {
         (pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [NSURL])?.map { $0 as URL } ?? []
     }
     func tableView(_ tableView: NSTableView, validateDrop info: NSDraggingInfo, proposedRow row: Int, proposedDropOperation operation: NSTableView.DropOperation) -> NSDragOperation {
-        guard interactionEnabled, !dropURLs(info.draggingPasteboard).isEmpty else { return [] }
+        guard acceptsInput, !dropURLs(info.draggingPasteboard).isEmpty else { return [] }
         setDropRow(rows.count, dropOperation: .above); return .copy
     }
     func acceptFiles(from pasteboard: NSPasteboard) -> Bool {
-        guard interactionEnabled else { return false }; return droppedFiles(dropURLs(pasteboard))
+        guard acceptsInput else { return false }; return droppedFiles(dropURLs(pasteboard))
     }
     func tableView(_ tableView: NSTableView, acceptDrop info: NSDraggingInfo, row: Int, dropOperation operation: NSTableView.DropOperation) -> Bool {
         acceptFiles(from: info.draggingPasteboard)
     }
     override func keyDown(with event: NSEvent) {
-        if interactionEnabled && event.keyCode == 49 {
+        if acceptsInput && event.keyCode == 49 {
             let ids = selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].id : nil }
             for id in ids { if checked.contains(id) { checked.remove(id) } else { checked.insert(id) } }
             let highlight = selectedRowIndexes
@@ -170,16 +176,23 @@ struct SendPatchList: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let table = scroll.documentView as? SendPatchTable else { return }
-        table.interactionEnabled = enabled
-        table.checksChanged = { [weak model] in model?.setChecked($0) }
-        table.highlightChanged = { [weak model] in model?.setHighlighted($0) }
+        guard !table.lifetime.retired else{table.interactionEnabled=false;return}
+        let form=model.formContext;table.formIdentity=form
+        table.menuPreferences=model.presentationPreferences
+        table.interactionEnabled = enabled && model.canInteract;table.isEnabled=table.interactionEnabled
+        table.checksChanged = { [weak model] in model?.setChecked($0,context:form) }
+        table.highlightChanged = { [weak model] in model?.setHighlighted($0,context:form) }
         table.canViewPatch = model.showPatch != nil
-        table.openAlternatePatch = { [weak model] in model?.openPatch($0, alternate: true) }
-        table.reviewPatch = model.reviewPatch == nil ? nil : { [weak model] in model?.review($0) }
-        table.applyPatches = model.applyPatches == nil ? nil : { [weak model] in model?.apply($0) }
-        table.droppedFiles = { [weak model] in model?.appendDroppedFiles($0) ?? false }
-        table.openPatch = { [weak model] in model?.openPatch($0) }
+        table.openAlternatePatch = { [weak model] in model?.openPatch($0, alternate: true,context:form) }
+        table.reviewPatch = model.reviewPatch == nil ? nil : { [weak model] in model?.review($0,context:form) }
+        table.applyPatches = model.applyPatches == nil ? nil : { [weak model] in model?.apply($0,context:form) }
+        table.droppedFiles = { [weak model] in model?.appendDroppedFiles($0,context:form) ?? false }
+        table.openPatch = { [weak model] in model?.openPatch($0,context:form) }
         table.configure(rows: model.rows, checked: model.checked, highlighted: model.highlighted)
+    }
+    static func dismantleNSView(_ scroll:NSScrollView,coordinator:()) {
+        guard let table=scroll.documentView as? SendPatchTable else{return}
+        table.interactionEnabled=false;table.lifetime.retire();table.checksChanged={_ in};table.highlightChanged={_ in};table.openPatch={_ in};table.openAlternatePatch=nil;table.reviewPatch=nil;table.applyPatches=nil;table.droppedFiles={_ in false};table.delegate=nil;table.dataSource=nil
     }
 }
 

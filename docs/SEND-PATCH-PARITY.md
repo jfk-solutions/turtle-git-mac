@@ -106,3 +106,47 @@ controls, conditional client availability and the owned native Password editor.
 Immediate Store/Clear remain independent of Apply/Cancel. Secure-control limits,
 focus/default buttons and request/Quit/retirement guards complete this connected
 native workflow; real Keychain/Apple Mail and signed acceptance remain open.
+
+## Source Send form, native input and target ownership — October 17, 2026
+
+The native Mail group retains To, CC and Subject above Attachment/Combine/eMail
+settings, the checked patch list and Send/Cancel/Help. Options and progress hosts
+use explicit source-sized content bounds. Combine changes synchronously commit
+editing and switch between the saved combined draft and highlighted patch subject;
+retained Subject edits cannot cross a Combine transition. Custom document subjects
+keep their existing editable behavior. Recipient/attachment/Send/settings and list
+callbacks capture their form/catalog lifetime. Viewer/child, preparation and
+retired owners reject older edits and actions.
+
+Native address controls ignore disabled, dismantled and closed-owner delegates.
+History/value updates preserve UTF-8 spelling, and accepted history removal uses
+exact spelling to match `RegHistory::AddEntry`'s `wcscmp`, retaining canonically
+equivalent entries. Shared To/CC completion and CC-before-To history order remain.
+The native checked list retires its event route and captures row identity plus
+its epoch for checkboxes and context entries. Busy/child/catalog changes cannot
+revive a retained action. The supplied preferences now govern its context icons.
+
+Preview, viewer and prepared-message loads retain their aggregate Quit ownership
+until their actual workers finish, even after forced option-window closure.
+Target repository choosers consume one reply and own a cancellation token through
+root discovery and bare-repository checking; forced closure cancels those Git
+processes and suppresses late child presentation. The scope lease and worker count
+remain until that read drains. SMTP/MIME/Core delivery code is unchanged.
+Physical input/completion/popup behavior, large files/catalogs, external Mail/SMTP,
+signed permissions/Finder and complete source parity remain open.
+
+Native minimum width/height constraints enforce the source floor for the Auto
+Layout hosts; `contentMinSize` alone is ignored in this configuration, as documented
+in the local AppKit SDK. [Grouped source evidence](qa/send-source-family-2026-10-17.json)
+records all four final-build case/engine passes, the minimum-layout diagnosis,
+eleven receiver and five loopback-server PIDs independently absent, and explicit
+physical/signed/public-delivery limits. CI retains the existing full Send delivery
+phase and adds the new source cases without repeating that phase.
+
+![Send Patch, light](site/assets/send-patch-source-light.png)
+
+![Send Patch, dark](site/assets/send-patch-source-dark.png)
+
+![Injected completed Send progress, light](site/assets/send-progress-source-light.png)
+
+![Injected completed Send progress, dark](site/assets/send-progress-source-dark.png)

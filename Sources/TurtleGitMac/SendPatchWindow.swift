@@ -4,6 +4,14 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+/// NSWindow ignores contentMinSize for Auto Layout content; keep the source minimum in native constraints.
+@MainActor private func constrainSendContent(_ window:NSWindow,minimum:NSSize) {
+    guard let view=window.contentView else{return}
+    let width=view.widthAnchor.constraint(greaterThanOrEqualToConstant:minimum.width),height=view.heightAnchor.constraint(greaterThanOrEqualToConstant:minimum.height)
+    width.identifier="Send.ContentMinimum.Width";height.identifier="Send.ContentMinimum.Height"
+    NSLayoutConstraint.activate([width,height])
+}
+
 struct SendPatchRow: Identifiable, Equatable { let id = UUID(); let file: URL }
 struct SendPatchRequest: Sendable {
     let files: [URL]
@@ -43,19 +51,20 @@ final class ApplicationMailContext: @unchecked Sendable {
 
 @MainActor final class SendPatchWindowModel: ObservableObject {
     enum Delivery { case mailClient, smtp }
-    @Published private(set) var rows: [SendPatchRow]
+    @Published private(set) var rows: [SendPatchRow] {didSet {catalogRevision=UUID()}}
     @Published private(set) var checked: Set<UUID>
     @Published private(set) var highlighted: Set<UUID>
     @Published var to = ""
     @Published var cc = ""
     @Published var combinedSubject = ""
     @Published var attachment: Bool
-    @Published var combine: Bool
+    @Published var combine: Bool {didSet {if oldValue != combine {formRevision=UUID()}}}
     @Published private(set) var previewSubject = ""
     @Published private(set) var previewBusy = false
-    @Published private(set) var busy = false
-    @Published private(set) var openingViewer = false
-    @Published private(set) var pendingLoads = 0
+    @Published private(set) var busy = false {didSet {if oldValue != busy {formRevision=UUID()}}}
+    @Published private(set) var openingViewer = false {didSet {if oldValue != openingViewer {formRevision=UUID()}}}
+    private(set) static var activeLoads=0
+    @Published private(set) var pendingLoads = 0 {didSet {Self.activeLoads += pendingLoads-oldValue}}
     @Published var error: String?
     let customSubject: Bool
     private let appOwnedFiles: Set<URL>
@@ -82,6 +91,31 @@ final class ApplicationMailContext: @unchecked Sendable {
     @Published var showSettings: (() -> Void)?
     var addresses: [String] { preferences.stringArray(forKey: "SendMail.Addresses") ?? [] }
     var subject: String { combine || customSubject ? combinedSubject : previewSubject }
+    private var formRevision=UUID(),catalogRevision=UUID()
+    struct FormContext:Equatable {let owner:ObjectIdentifier;let revision:UUID;let catalog:UUID}
+    var formContext:FormContext {.init(owner:ObjectIdentifier(self),revision:formRevision,catalog:catalogRevision)}
+    private func accepts(_ context:FormContext)->Bool {canInteract && context==formContext}
+    func retireForm() {formRevision=UUID();objectWillChange.send()}
+    func field<Value>(_ key:ReferenceWritableKeyPath<SendPatchWindowModel,Value>,context:FormContext)->Binding<Value> {
+        Binding(get:{self[keyPath:key]},set:{value in guard self.accepts(context) else{return};self[keyPath:key]=value})
+    }
+    func subjectBinding(context:FormContext)->Binding<String> {
+        Binding(get:{self.subject},set:{value in guard self.accepts(context),self.combine || self.customSubject else{return};self.combinedSubject=value})
+    }
+    func combineBinding(context:FormContext)->Binding<Bool> {
+        Binding(get:{self.combine},set:{value in
+            guard self.accepts(context),self.combine != value else{return}
+            self.endEditing();guard self.accepts(context) else{return};self.combine=value;self.refreshPreview()
+        })
+    }
+    func setChecked(_ ids:Set<UUID>,context:FormContext) {guard accepts(context) else{return};setChecked(ids)}
+    func setHighlighted(_ ids:Set<UUID>,context:FormContext) {guard accepts(context) else{return};setHighlighted(ids)}
+    func appendDroppedFiles(_ files:[URL],context:FormContext)->Bool {guard accepts(context) else{return false};return appendDroppedFiles(files)}
+    func openPatch(_ id:UUID,alternate:Bool=false,context:FormContext) {guard accepts(context) else{return};openPatch(id,alternate:alternate)}
+    func review(_ id:UUID,context:FormContext) {guard accepts(context) else{return};review(id)}
+    func apply(_ ids:Set<UUID>,context:FormContext) {guard accepts(context) else{return};apply(ids)}
+    func submit(context:FormContext) {guard accepts(context) else{return};submit()}
+    func settings(context:FormContext) {guard accepts(context) else{return};showSettings?()}
     var canSubmit: Bool { canInteract && onSubmit != nil }
     var canInteract: Bool { !invalidated && !submitted && !busy && !openingViewer && !childActive() }
 
@@ -188,7 +222,7 @@ final class ApplicationMailContext: @unchecked Sendable {
         for value in (options.cc + ";" + options.to).split(separator: ";") {
             let address = value.trimmingCharacters(in: .whitespaces)
             guard !address.isEmpty else { continue }
-            history.removeAll { $0 == address }; history.insert(address, at: 0)
+            history.removeAll { $0.utf8.elementsEqual(address.utf8) }; history.insert(address, at: 0)
         }
         preferences.set(Array(history.prefix(0xFFFF)), forKey: "SendMail.Addresses")
     }
@@ -260,7 +294,7 @@ final class ApplicationMailContext: @unchecked Sendable {
         }
     }
     func cancel() { guard !invalidated && !submitted && !childActive() else { return }; endEditing(); guard !invalidated && !submitted else { return }; invalidate(); close() }
-    func invalidate() { invalidated = true; previewGeneration = UUID(); previewBusy = false; previewWork?.cancel(); preparationWork?.cancel(); viewerGeneration = UUID(); viewerWork?.cancel(); viewerWork = nil; openingViewer = false }
+    func invalidate() { invalidated = true;formRevision=UUID(); previewGeneration = UUID(); previewBusy = false; previewWork?.cancel(); preparationWork?.cancel(); viewerGeneration = UUID(); viewerWork?.cancel(); viewerWork = nil; openingViewer = false }
 }
 
 @MainActor final class SendPatchWindowController: NSWindowController, NSWindowDelegate {
@@ -268,7 +302,11 @@ final class ApplicationMailContext: @unchecked Sendable {
     var onClosed: () -> Void = {}
     private var patch: PatchWindowController?
     private var reviewPreparation: ReviewPatchWorkflow?
-    private var targetPicker: NSOpenPanel?
+    private(set) var targetPicker: NSOpenPanel?
+    private var targetCancellation:OperationCancellation?
+    private(set) static var activeTargetReads=0
+    var presentTargetPanel:(NSOpenPanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void = {panel,owner,reply in panel.beginSheetModal(for:owner,completionHandler:reply)}
+    var selectedTarget:(NSOpenPanel)->URL? = {$0.url}
     private var targetGeneration = 0
     private var choosingTarget = false, retired = false
     init(files: [URL], delivery: SendPatchWindowModel.Delivery? = nil, access: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard,
@@ -277,7 +315,8 @@ final class ApplicationMailContext: @unchecked Sendable {
         model = SendPatchWindowModel(files: files, delivery: delivery, access: access, preferences: preferences, customSubject: customSubject, appOwnedFiles: appOwnedFiles)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = customSubject ? "Send Mail – TurtleGit" : "Send Patch – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 620, height: 380)
-        window.contentViewController = NSHostingController(rootView: SendPatchDialog(model: model))
+        let host=NSHostingController(rootView:SendPatchDialog(model:model).defaultAppStorage(preferences));host.sizingOptions=[]
+        window.contentViewController=host;window.setContentSize(NSSize(width:760,height:480));window.contentMinSize=NSSize(width:620,height:380);constrainSendContent(window,minimum:NSSize(width:620,height:380))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.close() }; model.endEditing = { [weak window] in window?.makeFirstResponder(nil) }; model.refreshPreview()
         model.showSettings = { [weak model] in
@@ -298,7 +337,7 @@ final class ApplicationMailContext: @unchecked Sendable {
                     let fileAccess = grants.first { $0.contains(file) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) }
                     controller.presentDocument(bytes, title: "\(file.lastPathComponent) – Unified Diff – TurtleGit", comparison: file.lastPathComponent,
                         information: "Patch document. Save As exports the original bytes until edited.", file: file, fileAccess: fileAccess)
-                    controller.onClosed = { [weak self, weak controller] in if self?.patch === controller { self?.patch = nil; self?.model.objectWillChange.send() } }
+                    controller.onClosed = { [weak self, weak controller] in if self?.patch === controller { self?.patch = nil; self?.model.retireForm() } }
                     self.patch = controller
                     if let presentation { presentation(controller) }
                     else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
@@ -311,12 +350,12 @@ final class ApplicationMailContext: @unchecked Sendable {
                     let grants = try self.model.fileGrants(for: [file])
                     if choosePatchTarget {
                         let workflow = ReviewPatchWorkflow(file: file, target: nil, grants: grants, executable: repository.executable, preferences: preferences)
-                        self.reviewPreparation = workflow; self.model.objectWillChange.send()
+                        self.reviewPreparation = workflow; self.model.retireForm()
                         workflow.presentation = { controller in
                             if let presentation { presentation(controller) }
                             else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
                         }
-                        workflow.onFinished = { [weak self] in self?.reviewPreparation = nil; self?.model.objectWillChange.send() }
+                        workflow.onFinished = { [weak self] in self?.reviewPreparation = nil; self?.model.retireForm() }
                         if let presentation { presentation(workflow) }
                         else { workflow.showWindow(nil); workflow.window?.makeKeyAndOrderFront(nil) }
                         workflow.start(); return
@@ -349,21 +388,27 @@ final class ApplicationMailContext: @unchecked Sendable {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.directoryURL = preferred
         panel.prompt = "Choose working repository"; panel.message = "Choose the working repository where these patches should be reviewed or applied."
         targetGeneration += 1; let generation = targetGeneration
-        targetPicker = panel; choosingTarget = true; model.objectWillChange.send()
-        panel.beginSheetModal(for: window) { [weak self] response in
-            guard let self, !self.retired, self.targetGeneration == generation else { return }
+        targetPicker = panel; choosingTarget = true; model.retireForm()
+        presentTargetPanel(panel,window) { [weak self,weak panel] response in
+            guard let self,let panel,!self.retired,self.targetGeneration==generation,self.targetPicker === panel else{return}
             self.targetPicker = nil
-            guard response == .OK, let directory = panel.url else { self.choosingTarget = false; self.model.objectWillChange.send(); return }
-            let lease = RepositoryAccessLease(url: directory)
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                defer { if self.targetGeneration == generation { self.choosingTarget = false; self.model.objectWillChange.send() } }
+            guard response == .OK, let directory = self.selectedTarget(panel) else { self.choosingTarget = false; self.model.retireForm(); return }
+            let lease = RepositoryAccessLease(url: directory),token=OperationCancellation()
+            self.targetCancellation=token;Self.activeTargetReads+=1
+            Task { @MainActor [self] in
+                defer {
+                    Self.activeTargetReads-=1;withExtendedLifetime(lease) {}
+                    if self.targetCancellation === token {self.targetCancellation=nil}
+                    if !self.retired,self.targetGeneration==generation {self.choosingTarget=false;self.model.retireForm()}
+                }
                 do {
+                    try token.check()
+                    if GitRuntime.isAppStoreBuild && !lease.hasSecurityScope {throw RepositoryAccessFailure.securityScopeUnavailable}
                     let candidate = GitRepository(root: directory, executable: repository.executable)
-                    let root = try await candidate.discoverRoot()
+                    let root = try await candidate.discoverRoot(cancellation:token)
                     if GitRuntime.isAppStoreBuild && (!lease.hasSecurityScope || !lease.contains(root)) { throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path) }
                     let target = GitRepository(root: root, executable: repository.executable)
-                    guard try await !target.isBare() else { throw FinderCommandFailure.selection }
+                    guard try await !target.isBare(cancellation:token) else { throw FinderCommandFailure.selection }
                     guard !self.retired, self.targetGeneration == generation else { return }
                     perform(target, lease)
                 } catch { if !self.retired, self.targetGeneration == generation { self.model.error = error.localizedDescription } }
@@ -372,7 +417,7 @@ final class ApplicationMailContext: @unchecked Sendable {
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.childActive() && PatchDocumentSession.permitOwnerClose(patch.map { [$0] } ?? []) }
     func windowWillClose(_ notification: Notification) {
-        retired = true; targetGeneration += 1
+        retired = true; targetGeneration += 1;targetCancellation?.cancel()
         if let panel = targetPicker { window?.endSheet(panel, returnCode: .cancel); panel.close() }
         targetPicker = nil; choosingTarget = false
         reviewPreparation?.cancel(); reviewPreparation = nil
@@ -414,55 +459,64 @@ final class ApplicationMailContext: @unchecked Sendable {
 struct SendPatchDialog: View {
     @ObservedObject var model: SendPatchWindowModel
     var body: some View {
+        let context=model.formContext
         VStack(spacing: 10) {
             GroupBox("Mail") {
                 VStack(spacing: 8) {
-                    HStack { Text("To:").frame(width: 60, alignment: .leading); SendPatchAddressField(value: $model.to, choices: model.addresses, label: "To addresses") }
-                    HStack { Text("CC:").frame(width: 60, alignment: .leading); SendPatchAddressField(value: $model.cc, choices: model.addresses, label: "CC addresses") }
+                    HStack { Text("To:").frame(width: 60, alignment: .leading); SendPatchAddressField(value: model.field(\.to,context:context), choices: model.addresses, label: "To addresses") }
+                    HStack { Text("CC:").frame(width: 60, alignment: .leading); SendPatchAddressField(value: model.field(\.cc,context:context), choices: model.addresses, label: "CC addresses") }
                     HStack { Text("Subject:").frame(width: 60, alignment: .leading)
-                        TextField("", text: Binding(get: { model.subject }, set: { if model.combine || model.customSubject { model.combinedSubject = $0 } })).disabled(!model.combine && !model.customSubject)
+                        TextField("", text: model.subjectBinding(context:context)).disabled(!model.combine && !model.customSubject)
                     }
                 }.padding(8)
             }.disabled(!model.canInteract)
             HStack {
-                Toggle("Patch As Attachment", isOn: $model.attachment)
-                Toggle("Combine One Mail", isOn: Binding(get: { model.combine }, set: { model.endEditing(); model.combine = $0; model.combineChanged() }))
+                Toggle("Patch As Attachment", isOn: model.field(\.attachment,context:context))
+                Toggle("Combine One Mail", isOn: model.combineBinding(context:context))
                 Spacer()
-                Button("eMail settings") { model.showSettings?() }.buttonStyle(.link).disabled(model.showSettings == nil)
+                Button("eMail settings") { model.settings(context:context) }.buttonStyle(.link).disabled(model.showSettings == nil)
             }.disabled(!model.canInteract)
             SendPatchList(model: model).disabled(!model.canInteract).frame(maxWidth: .infinity, maxHeight: .infinity)
             if let error = model.error { Text(error).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }
             HStack {
                 if model.busy || model.previewBusy || model.openingViewer { ProgressView().controlSize(.small) }
                 Spacer()
-                Button("Send") { model.submit() }.keyboardShortcut(.defaultAction).disabled(!model.canSubmit)
+                Button("Send") { model.submit(context:context) }.keyboardShortcut(.defaultAction).disabled(!model.canSubmit)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction)
-                Button("Help") { TurtleGitHelp.show(.patches) }
+                Button { TurtleGitHelp.show(.patches) } label: {CommandLabel(title:"Help",icon:.help)}
             }
         }.padding(16).frame(minWidth: 620, minHeight: 380)
     }
 }
 
+@MainActor final class SendPatchAddressCombo:NSComboBox {
+    let lifetime=TransportControlLifetime()
+    override func viewDidMoveToWindow() {super.viewDidMoveToWindow();lifetime.observe(self)}
+}
 struct SendPatchAddressField: NSViewRepresentable {
     @Binding var value: String; let choices: [String]; let label: String
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
-        let view = NSComboBox(); view.delegate = context.coordinator; view.usesDataSource = true; view.dataSource = context.coordinator; view.completes = true
+        let view = SendPatchAddressCombo(); view.delegate = context.coordinator; view.usesDataSource = true; view.dataSource = context.coordinator; view.completes = true
         view.setContentHuggingPriority(.defaultLow, for: .horizontal); return view
     }
     func updateNSView(_ view: NSComboBox, context: Context) {
+        guard (view as? SendPatchAddressCombo)?.lifetime.retired != true else{view.isEnabled=false;return}
         let c = context.coordinator; c.updating = true; defer { c.updating = false }
         c.change = { value = $0 }
-        if c.choices != choices { c.choices = choices; view.reloadData() }
-        if view.stringValue != value { view.stringValue = value }; view.isEnabled = enabled; view.setAccessibilityLabel(label)
+        if !c.choices.elementsEqual(choices,by:{$0.utf8.elementsEqual($1.utf8)}) { c.choices = choices; view.reloadData() }
+        if !view.stringValue.utf8.elementsEqual(value.utf8) { view.stringValue = value }; view.isEnabled = enabled; view.setAccessibilityLabel(label)
     }
-    final class Coordinator: NSObject, NSComboBoxDelegate, NSComboBoxDataSource {
+    static func dismantleNSView(_ view:NSComboBox,coordinator:Coordinator) {coordinator.live=false;coordinator.change={_ in};(view as? SendPatchAddressCombo)?.lifetime.retire();view.delegate=nil;view.dataSource=nil;view.isEnabled=false}
+    @MainActor final class Coordinator: NSObject, NSComboBoxDelegate, NSComboBoxDataSource {
+        var live=true
+        private func accepts(_ view:NSComboBox)->Bool {live && view.isEnabled && view.window != nil && (view as? SendPatchAddressCombo)?.lifetime.retired != true}
         var updating = false; var choices: [String] = []; var change: (String) -> Void = { _ in }
         func numberOfItems(in comboBox: NSComboBox) -> Int { choices.count }
         func comboBox(_ comboBox: NSComboBox, objectValueForItemAt index: Int) -> Any? { choices.indices.contains(index) ? choices[index] : nil }
-        func controlTextDidChange(_ notification: Notification) { guard !updating, let view = notification.object as? NSComboBox else { return }; change(view.stringValue) }
-        func comboBoxSelectionDidChange(_ notification: Notification) { guard !updating, let view = notification.object as? NSComboBox, choices.indices.contains(view.indexOfSelectedItem) else { return }; change(choices[view.indexOfSelectedItem]) }
+        func controlTextDidChange(_ notification: Notification) { guard !updating, let view = notification.object as? NSComboBox,accepts(view) else { return }; change(view.stringValue) }
+        func comboBoxSelectionDidChange(_ notification: Notification) { guard !updating, let view = notification.object as? NSComboBox,accepts(view),choices.indices.contains(view.indexOfSelectedItem) else { return }; change(choices[view.indexOfSelectedItem]) }
         func comboBox(_ comboBox: NSComboBox, completedString string: String) -> String? {
             let end = string.lastIndex(of: ";").map { string.index(after: $0) } ?? string.startIndex
             let suffix = String(string[end...]), trimmed = suffix.trimmingCharacters(in: .whitespaces)
@@ -845,7 +899,8 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
         self.model = model
         let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Send Email", preferences: model.notificationPreferences); window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 600, height: 320)
-        window.contentViewController = NSHostingController(rootView: SendPatchProgressDialog(model: model))
+        let host=NSHostingController(rootView:SendPatchProgressDialog(model:model).defaultAppStorage(model.notificationPreferences));host.sizingOptions=[]
+        window.contentViewController=host;window.setContentSize(NSSize(width:760,height:430));window.contentMinSize=NSSize(width:600,height:320);constrainSendContent(window,minimum:NSSize(width:600,height:320))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         window.escapeAction = { [weak model] in if model?.busy == true { model?.cancel() } else { model?.close() } }

@@ -106,6 +106,7 @@ private actor MailDraftProbe {
     }
     @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        let selectedGit=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_SEND_SOURCE_GIT"] ?? "/usr/bin/git")
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), suite = "TurtleGit.SendPatch.QA." + UUID().uuidString
         guard let prefs = UserDefaults(suiteName: suite) else { throw VerificationFailure(description: "No private preferences") }
         defer { prefs.removePersistentDomain(forName: suite); prefs.synchronize() }
@@ -117,16 +118,16 @@ private actor MailDraftProbe {
         do {
             var context: ApplicationMailContext? = try ApplicationMailContext()
             let directory = context!.root
-            let repository = GitRepository(root: directory)
+            let repository = GitRepository(root: directory,executable:selectedGit)
             try require(context!.permits(repository), "Owned global mail directory rejected")
-            try require(!context!.permits(GitRepository(root: root)), "Foreign sender directory accepted")
+            try require(!context!.permits(GitRepository(root: root,executable:selectedGit)), "Foreign sender directory accepted")
             context = nil
             try require(!FileManager.default.fileExists(atPath: directory.path), "Mail context leaked after release")
             var replaced: ApplicationMailContext? = try ApplicationMailContext()
             let path = replaced!.root, backup = root.appendingPathComponent("owned-mail-directory-backup")
             try FileManager.default.moveItem(at: path, to: backup)
             try FileManager.default.createDirectory(at: path, withIntermediateDirectories: false)
-            try require(!replaced!.permits(GitRepository(root: path)), "Replaced directory accepted")
+            try require(!replaced!.permits(GitRepository(root: path,executable:selectedGit)), "Replaced directory accepted")
             replaced = nil
             try require(FileManager.default.fileExists(atPath: path.path), "Release removed someone else's replacement")
             try FileManager.default.removeItem(at: path); try FileManager.default.removeItem(at: backup)
@@ -221,6 +222,8 @@ private actor MailDraftProbe {
 
         let native = SendPatchWindowModel(files: [first, second], preferences: prefs)
         let table = SendPatchTable(frame: NSRect(x: 0, y: 0, width: 650, height: 180))
+        let nativeWindow=NSWindow(contentRect:table.frame,styleMask:[.titled],backing:.buffered,defer:false)
+        nativeWindow.isReleasedWhenClosed=false;nativeWindow.contentView=table;defer {nativeWindow.close()}
         table.configure(rows: native.rows, checked: native.checked, highlighted: [native.rows[1].id])
         table.checksChanged = { native.setChecked($0) }; table.highlightChanged = { native.setHighlighted($0) }
         guard let checkbox = table.tableView(table, viewFor: table.tableColumns[0], row: 0) as? NSButton else { throw VerificationFailure(description: "No native checkbox") }
@@ -246,6 +249,8 @@ private actor MailDraftProbe {
         try require(list.checked.count == 2 && list.highlighted.isEmpty && !list.checked.contains(list.rows[0].id), "Drops check new rows without rechecking existing rows or changing highlight")
         try require(!list.appendDroppedFiles([first, newFile, root]), "Duplicate/directory-only drop ignored")
         let listTable = SendPatchTable(frame: NSRect(x: 0, y: 0, width: 650, height: 200))
+        let listWindow=NSWindow(contentRect:listTable.frame,styleMask:[.titled],backing:.buffered,defer:false)
+        listWindow.isReleasedWhenClosed=false;listWindow.contentView=listTable;defer {listWindow.close()}
         listTable.menuPreferences = prefs
         listTable.configure(rows: list.rows, checked: list.checked, highlighted: [])
         try require(listTable.contextMenuForSelection() == nil, "No highlighted rows, no context menu")
@@ -340,7 +345,9 @@ private actor MailDraftProbe {
         defer { window.close() }
         window.contentView?.layoutSubtreeIfNeeded()
         try await settle(controller.model)
-        try require(!window.isVisible && window.contentMinSize == NSSize(width: 620, height: 380), "Hidden native options host")
+        // AppKit ignores contentMinSize for Auto Layout windows; inspect the effective native constraints.
+        let minimum=window.contentView!.constraints.filter {$0.isActive && $0.relation == .greaterThanOrEqual}
+        try require(!window.isVisible && minimum.contains {$0.firstAttribute == .width && $0.constant==620} && minimum.contains {$0.firstAttribute == .height && $0.constant==380},"Hidden native options host has source minimum constraints")
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             window.appearance = NSAppearance(named: appearance); window.contentView?.layoutSubtreeIfNeeded()
             try require((window.contentView?.fittingSize.width ?? 0) > 0, "Native host layout in appearance")
@@ -433,7 +440,7 @@ private actor MailDraftProbe {
         let afterInvalid = await credentialSource.count(), finalState = await probe.state()
         try require(beforeInvalid == afterInvalid && finalState.0 == 2, "Invalid/cancelled/missing credential requests must never reach transport")
         guard CommandLine.arguments.count == 3, let port = Int(CommandLine.arguments[2]) else { throw VerificationFailure(description: "Missing private SMTP port") }
-        let repository = GitRepository(root: root)
+        let repository = GitRepository(root: root,executable:selectedGit)
         _ = try await repository.run(["init", "--quiet"])
         _ = try await repository.run(["config", "--local", "user.name", "Captured"])
         _ = try await repository.run(["config", "--local", "user.email", "sender@example.invalid"])
@@ -485,7 +492,7 @@ private actor MailDraftProbe {
         let toolRoot = root.appendingPathComponent("patch-tools"), toolFiles = root.appendingPathComponent("tool-patches")
         try FileManager.default.createDirectory(at: toolRoot, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: toolFiles, withIntermediateDirectories: true)
-        let toolsRepository = GitRepository(root: toolRoot)
+        let toolsRepository = GitRepository(root: toolRoot,executable:selectedGit)
         _ = try await toolsRepository.run(["init", "--quiet"])
         _ = try await toolsRepository.run(["config", "user.name", "Patch Tools"])
         _ = try await toolsRepository.run(["config", "user.email", "tools@example.invalid"])

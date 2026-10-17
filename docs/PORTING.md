@@ -2,6 +2,15 @@
 
 *A macOS fork of TortoiseGit*
 
+The [Send Mail source family](SEND-PATCH-PARITY.md) now connects exact native
+recipient/history controls, synchronous Combine/Subject transitions and captured
+list/form callbacks with owned target discovery and retained preparation lifetime.
+Options/progress have explicit host bounds and native minimum constraints. Four
+final-build case/engine checks pass with system/bundled Git, including independent
+loopback MIME verification; all eleven receivers and five servers are absent.
+See [the batch record](qa/send-source-family-2026-10-17.json) for the layout
+diagnosis, actual light/dark captures and physical/signed acceptance limits.
+
 The [serial-import source family](IMPORT-PATCH-PARITY.md) now uses a native
 headerless checked list with right-side source commands, colored row outcomes,
 four options, saved divider and in-pane Patch/Log tabs. Captured input/menu

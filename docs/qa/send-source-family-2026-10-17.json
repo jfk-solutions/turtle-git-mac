@@ -1,0 +1,143 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "4d74f3c0d51df3ad366b7c6e9a082201ffb9855d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source Mail/To/CC/Subject, Attachment/Combine/settings, checked patch list and Send/Cancel/Help layout",
+    "Synchronous Combine subject transition, captured native fields/list/menu/submission/settings callbacks",
+    "Native address/list retirement, checked-row identity and event epoch; original icons use supplied preferences",
+    "Exact UTF-8 address/history updates and wcscmp-equivalent accepted history deduplication",
+    "Aggregate preview/viewer/preparation Quit ownership after forced closure",
+    "One-response target chooser, scope retention, cancellation-aware discovery/bare check and retained Quit counter",
+    "Explicit options/progress bounds with native Auto Layout minimum constraints",
+    "13 newly mapped source controls; 14/14 partial static mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/send-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/send-source-minimum-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "reason": "Move source minimum after host attachment; retained property assertion still fails after Auto Layout resets contentMinSize."
+    },
+    {
+      "log": "build/qa/send-source-constraints-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "reason": "Use native width/height minimum constraints. Local AppKit NSWindow.h states contentMinSize is ignored for Auto Layout windows; verify effective constraints rather than the obsolete property assertion."
+    }
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false,
+    "reason": "Native forms, ownership, history and geometry; retained delivery workflow verifies real private-loopback configured SMTP plus injected other transports/credentials."
+  },
+  "native": {
+    "distinct_case_engine_passes": 4,
+    "final_build_case_engine_passes": 4,
+    "cases": [
+      "source",
+      "workflow"
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/send-source-native-2026-10-17.log",
+        "exit": 1,
+        "passed_case_engine_pairs": 2,
+        "failure": "Retained workflow expects contentMinSize 620x380; native hidden host reports zero."
+      },
+      {
+        "log": "build/qa/send-source-workflow-diagnostic-2026-10-17.log",
+        "exit": 1,
+        "failure": "Diagnostic confirms visible=false and contentMinSize=(0,0). No delivery result claimed from this failed receiver."
+      },
+      {
+        "log": "build/qa/send-source-native-minimum-2026-10-17.log",
+        "exit": 1,
+        "passed_case_engine_pairs": 2,
+        "failure": "Post-attachment property setting still becomes zero after layout. Correct to native minimum constraints per SDK, retaining hidden/window/layout assertions."
+      },
+      {
+        "log": "build/qa/send-source-native-constraints-2026-10-17.log",
+        "exit": 0,
+        "passed_case_engine_pairs": 4,
+        "scope": "Both final source and retained full delivery case pass with both Git engines; two owned loopback servers independently decode accepted recipient/body/attachment MIME."
+      }
+    ],
+    "fixture_changes": [
+      "Attach previously detached native list fixtures to owned hidden windows before selection/checkbox/menu events; preserve their assertions.",
+      "Allow explicit Git engine selection while keeping standalone system-Git default.",
+      "Verify native Auto Layout width/height constraints instead of contentMinSize, which AppKit ignores in this configuration."
+    ],
+    "receiver_pids": [
+      46669,
+      46688,
+      46707,
+      46762,
+      46829,
+      46854,
+      46871,
+      46978,
+      47002,
+      47019,
+      47149
+    ],
+    "smtp_server_pids": [
+      46706,
+      46761,
+      46870,
+      47018,
+      47148
+    ],
+    "independent_ps_all_absent": true,
+    "fixture_helper_paths_absent": true,
+    "cleanup": "Grouped cleanup closes owned options/progress/import/review controllers and drains aggregate Send loads/target reads. Real held target Git/sleep PIDs are checked ESRCH. Receivers are group-reaped; every private loopback server is terminated/waited in finally.",
+    "diagnostics": "Expected sandbox_extension_consume warnings remain in unsigned local fixture output; no user Keychain or public mail server was used."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/send-patch-source-light.png",
+      "width": 1520,
+      "height": 1024,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit, child windows excluded, user focus preserved. Progress acceptance is injected for these captures; real loopback delivery is separately verified."
+    },
+    {
+      "path": "docs/site/assets/send-patch-source-dark.png",
+      "width": 1520,
+      "height": 1024,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit, child windows excluded, user focus preserved. Progress acceptance is injected for these captures; real loopback delivery is separately verified."
+    },
+    {
+      "path": "docs/site/assets/send-progress-source-light.png",
+      "width": 1520,
+      "height": 924,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit, child windows excluded, user focus preserved. Progress acceptance is injected for these captures; real loopback delivery is separately verified."
+    },
+    {
+      "path": "docs/site/assets/send-progress-source-dark.png",
+      "width": 1520,
+      "height": 924,
+      "reviewed": true,
+      "method": "Unedited owned-window ScreenCaptureKit, child windows excluded, user focus preserved. Progress acceptance is injected for these captures; real loopback delivery is separately verified."
+    }
+  ],
+  "remaining": [
+    "Complete source dialog/menu/layout parity and physical keyboard/VoiceOver/popup behavior",
+    "Physical resizing, signed minimum-macOS/Finder/security-scope/Keychain/TCC acceptance",
+    "Large files/catalogs and all path/provider variants",
+    "Actual Apple Mail draft/account and public SMTP/TLS/MX interoperability",
+    "Full hosted macOS CI pass",
+    "Fresh universal preview and signed/notarized/App Store release"
+  ]
+}
