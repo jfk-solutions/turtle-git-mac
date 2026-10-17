@@ -151,7 +151,7 @@ struct RepositoryWindow: View {
         VStack(spacing: 0) {
             HStack {
                 Image(systemName: "externaldrive.fill").foregroundStyle(.secondary)
-                Text(model.root?.path ?? "No repository selected").textSelection(.enabled).lineLimit(1)
+                Text(model.root?.path ?? "No repository selected").textSelection(.enabled).lineLimit(1).id(model.root.map { Data($0.path.utf8) })
                 Spacer()
                 if model.root != nil { Label(model.branch.isEmpty ? "Unborn / detached HEAD" : model.branch, systemImage: "arrow.triangle.branch") }
                 if model.busy { ProgressView().controlSize(.small) }

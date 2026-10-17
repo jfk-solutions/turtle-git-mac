@@ -316,6 +316,7 @@ import UniformTypeIdentifiers
         self.finderWatches=finderWatches
         self.repositoryFactory=repositoryFactory;self.snapshotWriter=snapshotWriter
         self.snapshotStore=snapshotStore ?? FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) }
+        if self.snapshotStore != nil { finderStatus = "Finder cache ready" }
         monitoringEnabled=startMonitoring
         guard startMonitoring && initializePreferences else { return }
         do { if self.finderWatches==nil { self.finderWatches=try FinderWatchManager.production() };self.finderWatches?.restore() }

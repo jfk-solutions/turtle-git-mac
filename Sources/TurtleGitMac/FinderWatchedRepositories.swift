@@ -402,7 +402,7 @@ private struct FinderBackgroundServiceControls: View {
                 Button("Synchronize") { service.requestSync(manager, force: true) }
                 if service.busy { ProgressView().controlSize(.small) }
             }.disabled(!service.enabled || service.busy || manager.busy || manager.pendingOperations > 0)
-            Text(service.message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            Text(service.message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled).id(service.message)
             if let checked = service.lastChecked { Text("Status checked " + checked.formatted(date: .omitted, time: .standard)).font(.caption).foregroundStyle(.secondary) }
             if let failure = service.failure { Text(failure).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
             if let report = service.report {

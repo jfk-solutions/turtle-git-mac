@@ -33,9 +33,10 @@ Source references:
 - [Cross-process bookmark guidance](https://developer.apple.com/forums/thread/785735)
 - [NSXPCConnection signing requirement](https://developer.apple.com/documentation/foundation/nsxpcconnection/setcodesigningrequirement(_:))
 
-The existing App Group name is a development placeholder that must be provisioned
-consistently for the app, Finder extension and agent. A developer signing team,
-valid profiles and real signed user-approved registration are still required.
+The initial development placeholder has been replaced by the macOS team-qualified
+App Group shared by all three peers. See [signed Finder development](SIGNED-FINDER-DEVELOPMENT.md)
+for its signing and namespace rules. Distribution signing and the corresponding
+profile/export requirements remain separate release gates.
 App Store approval, macOS 13 signed acceptance, denied-peer XPC acceptance, additional
 shared-administration permissions, persisted cleanup retries and physical Finder
 activation remain unproven. The automated unsigned checks inspect packaging and
@@ -87,3 +88,23 @@ until the request settles. Source permissions are not rewritten by status/retry.
 Core/native scopes and repairs. Signed XPC peer acceptance, user-approved agent
 registration, physical Finder badges and App Store sandbox/distribution remain
 open; injected transport does not establish those gates.
+
+
+## Signed installed acceptance — October 17, 2026
+
+A universal AppStore-configuration Apple Development build was installed as a
+fresh app and granted only a disposable repository through native folder pickers.
+The actual app registered its embedded agent with SMAppService, transferred the
+watch permission through authenticated XPC, and received successful status reports.
+With the main app fully quit, the helper alone published a clean-file edit and
+restoration; Finder's badge changed to modified and back to normal. The helper
+was then unregistered through the native app control.
+
+SMAppService initially returned `notFound` even though its embedded files were
+present and registration subsequently succeeded. The settings status now checks
+those packaged files before calling the service missing. Read-only status changes
+also replace the selectable text's accessibility identity so it cannot retain its
+initial message. The [installed record](qa/finder-installed-2026-10-17.json) retains
+actual registration, publication and cleanup scope. Earlier unproven statements
+above describe prior checkpoints. Denied XPC peers, extra administration scopes,
+minimum supported macOS and distribution approval remain separate gates.

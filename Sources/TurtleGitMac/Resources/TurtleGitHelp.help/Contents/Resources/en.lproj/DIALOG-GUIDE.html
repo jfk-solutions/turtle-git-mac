@@ -316,11 +316,22 @@ Diff Viewer select built-in or external tools. Saved Data clears only the chosen
 category. See <a href="SAVED-DATA.html">Saved Data</a>, <a href="SSH-AUTHENTICATION.html">SSH authentication</a>,
 <a href="GIT-AUTHENTICATION.html">Git authentication</a> and <a href="PRIVACY.html">Privacy</a>.</p>
 <a name="topic-finder"></a><h2 id="finder-and-permissions">Finder and permissions</h2>
-<p>Enable the installed Finder extension in macOS before expecting its menus and
-badges. Open a repository in TurtleGit and authorize the necessary folders.
-Finder actions use the selected paths; status badges depend on the watched
-repository and published status. Signed installed-app acceptance is still pending.
-See <a href="REPOSITORY-FOLDER-ACCESS.html">repository folder access</a>.</p>
+<p>Open <strong>Settings → Icon Overlays → Manage Finder Extension…</strong> to enable the
+installed extension in macOS. The page shows its activation status when you return.
+<strong>Apply</strong> saves badge preferences; it does not activate a disabled extension.
+Open a repository in TurtleGit and authorize its folder to publish initial status.</p>
+<p>Under <strong>Icon Overlays → Watched Repositories</strong>, add folders whose status should
+stay refreshed. <strong>Refresh after TurtleGit quits</strong> enables the independent signed
+cache service. Check Status reports its actual publication or access failures;
+Synchronize transfers updated folder grants. Disabling the service stops its
+background job. The app and helper retain their own private folder permissions.</p>
+<p>Finder actions keep the selected paths. A Finder command does not grant file
+access; TurtleGit asks you to authorize a repository if no saved grant covers it.
+The signed development checkpoint verifies activation, live badges and independent
+background refresh for a disposable repository. Full command, distribution and
+minimum-macOS acceptance remain in progress. See
+<a href="REPOSITORY-FOLDER-ACCESS.html">repository folder access</a> and
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SIGNED-FINDER-DEVELOPMENT.html">signed Finder development</a>.</p>
 <p>The three-pane merge result displays removed Base records and blank conflict slots
 in alignment with Mine and Theirs. Typing in a blank conflict slot resolves that
 line while leaving neighboring conflict lines unresolved. Multiline paste inserts

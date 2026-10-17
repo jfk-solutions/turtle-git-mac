@@ -223,3 +223,25 @@ Physical Finder activation,
 actual user chooser gestures, cross-volume mounts and signed App Group/bookmark/
 App Store acceptance remain open. Windows overlay-slot/registry controls and the
 alternate Windows cache engines are still unresolved native adaptations.
+
+
+## Native extension setup and installed badges — October 17, 2026
+
+Icon Overlays now shows macOS's Finder extension activation status and a
+**Manage Finder Extension…** button using the original settings artwork. It opens
+Apple's extension management interface; applying badge preferences remains a
+separate operation. Returning to the app refreshes activation without marking the
+settings draft modified. Departed/closed page contexts and attached sheets refuse
+manager requests. Actual native control checks cover those gates and packaged
+versus missing background-service status with both Git engines.
+
+The signed installed app's page was rendered and captured below. Native automation
+could not read this page's accessibility tree, so the new button's physical OS
+manager invocation remains unverified. Actual activation was separately performed
+through System Settings: live Finder badges showed ignored, modified and normal
+states, and changed after a background refresh with the app quit. That does not
+certify every icon-set/volume/filter combination.
+
+![Actual installed Apple Development build, dark appearance; Finder extension setup](site/assets/finder-extension-setup-dark.png)
+
+See [installed evidence and limits](qa/finder-installed-2026-10-17.json).

@@ -46,10 +46,11 @@ import TurtleGitCore
         let suite = "TurtleGit.FinderControls." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
         let publication = folder.appendingPathComponent("private-group/overlay-settings.json")
-        var notifications = 0, failPublication = false
+        var notifications = 0, failPublication = false, extensionEnabled = false, extensionRequests = 0
+        var oldExtensionContext: FinderOverlaySettingsModel.FormContext?
         let overlay = FinderOverlaySettingsModel(preferences: prefs, publish: { value in
             if failPublication { throw Failure(description: "Private publication failed") }; return try value.write(to: publication)
-        }, notify: { notifications += 1 })
+        }, notify: { notifications += 1 }, extensionState: { extensionEnabled }, openExtensionManager: { extensionRequests += 1 })
         let transaction = SettingsTransaction(); defer { transaction.invalidate() }
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 660), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.alphaValue = 0; windows.append(window)
@@ -63,6 +64,14 @@ import TurtleGitCore
             try await wait { overlay.formContext.page == page }
             let context = overlay.formContext
             if page == .overlays {
+                oldExtensionContext = context
+                extensionEnabled = true; overlay.refreshExtensionStatus(context: context)
+                try require(overlay.extensionEnabled && !overlay.modified, "Extension status dirtied badge preferences")
+                overlay.manageExtension(context: context); try require(extensionRequests == 1, "Active extension manager action refused")
+                let sheet = NSWindow(contentRect: .init(x:0,y:0,width:200,height:100), styleMask:[.titled], backing:.buffered, defer:false)
+                sheet.isReleasedWhenClosed = false; windows.append(sheet); window.beginSheet(sheet, completionHandler: nil)
+                overlay.manageExtension(context: context); try require(extensionRequests == 1, "A modal child allowed extension management")
+                window.endSheet(sheet); sheet.orderOut(nil); sheet.close()
                 overlay.field(\.excludePaths, context: context).wrappedValue = "/repo/café*"
                 try await wait { transaction.modified }; transaction.apply(closeAfter: false); try await wait { !transaction.busy }
                 try require(!overlay.modified && notifications == 1, "Initial overlay Apply")
@@ -82,6 +91,8 @@ import TurtleGitCore
                 overlay.suspend(.overlays); overlay.activate(.overlays); leaving.wrappedValue = "after revisit"
                 try require(!overlay.modified, "Page revisit revived callback")
             } else if page == .handlers {
+                overlay.manageExtension(context: oldExtensionContext!); overlay.refreshExtensionStatus(context: oldExtensionContext!)
+                try require(extensionRequests == 1, "A departed overlay page retained external actions")
                 overlay.field(\.excludePaths, context: context).wrappedValue = "wrong page"
                 overlay.handler(.conflicted, context: context).wrappedValue = false
                 try require(!overlay.modified, "Handler page changed another page/core handler")
@@ -103,6 +114,13 @@ import TurtleGitCore
         failPublication = false; try require(overlay.apply() && notifications == 3 && !overlay.modified, "Shared handler/icon Apply failed")
         let retired = overlay.field(\.iconSet, context: overlay.formContext); window.close(); retired.wrappedValue = .flat
         try require(!overlay.apply() && !overlay.modified, "Closed overlay owner accepted callbacks/Apply")
+        overlay.manageExtension(context: oldExtensionContext!); try require(extensionRequests == 1, "Closed overlay owner opened System Settings")
+        let registration = FinderBackgroundService(); registration.registrationStatus = { .notFound }
+        registration.embeddedServiceAvailable = { true }; registration.updateStatus()
+        try require(registration.message == "Background service is not enabled.", "Packaged unregistered service was reported missing")
+        registration.embeddedServiceAvailable = { false }; registration.updateStatus()
+        try require(registration.message == "The background service is missing from this build.", "Actually missing service lost its diagnostic")
+        registration.retire()
         // Real private watch/cache mutations; file chooser acceptance is injected.
         let provider = Bookmarks(), access = try RepositoryAccessStore(storageURL: folder.appendingPathComponent("private/watches.json"), provider: provider)
         let cache = FinderSnapshotStore(url: folder.appendingPathComponent("private-group/status.json"))

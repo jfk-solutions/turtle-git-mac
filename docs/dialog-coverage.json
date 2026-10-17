@@ -1023,6 +1023,7 @@
       "qa_records": [
         "docs/qa/finder-control-source-family-2026-10-17.json",
         "docs/qa/finder-icons-batch-2026-10-11.json",
+        "docs/qa/finder-installed-2026-10-17.json",
         "docs/qa/network-finder-settings-batch-2026-10-11.json",
         "docs/qa/overlay-path-policy-2026-10-15.json"
       ]
@@ -1054,6 +1055,7 @@
       "qa_records": [
         "docs/qa/finder-control-source-family-2026-10-17.json",
         "docs/qa/finder-icons-batch-2026-10-11.json",
+        "docs/qa/finder-installed-2026-10-17.json",
         "docs/qa/network-finder-settings-batch-2026-10-11.json",
         "docs/qa/overlay-path-policy-2026-10-15.json"
       ]
@@ -1464,6 +1466,7 @@
       "qa_records": [
         "docs/qa/finder-control-source-family-2026-10-17.json",
         "docs/qa/finder-icons-batch-2026-10-11.json",
+        "docs/qa/finder-installed-2026-10-17.json",
         "docs/qa/network-finder-settings-batch-2026-10-11.json",
         "docs/qa/overlay-path-policy-2026-10-15.json"
       ]

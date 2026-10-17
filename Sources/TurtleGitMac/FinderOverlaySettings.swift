@@ -2,6 +2,7 @@
 import AppKit
 import SwiftUI
 import TurtleGitCore
+import FinderSync
 
 @MainActor final class FinderOverlaySettingsModel: ObservableObject {
     let settingsRegistration = UUID()
@@ -14,10 +15,16 @@ import TurtleGitCore
     private let preferences: UserDefaults
     private let publish: (FinderOverlaySettings) throws -> Bool
     private let notify: () -> Void
+    private let extensionState: () -> Bool
+    private let openExtensionManager: () -> Void
+    @Published private(set) var extensionEnabled = false
     init(preferences: UserDefaults = .standard,
          publish: @escaping (FinderOverlaySettings) throws -> Bool = { try $0.write() },
-         notify: @escaping () -> Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil) }) {
+         notify: @escaping () -> Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil) },
+         extensionState: @escaping () -> Bool = { FIFinderSyncController.isExtensionEnabled },
+         openExtensionManager: @escaping () -> Void = { FIFinderSyncController.showExtensionManagementInterface() }) {
         self.preferences = preferences; self.publish = publish; self.notify = notify
+        self.extensionState = extensionState; self.openExtensionManager = openExtensionManager
         let initial = FinderOverlaySettings.effective(defaults: preferences); draft = initial; saved = initial
     }
     enum Page: Equatable { case overlays, handlers, icons }
@@ -41,6 +48,17 @@ import TurtleGitCore
         }
     }
     private func accepts(_ context: FormContext, page: Page) -> Bool { !retired && self.page == page && context == formContext }
+    func refreshExtensionStatus(context: FormContext) {
+        guard accepts(context, page: .overlays) else { return }
+        let value = extensionState(); if extensionEnabled != value { extensionEnabled = value }
+    }
+    func manageExtension(context: FormContext) {
+        guard accepts(context, page: .overlays), let window, window.isVisible, window.attachedSheet == nil else { return }
+        openExtensionManager()
+    }
+    var extensionStatus: String {
+        extensionEnabled ? NSLocalizedString("Finder extension enabled.", comment: "") : NSLocalizedString("Finder extension disabled.", comment: "")
+    }
     func field<Value>(_ key: WritableKeyPath<FinderOverlaySettings, Value>, context: FormContext) -> Binding<Value> {
         Binding(get: { self.draft[keyPath: key] }, set: { value in
             let allowed: [AnyKeyPath]
@@ -127,6 +145,16 @@ struct FinderOverlaySettingsPage: View {
                         }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
                     }
                 } else {
+                    GroupBox("Finder Extension") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(model.extensionStatus).foregroundStyle(model.extensionEnabled ? Color.green : Color.secondary)
+                                Spacer()
+                                Button { model.manageExtension(context: context) } label: { CommandLabel(title: "Manage Finder Extension…", icon: .settings) }
+                            }
+                            Text("Enable TurtleGit in the Finder extensions list. Apply saves badge preferences; macOS controls extension activation.").font(.caption).foregroundStyle(.secondary)
+                        }.padding(10)
+                    }
                     GroupBox("Icon Overlays") {
                         VStack(alignment: .leading, spacing: 12) {
                             Toggle("Unversioned files mark parent folder as modified", isOn: model.field(\.unversionedAsModified, context: context)).disabled(model.draft.cacheMode != .standard)
@@ -159,9 +187,11 @@ struct FinderOverlaySettingsPage: View {
         .background(FinderOverlayOwnerProbe(model: model).frame(width: 0, height: 0))
         .onAppear {
             model.activate(page)
+            model.refreshExtensionStatus(context: model.formContext)
             transaction?.register("overlays", participant: .init(page: .overlays, modified: { model.modified }, validate: { model.validationError }, apply: { model.apply() }, cancel: model.cancel), registration: model.settingsRegistration)
         }
         .onDisappear { model.suspend(page) }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in model.refreshExtensionStatus(context: model.formContext) }
         .onChange(of: model.draft) { _ in transaction?.notify() }
     }
     private func badgeLabel(_ badge: FinderOverlayBadge) -> some View {

@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "883c0884775d43ae31f6e66a8536120d28d385a6",
+  "scope": "Installed Finder activation, live badges/background refresh, menu callback transport and native setup/status controls. Partial acceptance, not full shell parity.",
+  "environment": {
+    "macos": "27.0.1",
+    "signing": "Apple Development",
+    "configuration": "AppStore, universal",
+    "installed_app": "/Applications/TurtleGit for Mac.app",
+    "executable_sha256": "4e40704d4b906d02c5b3b06d66d487ce5a83791e855351d849b4a62d8ce668e8",
+    "fixture": "Disposable local Harbor repository; no remotes, account identity or credentials configured"
+  },
+  "source_inputs_sha256": {
+    "FinderSync/FinderSync.swift": "594e6de3b4145a67903a1541d8f1d55787ec54d59eb7b440422153758db37dfb",
+    "Sources/TurtleGitMac/FinderBackgroundService.swift": "722ae0bd6cafc559863df81217f70933c44d444f453f472490ed697d927648bd",
+    "Sources/TurtleGitMac/FinderOverlaySettings.swift": "53e377f9636ec4278ba156dd25a6bb3c23e7a726581fd1c73df06c0655779281",
+    "Sources/TurtleGitMac/FinderWatchedRepositories.swift": "256d4cc84d70331e0e8e05c1c7c6d469332769d7827c24e45967d4976e2db32f",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "5e20b338d330eaea571e3513dcfb701e02178131e8543d18799a52bacddc0de1",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "eb62db797bed802b10ae86edc5bb800dc26d39e4bfe625868449b8fee0745c35",
+    "scripts/test-finder-menu.py": "ae16a3c86d6825aaaf6acc911d566287790845f87a116c5a5a07e5c35bc64c1f",
+    "docs/qa/finder-control-source-native-2026-10-17.swift": "b9ad2fe17a32673a6188bc5d7c10022787d1ebf52ecc6bf47fd94b9b458af8b2"
+  },
+  "baseline": {
+    "macos": "27.0.1",
+    "source_commit": "883c0884",
+    "signing": "Apple Development; AppStore configuration; universal",
+    "installed_app": "/Applications/TurtleGit for Mac.app",
+    "baseline_app_pid": 15986,
+    "baseline_helper_pid": 16084,
+    "baseline_extension_pid": 16219,
+    "initial_user_app_preferences_and_watch_store": "not present at the inspected sandbox paths",
+    "identity_setup": "First Start cancelled; no user identity/credentials configured",
+    "observed": [
+      "Real NSOpenPanel grant for the disposable repository; actual packaged Git reads and status publication succeeded.",
+      "SMAppService initially reported notFound although the embedded agent/helper existed. Native Enable registered the helper; launchctl reported running and authenticated XPC returned zero-root then one-root status.",
+      "Watched root saved through a real folder picker. Both foreground and background status reached Updated.",
+      "Finder extension enabled through its specific System Settings sheet. Pluginkit elected the /Applications instance.",
+      "Live Finder list accessibility exposed Ignored for preview.log, Modified for README/Sources and Normal for Tests; actual TortoiseGit badge colors and toolbar artwork were visible.",
+      "Real contextual and toolbar menus were localized with source command groups. Two Show Log invocations produced no Log window, without launching another TurtleGit app. The default turtlegit URL handler resolved to the installed app; callback cause is not yet proven.",
+      "With the app fully quit, the helper alone published a normal-to-modified change and restoration; Finder Tests badge changed to Modified.",
+      "Cache helper was unregistered through the app toggle; Finder extension disabled through System Settings. Exact owned extension PID terminated after disabling; no original Finder host killed."
+    ],
+    "background": {
+      "app_pid": 15986,
+      "app_exited": true,
+      "service_pid": 16084,
+      "before": {
+        "state": "normal",
+        "updated": 813958701.480715,
+        "roots": 1
+      },
+      "after": {
+        "state": "modified",
+        "updated": 813959054.53011,
+        "roots": 1
+      },
+      "passed": true,
+      "restored_state": "normal",
+      "restore_passed": true
+    },
+    "next": "Check the changed tag-based callback and deterministic containing-app route in the refreshed signed candidate."
+  },
+  "updated_live": {
+    "app_pid": 19121,
+    "extension_pid": 19199,
+    "finder_callback": "2026-10-17 22:11:29.241 TurtleGitFinder[19199]: Finder callback received; tag: 5, represented payload present: false",
+    "action": "Actual Finder README.md context menu \u2192 TurtleGit \u2192 Zeige Log",
+    "result": "Installed app opened file-scoped Log Messages window; main reference, graph/list, Harbor root commit, README scope and Show Whole Project unchecked were visible in native accessibility state.",
+    "cause": "Finder transported the item tag but did not transport representedObject; dispatch now claims the extension-owned immutable request by tag.",
+    "routing": "Containing application URL is derived from the signed extension bundle, validated by app bundle ID, and passed explicitly to NSWorkspace with createsNewApplicationInstance=false.",
+    "setup": "New Finder Extension group and status rendered in actual signed app; native raw dark capture reviewed.",
+    "limitations": "CUA native accessibility traversal disconnected on the Overlay page; screenshot capture through ScreenCaptureKit succeeded. Physical Manage Finder Extension button invocation and updated status after returning from OS manager remain unverified."
+  },
+  "validation": {
+    "debug_build": "Terminal exit 0; build/qa/finder-installed-debug-build-2026-10-17.log",
+    "signed_universal_build": "Terminal exit 0; build/qa/finder-installed-signed-recheck-2026-10-17.log; retained SDK/compiler warnings and zero-exit/no-output command diagnostics, not a warning-free build claim",
+    "finder_menu": "Actual Swift 6 builder receiver passed, including tag-only callback, immutable payload, once-only dispatch, expired menu tags and containing-app validation; receiver 16952 reaped and independently absent",
+    "native_controls": "System Git 2.54.0 and bundled Git 2.55.0 passed; receivers 17170 and 17294 reaped and independently absent; covers activation refresh/owned context/sheet/closed-window gates and notFound classification",
+    "repair": "Initial controls fixture selected async beginSheet overload; fixture-only completionHandler:nil repair, affected controls rerun only. Passing menu/build checks were not restarted.",
+    "core": "No Core source changes; full Core suite not repeated",
+    "documentation": {
+      "localizations": "38 languages, 1281 keys; --check passed",
+      "bundled_help": "38 documents, 48 topics, 58 files; --check passed",
+      "dialog_coverage": "130 dialogs, 120 partial, 10 pending, zero certified; reconciled",
+      "website": "286 documents, zero unresolved fragments"
+    },
+    "hosted_ci": "03d15e28 run 39058837911 job 117479311724 still in progress in wrapped editor navigation at observation; current 883c macOS run pending. No restart/cancellation; full hosted pass unproven."
+  },
+  "cleanup": {
+    "owned_processes_absent": true,
+    "removed_fixture_records": {
+      "watched-repositories.json": 1,
+      "repositories.json": 1,
+      "helper_grants": 1
+    },
+    "background_service": "Unregistered through app control; launchctl reports service absent",
+    "extension": "Disabled through exact System Settings extension sheet; host exited; election restored to default",
+    "fixture_cache": "Removed via actual FinderSnapshotStore.remove(root:) preserving unrelated roots and writer invalidation",
+    "finder_window": "Original gallery view restored and owned repository window closed",
+    "application": "Quit via Cmd-Q; PIDs 19121 and 19199 independently absent; installed development app retained",
+    "grant_cleanup": "Only exact fixture recent/watch entries and matching helper grant IDs removed after all peers stopped; no bookmark bytes disclosed"
+  },
+  "remaining": [
+    "All other commands and multi-selection installed acceptance",
+    "Cold-launch request ordering and modifier gestures",
+    "macOS 13 acceptance",
+    "Additional metadata grants, denied XPC peers, network credentials and transport",
+    "Developer ID/App Store distribution export, notarization/submission",
+    "Complete dialog/layout and localization parity"
+  ]
+}

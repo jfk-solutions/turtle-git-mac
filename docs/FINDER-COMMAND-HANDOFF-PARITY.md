@@ -113,3 +113,24 @@ group counts in the historical command/LFS/settings checkpoints predate SVN,
 Daemon and patch routes. This describes routing availability, not full shell
 eligibility, native appearance or end-to-end command certification. Finder drag-
 destination menus and signed activation remain open.
+
+
+## Installed Finder transport — October 17, 2026
+
+The signed installed extension now retains immutable command requests locally and
+assigns each menu leaf a primitive numeric tag. The actual Finder callback kept
+that tag but dropped `representedObject`; this previously made commands return
+without opening a window. A tag can be claimed once, and a new menu invalidates
+the previous projection. The existing captured paths, modifiers and URL validation
+remain in force. The extension explicitly opens its own containing app rather than
+depending on whichever development build owns the URL scheme.
+
+On macOS 27.0.1, selecting **Zeige Log** for the disposable README from the real
+Finder context menu opened the installed Apple Development signed app's file-scoped
+Log window, including its graph/list and unchecked Show Whole Project control.
+The callback log confirmed `represented payload present: false`. The source-built
+menu receiver also covers tag-only callbacks, repeated/stale dispatch and app
+bundle validation. See [installed QA](qa/finder-installed-2026-10-17.json). This
+closes that observed transport failure, not acceptance of every command, cold
+launch, modifier gesture or multi-selection case. Earlier pending-activation
+statements describe their respective historical checkpoints.

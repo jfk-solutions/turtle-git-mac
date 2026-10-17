@@ -75,3 +75,15 @@ script. Embedding runs functional checks on the verified source payload before
 signing, then audits the signed copy's bytes, architecture, linkage and exact
 inheritance entitlements. The signed sandbox probe supplies the real parent for
 Lexilla's version check and Git's repository operations.
+
+
+## Installed development checkpoint
+
+The [October 17 installed check](qa/finder-installed-2026-10-17.json) additionally
+verified user activation, live badges, native agent registration, authenticated
+permission transfer and background refresh after the app quit on macOS 27.0.1.
+It found and repaired Finder's dropped menu `representedObject`; an actual
+file-context Show Log then opened the containing signed app. The disposable
+watch/recent/helper grants were removed, the agent unregistered and owned app/
+extension processes closed. This is development acceptance, not App Store export,
+minimum-version acceptance or certification of every Finder command.

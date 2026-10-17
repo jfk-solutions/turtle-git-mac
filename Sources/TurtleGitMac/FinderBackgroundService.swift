@@ -13,6 +13,11 @@ import TurtleGitCore
     private let service = SMAppService.agent(plistName: FinderCacheServiceIdentity.agentPlist)
     var registrationStatus: (() -> SMAppService.Status)?
     var exchange: ((Request) async throws -> Data?)?
+    var embeddedServiceAvailable: () -> Bool = {
+        let root = Bundle.main.bundleURL
+        return FileManager.default.fileExists(atPath: root.appendingPathComponent("Contents/Library/LaunchAgents/" + FinderCacheServiceIdentity.agentPlist).path)
+            && FileManager.default.isExecutableFile(atPath: root.appendingPathComponent("Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache").path)
+    }
     private var queued = false
     private var sentRevision: Int?
     private var reportRevision: Int?
@@ -29,7 +34,7 @@ import TurtleGitCore
         case .enabled: if report == nil { message = "Background service enabled. Check its repository status below." }
         case .requiresApproval: message = "Allow TurtleGit in System Settings → Login Items."
         case .notRegistered: message = "Background service is not enabled."
-        case .notFound: message = "The background service is missing from this build."
+        case .notFound: message = embeddedServiceAvailable() ? "Background service is not enabled." : "The background service is missing from this build."
         @unknown default: message = "Background service status is unavailable."
         }
     }

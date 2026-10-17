@@ -397,11 +397,24 @@ category. See [Saved Data](SAVED-DATA.md), [SSH authentication](SSH-AUTHENTICATI
 
 ## Finder and permissions
 
-Enable the installed Finder extension in macOS before expecting its menus and
-badges. Open a repository in TurtleGit and authorize the necessary folders.
-Finder actions use the selected paths; status badges depend on the watched
-repository and published status. Signed installed-app acceptance is still pending.
-See [repository folder access](REPOSITORY-FOLDER-ACCESS.md).
+Open **Settings → Icon Overlays → Manage Finder Extension…** to enable the
+installed extension in macOS. The page shows its activation status when you return.
+**Apply** saves badge preferences; it does not activate a disabled extension.
+Open a repository in TurtleGit and authorize its folder to publish initial status.
+
+Under **Icon Overlays → Watched Repositories**, add folders whose status should
+stay refreshed. **Refresh after TurtleGit quits** enables the independent signed
+cache service. Check Status reports its actual publication or access failures;
+Synchronize transfers updated folder grants. Disabling the service stops its
+background job. The app and helper retain their own private folder permissions.
+
+Finder actions keep the selected paths. A Finder command does not grant file
+access; TurtleGit asks you to authorize a repository if no saved grant covers it.
+The signed development checkpoint verifies activation, live badges and independent
+background refresh for a disposable repository. Full command, distribution and
+minimum-macOS acceptance remain in progress. See
+[repository folder access](REPOSITORY-FOLDER-ACCESS.md) and
+[signed Finder development](SIGNED-FINDER-DEVELOPMENT.md).
 
 The three-pane merge result displays removed Base records and blank conflict slots
 in alignment with Mine and Theirs. Typing in a blank conflict slot resolves that

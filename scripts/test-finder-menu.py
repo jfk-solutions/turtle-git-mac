@@ -531,6 +531,27 @@ import TurtleGitCore
             precondition(top.items.filter { $0.representedObject is FinderMenuCommand && FinderShellMenuLayout.action($0) != .properties }.allSatisfy { $0.title.hasPrefix("Git ") })
         }
         print("PASS Finder language family: 38 compiled locale resources, live de/fr/en/system command projection, exact payload/order/icons and literalFile filenames/patterns; private count captions and system matching.")
+
+        // The host sends a new NSMenuItem instance with primitive transport fields.
+        let dispatch = FinderMenuDispatch(), capturedTransport = FinderRequest(action: .log, paths: [folder.appendingPathComponent("README.md")])
+        let transportedMenu = NSMenu(), branch = NSMenuItem(title:"TurtleGit",action:nil,keyEquivalent:"")
+        let children = NSMenu(), leaf = NSMenuItem(title:"Log",action:#selector(MenuTarget.openAction(_:)),keyEquivalent:"")
+        leaf.representedObject = FinderMenuCommand(request:capturedTransport); children.addItem(leaf); branch.submenu = children; transportedMenu.addItem(branch)
+        dispatch.install(transportedMenu)
+        let transported = NSMenuItem(title:"Log",action:nil,keyEquivalent:""); transported.tag = leaf.tag
+        precondition(transported.representedObject == nil && transported.tag != 0)
+        leaf.representedObject = FinderMenuCommand(action:.remove,paths:[])
+        precondition(dispatch.claim(transported)?.request.url == capturedTransport.url, "A transported item lost or retargeted its immutable request")
+        precondition(dispatch.claim(transported) == nil, "A Finder popup dispatched twice")
+        dispatch.install(transportedMenu); let staleTag = leaf.tag
+        dispatch.install(transportedMenu)
+        let staleItem = NSMenuItem(title:"stale",action:nil,keyEquivalent:""); staleItem.tag = staleTag
+        precondition(dispatch.claim(staleItem) == nil, "A replaced popup's tag remained active")
+        let bundledExtension = URL(fileURLWithPath:CommandLine.arguments[3])
+        precondition(FinderMenuDispatch.containingApplication(for:bundledExtension) == bundledExtension.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent())
+        precondition(FinderMenuDispatch.containingApplication(for:folder) == nil)
+        print("PASS Finder menu transport: primitive tag-only callback, immutable owned payload, once-only dispatch, replaced menu expiry and containing-app routing; no actual launch.")
+
         for state in FileState.allCases { precondition(state.icon.image() != nil, "Badge artwork stays available") }
         print("Actual Finder menu builder: parent/action/nested-ignore/marked-compare images toggle; six selection cases preserve titles, enabled states and routing; fresh cache reset and badge artwork pass. No Finder controller/extension/window activated; signed integration and gestures remain pending.")
     }

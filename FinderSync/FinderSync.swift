@@ -1,9 +1,12 @@
 import AppKit
 import FinderSync
 import TurtleGitCore
+import os
 
 /// Finder never launches Git. Only the containing application scans repositories.
 @objc(FinderSync) final class FinderSync: FIFinderSync {
+    private let menuDispatch = FinderMenuDispatch()
+    private static let handoffLog = Logger(subsystem: "org.turtlegit.macos.finder", category: "handoff")
     private var snapshot: FinderSnapshot?
     private var badges: GitPathMap<FinderOverlayBadge> = [:]
     private var iconSet: FinderOverlayIconSet?
@@ -58,16 +61,59 @@ import TurtleGitCore
         let targetURL = controller.targetedURL()
         let paths = FinderMenuBuilder.paths(kind: menuKind, selection: selection, target: targetURL)
         let creation = paths.count == 1 ? paths.first : nil
-        return FinderMenuBuilder.make(paths: paths, snapshot: snapshot,
+        let menu = FinderMenuBuilder.make(paths: paths, snapshot: snapshot,
             settings: FinderMenuSettings.read(), comparisonMark: try? WorkingComparisonMarkSnapshot.read(),
             target: self, actionSelector: #selector(openAction(_:)), creationDirectory: creation,
             extended: NSEvent.modifierFlags.contains(.shift), toolbar: menuKind == .toolbarItemMenu,
             clipboardSources: (NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? [])
+        menuDispatch.install(menu)
+        return menu
     }
     @objc private func openAction(_ sender: NSMenuItem) {
-        guard let command = sender.representedObject as? FinderMenuCommand,
+        let carriedPayload = sender.representedObject is FinderMenuCommand
+        Self.handoffLog.notice("Finder callback received; tag: \(sender.tag, privacy: .public), represented payload present: \(carriedPayload, privacy: .public)")
+        guard let command = menuDispatch.claim(sender),
               let url = command.url(control: NSEvent.modifierFlags.contains(.control),alternate:NSEvent.modifierFlags.contains(.shift)) else { return }
-        NSWorkspace.shared.open(url)
+        guard let application = FinderMenuDispatch.containingApplication(for: Bundle(for: FinderSync.self).bundleURL) else {
+            Self.handoffLog.error("Finder containing application is unavailable")
+            return
+        }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true; configuration.createsNewApplicationInstance = false
+        NSWorkspace.shared.open([url], withApplicationAt: application, configuration: configuration) { _, error in
+            if let error { Self.handoffLog.error("Finder application handoff failed: \((error as NSError).code, privacy: .public)") }
+        }
+    }
+}
+
+/// Finder hosts the menu in another process. Keep the immutable requests in the
+/// extension and dispatch by the primitive NSMenuItem tag, not object identity.
+final class FinderMenuDispatch {
+    private var commands: [Int: FinderMenuCommand] = [:]
+    private var nextTag = 1
+    func install(_ menu: NSMenu) {
+        commands.removeAll()
+        func visit(_ menu: NSMenu) {
+            for item in menu.items {
+                if let command = item.representedObject as? FinderMenuCommand {
+                    if nextTag == Int.max { nextTag = 1; commands.removeAll() }
+                    item.tag = nextTag; commands[nextTag] = command; nextTag += 1
+                }
+                if let submenu = item.submenu { visit(submenu) }
+            }
+        }
+        visit(menu)
+    }
+    func claim(_ sender: NSMenuItem) -> FinderMenuCommand? {
+        guard let command = commands[sender.tag] else { return nil }
+        commands.removeAll()
+        return command
+    }
+    static func containingApplication(for extensionURL: URL) -> URL? {
+        guard extensionURL.pathExtension == "appex" else { return nil }
+        let application = extensionURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        guard application.pathExtension == "app", Bundle(url: application)?.bundleIdentifier == FinderCacheServiceIdentity.appIdentifier else { return nil }
+        return application
     }
 }
 

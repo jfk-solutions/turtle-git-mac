@@ -38,8 +38,8 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_RENAME` | partial-native-replacement | 6/6 mapped; 0 pending | [RENAME-PARITY](RENAME-PARITY.md), [UI-PARITY](UI-PARITY.md); 7 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REPOSITORY_BROWSER` | partial-native-replacement | 10/10 mapped; 0 pending | [HELP-PARITY](HELP-PARITY.md), [REPOSITORY-BROWSER-PARITY](REPOSITORY-BROWSER-PARITY.md); 16 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSMAIN` | partial-native-replacement | 15/16 mapped; 1 pending | [GENERAL-SETTINGS-PARITY](GENERAL-SETTINGS-PARITY.md); 3 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSOVERLAY` | partial-native-replacement | 18/23 mapped; 5 pending | [FINDER-OVERLAY-SETTINGS-PARITY](FINDER-OVERLAY-SETTINGS-PARITY.md); 4 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSOVERLAYHANDLERS` | partial-native-replacement | 7/11 mapped; 4 pending | [FINDER-OVERLAY-SETTINGS-PARITY](FINDER-OVERLAY-SETTINGS-PARITY.md); 4 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSOVERLAY` | partial-native-replacement | 18/23 mapped; 5 pending | [FINDER-OVERLAY-SETTINGS-PARITY](FINDER-OVERLAY-SETTINGS-PARITY.md); 5 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSOVERLAYHANDLERS` | partial-native-replacement | 7/11 mapped; 4 pending | [FINDER-OVERLAY-SETTINGS-PARITY](FINDER-OVERLAY-SETTINGS-PARITY.md); 5 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSPROXY` | partial-native-replacement | 14/14 mapped; 0 pending | [NETWORK-SETTINGS-PARITY](NETWORK-SETTINGS-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSMTP` | partial-native-replacement | 16/16 mapped; 0 pending | [EMAIL-SETTINGS-PARITY](EMAIL-SETTINGS-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SVNPROGRESS` | partial | 6/8 mapped; 2 pending | [REVERT-PARITY](REVERT-PARITY.md), [UI-PARITY](UI-PARITY.md); 11 QA records |
@@ -52,7 +52,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REVERT` | partial-native-replacement | 6/6 mapped; 0 pending | [REVERT-PARITY](REVERT-PARITY.md); 5 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_LFS_LOCKS` | partial-native-replacement | 6/6 mapped; 0 pending | [LFS-PARITY](LFS-PARITY.md); 19 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_STATGRAPH` | partial-native-replacement | 45/49 mapped; 4 pending | [LOG-STATISTICS-PARITY](LOG-STATISTICS-PARITY.md); 10 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_SETOVERLAYICONS` | partial-native-replacement | 5/5 mapped; 0 pending | [FINDER-OVERLAY-SETTINGS-PARITY](FINDER-OVERLAY-SETTINGS-PARITY.md); 4 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_SETOVERLAYICONS` | partial-native-replacement | 5/5 mapped; 0 pending | [FINDER-OVERLAY-SETTINGS-PARITY](FINDER-OVERLAY-SETTINGS-PARITY.md); 5 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSPROGSDIFF` | partial-native-replacement | 12/12 mapped; 0 pending | [DIFF-TOOLS-PARITY](DIFF-TOOLS-PARITY.md), [UNIFIED-DIFF-VIEWER-PARITY](UNIFIED-DIFF-VIEWER-PARITY.md); 21 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSPROGSMERGE` | partial-native-replacement | 9/9 mapped; 0 pending | [DIFF-TOOLS-PARITY](DIFF-TOOLS-PARITY.md); 10 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSLOOKANDFEEL` | partial-native-replacement | 9/9 mapped; 0 pending | [CONTEXT-MENU-SETTINGS-PARITY](CONTEXT-MENU-SETTINGS-PARITY.md); 2 QA records |
