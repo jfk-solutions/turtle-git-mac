@@ -1980,6 +1980,7 @@ struct CommitFileSort: SortComparator {
 /// selects its entire draft. Request this once per insertion, after attachment.
 struct CommitNewBranchField: NSViewRepresentable {
     @Binding var name: String
+    @AppStorage("UseCustomWordBreak") private var wordBreakMode=2
     func makeCoordinator() -> Coordinator { Coordinator(name: $name) }
     func makeNSView(context: Context) -> Field {
         let field = Field()
@@ -1994,6 +1995,7 @@ struct CommitNewBranchField: NSViewRepresentable {
         return field
     }
     func updateNSView(_ field: Field, context: Context) {
+        context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         context.coordinator.name = $name
         if !field.stringValue.utf8.elementsEqual(name.utf8) { field.stringValue = name }
         field.isEnabled = context.environment.isEnabled
@@ -2002,7 +2004,11 @@ struct CommitNewBranchField: NSViewRepresentable {
         field.focusPending = false
         field.delegate = nil
     }
-    final class Coordinator: NSObject, NSTextFieldDelegate {
+    @MainActor final class Coordinator: NSObject, NSTextFieldDelegate {
+        let wordCommands=GitInputWordCommands()
+        func control(_ control:NSControl,textView:NSTextView,doCommandBy commandSelector:Selector)->Bool {
+            wordCommands.handle(control,text:textView,selector:commandSelector,combo:false,owner:self)
+        }
         var name: Binding<String>
         init(name: Binding<String>) { self.name = name }
         func controlTextDidChange(_ notification: Notification) {
@@ -2029,6 +2035,7 @@ struct CommitNewBranchField: NSViewRepresentable {
 
 struct CommitAuthorField: NSViewRepresentable {
     @Binding var author: String
+    @AppStorage("UseCustomWordBreak") private var wordBreakMode=2
     var editable: Bool
     func makeCoordinator() -> Coordinator { Coordinator(author: $author) }
     func makeNSView(context: Context) -> NSTextField {
@@ -2041,6 +2048,7 @@ struct CommitAuthorField: NSViewRepresentable {
         return field
     }
     func updateNSView(_ field: NSTextField, context: Context) {
+        context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         context.coordinator.author = $author
         if !field.stringValue.utf8.elementsEqual(author.utf8) { field.stringValue = author }
         field.isEnabled = context.environment.isEnabled
@@ -2052,7 +2060,11 @@ struct CommitAuthorField: NSViewRepresentable {
         }
     }
     static func dismantleNSView(_ field: NSTextField, coordinator: Coordinator) { field.delegate = nil }
-    final class Coordinator: NSObject, NSTextFieldDelegate {
+    @MainActor final class Coordinator: NSObject, NSTextFieldDelegate {
+        let wordCommands=GitInputWordCommands()
+        func control(_ control:NSControl,textView:NSTextView,doCommandBy commandSelector:Selector)->Bool {
+            wordCommands.handle(control,text:textView,selector:commandSelector,combo:false,owner:self)
+        }
         var author: Binding<String>
         init(author: Binding<String>) { self.author = author }
         func controlTextDidChange(_ notification: Notification) {

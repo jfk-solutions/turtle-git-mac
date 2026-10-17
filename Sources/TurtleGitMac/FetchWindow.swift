@@ -505,6 +505,7 @@ struct FetchHistoryCombo: NSViewRepresentable {
     let label: String
     var onDelete: ((Int) -> Void)? = nil
     var onSelectionState: ((Bool) -> Void)? = nil
+    @AppStorage("UseCustomWordBreak") private var wordBreakMode=2
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
@@ -512,6 +513,7 @@ struct FetchHistoryCombo: NSViewRepresentable {
         combo.setContentHuggingPriority(.defaultLow, for: .horizontal); return combo
     }
     func updateNSView(_ combo: NSComboBox, context: Context) {
+        context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         if let owned=combo as? EditableHistoryCombo,owned.lifetime.retired {owned.delegate=nil;owned.deleteHistory=nil;owned.isEnabled=false;return}
         let coordinator = context.coordinator; coordinator.updating = true; defer { coordinator.updating = false }
         coordinator.change = { value = $0 }; coordinator.selectionState = onSelectionState
@@ -524,6 +526,10 @@ struct FetchHistoryCombo: NSViewRepresentable {
     }
     static func dismantleNSView(_ combo:NSComboBox,coordinator:Coordinator) {coordinator.live=false;(combo as? EditableHistoryCombo)?.lifetime.retire();combo.delegate=nil;combo.isEnabled=false}
     @MainActor final class Coordinator: NSObject, NSComboBoxDelegate {
+        let wordCommands=GitInputWordCommands()
+        func control(_ control:NSControl,textView:NSTextView,doCommandBy commandSelector:Selector)->Bool {
+            wordCommands.handle(control,text:textView,selector:commandSelector,combo:true,owner:self)
+        }
         var live=true
         func accepts(_ combo:NSComboBox)->Bool {live && combo.isEnabled && combo.window != nil && (combo as? EditableHistoryCombo)?.lifetime.retired != true}
         var choices: [String] = []; var updating = false; var change: (String) -> Void = { _ in }; var selectionState: ((Bool) -> Void)?

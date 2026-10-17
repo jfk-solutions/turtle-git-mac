@@ -172,3 +172,47 @@ public struct RepositoryPresentationSettings {
         return prefix + "…" + suffix
     }
 }
+
+/// URL/path stops from Utils/MiscUI/EditWordBreak.cpp. Cocoa dispatches movement
+/// directly, so the Windows USER callback-order workaround is not reproduced.
+public struct GitInputWordBreak: Sendable {
+    public let mode: UInt32
+    public init(mode: UInt32 = 2) { self.mode = mode }
+    public init(defaults: UserDefaults) {
+        mode = (defaults.object(forKey:"UseCustomWordBreak") as? NSNumber)?.uint32Value ?? 2
+    }
+    public func enabled(combo: Bool) -> Bool { mode != 0 && (!combo || mode == 2) }
+    public static func isDelimiter(_ text:[UInt16],at index:Int) -> Bool {
+        guard text.indices.contains(index) else { return false }
+        let value=text[index]
+        if [UInt16(9),10,11,12,13,32].contains(value) {
+            if value == 13 {
+                var next=index
+                while next+1<text.count && text[next] == 13 { next += 1;if text[next] == 10 { return false } }
+            }
+            return true
+        }
+        func scheme(_ offset:Int)->Bool {
+            offset>=0 && offset+2<text.count && text[offset]==58 && text[offset+1]==47 && text[offset+2]==47
+        }
+        let punctuation=(33...47).contains(value) || (58...64).contains(value) || (91...96).contains(value) || (123...126).contains(value)
+        return punctuation && !scheme(index) && !scheme(index-1)
+    }
+    public static func boundary(_ string:String,from position:Int,forward:Bool)->Int {
+        let text=Array(string.utf16);var cursor=min(max(0,position),text.count)
+        if forward {
+            while cursor<text.count && !isDelimiter(text,at:cursor) { cursor += 1 }
+            while cursor<text.count && isDelimiter(text,at:cursor) { cursor += 1 }
+        } else {
+            while cursor>0 && isDelimiter(text,at:cursor-1) { cursor -= 1 }
+            while cursor>0 && !isDelimiter(text,at:cursor-1) { cursor -= 1 }
+        }
+        // Cocoa caret positions must not split an emoji or a combining sequence.
+        let native=string as NSString
+        if cursor>0 && cursor<native.length {
+            let cluster=native.rangeOfComposedCharacterSequence(at:cursor)
+            if cluster.location<cursor { return forward ? NSMaxRange(cluster):cluster.location }
+        }
+        return cursor
+    }
+}

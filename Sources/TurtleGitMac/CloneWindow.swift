@@ -15,7 +15,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         window.minSize = NSSize(width: 780, height: 452)
         window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: 452)
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: CloneDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: CloneDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); TurtleGitHelp.attach(window, topic: .clone); window.delegate = self; model.window = window
         window.setContentSize(NSSize(width: 820, height: 420)); window.center()
         model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
@@ -402,6 +402,7 @@ struct CloneHistoryCombo: NSViewRepresentable {
     let label: String
     var onEndEditing: () -> Void = {}
     var onDelete: ((Int)->Void)? = nil
+    @AppStorage("UseCustomWordBreak") private var wordBreakMode=2
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
@@ -409,6 +410,7 @@ struct CloneHistoryCombo: NSViewRepresentable {
         combo.setContentHuggingPriority(.defaultLow, for: .horizontal); return combo
     }
     func updateNSView(_ combo: NSComboBox, context: Context) {
+        context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         let coordinator = context.coordinator; coordinator.updating = true; defer { coordinator.updating = false }
         coordinator.change = { value = $0 }; coordinator.endEditing = onEndEditing
         (combo as? EditableHistoryCombo)?.deleteHistory=onDelete
@@ -420,7 +422,11 @@ struct CloneHistoryCombo: NSViewRepresentable {
         combo.isEnabled = enabled; combo.setAccessibilityLabel(label)
     }
     static func dismantleNSView(_ combo:NSComboBox,coordinator:Coordinator) {combo.delegate=nil;(combo as? EditableHistoryCombo)?.deleteHistory=nil}
-    final class Coordinator: NSObject, NSComboBoxDelegate {
+    @MainActor final class Coordinator: NSObject, NSComboBoxDelegate {
+        let wordCommands=GitInputWordCommands()
+        func control(_ control:NSControl,textView:NSTextView,doCommandBy commandSelector:Selector)->Bool {
+            wordCommands.handle(control,text:textView,selector:commandSelector,combo:true,owner:self)
+        }
         func comboBoxWillPopUp(_ notification:Notification) {(notification.object as? EditableHistoryCombo)?.historyPopupOpen=true}
         func comboBoxWillDismiss(_ notification:Notification) {(notification.object as? EditableHistoryCombo)?.historyPopupOpen=false}
         var endEditing: () -> Void = {}

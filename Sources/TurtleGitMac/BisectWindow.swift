@@ -318,16 +318,22 @@ private struct BisectDialog: View {
 }
 private struct BisectCombo: NSViewRepresentable {
     @Binding var value: String; let choices: [String]; let label: String
+    @AppStorage("UseCustomWordBreak") private var wordBreakMode=2
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox { let view = NSComboBox(); view.delegate = context.coordinator; view.setContentHuggingPriority(.defaultLow, for: .horizontal); return view }
     func updateNSView(_ view: NSComboBox, context: Context) {
+        context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         let c = context.coordinator; c.updating = true; defer { c.updating = false }; c.enabled=enabled;c.change = { value = $0 }
         if c.choices != choices { view.removeAllItems(); view.addItems(withObjectValues: choices); c.choices = choices }
         if view.stringValue != value { view.stringValue = value }; view.isEnabled = enabled; view.setAccessibilityLabel(label)
     }
     static func dismantleNSView(_ view:NSComboBox,coordinator:Coordinator) { coordinator.enabled=false;coordinator.change={_ in};view.delegate=nil }
-    final class Coordinator: NSObject, NSComboBoxDelegate {
+    @MainActor final class Coordinator: NSObject, NSComboBoxDelegate {
+        let wordCommands=GitInputWordCommands()
+        func control(_ control:NSControl,textView:NSTextView,doCommandBy commandSelector:Selector)->Bool {
+            wordCommands.handle(control,text:textView,selector:commandSelector,combo:true,owner:self)
+        }
         var updating = false; var enabled=false; var choices: [String] = []; var change: (String) -> Void = { _ in }
         func controlTextDidChange(_ notification: Notification) { guard !updating, enabled, let view = notification.object as? NSComboBox, view.isEnabled else { return }; change(view.stringValue) }
         func comboBoxSelectionDidChange(_ notification: Notification) { guard !updating, enabled, let view = notification.object as? NSComboBox, view.isEnabled, choices.indices.contains(view.indexOfSelectedItem) else { return }; change(choices[view.indexOfSelectedItem]) }

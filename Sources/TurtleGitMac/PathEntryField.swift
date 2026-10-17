@@ -194,6 +194,12 @@ struct PathEntryField: NSViewRepresentable {
         var changed: (String) -> Void = { _ in }
         var currentText: () -> String = { "" }, mayEdit: () -> Bool = { true }
         var preferences: UserDefaults = .standard
+        let wordCommands=GitInputWordCommands()
+        func control(_ control:NSControl,textView:NSTextView,doCommandBy commandSelector:Selector)->Bool {
+            guard acceptsInput else{return false}
+            wordCommands.policy=GitInputWordBreak(defaults:preferences)
+            return wordCommands.handle(control,text:textView,selector:commandSelector,combo:false,owner:self)
+        }
         var focused = false, inserting = false
         private(set) var retired = false, choices: [String] = [], queryText = ""
         private var token: OperationCancellation?
@@ -244,4 +250,51 @@ struct PathEntryField: NSViewRepresentable {
             }
         }
     }
+}
+
+/// Owned by each field coordinator, never by a global key monitor. Native text
+/// insertion keeps field bindings, edit validation and Undo on AppKit's path.
+@MainActor final class GitInputWordCommands {
+    var policy=GitInputWordBreak()
+    private weak var editor:NSTextView?
+    private var anchor:Int?,caret:Int?
+    private var expected:NSRange?
+    private var content:Data?
+    func handle(_ control:NSControl,text:NSTextView,selector:Selector,combo:Bool,owner:NSObject)->Bool {
+        guard policy.enabled(combo:combo),control.isEnabled,let field=control as? NSTextField,
+              field.delegate as AnyObject? === owner,field.window?.isVisible == true,field.window?.isMiniaturized == false,field.window?.attachedSheet == nil,
+              field.currentEditor() === text,text.isSelectable,!text.hasMarkedText() else { reset();return false }
+        let command=NSStringFromSelector(selector)
+        let backwards=["moveWordBackward:","moveWordLeft:","moveWordBackwardAndModifySelection:","moveWordLeftAndModifySelection:","deleteWordBackward:"]
+        let forwards=["moveWordForward:","moveWordRight:","moveWordForwardAndModifySelection:","moveWordRightAndModifySelection:","deleteWordForward:"]
+        guard backwards.contains(command) || forwards.contains(command) else {reset();return false}
+        let forward=forwards.contains(command),selection=text.selectedRange(),length=text.string.utf16.count
+        guard selection.location<=length,selection.length<=length-selection.location else {reset();return false}
+        let bytes=Data(text.string.utf8)
+        if editor !== text || expected != selection || content != bytes {anchor=nil;caret=nil};editor=text;content=bytes
+        let deleting=command.hasPrefix("delete"),extending=command.contains("AndModifySelection")
+        if deleting {
+            guard field.isEditable,text.isEditable else {return false}
+            let range:NSRange
+            if selection.length>0 {range=selection}
+            else {
+                let next=GitInputWordBreak.boundary(text.string,from:selection.location,forward:forward)
+                range=NSRange(location:min(next,selection.location),length:abs(next-selection.location))
+            }
+            reset();if range.length>0 {text.insertText("",replacementRange:range)}
+            return true
+        }
+        let start:Int
+        if extending {
+            if anchor == nil {anchor=forward ? selection.location:NSMaxRange(selection);caret=forward ? NSMaxRange(selection):selection.location}
+            start=caret ?? selection.location
+        } else {anchor=nil;caret=nil;start=forward ? NSMaxRange(selection):selection.location}
+        let next=GitInputWordBreak.boundary(text.string,from:start,forward:forward)
+        let range:NSRange
+        if extending {caret=next;let fixed=anchor ?? start;range=NSRange(location:min(fixed,next),length:abs(next-fixed))}
+        else {range=NSRange(location:next,length:0)}
+        text.setSelectedRange(range);text.scrollRangeToVisible(range);expected=range
+        return true
+    }
+    func reset() {editor=nil;anchor=nil;caret=nil;expected=nil;content=nil}
 }

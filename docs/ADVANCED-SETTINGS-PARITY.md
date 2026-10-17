@@ -218,3 +218,12 @@ source default true and exact DWORD equality to 1. Actual resolution and its
 post-operation status read, Rebase state, Log/repository notifications and explicit
 F5 remain independent. The Advanced tooltip identifies the consumer. See
 [Resolve interaction](RESOLVE-PARITY.md#file-drops-source-keys-and-parent-refresh--october-16-2026).
+
+
+## URL/path input word commands — October 17, 2026
+
+[Input word navigation](INPUT-WORD-NAVIGATION.md) now consumes
+`UseCustomWordBreak` in the connected native path, Commit branch/author, Clone/
+Fetch history and Bisect revision controls. Its source plain/combo modes, Cocoa
+movement/extension/deletion, native editing and remaining standalone/mouse/locale
+scope are explicit. This supersedes the no-consumer status for those controls.

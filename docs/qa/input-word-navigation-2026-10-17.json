@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "77a04ab3",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "src/Utils/MiscUI/EditWordBreak.cpp": "edf8f7eadccacdf220c54a9c08ea7e33fc1b0c79",
+    "src/Utils/MiscUI/StandAloneDlg.h": "9318dc83e07aaefdd8890ac66ffcd4c1f7ad39b4"
+  },
+  "scope": "Source URL/path delimiter and mode policy, Cocoa word movement/selection/deletion across owned path, Commit branch/author, Clone/Fetch history and Bisect revision controls; Clone private preference root.",
+  "validation": {
+    "core": {
+      "cases": 11,
+      "failures": 0,
+      "first_run": true,
+      "suites": [
+        "GitInputWordBreakTests",
+        "AdvancedSettingsTests"
+      ],
+      "log": "build/qa/input-word-navigation-core-2026-10-17.log",
+      "details": "Six new cases cover complete ASCII classes, scheme/CR exceptions, reference/path/URL stops, source mode/default persistence, composed UTF16 caret positions at every tested offset and bounded empty/invalid movement."
+    },
+    "build": {
+      "exit_code": 0,
+      "log": "build/qa/input-word-navigation-build-2026-10-17.log",
+      "first_run": true,
+      "diagnostics": "Existing simulator, exit-zero frontend and build warnings remain; no clean-diagnostics claim."
+    },
+    "native": {
+      "passed": 8,
+      "first_grouped_run": true,
+      "log": "build/qa/input-word-navigation-native-2026-10-17.log",
+      "families": [
+        "new input navigation",
+        "retained path-editor interactions",
+        "retained Commit author fields",
+        "retained transport source forms"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "details": "Actual native fields/editors, extension reversal, delete/binding/Undo, private mode updates, readonly/marked-IME/hidden fences, Bisect fields, retained path completion/menu lifetimes, author reseeding and source Push/Fetch/Pull option/history ownership. Repository HEAD/index/config invariant checked by new receiver."
+    },
+    "owned_receiver_pids": [
+      86359,
+      86386,
+      86421,
+      86444,
+      86476,
+      86489,
+      86511,
+      86631
+    ],
+    "independently_absent": true,
+    "documentation": {
+      "documents": 284,
+      "unresolved_fragments": [],
+      "log": "build/qa/input-word-navigation-site-2026-10-17.log",
+      "localizations": "38 languages, 1240 keys; --check passed",
+      "workflow_yaml": "Psych parse passed",
+      "coverage": "130 dialogs; 120 partial family audits, 10 pending, 0 certified; 1566 mapped controls, 93 pending reviews",
+      "diff_check": "passed"
+    }
+  },
+  "limitations": [
+    "Connected controls only; arbitrary SwiftUI/standalone text fields remain separate consumers.",
+    "Mouse double-click selection, physical keyboard layouts, full VoiceOver and translated control acceptance remain open.",
+    "ASCII source classification is explicit; non-ASCII Windows CRT locale equivalence is not claimed.",
+    "No new screenshot: keyboard/input behavior changed without new dialog controls.",
+    "Signed Finder/App Store acceptance and full hosted CI remain open."
+  ]
+}
