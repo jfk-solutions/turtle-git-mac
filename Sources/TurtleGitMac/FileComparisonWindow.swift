@@ -95,8 +95,10 @@ private extension FileComparisonDocument {
         if sharedReplacementOwner == nil { replacementOwner = owner }
         try owner.replace(request, permissions: permissions, preferences: model.comparisonDefaults, window: window, previous: self)
     }
-    convenience init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String) {
-        self.init(model: FileComparisonWindowModel(repository: repository, access: access, snapshot: snapshot, path: path))
+    convenience init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String, preferences: UserDefaults = .standard, line: Int? = nil) {
+        let model = FileComparisonWindowModel(repository: repository, access: access, snapshot: snapshot, path: path)
+        model.comparisonDefaults = preferences; model.configureSourceLine(line)
+        self.init(model: model)
     }
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, conflict: ConflictBaseComparison, preferences: UserDefaults = .standard) {
         let model = FileComparisonWindowModel(repository: repository, access: access, conflict: conflict)
@@ -106,9 +108,9 @@ private extension FileComparisonDocument {
         let model = FileComparisonWindowModel(images: images, permissions: permissions); model.comparisonDefaults = preferences
         self.init(model: model)
     }
-    convenience init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease], preferences: UserDefaults = .standard, deferInitialLoad: Bool = false) {
+    convenience init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease], preferences: UserDefaults = .standard, deferInitialLoad: Bool = false, line: Int? = nil) {
         let model = FileComparisonWindowModel(comparison: comparison, permissions: permissions)
-        model.comparisonDefaults = preferences; model.initialLoadDeferred = deferInitialLoad
+        model.comparisonDefaults = preferences; model.initialLoadDeferred = deferInitialLoad; model.configureSourceLine(line)
         self.init(model: model)
     }
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, comparison: HistoricalWorkingFileComparison, permission: RepositoryAccessLease) {
@@ -220,7 +222,14 @@ private extension FileComparisonDocument {
     }
     lazy var openExternalComparison: (FileComparisonDocument, URL, [RepositoryAccessLease], Bool) async throws -> Bool = { [weak self] document, root, permissions, alternate in
         guard let self, !self.retired else { throw OperationCancellationFailure.cancelled }
-        return try await DiffToolApplication.open(document, root: root, permissions: permissions, alternate: alternate, preferences: self.comparisonDefaults, cancellation: self.loadSession?.cancellation, owner: self.window, selection: self.pendingToolSelection)
+        return try await DiffToolApplication.open(document, root: root, permissions: permissions, alternate: alternate, preferences: self.comparisonDefaults, cancellation: self.loadSession?.cancellation, owner: self.window, selection: self.pendingToolSelection, line: self.requestedSourceLine)
+    }
+    private(set) var requestedSourceLine: Int?
+    private var sourceLineApplied = false
+    private var sourceLineSelectionID: UUID?
+    func configureSourceLine(_ line: Int?) { guard !busy, document == nil, !retired else { return }; requestedSourceLine = line.flatMap { $0 > 0 ? $0 : nil } }
+    func sourceLineDidApply(_ id: UUID) {
+        if sourceLineSelectionID == id { sourceLineApplied = true; sourceLineSelectionID = nil }
     }
     func captureToolChoice(_ alternate: Bool) { guard !busy, !externalAttempted, !retired else { return }; alternateTool = alternate }
     @Published var document: FileComparisonDocument?
@@ -1096,6 +1105,7 @@ private extension FileComparisonDocument {
     }
     private var historyCaretRequests: [Bool: (generation: Int, caret: HistoryCaret)] = [:]
     func cancelDeferredNavigation() {
+        sourceLineApplied = true; sourceLineSelectionID = nil
         historyCaretRequests = [:]; initialBlockGeneration = nil; pendingLoadNavigation = false
         alignmentSelections = [:]; selectionRequest = nil
     }
@@ -1399,6 +1409,14 @@ private extension FileComparisonDocument {
                     drafts?.remapAnnotations(from: previous, to: value, base: false)
                 }
                 alignment = value; difference = -1; selectedRows = nil; inlineCache = [:]
+                if !sourceLineApplied, let line = requestedSourceLine {
+                    pendingLoadNavigation = false; initialBlockGeneration = nil
+                    let ranges = MergeSourceComparison.navigationRanges(text: draftText(base: false))
+                    if !ranges.isEmpty {
+                        let selection = AlignmentSelection(sourceRange: ranges[min(line, ranges.count) - 1], scroll: true)
+                        sourceLineSelectionID = selection.id; selections[false] = selection
+                    } else { sourceLineApplied = true }
+                }
                 alignmentSelections = selections
                 if pendingLoadNavigation {
                     pendingLoadNavigation = false
@@ -2027,6 +2045,7 @@ struct FileComparisonEditor: NSViewRepresentable {
                 let start = FileComparisonEditing.displayOffset(sourceOffset: selection.sourceRange.location, cells: cells)
                 let end = FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(selection.sourceRange), cells: cells)
                 view.setSelectedRange(NSRange(location: min(start, (view.string as NSString).length), length: max(0, min(end, (view.string as NSString).length) - min(start, (view.string as NSString).length))))
+                model.sourceLineDidApply(selection.id)
                 if selection.scroll { view.scrollRangeToVisible(view.selectedRange()) }
                 DispatchQueue.main.async { if model.alignmentSelections[base]?.id == selection.id { model.alignmentSelections.removeValue(forKey: base) } }
             }

@@ -375,7 +375,7 @@ struct DiffToolAssociationEditor: View {
     static var compareWord: (WordComparisonPreview, OperationCancellation) async throws -> Void = { try await WordComparisonAutomation.compare($0,cancellation:$1) }
     private(set) static var activeRequests = 0
     static func discardAll() { let windows = Array(inventoryWindows.values); inventoryWindows = [:]; for window in windows { window.close() }; let reports = Array(binaryWindows.values); binaryWindows = [:]; for report in reports { report.close() };let warnings=Array(excelWarnings.values);excelWarnings=[:];for warning in warnings{warning.close()}; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
-    static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool, preferences: UserDefaults = .standard, cancellation: OperationCancellation? = nil, owner: NSWindow? = nil, selection: DiffToolSelection? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> Void)? = nil) async throws -> Bool {
+    static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool, preferences: UserDefaults = .standard, cancellation: OperationCancellation? = nil, owner: NSWindow? = nil, selection: DiffToolSelection? = nil, line: Int? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> Void)? = nil) async throws -> Bool {
         try cancellation?.check()
         let chosen = try selection ?? DiffToolPreferences.load(from: preferences).selection(base: document.base.path, destination: document.destination.path, alternate: alternate)
         guard case .program(let program) = chosen else { return false }
@@ -489,7 +489,7 @@ struct DiffToolAssociationEditor: View {
             try cancellation?.check()
             let base = try file(document.base, side: "base"), mine = try file(document.destination, side: "mine")
             func revisionID(_ revision: ComparisonRevision) -> String { if case .revision(let value) = revision { return value }; return "" }
-            let arguments = try program.expandedArguments(values: ["base": base.path, "mine": mine.path, "bname": document.base.path + " : " + document.base.revision.label, "yname": document.destination.path + " : " + document.destination.revision.label, "bpath": document.base.path, "ypath": document.destination.path, "brev": revisionID(document.base.revision), "yrev": revisionID(document.destination.revision), "wtroot": root.path])
+            let arguments = try program.expandedArguments(values: ["base": base.path, "mine": mine.path, "bname": document.base.path + " : " + document.base.revision.label, "yname": document.destination.path + " : " + document.destination.revision.label, "bpath": document.base.path, "ypath": document.destination.path, "brev": revisionID(document.base.revision), "yrev": revisionID(document.destination.revision), "wtroot": root.path, "line": String(line ?? 0)])
             let configuration = NSWorkspace.OpenConfiguration(); configuration.arguments = arguments; configuration.createsNewApplicationInstance = true
             activeRequests += 1
             defer { activeRequests -= 1; withExtendedLifetime(grant) {}; withExtendedLifetime(permissions) {} }

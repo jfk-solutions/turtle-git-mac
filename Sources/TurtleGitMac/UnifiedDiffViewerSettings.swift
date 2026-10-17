@@ -12,8 +12,8 @@ import TurtleGitCore
 
 @MainActor enum UnifiedDiffApplication {
     private(set) static var activeRequests = 0
-    static func presentBuiltin(_ bytes: Data, repository: GitRepository, access: RepositoryAccessLease?, existing: PatchWindowController?, title: String, onClosed: @escaping () -> Void) -> PatchWindowController {
-        let controller = existing ?? PatchWindowController(repository: repository, access: access)
+    static func presentBuiltin(_ bytes: Data, repository: GitRepository, access: RepositoryAccessLease?, existing: PatchWindowController?, title: String, preferences: UserDefaults = .standard, onClosed: @escaping () -> Void) -> PatchWindowController {
+        let controller = existing ?? PatchWindowController(repository: repository, access: access, preferences: preferences)
         controller.presentDocument(bytes, title: "\(repository.root.lastPathComponent) – Unified Diff – TurtleGit", comparison: title,
             information: bytes.isEmpty ? "No changes in this comparison." : "Edit the patch document; Save As exports it without changing repository files.")
         controller.onClosed = onClosed

@@ -4,9 +4,114 @@ import TurtleGitCore
 @main struct PrimaryCommandsVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
-    @MainActor static func wait(_ ready: () -> Bool) async throws {
+    @MainActor static func wait(_ ready: () -> Bool, line: Int = #line) async throws {
         for _ in 0..<3000 { if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }
-        throw Failure(description:"Primary command native state did not settle")
+        throw Failure(description:"Primary command native state did not settle at \(line)")
+    }
+    @MainActor static func verifyIO() async throws {
+        let container=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),root=container.appendingPathComponent("repository")
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let repo=GitRepository(root:root,executable:git)
+        _ = try await repo.run(["init","-b","main"])
+        for (key,value) in [("user.name","Command IO QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("core.precomposeunicode","false")] {_ = try await repo.run(["config",key,value])}
+        let path="line 雪[*].txt",file=FileTransferPaths.fileURL(root.path+"/"+path)
+        try Data("first\nsecond base\nlast\n".utf8).write(to:file);try await repo.stage([path]);_ = try await repo.commit(message:"base")
+        let base=try await repo.rebaseCommit("HEAD")
+        try Data("first\nsecond committed 🦎\nlast\n".utf8).write(to:file);try await repo.stage([path]);_ = try await repo.commit(message:"second")
+        let head=try await repo.rebaseCommit("HEAD")
+        try Data("first\nsecond working 🦎\nlast\n".utf8).write(to:file)
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let suite="TurtleGit.CommandIO."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
+        defer {prefs.removePersistentDomain(forName:suite)}
+        MergeGeneralPreferences(firstDifference:false,firstConflict:false).save(to:prefs)
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in true},comparisonMarks:WorkingComparisonMarkStore(storageURL:container.appendingPathComponent("marks.json")))
+        workspace.requiresRepositoryScope=false;workspace.fileComparisonPreferences=prefs
+        workspace.commitWindowFactory={CommitWindowController(repository:$0,access:$1,defaults:prefs)}
+        let historyCache=HistoryFileCache(root:container.appendingPathComponent("history-cache"))
+        workspace.commandLineSelectionWindowFactory={repository,access,completion in LogWindowController(repository:repository,access:access,onChoose:completion,labelDefaults:prefs,savesColumnLayout:false,savesGeometry:false,historyFileCache:historyCache,loadsImmediately:false)}
+        var listGrants=0,repositoryGrants=0,outputGrants=0
+        workspace.commandLinePathListPermission={_,_ in listGrants += 1;return RepositoryAccessLease(url:container)}
+        workspace.commandLineRepositoryPermission={_ in repositoryGrants += 1;return RepositoryAccessLease(url:root)}
+        workspace.commandLineOutputPermission={_ in outputGrants += 1;return RepositoryAccessLease(url:container)}
+        defer {workspace.stopMonitoringForTermination();for window in NSApp.windows {window.close()}}
+        func windows<T>(_ type:T.Type)->[T] {NSApp.windows.filter(\.isVisible).compactMap {$0.delegate as? T}}
+        func invoke(_ args:[String]) {workspace.handleCommandLine(arguments:args,currentDirectory:root.path)}
+        let list=container.appendingPathComponent("paths.list")
+        try Data((file.path+"\n").utf8).write(to:list)
+        invoke(["/command:commit","/pathfile:"+list.path,"/deletepathfile","/logmsg:from list"])
+        try await wait {!workspace.busy && windows(CommitWindowController.self).first?.model.busy == false && RepositoryModel.activeCommandFileOperations==0}
+        let commit=windows(CommitWindowController.self).first!
+        try require(commit.model.scopePaths==[path] && commit.model.message=="from list" && listGrants==1 && repositoryGrants==1,"Path-list selection did not enter authorized Commit")
+        try require(!FileManager.default.fileExists(atPath:list.path),"Accepted deletepathfile did not remove its owned input")
+        commit.close()
+        // Accepted Log result is exactly UTF-8 hex, without a newline or BOM.
+        let output=container.appendingPathComponent("selected.hash")
+        invoke(["--command=log","--path",file.path,"--outfile",output.path,"--rev",head.hash])
+        try await wait {!workspace.busy && windows(LogWindowController.self).first?.model.busy == false}
+        let log=windows(LogWindowController.self).first!
+        try require(log.model.selecting && !log.model.selectingMultiple && log.model.historyPaths==[path],"outfile did not create the ordinary scoped single-commit picker")
+        log.model.select([head.hash]);try await wait {log.model.canAcceptSelection}
+        log.model.accept();log.model.accept()
+        try await wait {RepositoryModel.activeCommandFileOperations==0 && FileManager.default.fileExists(atPath:output.path)}
+        try require(try Data(contentsOf:output)==Data(head.hash.utf8),"Accepted Log output changed hash bytes or duplicated completion")
+        // Cancel follows upstream's empty-output protocol, including overwrite.
+        invoke(["--command=log","--path",file.path,"--outfile",output.path])
+        try await wait {!workspace.busy && windows(LogWindowController.self).first?.model.busy == false}
+        windows(LogWindowController.self).first!.close()
+        try await wait {RepositoryModel.activeCommandFileOperations==0}
+        try require(try Data(contentsOf:output).isEmpty && outputGrants==2,"Cancelled Log did not write exactly one empty result")
+        // Real built-in historical and working unified document routes.
+        invoke(["--command=diff","--path",file.path,"--startrev",base.hash,"--endrev",head.hash,"--unified"])
+        try await wait {!workspace.busy && !windows(PatchWindowController.self).isEmpty}
+        let historical=windows(PatchWindowController.self).first!
+        let historicalText=String(decoding:historical.model.exportDocument.bytes,as:UTF8.self)
+        try require(historicalText.contains("+second committed") && !historicalText.contains("+second working"),"Unified revision request lost its captured pair")
+        historical.close()
+        invoke(["--command=diff","--path",file.path,"--unified"])
+        try await wait {!workspace.busy && !windows(PatchWindowController.self).isEmpty}
+        let working=windows(PatchWindowController.self).first!
+        try require(String(decoding:working.model.exportDocument.bytes,as:UTF8.self).contains("+second working"),"Working unified request lost its patch bytes");working.close()
+        // One-based /line reaches the actual destination source line after alignment.
+        invoke(["--command=diff","--path",file.path,"--line=2"])
+        try await wait {!workspace.busy && windows(FileComparisonWindowController.self).first?.model.filtering == false && windows(FileComparisonWindowController.self).first?.model.document != nil}
+        let compare=windows(FileComparisonWindowController.self).first!
+        func editors(_ view:NSView?)->[NSTextView] {guard let view else{return []};return (view as? NSTextView).map {[$0]} ?? view.subviews.flatMap {editors($0)}}
+        try await wait {editors(compare.window?.contentView).contains {view in view.selectedRange().length>0 && (view.string as NSString).substring(with:view.selectedRange())=="second working 🦎"}}
+        try require(compare.model.requestedSourceLine==2,"Diff line was not retained for the selected tool");compare.close()
+        // Cancelled list preparation cannot delete input or start another dialog.
+        let cancelled=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        cancelled.commandLinePathListPermission={_,_ in RepositoryAccessLease(url:container)}
+        defer {cancelled.stopMonitoringForTermination()}
+        try Data((file.path+"\n").utf8).write(to:list)
+        cancelled.handleCommandLine(arguments:["/command:commit","/pathfile:"+list.path,"/deletepathfile"],currentDirectory:root.path)
+        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Quit ignored an owned command-file worker")
+        cancelled.stopMonitoringForTermination();try await wait {RepositoryModel.activeCommandFileOperations==0 && !cancelled.busy}
+        try require(FileManager.default.fileExists(atPath:list.path) && windows(CommitWindowController.self).isEmpty,"Cancelled path preparation deleted input or launched Commit")
+        // A picker can reenter the run loop. Cancelling its initiating work
+        // before a late positive grant must prevent the next dialog/write.
+        for outputPicker in [false,true] {
+            let late=RepositoryModel(startMonitoring:false,initializePreferences:false)
+            late.commandLinePathListPermission={_,_ in RepositoryAccessLease(url:container)}
+            var presentations=0
+            late.commitWindowFactory={presentations += 1;return CommitWindowController(repository:$0,access:$1,defaults:prefs)}
+            late.commandLineRepositoryPermission={_ in late.stopMonitoringForTermination();return RepositoryAccessLease(url:root)}
+            late.commandLineOutputPermission={_ in late.stopMonitoringForTermination();return RepositoryAccessLease(url:container)}
+            let lateOutput=container.appendingPathComponent("late.hash")
+            let args=outputPicker ? ["--command=log","--pathfile",list.path,"--outfile",lateOutput.path] : ["--command=commit","--pathfile",list.path]
+            late.handleCommandLine(arguments:args,currentDirectory:root.path)
+            try await wait {RepositoryModel.activeCommandFileOperations==0 && !late.busy}
+            try require(presentations==0 && windows(LogWindowController.self).isEmpty && !FileManager.default.fileExists(atPath:lateOutput.path),"A late positive file/repository grant bypassed cancellation")
+            late.stopMonitoringForTermination()
+        }
+        workspace.commandLineOutputPermission={_ in nil}
+        let refused=container.appendingPathComponent("refused.hash")
+        invoke(["/command:log","/outfile:"+refused.path])
+        try require(windows(LogWindowController.self).isEmpty && !FileManager.default.fileExists(atPath:refused.path),"Cancelled output authorization launched/wrote Log")
+        try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==index,"Command file/diff/picker routes changed real index")
+        try require(try await repo.rebaseCommit("HEAD").hash==head.hash,"Command file/diff/picker routes changed HEAD")
+        try require(try String(contentsOf:file,encoding:.utf8)=="first\nsecond working 🦎\nlast\n","Command file/diff/picker routes changed source bytes")
+        try await wait {RepositoryModel.activeCommandFileOperations==0 && LogWindowModel.activeHistoryLoads==0 && CommitWindowModel.activeReloads==0}
+        print("PASS: command file IO family: authorized exact path-list Commit and explicit input deletion; single-picker hash/Cancel output; real revision/working unified documents; native source-line selection; cancelled permissions/preparation and Quit drain; unchanged Git/source state; owned windows closed")
     }
     @MainActor static func verifyBare() async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
@@ -26,6 +131,7 @@ import TurtleGitCore
     }
     @MainActor static func main() async throws {
         NSApp.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "io" { try await verifyIO(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "bare" { try await verifyBare(); return }
         let root = URL(fileURLWithPath:CommandLine.arguments[1]), git = URL(fileURLWithPath:CommandLine.arguments[2])
         let repo = GitRepository(root:root,executable:git)

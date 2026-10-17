@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-18",
+  "scope": "Primary command path-list/Log output/unified Diff/source-line family",
+  "base_commit": "3ce7fbc7e74c38660387ea3610c5628847b8b368",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_review": [
+    "src/TortoiseProc/TortoiseProc.cpp path/pathfile exclusivity and deletepathfile after read",
+    "src/Git/TGitPath.cpp CTGitPathList::LoadFromFile/WriteToFile line-based wide-text lists",
+    "src/TortoiseProc/Commands/LogCommand.cpp outfile single picker and selected/empty hash result",
+    "src/Utils/StringUtils.cpp WriteStringToTextFile UTF-8 bytes without BOM/newline",
+    "src/TortoiseProc/Commands/DiffCommand.cpp directory/unified/line dispatch precedence"
+  ],
+  "implementation": [
+    "Bounded cancellable regular-file path-list reads with UTF-8/UTF-16 and native NUL record option, exact selection/order, input/selection exclusivity and limits",
+    "Explicit list deletion only after valid read, folder grant, cancellation check and opened identity check; symlink deletion refused",
+    "Input permissions do not authorize requested repository paths; immutable resolved invocation retains normal Finder repository dispatch",
+    "Native single Log picker writes accepted hash or empty Cancel result atomically once; output permission retained through owned worker drain and Quit gate",
+    "Late input/output/repository grant replies cannot resume cancelled path preparation",
+    "Real working/historical unified Diff uses existing coloured patch viewer or configured external viewer and captured alternative tool",
+    "One-based source line configured before Compare window construction, carried through authoritative alignment until attached native pane consumes it; explicit input cancels pending navigation; line invocations retain separate windows",
+    "External Diff templates receive line value; unified viewer gets caller preferences before construction"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "executed": 37,
+      "failures": 0,
+      "scope": "PrimaryCommandInvocationTests, FinderRequestTests, DiffToolPreferencesTests, ReferenceLogDiffTests",
+      "log": "build/qa/command-file-io-core-2026-10-18.log",
+      "full_suite": false
+    },
+    "debug_builds": [
+      {
+        "exit": 0,
+        "log": "build/qa/command-file-io-build-2026-10-18.log"
+      },
+      {
+        "exit": 0,
+        "log": "build/qa/command-file-io-build-repair-2026-10-18.log",
+        "reason": "Actual source-line construction/attached-consumption repair and post-picker cancellation fencing"
+      }
+    ],
+    "native_initial": {
+      "exit": 1,
+      "passed": [
+        "family/system",
+        "family/bundled",
+        "bare/system",
+        "bare/bundled"
+      ],
+      "failed": "io/system: generic native state timeout",
+      "log": "build/qa/command-file-io-native-2026-10-18.log"
+    },
+    "native_diagnostic_repair": {
+      "exit": 1,
+      "failed": "io/system: timeout at native fixture line 79 waiting for actual selected destination line",
+      "fixture_corrections": "Use literal --path for a filename containing *; retain all assertions and add wait call-site diagnostics",
+      "log": "build/qa/command-file-io-native-repair-2026-10-18.log"
+    },
+    "native_final_affected": {
+      "exit": 0,
+      "passed": [
+        "io/system",
+        "io/bundled"
+      ],
+      "scope": "Actual Commit path-list and input deletion, Log picker hash/Cancel output, real historical/working unified windows, native selected source line, cancelled input/output permissions, late positive grant refusal, Quit worker guard and unchanged index/HEAD/source bytes",
+      "log": "build/qa/command-file-io-native-final-2026-10-18.log"
+    },
+    "native_cumulative": {
+      "distinct_passing_case_engine_combinations": 6,
+      "runtime_attempts": 8,
+      "owned_receiver_pids": [
+        80558,
+        80931,
+        81303,
+        81318,
+        81333,
+        81649,
+        82112,
+        82364
+      ],
+      "cleanup": "All reaped by owned runner; independently absent with ps exit 1 and empty stdout",
+      "unrepaired_failures": [],
+      "unaffected_checks_repeated": false
+    },
+    "localizations": {
+      "write_exit": 0,
+      "check_exit": 0,
+      "languages": 38,
+      "keys": 1284,
+      "log": "build/qa/command-file-io-localizations-2026-10-18.log"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "not_a_completion_percentage": true
+    },
+    "site": {
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": 0,
+      "log": "build/qa/command-file-io-site-2026-10-18.log"
+    }
+  },
+  "remaining": [
+    "Other TortoiseProc commands/shared Windows switches, Resolve silent/noquestion and Diff submodule override remain explicit in COMMAND-LINE.md",
+    "Input list cap 16 MiB/4096 paths and strict path decoding are native adaptation limits; literal newline names use repeated --path or pathfile0",
+    "File-result protocol is implemented; no process-exit/result signaling claim",
+    "Physical/signed AppStore permission flows, Launch Services packaged startup and actual third-party external %line acceptance remain unverified",
+    "No full hosted CI, Finder, all-dialog visual or complete port claim; latest wrapped-editor hosted repair still needs its own result",
+    "Unmarked non-ASCII UTF-16LE without zero bytes has ambiguous auto-detection; a BOM or native UTF-8/NUL input is needed, and full source-format disambiguation remains open"
+  ]
+}

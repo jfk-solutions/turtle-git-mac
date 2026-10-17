@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The [command input/output family](COMMAND-LINE.md#path-list-input-and-log-revision-output)
+connects path-list permissions, bounded reads and explicit list deletion to native
+dialogs, adds source Log hash/Cancel output, and opens unified Diff or a requested
+source line through existing viewers. Owned workers hold grants through drain;
+remaining CLI and distribution gaps stay explicit. [Batch evidence](qa/command-file-io-2026-10-18.json)
+records 37 focused Core passes, six distinct native case/engine passes, the source-line
+startup repair, cancellation fences and all eight owned receivers reaped.
+
 The connected [Compare/Merge pane presentation work](MERGE-WRAPPING-PARITY.md#stable-native-pane-and-source-presentation-ownership--october-18-2026)
 separates native split/viewport ownership from source styling and inline ticks.
 Exact peer/source changes invalidate shared presentation caches; unchanged hosted
