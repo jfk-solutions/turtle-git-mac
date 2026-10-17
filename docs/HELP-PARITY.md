@@ -57,3 +57,15 @@ the final build and affected native fixture passed. The final log has no new
 TurtleGitHelp warning. Core was unchanged and was not rerun. Generated-help and
 website checks passed. Exact logs, repairs and scope are in
 [the checkpoint](qa/help-book-2026-10-15.json). No dialog is newly certified.
+
+
+## Bound-window close registration — October 17, 2026
+
+The [byte-editor checkpoint](qa/unified-byte-buffer-2026-10-17.json) exposed a
+private AppKit cursor-window close entering the broad Help observer after a
+fixture Undo-group consistency exception. Close notifications now register per
+bound app window and update a locked closed marker without an actor assertion.
+Context lookup/registration retires closed bindings, preserving immediate closed
+context behavior. F1 routing remains synchronous and unchanged. Existing bundled
+Help, real controller/Settings context, sheet inheritance and close checks pass;
+all physical/SDK callback combinations remain unverified.

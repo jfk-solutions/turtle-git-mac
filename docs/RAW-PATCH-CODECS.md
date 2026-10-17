@@ -29,10 +29,12 @@ without decoding and re-encoding it.
 TortoiseUDiff uses Scintilla's byte buffer, UTF-8 or Windows `GetACP()`, and writes
 that byte buffer on Save. The Mac uses native Unicode text controls and an
 explicit legacy preference in place of `GetACP()`. It is not yet a complete
-byte-editor port: editing a mixed-codec document that cannot fit its captured
-source codec is rejected. There is no standalone conversion picker, and dirty
-text containing NUL is not supported by the strict text encoder. These limits do
-not prevent unchanged exact-byte export or partial staging of supported patches.
+byte-editor port: [byte-backed document editing](UNIFIED-DIFF-BYTE-EDITING.md) now
+preserves untouched mixed-codec and opaque fragments through edits, Save/Save As,
+clipboard and Undo, including NUL. The earlier whole-document encoding rejection
+and dirty-NUL limitation describe the original checkpoint. Inserted text still
+needs to fit its affected region; there is no standalone conversion picker. See
+the newer checkpoint for remaining mapping and physical acceptance limits.
 
 ## Validation
 

@@ -631,3 +631,13 @@ and clipboard output retain the loaded source codec, with exact Unicode dirty
 checks and no-op byte preservation. See that checkpoint for native evidence and
 remaining mixed-codec editing and byte-editor limits. Earlier fixed-1252 display
 and editable-document encoding limitations above describe their dated snapshots.
+
+
+## Retained byte fragments and native document Undo — October 17, 2026
+
+[Byte-backed editing](UNIFIED-DIFF-BYTE-EDITING.md) carries mixed UTF8/regional
+regions, opaque bytes and NUL through native edits, Save/Save As, clipboard and
+Undo/Redo across saves. The document session captures immutable bytes plus their
+accepted display before any chooser/write. Earlier whole-file codepage and dirty
+NUL limitations are superseded within this documented scope; unknown projections,
+all physical Scintilla gestures and signed acceptance remain open.

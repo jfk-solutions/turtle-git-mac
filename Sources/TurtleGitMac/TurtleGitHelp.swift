@@ -75,20 +75,30 @@ enum TurtleGitHelpTopic: String, CaseIterable {
         return .main
         #endif
     }
-    private final class Binding {
-        weak var window: NSWindow?
-        let topic: TurtleGitHelpTopic
-        init(_ window: NSWindow, _ topic: TurtleGitHelpTopic) { self.window = window; self.topic = topic }
+    private final class ClosedState:@unchecked Sendable {
+        private let lock=NSLock()
+        private var value=false
+        var isClosed:Bool {lock.lock();defer {lock.unlock()};return value}
+        func close() {lock.lock();value=true;lock.unlock()}
     }
-    private static var bindings: [ObjectIdentifier: Binding] = [:]
-    private static var closeObserver: NSObjectProtocol?
-    private static var keyMonitor: Any?
-    static func install() {
-        guard closeObserver == nil else { return }
-        closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { note in
-            guard let window = note.object as? NSWindow else { return }
-            MainActor.assumeIsolated { _ = bindings.removeValue(forKey: ObjectIdentifier(window)) }
+    private final class Binding {
+        weak var window:NSWindow?
+        let topic:TurtleGitHelpTopic
+        let closed=ClosedState()
+        private var observer:NSObjectProtocol?
+        init(_ window:NSWindow,_ topic:TurtleGitHelpTopic) {
+            self.window=window;self.topic=topic
+            let state=closed
+            // Observe only registered app windows. AppKit also closes private
+            // cursor windows from framework callbacks without a Swift executor.
+            observer=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:nil) {_ in state.close()}
         }
+        deinit {if let observer {NotificationCenter.default.removeObserver(observer)}}
+    }
+    private static var bindings:[ObjectIdentifier:Binding]=[:]
+    private static var keyMonitor:Any?
+    static func install() {
+        guard keyMonitor==nil else{return}
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let handled = MainActor.assumeIsolated { handleHelpKey(event) }
             return handled ? nil : event
@@ -97,13 +107,16 @@ enum TurtleGitHelpTopic: String, CaseIterable {
     static func attach(_ window: NSWindow?, topic: TurtleGitHelpTopic) {
         guard let window else { return }
         install()
-        bindings = bindings.filter { $0.value.window != nil }
+        bindings = bindings.filter { $0.value.window != nil && !$0.value.closed.isClosed }
         bindings[ObjectIdentifier(window)] = Binding(window, topic)
     }
     static func context(_ window: NSWindow?) -> TurtleGitHelpTopic {
         var candidate = window, seen = Set<ObjectIdentifier>()
         while let current = candidate, seen.insert(ObjectIdentifier(current)).inserted {
-            if let binding = bindings[ObjectIdentifier(current)], binding.window === current { return binding.topic }
+            if let binding=bindings[ObjectIdentifier(current)],binding.window === current {
+                if !binding.closed.isClosed {return binding.topic}
+                bindings.removeValue(forKey:ObjectIdentifier(current))
+            }
             candidate = current.sheetParent ?? current.parent
         }
         return .overview

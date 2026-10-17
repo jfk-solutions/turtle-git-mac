@@ -175,6 +175,18 @@ public enum ComparisonTextEncoding: String, CaseIterable, Sendable {
               recovered.utf8.elementsEqual(text.utf8) else { throw FileComparisonEditFailure.encoding }
         return bom + bytes
     }
+    // UDiff is a byte-oriented document editor. Embedded NUL is data here;
+    // compare/merge text saves retain their existing NUL rejection above.
+    var patchBOM:Data {bom}
+    func encodePatchPayload(_ text:String) throws ->Data {
+        guard let bytes=text.data(using:codec,allowLossyConversion:false),
+              let recovered=decodePayload(bytes),recovered.utf8.elementsEqual(text.utf8) else {throw FileComparisonEditFailure.encoding}
+        return bytes
+    }
+    func decodePatchPayload(_ bytes:Data)->String? {
+        guard let text=decodePayload(bytes),text.data(using:codec,allowLossyConversion:false)==bytes else{return nil}
+        return text
+    }
     public func decode(_ bytes: Data) -> String? {
         let body = !bom.isEmpty && bytes.starts(with: bom) ? Data(bytes.dropFirst(bom.count)) : bytes
         guard let text = decodePayload(body), !text.unicodeScalars.contains(where: { $0.value == 0 }),

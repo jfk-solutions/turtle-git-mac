@@ -95,6 +95,10 @@ import UniformTypeIdentifiers
             self.window?.title = title
         }
     }
+    func acceptDocumentSave(_ source:UnifiedDiffDocument) {
+        model.markDocumentSaved(source)
+        (window as? PatchNSWindow)?.patchText?.breakUndoCoalescing()
+    }
     func windowWillClose(_ notification: Notification) {
         flashGeneration += 1; window?.contentView?.layer?.borderWidth = 0
         documentSession.retire(); model.retire()
@@ -128,6 +132,7 @@ import UniformTypeIdentifiers
     @Published private(set) var documentDirty = false
     @Published private(set) var documentResetRevision = 0
     private var savedDocument: UnifiedDiffDocument?
+    private var editBuffer:UnifiedDiffEditBuffer?
     private var approvedReplacementText: String?
     private var savedText = ""
     var savedDocumentBytes: Data { savedDocument?.bytes ?? Data() }
@@ -140,17 +145,20 @@ import UniformTypeIdentifiers
     func editDocument(_ text: String) {
         guard canEditText else { return }
         approvedReplacementText = nil
+        if editBuffer==nil,let savedDocument {editBuffer=UnifiedDiffEditBuffer(document:savedDocument)}
+        editBuffer?.replaceText(text)
         document = GitPatch(text:text,displayLegacyEncoding:document.displayLegacyEncoding); documentDirty = !GitReferenceName.equal(text,savedText)
         if !documentDirty { originalDiff = savedDocument }
         documentChanged()
     }
-    func markDocumentSaved(_ bytes: Data) {
-        savedText = document.text; savedDocument = savedDocument?.recording(bytes) ?? UnifiedDiffDocument(bytes:bytes,displayLegacyEncoding:document.displayLegacyEncoding)
-        originalDiff = savedDocument; documentDirty = false; documentChanged()
+    func markDocumentSaved(_ source:UnifiedDiffDocument) {
+        savedText=source.displayText;savedDocument=source
+        if editBuffer==nil {editBuffer=UnifiedDiffEditBuffer(document:source)} else {editBuffer?.markSaved(source)}
+        originalDiff=source;documentDirty=false;documentChanged()
     }
     @Published var selectedLines = Set<Int>()
     @Published var staged = false
-    @Published var readOnly = false { didSet { if !readOnly { originalDiff = nil } } }
+    @Published var readOnly = false { didSet { if !readOnly { originalDiff = nil;editBuffer=nil } } }
     @Published var refreshAvailable = true
     var saveDocument: () -> Void = {}
     var openDocument: () -> Void = {}
@@ -253,7 +261,7 @@ import UniformTypeIdentifiers
         guard !retired else { return }; retired = true; generation += 1
         readCancellation?.cancel(); readTask?.cancel()
         sourceAttached={false};sourceSelection = { NSRange(location: 0, length: 0) }; selectSource = { _ in }; focusSource = {}; onFindBoundary = {}
-        requestReplacement = nil; requestReload = nil; documentChanged = {}
+        requestReplacement = nil; requestReload = nil; documentChanged = {};editBuffer=nil
         saveDocument = {}; openDocument = {}; saveAs = {}; printDiff = {}; customRefresh = nil; onApplied = {}; onApplying = { _ in }; onSettled = { _ in }
         findVisible = false
     }
@@ -265,16 +273,15 @@ import UniformTypeIdentifiers
     func copyPatch(to pasteboard: NSPasteboard = .general) {
         guard !retired, !busy, !confirmingQuit else { return }
         do {
-            let source:UnifiedDiffDocument
-            if readOnly,documentDirty,let savedDocument {source=savedDocument.recording(try encodedDocumentBytes())}
-            else {source=exportDocument}
+            let source=try documentSnapshot()
             if !PatchClipboard.write(source,to:pasteboard) {error="The patch could not be copied to the clipboard."}
         } catch {self.error=error.localizedDescription}
     }
-    func encodedDocumentBytes() throws ->Data {
-        if readOnly,documentDirty,let savedDocument {return try savedDocument.encodedEdits(document.text)}
-        return exportDocument.bytes
+    func documentSnapshot() throws ->UnifiedDiffDocument {
+        if readOnly,documentDirty,let editBuffer {return try editBuffer.snapshot()}
+        return exportDocument
     }
+    func encodedDocumentBytes() throws ->Data {try documentSnapshot().bytes}
     func setReadOnlyDiff(_ bytes: Data, discardingEdits: Bool = false,displayLegacyEncoding:ComparisonTextEncoding? = nil) {
         guard !retired else { return }
         let legacy=displayLegacyEncoding ?? .legacyEncoding(from:appearancePreferences)
@@ -282,7 +289,7 @@ import UniformTypeIdentifiers
         approvedReplacementText = nil
         let source = UnifiedDiffDocument(bytes:bytes,displayLegacyEncoding:legacy)
         readOnly = true; document = GitPatch(text:source.displayText,displayLegacyEncoding:legacy); originalDiff = source
-        savedText = document.text; savedDocument = source; documentDirty = false; documentResetRevision += 1; documentChanged()
+        savedText = document.text; savedDocument = source; editBuffer=allowsDocumentEditing ? UnifiedDiffEditBuffer(document:source):nil; documentDirty = false; documentResetRevision += 1; documentChanged()
     }
     var canApplyLines: Bool { !retired && !readOnly && !busy && !confirmingQuit && selectedLines.contains(where: { document.changedLine($0) }) }
     var canApplyHunks: Bool { !retired && !readOnly && !busy && !confirmingQuit && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }

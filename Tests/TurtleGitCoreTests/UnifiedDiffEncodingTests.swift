@@ -25,7 +25,7 @@ final class UnifiedDiffEncodingTests:XCTestCase {
         XCTAssertEqual(source.displayText,"+日本語\n-исходный\n")
         XCTAssertEqual(source.recording(bytes).displayText,source.displayText)
         XCTAssertEqual(try source.encodedEdits(source.displayText),bytes)
-        XCTAssertThrowsError(try source.encodedEdits(source.displayText+"+edit\n"))
+        XCTAssertEqual(try source.encodedEdits(source.displayText+"+edit\n"),bytes+Data("+edit\n".utf8))
     }
     func testSavedRegionalCodecSurvivesBytesThatAlsoFormValidUTF8() throws {
         let source=UnifiedDiffDocument(bytes:try ComparisonTextEncoding.windows1251.encode("+старое\n"),displayLegacyEncoding:.windows1251)

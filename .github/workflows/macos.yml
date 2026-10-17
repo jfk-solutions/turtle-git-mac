@@ -403,6 +403,8 @@ jobs:
         run: python3 scripts/test-merge-regex-source.py
       - name: Native Encoding source sheet and editor transactions
         run: python3 scripts/test-merge-format-source.py
+      - name: Native byte-backed unified diff editing Save and Undo
+        run: python3 scripts/test-unified-byte-buffer.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native exact patch rename recovery and import provider paths
         run: python3 scripts/test-patch-path-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native raw patch codecs and editable document workflows

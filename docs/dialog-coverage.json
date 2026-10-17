@@ -333,7 +333,8 @@
         "docs/qa/merge-open-2026-10-12.json",
         "docs/qa/merge-open-lifecycle-2026-10-12.json",
         "docs/qa/merge-open-source-family-2026-10-17.json",
-        "docs/qa/merge-patch-open-2026-10-14.json"
+        "docs/qa/merge-patch-open-2026-10-14.json",
+        "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },
     {
@@ -961,7 +962,8 @@
         "docs/qa/repository-browser-paths-2026-10-16.json",
         "docs/qa/repository-browser-revert-2026-10-05.json",
         "docs/qa/repository-browser-submodule-2026-10-05.json",
-        "docs/qa/repository-browser-table-2026-10-13.json"
+        "docs/qa/repository-browser-table-2026-10-13.json",
+        "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },
     {
@@ -2297,7 +2299,8 @@
         "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/transport-preparation-2026-10-14.json",
         "docs/qa/transport-presentation-2026-10-15.json",
-        "docs/qa/transport-source-family-2026-10-17.json"
+        "docs/qa/transport-source-family-2026-10-17.json",
+        "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },
     {
@@ -2346,7 +2349,8 @@
         "docs/qa/transport-pickers-2026-10-15.json",
         "docs/qa/transport-preparation-2026-10-14.json",
         "docs/qa/transport-presentation-2026-10-15.json",
-        "docs/qa/transport-source-family-2026-10-17.json"
+        "docs/qa/transport-source-family-2026-10-17.json",
+        "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },
     {
@@ -2444,7 +2448,8 @@
         "docs/qa/switch-pickers-2026-10-09.json",
         "docs/qa/switch-progress-2026-10-08.json",
         "docs/qa/switch-source-family-2026-10-17.json",
-        "docs/qa/temporary-files-2026-10-08.json"
+        "docs/qa/temporary-files-2026-10-08.json",
+        "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },
     {
@@ -2475,7 +2480,8 @@
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
-        "docs/qa/temporary-files-2026-10-08.json"
+        "docs/qa/temporary-files-2026-10-08.json",
+        "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },
     {
@@ -2531,6 +2537,7 @@
         "docs/qa/review-lifecycle-2026-10-13.json",
         "docs/qa/save-as-targets-2026-10-15.json",
         "docs/qa/send-patch-tools-2026-10-10.json",
+        "docs/qa/unified-byte-buffer-2026-10-17.json",
         "docs/qa/working-tree-patch-2026-10-08.json"
       ]
     },
@@ -2825,7 +2832,8 @@
         "docs/qa/structural-merge-edit-2026-10-13.json",
         "docs/qa/structural-order-2026-10-13.json",
         "docs/qa/structural-squash-2026-10-13.json",
-        "docs/qa/temporary-files-2026-10-08.json"
+        "docs/qa/temporary-files-2026-10-08.json",
+        "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },
     {
@@ -2943,7 +2951,8 @@
         "docs/qa/submodule-add-progress-styling-2026-10-09.json",
         "docs/qa/submodule-add-progress-window-2026-10-09.json",
         "docs/qa/submodule-path-identities-2026-10-17.json",
-        "docs/qa/submodule-source-family-2026-10-17.json"
+        "docs/qa/submodule-source-family-2026-10-17.json",
+        "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },
     {
@@ -3036,7 +3045,8 @@
       "qa_records": [
         "docs/qa/help-book-2026-10-15.json",
         "docs/qa/send-mail-cancellation-2026-10-13.json",
-        "docs/qa/send-source-family-2026-10-17.json"
+        "docs/qa/send-source-family-2026-10-17.json",
+        "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },
     {
@@ -3531,7 +3541,8 @@
         "docs/qa/reference-switch-transaction-2026-10-09.json",
         "docs/qa/reference-tracking-2026-10-09.json",
         "docs/qa/remote-tags-2026-10-09.json",
-        "docs/qa/rename-reference-management-2026-10-14.json"
+        "docs/qa/rename-reference-management-2026-10-14.json",
+        "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },
     {

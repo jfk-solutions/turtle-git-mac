@@ -1,0 +1,122 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "7ac0327d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "src/TortoiseUDiff/MainWindow.cpp": "fc1d4053019e4b8bc5c2a1c08837d19c7c506751"
+  },
+  "scope": "Byte-backed standalone UDiff edits, immutable Save/Save As and clipboard snapshots, NUL/opaque retention and byte Undo/Redo across saves; bound-window Help close lifetime.",
+  "implemented": [
+    "Retained original byte fragments with regional/UTF8/carrier/malformed UTF8 mapping and lazy strictly encoded insertions",
+    "Captured BOM and fragment code pages, source text savepoints, scalar/UTF16 edit boundaries and immutable byte/presentation snapshots",
+    "Reversible byte edit tape supporting coalesced native Undo/Redo across saves without an arbitrary small history limit",
+    "Embedded NUL accepted only by patch document encoding; compare/merge binary boundary remains unchanged",
+    "Native save snapshot, clipboard output, saved presentation and source typing-coalescence boundary; replaced/retired documents release edit tape",
+    "Per-bound-window locked Help close state, avoiding broad framework-window actor assertions while preserving immediate closed context"
+  ],
+  "validation": {
+    "core": {
+      "log": "build/qa/unified-byte-buffer-core-2026-10-17.log",
+      "cases": 30,
+      "failures": 0,
+      "first_run": true,
+      "suites": [
+        "UnifiedDiffEditBufferTests",
+        "UnifiedDiffEncodingTests",
+        "UnifiedDiffViewerTests",
+        "GitPatchTests"
+      ],
+      "details": "Nine new cases include 22 codec/NUL variants, 261 malformed UTF8 byte-segment variants with nonzero Data indices, mixed region edits, exact Unicode/ambiguous legacy saves, immutable snapshots and byte history through saved/coalesced/branched/256-step Undo. Loop variants are not counted as separate XCTest cases."
+    },
+    "builds": [
+      {
+        "log": "build/qa/unified-byte-buffer-build-2026-10-17.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/unified-byte-buffer-savepoint-build-2026-10-17.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/unified-byte-buffer-close-build-2026-10-17.log",
+        "exit_code": 0
+      }
+    ],
+    "native": {
+      "log": "build/qa/unified-byte-buffer-final-native-2026-10-17.log",
+      "passed": 9,
+      "cases": [
+        "byte buffer system Git",
+        "byte buffer bundled Git",
+        "retained document system Git",
+        "retained partial system Git",
+        "retained handoffs system Git",
+        "retained document bundled Git",
+        "retained partial bundled Git",
+        "retained handoffs bundled Git",
+        "retained contextual Help"
+      ],
+      "details": "Actual native mixed Japanese UTF8/Russian CP1251 and opaque/NUL edits, exact byte/plain clipboard, held Save As and changed preference/stale input fences, Undo/Redo across saves, opaque byte deletion/restoration, replacement Cancel, retired chooser/write refusal and unchanged HEAD/raw index. Retained document/staging/handoff and 48-topic Help/controller/Settings/F1/sheet/close cases."
+    },
+    "owned_receiver_pids": [
+      77040,
+      77113,
+      77293,
+      77367,
+      77421,
+      77669,
+      77752,
+      77767,
+      77803,
+      77818,
+      78107,
+      78262,
+      78275,
+      78562,
+      78730
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/unified-byte-buffer-light.png",
+        "sha256": "64b335275d6cf3f149929c80acd4ca4cc39a8804a03b3689422a70aa6b8c909f",
+        "width": 1800,
+        "height": 1584,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/unified-byte-buffer-dark.png",
+        "sha256": "93eb154d77b67f65f1ef4f9f4cbd0dbe699fd99a93a4a92136a74364e0a5a498",
+        "width": 1800,
+        "height": 1584,
+        "individually_viewed": true
+      }
+    ]
+  },
+  "native_failure_logs": [
+    "build/qa/unified-byte-buffer-native-2026-10-17.log",
+    "build/qa/unified-byte-buffer-undo-diagnostic-2026-10-17.log",
+    "build/qa/unified-byte-buffer-savepoint-native-2026-10-17.log",
+    "build/qa/unified-byte-buffer-opaque-diagnostic-2026-10-17.log",
+    "build/qa/unified-byte-buffer-event-native-2026-10-17.log",
+    "build/qa/unified-byte-buffer-close-native-2026-10-17.log"
+  ],
+  "failures_and_repairs": [
+    "Initial fixture expected one edit per Undo; native direct commands were coalesced. Diagnostic confirmed exact original-byte restoration. The fixture now accepts only exact captured native history states, with Core checks covering individual and coalesced byte operations.",
+    "Save completes through the owner and ends native text typing coalescence without discarding Undo; the existing AppKit event group can still contain several directly scripted actions.",
+    "An attempted fixture repair manually ended automatic Undo event groups. AppKit reported NSInternalInconsistencyException in _prepareEventGrouping/_endTopLevelGroupings. The earlier attempt then crashed (receiver 77421, SIGSEGV) in MainActor.assumeIsolated from Help close notification while a TUINS cursor window closed. Manual group manipulation was removed. Help now observes only bound app windows and marks close state with a lock. No all-SDK executor root-cause claim.",
+    "Receiver 77669 remained idle after the consistency exception. Its live PID was sampled and PID-filtered system logs inspected; it was explicitly terminated and reaped. Diagnostic logs are build/qa/unified-byte-buffer-owned-sample-2026-10-17.txt and unified-byte-buffer-owned-system-log-2026-10-17.txt.",
+    "Final nine native cases pass. No Core rerun followed native-only save-boundary, Help lifetime or fixture changes."
+  ],
+  "remaining": [
+    "Unrepresentable region insertions/unknown partial display mappings are refused; no standalone conversion picker",
+    "Same-text replacement of an opaque projection retains original bytes; explicit byte conversion remains open",
+    "All codepage byte mappings, ambiguous mixed-codec reopen behavior, full Scintilla gestures/control glyphs, physical print/accessibility and layout acceptance",
+    "Physical Finder, signed sandbox/App Store and a complete current hosted CI result"
+  ],
+  "notes": [
+    "Both final raw captures were individually inspected. Mixed regional/Unicode text and source colors are visible; opaque controls remain nonprinting and title chrome is inactive. No complete visual parity claim.",
+    "Existing outdated Simulator/exit-zero compiler and other diagnostics remain; successful exit codes do not certify clean diagnostics.",
+    "All failed/diagnostic/final receiver PIDs were independently absent. No unrelated applications were terminated."
+  ]
+}

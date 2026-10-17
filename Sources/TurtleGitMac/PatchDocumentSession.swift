@@ -222,8 +222,10 @@ import UniformTypeIdentifiers
         guard !retired, let owner, !owner.model.busy, let window = owner.window, window.attachedSheet == nil else { return false }
         Self.activeOperations += 1
         defer { Self.activeOperations -= 1 }
-        let request = generation, snapshot: Data
-        do { snapshot = try encodedBytes() } catch { owner.model.error = error.localizedDescription; return false }
+        let request = generation, snapshot: UnifiedDiffDocument
+        do { snapshot = try owner.model.documentSnapshot() }
+        catch FileComparisonEditFailure.encoding {owner.model.error=Failure.encoding.localizedDescription;return false}
+        catch { owner.model.error = error.localizedDescription; return false }
         owner.model.busy = true
         defer { owner.model.busy = false }
         let target: URL?, access: RepositoryAccessLease?
@@ -240,11 +242,11 @@ import UniformTypeIdentifiers
             try await Task.detached {
                 try token.check()
                 if let expected, try Data(contentsOf: target) != expected { throw Failure.changed }
-                try token.check(); try snapshot.write(to: target, options: .atomic)
+                try token.check(); try snapshot.bytes.write(to: target, options: .atomic)
             }.value
             guard !retired, generation == request, !token.isCancelled else { return false }
-            fileURL = target; fileAccess = access; diskBytes = snapshot
-            owner.model.markDocumentSaved(snapshot); owner.window?.representedURL = target
+            fileURL = target; fileAccess = access; diskBytes = snapshot.bytes
+            owner.acceptDocumentSave(snapshot); owner.window?.representedURL = target
             return true
         } catch { if !retired && !token.isCancelled { owner.model.error = error.localizedDescription }; return false }
     }

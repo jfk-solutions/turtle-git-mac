@@ -7,19 +7,27 @@ public struct UnifiedDiffDocument: Sendable {
     public let displayLegacyEncoding:ComparisonTextEncoding
     public let sourceEncoding:ComparisonTextEncoding
     private let retainedEncoding:Bool
+    var bytePresentation:UnifiedDiffBytePresentation?
     private static let signatures:[([UInt8],ComparisonTextEncoding,String.Encoding)] = [
         ([0xff,0xfe,0,0],.utf32LE,.utf32LittleEndian),([0,0,0xfe,0xff],.utf32BE,.utf32BigEndian),
         ([0xff,0xfe],.utf16LEBOM,.utf16LittleEndian),([0xfe,0xff],.utf16BEBOM,.utf16BigEndian),([0xef,0xbb,0xbf],.utf8BOM,.utf8)
     ]
     public init(bytes:Data,displayLegacyEncoding:ComparisonTextEncoding = .windows1252,sourceEncoding:ComparisonTextEncoding? = nil) {
-        self.bytes=bytes
+        self.bytes=bytes;bytePresentation=nil
         self.displayLegacyEncoding=displayLegacyEncoding.legacyCodePage == nil ? .windows1252:displayLegacyEncoding
         retainedEncoding=sourceEncoding != nil
         self.sourceEncoding=sourceEncoding ?? Self.signatures.first(where:{bytes.starts(with:$0.0)})?.1
             ?? (String(data:bytes,encoding:.utf8) == nil ? self.displayLegacyEncoding:.utf8)
     }
+    init(bytes:Data,legacy:ComparisonTextEncoding,encoding:ComparisonTextEncoding,presentation:UnifiedDiffBytePresentation) {
+        self.bytes=bytes;displayLegacyEncoding=legacy;sourceEncoding=encoding;retainedEncoding=true;bytePresentation=presentation
+    }
     public var displayText:String {
-        if retainedEncoding,let text=sourceEncoding.decode(bytes) {return text}
+        if let bytePresentation {return bytePresentation.text}
+        if retainedEncoding {
+            let body=bytes.starts(with:sourceEncoding.patchBOM) ? Data(bytes.dropFirst(sourceEncoding.patchBOM.count)):bytes
+            if let text=sourceEncoding.decodePatchPayload(body) {return text}
+        }
         // BOMs precede line-local UTF8/legacy display. Prefixing a sentinel keeps
         // a real leading FEFF character after the one file BOM is removed.
         for (signature,_,encoding) in Self.signatures where bytes.starts(with:signature) {
@@ -30,8 +38,7 @@ public struct UnifiedDiffDocument: Sendable {
         return GitPatch.displayText(bytes,displayLegacyEncoding:displayLegacyEncoding)
     }
     public func encodedEdits(_ text:String) throws ->Data {
-        if text.utf8.elementsEqual(displayText.utf8) {return bytes}
-        return try sourceEncoding.encode(text)
+        var buffer=UnifiedDiffEditBuffer(document:self);buffer.replaceText(text);return try buffer.snapshot().bytes
     }
     public func recording(_ bytes:Data)->Self {
         if bytes == self.bytes {return self}
@@ -105,4 +112,222 @@ public struct UnifiedDiffPreview: Sendable {
         } catch { try? manager.removeItem(at: directory); throw error }
     }
     public func discard() { try? FileManager.default.removeItem(at: directory) }
+}
+
+/// Editable UDiff backing bytes. The edit tape retains removed byte fragments,
+/// so native coalesced Undo/Redo can restore opaque data as well as visible text.
+public struct UnifiedDiffEditBuffer:Sendable {
+    private struct Edit:Sendable {
+        let offset:Int,removed:[UnifiedDiffByteSpan],inserted:[UnifiedDiffByteSpan]
+    }
+    private var source:UnifiedDiffDocument
+    private var sourceText:String
+    private var presentation:UnifiedDiffBytePresentation
+    private var edits:[Edit]=[],keys:[Int],cursor=0
+    public private(set) var text:String
+    public init(document:UnifiedDiffDocument) {
+        let shown=document.displayText
+        source=document;text=shown;sourceText=shown
+        presentation=document.bytePresentation ?? UnifiedDiffBytePresentation(document:document,text:shown)
+        keys=[Data(shown.utf8).hashValue]
+    }
+    public mutating func replaceText(_ next:String) {
+        guard !GitReferenceName.equal(text,next) else{return}
+        let key=Data(next.utf8).hashValue
+        // A text control can undo an entire typing group in one notification.
+        // Replay captured fragments, never infer their original bytes anew.
+        for target in keys.indices.filter({keys[$0]==key}).sorted(by:{abs($0-cursor)<abs($1-cursor)}) {
+            var pieces=presentation.pieces,position=cursor,valid=true
+            while position>target {
+                let edit=edits[position-1]
+                guard let replaced=Self.replacing(pieces,offset:edit.offset,length:Self.length(edit.inserted),with:edit.removed) else{valid=false;break}
+                pieces=replaced.pieces;position-=1
+            }
+            while valid,position<target {
+                let edit=edits[position]
+                guard let replaced=Self.replacing(pieces,offset:edit.offset,length:Self.length(edit.removed),with:edit.inserted) else{valid=false;break}
+                pieces=replaced.pieces;position+=1
+            }
+            if valid,GitReferenceName.equal(pieces.map(\.text).joined(),next) {
+                presentation.pieces=pieces;cursor=target;text=next;restoreSavePoint();return
+            }
+        }
+        let before=text.unicodeScalars,after=next.unicodeScalars
+        var a=before.startIndex,b=after.startIndex
+        while a<before.endIndex,b<after.endIndex,before[a].value==after[b].value {before.formIndex(after:&a);after.formIndex(after:&b)}
+        var endA=before.endIndex,endB=after.endIndex
+        while endA>a,endB>b {
+            let pa=before.index(before:endA),pb=after.index(before:endB)
+            guard before[pa].value==after[pb].value else{break};endA=pa;endB=pb
+        }
+        var offset=a.utf16Offset(in:text),length=endA.utf16Offset(in:text)-offset
+        var inserted=[UnifiedDiffByteSpan(text:String(after[b..<endB]),bytes:nil,mapping:.codec(insertionEncoding(at:offset)))]
+        var replacement=Self.replacing(presentation.pieces,offset:offset,length:length,with:inserted)
+        if replacement==nil {
+            // Some regional codecs encode a multi-scalar cluster as one unit.
+            // Re-encode the touched spans together, retaining all outside bytes.
+            let expanded=expandedReplacement(offset:offset,length:length,replacement:String(after[b..<endB]))
+            offset=expanded.offset;length=expanded.length;inserted=expanded.inserted
+            replacement=Self.replacing(presentation.pieces,offset:offset,length:length,with:inserted)
+        }
+        guard let replacement else{return} // Expanded boundaries always align.
+        if cursor<edits.count {edits.removeSubrange(cursor...);keys.removeSubrange((cursor+1)...)}
+        edits.append(Edit(offset:offset,removed:replacement.removed,inserted:inserted));keys.append(key);cursor+=1
+        presentation.pieces=replacement.pieces;text=next;restoreSavePoint()
+    }
+    private mutating func restoreSavePoint() {
+        if GitReferenceName.equal(text,sourceText) {
+            presentation=source.bytePresentation ?? UnifiedDiffBytePresentation(document:source,text:text)
+        }
+    }
+    public func snapshot() throws ->UnifiedDiffDocument {
+        if GitReferenceName.equal(text,sourceText) {return source}
+        var bytes=presentation.prefix,pieces:[UnifiedDiffByteSpan]=[]
+        for piece in presentation.pieces {
+            let encoded=try piece.encoded();bytes.append(encoded)
+            pieces.append(UnifiedDiffByteSpan(text:piece.text,bytes:encoded,mapping:piece.mapping))
+        }
+        return UnifiedDiffDocument(bytes:bytes,legacy:source.displayLegacyEncoding,encoding:source.sourceEncoding,
+                                   presentation:UnifiedDiffBytePresentation(prefix:presentation.prefix,pieces:pieces))
+    }
+    public mutating func markSaved(_ document:UnifiedDiffDocument) {
+        guard GitReferenceName.equal(document.displayText,text) else{return}
+        source=document;sourceText=text;presentation=document.bytePresentation ?? UnifiedDiffBytePresentation(document:document,text:text)
+    }
+    private func insertionEncoding(at offset:Int)->ComparisonTextEncoding {
+        var position=0
+        for piece in presentation.pieces {
+            if offset<position+piece.length {
+                if case let .codec(encoding)=piece.mapping {return encoding}
+                return presentation.prefix.isEmpty && source.sourceEncoding.hasBOM ? .utf8:source.sourceEncoding
+            }
+            position+=piece.length
+        }
+        if let last=presentation.pieces.last,case let .codec(encoding)=last.mapping {return encoding}
+        return presentation.prefix.isEmpty && source.sourceEncoding.hasBOM ? .utf8:source.sourceEncoding
+    }
+    private static func length(_ pieces:[UnifiedDiffByteSpan])->Int {pieces.reduce(0){$0+$1.length}}
+    private static func split(_ pieces:[UnifiedDiffByteSpan],at offset:Int)->([UnifiedDiffByteSpan],[UnifiedDiffByteSpan])? {
+        guard offset>=0 else{return nil}
+        var left:[UnifiedDiffByteSpan]=[],position=0
+        for (index,piece) in pieces.enumerated() {
+            if offset==position {return (left,Array(pieces[index...]))}
+            if offset<position+piece.length {
+                guard let parts=piece.split(at:offset-position) else{return nil}
+                if !parts.0.text.isEmpty {left.append(parts.0)}
+                var right=[parts.1];right.append(contentsOf:pieces.dropFirst(index+1));return (left,right)
+            }
+            left.append(piece);position+=piece.length
+        }
+        return offset==position ? (left,[]):nil
+    }
+    private static func replacing(_ pieces:[UnifiedDiffByteSpan],offset:Int,length:Int,with inserted:[UnifiedDiffByteSpan])->(pieces:[UnifiedDiffByteSpan],removed:[UnifiedDiffByteSpan])? {
+        guard let (left,rest)=split(pieces,at:offset),let (removed,right)=split(rest,at:length) else{return nil}
+        return (left+inserted.filter{!$0.text.isEmpty}+right,removed)
+    }
+    private func expandedReplacement(offset:Int,length:Int,replacement:String)->(offset:Int,length:Int,inserted:[UnifiedDiffByteSpan]) {
+        var start=0,end=Self.length(presentation.pieces),position=0,first=0,last=presentation.pieces.count-1
+        for (index,piece) in presentation.pieces.enumerated() {
+            if position<=offset,offset<position+piece.length {start=position;first=index}
+            if position<offset+length,offset+length<=position+piece.length {end=position+piece.length;last=index;break}
+            position+=piece.length
+        }
+        let touched=Array(presentation.pieces[first...last]),shown=touched.map(\.text).joined()
+        let prefix=UnifiedDiffByteSpan.substring(shown,from:0,to:offset-start) ?? ""
+        let suffix=UnifiedDiffByteSpan.substring(shown,from:offset+length-start,to:shown.utf16.count) ?? ""
+        let mapping:UnifiedDiffByteSpan.Mapping
+        if let one=touched.first?.mapping,case .codec=one,touched.allSatisfy({$0.mapping==one}) {mapping=one}
+        else {mapping = .unmapped}
+        return (start,end-start,[UnifiedDiffByteSpan(text:prefix+replacement+suffix,bytes:nil,mapping:mapping)])
+    }
+}
+
+struct UnifiedDiffBytePresentation:Sendable {
+    let prefix:Data
+    var pieces:[UnifiedDiffByteSpan]
+    var text:String {pieces.map(\.text).joined()}
+    init(prefix:Data,pieces:[UnifiedDiffByteSpan]) {self.prefix=prefix;self.pieces=pieces}
+    init(document:UnifiedDiffDocument,text:String) {
+        let bom=document.sourceEncoding.patchBOM
+        let hasBOM = !bom.isEmpty && document.bytes.starts(with:bom)
+        let body=hasBOM ? Data(document.bytes.dropFirst(bom.count)):document.bytes
+        if let decoded=document.sourceEncoding.decodePatchPayload(body),GitReferenceName.equal(decoded,text) {
+            prefix=hasBOM ? bom:Data();pieces=[.init(text:text,bytes:body,mapping:.codec(document.sourceEncoding))];return
+        }
+        prefix=Data()
+        if document.sourceEncoding.hasBOM,GitReferenceName.equal(String(decoding:document.bytes,as:UTF8.self),text) {
+            pieces=[.init(text:text,bytes:document.bytes,mapping:.lossyUTF8)];return
+        }
+        pieces=[];var start=document.bytes.startIndex
+        func append(_ bytes:Data) {
+            let shown=GitPatch.displayText(bytes,displayLegacyEncoding:document.displayLegacyEncoding),mapping:UnifiedDiffByteSpan.Mapping
+            if let utf8=String(data:bytes,encoding:.utf8),GitReferenceName.equal(utf8,shown) {
+                let encoding=bytes.allSatisfy({$0<128}) ? document.sourceEncoding:ComparisonTextEncoding.utf8
+                mapping = .codec(encoding)
+            } else if let regional=document.displayLegacyEncoding.decodePatchPayload(bytes),GitReferenceName.equal(regional,shown) {mapping = .codec(document.displayLegacyEncoding)}
+            else if GitReferenceName.equal(String(String.UnicodeScalarView(bytes.map{UnicodeScalar($0)})),shown) {mapping = .carrier}
+            else {mapping = .unmapped}
+            pieces.append(.init(text:shown,bytes:bytes,mapping:mapping))
+        }
+        for index in document.bytes.indices where document.bytes[index]==10 {append(Data(document.bytes[start...index]));start=document.bytes.index(after:index)}
+        if start<document.bytes.endIndex {append(Data(document.bytes[start...]))}
+        if !GitReferenceName.equal(pieces.map(\.text).joined(),text) {pieces=[.init(text:text,bytes:document.bytes,mapping:.unmapped)]}
+    }
+}
+
+struct UnifiedDiffByteSpan:Sendable {
+    enum Mapping:Equatable,Sendable {case codec(ComparisonTextEncoding),carrier,lossyUTF8,unmapped}
+    let text:String,bytes:Data?,mapping:Mapping
+    var length:Int {text.utf16.count}
+    func encoded() throws ->Data {
+        if let bytes {return bytes}
+        if case let .codec(encoding)=mapping {return try encoding.encodePatchPayload(text)}
+        throw FileComparisonEditFailure.encoding
+    }
+    static func substring(_ text:String,from:Int,to:Int)->String? {
+        guard from>=0,to>=from,to<=text.utf16.count else{return nil}
+        let units=text.utf16
+        for offset in [from,to] where offset<units.count {
+            let value=units[units.index(units.startIndex,offsetBy:offset)]
+            if (0xdc00...0xdfff).contains(value) {return nil}
+        }
+        return String(text.unicodeScalars[String.Index(utf16Offset:from,in:text)..<String.Index(utf16Offset:to,in:text)])
+    }
+    func split(at offset:Int)->(Self,Self)? {
+        guard let a=Self.substring(text,from:0,to:offset),let b=Self.substring(text,from:offset,to:length) else{return nil}
+        guard let bytes else{return (.init(text:a,bytes:nil,mapping:mapping),.init(text:b,bytes:nil,mapping:mapping))}
+        let position:Int
+        switch mapping {
+        case let .codec(encoding):guard let prefix=try? encoding.encodePatchPayload(a),bytes.starts(with:prefix) else{return nil};position=prefix.count
+        case .carrier:position=a.unicodeScalars.count
+        case .lossyUTF8:guard let boundary=Self.lossyUTF8Boundary(bytes,utf16:offset) else{return nil};position=boundary
+        case .unmapped:return nil
+        }
+        return (.init(text:a,bytes:Data(bytes.prefix(position)),mapping:mapping),.init(text:b,bytes:Data(bytes.dropFirst(position)),mapping:mapping))
+    }
+    // Unicode maximal-subpart boundaries, matching String(decoding:as:UTF8.self).
+    // Invalid bytes remain in the fragment they projected, including truncated
+    // sequences and malformed BOMs; U+FFFD is never used to regenerate them.
+    private static func lossyUTF8Boundary(_ bytes:Data,utf16 target:Int)->Int? {
+        var index=0,units=0
+        while index<bytes.count {
+            if units==target {return index}
+            let lead=bytes[bytes.startIndex+index],expected:Int
+            if lead<0x80 {index+=1;units+=1;continue}
+            if (0xc2...0xdf).contains(lead) {expected=2}
+            else if (0xe0...0xef).contains(lead) {expected=3}
+            else if (0xf0...0xf4).contains(lead) {expected=4}
+            else {index+=1;units+=1;continue}
+            var count=1
+            while count<expected,index+count<bytes.count {
+                let byte=bytes[bytes.startIndex+index+count]
+                guard (0x80...0xbf).contains(byte) else{break}
+                if count==1, (lead==0xe0 && byte<0xa0 || lead==0xed && byte>0x9f || lead==0xf0 && byte<0x90 || lead==0xf4 && byte>0x8f) {break}
+                count+=1
+            }
+            units += count==expected && expected==4 ? 2:1;index+=count
+            if units>target {return nil}
+        }
+        return units==target ? index:nil
+    }
 }
