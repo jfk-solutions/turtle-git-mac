@@ -127,9 +127,8 @@ public struct FinderCreationMenuContext: Sendable {
         guard url.isFileURL, !url.pathComponents.contains(".git") else { return Self(directory: false) }
         let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
         let folder = values?.isDirectory ?? url.hasDirectoryPath
-        let path = url.standardizedFileURL.path
         let owner = snapshot?.repositoryRoot(for: url)
-        let known = owner != nil, knownRoot = owner == path
+        let known = owner != nil, knownRoot = owner.map { snapshot?.isRepositoryRoot(url,root:$0) == true } ?? false
         let state = snapshot?.cachedState(for: url)
         let versioned = knownRoot || known && state.map { [.normal, .modified, .added, .deleted, .conflicted].contains($0) } == true
         let ignored = !knownRoot && state == .ignored
@@ -219,22 +218,23 @@ public struct FinderSnapshot: Codable, Sendable {
     public var roots: [String]
     public var states: GitPathMap<FileState>
     public var updated: Date
-    public var repositories: [String: FinderRepositoryMetadata]
+    public var repositories: GitPathMap<FinderRepositoryMetadata>
     public var overlayEntries: GitPathMap<FileState>?
     public var indexFlags: GitPathMap<FinderIndexFlags>?
-    public init(roots: [String], states: GitPathMap<FileState>, updated: Date = Date(), repositories: [String: FinderRepositoryMetadata] = [:], overlayEntries: GitPathMap<FileState>? = nil, indexFlags: GitPathMap<FinderIndexFlags>? = nil) {
+    public init(roots: [String], states: GitPathMap<FileState>, updated: Date = Date(), repositories: GitPathMap<FinderRepositoryMetadata> = [:], overlayEntries: GitPathMap<FileState>? = nil, indexFlags: GitPathMap<FinderIndexFlags>? = nil) {
         self.roots = roots; self.states = states; self.updated = updated; self.repositories = repositories
         self.overlayEntries = overlayEntries
         self.indexFlags = indexFlags
     }
-    private enum CodingKeys: String, CodingKey { case roots, states, statesV2, updated, repositories, overlayEntries, overlayEntriesV2, indexFlags, indexFlagsV2 }
+    private enum CodingKeys: String, CodingKey { case roots, states, statesV2, updated, repositories, repositoriesV2, overlayEntries, overlayEntriesV2, indexFlags, indexFlagsV2 }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         roots = try values.decode([String].self, forKey: .roots)
         states = try values.decodeIfPresent(GitPathMap<FileState>.self, forKey: .statesV2)
             ?? GitPathMap(uniqueKeysWithValues: values.decode([String: FileState].self, forKey: .states).map { ($0.key,$0.value) })
         updated = try values.decode(Date.self, forKey: .updated)
-        repositories = try values.decodeIfPresent([String: FinderRepositoryMetadata].self, forKey: .repositories) ?? [:]
+        repositories = try values.decodeIfPresent(GitPathMap<FinderRepositoryMetadata>.self, forKey: .repositoriesV2)
+            ?? GitPathMap(uniqueKeysWithValues: (values.decodeIfPresent([String: FinderRepositoryMetadata].self, forKey: .repositories) ?? [:]).map { ($0.key,$0.value) })
         overlayEntries = try values.decodeIfPresent(GitPathMap<FileState>.self, forKey: .overlayEntriesV2)
             ?? values.decodeIfPresent([String: FileState].self, forKey: .overlayEntries).map { GitPathMap(uniqueKeysWithValues: $0.map { ($0.key,$0.value) }) }
         if values.contains(.indexFlagsV2) {
@@ -250,7 +250,12 @@ public struct FinderSnapshot: Codable, Sendable {
         try values.encode(roots,forKey:.roots)
         try values.encode(states,forKey:.statesV2)
         try values.encode(Self.legacyStates(states),forKey:.states)
-        try values.encode(updated,forKey:.updated); try values.encode(repositories,forKey:.repositories)
+        try values.encode(updated,forKey:.updated)
+        try values.encode(repositories,forKey:.repositoriesV2)
+        // The lossless field is authoritative for current peers. Keep a stable
+        // legacy projection for older installed readers during an app update.
+        let legacyRepositories = Dictionary(repositories.sorted { $0.key.utf8.lexicographicallyPrecedes($1.key.utf8) }.map { ($0.key,$0.value) },uniquingKeysWith:{ first,_ in first })
+        try values.encode(legacyRepositories,forKey:.repositories)
         try values.encodeIfPresent(overlayEntries,forKey:.overlayEntriesV2)
         try values.encodeIfPresent(overlayEntries.map(Self.legacyStates),forKey:.overlayEntries)
         try values.encodeIfPresent(indexFlags,forKey:.indexFlagsV2)
@@ -279,6 +284,11 @@ public struct FinderSnapshot: Codable, Sendable {
         case .conflicted: return 6
         }
     }
+    /// Shared cache names are lexical UTF-8 identities, not Swift's canonical
+    /// String equality. The filesystem/grant layer separately validates access.
+    static func contains(_ path: String, root: String) -> Bool {
+        root == "/" ? path.hasPrefix("/") : FileTransferPaths.contains(path,in:root)
+    }
     public func repositoryMetadata(for paths: [URL]) -> FinderRepositoryMetadata? {
         commonRepositoryRoot(for: paths).flatMap { repositories[$0] }
     }
@@ -300,9 +310,9 @@ public struct FinderSnapshot: Codable, Sendable {
         let files = states
         for (path, state) in files {
             var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(path))
-            while parent.path == root.path || parent.path.hasPrefix(root.path + "/") {
+            while Self.contains(parent.path,root:root.path) {
                 if priority[state, default: 0] >= priority[states[parent.path] ?? .normal, default: 0] { states[parent.path] = state }
-                if parent.path == root.path { break }
+                if GitReferenceName.equal(parent.path,root.path) { break }
                 parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
             }
         }
@@ -313,13 +323,13 @@ public struct FinderSnapshot: Codable, Sendable {
     /// the working tree before Git mutates anything.
     public func canRename(_ selection: [URL]) -> Bool {
         guard selection.count == 1, let url = selection.first, let root = repositoryRoot(for: url),
-              url.standardizedFileURL.path != root || repositories[root]?.submoduleParentRoot != nil else { return false }
+              !isRepositoryRoot(url,root:root) || repositories[root]?.submoduleParentRoot != nil else { return false }
         return hasFileState([.normal, .modified, .added, .conflicted], at: url, includingDescendants: true)
     }
     public func canRemove(_ selection: [URL]) -> Bool {
         guard commonFileOperationOwner(for: selection) != nil else { return false }
         return selection.allSatisfy { url in
-            guard let root = repositoryRoot(for: url), url.standardizedFileURL.path != root || repositories[root]?.submoduleParentRoot != nil else { return false }
+            guard let root = repositoryRoot(for: url), !isRepositoryRoot(url,root:root) || repositories[root]?.submoduleParentRoot != nil else { return false }
             return hasFileState([.normal, .modified, .conflicted], at: url, includingDescendants: true)
         }
     }
@@ -623,7 +633,7 @@ public enum FinderShellRules {
             if let root, !bare {
                 flags.formUnion([.inGit, .inVersionedFolder])
                 if directory { flags.insert(.folderInGit) }
-                if path.path == root {
+                if snapshot?.isRepositoryRoot(path,root:root) == true {
                     flags.insert(.workingTreeRoot)
                     if directory && metadata?.submoduleParentRoot != nil { flags.insert(.submodule) }
                 }
@@ -632,7 +642,7 @@ public enum FinderShellRules {
                 if metadata?.hasSubmoduleConfig != false { flags.insert(.submoduleContainer) }
                 if metadata?.mergeActive == true { flags.insert(.merge) }
                 if metadata?.bisectActive == true { flags.insert(.bisect) }
-            } else if let root, bare && path.path == root { flags.insert(.bare) }
+            } else if let root, bare && snapshot?.isRepositoryRoot(path,root:root) == true { flags.insert(.bare) }
             switch snapshot?.cachedState(for: path) {
             case .normal: flags.insert(.normal)
             case .modified: break
@@ -644,7 +654,7 @@ public enum FinderShellRules {
             }
             // A repository root is versioned independently of aggregated child
             // status, including an unborn root containing only untracked files.
-            if directory, root == path.path, !bare { flags.insert(.inGit); flags.remove(.ignored) }
+            if directory, root.map({snapshot?.isRepositoryRoot(path,root:$0) == true}) == true, !bare { flags.insert(.inGit); flags.remove(.ignored) }
         }
         return flags
     }
@@ -678,7 +688,7 @@ extension GitRepository {
 
 public struct FinderSubmoduleScan: Sendable {
     public var snapshots: [FinderSnapshot] = []
-    public var failures: [String: String] = [:]
+    public var failures: GitPathMap<String> = [:]
     public init() {}
 }
 
@@ -705,7 +715,7 @@ extension GitRepository {
         }
         return paths
     }
-    private func scanFinderSubmodules(authorizedRoot: URL, additionalAuthorizedRoots:[URL]?, ancestors:Set<String>,cancellation:OperationCancellation?) async throws -> FinderSubmoduleScan {
+    private func scanFinderSubmodules(authorizedRoot: URL, additionalAuthorizedRoots:[URL]?, ancestors:GitPathSet,cancellation:OperationCancellation?) async throws -> FinderSubmoduleScan {
         try cancellation?.check()
         var result = FinderSubmoduleScan()
         let canonical = root.resolvingSymlinksInPath().path
@@ -727,7 +737,7 @@ extension GitRepository {
                 let child = GitRepository(root: location, executable: executable)
                 let discovered = try await child.discoverRoot(cancellation:cancellation)
                 // An uninitialized directory inherits its parent's root; it is not a child repository.
-                guard discovered.path == location.path, try await !child.isBare(cancellation:cancellation) else { continue }
+                guard GitReferenceName.equal(discovered.path,location.path), try await !child.isBare(cancellation:cancellation) else { continue }
                 if let additionalAuthorizedRoots {
                     let scopes=[authorizedRoot]+additionalAuthorizedRoots
                     for directory in try await child.finderWatchDirectories(cancellation:cancellation) where !scopes.contains(where:{ RepositoryAccessLease.pathIsContained(directory,by:$0) }) {
@@ -735,7 +745,7 @@ extension GitRepository {
                     }
                 }
                 let metadata = try await child.finderMetadata(knownBare:false,cancellation:cancellation)
-                guard metadata.submoduleParentRoot == root.path else { continue }
+                guard GitReferenceName.equal(root.path,metadata.submoduleParentRoot) else { continue }
                 let tracked = try await child.trackedPaths(cancellation:cancellation), changes = try await child.status(refreshIndex:false,cancellation:cancellation)
                 var snapshot = FinderSnapshot.build(root: location, tracked: tracked, changes: changes)
                 snapshot.indexFlags = try await child.finderIndexFlags(cancellation:cancellation)
@@ -754,12 +764,12 @@ extension FinderSnapshot {
     /// Replace one refreshed tree, dropping stale removed/deinitialized child roots.
     /// Other opened repositories survive. Parent gitlink dirtiness contributes to a child-root badge.
     public mutating func replaceSubtree(root: URL, snapshots: [FinderSnapshot]) {
-        let path = root.standardizedFileURL.path
-        func contains(_ candidate: String) -> Bool { candidate == path || candidate.hasPrefix(path.hasSuffix("/") ? path : path + "/") }
-        let incoming = Set(snapshots.flatMap(\.roots))
-        let independent = roots.filter { $0 != path && contains($0) && repositories[$0]?.submoduleParentRoot == nil && !incoming.contains($0) }
+        let path = FileTransferPaths.lexicalPath(root.path)
+        func contains(_ candidate: String) -> Bool { Self.contains(candidate,root:path) }
+        let incoming = GitPathSet(snapshots.flatMap(\.roots))
+        let independent = roots.filter { !GitReferenceName.equal($0,path) && contains($0) && repositories[$0]?.submoduleParentRoot == nil && !incoming.contains($0) }
         let preserved = independent.map { candidate -> FinderSnapshot in
-            func belongs(_ value: String) -> Bool { value == candidate || value.hasPrefix(candidate + "/") }
+            func belongs(_ value: String) -> Bool { Self.contains(value,root:candidate) }
             return FinderSnapshot(roots: roots.filter(belongs), states: states.filter { belongs($0.key) },
                 repositories: repositories.filter { belongs($0.key) }, overlayEntries: overlayEntries?.filter { belongs($0.key) }, indexFlags: indexFlags?.filter { belongs($0.key) })
         }
@@ -769,11 +779,11 @@ extension FinderSnapshot {
         overlayEntries = (overlayEntries ?? states).filter { !contains($0.key) }
         indexFlags = indexFlags?.filter { !contains($0.key) }
         let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
-        for snapshot in (snapshots + preserved).sorted(by: { ($0.roots.first?.count ?? 0) < ($1.roots.first?.count ?? 0) }) {
+        for snapshot in (snapshots + preserved).sorted(by: { ($0.roots.first?.utf8.count ?? 0) < ($1.roots.first?.utf8.count ?? 0) }) {
             let accepted = snapshot.roots.filter(contains)
             guard !accepted.isEmpty else { continue }
-            for candidate in accepted where !roots.contains(candidate) { roots.append(candidate) }
-            let rootStates = Dictionary(uniqueKeysWithValues: accepted.compactMap { candidate in states[candidate].map { (candidate, $0) } })
+            for candidate in accepted where !roots.contains(where:{ GitReferenceName.equal($0,candidate) }) { roots.append(candidate) }
+            let rootStates = GitPathMap(uniqueKeysWithValues: accepted.compactMap { candidate in states[candidate].map { (candidate, $0) } })
             states.merge(snapshot.states.filter { contains($0.key) }) { _, latest in latest }
             overlayEntries?.merge((snapshot.overlayEntries ?? snapshot.states).filter { contains($0.key) }) { _, latest in latest }
             if let flags = snapshot.indexFlags {
@@ -797,7 +807,7 @@ public struct FinderRepositoryCollection:Sendable {
     public let metadata:FinderRepositoryMetadata
     public let watchDirectories:[URL]
     public let snapshots:[FinderSnapshot]
-    public let failures:[String:String]
+    public let failures:GitPathMap<String>
 }
 extension GitRepository {
     public func collectFinderRepository(authorizedRoot:URL,additionalAuthorizedRoots:[URL]? = nil,cancellation:OperationCancellation? = nil,watchReady:(@Sendable ([URL]) async -> Void)? = nil) async throws -> FinderRepositoryCollection {
@@ -851,11 +861,28 @@ public struct FinderPublicationResult:Sendable {
 public final class FinderSnapshotStore:@unchecked Sendable {
     public let url:URL
     private struct Control:Codable {
-        var version=1
+        // Version 2 fences older writers, whose Swift String dictionaries can
+        // conflate canonical peers. Existing version-1 records migrate once.
+        var version=2
         var id=UUID()
         var counter:UInt64=0
-        var sequences:[String:UInt64]=[:]
-        var consumed:[String:UInt64]=[:]
+        var sequences:GitPathMap<UInt64>=[:]
+        var consumed:GitPathMap<UInt64>=[:]
+        init() {}
+        private enum CodingKeys:String,CodingKey { case version,id,counter,sequences,consumed }
+        init(from decoder:Decoder) throws {
+            let values=try decoder.container(keyedBy:CodingKeys.self)
+            let stored=try values.decode(Int.self,forKey:.version)
+            guard stored==1 || stored==2 else { throw FinderPublicationFailure.corruptStore }
+            id=try values.decode(UUID.self,forKey:.id);counter=try values.decode(UInt64.self,forKey:.counter)
+            if stored==2 {
+                sequences=try values.decode(GitPathMap<UInt64>.self,forKey:.sequences)
+                consumed=try values.decode(GitPathMap<UInt64>.self,forKey:.consumed)
+            } else {
+                sequences=GitPathMap(uniqueKeysWithValues:try values.decode([String:UInt64].self,forKey:.sequences).map { ($0.key,$0.value) })
+                consumed=GitPathMap(uniqueKeysWithValues:try values.decode([String:UInt64].self,forKey:.consumed).map { ($0.key,$0.value) })
+            }
+        }
     }
     public init(url:URL) { self.url=url }
     private var controlURL:URL { URL(fileURLWithPath:url.path+".writers") }
@@ -870,7 +897,7 @@ public final class FinderSnapshotStore:@unchecked Sendable {
     }
     private func control() throws -> Control {
         let value=try read(Control.self,controlURL) ?? Control()
-        guard value.version==1 else { throw FinderPublicationFailure.corruptStore };return value
+        guard value.version==2 else { throw FinderPublicationFailure.corruptStore };return value
     }
     private func save<T:Encodable>(_ value:T,_ location:URL) throws {
         try JSONEncoder().encode(value).write(to:location,options:.atomic)
@@ -893,7 +920,7 @@ public final class FinderSnapshotStore:@unchecked Sendable {
         try cancellation?.check();return try operation()
     }
     private func path(_ root:URL) throws -> String {
-        guard root.isFileURL,!root.path.utf8.contains(0) else { throw FinderPublicationFailure.invalidUpdate };return root.standardizedFileURL.path
+        guard root.isFileURL,!root.path.utf8.contains(0) else { throw FinderPublicationFailure.invalidUpdate };return FileTransferPaths.lexicalPath(root.path)
     }
     public func begin(root:URL,cancellation:OperationCancellation? = nil) throws -> FinderPublicationTicket {
         let root=try path(root)
@@ -906,20 +933,20 @@ public final class FinderSnapshotStore:@unchecked Sendable {
     }
     public func publish(_ ticket:FinderPublicationTicket,snapshots:[FinderSnapshot],cancellation:OperationCancellation? = nil) throws -> FinderPublicationResult {
         func belongs(_ value:String) -> Bool {
-            guard !value.utf8.contains(0),URL(fileURLWithPath:value).standardizedFileURL.path==value else { return false }
-            return value==ticket.root || value.hasPrefix(ticket.root=="/" ? "/" : ticket.root+"/")
+            guard value.hasPrefix("/"),!value.utf8.contains(0),GitReferenceName.equal(FileTransferPaths.lexicalPath(value),value) else { return false }
+            return FinderSnapshot.contains(value,root:ticket.root)
         }
-        guard snapshots.contains(where: { $0.roots.contains(ticket.root) }),snapshots.allSatisfy({ snapshot in
+        guard snapshots.contains(where: { $0.roots.contains(where:{GitReferenceName.equal($0,ticket.root)}) }),snapshots.allSatisfy({ snapshot in
             !snapshot.roots.isEmpty && snapshot.roots.allSatisfy(belongs) && snapshot.states.keys.allSatisfy(belongs) && snapshot.repositories.keys.allSatisfy(belongs) && (snapshot.overlayEntries ?? [:]).keys.allSatisfy(belongs) && (snapshot.indexFlags ?? [:]).keys.allSatisfy(belongs)
         }) else { throw FinderPublicationFailure.invalidUpdate }
         return try locked(cancellation) {
             var state=try control()
             var latest=try read(FinderSnapshot.self,url) ?? FinderSnapshot(roots:[],states:[:])
-            func nested(_ lhs:String,_ rhs:String) -> Bool { lhs==rhs || lhs.hasPrefix(rhs=="/" ? "/" : rhs+"/") }
+            func nested(_ lhs:String,_ rhs:String) -> Bool { FinderSnapshot.contains(lhs,root:rhs) }
             let newerOverlap=state.sequences.contains { root,sequence in sequence>ticket.sequence && (nested(root,ticket.root) || nested(ticket.root,root)) }
             guard state.id==ticket.store,state.sequences[ticket.root]==ticket.sequence,!newerOverlap,(state.consumed[ticket.root] ?? 0)<ticket.sequence else { return FinderPublicationResult(published:false,snapshot:latest) }
             state.consumed[ticket.root]=ticket.sequence;try save(state,controlURL)
-            latest.replaceSubtree(root:URL(fileURLWithPath:ticket.root,isDirectory:true),snapshots:snapshots)
+            latest.replaceSubtree(root:FileTransferPaths.fileURL(ticket.root),snapshots:snapshots)
             latest.updated=Date();try cancellation?.check();try save(latest,url)
             return FinderPublicationResult(published:true,snapshot:latest)
         }
@@ -933,7 +960,7 @@ public final class FinderSnapshotStore:@unchecked Sendable {
             var latest=try read(FinderSnapshot.self,url) ?? FinderSnapshot(roots:[],states:[:])
             state.counter += 1;state.sequences[root]=state.counter;state.consumed[root]=state.counter
             try cancellation?.check();try save(state,controlURL)
-            latest.replaceSubtree(root:URL(fileURLWithPath:root,isDirectory:true),snapshots:[]);latest.updated=Date();try save(latest,url)
+            latest.replaceSubtree(root:FileTransferPaths.fileURL(root),snapshots:[]);latest.updated=Date();try save(latest,url)
             return latest
         }
     }

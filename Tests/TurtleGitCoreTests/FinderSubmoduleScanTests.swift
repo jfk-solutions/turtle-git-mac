@@ -27,7 +27,7 @@ final class FinderSubmoduleScanTests: XCTestCase {
         let head = try await parent.run(["rev-parse", "HEAD"]).stdout
         let childIndex = try await child.run(["ls-files", "--stage", "-z"]).stdout
         let scan = try await parent.finderSubmoduleSnapshots(authorizedRoot: root)
-        XCTAssertTrue(scan.failures.isEmpty, scan.failures.description)
+        XCTAssertTrue(scan.failures.isEmpty, String(describing:scan.failures.map { ($0.key,$0.value) }))
         XCTAssertEqual(Set(scan.snapshots.flatMap(\.roots)), [outer.path, inner.path])
         let outerSnapshot = try XCTUnwrap(scan.snapshots.first { $0.roots == [outer.path] })
         let innerSnapshot = try XCTUnwrap(scan.snapshots.first { $0.roots == [inner.path] })

@@ -249,3 +249,5 @@ explicit ignore inheritance; see [selection context](FINDER-SELECTION-CONTEXT.md
 [Native Compare/Merge toolbar](MERGE-NATIVE-TOOLBAR.md): original artwork, live
 commands and dropdowns, independent saved layouts, replacement ownership and
 reviewed full-window light/dark captures.
+
+- [Finder repository-root identity](FINDER-ROOT-IDENTITY-PARITY.md): lossless root metadata, menu ownership, badge propagation and cache writer migration.

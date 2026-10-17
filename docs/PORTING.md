@@ -2520,3 +2520,23 @@ Both receiver PIDs 36893/37008 were reaped and independently absent. [Scope](PAT
 and [evidence](qa/clipboard-patch-entry-family-2026-10-17.json) retain physical,
 privacy, signed/cross-process and format/performance limits. No full hosted CI,
 App Store or complete dialog/application parity is certified.
+
+### Exact Finder repository-root family, 2026-10-18
+
+Repository metadata now shares the existing lossless file path map. Root/child
+ownership, mixed-selection eligibility, request-relative paths, folder/submodule
+badges, collection failures, service directory counts, queued removals and subtree
+publication preserve exact UTF-8 identities. Current readers prefer lossless
+metadata records while a stable reduced legacy field remains for older extensions.
+Writer state migrates to version 2, fences old lossy writers and preserves known
+counters/tickets; canonical peers cannot supersede or remove one another's work.
+Unique filesystem aliases remain supported and ambiguous aliases fail closed.
+
+The scoped checkpoint has passing evidence for 71 distinct Core cases, both Debug
+builds and both native engine cases. Compile/legacy-fixture failures and the final
+submodule-alias parent-owner repair are retained in [dated evidence](qa/finder-root-identity-family-2026-10-18.json).
+Only affected transfer/creation and native checks were repeated for that repair.
+All owned receivers/helpers exited. The native wire fixture does not assert that
+the host volume has two physical canonical-peer folders. Installed signed-version
+migration, other grant boundaries, physical Finder and full port/App Store/hosted
+acceptance remain open. No dialog is newly certified by this cache batch.

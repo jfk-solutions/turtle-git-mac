@@ -13,8 +13,8 @@ public enum FinderTransferContext {
         guard copy.url != nil else { return [] }
         var result = [copy]
         if sources.allSatisfy({ source in
-            let sourceRoot = snapshot.repositories[source.path]?.submoduleParentRoot ?? snapshot.repositoryRoot(for: source)
-            return sourceRoot == root && snapshot.canRename([source]) && (try? FileManager.default.attributesOfItem(atPath: source.path)) != nil
+            let sourceRoot = snapshot.fileOperationOwner(for: source)
+            return sourceRoot.map({GitReferenceName.equal($0,root)}) == true && snapshot.canRename([source]) && (try? FileManager.default.attributesOfItem(atPath: source.path)) != nil
         }) {
             let move = FinderRequest(action: .pasteMove, paths: [destination], sources: sources)
             if move.url != nil { result.append(move) }

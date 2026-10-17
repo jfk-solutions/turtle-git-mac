@@ -268,7 +268,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         var active=true
         var watchFailure:String?
         var lastPublication:Date?
-        var cachedDirectories:Set<String>=[]
+        var cachedDirectories:GitPathSet=[]
         init(_ access:FinderServicePersistentAccess,repository:GitRepository) { self.access=access;self.repository=repository }
         func retire() { active=false;monitor?.stop();monitor=nil;refresh?.retire();refresh=nil;token?.cancel();task?.cancel() }
         deinit { monitor?.stop();token?.cancel();task?.cancel() }
@@ -276,8 +276,8 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     private var activity=FinderCacheActivityLog()
     public var activitySnapshot: FinderCacheActivitySnapshot {
         FinderCacheActivitySnapshot(running:running,
-            cachedDirectories:Set(sessions.values.flatMap { $0.cachedDirectories }).count,
-            watchedPaths:Set(sessions.values.flatMap { $0.directories.map(\.path) }).count,
+            cachedDirectories:GitPathSet(sessions.values.flatMap { $0.cachedDirectories }).count,
+            watchedPaths:GitPathSet(sessions.values.flatMap { $0.directories.map(\.path) }).count,
             lines:activity.lines)
     }
     private func recordActivity(_ message:String) {activity.append(message);changed()}
@@ -299,7 +299,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     private var sessions:[UUID:Session]=[:]
     private var transitioning=false
     private var retiring:[Session]=[]
-    private var pendingRemovals:[URL:UUID]=[:]
+    private var pendingRemovals:GitPathMap<UUID>=[:]
     private var generation=0
     public init(permissions:FinderServicePermissionStore,cache:FinderSnapshotStore,
                 repository:@escaping (URL)->GitRepository = { GitRepository(root:$0) },
@@ -327,9 +327,9 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         // Shutdown may have happened while Git readers were settling.
         guard running,generation==identity else { retiring=[];transitioning=false;return }
         rootFailures=[:]
-        let retained=Set(accesses.map { $0.root.standardizedFileURL.path })
-        for session in old where !retained.contains(session.access.root.standardizedFileURL.path) {
-            pendingRemovals[session.access.root]=session.access.id
+        let retained=GitPathSet(accesses.map { FileTransferPaths.lexicalPath($0.root.path) })
+        for session in old where !retained.contains(FileTransferPaths.lexicalPath(session.access.root.path)) {
+            pendingRemovals[FileTransferPaths.lexicalPath(session.access.root.path)]=session.access.id
         }
         retiring=[];transitioning=false;attach(accesses);cleanup();changed()
     }
@@ -377,12 +377,12 @@ public struct FinderCacheServiceReport: Codable, Sendable {
             let publication=try cache.publish(ticket,snapshots:collection.snapshots,cancellation:token)
             if publication.published {
                 session.lastPublication = Date()
-                var directories=Set(collection.snapshots.flatMap(\.roots))
+                var directories=GitPathSet(collection.snapshots.flatMap(\.roots))
                 for snapshot in collection.snapshots {
                     for path in snapshot.states.keys {
-                        var parent=URL(fileURLWithPath:path).deletingLastPathComponent()
-                        while snapshot.roots.contains(where: { parent.path == $0 || parent.path.hasPrefix($0+"/") }) {
-                            directories.insert(parent.path);let next=parent.deletingLastPathComponent();if next==parent {break};parent=next
+                        var parent=FileTransferPaths.fileURL(FinderSnapshot.parentPath(path))
+                        while snapshot.roots.contains(where: { FinderSnapshot.contains(parent.path,root:$0) }) {
+                            directories.insert(parent.path);let next=FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path));if GitReferenceName.equal(next.path,parent.path) {break};parent=next
                         }
                     }
                 }
@@ -411,11 +411,11 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         } catch { session.watchFailure=error.localizedDescription;rootFailures[session.access.id]=error.localizedDescription;changed() }
     }
     private func cleanup() {
-        let active=Set(sessions.values.map { $0.access.root.standardizedFileURL.path })
+        let active=GitPathSet(sessions.values.map { FileTransferPaths.lexicalPath($0.access.root.path) })
         cleanupFailures=[:]
         for (root,id) in pendingRemovals {
-            if active.contains(root.standardizedFileURL.path) { pendingRemovals.removeValue(forKey:root);continue }
-            do { _ = try cache.remove(root:root);pendingRemovals.removeValue(forKey:root);notify() }
+            if active.contains(root) { pendingRemovals.removeValue(forKey:root);continue }
+            do { _ = try cache.remove(root:FileTransferPaths.fileURL(root));pendingRemovals.removeValue(forKey:root);notify() }
             catch { cleanupFailures[id]=error.localizedDescription }
         }
     }

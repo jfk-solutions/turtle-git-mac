@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "bdf35802d2d71acd979731e6c7456e8b3a081c4e",
+  "scope": "Exact Finder repository-root metadata, ownership, selection, badge propagation, subtree replacement/removal, service accounting, versioned writer state and source-menu/foreground publication interoperability",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_inputs_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "ab87c5455b68ae95e81f56e2395678f40deb36753371d482db95be17853204ad",
+    "Sources/TurtleGitCore/FinderOverlaySettings.swift": "e68b25a678797e0dcc6d92d3ba3b897eb96f07b16efdaaf92234c4506359b723",
+    "Sources/TurtleGitCore/FinderRequest.swift": "e7cce6730cd7f1edf446cef4bdfda43d665c79f983be36ec3698abef5c18eed6",
+    "Sources/TurtleGitCore/FinderSelectionContext.swift": "43acc02121917ae29cfcacb85fdac9283141a7875e8ed57985fb86b08cf2aa74",
+    "Sources/TurtleGitCore/FinderServiceAuthorization.swift": "ef94ab35d8d4902492e1e29cc8ab784220802b99a396f04106f7538d4ebd93dc",
+    "Sources/TurtleGitCore/FinderTransfer.swift": "31fa616f3868517dcd9170355b26e955270ffbb57d5a13cc3c54d8b5fd98a010",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "220d5d5c7a581255e71ad9b7989ce469ab38829684d268798987c5a7437aeb21",
+    "Tests/TurtleGitCoreTests/FinderRootIdentityTests.swift": "d8f3e18a2859107eae89fb52a0703da37cead4509399c5a6e14aacbfb077c411",
+    "Tests/TurtleGitCoreTests/FinderSubmoduleScanTests.swift": "fa4ae97f31752d6b356ff2987ce0eea50be0b52ccf2f4b068996dc93ba4d7b95",
+    "Tests/TurtleGitCoreTests/FinderRepositoryMetadataTests.swift": "48225c627896ad4374f868cc25c83f17d4e5a2eb95528cfadbf305058e269c99",
+    "FinderSync/FinderSync.swift": "f4bb6b89e84c88adf6837da84600195a911fc1fa01a81a504647323d7b08070e",
+    "docs/qa/finder-root-identity-native-2026-10-18.swift": "d6c9b75e1a853a64bd6e8c326c3e072d7aadf6854fd1fe1eaf0db585aaedd45a",
+    "scripts/test-finder-root-identity.py": "1d87fd47e8ce05f92f08bf4a2c9b56cccff7e7d5454ff26fd1c35f91d60ad5e0"
+  },
+  "attempts": [
+    {
+      "kind": "Initial focused Core compilation",
+      "log": "build/qa/finder-root-identity-core-2026-10-18.log",
+      "result": "exit 1 before tests; retained submodule failure diagnostic used Dictionary.description, unavailable on the exact map. Diagnostic now formats mapped key/value pairs; assertion retained."
+    },
+    {
+      "kind": "Focused Core",
+      "log": "build/qa/finder-root-identity-core-repair-2026-10-18.log",
+      "result": "68 cases executed; 67 passed including all eight new exact-root cases. One old metadata-absence fixture removed only repositories, leaving the new authoritative repositoriesV2; repaired to remove both fields for that legacy scenario."
+    },
+    {
+      "kind": "Debug",
+      "log": "build/qa/finder-root-identity-build-2026-10-18.log",
+      "result": "exit 0; existing simulator/SDK and zero-exit/no-output diagnostics retained"
+    },
+    {
+      "kind": "Affected Core legacy fixture",
+      "log": "build/qa/finder-root-identity-core-legacy-repair-2026-10-18.log",
+      "result": "one affected case passed; no app/Core repair for this assertion"
+    },
+    {
+      "kind": "Grouped native",
+      "log": "build/qa/finder-root-identity-native-2026-10-18.log",
+      "receivers": [
+        39382,
+        39486
+      ],
+      "exact_root_workers": [
+        39396,
+        39397,
+        39487,
+        39488
+      ],
+      "result": "two cases passed with system and bundled Git; new exact-wire/menu/badge/dispatch family plus retained two-model/real-event/cross-process publication family"
+    },
+    {
+      "kind": "Final source review",
+      "result": "Unique canonical submodule aliases still lost their parent owner in Paste Move; transfer lookup now uses the same captured file-operation owner as menus. Creation root detection also uses the shared exact/unique-alias resolver."
+    },
+    {
+      "kind": "Affected Core transfer/creation",
+      "log": "build/qa/finder-root-identity-core-transfer-repair-2026-10-18.log",
+      "result": "seven cases passed: four retained transfer cases and three creation cases. Earlier 68 cases not rerun; 71 distinct scoped Core cases have passing evidence across the checkpoint."
+    },
+    {
+      "kind": "Affected Debug",
+      "log": "build/qa/finder-root-identity-build-transfer-repair-2026-10-18.log",
+      "result": "exit 0"
+    },
+    {
+      "kind": "Affected grouped native",
+      "log": "build/qa/finder-root-identity-native-transfer-repair-2026-10-18.log",
+      "receivers": [
+        39750,
+        39837
+      ],
+      "exact_root_workers": [
+        39751,
+        39752,
+        39838,
+        39839
+      ],
+      "result": "both engine cases passed; added cross-peer Paste Move refusal and accepted unique registered-submodule alias-to-parent transfer eligibility. Existing source menus/icons/URI capture, primitive once-only dispatch, badges, removal, real app model events and independent workers retained/passed."
+    }
+  ],
+  "cleanup": {
+    "receivers": [
+      39382,
+      39486,
+      39750,
+      39837
+    ],
+    "exact_root_workers": [
+      39396,
+      39397,
+      39487,
+      39488,
+      39751,
+      39752,
+      39838,
+      39839
+    ],
+    "independent_ps": "all twelve reported PIDs absent",
+    "legacy_workers": "two per native case (eight total) explicitly waited and exit status checked by retained publication fixture; individual PIDs not printed",
+    "resources": "private temporary cache/grants and fixture directories removed by runner; owned RepositoryModels closed, event monitors stopped; no Finder activation or user pasteboard changes"
+  },
+  "hosted_snapshot": {
+    "macOS": "bdf35802 run39073252669 in_progress at final pre-push observation; no passing full current workflow claimed",
+    "Pages": "bdf35802 run39073252555 completed success"
+  },
+  "not_repeated": "Full Core/hosted suite, localization and bundled Help generation not rerun; no literal native labels or Help source pages changed",
+  "limits": [
+    "Physical multi-volume Finder and canonical-peer filesystem behavior",
+    "Host volume may alias canonical names; synthetic concurrent wire roots do not certify two physical peers",
+    "Installed signed old/new writer migration and service restart",
+    "Security-scoped bookmark and grants identity beyond this cache boundary",
+    "All menu masks/icon sets, minimum OS, VoiceOver and full App Store release acceptance"
+  ],
+  "checks": {
+    "site": "290 documents, zero unresolved fragments; build/qa/finder-root-identity-site-2026-10-18.log",
+    "coverage": "reconciled unchanged; 130 dialogs, 120 partial family audits, none certified; not a feature-completion percentage",
+    "diff": "git diff --check passed"
+  }
+}

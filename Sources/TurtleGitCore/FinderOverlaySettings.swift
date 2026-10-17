@@ -145,25 +145,25 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
         var badges: GitPathMap<FileState> = [:], folders = GitPathSet(roots)
         if cacheMode == .none {
             for path in (snapshot.overlayEntries ?? snapshot.states).keys {
-                guard let root = roots.first(where: { path == $0 || path.hasPrefix($0 + "/") }) else { continue }
+                guard let root = roots.first(where: { FinderSnapshot.contains(path,root:$0) }) else { continue }
                 if isDirectory(path) { folders.insert(path) }
                 var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(path))
-                while parent.path == root || parent.path.hasPrefix(root + "/") {
-                    folders.insert(parent.path); if parent.path == root { break }; parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
+                while FinderSnapshot.contains(parent.path,root:root) {
+                    folders.insert(parent.path); if GitReferenceName.equal(parent.path,root) { break }; parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
                 }
             }
             badges = GitPathMap(uniqueKeysWithValues: folders.map { ($0, .normal) })
         }
         else {
             for (path, state) in snapshot.overlayEntries ?? snapshot.states {
-                guard let root = roots.first(where: { path == $0 || path.hasPrefix($0 + "/") }) else { continue }
+                guard let root = roots.first(where: { FinderSnapshot.contains(path,root:$0) }) else { continue }
                 if priority[state, default: 0] >= priority[badges[path] ?? .normal, default: 0] { badges[path] = state }
                 var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(path))
                 let contribution: FileState = state == .untracked ? (unversionedAsModified ? .modified : .normal) : state == .ignored ? .normal : state
-                while parent.path == root || parent.path.hasPrefix(root + "/") {
+                while FinderSnapshot.contains(parent.path,root:root) {
                     folders.insert(parent.path)
                     if priority[contribution, default: 0] >= priority[badges[parent.path] ?? .normal, default: 0] { badges[parent.path] = contribution }
-                    if parent.path == root { break }; parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
+                    if GitReferenceName.equal(parent.path,root) { break }; parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
                 }
             }
             for root in roots { badges[root] = badges[root] ?? .normal }
@@ -171,10 +171,10 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
                 for root in roots {
                     guard let parentRoot = snapshot.repositories[root]?.submoduleParentRoot, let state = badges[root] else { continue }
                     var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(root))
-                    while parent.path == parentRoot || parent.path.hasPrefix(parentRoot + "/") {
+                    while FinderSnapshot.contains(parent.path,root:parentRoot) {
                         folders.insert(parent.path)
                         if priority[state, default: 0] > priority[badges[parent.path] ?? .normal, default: 0] { badges[parent.path] = state }
-                        if parent.path == parentRoot { break }; parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
+                        if GitReferenceName.equal(parent.path,parentRoot) { break }; parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
                     }
                 }
             }

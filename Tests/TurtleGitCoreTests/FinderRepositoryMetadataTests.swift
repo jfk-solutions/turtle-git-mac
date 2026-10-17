@@ -21,7 +21,7 @@ final class FinderRepositoryMetadataTests: XCTestCase {
         struct OldReader: Decodable { let roots: [String]; let states: [String: FileState]; let updated: Date }
         let old = try JSONDecoder().decode(OldReader.self, from: data)
         XCTAssertEqual(old.roots, snapshot.roots); XCTAssertEqual(GitPathMap(uniqueKeysWithValues: old.states.map { ($0.key,$0.value) }), snapshot.states); XCTAssertEqual(old.updated, snapshot.updated)
-        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any]); legacy.removeValue(forKey: "repositories")
+        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any]); legacy.removeValue(forKey: "repositories"); legacy.removeValue(forKey: "repositoriesV2")
         let restored = try JSONDecoder().decode(FinderSnapshot.self, from: JSONSerialization.data(withJSONObject: legacy))
         XCTAssertTrue(restored.repositories.isEmpty)
         XCTAssertEqual(decoded.repositoryMetadata(for: [URL(fileURLWithPath: "/repo/nested/file")])?.hasSubmoduleConfig, true)

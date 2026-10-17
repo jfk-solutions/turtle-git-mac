@@ -82,3 +82,8 @@ Build, regression and bundle evidence is recorded in
 The subsequent [path-condition audit](FINDER-PATH-CONDITIONS-PARITY.md) adds
 source selection/folder/status clauses to the production menu consumer. This
 record describes the earlier repository-only milestone.
+
+The [exact-root continuation](FINDER-ROOT-IDENTITY-PARITY.md) extends the existing
+lossless file identity to repository-wide facts, nested ownership, badges and
+publication/removal ordering. Legacy snapshot readers remain supported by a
+reduced metadata projection; writer-state migration fences older writers.

@@ -90,11 +90,12 @@ public struct FinderRequest: Sendable {
         guard let result = components.url, !action.isFileTransfer || result.absoluteString.utf8.count <= 131072 else { return nil }; return result
     }
     public func relativePaths(root: URL) -> [String] {
-        let prefix = root.standardizedFileURL.path
+        let prefix = Self.normalizedSelectionURL(root).path
         return paths.compactMap { item in
-            if item.path == prefix { return "." }
-            guard item.path.hasPrefix(prefix + "/") else { return nil }
-            return String(item.path.dropFirst(prefix.count + 1))
+            if GitReferenceName.equal(item.path,prefix) { return "." }
+            let boundary=prefix == "/" ? "/" : prefix + "/"
+            guard item.path.utf8.starts(with:boundary.utf8) else { return nil }
+            return String(decoding:item.path.utf8.dropFirst(boundary.utf8.count),as:UTF8.self)
         }
     }
     /// Expand selected directories to changed rows, with component boundaries.

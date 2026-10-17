@@ -287,7 +287,7 @@ import UniformTypeIdentifiers
     private var cacheStates: GitPathMap<FileState> = [:]
     private var cacheOverlayEntries: GitPathMap<FileState>?
     private var cacheIndexFlags: GitPathMap<FinderIndexFlags>?
-    private var cacheRepositories: [String: FinderRepositoryMetadata] = [:]
+    private var cacheRepositories: GitPathMap<FinderRepositoryMetadata> = [:]
     private var monitoredRoots: [String] = []
     var visibleEntries: [StatusEntry] { entries.filter { showIgnored || $0.state != .ignored } }
     var selectedPaths: [String] { entries.filter { selection.contains($0.id) }.map(\.path) }
