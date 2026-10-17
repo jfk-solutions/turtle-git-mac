@@ -2024,3 +2024,20 @@ layout repair. Four final raw captures were reviewed and all eight owned receive
 were reaped and independently absent. See [Unified Diff parity](UNIFIED-DIFF-VIEWER-PARITY.md)
 and [batch evidence](qa/unified-find-source-family-2026-10-17.json) for actual
 source/backend scope and remaining physical, codepage and signed acceptance.
+
+
+## About source family — October 17, 2026
+
+All five native About variants now retain original tool artwork and source-style
+header/version/attribution grouping. App and Merge include the pinned water effect,
+with Reduce Motion and owned timer retirement. Captured selected-Git reads cancel
+on closure and hold Quit accounting until settlement; registered links and reused
+windows reject stale/foreign actions. The grouped checkpoint and ten raw light/dark
+captures are recorded in [About parity](ABOUT-PARITY.md) and
+[its QA record](qa/about-source-family-2026-10-17.json). Twenty-seven source controls
+receive partial mappings; no dialog is certified complete. Source/component version
+details, Retina/physical acceptance and signed distribution remain open.
+
+The previous Pages run failed because generated Mac Help lagged DIALOG-GUIDE.md.
+The Help book has been regenerated and its freshness check passes locally. A new
+hosted run is still required; local success is not a hosted integration result.

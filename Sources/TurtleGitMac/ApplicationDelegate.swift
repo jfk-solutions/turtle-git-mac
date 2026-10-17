@@ -63,6 +63,7 @@ import AppKit
         if MergeRegexFilterListController.activeEditors > 0 { return .terminateCancel }
         if ReleaseUpdateModel.activeOperations > 0 { return .terminateCancel }
         if MergeRegexOperations.activeRequests > 0 { return .terminateCancel }
+        if TurtleGitAboutController.activeReads > 0 {return .terminateCancel}
         if SVNWindowModel.activeOperations > 0 { return .terminateCancel }
         if SendPatchWindowModel.activeLoads > 0 || SendPatchWindowController.activeTargetReads > 0 {return .terminateCancel}
         if ImportPatchWindowModel.activeWorkers > 0 {return .terminateCancel}

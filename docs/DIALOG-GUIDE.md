@@ -656,3 +656,20 @@ Right-click the contents header for Extension/Size visibility or **Reset column
 order**; Name remains visible. Reset restores columns after Yes/No confirmation
 and keeps the divider position. In the contents list, Ctrl-A or Cmd-A selects all
 and Ctrl-C or Cmd-C copies the selected names. F5 refreshes the active browser.
+
+
+## About and version information
+
+Use the app menu’s About entry for TurtleGit for Mac, or About Tools for Merge,
+Blame, Image Diff and Unified Diff. Each window shows the original project
+attribution, local License/Notices and a selectable version report. The app’s
+About window also offers the update action for its distribution.
+
+The report distinguishes the Git engine selected in General from the bundled
+component versions. It captures that engine when the window opens; close and
+reopen About after changing it. Copy Version Information copies the displayed
+report, including the engine path, app build, macOS and architecture. Selected
+text retains ordinary Copy behavior. Closing cancels an unfinished version check.
+
+The app and Merge banners respond to pointer movement and clicks. They respect
+macOS Reduce Motion and pause when their window is hidden or minimized.

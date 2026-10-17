@@ -789,6 +789,70 @@
           "anchor": "struct UnifiedDiffViewerSettings"
         }
       ]
+    },
+    {
+      "resource": "src/Resources/TortoiseGitBlameENG.rc",
+      "id": "IDD_ABOUTBOX",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SettingsNavigation.swift",
+          "anchor": "TurtleGitAboutController"
+        }
+      ],
+      "parity_document": "docs/ABOUT-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseMergeENG.rc",
+      "id": "IDD_ABOUT",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SettingsNavigation.swift",
+          "anchor": "TurtleGitAboutController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/AboutBannerView.swift",
+          "anchor": "AboutBannerView"
+        },
+        {
+          "path": "Sources/TurtleGitCore/AboutWaterEffect.swift",
+          "anchor": "AboutWaterEffect"
+        }
+      ],
+      "parity_document": "docs/ABOUT-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_ABOUT",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SettingsNavigation.swift",
+          "anchor": "TurtleGitAboutController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/AboutBannerView.swift",
+          "anchor": "AboutBannerView"
+        },
+        {
+          "path": "Sources/TurtleGitCore/AboutWaterEffect.swift",
+          "anchor": "AboutWaterEffect"
+        }
+      ],
+      "parity_document": "docs/ABOUT-PARITY.md",
+      "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/TortoiseIDiff/TortoiseIDiff.rc",
+      "id": "IDD_ABOUT",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SettingsNavigation.swift",
+          "anchor": "TurtleGitAboutController"
+        }
+      ],
+      "parity_document": "docs/ABOUT-PARITY.md",
+      "status": "partial-native-replacement"
     }
   ]
 }

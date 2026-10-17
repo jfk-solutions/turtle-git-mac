@@ -16,7 +16,7 @@ struct AboutNativeVerification {
             controller.open = { links.append($0) }; controller.checkUpdates = { updates += 1 }; controller.onClosed = { closed += 1 }
             let views = descendants(window.contentView!)
             let buttons = views.compactMap { $0 as? NSButton }
-            precondition(buttons.contains { $0.title == "OK" && $0.keyEquivalent == "\r" })
+            precondition(buttons.contains { $0.title == "OK" && ($0.keyEquivalent == "\r" || window.defaultButtonCell === $0.cell) })
             let text = views.compactMap { $0 as? NSTextView }.first { $0.string.contains("Git: 2.55.0") }!
             precondition(!text.isEditable && text.isSelectable && text.string == controller.diagnosticText)
             let board = NSPasteboard.withUniqueName(); controller.copyVersionInformation(to: board)

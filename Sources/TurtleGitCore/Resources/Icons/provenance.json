@@ -1611,6 +1611,16 @@
       "asset": "RevertBackground.ico",
       "source": "src/Resources/RevertBackground.ico",
       "sha256": "1afbe1456bd2dc060022246ddbd255f67a32f8cbb8c7ea640af16d3afa09dd55"
+    },
+    {
+      "asset": "TortoiseIDiff.ico",
+      "source": "src/TortoiseIDiff/resources/TortoiseIDiff.ico",
+      "sha256": "a879f973ba186dc52997dd7e6f6b5ef4bfb6959d9fe90317308ff6fc430f4880"
+    },
+    {
+      "asset": "TortoiseMerge.ico",
+      "source": "src/Resources/TortoiseMerge.ico",
+      "sha256": "a68790ceaae5324677956e6c2ea73f641ccaaf4826b511d1e2028f463713a402"
     }
   ]
 }

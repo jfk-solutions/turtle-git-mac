@@ -1538,3 +1538,9 @@ CaseConvert.cxx fold mappings, Copyright 2013 Neil Hodgson <neilh@scintilla.org>
 The Scintilla license reproduced above applies to those mappings and algorithms.
 The original conversion table is verified by scripts/generate-unified-case-fold.py
 against the pinned C++ converter; it is independent of the host OS Unicode version.
+
+AboutWaterEffect.swift ports Utils/MiscUI/WaterEffect.cpp/.h under GPL version 2
+or later: Copyright (C) 2023, 2025 TortoiseGit; Copyright (C) 2003-2006, 2008-2010,
+2012-2013 TortoiseSVN. AboutBannerView.swift renders the renamed banner and original
+artwork with that effect. Native bitmap alpha, dimensions and accessibility/timer
+ownership are adapted for AppKit. The original GPL notice applies to this port.

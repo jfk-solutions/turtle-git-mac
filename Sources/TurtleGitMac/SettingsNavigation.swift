@@ -523,6 +523,14 @@ enum TurtleGitAboutTool: String, CaseIterable {
     var purpose: String {
         switch self { case .application: return "A macOS fork of TortoiseGit"; case .merge: return "A native diff/patch and merge editor"; case .blame: return "A native source attribution viewer"; case .image: return "A native image comparison tool"; case .unified: return "A native unified-diff viewer" }
     }
+    var artworkName:String {
+        switch self {case .application:return "TortoiseSmall";case .merge:return "TortoiseMerge";case .blame:return "TortoiseGitBlame";case .image:return "TortoiseIDiff";case .unified:return "TortoiseUDiff"}
+    }
+    func artwork(size:CGFloat)->NSImage? {MenuIcon.originalImage(resource:artworkName,size:size)}
+    var hasBanner:Bool {self == .application || self == .merge}
+    var aboutSize:NSSize {
+        switch self {case .application,.merge:return .init(width:680,height:600);case .blame:return .init(width:640,height:520);case .image,.unified:return .init(width:620,height:480)}
+    }
     var credits: String {
         switch self {
         case .merge: return "Original TortoiseGitMerge / TortoiseMerge:\nStefan Küng — author\nLübbe Onken — icons, design and code\nBased on TortoiseSVN."
@@ -536,70 +544,168 @@ enum TurtleGitAboutTool: String, CaseIterable {
 @MainActor final class TurtleGitAboutService {
     static let shared = TurtleGitAboutService()
     private var controllers: [TurtleGitAboutTool: TurtleGitAboutController] = [:]
-    func show(_ tool: TurtleGitAboutTool) {
-        if let controller = controllers[tool] { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return }
-        let bundle = SubversionMergeDiff.applicationBundle()
-        let information = ApplicationAboutInformation(application: bundle.bundleURL, version: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "", build: bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "")
-        let controller = TurtleGitAboutController(tool: tool, information: information)
-        controller.onClosed = { [weak self] in self?.controllers.removeValue(forKey: tool) }
-        controllers[tool] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    var information:()->ApplicationAboutInformation = {
+        let bundle=SubversionMergeDiff.applicationBundle()
+        return ApplicationAboutInformation(application:bundle.bundleURL,version:bundle.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "",build:bundle.object(forInfoDictionaryKey:"CFBundleVersion") as? String ?? "")
     }
-}
-@MainActor private final class TurtleGitAboutWindow: NSWindow {
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.keyCode == 53, event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty, attachedSheet == nil { performClose(nil); return true }
-        return super.performKeyEquivalent(with: event)
+    var create:(TurtleGitAboutTool,ApplicationAboutInformation)->TurtleGitAboutController = {TurtleGitAboutController(tool:$0,information:$1)}
+    var checkRuntime:(TurtleGitAboutController)->Void = {controller in
+        do {
+            let engine=try GitRuntime.executable(bundle:SubversionMergeDiff.applicationBundle())
+            controller.checkSelectedGit(engine,environment:GitRuntime.environment(executable:engine))
+        } catch {controller.reportGitFailure(error.localizedDescription)}
     }
-}
-@MainActor final class TurtleGitAboutController: NSWindowController, NSWindowDelegate {
-    let tool: TurtleGitAboutTool
-    let information: ApplicationAboutInformation
-    var diagnosticText: String { information.versionText + "\nmacOS: " + ProcessInfo.processInfo.operatingSystemVersionString }
-    var onClosed: () -> Void = {}
-    var open: (URL) -> Void = { NSWorkspace.shared.open($0) }
-    var checkUpdates: () -> Void = { ReleaseUpdateService.shared.show() }
-    init(tool: TurtleGitAboutTool, information: ApplicationAboutInformation) {
-        self.tool = tool; self.information = information
-        let window = TurtleGitAboutWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 530), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "About " + tool.title; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 550, height: 430)
-        super.init(window: window); window.delegate = self; window.center()
-        let content = NSView(); window.contentView = content
-        let icon = NSImageView(); icon.image = tool.icon.image(size: 48); icon.imageScaling = .scaleProportionallyUpOrDown
-        let name = NSTextField(labelWithString: tool.title); name.font = .boldSystemFont(ofSize: 22)
-        let subtitle = NSTextField(labelWithString: tool.purpose); subtitle.font = .systemFont(ofSize: 13)
-        let title = NSStackView(views: [name, subtitle]); title.orientation = .vertical; title.alignment = .leading; title.spacing = 5
-        let header = NSStackView(views: [icon, title]); header.orientation = .horizontal; header.spacing = 16
-        let credits = NSTextField(wrappingLabelWithString: tool.credits); credits.isSelectable = true
-        let links = NSStackView(); links.orientation = .horizontal; links.spacing = 14
-        for (title, url) in [("Project website", "https://jfk-solutions.github.io/turtle-git-mac/"), ("Source code", "https://github.com/jfk-solutions/turtle-git-mac"), ("Upstream / contributors", "https://github.com/TortoiseGit/TortoiseGit")] {
-            let button = NSButton(title: title, target: self, action: #selector(openLink(_:))); button.identifier = .init(url); button.bezelStyle = .inline; links.addArrangedSubview(button)
+    var present:(TurtleGitAboutController)->Void = {$0.showWindow(nil);$0.window?.makeKeyAndOrderFront(nil)}
+    @discardableResult func show(_ tool: TurtleGitAboutTool)->TurtleGitAboutController {
+        if let controller=controllers[tool] {present(controller);return controller}
+        let controller=create(tool,information())
+        controller.onClosed = { [weak self,weak controller] in
+            if self?.controllers[tool] === controller {self?.controllers.removeValue(forKey:tool)}
         }
-        let versions = NSTextView(); versions.isEditable = false; versions.isRichText = false; versions.isSelectable = true
-        versions.string = diagnosticText
-        versions.font = .monospacedSystemFont(ofSize: 11, weight: .regular); versions.textColor = .labelColor; versions.backgroundColor = .textBackgroundColor
-        versions.textContainerInset = NSSize(width: 8, height: 8); versions.setAccessibilityLabel("Version Information")
-        let scroll = NSScrollView(); scroll.documentView = versions; scroll.hasVerticalScroller = true; scroll.borderType = .bezelBorder
-        versions.isVerticallyResizable = true; versions.autoresizingMask = [.width]; versions.textContainer?.widthTracksTextView = true
-        let versionTitle = NSTextField(labelWithString: "Version Information"); versionTitle.font = .boldSystemFont(ofSize: 13)
-        let footer = NSStackView(); footer.orientation = .horizontal; footer.spacing = 8
-        let copy = NSButton(title: "Copy Version Information", target: self, action: #selector(copyVersions(_:)))
-        let license = NSButton(title: "License", target: self, action: #selector(openLicense(_:))); license.isEnabled = information.license != nil
-        let notices = NSButton(title: "Notices", target: self, action: #selector(openNotices(_:))); notices.isEnabled = information.notices != nil
-        let update = NSButton(title: "Check For Updates…", target: self, action: #selector(update(_:)))
-        let ok = NSButton(title: "OK", target: self, action: #selector(closeAbout(_:))); ok.keyEquivalent = "\r"
-        for button in [copy, license, notices, update, ok] { footer.addArrangedSubview(button) }
-        let stack = NSStackView(views: [header, credits, links, versionTitle, scroll, footer]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 14
-        content.addSubview(stack); stack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 20), stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -20), stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 20), stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -20), icon.widthAnchor.constraint(equalToConstant: 48), icon.heightAnchor.constraint(equalToConstant: 48), scroll.widthAnchor.constraint(equalTo: stack.widthAnchor), scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 120)])
-        window.initialFirstResponder = ok
+        controllers[tool]=controller;checkRuntime(controller);present(controller);return controller
     }
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    @objc func openLink(_ sender: NSButton) { if let value = sender.identifier?.rawValue, let url = URL(string: value) { open(url) } }
-    @objc func openLicense(_ sender: Any?) { if let url = information.license { open(url) } }
-    @objc func openNotices(_ sender: Any?) { if let url = information.notices { open(url) } }
-    func copyVersionInformation(to pasteboard: NSPasteboard) { pasteboard.clearContents(); pasteboard.setString(diagnosticText, forType: .string) }
-    @objc func copyVersions(_ sender: Any?) { copyVersionInformation(to: .general) }
-    @objc func update(_ sender: Any?) { checkUpdates() }
-    @objc func closeAbout(_ sender: Any?) { window?.performClose(nil) }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+}
+@MainActor private final class TurtleGitAboutWindow:NSWindow {
+    weak var aboutController:TurtleGitAboutController?
+    override func performKeyEquivalent(with event:NSEvent)->Bool {
+        let modifiers=event.modifierFlags.intersection([.command,.option,.control,.shift])
+        if event.keyCode==53,modifiers.isEmpty,attachedSheet==nil {performClose(nil);return true}
+        if modifiers == .command,event.charactersIgnoringModifiers?.lowercased()=="c",
+           ((firstResponder as? NSTextView)?.selectedRange().length ?? 0)==0 {
+            aboutController?.copyVersions(nil);return true
+        }
+        return super.performKeyEquivalent(with:event)
+    }
+}
+@MainActor final class TurtleGitAboutController:NSWindowController,NSWindowDelegate {
+    static private(set) var activeReads=0
+    let tool:TurtleGitAboutTool
+    let information:ApplicationAboutInformation
+    private let versionView=NSTextView()
+    private var runtimeText="Selected Git: Not checked"
+    private var runtimeToken:OperationCancellation?
+    private var runtimeRequest=UUID()
+    private(set) var checkingRuntime=false
+    var inspectRuntime:((URL,[String:String],OperationCancellation)async throws->String)?
+    private(set) var banner:AboutBannerView?
+    private(set) var retired=false
+    private var controls=[NSControl]()
+    private var linkTargets=[ObjectIdentifier:URL]()
+    var clipboard:NSPasteboard = .general
+    var diagnosticText:String {
+        #if arch(arm64)
+        let architecture="arm64"
+        #else
+        let architecture="x86_64"
+        #endif
+        return tool.title+"\n"+runtimeText+"\n"+information.versionText+"\nmacOS: "+ProcessInfo.processInfo.operatingSystemVersionString+"\nArchitecture: "+architecture+"\nDistribution: "+(GitRuntime.isAppStoreBuild ? "App Store":"Desktop")
+    }
+    var onClosed:()->Void = {}
+    var open:(URL)->Void = {NSWorkspace.shared.open($0)}
+    var checkUpdates:()->Void = {ReleaseUpdateService.shared.show()}
+    init(tool:TurtleGitAboutTool,information:ApplicationAboutInformation) {
+        self.tool=tool;self.information=information
+        let window=TurtleGitAboutWindow(contentRect:.init(origin:.zero,size:tool.aboutSize),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
+        window.title="About "+tool.title;window.isReleasedWhenClosed=false
+        super.init(window:window);window.delegate=self;window.aboutController=self
+        let content=NSView();window.contentView=content
+        var items=[NSView]()
+        if tool.hasBanner {
+            let banner=AboutBannerView(tool:tool);self.banner=banner
+            banner.heightAnchor.constraint(equalToConstant:64).isActive=true;items.append(banner)
+            if tool == .merge {items.append(NSTextField(labelWithString:tool.purpose))}
+        } else {
+            let icon=NSImageView();icon.image=tool.artwork(size:48);icon.imageScaling = .scaleProportionallyUpOrDown
+            let title=NSTextField(labelWithString:tool.title);title.font = .boldSystemFont(ofSize:22)
+            let subtitle=NSTextField(wrappingLabelWithString:tool.purpose)
+            let version=NSTextField(labelWithString:"Version "+information.applicationVersion+" ("+information.build+")");version.isSelectable=true
+            let names=NSStackView(views:[title,subtitle,version]);names.orientation = .vertical;names.alignment = .leading;names.spacing=4
+            let header=NSStackView(views:[icon,names]);header.orientation = .horizontal;header.alignment = .centerY;header.spacing=16
+            NSLayoutConstraint.activate([icon.widthAnchor.constraint(equalToConstant:48),icon.heightAnchor.constraint(equalToConstant:48)])
+            items.append(header)
+        }
+        let credits=NSTextField(wrappingLabelWithString:tool.credits);credits.isSelectable=true;items.append(credits)
+        func link(_ title:String,_ target:String)->NSButton {
+            let button=NSButton(title:title,target:self,action:#selector(openLink(_:)));button.bezelStyle = .inline
+            button.attributedTitle=NSAttributedString(string:title,attributes:[.foregroundColor:NSColor.linkColor])
+            button.setContentHuggingPriority(.required,for:.horizontal)
+            button.identifier = .init(target);linkTargets[ObjectIdentifier(button)]=URL(string:target)!;controls.append(button);return button
+        }
+        let links=NSStackView(views:[link("Project website","https://jfk-solutions.github.io/turtle-git-mac/"),link("Source code","https://github.com/jfk-solutions/turtle-git-mac"),link("Upstream / contributors","https://github.com/TortoiseGit/TortoiseGit")]);links.orientation = .horizontal;links.spacing=12;links.addArrangedSubview(NSView());items.append(links)
+        if tool.hasBanner {
+            let support=NSStackView(views:[link("Support upstream developers",tool == .application ? "https://tortoisegit.org/donate":"https://tortoisegit.org/contribute/"),link("Based on TortoiseSVN","https://tortoisesvn.net/")]);support.orientation = .horizontal;support.spacing=12;support.addArrangedSubview(NSView());items.append(support)
+        }
+        let versions=versionView;versions.isEditable=false;versions.isRichText=false;versions.isSelectable=true;versions.string=diagnosticText
+        versions.font = .monospacedSystemFont(ofSize:11,weight:.regular);versions.textColor = .labelColor;versions.backgroundColor = .textBackgroundColor
+        versions.textContainerInset = .init(width:8,height:8);versions.setAccessibilityLabel("Version Information")
+        versions.isVerticallyResizable=true;versions.autoresizingMask = [.width];versions.textContainer?.widthTracksTextView=true
+        let scroll=NSScrollView();scroll.documentView=versions;scroll.hasVerticalScroller=true;scroll.borderType = .bezelBorder
+        let versionBox=NSBox();versionBox.title=tool == .merge ? "Version":"Version Information";versionBox.contentViewMargins = .init(width:8,height:8)
+        versionBox.contentView?.addSubview(scroll);scroll.translatesAutoresizingMaskIntoConstraints=false
+        if let parent=versionBox.contentView {NSLayoutConstraint.activate([scroll.leadingAnchor.constraint(equalTo:parent.leadingAnchor),scroll.trailingAnchor.constraint(equalTo:parent.trailingAnchor),scroll.topAnchor.constraint(equalTo:parent.topAnchor),scroll.bottomAnchor.constraint(equalTo:parent.bottomAnchor),scroll.heightAnchor.constraint(greaterThanOrEqualToConstant:tool.hasBanner ? 135:100)])}
+        items.append(versionBox)
+        let copy=NSButton(title:"Copy Version Information",target:self,action:#selector(copyVersions(_:)))
+        let license=NSButton(title:"License",target:self,action:#selector(openLicense(_:)));license.isEnabled=information.license != nil
+        let notices=NSButton(title:"Notices",target:self,action:#selector(openNotices(_:)));notices.isEnabled=information.notices != nil
+        controls += [copy,license,notices]
+        for button in [copy,license,notices] {button.setContentHuggingPriority(.required,for:.horizontal)}
+        let secondary=NSStackView(views:[copy,license,notices,NSView()]);secondary.orientation = .horizontal;secondary.spacing=8;items.append(secondary)
+        let footer=NSView(),ok=NSButton(title:"OK",target:self,action:#selector(closeAbout(_:)));ok.keyEquivalent="\r";controls.append(ok)
+        footer.addSubview(ok);ok.translatesAutoresizingMaskIntoConstraints=false
+        NSLayoutConstraint.activate([footer.heightAnchor.constraint(equalToConstant:28),ok.trailingAnchor.constraint(equalTo:footer.trailingAnchor),ok.centerYAnchor.constraint(equalTo:footer.centerYAnchor)])
+        if tool == .application {
+            let update=NSButton(title:GitRuntime.isAppStoreBuild ? "View in App Store…":"Check For Updates…",target:self,action:#selector(update(_:)));controls.append(update);footer.addSubview(update);update.translatesAutoresizingMaskIntoConstraints=false
+            NSLayoutConstraint.activate([update.leadingAnchor.constraint(equalTo:footer.leadingAnchor),update.centerYAnchor.constraint(equalTo:footer.centerYAnchor),update.trailingAnchor.constraint(lessThanOrEqualTo:ok.leadingAnchor,constant:-12)])
+        }
+        items.append(footer)
+        let stack=NSStackView(views:items);stack.orientation = .vertical;stack.alignment = .leading;stack.distribution = .fill;stack.spacing=10
+        versionBox.setContentHuggingPriority(.init(1),for:.vertical)
+        content.addSubview(stack);stack.translatesAutoresizingMaskIntoConstraints=false
+        footer.bottomAnchor.constraint(equalTo:stack.bottomAnchor).isActive=true
+        for item in items {
+            item.translatesAutoresizingMaskIntoConstraints=false
+            NSLayoutConstraint.activate([item.leadingAnchor.constraint(equalTo:stack.leadingAnchor),item.trailingAnchor.constraint(equalTo:stack.trailingAnchor)])
+        }
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:content.leadingAnchor,constant:20),stack.trailingAnchor.constraint(equalTo:content.trailingAnchor,constant:-20),stack.topAnchor.constraint(equalTo:content.topAnchor,constant:20),stack.bottomAnchor.constraint(equalTo:content.bottomAnchor,constant:-20),content.widthAnchor.constraint(greaterThanOrEqualToConstant:tool.hasBanner ? 600:560),content.heightAnchor.constraint(greaterThanOrEqualToConstant:tool.hasBanner ? 540:440)])
+        window.setContentSize(tool.aboutSize);window.initialFirstResponder=ok;window.defaultButtonCell=ok.cell as? NSButtonCell;window.center()
+    }
+    func reportGitFailure(_ message:String) {
+        guard !retired else{return};runtimeText="Selected Git: "+String(message.prefix(1024));versionView.string=diagnosticText
+    }
+    func checkSelectedGit(_ engine:URL,environment:[String:String] = [:]) {
+        guard !retired,!checkingRuntime else{return}
+        let token=OperationCancellation(),request=UUID(),inspect=inspectRuntime
+        runtimeToken=token;runtimeRequest=request;checkingRuntime=true;Self.activeReads += 1
+        runtimeText="Selected Git: Checking…\nGit executable: "+engine.path;versionView.string=diagnosticText
+        Task {
+            defer {Self.activeReads -= 1;if runtimeRequest==request {checkingRuntime=false;runtimeToken=nil}}
+            do {
+                let result:String
+                if let inspect {result=try await inspect(engine,environment,token)}
+                else {
+                    let repository=try GitRepository(root:TurtleGitTemporaryStorage.root,executable:engine)
+                    result=try await repository.run(["--version"],environmentOverrides:environment,cancellation:token).text.trimmingCharacters(in:.whitespacesAndNewlines)
+                }
+                try token.check()
+                guard !retired,runtimeRequest==request else{return}
+                guard result.hasPrefix("git version ") else {throw GitRuntimeFailure.customGitInvalid}
+                runtimeText="Selected Git: "+String(result.prefix(1024))+"\nGit executable: "+engine.path;versionView.string=diagnosticText
+            } catch {if !retired,runtimeRequest==request,!token.isCancelled {reportGitFailure(error.localizedDescription)}}
+        }
+    }
+    required init?(coder:NSCoder) {fatalError("init(coder:) is not supported")}
+    @objc func openLink(_ sender:NSButton) {
+        guard !retired,sender.window === window,sender.isEnabled,let url=linkTargets[ObjectIdentifier(sender)] else{return};open(url)
+    }
+    @objc func openLicense(_ sender:Any?) {guard !retired,let url=information.license else{return};open(url)}
+    @objc func openNotices(_ sender:Any?) {guard !retired,let url=information.notices else{return};open(url)}
+    func copyVersionInformation(to pasteboard:NSPasteboard) {guard !retired else{return};pasteboard.clearContents();pasteboard.setString(diagnosticText,forType:.string)}
+    @objc func copyVersions(_ sender:Any?) {copyVersionInformation(to:clipboard)}
+    @objc func update(_ sender:Any?) {guard !retired else{return};checkUpdates()}
+    @objc func closeAbout(_ sender:Any?) {guard !retired else{return};window?.performClose(nil)}
+    func windowWillClose(_ notification:Notification) {
+        guard !retired else{return};retired=true;runtimeToken?.cancel();banner?.retire()
+        for control in controls {control.isEnabled=false;control.target=nil;control.action=nil};linkTargets=[:]
+        open={_ in};checkUpdates={};let closed=onClosed;onClosed={};closed()
+    }
 }

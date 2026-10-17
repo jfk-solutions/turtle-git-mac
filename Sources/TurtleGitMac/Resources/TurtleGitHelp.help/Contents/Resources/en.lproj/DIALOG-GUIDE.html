@@ -284,6 +284,12 @@ and mail-client permissions depend on the selected delivery method.</p>
 Review/apply single patch uses the comparison/review workflow. Resolve a failed
 or conflicted application in its owning dialog before continuing. A Unified Diff
 document can be edited and saved without staging those edits automatically.</p>
+<p>In a Unified Diff window or attached partial-patch view, Command-F opens the
+bottom Find bar and seeds it from selected text. Typing searches from the top;
+Previous/Next, Command-G/Shift-Command-G and F3/Shift-F3 continue from the current
+selection. Search stops at the document boundary. Escape hides Find first.
+Search is literal. Enable Match case for exact letter case; with it disabled,
+Straße also matches STRASSE. Search does not merge different Unicode spellings.</p>
 <p>Revision Export saves the selected revision/subtree. It does not switch the
 working tree. See <a href="REVISION-EXPORT.html">Revision Export</a>.</p>
 <a name="topic-bisect"></a><h2 id="bisect">Bisect</h2>
@@ -510,4 +516,16 @@ Right-click the contents header for Extension/Size visibility or <strong>Reset c
 order</strong>; Name remains visible. Reset restores columns after Yes/No confirmation
 and keeps the divider position. In the contents list, Ctrl-A or Cmd-A selects all
 and Ctrl-C or Cmd-C copies the selected names. F5 refreshes the active browser.</p>
+<h2 id="about-and-version-information">About and version information</h2>
+<p>Use the app menu’s About entry for TurtleGit for Mac, or About Tools for Merge,
+Blame, Image Diff and Unified Diff. Each window shows the original project
+attribution, local License/Notices and a selectable version report. The app’s
+About window also offers the update action for its distribution.</p>
+<p>The report distinguishes the Git engine selected in General from the bundled
+component versions. It captures that engine when the window opens; close and
+reopen About after changing it. Copy Version Information copies the displayed
+report, including the engine path, app build, macOS and architecture. Selected
+text retains ordinary Copy behavior. Closing cancels an unfinished version check.</p>
+<p>The app and Merge banners respond to pointer movement and clicks. They respect
+macOS Reduce Motion and pause when their window is hidden or minimized.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

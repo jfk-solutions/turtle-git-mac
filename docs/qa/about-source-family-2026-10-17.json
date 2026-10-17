@@ -1,0 +1,210 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "0a1ee3ef4cac8cb6d430897873f9629ccb264874",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Five native About variants with source artwork, version groups, attributions and footer",
+    "Pinned About water effect, native timer/accessibility/lifetime policy",
+    "Captured Git version reads, registered links, private copy, singleton retirement and Quit guards"
+  ],
+  "oracle": {
+    "script": "scripts/test-about-water-source.py",
+    "frames": 96,
+    "original_source_blob_verified": true,
+    "log": "build/qa/about-water-byte-source-2026-10-17.log",
+    "exit": 0,
+    "initial_failure": "Windows getter shim returned uint32 instead of BYTE; 66 Core assertions failed. Corrected shim to uint8 without production algorithm change.",
+    "alpha": "Native alpha retained; RGB compared to source"
+  },
+  "core": {
+    "distinct_cases_passed_cumulatively": 5,
+    "initial_log": "build/qa/about-source-core-2026-10-17.log",
+    "initial_exit": 1,
+    "initial_assertion_failures": 66,
+    "unaffected_cases_passed": 4,
+    "affected_recheck_log": "build/qa/about-water-byte-core-2026-10-17.log",
+    "affected_recheck_cases": 1,
+    "affected_recheck_exit": 0,
+    "repeated_after_native_only_changes": false
+  },
+  "builds": [
+    {
+      "log": "build/qa/about-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 7
+    },
+    {
+      "log": "build/qa/about-source-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/about-source-visibility-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/about-source-footer-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/about-source-artwork-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 0,
+      "note": "An earlier editing script failed before production changes; this successful build did not validate the later original-icon source changes. Final original-icons build covers those."
+    },
+    {
+      "log": "build/qa/about-source-original-icons-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "driver": "scripts/test-about-source-family.py",
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "final_log": "build/qa/about-source-original-icons-native-2026-10-17.log",
+    "final_exit": 0,
+    "whole_family_engine_passes": 2,
+    "tools": [
+      "application",
+      "merge",
+      "blame",
+      "image",
+      "unified"
+    ],
+    "attempts": [
+      {
+        "suffix": "native",
+        "exit": 1,
+        "pids": [
+          54728
+        ],
+        "observation": "Default-button fixture assumed keyEquivalent survives defaultButtonCell assignment."
+      },
+      {
+        "suffix": "native-diagnostic",
+        "exit": 1,
+        "pids": [
+          54766
+        ],
+        "observation": "Report correct; default cell identity true, key equivalent empty."
+      },
+      {
+        "suffix": "native-final",
+        "exit": 0,
+        "pids": [
+          54798,
+          54811
+        ],
+        "observation": "Five-window family passed both engines; raw capture exposed narrow/right-aligned layout."
+      },
+      {
+        "suffix": "layout-native",
+        "exit": 1,
+        "pids": [
+          54912
+        ],
+        "observation": "Native OS occlusion visible signal unavailable to prohibited receiver."
+      },
+      {
+        "suffix": "footer-native",
+        "exit": 0,
+        "pids": [
+          55051,
+          55075
+        ],
+        "observation": "Both engines passed with injected window-visibility signal and real native timers; old tool icons caught in visual review."
+      },
+      {
+        "suffix": "original-icons-native",
+        "exit": 0,
+        "pids": [
+          55288,
+          55298
+        ],
+        "observation": "Final both-engine family passed, ten captures with original application icons."
+      }
+    ],
+    "coverage": [
+      "Read-only selectable reports and real selected Git --version",
+      "Busy read deduplication and captured engine/environment",
+      "Private pasteboard copy and own registered link routes",
+      "Foreign, changed-identifier and retired action rejection",
+      "Service reuse and stale close callbacks",
+      "Uncooperative read holds Quit count without publishing after close",
+      "Close cancels and reaps real private Git helper descendants",
+      "Actual native timer starts/advances/pauses/retires; Reduce Motion clears bitmap"
+    ],
+    "ownership": {
+      "receiver_pids": [
+        54728,
+        54766,
+        54798,
+        54811,
+        54912,
+        55051,
+        55075,
+        55288,
+        55298
+      ],
+      "all_independently_absent": true,
+      "private_helper_paths_absent": true,
+      "activation": "prohibited; owned windows orderFront only, no global input",
+      "visibility_limit": "Window visibility injected for timer check; physical OS occlusion not certified"
+    }
+  },
+  "captures": {
+    "files": [
+      "about-application-source-light.png",
+      "about-application-source-dark.png",
+      "about-merge-source-light.png",
+      "about-merge-source-dark.png",
+      "about-blame-source-light.png",
+      "about-blame-source-dark.png",
+      "about-image-source-light.png",
+      "about-image-source-dark.png",
+      "about-unified-source-light.png",
+      "about-unified-source-dark.png"
+    ],
+    "directory": "docs/site/assets",
+    "raw": true,
+    "child_windows_included": false,
+    "individually_reviewed": true,
+    "reduce_motion_static": true,
+    "observation": "Source icons, full-width report panes and footer fit in both palettes. Retina banner text can appear soft; final font/pixel acceptance remains open."
+  },
+  "help": {
+    "cause": "Hosted Pages job 117305030869 for 0a1ee3ef failed build-help.py --check on stale generated DIALOG-GUIDE, Info.plist and manifest.",
+    "repair": "Regenerated tracked Help resources.",
+    "log": "build/qa/about-source-help-check-2026-10-17.log",
+    "exit": 0,
+    "documents": 36,
+    "topics": 47,
+    "files": 50,
+    "bytes": 1970103
+  },
+  "ledger": {
+    "new_partial_control_mappings": 27,
+    "mapped_controls": 1547,
+    "pending_controls": 112,
+    "certified_dialogs": 0
+  },
+  "remaining": [
+    "Retina/font/pixel parity and physical keyboard/pointer/VoiceOver",
+    "Actual user-session occlusion behavior",
+    "Component-specific APR/APR-util version details",
+    "Crash-reporting family",
+    "Full hosted CI, current universal preview and signed Finder/App Store acceptance"
+  ],
+  "certified_complete": false,
+  "site": {
+    "log": "build/qa/about-source-site-2026-10-17.log",
+    "exit": 0,
+    "documents": 265,
+    "unresolved_fragments": 0
+  }
+}
