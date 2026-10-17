@@ -217,9 +217,13 @@
         {
           "path": "Sources/TurtleGitMac/PatchWindow.swift",
           "anchor": "PartialPatchFindBar"
+        },
+        {
+          "path": "Sources/TurtleGitCore/UnifiedDiffSearch.swift",
+          "anchor": "UnifiedDiffSearch"
         }
       ],
-      "parity_document": "docs/COMMIT-PARITY.md",
+      "parity_document": "docs/UNIFIED-DIFF-VIEWER-PARITY.md",
       "status": "partial-native-replacement"
     },
     {
@@ -397,6 +401,10 @@
         {
           "path": "Sources/TurtleGitMac/PatchWindow.swift",
           "anchor": "PartialPatchFindBar"
+        },
+        {
+          "path": "Sources/TurtleGitCore/UnifiedDiffSearch.swift",
+          "anchor": "UnifiedDiffSearch"
         }
       ],
       "parity_document": "docs/UNIFIED-DIFF-VIEWER-PARITY.md",

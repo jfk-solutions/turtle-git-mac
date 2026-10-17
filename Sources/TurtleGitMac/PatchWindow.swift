@@ -6,16 +6,19 @@ import UniformTypeIdentifiers
 @MainActor private final class PatchNSWindow: NSWindow {
     weak var patchText: NSTextView?
     weak var documentSession: PatchDocumentSession?
+    private var livePatchText:PatchTextView.PatchText? {
+        guard let text=patchText as? PatchTextView.PatchText,text.window === self else{return nil};return text
+    }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
         if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "o", documentSession?.enabled == true { documentSession?.openDocument(); return true }
         if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "s", documentSession?.enabled == true { documentSession?.saveDocument(); return true }
         if event.keyCode == 99, modifiers.isEmpty || modifiers == .shift { find(modifiers == .shift ? .previousMatch : .nextMatch); return true }
         if modifiers == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "s" {
-            (patchText as? PatchTextView.PatchText)?.savePatch(nil); return true
+            livePatchText?.savePatch(nil); return true
         }
         if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "p" {
-            (patchText as? PatchTextView.PatchText)?.printPatch(nil); return true
+            livePatchText?.printPatch(nil); return true
         }
         if modifiers == .command, event.charactersIgnoringModifiers == "f" {
             find(.showFindInterface); return true
@@ -26,12 +29,12 @@ import UniformTypeIdentifiers
         return super.performKeyEquivalent(with: event)
     }
     func find(_ action: NSTextFinder.Action) {
-        (patchText as? PatchTextView.PatchText)?.find(action)
+        livePatchText?.find(action)
     }
     override func cancelOperation(_ sender: Any?) {
-        if let text = patchText as? PatchTextView.PatchText, text.coordinator?.model.findVisible == true {
+        if let text = livePatchText, text.coordinator?.model.findVisible == true {
             text.coordinator?.model.hideFind()
-        } else if patchText?.enclosingScrollView?.isFindBarVisible == true {
+        } else if livePatchText?.enclosingScrollView?.isFindBarVisible == true {
             find(.hideFindInterface); makeFirstResponder(patchText)
         } else { performClose(sender) }
     }
@@ -118,7 +121,7 @@ import UniformTypeIdentifiers
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     let appearancePreferences: UserDefaults
-    @Published var document = GitPatch(text: "") { didSet { originalDiff = nil } }
+    @Published var document = GitPatch(text: "") { didSet { originalDiff = nil; findRevision=UUID() } }
     private var originalDiff: UnifiedDiffDocument?
     var usesSourceFindBar = false
     @Published var allowsDocumentEditing = false
@@ -162,8 +165,8 @@ import UniformTypeIdentifiers
     var customRefresh: (() -> Void)?
     var readOnlyInformation: String?
     var base: String?
-    @Published var busy = false
-    @Published var confirmingQuit = false
+    @Published var busy = false {didSet {if oldValue != busy {findRevision=UUID()}}}
+    @Published var confirmingQuit = false {didSet {if oldValue != confirmingQuit {findRevision=UUID()}}}
     @Published var error: String? { didSet { if error != nil { approvedReplacementText = nil } } }
     @Published var paths: [String] = []
     private var generation = 0
@@ -175,12 +178,40 @@ import UniformTypeIdentifiers
     static private(set) var activeOperations = 0
     @Published private(set) var loading = false
     @Published private(set) var cancelling = false
-    @Published private(set) var findVisible = false
+    @Published private(set) var findVisible = false {didSet {if oldValue != findVisible {findRevision=UUID()}}}
     @Published private(set) var findFocusRequest = 0
     @Published private(set) var findBoundaryCount = 0
     @Published var findText = ""
     @Published var findMatchCase = false
-    var sourceOwnerID: UUID?
+    private var findRevision=UUID()
+    struct FindContext:Equatable {let owner:ObjectIdentifier;let revision:UUID;let source:UUID?}
+    var findContext:FindContext {.init(owner:ObjectIdentifier(self),revision:findRevision,source:sourceOwnerID)}
+    func canUseFind(_ context:FindContext)->Bool {canFind && findVisible && context.source != nil && context==findContext && sourceAttached()}
+    func findField(context:FindContext)->Binding<String> {
+        Binding(get:{self.findText},set:{if self.canUseFind(context) {self.changeFindText($0)}})
+    }
+    func findCase(context:FindContext)->Binding<Bool> {
+        Binding(get:{self.findMatchCase},set:{if self.canUseFind(context) {self.findMatchCase=$0}})
+    }
+    func search(previous:Bool,context:FindContext) {guard canUseFind(context) else{return};search(previous:previous)}
+    func hideFind(context:FindContext) {guard canUseFind(context) else{return};hideFind()}
+    private(set) var sourceCallbackRevision=UUID()
+    func sourceCallbacksCurrent(_ identity:UUID,revision:UUID)->Bool {!retired && sourceOwnerID==identity && sourceCallbackRevision==revision}
+    var sourceOwnerID: UUID? {didSet {
+        guard oldValue != sourceOwnerID else{return};sourceMoved(sourceOwnerID)
+    }}
+    func sourceMoved(_ identity:UUID?) {
+        guard sourceOwnerID==identity else{return};findRevision=UUID();sourceCallbackRevision=UUID()
+        // Registration/attachment may occur during a SwiftUI update. Refresh
+        // the bar on the next turn, only while this registration still owns it.
+        let owner=sourceOwnerID
+        Task {@MainActor [weak self] in
+            await Task.yield()
+            guard let self,!self.retired,self.sourceOwnerID==owner else{return}
+            self.objectWillChange.send()
+        }
+    }
+    var sourceAttached:()->Bool = {false}
     var sourceSelection: () -> NSRange = { NSRange(location: 0, length: 0) }
     var selectSource: (NSRange) -> Void = { _ in }
     var focusSource: () -> Void = {}
@@ -192,7 +223,7 @@ import UniformTypeIdentifiers
         if selected.length > 0, selected.location <= text.length, NSMaxRange(selected) <= text.length {
             changeFindText(text.substring(with: selected))
         }
-        findVisible = true; findFocusRequest += 1
+        findRevision=UUID();findVisible = true; findFocusRequest += 1
     }
     func hideFind() {
         guard canFind else { return }; findVisible = false; focusSource()
@@ -207,14 +238,13 @@ import UniformTypeIdentifiers
         guard !findText.isEmpty else { showFind(); return }
         let text = document.text as NSString, selection = sourceSelection()
         let cursor = min(text.length, previous ? selection.location : NSMaxRange(selection))
-        let range = previous ? NSRange(location: 0, length: cursor) : NSRange(location: cursor, length: text.length - cursor)
-        var options: NSString.CompareOptions = findMatchCase ? [] : [.caseInsensitive]
-        if previous { options.insert(.backwards) }
-        let found = text.range(of: findText, options: options, range: range)
-        if found.location == NSNotFound {
-            selectSource(NSRange(location: cursor, length: 0)); findBoundaryCount += 1; onFindBoundary()
-        } else { selectSource(found) }
+        if let found=UnifiedDiffSearch.find(findText,in:document.text,from:cursor,backwards:previous,matchCase:findMatchCase) {
+            selectSource(found)
+        } else {
+            selectSource(NSRange(location:cursor,length:0));findBoundaryCount += 1;onFindBoundary()
+        }
     }
+
     func cancelRead() {
         guard !retired, loading, !cancelling else { return }
         cancelling = true; readCancellation?.cancel(); readTask?.cancel()
@@ -222,7 +252,7 @@ import UniformTypeIdentifiers
     func retire() {
         guard !retired else { return }; retired = true; generation += 1
         readCancellation?.cancel(); readTask?.cancel()
-        sourceSelection = { NSRange(location: 0, length: 0) }; selectSource = { _ in }; focusSource = {}; onFindBoundary = {}
+        sourceAttached={false};sourceSelection = { NSRange(location: 0, length: 0) }; selectSource = { _ in }; focusSource = {}; onFindBoundary = {}
         requestReplacement = nil; requestReload = nil; documentChanged = {}
         saveDocument = {}; openDocument = {}; saveAs = {}; printDiff = {}; customRefresh = nil; onApplied = {}; onApplying = { _ in }; onSettled = { _ in }
         findVisible = false
@@ -334,23 +364,25 @@ private struct PartialPatchFindBar: View {
     @ObservedObject var model: PatchWindowModel
     @FocusState private var focused: Bool
     var body: some View {
+        let context=model.findContext
         HStack(spacing: 6) {
-            Button { model.hideFind() } label: { Image(nsImage: MenuIcon.originalImage(resource: "cancel-normal", size: 16) ?? NSImage(systemSymbolName: "xmark", accessibilityDescription: "Close Find")!) }.buttonStyle(.plain).help("Close Find")
-            Text("Find:")
-            TextField("Find", text: Binding(get: { model.findText }, set: { model.changeFindText($0) }))
-                .textFieldStyle(.roundedBorder).focused($focused).onSubmit { model.search(previous: false) }
-                .onExitCommand { model.hideFind() }
+            Button { model.hideFind(context:context) } label: { Image(nsImage: MenuIcon.originalImage(resource: "cancel-normal", size: 16) ?? NSImage(systemSymbolName: "xmark", accessibilityDescription: "Close Find")!) }.buttonStyle(.plain).help("Close Find")
+            Text("Find:").fixedSize()
+            TextField("Find", text:model.findField(context:context))
+                .textFieldStyle(.roundedBorder).focused($focused).frame(minWidth:64).onSubmit { model.search(previous: false,context:context) }
+                .onExitCommand { model.hideFind(context:context) }
                 .accessibilityIdentifier(model.readOnly ? "UnifiedDiff.FindText" : "PartialPatch.FindText")
-            Button("‹ Previous") { model.search(previous: true) }
-            Button("Next ›") { model.search(previous: false) }
-            Toggle("Match case", isOn: $model.findMatchCase).toggleStyle(.checkbox)
-        }.controlSize(.small).padding(6).disabled(!model.canFind)
+            Button("‹ Previous") { model.search(previous: true,context:context) }.fixedSize()
+            Button("Next ›") { model.search(previous: false,context:context) }.fixedSize()
+            Toggle("Match case", isOn:model.findCase(context:context)).toggleStyle(.checkbox).fixedSize()
+        }.controlSize(.small).frame(height:24).padding(6).disabled(!model.canFind)
         .onAppear { requestFocus() }
         .onChange(of: model.findFocusRequest) { _ in requestFocus() }
     }
     private func requestFocus() {
         focused = false
-        DispatchQueue.main.async { if model.canFind && model.findVisible { focused = true } }
+        let context=model.findContext,request=model.findFocusRequest
+        DispatchQueue.main.async { if model.canUseFind(context),model.findFocusRequest==request { focused = true } }
     }
 }
 
@@ -400,17 +432,33 @@ struct PatchTextView: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard !model.retired, let text = scroll.documentView as? PatchText else { return }
+        if context.coordinator.model !== model {
+            let previous=context.coordinator.model
+            if previous.sourceOwnerID==context.coordinator.identity {
+                previous.sourceOwnerID=nil;previous.sourceAttached={false};previous.sourceSelection={NSRange(location:0,length:0)};previous.selectSource={_ in};previous.focusSource={}
+            }
+        }
         context.coordinator.model = model
         text.isEditable = model.canEditText
         text.usesFindBar = !model.usesSourceFindBar; text.isIncrementalSearchingEnabled = !model.usesSourceFindBar
-        model.sourceOwnerID = context.coordinator.identity
-        model.sourceSelection = { [weak text] in text?.selectedRange() ?? NSRange(location: 0, length: 0) }
-        model.selectSource = { [weak text] range in
-            guard let text else { return }; let count = (text.string as NSString).length
+        let identity=context.coordinator.identity
+        model.sourceOwnerID = identity
+        let callbackRevision=model.sourceCallbackRevision
+        model.sourceAttached={ [weak text,weak model] in
+            guard let text,let model else{return false};return model.sourceCallbacksCurrent(identity,revision:callbackRevision) && text.coordinator?.model === model && text.window != nil
+        }
+        model.sourceSelection = { [weak text,weak model] in
+            guard let text,let model,model.sourceCallbacksCurrent(identity,revision:callbackRevision),text.coordinator?.model === model,text.window != nil else{return NSRange(location:0,length:0)}
+            return text.selectedRange()
+        }
+        model.selectSource = { [weak text,weak model] range in
+            guard let text,let model,model.sourceCallbacksCurrent(identity,revision:callbackRevision),text.coordinator?.model === model,text.window != nil else { return }; let count = (text.string as NSString).length
             let selected = NSRange(location: min(range.location, count), length: min(range.length, max(0, count - range.location)))
             text.setSelectedRange(selected); text.scrollRangeToVisible(selected)
         }
-        model.focusSource = { [weak text] in guard let text else { return }; text.window?.makeFirstResponder(text) }
+        model.focusSource = { [weak text,weak model] in
+            guard let text,let model,model.sourceCallbacksCurrent(identity,revision:callbackRevision),text.coordinator?.model === model else{return};text.window?.makeFirstResponder(text)
+        }
         let settings = UnifiedDiffAppearance.load(from: model.appearancePreferences), dark = scheme == .dark, highContrast = contrast == .increased
         let cache = context.coordinator
         guard !text.hasMarkedText() else { return }
@@ -450,7 +498,7 @@ struct PatchTextView: NSViewRepresentable {
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
         if let text = scroll.documentView as? PatchText { text.delegate = nil; text.coordinator = nil }
         if coordinator.model.sourceOwnerID == coordinator.identity {
-            coordinator.model.sourceOwnerID = nil
+            coordinator.model.sourceOwnerID = nil;coordinator.model.sourceAttached={false}
             coordinator.model.sourceSelection = { NSRange(location: 0, length: 0) }
             coordinator.model.selectSource = { _ in }; coordinator.model.focusSource = {}
         }
@@ -542,9 +590,13 @@ struct PatchTextView: NSViewRepresentable {
         override func printView(_ sender: Any?) { printPatch(sender) }
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow(); (window as? PatchNSWindow)?.patchText = self
+            if let coordinator {coordinator.model.sourceMoved(coordinator.identity)}
         }
         func find(_ action: NSTextFinder.Action) {
-            guard let model = coordinator?.model, model.canFind else { return }
+            guard let coordinator,let window else{return}
+            let model=coordinator.model
+            guard model.sourceOwnerID==coordinator.identity,model.canFind else{return}
+            guard (window as? PatchNSWindow)?.patchText === self || !(window is PatchNSWindow) else{return}
             if !model.usesSourceFindBar {
                 if action == .showFindInterface, selectedRange().length > 0 {
                     let selected = NSMenuItem(); selected.tag = NSTextFinder.Action.setSearchString.rawValue; super.performTextFinderAction(selected)

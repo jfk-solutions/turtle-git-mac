@@ -570,3 +570,54 @@ and receivers closed. This is a fixture synchronization repair; hosted confirmat
 is still required. See [exact failure and local evidence](qa/udiff-input-readiness-2026-10-15.json).
 
 The shared source color-button family passed native Settings draft/panel checks; see [dated evidence](qa/settings-color-choices-2026-10-16.json) for fixture repairs, exact scope and remaining navigation/physical acceptance.
+
+
+## Pinned literal search and owned Find controls — October 17, 2026
+
+The standalone Unified Diff and attached partial-patch bars share the pinned
+Scintilla Unicode fold table from `ext/scintilla/src/CaseConvert.cxx` and literal
+search semantics from `Document::FindText`. Canonically distinct spellings remain
+distinct; case-insensitive search supports full-scalar expansions such as Straße /
+STRASSE, ligatures and Greek sigma. A partial expansion cannot match inside one
+source scalar. A bounded-prefix matcher preserves overlaps without repeatedly
+rescanning long prefixes. Native selection ranges cover the actual matched text
+in UTF-16, including emoji and fold expansions; the source's byte-selection-length
+shortcut is replaced by the correct native match extent. Search still stops at
+either boundary, retains the source cursor behavior/flash and offers no extra
+regex or wrap option. Displayed Unicode text is searched; this does not certify
+all source legacy codepage/invalid-byte search behavior.
+
+The generated table is reproducible from blob-verified pinned source and can be
+compared with the original compiled C++ converter for every valid Unicode scalar.
+Scintilla attribution and its permissive license remain in NOTICE. The table
+ships in the native Core module without a subprocess or network request per Find.
+
+All six TortoiseProc `IDD_FINDBAR` controls receive partial mappings, alongside
+the existing TortoiseUDiff resource mappings. Original cancel artwork, Find label,
+query, Previous, Next and Match case remain in source order. Native fields/actions
+capture their source registration, document and form generation. Hide/reopen,
+busy/question transitions, replacement text and editor detach/reattach cannot
+revive old callbacks. Registered selection/focus callbacks also check their exact
+native editor and attachment revision. Queued focus belongs to that same Find
+visit and cannot focus a hidden or replaced bar. The query can shrink at narrow
+widths while navigation and Match case retain their labels. Import/Review embeds
+retain their existing AppKit Find because they have no bottom-bar host.
+
+Both Debug builds exited 0. The pinned C++ oracle agrees for all 1,112,064 valid
+Unicode scalars (1,557 nonidentity mappings), and all eight focused Core tests pass.
+Six distinct native case/engine combinations pass across system and bundled Git:
+source controls, standalone editing/document actions and actual partial staging.
+The source-only cases do not run Git and their two environments do not prove
+additional backend coverage. Raw review found the compressible Find label missing;
+fixed label sizing and a compact row repaired it. Only the two affected source
+checks were repeated; Core, oracle and retained document/staging checks were not
+repeated after this layout-only repair. All four final raw captures were individually
+reviewed: source-order controls fit at the narrow width and in both appearances.
+All eight receivers were reaped and independently absent, with no private helper
+paths left. Builds retain existing warnings and seven/one exit-zero/no-output
+diagnostics; this is not a clean diagnostics claim. See
+[batch evidence](qa/unified-find-source-family-2026-10-17.json).
+
+Full physical keyboard/VoiceOver, every source byte/codepage and platform metric,
+very large/network documents, signed file grants and App Store acceptance remain
+open. No dialog is certified complete.

@@ -355,6 +355,13 @@ Review/apply single patch uses the comparison/review workflow. Resolve a failed
 or conflicted application in its owning dialog before continuing. A Unified Diff
 document can be edited and saved without staging those edits automatically.
 
+In a Unified Diff window or attached partial-patch view, Command-F opens the
+bottom Find bar and seeds it from selected text. Typing searches from the top;
+Previous/Next, Command-G/Shift-Command-G and F3/Shift-F3 continue from the current
+selection. Search stops at the document boundary. Escape hides Find first.
+Search is literal. Enable Match case for exact letter case; with it disabled,
+Straße also matches STRASSE. Search does not merge different Unicode spellings.
+
 Revision Export saves the selected revision/subtree. It does not switch the
 working tree. See [Revision Export](REVISION-EXPORT.md).
 

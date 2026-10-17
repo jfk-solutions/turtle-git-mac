@@ -398,6 +398,8 @@
 		C210101600000000000001A2 /* Branding in Resources */ = {isa = PBXBuildFile; fileRef = C210101600000000000001A3 /* Branding */; };
 		C210101600000000000001A4 /* TurtleGitPatch.icns in Resources */ = {isa = PBXBuildFile; fileRef = C210101600000000000001A5 /* TurtleGitPatch.icns */; };
 		C210101600000000000001B0 /* PathEntryField.swift in Sources */ = {isa = PBXBuildFile; fileRef = C210101600000000000001B1 /* PathEntryField.swift */; };
+		5A91D716C60613490CE3F819 /* UnifiedDiffSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D459C3F707507F6C5EC8D57 /* UnifiedDiffSearch.swift */; };
+		42CED1EA0AFABD6EDF528C23 /* UnifiedDiffCaseFold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB65DE5B95683158C03E395 /* UnifiedDiffCaseFold.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -894,6 +896,8 @@
 		C210101600000000000001A3 /* Branding */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Branding; path = Resources/Branding; sourceTree = "<group>"; };
 		C210101600000000000001A5 /* TurtleGitPatch.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = TurtleGitPatch.icns; path = Resources/Branding/TurtleGitPatch.icns; sourceTree = "<group>"; };
 		C210101600000000000001B1 /* PathEntryField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathEntryField.swift; sourceTree = "<group>"; };
+		2D459C3F707507F6C5EC8D57 /* UnifiedDiffSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffSearch.swift; sourceTree = "<group>"; };
+		2CB65DE5B95683158C03E395 /* UnifiedDiffCaseFold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffCaseFold.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1309,6 +1313,8 @@
 				F0038AFD2AD4CE0CE4AC18AA /* MergeComparisonOptions.swift */,
 				35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */,
 				FF1FD77D0F8E1D8790692A3D /* MergeFind.swift */,
+				2CB65DE5B95683158C03E395 /* UnifiedDiffCaseFold.swift */,
+				2D459C3F707507F6C5EC8D57 /* UnifiedDiffSearch.swift */,
 				0D36E66F24DAED7F61A00764 /* MergeFolding.swift */,
 				EB40C59EBABEDD9F1D57C74C /* MergeInlineComparison.swift */,
 				2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */,
@@ -1867,6 +1873,8 @@
 				2F7197DC1FEF6925132426F2 /* MergeComparisonOptions.swift in Sources */,
 				3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */,
 				7A195B9D8BADF699347BD5D7 /* MergeFind.swift in Sources */,
+				42CED1EA0AFABD6EDF528C23 /* UnifiedDiffCaseFold.swift in Sources */,
+				5A91D716C60613490CE3F819 /* UnifiedDiffSearch.swift in Sources */,
 				09EA632E68319841F63DCCDC /* MergeFolding.swift in Sources */,
 				3094584FBFF93568DEBA8626 /* MergeInlineComparison.swift in Sources */,
 				F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */,

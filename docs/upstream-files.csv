@@ -958,9 +958,9 @@ ext/scintilla/src/AutoComplete.cxx,ext,blob,128247ff97319defa75f1ff23694db41f3b8
 ext/scintilla/src/AutoComplete.h,ext,blob,dfb76138b1864a5c7672c3a0453602c51d42a0f7,pending-review,,
 ext/scintilla/src/CallTip.cxx,ext,blob,b00ca2f466d3cd0cec5184949373fc9bf17ca474,pending-review,,
 ext/scintilla/src/CallTip.h,ext,blob,49a87b7116161c99a5fc8f002e2b0bdc2dc15424,pending-review,,
-ext/scintilla/src/CaseConvert.cxx,ext,blob,3674f6d3167d7561e2d5cf027c2524d612d4bffb,pending-review,,
+ext/scintilla/src/CaseConvert.cxx,ext,blob,3674f6d3167d7561e2d5cf027c2524d612d4bffb,partial-native-replacement,Sources/TurtleGitCore/UnifiedDiffCaseFold.swift,Fold-mode tables generated from pinned source; every valid scalar compared with original C++ converter. Upper/lower modes and complete converter API remain unported. See docs/UNIFIED-DIFF-VIEWER-PARITY.md.
 ext/scintilla/src/CaseConvert.h,ext,blob,12fb42c37eb26a023fb33e7f57e19e3c2b863138,pending-review,,
-ext/scintilla/src/CaseFolder.cxx,ext,blob,7c762e794be8066697f7ee76df9f5f14487c2759,pending-review,,
+ext/scintilla/src/CaseFolder.cxx,ext,blob,7c762e794be8066697f7ee76df9f5f14487c2759,partial-native-replacement,Sources/TurtleGitCore/UnifiedDiffSearch.swift; Sources/TurtleGitCore/UnifiedDiffCaseFold.swift,UTF-8 full-scalar folding adapted for native literal Find. Complete CaseFolderTable/DBCS byte engine remains unported. See docs/UNIFIED-DIFF-VIEWER-PARITY.md.
 ext/scintilla/src/CaseFolder.h,ext,blob,0b7cd2562dde4bcf931891bb7a0e01a089f8457a,pending-review,,
 ext/scintilla/src/CellBuffer.cxx,ext,blob,439d5964c3a60164b7bf427154fb49d8dea4f0e9,pending-review,,
 ext/scintilla/src/CellBuffer.h,ext,blob,18b9453a9073fbf0bd88c27a8adbe654f2378dd6,pending-review,,
@@ -979,7 +979,7 @@ ext/scintilla/src/DBCS.h,ext,blob,6c68fefa44e3db1444a975ee9ad1380cab2fc769,pendi
 ext/scintilla/src/Debugging.h,ext,blob,82709f255abd0a175012544f7669ca3621b9e20f,pending-review,,
 ext/scintilla/src/Decoration.cxx,ext,blob,6f9aece0e8a80ea544b1aef38ea76595eec5a147,pending-review,,
 ext/scintilla/src/Decoration.h,ext,blob,afe9d1b668b457634dca851efefa72ad1011da5c,pending-review,,
-ext/scintilla/src/Document.cxx,ext,blob,83dc651a31cc427b32362b9bf5c4bbf9343095e6,partial-native-replacement,; Sources/TurtleGitCore/MessageCaretPosition.swift; Sources/TurtleGitMac/CommitMessageEditor.swift," Commit line/column now follows source logical coordinates and eight-column tabs, with selection notifications and byte-exact text updates; compiled Scintilla oracle evidence in docs/qa/commit-caret-2026-10-09.json. Physical selection/glyph/IME and full editor/app parity pending."
+ext/scintilla/src/Document.cxx,ext,blob,83dc651a31cc427b32362b9bf5c4bbf9343095e6,partial-native-replacement,Sources/TurtleGitCore/MessageCaretPosition.swift; Sources/TurtleGitMac/CommitMessageEditor.swift; Sources/TurtleGitCore/UnifiedDiffSearch.swift,"Commit line/column now follows source logical coordinates and eight-column tabs, with selection notifications and byte-exact text updates; compiled Scintilla oracle evidence in docs/qa/commit-caret-2026-10-09.json. Physical selection/glyph/IME and full editor/app parity pending. Literal UTF-8 forward/reverse case-fold search adapted to bounded native UTF-16 ranges. Complete Scintilla document engine, regex and other codepages remain unported. See docs/UNIFIED-DIFF-VIEWER-PARITY.md."
 ext/scintilla/src/Document.h,ext,blob,8dd4b9b3b7887f6162adc7032e30ebf99efde961,pending-review,,
 ext/scintilla/src/EditModel.cxx,ext,blob,e334e499335562c15647e1d16383b1dc18bf353f,pending-review,,
 ext/scintilla/src/EditModel.h,ext,blob,c7483a1450b5faff192350af5dae0de83e9ba4ad,pending-review,,

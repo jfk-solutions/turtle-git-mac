@@ -1531,3 +1531,10 @@ and Suraj Barkale. Native workbook snapshots, literal Apple-event arguments,
 full/fast comparison, formatting/tab colors, protected-workbook warnings and
 macro-security restoration adapt Windows COM/WScript behavior to Excel's macOS
 scripting dictionary. Microsoft Excel and its dictionary are not redistributed.
+
+UnifiedDiffSearch.swift adapts Scintilla Document.cxx literal UTF-8 search to
+AppKit UTF-16 selections. UnifiedDiffCaseFold.swift contains the generated pinned
+CaseConvert.cxx fold mappings, Copyright 2013 Neil Hodgson <neilh@scintilla.org>.
+The Scintilla license reproduced above applies to those mappings and algorithms.
+The original conversion table is verified by scripts/generate-unified-case-fold.py
+against the pinned C++ converter; it is independent of the host OS Unicode version.

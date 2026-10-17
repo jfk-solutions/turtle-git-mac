@@ -2009,3 +2009,18 @@ and all four owned receivers were reaped and independently absent. Core was
 unchanged and not repeated. See [SVN parity](SVN-PARITY.md) and
 [batch evidence](qa/svn-source-family-2026-10-17.json) for scope and remaining
 public transport, physical and signed acceptance.
+
+
+## Shared patch Find source matcher and forms — October 17, 2026
+
+Standalone and attached patch Find now use pinned Scintilla Unicode folding and
+literal, complete-scalar matching with native UTF-16 ranges. Native fields, actions,
+queued focus and editor registrations reject old document/form/attachment callbacks.
+Six previously pending TortoiseProc Find-bar controls receive partial mappings.
+The original C++ converter agrees for every valid Unicode scalar, eight focused
+Core tests pass and six distinct native case/engine combinations pass across both
+Git engines. Only two affected source checks were repeated after a visible label/row
+layout repair. Four final raw captures were reviewed and all eight owned receivers
+were reaped and independently absent. See [Unified Diff parity](UNIFIED-DIFF-VIEWER-PARITY.md)
+and [batch evidence](qa/unified-find-source-family-2026-10-17.json) for actual
+source/backend scope and remaining physical, codepage and signed acceptance.

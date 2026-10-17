@@ -2519,3 +2519,16 @@ This does not certify complete Commit or concurrent-writer parity.
 
 [Batch evidence](qa/commit-refresh-snapshot-2026-10-17.json) records twelve
 native case/engine passes, the fixture correction, build scope and owned cleanup.
+
+
+## Shared patch Find matching and ownership — October 17, 2026
+
+The attached patch and standalone Unified Diff bars now share the pinned Scintilla
+case-fold table and literal UTF-16 selection matcher, including complete-scalar
+expansions, direction boundaries and distinct Unicode spellings. Native controls
+and selection/focus callbacks retain their exact form, document, registration and
+attachment revision. The compact row keeps all six source controls visible at the
+small supported width. See [shared Find parity](UNIFIED-DIFF-VIEWER-PARITY.md#pinned-literal-search-and-owned-find-controls--october-17-2026) and
+[batch evidence](qa/unified-find-source-family-2026-10-17.json). The actual retained
+line stage/hunk unstage workflow passes with both Git engines; full physical,
+byte/codepage and signed acceptance remains open.

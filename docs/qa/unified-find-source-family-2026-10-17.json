@@ -1,0 +1,158 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "04d990833d8281b581ab439558f351533e331ba7",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Shared standalone and attached source Find bar",
+    "Pinned Scintilla literal/full-scalar folding adapted to native UTF-16 ranges, exact Unicode spelling and no wrap",
+    "Bounded-prefix matcher retains overlapping candidates without repeated prefix scans",
+    "Captured query/case/navigation/close and queued focus contexts",
+    "Exact source editor registration and attachment fences for native selection/focus/window routing",
+    "Original Cancel artwork, complete six-control source ordering and compact narrow layout"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/unified-find-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 7
+    },
+    {
+      "log": "build/qa/unified-find-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "reason": "Raw capture showed Find label compressed away; retain fixed label/navigation sizing, bounded query width and compact row height."
+    }
+  ],
+  "core": {
+    "log": "build/qa/unified-find-core-2026-10-17.log",
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter UnifiedDiffSearchTests",
+    "tests": 8,
+    "failures": 0,
+    "exit": 0,
+    "seconds": 0.051,
+    "coverage": [
+      "Canonical spellings remain distinct",
+      "Pinned fold expansions and complete source-scalar boundaries",
+      "Exact case, Greek sigma, dotted/dotless i, ligatures",
+      "Emoji UTF-16 positions, clamped cursor, no wrap and overlaps",
+      "Literal punctuation, nulls and CRLF cross-line matching",
+      "Long repeated prefix and expanding final scalar",
+      "Independent whole-scalar candidate oracle across small Unicode strings/queries/cursors/directions/case modes"
+    ],
+    "rerun_after_layout": false
+  },
+  "pinned_oracle": {
+    "log": "build/qa/unified-find-oracle-2026-10-17.log",
+    "command": "python3 scripts/generate-unified-case-fold.py --check",
+    "exit": 0,
+    "valid_unicode_scalars": 1112064,
+    "nonidentity_mappings": 1557,
+    "source_blob_identity_verified": true,
+    "implementation": "Original CaseConvert.cxx and UniConversion.cxx compiled unchanged with a scalar enumeration entry point; generated Swift table equals all original fold mappings. Native matcher itself is covered by focused Core tests, not a compiled complete Scintilla Document."
+  },
+  "native": {
+    "driver": "scripts/test-unified-find-family.py",
+    "distinct_case_engine_passes": 6,
+    "cases": [
+      "source",
+      "document",
+      "partial"
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/unified-find-native-2026-10-17.log",
+        "exit": 0,
+        "passed_case_engine_pairs": 6,
+        "receivers": [
+          51848,
+          51850,
+          51866,
+          52155,
+          52156,
+          52169
+        ]
+      },
+      {
+        "log": "build/qa/unified-find-layout-native-2026-10-17.log",
+        "exit": 0,
+        "passed_case_engine_pairs": 2,
+        "cases": [
+          "source"
+        ],
+        "receivers": [
+          52549,
+          52554
+        ]
+      }
+    ],
+    "source_case_backend_scope": "No Git commands; the repeated engine environments are not additional backend coverage. Retained document/partial cases use real private Git.",
+    "coverage": [
+      "Actual native expanding-fold and distinct-spelling selection",
+      "Hidden/reopened, busy/question roundtrip and replaced-document field/action fences",
+      "Detached/reattached and rebound native editor selection/focus callback fences",
+      "Retired query/navigation gates",
+      "Retained standalone editing/Undo/encodings/save/open/cancel/external-change refusal/focused menu and retired reads",
+      "Retained actual line stage/hunk unstage/index isolation, original byte export, cancellation/supersession/Quit/parent ownership and helper reaping"
+    ],
+    "ownership": {
+      "receivers_independently_absent": true,
+      "private_helper_paths_absent": true,
+      "capture": "Prohibited activation; orderFront of owned windows only; no makeKey or global input.",
+      "cleanup": "Own controllers close with defers; operation counts drain on failure and receiver process groups reap on exit/timeout."
+    },
+    "ci": "New source-only checks use both engines; existing document and reference partial-staging groups retain their current execution."
+  },
+  "captures": {
+    "directory": "docs/site/assets",
+    "files": [
+      "partial-find-source-dark.png",
+      "partial-find-source-light.png",
+      "unified-find-source-dark.png",
+      "unified-find-source-light.png"
+    ],
+    "raw": true,
+    "child_windows_included": false,
+    "individually_reviewed": true,
+    "pixels": {
+      "partial": "920x1064",
+      "unified": "2000x1264"
+    },
+    "initial_visual_defect": "Find label compressed to zero width and row expanded; repaired before final captures.",
+    "final_observations": "All six source controls fit, including Find label, at the small width. Both palettes retain colored patch lines and original cancel artwork."
+  },
+  "ledger": {
+    "new_partial_mappings": 6,
+    "mapped_controls": 1520,
+    "pending_controls": 139,
+    "certified_dialogs": 0
+  },
+  "remaining": [
+    "Complete legacy codepage/invalid-byte search equivalence",
+    "Physical keyboard/VoiceOver, every platform font/case metric",
+    "Very large/network documents and full UDiff layout",
+    "Signed file grants/App Store/Finder acceptance",
+    "Complete hosted macOS CI and refreshed universal preview"
+  ],
+  "hosted_observed": {
+    "commit": "04d990833d8281b581ab439558f351533e331ba7",
+    "macos": {
+      "id": 39000613700,
+      "status": "pending"
+    },
+    "pages": {
+      "id": 39000613703,
+      "conclusion": "success"
+    }
+  },
+  "certified_complete": false,
+  "site": {
+    "log": "build/qa/unified-find-site-2026-10-17.log",
+    "exit": 0,
+    "documents": 265,
+    "unresolved_fragments": 0
+  }
+}

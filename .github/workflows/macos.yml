@@ -301,6 +301,10 @@ jobs:
         run: python3 scripts/test-svn-source-family.py --source-only --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First Start forms and setup operation ownership
         run: python3 scripts/test-first-start-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Pinned Scintilla Unicode Find mappings
+        run: python3 scripts/generate-unified-case-fold.py --check
+      - name: Shared standalone and attached source Find controls
+        run: python3 scripts/test-unified-find-family.py --only source --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: External document tool arguments and scoped lifetime
         run: python3 scripts/test-external-document-family.py
       - name: Unified Diff editable document workflows
