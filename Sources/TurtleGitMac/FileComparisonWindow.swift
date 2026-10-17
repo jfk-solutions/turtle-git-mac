@@ -721,6 +721,7 @@ private extension FileComparisonDocument {
     func tabWidth(base: Bool) -> Int { tabWidths[base] ?? editorPreferences.tabWidth }
     func useSpaces(base: Bool) -> Bool { spacePanes[base] ?? editorPreferences.useSpaces }
     func smartTab(base: Bool) -> Bool { smartTabPanes[base] ?? editorPreferences.smartTab }
+    var legacyEncoding:ComparisonTextEncoding { .legacyEncoding(from:comparisonDefaults) }
     func refreshPreferences() {
         paneTabEpoch = UUID()
         let general = MergeGeneralPreferences.load(from: comparisonDefaults)
@@ -846,7 +847,7 @@ private extension FileComparisonDocument {
             let choice: MergeFormatSelection?
             if let chooseFormat { choice = await chooseFormat(window, base ? "Base" : "Mine", initial) }
             else {
-                let prompt = MergeFormatPrompt(pane: base ? "Base" : "Mine", selection: initial); formatPrompt = prompt
+                let prompt = MergeFormatPrompt(pane: base ? "Base" : "Mine", selection: initial,legacyEncoding:legacyEncoding); formatPrompt = prompt
                 choice = await prompt.choose(window: window)
             }
             guard let choice,
@@ -1154,7 +1155,7 @@ private extension FileComparisonDocument {
     }
     init(patchComparison: WorkingTreePatchFileComparison, access: RepositoryAccessLease?, preferences: UserDefaults) {
         repository = nil; self.access = access; snapshot = patchComparison.snapshot; path = patchComparison.document.destination.path
-        let value = patchComparison.editingDocument.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: preferences))
+        let value = patchComparison.editingDocument.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: preferences),legacyEncoding:.legacyEncoding(from:preferences))
         document = value; originalPaneDocument = value; drafts = FileComparisonDrafts(value)
         comparisonDefaults = preferences; comparisonOptions = .load(from:preferences)
         drafts?.setEditing(false, base: false); showInlineDiff = false
@@ -1322,7 +1323,7 @@ private extension FileComparisonDocument {
                         viewerSelection = chosen == .image ? .image : .merge
                         guard !externalOpened, !retired, !token.isCancelled else { return }
                 }
-                let adapted = value.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults))
+                let adapted = value.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),legacyEncoding:legacyEncoding)
                 document = adapted
                 for (base, target) in paneTargets { paneTargets[base] = try target.recording(base ? adapted.base : adapted.destination) }
                 imagePresentation.openImages = { [weak self] in self?.chooseImageFiles() }
@@ -1728,7 +1729,7 @@ private struct FileComparisonDialog: View {
                 if !counts.isEmpty {MergeLineStatisticsView(statistics:counts)}
             }
             HStack {
-                MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { model.changeEncoding($0, base: base) }, changeEnding: { model.changeLineEnding($0, base: base) }, showFormatDialog:{ model.showFormatDialog(base:base) })
+                MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { model.changeEncoding($0, base: base) }, changeEnding: { model.changeLineEnding($0, base: base) }, legacyEncoding:model.legacyEncoding, showFormatDialog:{ model.showFormatDialog(base:base) })
                 Spacer()
                 let tabCommand = model.captureTabCommand(base:base)
                 MergeTabControls(label: base ? "Base" : "Mine", tabWidth: model.tabWidth(base: base), useSpaces: model.useSpaces(base: base), smartTab: model.smartTab(base: base), changeWidth: { model.applyTabCommand(tabCommand,base:base,action:.width($0)) }, changeSpaces: { model.applyTabCommand(tabCommand,base:base,action:.spaces($0)) }, changeSmart: { model.applyTabCommand(tabCommand,base:base,action:.smart($0)) }, writable: tabCommand.writable, editorConfigEnabled: model.editorConfigEnabled[base] == true, editorConfigLoaded: tabCommand.editorConfigLoaded, changeEditorConfig: { model.applyTabCommand(tabCommand,base:base,action:.editorConfig($0)) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(base))
@@ -2415,7 +2416,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
             let item = NSMenuItem(title: "End of Line Style", action: nil, keyEquivalent: "")
             item.submenu = endings; menu.addItem(item)
             let encodings = NSMenu(title: "File Encoding"); encodings.autoenablesItems = false
-            for (index, encoding) in (model.onePaneActive ? MergeFormatSelection.encodings : ComparisonTextEncoding.allCases).enumerated() {
+            for (index, encoding) in MergeFormatSelection.encodingChoices(legacy:model.encoding(base:baseSide)?.legacyCodePage != nil ? model.encoding(base:baseSide)! : model.legacyEncoding).enumerated() {
                 let choice = NSMenuItem(title: encoding.rawValue, action: #selector(changeEncoding(_:)), keyEquivalent: "")
                 choice.target = self; choice.tag = index; choice.representedObject = encoding.rawValue; choice.state = model.encoding(base: baseSide) == encoding ? .on : .off
                 encodings.addItem(choice)
@@ -2610,17 +2611,19 @@ extension MergeLineNavigationProviding where Self: NSTextView {
     let ok = NSButton(title: "OK", target: nil, action: nil)
     let endings: [MergeLineEnding?] = [nil,.crlf,.lf,.cr,.lfcr,.verticalTab,.formFeed,.nextLine,.lineSeparator,.paragraphSeparator]
     private let initial: MergeFormatSelection
+    let encodings:[ComparisonTextEncoding]
     private var completion: ((MergeFormatSelection?) -> Void)?
     private var ownerObserver: NSObjectProtocol?
     private var finished = false, registered = false
-    init(pane: String, selection: MergeFormatSelection) {
+    init(pane: String, selection: MergeFormatSelection,legacyEncoding:ComparisonTextEncoding = .windows1252) {
         initial = selection
+        encodings = MergeFormatSelection.encodingChoices(legacy:selection.encoding.legacyCodePage != nil ? selection.encoding : legacyEncoding)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 216), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = pane + " Encoding"; window.isReleasedWhenClosed = false
         super.init(window: window); window.delegate = self
         paneLabel.stringValue = pane; paneLabel.isSelectable = true; paneLabel.setAccessibilityLabel("Encoding pane")
-        encoding.addItems(withTitles: MergeFormatSelection.encodings.map(\.rawValue))
-        encoding.selectItem(at: MergeFormatSelection.encodings.firstIndex(of: selection.encoding) ?? 7)
+        encoding.addItems(withTitles: encodings.map(\.rawValue))
+        encoding.selectItem(at: encodings.firstIndex(of: selection.encoding) ?? 7)
         ending.addItems(withTitles: endings.map { $0?.menuTitle ?? "Auto" })
         ending.selectItem(at: endings.firstIndex(where: { $0 == selection.ending }) ?? 0)
         encoding.widthAnchor.constraint(equalToConstant: 300).isActive = true
@@ -2643,8 +2646,8 @@ extension MergeLineNavigationProviding where Self: NSTextView {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
     private var validatedSelection: MergeFormatSelection? {
-        guard MergeFormatSelection.encodings.indices.contains(encoding.indexOfSelectedItem), endings.indices.contains(ending.indexOfSelectedItem) else { return nil }
-        return .init(encoding: MergeFormatSelection.encodings[encoding.indexOfSelectedItem], ending: endings[ending.indexOfSelectedItem])
+        guard encodings.indices.contains(encoding.indexOfSelectedItem), endings.indices.contains(ending.indexOfSelectedItem) else { return nil }
+        return .init(encoding: encodings[encoding.indexOfSelectedItem], ending: endings[ending.indexOfSelectedItem])
     }
     var selection: MergeFormatSelection { validatedSelection ?? initial }
     @objc func accept() {

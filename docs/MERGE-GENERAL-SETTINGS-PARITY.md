@@ -105,3 +105,8 @@ The [October 17 connected pane batch](EDITORCONFIG-PARITY.md#connected-pane-comm
 adds source writable/loaded indentation-menu gates, captured commands, retained
 loaded flags and owned cancellable EditorConfig authorization/parser reads in
 both comparison and conflict editors. It does not certify the full General page.
+
+The [legacy-format continuation](LEGACY-TEXT-FORMATS.md) adds the native Legacy
+text encoding preference, with 14 choices and normal draft Apply/Cancel behavior.
+It supplies the Windows ACP role missing on macOS while retaining nine choices
+in the source Encoding sheet. Open panes retain their codecs until a later load.

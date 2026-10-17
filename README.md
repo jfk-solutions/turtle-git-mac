@@ -310,6 +310,8 @@ Compare/Merge also provide Insert/Overwrite, current-line ending cycling and
 source block-mark shortcuts, with Unicode-aware typing and Undo. See
 [typing behavior](docs/MERGE-TYPING-PARITY.md).
 
+Compare/Merge support [14 selected legacy text encodings](docs/LEGACY-TEXT-FORMATS.md) alongside Unicode, with retained pane codecs and lossless-save checks.
+
 Patch review has a [native file panel](docs/PATCH-FILE-PANEL-PARITY.md) with separate
 highlight/preview actions, multiple-selection context commands and a Hide/Show
 file-list menu. Per-file application retains individual success/error results.

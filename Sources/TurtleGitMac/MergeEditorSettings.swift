@@ -16,6 +16,7 @@ extension Notification.Name {
     @Published var maximumInline = "3000"
     @Published var tabSize = "4"
     @Published var patchContext = "-1"
+    @Published var legacyEncoding = ComparisonTextEncoding.windows1252
     @Published var preferUTF8 = false
     @Published var onePaneDefault = false
     @Published var backupOriginal = true
@@ -71,14 +72,16 @@ extension Notification.Name {
     struct State: Equatable {
         let general: MergeGeneralPreferences, editor: MergeEditorPreferences, comparison: MergeComparisonOptions, locator: MergeLocatorPreferences, whitespace: MergeWhitespaceDisplayPreferences
         let fontSize: String, maximumInline: String, tabSize: String, patchContext: String
+        let legacyEncoding: ComparisonTextEncoding
         let utf8: Bool, onePane: Bool, backup: Bool, profiles: Data
     }
-    var state: State { .init(general: general, editor: editor, comparison: comparison, locator: locator, whitespace: whitespaceDisplay, fontSize: fontSize, maximumInline: maximumInline, tabSize: tabSize, patchContext: patchContext, utf8: preferUTF8, onePane: onePaneDefault, backup: backupOriginal, profiles: Data(profileText.utf8)) }
+    var state: State { .init(general: general, editor: editor, comparison: comparison, locator: locator, whitespace: whitespaceDisplay, fontSize: fontSize, maximumInline: maximumInline, tabSize: tabSize, patchContext: patchContext, legacyEncoding:legacyEncoding, utf8: preferUTF8, onePane: onePaneDefault, backup: backupOriginal, profiles: Data(profileText.utf8)) }
     var changed: Bool {
         guard let width = validWidth, validFontSize != nil, validInlineLength != nil else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: editor.useSpaces, smartTab: editor.smartTab, showLineNumbers: editor.showLineNumbers, enableEditorConfig: editor.enableEditorConfig, autoAdd: editor.autoAdd) != .load(from: preferences) || generalDraft != .load(from: preferences) || comparison != .load(from: preferences) || locator != .load(from: preferences) || whitespaceDisplay != .load(from: preferences) || backupOriginal != MergeFileSaveOptions.backupEnabled(from: preferences) || MergeUnifiedPatch.validatedContext(patchContext) != MergeUnifiedPatch.contextLines(from: preferences) || preferUTF8 != ComparisonTextEncoding.preferUTF8(from: preferences) || onePaneDefault != OnePaneFileComparison.defaultEnabled(from: preferences) || !profileText.utf8.elementsEqual(savedProfileText.utf8)
+        return MergeEditorPreferences(tabWidth: width, useSpaces: editor.useSpaces, smartTab: editor.smartTab, showLineNumbers: editor.showLineNumbers, enableEditorConfig: editor.enableEditorConfig, autoAdd: editor.autoAdd) != .load(from: preferences) || generalDraft != .load(from: preferences) || comparison != .load(from: preferences) || locator != .load(from: preferences) || whitespaceDisplay != .load(from: preferences) || backupOriginal != MergeFileSaveOptions.backupEnabled(from: preferences) || MergeUnifiedPatch.validatedContext(patchContext) != MergeUnifiedPatch.contextLines(from: preferences) || legacyEncoding != ComparisonTextEncoding.legacyEncoding(from:preferences) || preferUTF8 != ComparisonTextEncoding.preferUTF8(from: preferences) || onePaneDefault != OnePaneFileComparison.defaultEnabled(from: preferences) || !profileText.utf8.elementsEqual(savedProfileText.utf8)
     }
     var validationError: String? {
+        if legacyEncoding.legacyCodePage == nil { return "Choose a supported legacy text encoding." }
         if profileSession != nil { return "Finish editing Comment Profiles before applying settings." }
         if MergeUnifiedPatch.validatedContext(patchContext) == nil { return "Enter patch context lines from -1 (Git default) to 1000." }
         if validWidth == nil { return "Enter a tab size from 1 to 1000." }
@@ -117,6 +120,7 @@ extension Notification.Name {
     }
     func restore() {
         guard !retired else { return }; cancelProfiles(); revision = UUID()
+        legacyEncoding = ComparisonTextEncoding.legacyEncoding(from:preferences)
         preferUTF8 = ComparisonTextEncoding.preferUTF8(from: preferences); onePaneDefault = OnePaneFileComparison.defaultEnabled(from: preferences)
         patchContext = String(MergeUnifiedPatch.contextLines(from: preferences)); general = .load(from: preferences)
         fontSize = String(general.fontSize); maximumInline = String(general.maximumInlineLength)
@@ -133,6 +137,7 @@ extension Notification.Name {
             guard !retired, state == captured else { error = "The settings context changed. Review the draft before applying again."; return false }
             savedProfileText = profiles
         } catch { self.error = "Comment profiles were not saved: " + error.localizedDescription; return false }
+        preferences.set(Int(captured.legacyEncoding.legacyCodePage!),forKey:"TurtleGitMerge.LegacyCodePage")
         preferences.set(captured.utf8, forKey: "TurtleGitMerge.UseUTF8"); preferences.set(captured.onePane, forKey: "TurtleGitMerge.OnePane")
         preferences.set(MergeUnifiedPatch.validatedContext(captured.patchContext)!, forKey: "TurtleGitMerge.ContextLines")
         preparedGeneral.save(to: preferences); preparedEditor.save(to: preferences); captured.comparison.save(to: preferences); captured.locator.save(to: preferences); captured.whitespace.save(to: preferences)
@@ -157,6 +162,9 @@ extension Notification.Name {
                     Toggle("Backup original file", isOn: model.binding(\.backupOriginal))
                     Toggle("Jump to first difference when loading", isOn: model.binding(\.general.firstDifference))
                     Toggle("Jump to first conflict when loading", isOn: model.binding(\.general.firstConflict)).padding(.leading, 12).disabled(!model.general.firstDifference)
+                    Picker("Legacy text encoding",selection:model.binding(\.legacyEncoding)) {
+                        ForEach(ComparisonTextEncoding.legacyChoices,id:\.self) { value in Text(value.legacyName).tag(value) }
+                    }.help("Encoding used for non-Unicode files detected as ASCII/ANSI. Reload open files to apply a changed default.")
                     NativeMergeUTF8DefaultChoice(value: model.binding(\.preferUTF8)).frame(height: 24)
                     Toggle("Use one-pane view as default for 2-file diff", isOn: model.binding(\.onePaneDefault))
                     Toggle("Show line numbers", isOn: model.binding(\.editor.showLineNumbers))

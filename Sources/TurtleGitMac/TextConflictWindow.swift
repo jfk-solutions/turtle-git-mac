@@ -38,6 +38,7 @@ struct MergeFormatControls: View {
     let editable: Bool
     let changeEncoding: (ComparisonTextEncoding) -> Void
     let changeEnding: (MergeLineEnding) -> Void
+    var legacyEncoding = ComparisonTextEncoding.windows1252
     var showFormatDialog: (() -> Void)? = nil
     private var styles: Set<MergeLineEnding> { text.map(MergeLineEndings.styles) ?? [] }
     private var endingTitle: String {
@@ -51,7 +52,7 @@ struct MergeFormatControls: View {
             if editable {
                 if let showFormatDialog { Button("Encoding…", action:showFormatDialog).accessibilityLabel("\(label) encoding and line endings") }
                 Menu(encoding?.rawValue ?? "—") {
-                    ForEach(ComparisonTextEncoding.allCases, id: \.rawValue) { value in
+                    ForEach(MergeFormatSelection.encodingChoices(legacy:encoding?.legacyCodePage != nil ? encoding! : legacyEncoding), id: \.rawValue) { value in
                         Button { changeEncoding(value) } label: {
                             if value == encoding { Label(value.rawValue, systemImage: "checkmark") }
                             else { Text(value.rawValue) }
@@ -774,6 +775,7 @@ private enum MergeSourceSide {
         formatPrompt?.cancel()
         formatTask?.cancel(); finishFormatChoice(token)
     }
+    var legacyEncoding:ComparisonTextEncoding { .legacyEncoding(from:comparisonDefaults) }
     func showFormatDialog() {
         guard sourceToolsAllowed, let window else { return }
         let original = resultPresentation, originalEncoding = encoding, originalEnding = resultLineEnding
@@ -788,7 +790,7 @@ private enum MergeSourceSide {
             let choice:MergeFormatSelection?
             if let chooseFormat { choice = await chooseFormat(window,"Merged",initial) }
             else {
-                let prompt = MergeFormatPrompt(pane:"Merged",selection:initial); formatPrompt = prompt
+                let prompt = MergeFormatPrompt(pane:"Merged",selection:initial,legacyEncoding:legacyEncoding); formatPrompt = prompt
                 choice = await prompt.choose(window:window)
             }
             guard formatToken == token, !Task.isCancelled, let choice,
@@ -903,17 +905,17 @@ private enum MergeSourceSide {
             // usable even after the original repository conflict is resolved.
             next=try current.replacingSources(mine:sourceTargets[true]?.read(),theirs:sourceTargets[false]?.read(),engine:engine,cancellation:cancellation)
         } else if let patchComparison {
-            let prefer = ComparisonTextEncoding.preferUTF8(from:comparisonDefaults)
-            next = try await Task.detached {try patchComparison.patchMergeDocument(engine:engine,preferUTF8:prefer,cancellation:cancellation)}.value
+            let prefer = ComparisonTextEncoding.preferUTF8(from:comparisonDefaults),legacy = legacyEncoding
+            next = try await Task.detached {try patchComparison.patchMergeDocument(engine:engine,preferUTF8:prefer,legacyEncoding:legacy,cancellation:cancellation)}.value
         } else if let workingMerge {
             if saveFolderAccess.requireScope {
                 for url in [workingMerge.baseURL, workingMerge.theirsURL, workingMerge.mineURL] {
                     guard workingMergePermissions.contains(where: { $0.permits(url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 }
             }
-            next = try await workingMerge.read(engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), cancellation: cancellation)
+            next = try await workingMerge.read(engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),mergeLegacyEncoding:legacyEncoding, cancellation: cancellation)
         }
-        else { next = try await repository.textConflictDocument(path: path, engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults), identityOptions: ConflictIdentityOptions(defaults: comparisonDefaults), cancellation: cancellation) }
+        else { next = try await repository.textConflictDocument(path: path, engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),mergeLegacyEncoding:legacyEncoding, identityOptions: ConflictIdentityOptions(defaults: comparisonDefaults), cancellation: cancellation) }
         if workingMerge == nil, mergedResultTarget == nil, !sourceTargets.isEmpty {
             next = try next.replacingSources(mine: sourceTargets[true]?.read(), theirs: sourceTargets[false]?.read(), engine: engine, cancellation: cancellation)
         }
@@ -1298,7 +1300,7 @@ private struct TextConflictDialog: View {
             let counts=MergeLineStatistics(states:cells?.map(\.state) ?? (editable ? model.alignedResultStates : []))
             if !counts.isEmpty {MergeLineStatisticsView(statistics:counts).padding(.horizontal,7).padding(.vertical,2)}
             HStack {
-                MergeFormatControls(label: title, encoding: encoding, text: editable ? model.resultFormatText : text, editable: editable && model.sourceToolsAllowed && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, showFormatDialog:model.showFormatDialog)
+                MergeFormatControls(label: title, encoding: encoding, text: editable ? model.resultFormatText : text, editable: editable && model.sourceToolsAllowed && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, legacyEncoding:model.legacyEncoding, showFormatDialog:model.showFormatDialog)
                 Spacer()
                 MergeTabControls(label: title, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab, changeWidth: { model.applyTabCommand(tabCommand,pane:title,action:.width($0)) }, changeSpaces: { model.applyTabCommand(tabCommand,pane:title,action:.spaces($0)) }, changeSmart: { model.applyTabCommand(tabCommand,pane:title,action:.smart($0)) }, writable: tabCommand.writable, editorConfigEnabled: model.editorConfigEnabled[title] == true, editorConfigLoaded: tabCommand.editorConfigLoaded, changeEditorConfig: { model.applyTabCommand(tabCommand,pane:title,action:.editorConfig($0)) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(title))
             }.padding(.horizontal, 7).padding(.vertical, 3).background(Color(nsColor: .controlBackgroundColor))
@@ -2012,9 +2014,9 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         endingsItem.submenu = endingsMenu; menu.addItem(endingsItem)
         let encodingsItem = NSMenuItem(title: "File Encoding", action: nil, keyEquivalent: "")
         let encodingsMenu = NSMenu(title: "File Encoding")
-        for (index, encoding) in ComparisonTextEncoding.allCases.enumerated() {
+        for (index, encoding) in MergeFormatSelection.encodingChoices(legacy:model.encoding.legacyCodePage != nil ? model.encoding : model.legacyEncoding).enumerated() {
             let item = NSMenuItem(title: encoding.rawValue, action: #selector(changeEncoding(_:)), keyEquivalent: "")
-            item.target = self; item.tag = index; item.state = model.encoding == encoding ? .on : .off; item.isEnabled = writable
+            item.target = self; item.tag = index; item.representedObject = encoding.rawValue; item.state = model.encoding == encoding ? .on : .off; item.isEnabled = writable
             encodingsMenu.addItem(item)
         }
         encodingsItem.submenu = encodingsMenu; menu.addItem(encodingsItem)
@@ -2037,7 +2039,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         if menuItem.action == #selector(cutFromContext(_:)) || menuItem.action == NSSelectorFromString("cut:") { return clipboardWritable && !(clipboardText ?? "").isEmpty }
         if menuItem.action == #selector(pasteFromContext(_:)) || menuItem.action == NSSelectorFromString("paste:") { return clipboardWritable && NSPasteboard.general.availableType(from: [.string]) != nil }
         if menuItem.action == #selector(changeEncoding(_:)) {
-            return mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && ComparisonTextEncoding.allCases.indices.contains(menuItem.tag)
+            return mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && (menuItem.representedObject as? String).flatMap(ComparisonTextEncoding.init(rawValue:)) != nil
         }
         if menuItem.action == #selector(changeWhitespace(_:)) {
             guard mergeEditable, isEditable, model?.busy == false, model?.confirmingQuit == false, MergeWhitespaceCommand.allCases.indices.contains(menuItem.tag) else { return false }
@@ -2064,8 +2066,8 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         model?.performSourceBlock(command)
     }
     @objc private func changeEncoding(_ sender: NSMenuItem) {
-        guard mergeEditable, isEditable, ComparisonTextEncoding.allCases.indices.contains(sender.tag) else { return }
-        model?.changeEncoding(ComparisonTextEncoding.allCases[sender.tag])
+        guard mergeEditable,isEditable,let raw = sender.representedObject as? String,let encoding = ComparisonTextEncoding(rawValue:raw) else {return}
+        model?.changeEncoding(encoding)
     }
     @objc private func convertLineEndings(_ sender:NSMenuItem) {
         guard historyAllowed, MergeLineEnding.allCases.indices.contains(sender.tag) else { return }

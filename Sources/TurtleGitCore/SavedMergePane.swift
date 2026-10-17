@@ -20,7 +20,14 @@ public struct SavedMergePane: Sendable {
         return Self(url: url, content: saved)
     }
     public func read() throws -> ComparisonFileContent {
-        do { return try WorkingFileComparison.workingContent(at: url) }
+        do {
+            let actual = try WorkingFileComparison.workingContent(at:url)
+            guard let legacy = content.encoding,legacy.legacyCodePage != nil else {return actual}
+            // Keep an explicitly selected codec for our unchanged output. An
+            // external rewrite is a new load: Unicode evidence takes precedence.
+            if actual.bytes != content.bytes {return actual.usingMergeEncoding(preferUTF8:false,legacyEncoding:legacy)}
+            return ComparisonFileContent(path:actual.path,revision:actual.revision,bytes:actual.bytes,mode:actual.mode,permissions:actual.permissions,encoding:legacy,isDeleted:actual.isDeleted)
+        }
         catch let error as CocoaError where content.isDeleted && (error.code == .fileReadNoSuchFile || error.code == .fileNoSuchFile) { return content }
     }
     public func validate() throws {

@@ -25,7 +25,7 @@ final class TextConflictTests: XCTestCase {
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
         let text = "Aé\r\nno end"
-        for encoding in ComparisonTextEncoding.allCases {
+        for encoding in ComparisonTextEncoding.allCases where encoding.legacyCodePage == nil || encoding == .windows1252 {
             document = try await repo.saveTextConflict(document, result: text, markResolved: false, encoding: encoding)
             XCTAssertEqual(document.encoding, encoding)
             XCTAssertEqual(try Data(contentsOf: location), try encoding.encode(text))

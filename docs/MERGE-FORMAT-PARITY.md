@@ -61,3 +61,12 @@ All seven static resource controls have partial mappings. The Debug build and al
 
 Source ASCII remains the explicit Windows1252 adaptation; physical popups/keys/VoiceOver, full legacy codepages and format/Save
 boundaries, signed sandbox and complete upstream parity remain open.
+
+## Regional legacy formats — October 17
+
+The [connected legacy-format family](LEGACY-TEXT-FORMATS.md) replaces the fixed
+Windows-1252-only adaptation with a selected Windows code page. The Encoding
+sheet retains nine source choices and per-pane codec ownership. Saved targets
+retain explicit codecs for unchanged output and re-detect external Unicode
+rewrites. Earlier fixed-1252 descriptions above describe their historical
+checkpoint; full Windows codepage, physical and signed parity remains open.

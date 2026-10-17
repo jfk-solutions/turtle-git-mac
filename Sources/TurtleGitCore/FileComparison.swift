@@ -8,20 +8,20 @@ public struct ComparisonFileContent: Sendable {
     public let permissions: Int?
     public let encoding: ComparisonTextEncoding?
     public let isDeleted: Bool
-    init(path: String, revision: ComparisonRevision, bytes: Data, mode: String?, permissions: Int? = nil, encoding: ComparisonTextEncoding? = nil, isDeleted: Bool = false) {
+    init(path: String, revision: ComparisonRevision, bytes: Data, mode: String?, permissions: Int? = nil, encoding: ComparisonTextEncoding? = nil, isDeleted: Bool = false, detectEncoding:Bool = true) {
         self.isDeleted = isDeleted
         self.path = path; self.revision = revision; self.bytes = bytes; self.mode = mode; self.permissions = permissions
-        self.encoding = encoding ?? ComparisonTextEncoding.detect(bytes)
+        self.encoding = encoding ?? (detectEncoding ? ComparisonTextEncoding.detect(bytes) : nil)
     }
-    public func usingMergeEncoding(preferUTF8: Bool) -> Self {
+    public func usingMergeEncoding(preferUTF8: Bool, legacyEncoding:ComparisonTextEncoding = .windows1252) -> Self {
         Self(path: path, revision: revision, bytes: bytes, mode: mode, permissions: permissions,
-             encoding: ComparisonTextEncoding.detectMerge(bytes, preferUTF8: preferUTF8), isDeleted: isDeleted)
+             encoding: ComparisonTextEncoding.detectMerge(bytes, preferUTF8: preferUTF8, legacyEncoding:legacyEncoding), isDeleted: isDeleted, detectEncoding:false)
     }
     public var text: String? { isDeleted ? "" : encoding?.decode(bytes) }
 }
 public struct FileComparisonDocument: Sendable {
-    public func usingMergeEncoding(preferUTF8: Bool) -> Self {
-        Self(base: base.usingMergeEncoding(preferUTF8: preferUTF8), destination: destination.usingMergeEncoding(preferUTF8: preferUTF8))
+    public func usingMergeEncoding(preferUTF8: Bool, legacyEncoding:ComparisonTextEncoding = .windows1252) -> Self {
+        Self(base: base.usingMergeEncoding(preferUTF8: preferUTF8,legacyEncoding:legacyEncoding), destination: destination.usingMergeEncoding(preferUTF8: preferUTF8,legacyEncoding:legacyEncoding))
     }
     public let base: ComparisonFileContent
     public let destination: ComparisonFileContent

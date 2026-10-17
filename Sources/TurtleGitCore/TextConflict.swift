@@ -135,14 +135,14 @@ public enum TextConflictFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func textConflictDocument(path: String, engine: SubversionMergeConfiguration? = nil, mergePreferUTF8: Bool? = nil, identityOptions: ConflictIdentityOptions = .init(), cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
+    public func textConflictDocument(path: String, engine: SubversionMergeConfiguration? = nil, mergePreferUTF8: Bool? = nil, mergeLegacyEncoding:ComparisonTextEncoding = .windows1252, identityOptions: ConflictIdentityOptions = .init(), cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
         try cancellation?.check()
         guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
         guard !entry.isSubmodule, [2, 3].allSatisfy({ stage in entry.stages.contains { $0.number == stage && ["100644", "100755"].contains($0.mode) } }),
               entry.stages.allSatisfy({ ["100644", "100755"].contains($0.mode) }) else { throw TextConflictFailure.unsupported }
         try validateConflicts([entry], using: .current, cancellation: cancellation)
         func detect(_ data: Data) -> ComparisonTextEncoding? {
-            if let mergePreferUTF8 { return ComparisonTextEncoding.detectMerge(data, preferUTF8: mergePreferUTF8) }
+            if let mergePreferUTF8 { return ComparisonTextEncoding.detectMerge(data, preferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding) }
             return ComparisonTextEncoding.detect(data)
         }
         func text(_ data: Data) throws -> String {
@@ -262,16 +262,16 @@ public actor WorkingTextMerge {
         guard [base, theirs, mine].allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }) else { throw TextConflictFailure.unsupported }
         baseURL = base.standardizedFileURL; theirsURL = theirs.standardizedFileURL; mineURL = mine.standardizedFileURL
     }
-    private func source(_ url: URL, mergePreferUTF8: Bool?) throws -> ComparisonFileContent {
+    private func source(_ url: URL, mergePreferUTF8: Bool?, legacyEncoding:ComparisonTextEncoding) throws -> ComparisonFileContent {
         let raw = try WorkingFileComparison.workingContent(at: url)
-        let value = mergePreferUTF8.map { raw.usingMergeEncoding(preferUTF8: $0) } ?? raw
+        let value = mergePreferUTF8.map { raw.usingMergeEncoding(preferUTF8: $0,legacyEncoding:legacyEncoding) } ?? raw
         guard value.mode != "120000", value.text != nil, value.encoding != nil else { throw TextConflictFailure.encoding }
         return value
     }
-    public func read(engine: SubversionMergeConfiguration, mergePreferUTF8: Bool? = nil, cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
+    public func read(engine: SubversionMergeConfiguration, mergePreferUTF8: Bool? = nil, mergeLegacyEncoding:ComparisonTextEncoding = .windows1252, cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
         try cancellation?.check()
         let activeMine = savedSources[true]?.url ?? mineURL, activeTheirs = savedSources[false]?.url ?? theirsURL
-        let base = try source(baseURL, mergePreferUTF8: mergePreferUTF8), theirs = try source(activeTheirs, mergePreferUTF8: mergePreferUTF8), mine = try source(activeMine, mergePreferUTF8: mergePreferUTF8)
+        let base = try source(baseURL, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding), theirs = try source(activeTheirs, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding), mine = try source(activeMine, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding)
         let presentation = try SubversionMergePresentation(plan: engine.plan(base: base.text!, mine: mine.text!, theirs: theirs.text!, cancellation: cancellation))
         try cancellation?.check()
         for (url, content) in [(baseURL,base), (activeTheirs,theirs), (activeMine,mine)] {
@@ -390,9 +390,9 @@ extension TextConflictDocument {
 
 
 extension WorkingTreePatchFileComparison {
-    public func patchMergeDocument(engine:SubversionMergeConfiguration,preferUTF8:Bool? = nil,cancellation:OperationCancellation? = nil) throws -> TextConflictDocument {
+    public func patchMergeDocument(engine:SubversionMergeConfiguration,preferUTF8:Bool? = nil,legacyEncoding:ComparisonTextEncoding = .windows1252,cancellation:OperationCancellation? = nil) throws -> TextConflictDocument {
         guard let recoveryBase,recoveryKind == .text else {throw WorkingTreePatchFailure.review}
-        func content(_ value:ComparisonFileContent)->ComparisonFileContent {preferUTF8.map {value.usingMergeEncoding(preferUTF8:$0)} ?? value}
+        func content(_ value:ComparisonFileContent)->ComparisonFileContent {preferUTF8.map {value.usingMergeEncoding(preferUTF8:$0,legacyEncoding:legacyEncoding)} ?? value}
         let base = content(recoveryBase),mine = content(document.base),theirs = content(document.destination)
         guard let baseText = base.text,let mineText = mine.text,let theirsText = theirs.text,let encoding = mine.encoding ?? theirs.encoding else {throw TextConflictFailure.encoding}
         let merged = try SubversionMergePresentation(plan:engine.plan(base:baseText,mine:mineText,theirs:theirsText,cancellation:cancellation))

@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import Darwin
 
 /// BaseView edits its view records, rather than diffing the files after every
@@ -112,14 +113,48 @@ public enum ComparisonTextEncoding: String, CaseIterable, Sendable {
     case utf16LE = "UTF-16LE", utf16LEBOM = "UTF-16LE BOM"
     case utf16BE = "UTF-16BE", utf16BEBOM = "UTF-16BE BOM"
     case utf32LE = "UTF-32LE", utf32BE = "UTF-32BE"
-    private var codec: String.Encoding {
+    case windows1250 = "ASCII (Windows-1250)", windows1251 = "ASCII (Windows-1251)"
+    case windows1253 = "ASCII (Windows-1253)", windows1254 = "ASCII (Windows-1254)"
+    case windows1255 = "ASCII (Windows-1255)", windows1256 = "ASCII (Windows-1256)"
+    case windows1257 = "ASCII (Windows-1257)", windows1258 = "ASCII (Windows-1258)"
+    case windows874 = "ASCII (Windows-874)", shiftJIS = "ASCII (Shift-JIS)"
+    case gbk = "ASCII (GBK)", korean = "ASCII (Korean)", big5 = "ASCII (Big5)"
+    public static let legacyChoices:[Self] = [.windows1252,.windows1250,.windows1251,.windows1253,.windows1254,.windows1255,.windows1256,.windows1257,.windows1258,.windows874,.shiftJIS,.gbk,.korean,.big5]
+    public var legacyCodePage:UInt32? {
         switch self {
-        case .windows1252: return .windowsCP1252
+        case .windows1250:return 1250
+        case .windows1251:return 1251
+        case .windows1252:return 1252
+        case .windows1253:return 1253
+        case .windows1254:return 1254
+        case .windows1255:return 1255
+        case .windows1256:return 1256
+        case .windows1257:return 1257
+        case .windows1258:return 1258
+        case .windows874:return 874
+        case .shiftJIS:return 932
+        case .gbk:return 936
+        case .korean:return 949
+        case .big5:return 950
+        default:return nil
+        }
+    }
+    public var legacyName:String { legacyCodePage == nil ? rawValue : String(rawValue.dropFirst(7).dropLast()) }
+    public static func legacyEncoding(from defaults:UserDefaults = .standard)->Self {
+        guard let raw = defaults.object(forKey:"TurtleGitMerge.LegacyCodePage") as? NSNumber else {return .windows1252}
+        return legacyChoices.first { $0.legacyCodePage.map { Int64($0) == raw.int64Value } == true } ?? .windows1252
+    }
+    private var codec: String.Encoding {
+        if let page = legacyCodePage {
+            return .init(rawValue:CFStringConvertEncodingToNSStringEncoding(CFStringConvertWindowsCodepageToEncoding(page)))
+        }
+        switch self {
         case .utf8, .utf8BOM: return .utf8
         case .utf16LE, .utf16LEBOM: return .utf16LittleEndian
         case .utf16BE, .utf16BEBOM: return .utf16BigEndian
         case .utf32LE: return .utf32LittleEndian
         case .utf32BE: return .utf32BigEndian
+        default: preconditionFailure("Legacy codec must have a code page")
         }
     }
     private var bom: Data {
@@ -132,6 +167,7 @@ public enum ComparisonTextEncoding: String, CaseIterable, Sendable {
         default: return Data()
         }
     }
+    var hasBOM:Bool { !bom.isEmpty }
     public func encode(_ text: String) throws -> Data {
         guard !text.unicodeScalars.contains(where: { $0.value == 0 }),
               let bytes = text.data(using: codec, allowLossyConversion: false),
@@ -153,12 +189,12 @@ public enum ComparisonTextEncoding: String, CaseIterable, Sendable {
         return text
     }
     /// Reuse the source CheckUnicodeType classifier; decoding remains lossless.
-    /// CP_ACP has no macOS equivalent, so ASCII/legacy uses the existing CP1252 adapter.
-    public static func detectMerge(_ bytes: Data, preferUTF8: Bool) -> ComparisonTextEncoding? {
+    /// CP_ACP is supplied explicitly on macOS; retained documents own their codec.
+    public static func detectMerge(_ bytes: Data, preferUTF8: Bool, legacyEncoding:Self = .windows1252) -> ComparisonTextEncoding? {
         let value: Self
         switch MessageCodeText.detect(bytes, useUTF8: preferUTF8) {
         case .binary: return nil
-        case .ascii: value = .windows1252
+        case .ascii: value = legacyEncoding.legacyCodePage == nil ? .windows1252 : legacyEncoding
         case .utf8: value = .utf8
         case .utf8BOM: value = .utf8BOM
         case .utf16LE: value = .utf16LE
@@ -560,6 +596,9 @@ public struct MergeFormatSelection: Equatable, Sendable {
     public var encoding: ComparisonTextEncoding
     public var ending: MergeLineEnding?
     public static let encodings: [ComparisonTextEncoding] = [.windows1252,.utf16LE,.utf16BE,.utf16LEBOM,.utf16BEBOM,.utf32LE,.utf32BE,.utf8,.utf8BOM]
+    public static func encodingChoices(legacy:ComparisonTextEncoding)->[ComparisonTextEncoding] {
+        [legacy.legacyCodePage == nil ? .windows1252 : legacy] + encodings.dropFirst()
+    }
     public init(encoding: ComparisonTextEncoding, ending: MergeLineEnding? = nil) { self.encoding = encoding; self.ending = ending }
     public static func initial(encoding: ComparisonTextEncoding, text: String) -> Self {
         let styles = MergeLineEndings.styles(in:text)

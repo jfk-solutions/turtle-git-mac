@@ -36,7 +36,7 @@ final class FileComparisonEditingTests: XCTestCase {
         XCTAssertNil(ComparisonTextEncoding.detect(Data([0xff,0xfe,0,0xd8])))
         XCTAssertNil(ComparisonTextEncoding.detect(Data([0xff,0xfe,0,0,0,0,0x11,0])))
         XCTAssertNil(ComparisonTextEncoding.detect(Data([0,255])))
-        for encoding in ComparisonTextEncoding.allCases where encoding != .windows1252 {
+        for encoding in ComparisonTextEncoding.allCases where encoding.legacyCodePage == nil {
             XCTAssertEqual(encoding.decode(try encoding.encode("雪🦎e\u{301}\r\nEOF")), "雪🦎e\u{301}\r\nEOF")
             let leadingCharacter = "\u{feff}雪🦎\r\nEOF"
             XCTAssertEqual(encoding.decode(try encoding.encode(leadingCharacter)), leadingCharacter)

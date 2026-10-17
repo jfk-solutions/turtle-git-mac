@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "669a0464",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Configured ANSI/legacy decoding and lossless native comparison/merge format and save consumers.",
+  "source": {
+    "src/TortoiseMerge/FileTextLines.cpp": "e9ac66ef889687750921f09d4ccafce7f843e996"
+  },
+  "implemented": [
+    "Fourteen Windows legacy code-page codecs with strict round-trip validation and explicit macOS preference supplying CP_ACP",
+    "Source nine-choice format hierarchy retains selected pane codec across default changes; native context commands retain chosen codec",
+    "Policy reaches comparison, repository conflict, standalone merge and patch adapters; failed source detection no longer falls through to a different automatic decoder",
+    "Open panes retain codec until later loading; exact output Save, mode and index guards retained",
+    "Saved pane reads keep explicit legacy codec for unchanged bytes and apply source Unicode precedence to external rewrites"
+  ],
+  "validation": {
+    "core": {
+      "distinct_cases": 49,
+      "initial": {
+        "log": "build/qa/legacy-format-core-2026-10-17.log",
+        "cases": 49,
+        "failures": 1
+      },
+      "order_recheck": {
+        "log": "build/qa/legacy-format-core-order-2026-10-17.log",
+        "cases": 1,
+        "failures": 0
+      },
+      "affected_reload_recheck": {
+        "log": "build/qa/legacy-format-reload-core-2026-10-17.log",
+        "cases": 13,
+        "failures": 0
+      },
+      "note": "49 distinct cases pass across retained/affected checkpoints. Repeated cases are not additional coverage. New tests cover all 14 sample codecs and actual file writes/reloads/modes, plus a real CP1251 conflict preserving HEAD and raw index bytes."
+    },
+    "builds": [
+      {
+        "log": "build/qa/legacy-format-build-2026-10-17.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/legacy-format-reload-build-2026-10-17.log",
+        "exit_code": 0
+      }
+    ],
+    "native": {
+      "distinct_passing_workflows": 4,
+      "log": "build/qa/legacy-format-native-choice-2026-10-17.log",
+      "scope": "Settings Apply/Cancel, CP1251 Compare, Shift-JIS standalone Merge, nine-choice current-codec prompt, failed conversion and exact saves; retained source sheet, comparison transactions and aligned result formatting/Undo/Save",
+      "engine_boundary": "New native workflow uses standalone file comparisons/merge, not Git-engine equivalence or signed scope acceptance."
+    },
+    "owned_receiver_pids": [
+      62207,
+      62679,
+      62740,
+      62760,
+      62764,
+      62767
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/legacy-format-light.png",
+        "sha256": "0c42b8f65577d4b5055b858acd86dbd7d4fc29fbe3d53d7f6ee448a6e123d1a4",
+        "width": 880,
+        "height": 496,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/legacy-format-dark.png",
+        "sha256": "83cc83d0ee0a6f76d72e87c7dfc6091cdbfd5d7a16f4fa2d1511e42ae7378ce3",
+        "width": 880,
+        "height": 496,
+        "individually_viewed": true
+      }
+    ]
+  },
+  "failures_and_repairs": [
+    "Initial retained TextConflict format test changed its loop order while retaining a final UTF32BE assertion; restored its original nine-format order and reran only that case.",
+    "Read-boundary review found that external UTF8 rewrites could be decoded as an old retained legacy codec. Updated saved-pane read policy and checked the affected Legacy/SavedMergePane suites only.",
+    "Initial native receiver timed out waiting for normal standalone Save As selection; added diagnostics/layout flushing to locate the wait. Diagnostic rerun confirmed Merge Save was pending, with valid decoded document/editor and no error.",
+    "Supplied the private QA destination through the existing chooseStandaloneOutput hook; all four final native workflows pass. No product change was needed for the chooser repair."
+  ],
+  "remaining": [
+    "Exhaustive Windows mapping/malformed-sequence and OEM codepage compatibility",
+    "Full legacy patch preparation/recovery and external tool combinations",
+    "Physical Settings/popup/keyboard/VoiceOver and translated new labels",
+    "Signed sandbox/App Store acceptance and full upstream parity",
+    "Existing outdated Simulator and exit-zero compiler diagnostics; no clean-diagnostics or complete hosted CI claim"
+  ]
+}
