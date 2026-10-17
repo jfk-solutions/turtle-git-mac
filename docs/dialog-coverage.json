@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 445,
-    "mapped_controls": 1214,
+    "pending_control_reviews": 426,
+    "mapped_controls": 1233,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -314,24 +314,12 @@
       "status": "partial",
       "source_blob": "b0c19b52528f5dc6a7adb62095e5cd7260abe5dd",
       "static_controls": 24,
-      "mapped_controls": 5,
-      "pending_control_reviews": 19,
+      "mapped_controls": 24,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/MergeEditorSettings.swift",
-          "origin": "recorded-control-mapping"
-        },
-        {
-          "path": "Sources/TurtleGitMac/TextConflictWindow.swift",
-          "origin": "recorded-control-mapping"
-        },
-        {
-          "path": "Sources/TurtleGitCore/MergeEditorPreferences.swift",
-          "origin": "recorded-control-mapping"
-        },
-        {
-          "path": "Sources/TurtleGitMac/FileComparisonWindow.swift",
           "origin": "recorded-control-mapping"
         }
       ],

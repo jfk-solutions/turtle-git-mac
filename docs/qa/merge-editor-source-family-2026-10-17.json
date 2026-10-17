@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "7e8c5941917b09b15be5aba227d22c307c09c55a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Coherent Merge Editor draft across source Misc/Diffing and additional supported native preferences",
+    "Source Auto Add order, paired Use spaces/Smart tab and tab-size/EditorConfig rows, native fixed-pitch font previews and editable size presets",
+    "Revision/visibility/owner-fenced form callbacks with authorized hidden Settings Apply",
+    "Owned validated Comment Profiles session, original-parent text fence, single acceptance/Cancel/late reply and Settings/Quit guards",
+    "Inline file errors and profile-only recovery retain unrelated settings; profile-save failure saves no other preferences",
+    "Shared font controls honor enabled/attached/retired state and close-owner callback lifetime",
+    "All 24 static source controls receive partial mappings including Windows Ribbon adaptation"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/merge-editor-source-build-2026-10-17.log",
+      "exit": 65,
+      "exit_zero_no_output_diagnostics": 0,
+      "failure": "Catch error shadowed the model error property; qualified self.error."
+    },
+    {
+      "log": "build/qa/merge-editor-source-build-repair-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 10
+    }
+  ],
+  "native": {
+    "distinct_family_passes": 4,
+    "families": [
+      "source form/profile/native-font ownership",
+      "retained actual live-font/inline-limit/load preferences",
+      "retained default encoding/native Apply-Cancel/legacy decoding and Save",
+      "retained patch context/Apply-Cancel/current command owner/saved-input export"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/merge-editor-source-native-2026-10-17.log",
+        "exit": 1,
+        "failure": "Fixture used a non-definition line as invalid profile; upstream/Core intentionally permit those comment lines. Changed fixture to malformed swift=//,/* definition."
+      },
+      {
+        "log": "build/qa/merge-editor-source-native-recheck-2026-10-17.log",
+        "exit": 1,
+        "failure": "Final owner-close fixture tried to present a sheet after capture ordered its private owner out. Restored private owner visibility before this assertion."
+      },
+      {
+        "log": "build/qa/merge-editor-source-native-visible-2026-10-17.log",
+        "exit": 1,
+        "passed_families": 3,
+        "failure": "Retained patch fixture manually notified key-window status but still used former File menu validation owner. Current menu correctly requires its captured key owner."
+      },
+      {
+        "log": "build/qa/merge-editor-source-patch-owner-2026-10-17.log",
+        "exit": 0,
+        "passed_families": 1,
+        "repair": "Use current editorCommandMenu application/key-window seams and validate that current target. No user focus activation or production guard bypass."
+      }
+    ],
+    "owned_receivers_reaped": [
+      14509,
+      14558,
+      14618,
+      14621,
+      14633,
+      14638,
+      14710
+    ],
+    "independently_absent_owned_receivers": [
+      14509,
+      14558,
+      14618,
+      14621,
+      14633,
+      14638,
+      14710
+    ],
+    "actual_git_engine": "system Git in patch export; source/general/encoding are native/standalone routes"
+  },
+  "core": {
+    "repeated": false,
+    "reason": "Core preference schema, profile parser/save precondition, patch generation and encoding/serialization algorithms unchanged. Native cases exercise actual private file saves and existing consumers."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/merge-editor-source-light.png",
+      "sha256": "f93cd381f132dba10c6b35565c731a9e83750aa7ec82b28bc261bcc24371b76e",
+      "pixels": [
+        1640,
+        2144
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/merge-editor-source-dark.png",
+      "sha256": "c68629f633aaa16625da18237cd2dc3ebef53b1f9d3c70b17d3c00a41e71c4b2",
+      "pixels": [
+        1640,
+        1996
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of actual MergeEditorSettings in production SettingsPageViewport with four-edge native host constraints. Private profile file/preferences, passive owned windows, no global user focus/input. Source page is captured without the surrounding Settings navigation/footer; shared Apply/Cancel and actual native profile sheet are separately asserted. Actual light/dark window dimensions differ after native sheet/layout constraining; no synthetic resizing/cropping.",
+  "hosted_observation": {
+    "head": "7e8c5941917b09b15be5aba227d22c307c09c55a",
+    "macos": {
+      "run": 38988612894,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38988612890,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Windows Ribbon mode uses native AppKit menu/toolbar; no alternate Office Ribbon checkbox exists",
+    "Native font/inline/tab/context validation bounds remain explicit platform adaptations",
+    "Already-authorized profile file save is not rolled back if context changes before later preference writes",
+    "Profile editor physical gestures/keyboard/VoiceOver and all shared font/renderer/encoding/large-file boundaries remain open",
+    "Signed sandbox/App Store and full hosted CI acceptance remain open; no full dialog certification"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/merge-editor-source-site-2026-10-17.log"
+  }
+}

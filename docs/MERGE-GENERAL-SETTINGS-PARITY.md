@@ -67,3 +67,35 @@ cache invalidation and two-pane chunk navigation are implemented in the connecte
 [inline batch](MERGE-INLINE-PARITY.md). Complete result-state and physical/signed
 acceptance remain open; this supersedes the earlier absence of three-pane source
 inline behavior.
+
+## Source form and comment-profile ownership — October 17, 2026
+
+The native Misc group now retains source Auto Add order, the paired Use spaces /
+Smart tab controls and the tab-size / EditorConfig row. Font family/size remain
+native fixed-pitch previews/editable presets. Diffing retains inline length,
+Ignore line endings/case and signed context controls. The Windows Ribbon mode
+uses the native AppKit toolbar/menu; no Office Ribbon implementation is claimed.
+Additional supported view/comment settings remain in a following group.
+
+A coherent observable draft now supplies all settings, validation and shared
+Apply/Cancel. Form bindings capture model/revision, expire on reset, Apply,
+visibility or ownership changes, and refuse old hidden/retired edits. Hidden
+cached-page Apply remains authorized. Native font, signed context and UTF-8
+controls honor enabled/attached/retired state; font owners detach callbacks on
+closure. Existing identifiers, presets, serialized settings and consumers remain.
+
+Comment Profiles now has an owned one-session draft. Validation, Restore Defaults,
+OK and Cancel check the captured session and original parent text. Invalid/old
+responses cannot accept text or revive a closed owner. The editor participates in
+Settings/Quit guards before its sheet attaches. Closing or leaving the page
+retires the session. Profile-file read/save failures are shown inline; Reload
+Profiles discards only that profile draft, retaining unrelated settings for retry.
+A failed profile save writes no other preferences and sends no Apply notification.
+Accepted profile text is saved before the captured settings. A context change
+after an already-authorized file write can refuse later preference writes; no
+rollback of a completed profile write is claimed.
+
+All 24 static resource controls now have explicit partial mappings, including
+the native Ribbon adaptation. The Debug build and four grouped native families have passing checks: source form/profile ownership, live fonts/preferences, default encoding and patch settings/export. The build catch-shadowing error and three fixture issues are recorded with their focused repairs; no app rebuild followed those fixture changes. Both raw light/dark captures were individually reviewed: source groups, paired controls, fonts and additional options fit. All seven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-editor-source-family-2026-10-17.json) for exact attempts, capture scope and acceptance limits. Physical sheets/fonts/completion/keyboard/VoiceOver, every consumer and
+large-file/encoding boundary, signed sandbox and full application parity remain
+open.

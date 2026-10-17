@@ -67,10 +67,12 @@ struct MergePatchNativeVerification {
         let previousMenu = NSApplication.shared.mainMenu, menu = NSMenu(), fileMenu = NSMenu(title: "File"), fileItem = NSMenuItem(title: "File", action: nil, keyEquivalent: "")
         fileItem.submenu = fileMenu; menu.addItem(fileItem); NSApplication.shared.mainMenu = menu
         defer { NSApplication.shared.mainMenu = previousMenu }
+        guard let commands = owner.editorCommandMenu else { throw NSError(domain: "Missing editor menu owner", code: 1) }
+        commands.applicationMenu = { menu }; commands.keyWindow = { [weak owner] in owner?.window }
         owner.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: owner.window))
         guard let item = fileMenu.items.first(where: { $0.title == "Create patch file" }) else { throw NSError(domain: "Missing File command", code: 1) }
-        try check(item.image != nil && owner.validateMenuItem(item), "File command icon/gate missing")
-        model.singleFileMode = true; try check(!owner.validateMenuItem(item), "Single-file patch command enabled"); model.singleFileMode = false
+        try check(item.image != nil && item.target === commands && commands.validateMenuItem(item), "File command icon/gate missing")
+        model.singleFileMode = true; try check(!commands.validateMenuItem(item), "Single-file patch command enabled"); model.singleFileMode = false
         owner.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: owner.window)); try check(fileMenu.items.isEmpty, "Window command leaked into another window")
         var reply: CheckedContinuation<URL?, Never>?
         model.choosePatchLocation = { _,_,_ in await withCheckedContinuation { reply = $0 } }

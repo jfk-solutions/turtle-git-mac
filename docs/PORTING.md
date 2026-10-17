@@ -1848,3 +1848,13 @@ and 17 channels remain; palette/reset choices now share the source footer row.
 All 35 static resource controls receive explicit partial mappings. See
 [Colors parity](MERGE-COLORS-PARITY.md#source-palette-contexts-and-footer--october-17-2026).
 The Debug build and all three grouped native families pass on their first attempt: source contexts, retained Merge Colors and the six shared Settings color pages. Both raw light/dark page captures were individually reviewed; all 17 swatches, source columns/groups and palette/reset footer fit. All three owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-colors-source-family-2026-10-17.json) for build diagnostics, capture provenance and acceptance limits.
+
+### Merge Editor source form and profile owner — October 17, 2026
+
+Merge Editor now has a coherent captured settings draft, source Misc/Diffing
+layout, enabled/retired native font/context/UTF-8 controls, and an owned validated
+Comment Profiles session with Settings/Quit guards. Inline profile failures and
+profile-only recovery preserve unrelated drafts; a failed file save cannot save
+other preferences. All 24 source controls receive partial mappings. See
+[General parity](MERGE-GENERAL-SETTINGS-PARITY.md#source-form-and-comment-profile-ownership--october-17-2026).
+The Debug build and four grouped native families have passing checks: source form/profile ownership, live fonts/preferences, default encoding and patch settings/export. The build catch-shadowing error and three fixture issues are recorded with their focused repairs; no app rebuild followed those fixture changes. Both raw light/dark captures were individually reviewed: source groups, paired controls, fonts and additional options fit. All seven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-editor-source-family-2026-10-17.json) for exact attempts, capture scope and acceptance limits.

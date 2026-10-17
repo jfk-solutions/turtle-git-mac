@@ -6,90 +6,176 @@ extension Notification.Name {
     static let mergeEditorPreferencesChanged = Notification.Name("TurtleGitMerge.PreferencesChanged")
 }
 
-struct MergeEditorSettings: View {
-    private let preferences: UserDefaults
-    private let profileURL: URL
-    @Environment(\.settingsTransaction) private var transaction
-    @State private var windowReference = MergeSettingsWindowReference()
-    @State private var initialized = false
-    @State private var general = MergeGeneralPreferences.load()
-    @State private var fontSize = String(MergeGeneralPreferences.load().fontSize)
-    @State private var preferUTF8 = false
-    @State private var onePaneDefault = false
-    @State private var patchContext = String(MergeUnifiedPatch.contextLines())
-    @State private var maximumInline = String(MergeGeneralPreferences.load().maximumInlineLength)
-    @State private var draft = MergeEditorPreferences.load()
-    @State private var comparison = MergeComparisonOptions.load()
-    @State private var locator = MergeLocatorPreferences.load()
-    @State private var whitespaceDisplay = MergeWhitespaceDisplayPreferences.load()
-    @State private var backupOriginal = MergeFileSaveOptions.backupEnabled()
-    @State private var tabSize = String(MergeEditorPreferences.load().tabWidth)
-    @State private var profileText = ""
-    @State private var savedProfileText = ""
-    @State private var profileError: String?
-    @State private var editingProfiles = false
-    @State private var sheetProfileText = ""
+/// Coherent native draft for SetMainPage and the owned comment-profile editor.
+@MainActor final class MergeEditorSettingsModel: ObservableObject {
+    static private(set) var activeProfileEditors = 0
+    let preferences: UserDefaults
+    let profileURL: URL
+    @Published var general = MergeGeneralPreferences.load()
+    @Published var fontSize = "10"
+    @Published var maximumInline = "3000"
+    @Published var tabSize = "4"
+    @Published var patchContext = "-1"
+    @Published var preferUTF8 = false
+    @Published var onePaneDefault = false
+    @Published var backupOriginal = true
+    @Published var editor = MergeEditorPreferences.load()
+    @Published var comparison = MergeComparisonOptions.load()
+    @Published var locator = MergeLocatorPreferences.load()
+    @Published var whitespaceDisplay = MergeWhitespaceDisplayPreferences.load()
+    @Published var profileText = ""
+    private var savedProfileText = ""
+    @Published private(set) var profileError: String?
+    @Published private(set) var error: String?
+    @Published private(set) var active = true
+    @Published private(set) var revision = UUID()
+    private var retired = false
+    private(set) weak var window: NSWindow?
+    private var ownerObserver: NSObjectProtocol?
+    struct EditContext: Equatable { let owner: ObjectIdentifier; let revision: UUID }
+    var editContext: EditContext { .init(owner: ObjectIdentifier(self), revision: revision) }
+    struct ProfileSession: Identifiable { let id = UUID(); let original: Data; var text: String }
+    @Published private(set) var profileSession: ProfileSession?
+    var readProfiles: (URL) throws -> String = { try MergeCommentProfileFile.text(at: $0) }
+    var saveProfiles: (String, URL, String) throws -> Void = { try MergeCommentProfileFile.save($0, at: $1, expected: $2) }
     init(defaults: UserDefaults = .standard, commentProfileURL: URL = MergeCommentProfileFile.url) {
-        preferences = defaults; profileURL = commentProfileURL
-        let general = MergeGeneralPreferences.load(from: defaults), editor = MergeEditorPreferences.load(from: defaults)
-        _preferUTF8 = State(initialValue: ComparisonTextEncoding.preferUTF8(from: defaults))
-        _onePaneDefault = State(initialValue: OnePaneFileComparison.defaultEnabled(from: defaults))
-        _general = State(initialValue: general); _fontSize = State(initialValue: String(general.fontSize))
-        _maximumInline = State(initialValue: String(general.maximumInlineLength)); _patchContext = State(initialValue: String(MergeUnifiedPatch.contextLines(from: defaults)))
-        _draft = State(initialValue: editor); _tabSize = State(initialValue: String(editor.tabWidth))
-        _comparison = State(initialValue: .load(from: defaults)); _locator = State(initialValue: .load(from: defaults))
-        _whitespaceDisplay = State(initialValue: .load(from: defaults)); _backupOriginal = State(initialValue: MergeFileSaveOptions.backupEnabled(from: defaults))
+        preferences = defaults; profileURL = commentProfileURL; restore()
     }
-    private var validWidth: Int? {
-        guard let width = Int(tabSize), (1...1000).contains(width) else { return nil }
-        return width
+    deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
+    func attach(to owner: NSWindow?) {
+        guard !retired else { return }
+        guard let owner else { setActive(false); return }
+        guard window !== owner else { return }
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }
+        window = owner; revision = UUID(); setActive(true)
+        ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { guard let self else { return }; self.cancelProfiles(); self.active = false; self.retired = true; self.revision = UUID() }
+        }
     }
-    private var validFontSize: Int? { Int(fontSize).flatMap { (6...72).contains($0) ? $0 : nil } }
-    private var validInlineLength: Int? { Int(maximumInline).flatMap { (0...100_000).contains($0) ? $0 : nil } }
-    private var generalDraft: MergeGeneralPreferences {
-        .init(fontName: general.fontName, fontSize: validFontSize ?? general.fontSize, maximumInlineLength: validInlineLength ?? general.maximumInlineLength,
-              firstDifference: general.firstDifference, firstConflict: general.firstConflict)
+    func setActive(_ value: Bool) {
+        guard !retired, active != value else { return }; active = value; revision = UUID()
+        if !value { cancelProfiles() }
     }
-    private var changed: Bool {
+    private func accepts(_ context: EditContext) -> Bool { !retired && active && profileSession == nil && context == editContext }
+    func binding<Value>(_ key: ReferenceWritableKeyPath<MergeEditorSettingsModel, Value>) -> Binding<Value> {
+        let context = editContext
+        return Binding(get: { self[keyPath: key] }, set: { if self.accepts(context) { self[keyPath: key] = $0 } })
+    }
+    func editTabSize(_ value: Int, context: EditContext) { guard accepts(context) else { return }; tabSize = String(value) }
+    var validWidth: Int? { Int(tabSize).flatMap { (1...1000).contains($0) ? $0 : nil } }
+    var validFontSize: Int? { Int(fontSize).flatMap { (6...72).contains($0) ? $0 : nil } }
+    var validInlineLength: Int? { Int(maximumInline).flatMap { (0...100_000).contains($0) ? $0 : nil } }
+    var generalDraft: MergeGeneralPreferences {
+        .init(fontName: general.fontName, fontSize: validFontSize ?? general.fontSize, maximumInlineLength: validInlineLength ?? general.maximumInlineLength, firstDifference: general.firstDifference, firstConflict: general.firstConflict)
+    }
+    struct State: Equatable {
+        let general: MergeGeneralPreferences, editor: MergeEditorPreferences, comparison: MergeComparisonOptions, locator: MergeLocatorPreferences, whitespace: MergeWhitespaceDisplayPreferences
+        let fontSize: String, maximumInline: String, tabSize: String, patchContext: String
+        let utf8: Bool, onePane: Bool, backup: Bool, profiles: Data
+    }
+    var state: State { .init(general: general, editor: editor, comparison: comparison, locator: locator, whitespace: whitespaceDisplay, fontSize: fontSize, maximumInline: maximumInline, tabSize: tabSize, patchContext: patchContext, utf8: preferUTF8, onePane: onePaneDefault, backup: backupOriginal, profiles: Data(profileText.utf8)) }
+    var changed: Bool {
         guard let width = validWidth, validFontSize != nil, validInlineLength != nil else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load(from: preferences) || generalDraft != .load(from: preferences) || comparison != .load(from: preferences) || locator != .load(from: preferences) || whitespaceDisplay != .load(from: preferences) || backupOriginal != MergeFileSaveOptions.backupEnabled(from: preferences) || MergeUnifiedPatch.validatedContext(patchContext) != MergeUnifiedPatch.contextLines(from: preferences) || preferUTF8 != ComparisonTextEncoding.preferUTF8(from: preferences) || onePaneDefault != OnePaneFileComparison.defaultEnabled(from: preferences) || profileText != savedProfileText
+        return MergeEditorPreferences(tabWidth: width, useSpaces: editor.useSpaces, smartTab: editor.smartTab, showLineNumbers: editor.showLineNumbers, enableEditorConfig: editor.enableEditorConfig, autoAdd: editor.autoAdd) != .load(from: preferences) || generalDraft != .load(from: preferences) || comparison != .load(from: preferences) || locator != .load(from: preferences) || whitespaceDisplay != .load(from: preferences) || backupOriginal != MergeFileSaveOptions.backupEnabled(from: preferences) || MergeUnifiedPatch.validatedContext(patchContext) != MergeUnifiedPatch.contextLines(from: preferences) || preferUTF8 != ComparisonTextEncoding.preferUTF8(from: preferences) || onePaneDefault != OnePaneFileComparison.defaultEnabled(from: preferences) || !profileText.utf8.elementsEqual(savedProfileText.utf8)
     }
-    private var validationError: String? {
+    var validationError: String? {
+        if profileSession != nil { return "Finish editing Comment Profiles before applying settings." }
         if MergeUnifiedPatch.validatedContext(patchContext) == nil { return "Enter patch context lines from -1 (Git default) to 1000." }
         if validWidth == nil { return "Enter a tab size from 1 to 1000." }
         if validFontSize == nil { return "Enter a font size from 6 to 72 points." }
         if validInlineLength == nil { return "Enter an inline-diff line length from 0 to 100000." }
         if let profileError { return profileError }
-        do { try MergeCommentProfileFile.validate(profileText); return nil }
-        catch { return error.localizedDescription }
+        do { try MergeCommentProfileFile.validate(profileText); return nil } catch { return error.localizedDescription }
+    }
+    func openProfiles(context: EditContext) {
+        guard accepts(context), profileError == nil, let window, window.attachedSheet == nil else { return }
+        profileSession = .init(original: Data(profileText.utf8), text: profileText); revision = UUID(); Self.activeProfileEditors += 1
+    }
+    func profileBinding(_ session: ProfileSession) -> Binding<String> {
+        Binding(get: { self.profileSession?.id == session.id ? self.profileSession!.text : session.text }, set: {
+            guard !self.retired, self.active, self.profileSession?.id == session.id else { return }; self.profileSession?.text = $0
+        })
+    }
+    var sheetValidationError: String? {
+        guard let session = profileSession else { return nil }
+        if session.original != Data(profileText.utf8) { return "The profile draft changed. Cancel and reopen Comment Profiles." }
+        do { try MergeCommentProfileFile.validate(session.text); return nil } catch { return error.localizedDescription }
+    }
+    func restoreProfiles(_ session: ProfileSession) { guard !retired, active, profileSession?.id == session.id else { return }; profileSession?.text = MergeCommentProfiles.bundledText() }
+    func cancelProfiles(_ session: ProfileSession? = nil) {
+        guard let current = profileSession, session == nil || current.id == session?.id else { return }
+        profileSession = nil; Self.activeProfileEditors -= 1; revision = UUID()
+    }
+    func acceptProfiles(_ session: ProfileSession) {
+        guard !retired, active, profileSession?.id == session.id, sheetValidationError == nil else { return }
+        profileText = profileSession!.text; cancelProfiles(session)
+    }
+    func reloadProfiles(context: EditContext) {
+        guard accepts(context) else { return }
+        do { let text = try readProfiles(profileURL); profileText = text; savedProfileText = text; profileError = nil; error = nil; revision = UUID() }
+        catch { profileError = error.localizedDescription }
+    }
+    func restore() {
+        guard !retired else { return }; cancelProfiles(); revision = UUID()
+        preferUTF8 = ComparisonTextEncoding.preferUTF8(from: preferences); onePaneDefault = OnePaneFileComparison.defaultEnabled(from: preferences)
+        patchContext = String(MergeUnifiedPatch.contextLines(from: preferences)); general = .load(from: preferences)
+        fontSize = String(general.fontSize); maximumInline = String(general.maximumInlineLength)
+        editor = .load(from: preferences); comparison = .load(from: preferences); locator = .load(from: preferences); whitespaceDisplay = .load(from: preferences); tabSize = String(editor.tabWidth)
+        backupOriginal = MergeFileSaveOptions.backupEnabled(from: preferences); error = nil
+        do { let text = try readProfiles(profileURL); profileText = text; savedProfileText = text; profileError = nil } catch { profileError = error.localizedDescription }
+    }
+    func apply() -> Bool {
+        guard !retired, let width = validWidth, validationError == nil else { return false }
+        let captured = state, profiles = profileText, preparedGeneral = generalDraft
+        var preparedEditor = editor; preparedEditor.tabWidth = width
+        do {
+            if !profiles.utf8.elementsEqual(savedProfileText.utf8) { try saveProfiles(profiles, profileURL, savedProfileText) }
+            guard !retired, state == captured else { error = "The settings context changed. Review the draft before applying again."; return false }
+            savedProfileText = profiles
+        } catch { self.error = "Comment profiles were not saved: " + error.localizedDescription; return false }
+        preferences.set(captured.utf8, forKey: "TurtleGitMerge.UseUTF8"); preferences.set(captured.onePane, forKey: "TurtleGitMerge.OnePane")
+        preferences.set(MergeUnifiedPatch.validatedContext(captured.patchContext)!, forKey: "TurtleGitMerge.ContextLines")
+        preparedGeneral.save(to: preferences); preparedEditor.save(to: preferences); captured.comparison.save(to: preferences); captured.locator.save(to: preferences); captured.whitespace.save(to: preferences)
+        MergeFileSaveOptions.saveBackupPreference(captured.backup, to: preferences)
+        general = preparedGeneral; editor = preparedEditor; error = nil; revision = UUID()
+        NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true
+    }
+}
+
+@MainActor struct MergeEditorSettings: View {
+    @StateObject private var model: MergeEditorSettingsModel
+    @Environment(\.settingsTransaction) private var transaction
+    init(defaults: UserDefaults = .standard, commentProfileURL: URL = MergeCommentProfileFile.url, model: MergeEditorSettingsModel? = nil) {
+        _model = StateObject(wrappedValue: model ?? MergeEditorSettingsModel(defaults: defaults, commentProfileURL: commentProfileURL))
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let context = model.editContext
+        return VStack(alignment: .leading, spacing: 16) {
             ScrollView { VStack(alignment: .leading, spacing: 16) {
             GroupBox("Misc") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Toggle("Backup original file", isOn: $backupOriginal)
-                    Toggle("Jump to first difference when loading", isOn: $general.firstDifference)
-                    Toggle("Jump to first conflict when loading", isOn: $general.firstConflict).padding(.leading, 12).disabled(!general.firstDifference)
-                    NativeMergeUTF8DefaultChoice(value: $preferUTF8).frame(height: 24)
-                    Toggle("Use one-pane view as default for 2-file diff", isOn: $onePaneDefault)
-                    Toggle("Show line numbers", isOn: $draft.showLineNumbers)
+                    Toggle("Backup original file", isOn: model.binding(\.backupOriginal))
+                    Toggle("Jump to first difference when loading", isOn: model.binding(\.general.firstDifference))
+                    Toggle("Jump to first conflict when loading", isOn: model.binding(\.general.firstConflict)).padding(.leading, 12).disabled(!model.general.firstDifference)
+                    NativeMergeUTF8DefaultChoice(value: model.binding(\.preferUTF8)).frame(height: 24)
+                    Toggle("Use one-pane view as default for 2-file diff", isOn: model.binding(\.onePaneDefault))
+                    Toggle("Show line numbers", isOn: model.binding(\.editor.showLineNumbers))
+                    Toggle("Add new files automatically to Git", isOn: model.binding(\.editor.autoAdd))
                     HStack {
-                        Toggle("Use spaces", isOn: $draft.useSpaces)
+                        Toggle("Use spaces", isOn: model.binding(\.editor.useSpaces))
                         Spacer()
-                        Toggle("Smart tab char", isOn: $draft.smartTab)
+                        Toggle("Smart tab char", isOn: model.binding(\.editor.smartTab))
                     }
                     HStack {
                         Text("Tab size:")
-                        TextField("Tab size", text: $tabSize).frame(width: 65)
-                        Stepper("", value: Binding(get: { validWidth ?? draft.tabWidth }, set: { tabSize = String($0) }), in: 1...1000).labelsHidden()
+                        TextField("Tab size", text: model.binding(\.tabSize)).frame(width: 65)
+                        Stepper("", value: Binding(get: { model.validWidth ?? model.editor.tabWidth }, set: { model.editTabSize($0, context: context) }), in: 1...1000).labelsHidden()
                         Spacer()
+                        Toggle("Enable EditorConfig", isOn: model.binding(\.editor.enableEditorConfig))
                     }
-                    Toggle("Add new files to Git after saving a patched result", isOn: $draft.autoAdd)
-                    Toggle("Enable EditorConfig", isOn: $draft.enableEditorConfig)
                     HStack {
-                        Text("Font:"); NativeFixedFontChoice(value: $general.fontName).frame(height: 24)
-                        NativeFontSizeChoice(value: $fontSize).frame(width: 75, height: 24)
+                        Text("Font:"); NativeFixedFontChoice(value: model.binding(\.general.fontName)).frame(height: 24)
+                        NativeFontSizeChoice(value: model.binding(\.fontSize)).frame(width: 75, height: 24)
                     }
                 }.padding(8)
             }
@@ -97,130 +183,83 @@ struct MergeEditorSettings: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Max line length for inline diffs:")
-                        TextField("Max line length", text: $maximumInline).frame(width: 90)
+                        TextField("Max line length", text: model.binding(\.maximumInline)).frame(width: 90)
                         Spacer()
                     }
-                    if validFontSize == nil || validInlineLength == nil { Text(validationError ?? "").font(.caption).foregroundStyle(.red) }
-                    Toggle("Ignore line endings (recommended)", isOn: $comparison.ignoreEndings)
-                    Toggle("Ignore case changes", isOn: $comparison.ignoreCase)
+                    if model.validFontSize == nil || model.validInlineLength == nil { Text(model.validationError ?? "").font(.caption).foregroundStyle(.red) }
+                    Toggle("Ignore line endings (recommended)", isOn: model.binding(\.comparison.ignoreEndings))
+                    Toggle("Ignore case changes", isOn: model.binding(\.comparison.ignoreCase))
                     HStack {
                         Text("Context lines for patches:")
-                        NativePatchContextField(value: $patchContext).frame(width: 90, height: 24)
+                        NativePatchContextField(value: model.binding(\.patchContext)).frame(width: 90, height: 24)
                         Text("-1 uses Git’s default").font(.caption).foregroundStyle(.secondary)
                     }
-                    if MergeUnifiedPatch.validatedContext(patchContext) == nil { Text(validationError ?? "").font(.caption).foregroundStyle(.red) }
+                    if MergeUnifiedPatch.validatedContext(model.patchContext) == nil { Text(model.validationError ?? "").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
             }
             GroupBox("Additional comparison and view options") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Toggle("Show Whitespaces", isOn: $whitespaceDisplay.visible)
-                    Toggle("Use icons for CR, LF and CRLF", isOn: $whitespaceDisplay.endingIcons)
-                    Toggle("Show locator bar", isOn: $locator.visible)
-                    Toggle("Use fish-eye in locator bar", isOn: $locator.fishEye)
-                    Picker("Whitespace comparison:", selection: $comparison.whitespace) {
+                    Toggle("Show Whitespaces", isOn: model.binding(\.whitespaceDisplay.visible))
+                    Toggle("Use icons for CR, LF and CRLF", isOn: model.binding(\.whitespaceDisplay.endingIcons))
+                    Toggle("Show locator bar", isOn: model.binding(\.locator.visible))
+                    Toggle("Use fish-eye in locator bar", isOn: model.binding(\.locator.fishEye))
+                    Picker("Whitespace comparison:", selection: model.binding(\.comparison.whitespace)) {
                         ForEach(MergeWhitespaceComparison.allCases, id: \.rawValue) { Text($0.title).tag($0) }
                     }
                     HStack {
-                        Toggle("Ignore comments", isOn: $comparison.ignoreComments)
+                        Toggle("Ignore comments", isOn: model.binding(\.comparison.ignoreComments))
                         Spacer()
-                        Button("Edit Comment Profiles…") { sheetProfileText = profileText; editingProfiles = true }
-                            .disabled(profileError != nil)
+                        Button("Edit Comment Profiles…") { model.openProfiles(context: context) }
+                            .disabled(model.profileError != nil)
                     }
                     Text("Custom profiles replace the built-in extension list. Open comparisons use them on reload.")
                         .font(.caption).foregroundStyle(.secondary)
-                    if let profileError { Text(profileError).font(.caption).foregroundStyle(.red) }
-                    if validWidth == nil { Text("Enter a tab size from 1 to 1000.").font(.caption).foregroundStyle(.red) }
+                    if let profileError = model.profileError { Text(profileError).font(.caption).foregroundStyle(.red) }
+                    if model.validWidth == nil { Text("Enter a tab size from 1 to 1000.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
             }
             Text("Apply indentation defaults to open panes and new windows. Enable EditorConfig sets the default for new windows; open panes retain their individual toggles.")
                 .font(.caption).foregroundStyle(.secondary)
             } }
-            Spacer()
+            if let message = model.error { Text(message).font(.caption).foregroundStyle(.red) }
+            if model.profileError != nil || model.error != nil {
+                Button("Reload Profiles") { model.reloadProfiles(context: context) }.help("Reload profiles from disk and discard the profile draft.")
+            }
             if transaction == nil { HStack {
                 Spacer()
-                Button("Cancel") { restore(); windowReference.window?.performClose(nil) }
-                Button("Apply") {
-                    _ = applyDraft()
-                }.disabled(!changed || validationError != nil)
+                Button("Cancel") { model.restore(); model.window?.performClose(nil) }
+                Button("Apply") { _ = model.apply() }.disabled(!model.changed || model.validationError != nil)
             } }
-        }.padding(20).background(MergeSettingsWindowProbe(reference: windowReference).frame(width: 0, height: 0)).onAppear { if !initialized { initialized = true; restore() } }
-        .onChange(of: tabSize) { _ in transaction?.notify() }
-        .onChange(of: general) { _ in transaction?.notify() }
-        .onChange(of: fontSize) { _ in transaction?.notify() }
-        .onChange(of: preferUTF8) { _ in transaction?.notify() }
-        .onChange(of: onePaneDefault) { _ in transaction?.notify() }
-        .onChange(of: patchContext) { _ in transaction?.notify() }
-        .onChange(of: maximumInline) { _ in transaction?.notify() }
-        .onChange(of: comparison) { _ in transaction?.notify() }
-        .onChange(of: locator) { _ in transaction?.notify() }
-        .onChange(of: whitespaceDisplay) { _ in transaction?.notify() }
-        .onChange(of: backupOriginal) { _ in transaction?.notify() }
-        .onChange(of: profileText) { _ in transaction?.notify() }
-        .sheet(isPresented: $editingProfiles) {
+        }.padding(20).disabled(!model.active || model.profileSession != nil)
+        .background(MergeEditorOwnerProbe(model: model).frame(width: 0, height: 0))
+        .onAppear { model.setActive(true) }.onDisappear { model.setActive(false) }
+        .sheet(item: Binding(get: { model.profileSession }, set: { if $0 == nil { model.cancelProfiles() } })) { session in
             VStack(alignment: .leading, spacing: 12) {
                 Text("Comment Profiles").font(.headline)
                 Text("One definition per line: extensions=line marker,block start,block end. Separate extensions with commas. Spaces in markers are significant.")
-                TextEditor(text: $sheetProfileText).font(.system(.body, design: .monospaced))
-                    .border(Color.secondary.opacity(0.4))
-                Text("Example: swift=//,/*,*/     SQL uses a space after --.")
-                    .font(.caption).foregroundStyle(.secondary)
-                if let message = sheetValidationError { Text(message).font(.caption).foregroundStyle(.red) }
+                TextEditor(text: model.profileBinding(session)).font(.system(.body, design: .monospaced)).border(Color.secondary.opacity(0.4))
+                Text("Example: swift=//,/*,*/     SQL uses a space after --.").font(.caption).foregroundStyle(.secondary)
+                if let message = model.sheetValidationError { Text(message).font(.caption).foregroundStyle(.red) }
                 HStack {
-                    Button("Restore Defaults") { sheetProfileText = MergeCommentProfiles.bundledText() }
+                    Button("Restore Defaults") { model.restoreProfiles(session) }
                     Spacer()
-                    Button("Cancel") { editingProfiles = false }.keyboardShortcut(.cancelAction)
-                    Button("OK") { profileText = sheetProfileText; editingProfiles = false }
-                        .keyboardShortcut(.defaultAction).disabled(sheetValidationError != nil)
+                    Button("Cancel") { model.cancelProfiles(session) }.keyboardShortcut(.cancelAction)
+                    Button("OK") { model.acceptProfiles(session) }.keyboardShortcut(.defaultAction).disabled(model.sheetValidationError != nil)
                 }
-            }.padding(20).frame(width: 740, height: 480)
+            }.padding(20).frame(width: 740, height: 480).environment(\.isEnabled, model.active)
         }
-        .settingsParticipant("mergeEditor", page: .mergeEditor, value: draft,
-            modified: { changed }, validate: { validationError },
-            apply: { applyDraft() }, cancel: restore)
-    }
-    private func applyDraft() -> Bool {
-        guard let width = validWidth, validationError == nil else { return false }
-        do {
-            if profileText != savedProfileText {
-                try MergeCommentProfileFile.save(profileText, at: profileURL, expected: savedProfileText)
-                savedProfileText = profileText
-            }
-        } catch {
-            // A failed write must not save the other preferences or notify open panes.
-            let alert = NSAlert(); alert.messageText = "Comment profiles were not saved"
-            alert.informativeText = error.localizedDescription; alert.runModal(); return false
-        }
-        preferences.set(preferUTF8, forKey: "TurtleGitMerge.UseUTF8")
-        preferences.set(onePaneDefault, forKey: "TurtleGitMerge.OnePane")
-        preferences.set(MergeUnifiedPatch.validatedContext(patchContext)!, forKey: "TurtleGitMerge.ContextLines")
-        general = generalDraft; general.save(to: preferences)
-        draft.tabWidth = width; draft.save(to: preferences); comparison.save(to: preferences); locator.save(to: preferences); whitespaceDisplay.save(to: preferences)
-        MergeFileSaveOptions.saveBackupPreference(backupOriginal, to: preferences)
-        NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true
-    }
-    private var sheetValidationError: String? {
-        do { try MergeCommentProfileFile.validate(sheetProfileText); return nil }
-        catch { return error.localizedDescription }
-    }
-    private func restore() {
-        preferUTF8 = ComparisonTextEncoding.preferUTF8(from: preferences)
-        onePaneDefault = OnePaneFileComparison.defaultEnabled(from: preferences)
-        patchContext = String(MergeUnifiedPatch.contextLines(from: preferences))
-        general = .load(from: preferences); fontSize = String(general.fontSize); maximumInline = String(general.maximumInlineLength)
-        draft = .load(from: preferences); comparison = .load(from: preferences); locator = .load(from: preferences); whitespaceDisplay = .load(from: preferences); tabSize = String(draft.tabWidth)
-        backupOriginal = MergeFileSaveOptions.backupEnabled(from: preferences)
-        do { profileText = try MergeCommentProfileFile.text(at: profileURL); savedProfileText = profileText; profileError = nil }
-        catch { profileError = error.localizedDescription }
+        .settingsParticipant("mergeEditor", page: .mergeEditor, value: model.state,
+            modified: { model.changed }, validate: { model.validationError }, apply: { model.apply() }, cancel: { model.restore() })
     }
 }
-private final class MergeSettingsWindowReference { weak var window: NSWindow? }
-private struct MergeSettingsWindowProbe: NSViewRepresentable {
-    let reference: MergeSettingsWindowReference
-    func makeNSView(context: Context) -> ProbeView { let view = ProbeView(); view.reference = reference; return view }
-    func updateNSView(_ view: ProbeView, context: Context) { reference.window = view.window }
-    final class ProbeView: NSView {
-        var reference: MergeSettingsWindowReference?
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); reference?.window = window }
+private struct MergeEditorOwnerProbe: NSViewRepresentable {
+    let model: MergeEditorSettingsModel
+    func makeNSView(context: Context) -> Probe { let view = Probe(); view.model = model; return view }
+    func updateNSView(_ view: Probe, context: Context) { model.attach(to: view.window) }
+    static func dismantleNSView(_ view: Probe, coordinator: ()) { view.model?.attach(to: nil); view.model = nil }
+    final class Probe: NSView {
+        weak var model: MergeEditorSettingsModel?
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.attach(to: window) }
     }
 }
 
@@ -498,37 +537,44 @@ enum SettingsColorValue {
 /// Native edit control keeps source signed context values and stable accessibility.
 private struct NativePatchContextField: NSViewRepresentable {
     @Binding var value: String
+    @Environment(\.isEnabled) private var enabled
     func makeNSView(context: Context) -> NSTextField {
         let field = NSTextField(string: value); field.identifier = NSUserInterfaceItemIdentifier("MergePatchContext")
         field.setAccessibilityIdentifier("MergePatchContext"); field.setAccessibilityLabel("Context lines for patches")
         field.placeholderString = "-1…1000"; field.delegate = context.coordinator; return field
     }
     func updateNSView(_ field: NSTextField, context: Context) {
-        context.coordinator.binding = $value
+        guard !context.coordinator.retired else { return }
+        field.isEnabled = enabled; context.coordinator.binding = $value
         if field.stringValue != value { field.stringValue = value }
     }
     func makeCoordinator() -> Coordinator { Coordinator(binding: $value) }
+    static func dismantleNSView(_ field: NSTextField, coordinator: Coordinator) { coordinator.retired = true; field.delegate = nil; field.isEnabled = false }
     final class Coordinator: NSObject, NSTextFieldDelegate {
+        var retired = false
         var binding: Binding<String>
         init(binding: Binding<String>) { self.binding = binding }
         func controlTextDidChange(_ notification: Notification) {
-            if let field = notification.object as? NSTextField { binding.wrappedValue = field.stringValue }
+            if !retired, let field = notification.object as? NSTextField, field.isEnabled, field.window != nil { binding.wrappedValue = field.stringValue }
         }
     }
 }
 
 private struct NativeMergeUTF8DefaultChoice: NSViewRepresentable {
     @Binding var value: Bool
+    @Environment(\.isEnabled) private var enabled
     func makeNSView(context: Context) -> NSButton {
         let button = NSButton(checkboxWithTitle: "Default to UTF-8 encoding", target: context.coordinator, action: #selector(Coordinator.changed(_:)))
         button.identifier = NSUserInterfaceItemIdentifier("MergeUTF8Default"); button.setAccessibilityIdentifier("MergeUTF8Default")
         return button
     }
-    func updateNSView(_ button: NSButton, context: Context) { context.coordinator.binding = $value; button.state = value ? .on : .off }
+    func updateNSView(_ button: NSButton, context: Context) { guard !context.coordinator.retired else { return }; button.isEnabled = enabled; context.coordinator.binding = $value; button.state = value ? .on : .off }
     func makeCoordinator() -> Coordinator { Coordinator(binding: $value) }
+    static func dismantleNSView(_ button: NSButton, coordinator: Coordinator) { coordinator.retired = true; button.target = nil; button.isEnabled = false }
     final class Coordinator: NSObject {
+        var retired = false
         var binding: Binding<Bool>
         init(binding: Binding<Bool>) { self.binding = binding }
-        @objc func changed(_ button: NSButton) { binding.wrappedValue = button.state == .on }
+        @objc func changed(_ button: NSButton) { guard !retired, button.isEnabled, button.window != nil else { return }; binding.wrappedValue = button.state == .on }
     }
 }

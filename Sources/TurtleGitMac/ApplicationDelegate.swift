@@ -76,6 +76,7 @@ import AppKit
         if GitDaemonWindowModel.activeOperations > 0 { return .terminateCancel }
         if FirstStartWizardModel.activeWrites > 0 || GeneralGitSettingsModel.activeOperations > 0 || GeneralGitSettingsModel.activeDialogs > 0 { return .terminateCancel }
         if GitConfigurationSettingsModel.activeFolderChoosers > 0 {return .terminateCancel}
+        if MergeEditorSettingsModel.activeProfileEditors > 0 { return .terminateCancel }
         if MergeNavigationRequests.activeRequests > 0 { return .terminateCancel }
         if MergeOpenWindowController.activeChoices > 0 { return .terminateCancel }
         if ToolApplicationChooser.activeChoosers > 0 {return .terminateCancel}
