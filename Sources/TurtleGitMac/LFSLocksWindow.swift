@@ -220,7 +220,7 @@ import TurtleGitCore
         case .pathsAndStatus: columns = [.path,.status]
         default: columns = []
         }
-        let heading = StatusListClipboard.heading(copy: copy, columns: columns)
+        let heading = StatusListClipboard.heading(copy: copy, columns: columns, label:FileListLabels.caption)
         return heading + selected.map { row in
             switch copy {
             case .fullPaths: return repository.root.appendingPathComponent(row.path).path

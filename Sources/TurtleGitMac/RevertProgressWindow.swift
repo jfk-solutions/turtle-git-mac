@@ -215,7 +215,7 @@ struct RevertProgressTable: NSViewRepresentable {
             table.dataSource = self; table.delegate = self; table.rowHeight = 22
             table.allowsMultipleSelection = true; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
             for (id, title, width) in [("action", "Action", 180.0), ("path", "Path", 650.0)] {
-                let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width; table.addTableColumn(column)
+                let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = NSLocalizedString(title,comment:""); column.width = width; table.addTableColumn(column)
             }
             scroll.documentView = table; return scroll
         }

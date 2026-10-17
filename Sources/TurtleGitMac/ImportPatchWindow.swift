@@ -1503,7 +1503,7 @@ struct WorkingTreePatchNativeFileList: NSViewRepresentable {
         table.allowsColumnReordering = false;table.rowHeight = 22
         table.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
         for (name,width) in [("Path",235.0),("State",65.0)] {
-            let column = NSTableColumn(identifier:NSUserInterfaceItemIdentifier(name));column.title = name;column.width = width;column.minWidth = name == "Path" ? 100 : 45;table.addTableColumn(column)
+            let column = NSTableColumn(identifier:NSUserInterfaceItemIdentifier(name));column.title = NSLocalizedString(name,comment:"");column.width = width;column.minWidth = name == "Path" ? 100 : 45;table.addTableColumn(column)
         }
         table.delegate = context.coordinator;table.dataSource = context.coordinator
         table.target = context.coordinator;table.doubleAction = #selector(Coordinator.preview(_:))

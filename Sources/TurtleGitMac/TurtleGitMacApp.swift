@@ -260,7 +260,7 @@ struct RepositoryWindow: View {
         VStack(spacing: 8) {
             Table(model.visibleEntries.map {WorkspaceStatusRow(entry:$0)}, selection: $model.nativeSelection) {
                 TableColumn("Status") { entry in
-                    CommandLabel(title: entry.state.rawValue.capitalized, icon: entry.state.icon).foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences))
+                    CommandLabel(title: FileListLabels.caption(entry.state.rawValue.capitalized), icon: entry.state.icon, localized:false).foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences))
                 }.width(min: 120, ideal: 145, max: 180)
                 TableColumn("Staged") { entry in Text(entry.staged ? "✓" : "").foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences)) }.width(55)
                 TableColumn("File") { entry in Text(entry.path).foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences)).help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }

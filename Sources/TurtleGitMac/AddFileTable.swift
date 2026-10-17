@@ -95,7 +95,7 @@ struct AddFileTable: NSViewRepresentable {
             nativeTable.copySelection = { [weak self] status in self?.copyText(status ? "pathsStatus" : "relative") }
             nativeTable.deleteSelection = { [weak self] permanently in self?.deleteSelected(permanently: permanently, keyboard: true) }
             for (id, title, width) in [("check", "", 26.0), ("path", "Path", 440.0), ("ext", "Extension", 85.0), ("date", "Modification date", 150.0), ("size", "Size", 90.0)] {
-                let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width
+                let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = NSLocalizedString(title,comment:""); column.width = width
                 column.minWidth = id == "path" ? 120 : id == "date" ? 120 : id == "check" ? 26 : 65
                 if id == "check" { column.maxWidth = 26; column.resizingMask = [] }
                 if id != "check" { column.sortDescriptorPrototype = NSSortDescriptor(key: id, ascending: true) }
@@ -263,7 +263,7 @@ struct AddFileTable: NSViewRepresentable {
         }
         func clipboardText(_ kind: String) -> String {
             guard canAct else { return "" }
-            if kind == "pathsStatus" { return StatusListClipboard.text(selectedRows.map(\.status), root: model.repository.root, statistics: [:], copy: .pathsAndStatus) }
+            if kind == "pathsStatus" { return StatusListClipboard.text(selectedRows.map(\.status), root: model.repository.root, statistics: [:], copy: .pathsAndStatus, label:FileListLabels.caption) }
             let currentColumn = currentClipboardColumn
             if kind == "column", currentColumn == nil { return "" }
             let columns = table.tableColumns.filter { !$0.isHidden && $0.identifier.rawValue != "check" }

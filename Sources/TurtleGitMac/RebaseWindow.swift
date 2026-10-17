@@ -427,7 +427,7 @@ struct RebaseReferenceRequest {
         case .path:return StatusListClipboard.displayedPath(entry,abbreviate:messageDefaults.bool(forKey:"AbbreviateRenamings"))
         case .fileName:return (entry.path as NSString).lastPathComponent
         case .fileExtension:return StatusListClipboard.fileExtension(entry.path,isDirectory:conflictStatistics[entry.path]?.isSubmodule == true)
-        case .status:return conflictStatus(entry,flags:conflictIndexFlags)
+        case .status:return FileListLabels.caption(conflictStatus(entry,flags:conflictIndexFlags))
         case .added:return conflictStatistics[entry.path]?.added.map(String.init) ?? "–"
         case .removed:return conflictStatistics[entry.path]?.removed.map(String.init) ?? "–"
         case .lastModified,.fileSize:return "–"
@@ -957,7 +957,7 @@ struct RebaseReferenceRequest {
             return CommitFile(path:entry.path,oldPath:entry.originalPath,action:stats?.action ?? "M",added:stats?.added,removed:stats?.removed,hasStatistics:stats?.hasStatistics ?? false,isSubmodule:stats?.isSubmodule ?? false)
         }
         let statuses=GitPathMap(uniqueKeysWithValues:zip(files,menu.rows).map {($0.0.id,conflictStatus($0.1,flags:menu.indexFlags))})
-        return StatusListClipboard.text(files,root:repository.root,statuses:statuses,copy:copy,visibleColumns:menu.columns)
+        return StatusListClipboard.text(files,root:repository.root,statuses:statuses,copy:copy,visibleColumns:menu.columns, label:FileListLabels.caption)
     }
     func copyConflictFiles(_ menu: ConflictFileMenu, copy: StatusListCopy) {
         guard acceptsConflictFileMenu(menu) else { return }; let text = conflictClipboardText(menu, copy: copy)

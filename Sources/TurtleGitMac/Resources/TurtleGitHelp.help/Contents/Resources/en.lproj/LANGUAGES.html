@@ -27,4 +27,45 @@ changing them. <code>Configuration/NativeTranslations.json</code> contains revie
 wording adaptations. The app bundle audit checks all compiled locale tables and
 English fallback. The SwiftPM executable is an unbundled development entry point;
 localized distribution uses the Xcode app.</p>
+<h2 id="file-list-captions-and-columns--october-17-2026">File-list captions and columns — October 17, 2026</h2>
+<p>Dynamic status cells now use the compiled catalog in Commit, Working Tree,
+workspace overview, Log changed files, revision comparisons, Rebase conflict
+lists and Synchronization file lists. The shared status/Resolve and comparison
+clipboard formatters receive the same bounded caption adapter. Column headings
+in copied tables are translated; path-only copies retain literal paths. LFS
+clipboard headings use the same column captions. Source/status model values,
+Git action letters, row IDs, sort keys and saved column identifiers remain stable.
+Repository paths, references, lock owners, user text and server diagnostics are
+never submitted as file-list labels, even when a path is named <code>Modified</code>.</p>
+<p>Fixed AppKit headers in Add, Add/Revert/LFS progress, Log/Sync history tables and
+the patch file panel now request their existing translations. Native header
+menus display translated column names. Column discovery resolves unambiguous
+localized captions and retains the existing declared-order fallback; native
+column objects retain their semantic identity across layout restoration. A
+translated Copy to Clipboard parent still receives its current-column command.
+Its column caption uses the same catalog. This does not certify every AppKit menu
+or alert caption in the app.</p>
+<p>The pinned <code>CTGitPath::GetActionName</code> and GitStatusListCtrl use resource-backed
+status/action labels. The native catalog adds three explicit spelling aliases:
+<code>Renamed</code> from <code>renamed</code>, <code>Untracked</code> from <code>Unversioned</code>, and <code>Skip-worktree</code> from
+<code>skip-worktree</code>. They retain native English keys and source translations, without
+general case folding. Ambiguous/fuzzy/missing translations still fall back to
+English. Reviewed German/French native wording covers type changes, the
+assume-unchanged flag, staged qualifiers and the column prefix. Other languages
+can retain English for these Mac-specific phrases.</p>
+<p><a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/file-list-languages-2026-10-17.json">Batch evidence</a> records the affected
+Core serialization contracts, actual native controls, compiled language processes,
+source provenance and owned process cleanup. Physical clipboard/menu tracking,
+all locales, RTL, full status sorting/source variants, VoiceOver and signed
+sandbox/installed Finder acceptance remain open. No hidden Windows
+KeepFileListsEnglish control is activated: the pinned resource hides it and the
+source has no consumer.</p>
+<p>These unaltered native captures show German status captions and deliberately
+English filenames. Standard group labels, quick-check links, some metadata
+headings and dynamic counters still use English; their translation is separate
+remaining work. These images do not claim a fully localized dialog.</p>
+<p><img src="images/b474eebe2f0c-working-file-status-language-de-light.png" alt="Working Tree status captions, German, light" />
+<img src="images/c2077ea69dad-working-file-status-language-de-dark.png" alt="Working Tree status captions, German, dark" />
+<img src="images/4f3dd84d719e-commit-file-status-language-de-light.png" alt="Commit status captions, German, light" />
+<img src="images/c5be4780d49c-commit-file-status-language-de-dark.png" alt="Commit status captions, German, dark" /></p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

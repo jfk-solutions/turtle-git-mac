@@ -5,6 +5,27 @@ final class StatusListClipboardTests: XCTestCase {
     let root = URL(fileURLWithPath: "/tmp/repository")
     let entries = [StatusEntry(path: "雪/new.txt", originalPath: "old.txt", index: "R", worktree: " "), StatusEntry(path: "raw.bin", originalPath: nil, index: "?", worktree: "?")]
     func text(_ copy: StatusListCopy) -> String { StatusListClipboard.text(entries, root: root, statistics: [:], copy: copy) }
+    func testLocalizedLabelsNeverTransformPathsMetadataOrGitStatistics() {
+        let file=StatusEntry(path:"Modified",originalPath:nil,index:"M",worktree:" ")
+        var calls=[String]()
+        let label:(String)->String={calls.append($0);return "localized["+$0+"]"}
+        let output=StatusListClipboard.text([file],root:root,statistics:[:],copy:.all,lfsOwners:["Modified":"Status"],visibleColumns:[.path,.status,.lfsOwner],label:label)
+        XCTAssertEqual(output,"localized[Path]\tlocalized[Status]\tlocalized[LFS Lock]\nModified\tlocalized[Modified]\tStatus\n")
+        XCTAssertEqual(calls,["Path","Status","LFS Lock","Modified"])
+        calls=[]
+        XCTAssertEqual(StatusListClipboard.text([file],root:root,statistics:[:],copy:.relativePaths,label:label),"Modified\n")
+        XCTAssertTrue(calls.isEmpty)
+        XCTAssertEqual(file.index,"M")
+    }
+    func testLocalizedHistoryAndConflictStatusUseSameLabelBoundary() {
+        let file=CommitFile(path:"Status",oldPath:nil,action:"R100",added:2,removed:1,hasStatistics:true,isSubmodule:false)
+        let label:(String)->String={"localized["+$0+"]"}
+        XCTAssertEqual(StatusListClipboard.text([file],root:root,statuses:[:],copy:.pathsAndStatus,label:label),"localized[Path]\tlocalized[Status]\nStatus\tlocalized[Renamed]\n")
+        let conflict=ConflictEntry(path:"Conflicted",stages:[.init(number:2,mode:"100644",object:"a")])
+        XCTAssertEqual(StatusListClipboard.text([conflict],root:root,copy:.column(.status),label:label),"localized[Conflicted]\n")
+        XCTAssertEqual(StatusListClipboard.text([conflict],root:root,copy:.names,label:label),"Conflicted\n")
+        XCTAssertEqual(file.action,"R100")
+    }
     func testResolveClipboardPreservesLiteralOrderAndVisibleConflictColumns() {
         let files = [ConflictEntry(path:"dir/雪\tname\n.txt",stages:[.init(number:2,mode:"100644",object:"a")]),ConflictEntry(path:"module.ext",stages:[.init(number:3,mode:"160000",object:"b")])]
         XCTAssertEqual(StatusListClipboard.text(files,root:root,copy:.relativePaths),"dir/雪\tname\n.txt\nmodule.ext\n")

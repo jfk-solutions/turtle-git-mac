@@ -18,7 +18,8 @@ Selecting a different proposal still uses the existing dirty-draft decision.
 The internal copy-export helper remains a separate copy operation.</p>
 <p>Three-pane source Save As retains the current merged draft while changing the
 source used by Reload and Compare with Base. A changed source is detected before
-merged Save. Repository merged-result Save As remains a copy; standalone merged
+merged Save. Repository merged-result Save As remains a copy and marks the current draft
+clean without changing its normal-save target; standalone merged
 output retains its existing guarded output-target workflow. The Save As menu
 also offers Continue resolving conflicts when conflict markers remain.</p>
 <p>Save choices capture bytes and encoding before presentation. Operations own their
@@ -41,4 +42,7 @@ headless-editor path. A hosted green run remains unverified.</p>
 Compare and the merged-result editor. A repository conflict saved elsewhere keeps
 its original index conflict; later normal saves, backups and Reload use the new
 file. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-SAVE-WORKFLOWS-PARITY.html#read-only-save-as-and-owned-save-decisions--october-16-2026">save ownership</a>.</p>
+<p>The <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-SAVE-WORKFLOWS-PARITY.html#result-copy-savepoints-and-shared-source-writing--october-17-2026">result-copy continuation</a>
+records copy savepoints, own-target writes, patch input guards and background
+source/result export ownership. These extend the earlier target-binding checks.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

@@ -2290,7 +2290,7 @@ private struct SynchronizationFiles: View {
                         }.help(file.oldPath.map { "Renamed from " + $0 } ?? file.path)
                     }
                     TableColumn("Extension") { file in Text(file.fileExtension) }.width(80)
-                    TableColumn("Status") { file in Text(file.status) }.width(70)
+                    TableColumn("Status") { file in Text(FileListLabels.caption(file.status)) }.width(70)
                     TableColumn("Added") { file in Text(file.addedText) }.width(65)
                     TableColumn("Deleted") { file in Text(file.removedText) }.width(65)
                 }.contextMenu {
@@ -2323,7 +2323,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
         let table = HistoryTableView(); table.rowHeight = 24; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle; table.allowsMultipleSelection = true
         table.menu = NSMenu(); table.menu?.delegate = context.coordinator
         for definition in SynchronizationHistoryColumns.definitions {
-            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(definition.id)); column.title = definition.title; column.width = definition.width
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(definition.id)); column.title = NSLocalizedString(definition.title,comment:""); column.width = definition.width
             column.isHidden = !SynchronizationHistoryColumns.visible(definition.id, incoming: model.tab == 4, preferences: model.preferences) || definition.id == "bugs" && !model.historyIssueProperties.showsBugIDColumn
             table.addTableColumn(column)
         }
@@ -2913,7 +2913,7 @@ private struct SynchronizationReferenceTable: NSViewRepresentable {
         let titles = ["Reference", "Type", "Change", "Old hash", "Old message", "New hash", "New message"]
         for (index, title) in titles.enumerated() {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(String(index)))
-            column.title = title; column.width = [180.0, 110, 140, 100, 200, 100, 200][index]
+            column.title = NSLocalizedString(title,comment:""); column.width = [180.0, 110, 140, 100, 200, 100, 200][index]
             column.sortDescriptorPrototype = NSSortDescriptor(key: String(index), ascending: true)
             table.addTableColumn(column)
         }
@@ -3008,7 +3008,7 @@ private struct SynchronizationTagTable: NSViewRepresentable {
         let titles = ["Tag", "Status", "Local hash", "Local message", "Remote hash", "Remote message"]
         for (index, title) in titles.enumerated() {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(String(index)))
-            column.title = title; column.width = [180.0, 100, 100, 200, 100, 200][index]
+            column.title = NSLocalizedString(title,comment:""); column.width = [180.0, 100, 100, 200, 100, 200][index]
             column.sortDescriptorPrototype = NSSortDescriptor(key: String(index), ascending: true)
             table.addTableColumn(column)
         }

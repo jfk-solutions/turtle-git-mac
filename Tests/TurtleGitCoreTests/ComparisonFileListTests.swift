@@ -2,6 +2,13 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ComparisonFileListTests: XCTestCase {
+    func testLocalizedComparisonClipboardRetainsPathStatisticsAndSortIdentity() {
+        let file=CommitFile(path:"Modified.txt",oldPath:nil,action:"M",added:2,removed:1,hasStatistics:true,isSubmodule:false)
+        let key=file.sortAction
+        XCTAssertEqual(ComparisonFileList.clipboard([file],extended:true,label:{"translated["+$0+"]"}),"Modified.txt\ttxt\ttranslated[Modified]\t2\t1\n")
+        XCTAssertEqual(ComparisonFileList.clipboard([file],extended:false,label:{_ in XCTFail("Translated a path-only packet");return "bad"}),"Modified.txt\t\n")
+        XCTAssertEqual(file.sortAction,key);XCTAssertEqual(file.action,"M")
+    }
     func testRealComparisonSortsNumericColumnsAndActionOrderWithPathTies() async throws {
         let (root, repo, original) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

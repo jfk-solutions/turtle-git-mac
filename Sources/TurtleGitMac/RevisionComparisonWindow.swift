@@ -329,7 +329,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         switch column {
         case .path: return StatusListClipboard.displayedPath(file, abbreviate: preferences.bool(forKey: "AbbreviateRenamings"))
         case .fileExtension: return StatusListClipboard.fileExtension(file.path, isDirectory: file.isSubmodule)
-        case .status: return file.status
+        case .status: return FileListLabels.caption(file.status)
         case .added: return file.addedText
         case .removed: return file.removedText
         default: return ""
@@ -500,7 +500,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         let ids = GitPathSet(ids)
         guard !closed, !busy, !confirmingQuit else { return }
         let files = visibleFiles.filter { ids.contains($0.path) }; guard !files.isEmpty else { return }
-        clipboard.clearContents(); clipboard.setString(ComparisonFileList.clipboard(files, extended: extended), forType: .string)
+        clipboard.clearContents(); clipboard.setString(ComparisonFileList.clipboard(files, extended: extended,label:FileListLabels.caption), forType: .string)
     }
     func copyColumn(_ ids: some Sequence<String>, column: StatusListColumn) {
         let ids = GitPathSet(ids)
@@ -857,9 +857,9 @@ struct RevisionComparisonFileList:View {
     private func color(_ file: CommitFile) -> Color { model.selection.contains(file.path) ? .primary:state(file).textColor(preferences:model.preferences) }
     var body:some View {
             Table(model.visibleFiles.map(RevisionComparisonFileRow.init), selection: $model.nativeSelection, sortOrder: Binding(get:{model.sortOrder.map(RevisionComparisonFileSort.init)},set:{model.sortOrder=$0.map(\.comparator)})) {
-                TableColumn(pathTitle, sortUsing: RevisionComparisonFileSort(column: .path)) { row in let file = row.file; HStack { Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(model.fileText(file, column: .path)).foregroundStyle(color(file)) }.repositoryFileHelp(repository: model.repository.root, path: file.path, detail: file.oldPath.map { "Renamed from " + $0 } ?? "", preferences: model.preferences) }.width(min: 260, ideal: 500)
+                TableColumn(LocalizedStringKey(pathTitle), sortUsing: RevisionComparisonFileSort(column: .path)) { row in let file = row.file; HStack { Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(model.fileText(file, column: .path)).foregroundStyle(color(file)) }.repositoryFileHelp(repository: model.repository.root, path: file.path, detail: file.oldPath.map { "Renamed from " + $0 } ?? "", preferences: model.preferences) }.width(min: 260, ideal: 500)
                 TableColumn("Extension", sortUsing: RevisionComparisonFileSort(column: .fileExtension)) { row in let file = row.file; Text(model.fileText(file, column: .fileExtension)).foregroundStyle(color(file)) }.width(min: 45, ideal: 75, max: 320)
-                TableColumn(statusTitle, sortUsing: RevisionComparisonFileSort(column: .status)) { row in let file = row.file; Text(file.status).foregroundStyle(color(file)) }.width(min: 65, ideal: 100, max: 320)
+                TableColumn(LocalizedStringKey(statusTitle), sortUsing: RevisionComparisonFileSort(column: .status)) { row in let file = row.file; Text(FileListLabels.caption(file.status)).foregroundStyle(color(file)) }.width(min: 65, ideal: 100, max: 320)
                 TableColumn("Lines added", sortUsing: RevisionComparisonFileSort(column: .added)) { row in let file = row.file; Text(file.addedText).foregroundStyle(color(file)) }.width(min: 65, ideal: 85, max: 320)
                 TableColumn("Lines removed", sortUsing: RevisionComparisonFileSort(column: .removed)) { row in let file = row.file; Text(file.removedText).foregroundStyle(color(file)) }.width(min: 65, ideal: 95, max: 320)
             }.fileListFont()

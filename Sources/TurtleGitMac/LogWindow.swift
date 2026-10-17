@@ -800,7 +800,7 @@ struct LogCommandRequest: Identifiable {
         switch column {
         case .path:return StatusListClipboard.displayedPath(file,abbreviate:labelDefaults.bool(forKey:"AbbreviateRenamings"))
         case .fileExtension:return StatusListClipboard.fileExtension(file.path,isDirectory:file.isSubmodule)
-        case .status:return fileStatus(file)
+        case .status:return FileListLabels.caption(fileStatus(file))
         case .added:return file.addedText
         case .removed:return file.removedText
         default:return ""
@@ -2385,7 +2385,7 @@ struct LogCommandRequest: Identifiable {
         case .all: kind = .all
         }
         let statuses = GitPathMap(uniqueKeysWithValues: selected.map { ($0.id, fileStatus($0)) })
-        copy(StatusListClipboard.text(selected, root: repository.root, statuses: statuses, copy: kind))
+        copy(StatusListClipboard.text(selected, root: repository.root, statuses: statuses, copy: kind, label:FileListLabels.caption))
     }
     func fileLog(_ ids: some Sequence<String>, oldName: Bool = false) {
         let ids = GitPathSet(ids)
@@ -3119,7 +3119,7 @@ struct LogDialog: View {
                         }
                     }.width(min: 260, ideal: 460)
                     TableColumn("Extension",sortUsing:LogChangedFileSort(column:.fileExtension)) { row in Text(row.file.map { StatusListClipboard.fileExtension($0.path, isDirectory: $0.isSubmodule) } ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(80)
-                    TableColumn("Status",sortUsing:LogChangedFileSort(column:.status)) { row in Text(row.file.map(model.fileStatus) ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(95)
+                    TableColumn("Status",sortUsing:LogChangedFileSort(column:.status)) { row in Text(FileListLabels.caption(row.file.map(model.fileStatus) ?? "")).foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(95)
                     TableColumn("Lines added",sortUsing:LogChangedFileSort(column:.added)) { row in Text(row.file?.addedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(90)
                     TableColumn("Lines removed",sortUsing:LogChangedFileSort(column:.removed)) { row in Text(row.file?.removedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(105)
                 }.fileListFont().frame(minHeight: 130, idealHeight: 180)
@@ -3765,7 +3765,7 @@ struct RevisionTable: NSViewRepresentable {
         table.allowsMultipleSelection = !model.selecting || model.selectingMultiple; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         for definition in LogRevisionColumns.definitions {
             let id = definition.id
-            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = definition.title; column.width = definition.width
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = NSLocalizedString(definition.title,comment:""); column.width = definition.width
             column.isHidden = !LogRevisionColumns.visible(id, defaults: model.colorPreferences) || id == "graph" && model.historyWalk.followRenames || id == "bugs" && !model.issueProperties.showsBugIDColumn || id == "svn" && !model.hasGitSVN
             column.minWidth = id == "graph" ? 38 : 70; column.maxWidth = 10000; table.addTableColumn(column)
         }

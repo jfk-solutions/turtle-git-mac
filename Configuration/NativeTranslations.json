@@ -15,6 +15,20 @@
     "Automatic (bundled when available)": "Automatisch (mitgeliefertes Git, wenn vorhanden)",
     "Extra PATH:": "Zusätzlicher PATH:",
     "Appearance:": "Darstellung:",
-    "Language help": "Hilfe zur Sprache"
+    "Language help": "Hilfe zur Sprache",
+    "Type changed": "Typ geändert",
+    "Assume unchanged": "Als unverändert markiert",
+    "staged": "vorgemerkt",
+    "Staged": "Vorgemerkt",
+    "column": "Spalte",
+    "File size": "Dateigröße"
+  },
+  "fr": {
+    "Type changed": "Type modifié",
+    "Assume unchanged": "Présumé inchangé",
+    "staged": "indexé",
+    "Staged": "Indexé",
+    "column": "colonne",
+    "File size": "Taille du fichier"
   }
 }

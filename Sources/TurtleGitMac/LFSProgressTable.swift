@@ -125,7 +125,7 @@ struct LFSProgressTable: NSViewRepresentable {
             table.allowsMultipleSelection = true; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
             table.setAccessibilityLabel("LFS progress notifications")
             for (id,title,width) in [("action","Action",130.0),("path","Path",580.0)] {
-                let column = NSTableColumn(identifier: .init(id)); column.title = title; column.width = width; column.minWidth = 70; table.addTableColumn(column)
+                let column = NSTableColumn(identifier: .init(id)); column.title = NSLocalizedString(title,comment:""); column.width = width; column.minWidth = 70; table.addTableColumn(column)
             }
             table.menu = NSMenu(); table.menu?.delegate = self
             let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder; scroll.documentView = table

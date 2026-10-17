@@ -29,9 +29,9 @@ extension CommitFile {
     public var removedText: String { removed.map(String.init) ?? "–" }
 }
 public enum ComparisonFileList {
-    public static func clipboard(_ files: [CommitFile], extended: Bool) -> String {
+    public static func clipboard(_ files: [CommitFile], extended: Bool, label:(String)->String = {$0}) -> String {
         files.map { file in
-            extended ? [file.path, file.fileExtension, file.status, file.addedText, file.removedText].joined(separator: "\t") : file.path + "\t"
+            extended ? [file.path, file.fileExtension, label(file.status), file.addedText, file.removedText].joined(separator: "\t") : file.path + "\t"
         }.map { $0 + "\n" }.joined()
     }
     public static func savedList(_ files: [CommitFile], from: ComparisonRevision, to: ComparisonRevision) -> String {

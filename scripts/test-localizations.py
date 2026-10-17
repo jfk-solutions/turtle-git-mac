@@ -21,6 +21,12 @@ class LocalizationContracts(unittest.TestCase):
         self.assertIn(('Settings…','Einstellungen…'),module.variants('&Settings...','&Einstellungen'))
         self.assertIn(('Next','Nächste'),module.variants('&Next >','&Nächste >'))
         self.assertIn(('Back','Zurück'),module.variants('< &Back','< &Zurück'))
+    def test_reviewed_status_aliases_are_exact_and_keep_native_english_keys(self):
+        self.assertIn(('Renamed','umbenannt'),module.variants('renamed','umbenannt'))
+        self.assertIn(('Untracked','unversioniert'),module.variants('Unversioned','unversioniert'))
+        self.assertIn(('Skip-worktree','skip-worktree'),module.variants('skip-worktree','skip-worktree'))
+        self.assertNotIn(('Renamed','x'),module.variants('RENAMED','x'))
+        self.assertNotIn(('Untracked','x'),module.variants('Unversioned file','x'))
     def test_malformed_po_is_refused(self):
         with self.assertRaises(ValueError):module.parse_po('not a directive\n')
         with self.assertRaises((ValueError,SyntaxError)):module.parse_po('msgid "unterminated\n')

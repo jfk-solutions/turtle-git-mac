@@ -704,7 +704,7 @@ final class StatusNativeWindow: NSWindow {
         case .path: return StatusListClipboard.displayedPath(row.file.entry)
         case .fileName: return row.fileName
         case .fileExtension: return row.fileExtension
-        case .status: return showsStagedStatus ? row.status : row.file.status
+        case .status: return FileListLabels.caption(showsStagedStatus ? row.status : row.file.status)
         case .added: return row.addedText
         case .removed: return row.removedText
         case .lastModified: return row.metadata?.dateText ?? "–"
@@ -722,13 +722,13 @@ final class StatusNativeWindow: NSWindow {
         case .pathsAndStatus: columns = [.path,.status]
         default: columns = []
         }
-        let heading = StatusListClipboard.heading(copy: copy, columns: columns)
+        let heading = StatusListClipboard.heading(copy: copy, columns: columns, label:FileListLabels.caption)
         return heading + rows.map { row in
             switch copy {
             case .fullPaths: return repository.root.appendingPathComponent(row.path).path
             case .relativePaths: return row.path
             case .names: return row.fileName
-            case .pathsAndStatus: return [row.path,row.status].joined(separator: "\t")
+            case .pathsAndStatus: return [row.path,FileListLabels.caption(row.status)].joined(separator: "\t")
             default: return columns.map { columnText(row,$0) }.joined(separator: "\t")
             }
         }.joined(separator: "\n") + "\n"

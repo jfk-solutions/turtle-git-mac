@@ -669,7 +669,7 @@ extension ResolveWindowModel {
         guard acceptsFileMenu(menu) else {return};usedFileMenus.insert(menu.id);action()
     }
     func copyFileMenu(_ menu:ResolveFileMenuSnapshot,copy:StatusListCopy) {
-        withFileMenu(menu) {writeFileClipboard(StatusListClipboard.text(menu.entries,root:repository.root,copy:copy))}
+        withFileMenu(menu) {writeFileClipboard(StatusListClipboard.text(menu.entries,root:repository.root,copy:copy, label:FileListLabels.caption))}
     }
     private func validateFileMenu(_ menu:ResolveFileMenuSnapshot,token:OperationCancellation) async throws {
         try checkAccess();try token.check()

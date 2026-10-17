@@ -58,8 +58,8 @@ public enum StatusListClipboard {
 
     /// Resolve displays unresolved index entries without inventing ordinary status
     /// records that could later be passed to a working-file mutation.
-    public static func text(_ entries:[ConflictEntry],root:URL,copy:StatusListCopy,visibleColumns:[StatusListColumn] = [.path,.fileExtension,.status])->String {
-        format(entries,root:root,copy:copy,visibleColumns:visibleColumns,path:{$0.path}) {entry,column in
+    public static func text(_ entries:[ConflictEntry],root:URL,copy:StatusListCopy,visibleColumns:[StatusListColumn] = [.path,.fileExtension,.status],label:(String)->String = {$0})->String {
+        format(entries,root:root,copy:copy,visibleColumns:visibleColumns,path:{$0.path},label:label) {entry,column in
             switch column {
             case .path:return entry.path
             case .fileName:return (entry.path as NSString).lastPathComponent
@@ -72,7 +72,7 @@ public enum StatusListClipboard {
 
     /// Log merge parents can contain different occurrences of the same path.
     /// Read each occurrence's own statistics and use its ID for displayed statuses.
-    public static func text(_ files: [CommitFile], root: URL, statuses: GitPathMap<String>, copy: StatusListCopy, visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns) -> String {
+    public static func text(_ files: [CommitFile], root: URL, statuses: GitPathMap<String>, copy: StatusListCopy, visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns, label:(String)->String = {$0}) -> String {
         func cell(_ file: CommitFile, _ column: StatusListColumn) -> String {
             switch column {
             case .path: return displayedPath(file)
@@ -85,12 +85,12 @@ public enum StatusListClipboard {
             case .removed: return file.removedText
             }
         }
-        return format(files, root: root, copy: copy, visibleColumns: visibleColumns, path: { $0.path }, cell: cell)
+        return format(files, root: root, copy: copy, visibleColumns: visibleColumns, path: { $0.path }, label:label, cell: cell)
     }
 
     /// Copy the displayed row order. Explicit single-column output has no
     /// heading; Copy all retains headings, with tabs and macOS LF endings.
-    public static func text(_ entries: [StatusEntry], root: URL, statistics: GitPathMap<CommitFile>, copy: StatusListCopy, metadata: GitPathMap<StatusListMetadata> = [:], lfsOwners: [String: String] = [:], visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns) -> String {
+    public static func text(_ entries: [StatusEntry], root: URL, statistics: GitPathMap<CommitFile>, copy: StatusListCopy, metadata: GitPathMap<StatusListMetadata> = [:], lfsOwners: [String: String] = [:], visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns, label:(String)->String = {$0}) -> String {
         func cell(_ entry: StatusEntry, _ column: StatusListColumn) -> String {
             let stats = statistics[entry.path]
             switch column {
@@ -105,19 +105,19 @@ public enum StatusListClipboard {
             case .removed: return stats?.removed.map(String.init) ?? "–"
             }
         }
-        return format(entries, root: root, copy: copy, visibleColumns: visibleColumns, path: { $0.path }, cell: cell)
+        return format(entries, root: root, copy: copy, visibleColumns: visibleColumns, path: { $0.path }, label:label, cell: cell)
     }
 
     /// Copy all requests the source's multi-column mask even when only one
     /// column is visible; explicit single-column/path copies omit headings.
-    public static func heading(copy: StatusListCopy, columns: [StatusListColumn]) -> String {
+    public static func heading(copy: StatusListCopy, columns: [StatusListColumn], label:(String)->String = {$0}) -> String {
         guard !columns.isEmpty else { return "" }
         let include: Bool
         if case .all = copy { include = true } else { include = columns.count > 1 }
-        return include ? columns.map(\.rawValue).joined(separator: "\t") + "\n" : ""
+        return include ? columns.map {label($0.rawValue)}.joined(separator: "\t") + "\n" : ""
     }
 
-    private static func format<Row>(_ rows: [Row], root: URL, copy: StatusListCopy, visibleColumns: [StatusListColumn], path: (Row) -> String, cell: (Row, StatusListColumn) -> String) -> String {
+    private static func format<Row>(_ rows: [Row], root: URL, copy: StatusListCopy, visibleColumns: [StatusListColumn], path: (Row) -> String, label:(String)->String, cell: (Row, StatusListColumn) -> String) -> String {
         guard !rows.isEmpty else { return "" }
         var columns: [StatusListColumn] = []
         switch copy {
@@ -128,14 +128,14 @@ public enum StatusListClipboard {
         case .pathsAndStatus: columns = [.path, .status]
         default: break
         }
-        let heading = Self.heading(copy: copy, columns: columns)
+        let heading = Self.heading(copy: copy, columns: columns,label:label)
         return heading + rows.map { entry in
             switch copy {
             case .fullPaths: return root.appendingPathComponent(path(entry)).path
             case .relativePaths: return path(entry)
             case .names: return (path(entry) as NSString).lastPathComponent
-            case .pathsAndStatus: return [path(entry), cell(entry, .status)].joined(separator: "\t")
-            default: return columns.map { cell(entry, $0) }.joined(separator: "\t")
+            case .pathsAndStatus: return [path(entry), label(cell(entry, .status))].joined(separator: "\t")
+            default: return columns.map { column in let value=cell(entry,column);return column == .status ? label(value):value }.joined(separator: "\t")
             }
         }.joined(separator: "\n") + "\n"
     }

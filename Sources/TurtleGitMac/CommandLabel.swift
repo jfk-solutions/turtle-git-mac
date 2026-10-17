@@ -98,3 +98,30 @@ struct DialogCommandRows: Layout {
         }
     }
 }
+
+
+/// Only semantic file-list captions enter the catalog. Repository text and Git
+/// codes never pass through localization, even when a path is named "Modified".
+/// English model values remain stable for sorting, persistence and Git actions.
+enum FileListLabels {
+    private static let statuses:Set<String> = ["Normal","Modified","Added","Deleted","Renamed","Copied","Type changed","Untracked","Unversioned","Ignored","Conflicted","Missing","Assume unchanged","Skip-worktree"]
+    static func caption(_ raw:String)->String {caption(raw,bundle:.main)}
+    static func caption(_ raw:String,bundle:Bundle)->String {
+        let suffix=" (staged)"
+        if raw.hasSuffix(suffix) {
+            let status=String(raw.dropLast(suffix.count))
+            guard statuses.contains(status) else {return raw}
+            return caption(status,bundle:bundle)+" ("+bundle.localizedString(forKey:"staged",value:"staged",table:nil)+")"
+        }
+        guard statuses.contains(raw) || StatusListColumn.allCases.contains(where:{$0.rawValue==raw}) else {return raw}
+        return bundle.localizedString(forKey:raw,value:raw,table:nil)
+    }
+    /// A localized header is presentation, never a persisted column identifier.
+    /// Resolve only an unambiguous current-locale caption; callers retain their
+    /// declared-order fallback when multiple headers translate to the same text.
+    static func column(named title:String)->StatusListColumn? {
+        if let exact=StatusListColumn(rawValue:title) {return exact}
+        let matches=StatusListColumn.allCases.filter {caption($0.rawValue)==title}
+        return matches.count==1 ? matches[0]:nil
+    }
+}

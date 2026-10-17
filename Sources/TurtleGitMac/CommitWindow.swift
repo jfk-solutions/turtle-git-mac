@@ -1006,7 +1006,7 @@ import UniformTypeIdentifiers
     }
     func copyFileText(_ selected: [StatusEntry], statistics: GitPathMap<CommitFile>, copy: StatusListCopy) {
         guard !selected.isEmpty else { return }
-        let text = StatusListClipboard.text(selected, root: repository.root, statistics: statistics, copy: copy, metadata: fileMetadata, lfsOwners: lfsOwners, visibleColumns: visibleFileColumns)
+        let text = StatusListClipboard.text(selected, root: repository.root, statistics: statistics, copy: copy, metadata: fileMetadata, lfsOwners: lfsOwners, visibleColumns: visibleFileColumns, label:FileListLabels.caption)
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
     private func validateRestoreAccess() throws {
@@ -2280,7 +2280,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                 else { groupRule }
             }.width(min: 40, ideal: 75)
             TableColumn("Status", sortUsing: CommitFileSort(column: .status)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) }
+                if let entry = row.entry { Text(FileListLabels.caption(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) }
                 else { groupRule }
             }.width(min: 60, ideal: 90)
             TableColumn("Lines added", sortUsing: CommitFileSort(column: .added)) { (row: CommitSortableRow) in
@@ -2433,7 +2433,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             else { model.compare(paths: ids) }
         }
         .background(CommitFileInteraction(rows: rows, configureRefresh: {dropTargets.set($0,for:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
-            String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners).dropLast())
+            String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners, label:FileListLabels.caption).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? model.stagingState(mark) != .on : !model.checked.contains(mark.id)
             model.setFileChecked(mark, files: files, highlighted: GitPathSet(files.map(\.id)), checked: next)

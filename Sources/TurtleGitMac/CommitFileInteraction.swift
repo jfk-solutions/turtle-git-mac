@@ -521,7 +521,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                 watermark?.removeFromSuperview(); watermark = nil
                 configuredTable = table; originalColumns = table.tableColumns
                 columnDefinitions = Dictionary(uniqueKeysWithValues: zip(table.tableColumns.dropFirst(leadingColumnCount), nativeColumns).map { column, fallback in
-                    let named = StatusListColumn(rawValue: column.headerCell.stringValue)
+                    let named = FileListLabels.column(named:column.headerCell.stringValue)
                     return (ObjectIdentifier(column), named.flatMap { nativeColumns.contains($0) ? $0 : nil } ?? fallback)
                 })
                 originalWidths = Dictionary(uniqueKeysWithValues: table.tableColumns.map { (ObjectIdentifier($0), $0.width) })
@@ -581,10 +581,10 @@ struct CommitFileInteraction: NSViewRepresentable {
         }
         func columnMenu() -> NSMenu {
             let menu = NSMenu(); menu.autoenablesItems = false
-            let reset = NSMenuItem(title: "Reset columns", action: #selector(resetColumnLayout(_:)), keyEquivalent: "")
+            let reset = NSMenuItem(title: NSLocalizedString("Reset columns",comment:""), action: #selector(resetColumnLayout(_:)), keyEquivalent: "")
             reset.target = self; reset.isEnabled = enabled; menu.addItem(reset); menu.addItem(.separator())
             for (index, column) in StatusListColumn.allCases.enumerated() where column != .path && nativeColumns.contains(column) && availableColumns.contains(column) {
-                let item = NSMenuItem(title: column.rawValue, action: #selector(toggleColumn(_:)), keyEquivalent: "")
+                let item = NSMenuItem(title: FileListLabels.caption(column.rawValue), action: #selector(toggleColumn(_:)), keyEquivalent: "")
                 item.target = self; item.tag = index; item.state = visibleColumns.contains(column) ? .on : .off
                 item.isEnabled = enabled && column != .path; menu.addItem(item)
             }
@@ -666,10 +666,10 @@ struct CommitFileInteraction: NSViewRepresentable {
         }
         private func prepareClipboardMenu(_ menu: NSMenu) {
             guard window?.isKeyWindow == true, let column = contextColumn, (!contextEntries.isEmpty || !contextIDs.isEmpty),
-                  let submenu = menu.items.first(where: { $0.title == "Copy to Clipboard" })?.submenu else { return }
+                  let submenu = menu.items.first(where: { $0.title == NSLocalizedString("Copy to Clipboard",comment:"") || $0.title == "Copy to Clipboard" })?.submenu else { return }
             let identifier = NSUserInterfaceItemIdentifier("TurtleGit.CopyColumn")
             if let previous = submenu.items.first(where: { $0.identifier == identifier }) { submenu.removeItem(previous) }
-            let item = NSMenuItem(title: "column '\(column.rawValue)'", action: #selector(copyCurrentColumn(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: NSLocalizedString("column",comment:"")+" '"+FileListLabels.caption(column.rawValue)+"'", action: #selector(copyCurrentColumn(_:)), keyEquivalent: "")
             item.identifier = identifier; item.target = self
             if let captureColumnCopy {
                 guard let invoke = captureColumnCopy(contextIDs.isEmpty ? contextEntries.map(\.path) : contextIDs, column) else { return }

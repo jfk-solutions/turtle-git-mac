@@ -1,0 +1,144 @@
+{
+  "date": "2026-10-17",
+  "scope": "Connected file-list status captions, native headers/column identity and clipboard labels",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "sources": {
+      "src/Git/TGitPath.cpp": "312f765756181b69ef0421d6c681b1aa7ff6ebb2",
+      "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15"
+    },
+    "translations": "Pinned PO blobs and generated locale manifest; reviewed aliases explicitly retained in that manifest"
+  },
+  "validation": {
+    "state": "passed locally; cumulative grouped native results after two fixture repairs",
+    "core": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'StatusListClipboardTests|ComparisonFileListTests|AppLanguagePreferencesTests'",
+      "actual_suites": [
+        "StatusListClipboardTests (11)",
+        "ComparisonFileListTests (3)"
+      ],
+      "passed": 14,
+      "first_pass": true,
+      "log": "build/qa/file-list-languages-core-2026-10-17.log",
+      "note": "No AppLanguagePreferencesTests class exists; unchanged language-preference Core code was not claimed as covered by this filter."
+    },
+    "converter": {
+      "passed": 6,
+      "first_pass": true,
+      "log": "build/qa/file-list-languages-converter-2026-10-17.log"
+    },
+    "build": {
+      "exit_code": 0,
+      "first_pass": true,
+      "log": "build/qa/file-list-languages-build-2026-10-17.log",
+      "diagnostics": "Existing simulator-version, exit-zero frontend, Swift concurrency/actor/selector and build-phase diagnostics remain; not a warning-free build."
+    },
+    "native": {
+      "passed_cumulatively": 6,
+      "settings_locales": [
+        "de",
+        "fr",
+        "en"
+      ],
+      "file_list_locales": [
+        "de",
+        "fr",
+        "en"
+      ],
+      "logs": [
+        "build/qa/file-list-languages-native-2026-10-17.log",
+        "build/qa/file-list-languages-native-files-2026-10-17.log",
+        "build/qa/file-list-languages-native-final-2026-10-17.log"
+      ],
+      "failures_and_repairs": [
+        {
+          "receiver": 94843,
+          "failure": "Translated a working path",
+          "repair": "Fixture expected the raw rename destination instead of the existing displayed-path formatter with its from-old suffix. App unchanged."
+        },
+        {
+          "receiver": 94937,
+          "failure": "Missing file table after accepted Working Tree and Commit checks/captures",
+          "repair": "Fixture assumed every status-column header is Status. Comparison uses source File/Action aliases; identify the native table by its declared column count and verify those explicit caption aliases. App unchanged."
+        }
+      ],
+      "scope": [
+        "Compiled bundle locale selection and safe fallback",
+        "Actual Working Tree and Commit status/clipboard model cells",
+        "Native Working Tree/Commit/Comparison column mapping and visibility toggle/restore",
+        "Revision Comparison status and extended data on a private pasteboard",
+        "Native Add column headers",
+        "Exact paths named Modified, Renamed and Untracked retain their spelling",
+        "HEAD/index/config remain unchanged",
+        "Existing language Settings/Wizard Apply/Cancel and private preference ownership"
+      ],
+      "not_claimed": [
+        "Physical current-column menu tracking",
+        "Every connected Log/Rebase/Sync consumer runtime variant",
+        "Fully translated group names, quick-check links, metadata headings or counters"
+      ],
+      "diagnostics": "Private unsigned QA bundle emitted sandbox_extension_issue_file_to_process diagnostics; all accepted cases exited zero. This does not establish signed sandbox access."
+    },
+    "resources": {
+      "receivers": [
+        94818,
+        94840,
+        94841,
+        94843,
+        94937,
+        95120,
+        95209,
+        95295
+      ],
+      "independent_ps_audit": "All eight receiver PIDs absent, including both failed attempts."
+    },
+    "screenshots": {
+      "method": "Unmodified ScreenCaptureKit window compositor captures",
+      "reviewed": [
+        {
+          "path": "docs/site/assets/working-file-status-language-de-light.png",
+          "sha256": "6f979259d60002efd0677992b915167f62834234934cf7231cd23a74e18fedd7"
+        },
+        {
+          "path": "docs/site/assets/working-file-status-language-de-dark.png",
+          "sha256": "975aa11d30579be0fbd7bdf3a1c37408f0a7c34344a0cf984fc37467723fc92f"
+        },
+        {
+          "path": "docs/site/assets/commit-file-status-language-de-light.png",
+          "sha256": "3b2b8b76c436a42e463d22482880560c900958b4581fdb406d600b156d57bccb"
+        },
+        {
+          "path": "docs/site/assets/commit-file-status-language-de-dark.png",
+          "sha256": "ff36dac5dfb88c7fd1c2aa24cedc6e4a93089e99e5a91175001535f3e0849d02"
+        }
+      ],
+      "observations": "Status translations, original colored icons and native light/dark are visible. English filenames are deliberate; group labels, quick-check links, some metadata headings and dynamic counters remain English. General/Wizard raw captures were also collected but are not newly published or claimed as reviewed in this batch."
+    },
+    "localization": {
+      "languages": 38,
+      "keys": 1252
+    },
+    "help": {
+      "generated": "37 documents / 48 topics / 55 files",
+      "freshness_check": "passed",
+      "resource_build": {
+        "log": "build/qa/file-list-languages-help-build-2026-10-17.log",
+        "exit_code": 0,
+        "scope": "Refresh bundled HTML, Help index and copied image resources after accepted captures; no further Swift changes or Core/native retest."
+      },
+      "bundle_comparison": "LANGUAGES.html, all four new images, generated Info.plist and the preceding committed Save As guide continuation are byte-identical to generated source"
+    },
+    "hosted_ci": "No complete current hosted macOS success claimed",
+    "site": {
+      "documents": 284,
+      "unresolved_fragments": [],
+      "log": "build/qa/file-list-languages-site-2026-10-17.log"
+    }
+  },
+  "limits": [
+    "Partial localization, not complete application/dialog parity",
+    "Physical menu/clipboard/RTL/VoiceOver and all locale acceptance remain open",
+    "Full source status sort variants not certified",
+    "Signed sandbox/Finder and App Store acceptance remain open"
+  ]
+}
