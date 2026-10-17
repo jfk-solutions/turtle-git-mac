@@ -15,7 +15,7 @@ import TurtleGitCore
         for folder in [first,second,nested,module,ignored.appendingPathComponent("child",isDirectory:true)] { try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true) }
         let changed=first.appendingPathComponent("changed 雪\n.txt"), normal=first.appendingPathComponent("normal"), added=first.appendingPathComponent("added.patch"), other=second.appendingPathComponent("file"), inner=nested.appendingPathComponent("file"), external=root.appendingPathComponent("outside")
         for file in [changed,normal,added,other,inner,external] { try Data("original\n".utf8).write(to:file) }
-        let direct:[String:FileState]=[changed.path:.modified,normal.path:.normal,added.path:.added,other.path:.modified,inner.path:.conflicted,module.path:.normal,ignored.path:.ignored]
+        let direct:GitPathMap<FileState>=[changed.path:.modified,normal.path:.normal,added.path:.added,other.path:.modified,inner.path:.conflicted,module.path:.normal,ignored.path:.ignored]
         var snapshot=FinderSnapshot(roots:[first.path,second.path,nested.path,module.path],states:direct,repositories:[first.path:.init(hasLFS:true),second.path:.init(),nested.path:.init(),module.path:.init(submoduleParentRoot:first.path)],overlayEntries:direct)
         let target=FinderContextTarget(), selector=#selector(FinderContextTarget.invoke(_:))
         var settings=FinderMenuSettings(); settings.extendedOnlyMask=0
@@ -61,6 +61,24 @@ import TurtleGitCore
         precondition(iconItem.image != nil && plainItem.image == nil)
         precondition((iconItem.representedObject as! FinderMenuCommand).request.url == (plainItem.representedObject as! FinderMenuCommand).request.url)
         let retained=try Data(contentsOf:changed); precondition(retained == Data("original\n".utf8))
+        let composed = "café", decomposed = "cafe\u{301}"
+        let a = FileTransferPaths.fileURL(first.path + "/" + composed + "/file")
+        let b = FileTransferPaths.fileURL(first.path + "/" + decomposed + "/file")
+        try FileManager.default.createDirectory(at:a.deletingLastPathComponent(),withIntermediateDirectories:true)
+        try Data("peer\n".utf8).write(to:a)
+        snapshot = FinderSnapshot.build(root:first,tracked:[composed+"/file",decomposed+"/file"],
+            changes:StatusEntry.parse(Data(" M \(composed)/file\0UU \(decomposed)/file\0".utf8)))
+        snapshot.repositories[first.path] = .init()
+        snapshot = try JSONDecoder().decode(FinderSnapshot.self,from:JSONEncoder().encode(snapshot))
+        precondition(item(.resolve,menu([a])) == nil)
+        let conflictedMenu = menu([b])
+        precondition(item(.resolve,conflictedMenu)?.isEnabled == true)
+        let conflictRequest = (item(.resolve,conflictedMenu)!.representedObject as! FinderMenuCommand).request
+        let restored = FinderRequest(url:conflictRequest.url!)!
+        precondition(restored.paths.count == 1 && GitReferenceName.equal(restored.paths[0].path,b.path))
+        let cleanRequest = (item(.rename,menu([a]))!.representedObject as! FinderMenuCommand).request
+        precondition(GitReferenceName.equal(FinderRequest(url:cleanRequest.url!)!.paths[0].path,a.path))
+        print("PASS: lossless Finder cache, exact peer menu eligibility and raw request handoff")
         print("PASS: actual Finder menu builder representative context/cardinality, nested ownership, mixed-root disabled state surviving update, independent two-file Diff, registered gitlink removal, Revert mixed review, ignored ancestry/explicit tracked exception, nested-root boundary, original icon policy and immutable normalized dispatch; no Finder controller/extension activation or Git execution")
     }
 }

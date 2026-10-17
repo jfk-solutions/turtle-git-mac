@@ -58,3 +58,11 @@ app updates through root-scoped tickets and atomic cross-process merge ownership
 The subsequent [runtime](FINDER-CACHE-SERVICE-RUNTIME.md) and
 [deployment](FINDER-SERVICE-DEPLOYMENT.md) batches implement the independent
 service. Signed registration and physical Finder acceptance remain open.
+
+## Exact cache identity — October 17
+
+The [connected cache identity batch](FINDER-EXACT-CACHE.md) replaces ordinary
+status dictionaries with exact-key records through collection, publication,
+foreground reuse and badge projection. It also preserves directory components
+through menu eligibility and captured app requests. Legacy wire projections remain
+readable by older extensions; physical/signed acceptance remains open.

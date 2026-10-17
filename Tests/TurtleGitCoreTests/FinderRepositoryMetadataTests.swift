@@ -20,7 +20,7 @@ final class FinderRepositoryMetadataTests: XCTestCase {
         XCTAssertEqual(decoded.repositories, snapshot.repositories)
         struct OldReader: Decodable { let roots: [String]; let states: [String: FileState]; let updated: Date }
         let old = try JSONDecoder().decode(OldReader.self, from: data)
-        XCTAssertEqual(old.roots, snapshot.roots); XCTAssertEqual(old.states, snapshot.states); XCTAssertEqual(old.updated, snapshot.updated)
+        XCTAssertEqual(old.roots, snapshot.roots); XCTAssertEqual(GitPathMap(uniqueKeysWithValues: old.states.map { ($0.key,$0.value) }), snapshot.states); XCTAssertEqual(old.updated, snapshot.updated)
         var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any]); legacy.removeValue(forKey: "repositories")
         let restored = try JSONDecoder().decode(FinderSnapshot.self, from: JSONSerialization.data(withJSONObject: legacy))
         XCTAssertTrue(restored.repositories.isEmpty)

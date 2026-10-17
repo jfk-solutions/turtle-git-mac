@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "21b7b3ce",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected exact Finder status cache, legacy wire compatibility, publication/model storage, badge projection, context-menu status and raw request parent namespaces.",
+  "implemented": [
+    "Lossless statesV2/overlayEntriesV2 records with priority-based deterministic legacy object projection",
+    "Exact cache construction, parent aggregation, subtree merge and foreground model storage",
+    "Exact submodule configuration membership and raw index flag reads",
+    "Raw badge-update URLs and exact projection maps",
+    "Component-locked cached menu lookup with unique canonical fallback",
+    "Raw directory preservation through request preparation and representative shell status flags"
+  ],
+  "validation": {
+    "core": {
+      "distinct_cases": 142,
+      "initial": {
+        "log": "build/qa/finder-exact-cache-core-2026-10-17.log",
+        "passed": 141
+      },
+      "affected_request_recheck": {
+        "log": "build/qa/finder-exact-cache-request-core-2026-10-17.log",
+        "passed": 31
+      },
+      "affected_shell_recheck": {
+        "log": "build/qa/finder-exact-cache-shell-core-2026-10-17.log",
+        "passed": 9
+      },
+      "note": "142 distinct cases across retained and affected checkpoints; repeated cases are not additional coverage."
+    },
+    "builds": [
+      {
+        "log": "build/qa/finder-exact-cache-build-2026-10-17.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/finder-exact-cache-request-build-2026-10-17.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/finder-exact-cache-shell-build-2026-10-17.log",
+        "exit_code": 0
+      }
+    ],
+    "native": {
+      "menu": "build/qa/finder-exact-cache-menu-final-2026-10-17.log",
+      "handoff_system": "build/qa/finder-exact-cache-handoff-2026-10-17.log",
+      "handoff_bundled": "build/qa/finder-exact-cache-handoff-bundled-2026-10-17.log",
+      "distinct_passing_cases": 3,
+      "boundary": "Actual shipping menu builder and existing injected app transfer handoff, not installed Finder."
+    },
+    "site": {
+      "documents": 275,
+      "unresolved_fragments": []
+    },
+    "localization_check": "passed; no UI literals changed",
+    "owned_pids": [
+      56661,
+      56673,
+      56953,
+      56961,
+      57302,
+      57310,
+      56679,
+      56763,
+      56971
+    ],
+    "owned_pids_independently_absent": true
+  },
+  "failures_and_repairs": [
+    "First native exact-menu assertion exposed parent normalization in FinderRequest; corrected raw ancestor reconstruction and added existing-parent request test.",
+    "Affected menu rerun exposed a second normalization in representative FinderShellRules; retained captured URL and added shell flag assertions. Final menu passes.",
+    "First bundled handoff invocation used a nonexistent app resource path; corrected to build/git-runtime/Git/bin/git and reran only bundled case. System case had passed."
+  ],
+  "remaining": [
+    "Installed Finder extension and signed sandbox/grant/App Store acceptance",
+    "Case-sensitive volume canonical alias badge behavior needs physical filesystem acceptance",
+    "No full CI or complete dialog parity claim",
+    "Existing Xcode environment/outdated Simulator and exit-zero compiler diagnostics are not a clean-diagnostics result"
+  ]
+}

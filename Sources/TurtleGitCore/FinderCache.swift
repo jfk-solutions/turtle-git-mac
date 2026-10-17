@@ -206,24 +206,26 @@ extension GitRepository {
 
 public struct FinderSnapshot: Codable, Sendable {
     public var roots: [String]
-    public var states: [String: FileState]
+    public var states: GitPathMap<FileState>
     public var updated: Date
     public var repositories: [String: FinderRepositoryMetadata]
-    public var overlayEntries: [String: FileState]?
+    public var overlayEntries: GitPathMap<FileState>?
     public var indexFlags: GitPathMap<FinderIndexFlags>?
-    public init(roots: [String], states: [String: FileState], updated: Date = Date(), repositories: [String: FinderRepositoryMetadata] = [:], overlayEntries: [String: FileState]? = nil, indexFlags: GitPathMap<FinderIndexFlags>? = nil) {
+    public init(roots: [String], states: GitPathMap<FileState>, updated: Date = Date(), repositories: [String: FinderRepositoryMetadata] = [:], overlayEntries: GitPathMap<FileState>? = nil, indexFlags: GitPathMap<FinderIndexFlags>? = nil) {
         self.roots = roots; self.states = states; self.updated = updated; self.repositories = repositories
         self.overlayEntries = overlayEntries
         self.indexFlags = indexFlags
     }
-    private enum CodingKeys: String, CodingKey { case roots, states, updated, repositories, overlayEntries, indexFlags, indexFlagsV2 }
+    private enum CodingKeys: String, CodingKey { case roots, states, statesV2, updated, repositories, overlayEntries, overlayEntriesV2, indexFlags, indexFlagsV2 }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         roots = try values.decode([String].self, forKey: .roots)
-        states = try values.decode([String: FileState].self, forKey: .states)
+        states = try values.decodeIfPresent(GitPathMap<FileState>.self, forKey: .statesV2)
+            ?? GitPathMap(uniqueKeysWithValues: values.decode([String: FileState].self, forKey: .states).map { ($0.key,$0.value) })
         updated = try values.decode(Date.self, forKey: .updated)
         repositories = try values.decodeIfPresent([String: FinderRepositoryMetadata].self, forKey: .repositories) ?? [:]
-        overlayEntries = try values.decodeIfPresent([String: FileState].self, forKey: .overlayEntries)
+        overlayEntries = try values.decodeIfPresent(GitPathMap<FileState>.self, forKey: .overlayEntriesV2)
+            ?? values.decodeIfPresent([String: FileState].self, forKey: .overlayEntries).map { GitPathMap(uniqueKeysWithValues: $0.map { ($0.key,$0.value) }) }
         if values.contains(.indexFlagsV2) {
             indexFlags = try values.decodeIfPresent(GitPathMap<FinderIndexFlags>.self,forKey:.indexFlagsV2)
         } else {
@@ -234,9 +236,12 @@ public struct FinderSnapshot: Codable, Sendable {
     }
     public func encode(to encoder:Encoder) throws {
         var values = encoder.container(keyedBy:CodingKeys.self)
-        try values.encode(roots,forKey:.roots); try values.encode(states,forKey:.states)
+        try values.encode(roots,forKey:.roots)
+        try values.encode(states,forKey:.statesV2)
+        try values.encode(Self.legacyStates(states),forKey:.states)
         try values.encode(updated,forKey:.updated); try values.encode(repositories,forKey:.repositories)
-        try values.encodeIfPresent(overlayEntries,forKey:.overlayEntries)
+        try values.encodeIfPresent(overlayEntries,forKey:.overlayEntriesV2)
+        try values.encodeIfPresent(overlayEntries.map(Self.legacyStates),forKey:.overlayEntries)
         try values.encodeIfPresent(indexFlags,forKey:.indexFlagsV2)
         // Older installed extensions can keep reading their original field
         // during an app update. Current readers prefer the lossless records.
@@ -244,6 +249,23 @@ public struct FinderSnapshot: Codable, Sendable {
             let ordered = indexFlags.sorted { $0.key.utf8.lexicographicallyPrecedes($1.key.utf8) }
             let legacy = Dictionary(ordered.map { ($0.key,$0.value) },uniquingKeysWith:{ _,last in last })
             try values.encode(legacy,forKey:.indexFlags)
+        }
+    }
+    // Old extensions cannot represent canonical peers. Publish a deterministic,
+    // highest-priority projection while current readers retain both raw names.
+    private static func legacyStates(_ entries: GitPathMap<FileState>) -> [String: FileState] {
+        Dictionary(entries.sorted { $0.key.utf8.lexicographicallyPrecedes($1.key.utf8) }.map { ($0.key,$0.value) },
+                   uniquingKeysWith: { statePriority($0) >= statePriority($1) ? $0 : $1 })
+    }
+    static func statePriority(_ state: FileState) -> Int {
+        switch state {
+        case .normal: return 0
+        case .ignored: return 1
+        case .untracked: return 2
+        case .added: return 3
+        case .deleted: return 4
+        case .modified: return 5
+        case .conflicted: return 6
         }
     }
     public func repositoryMetadata(for paths: [URL]) -> FinderRepositoryMetadata? {
@@ -260,17 +282,17 @@ public struct FinderSnapshot: Codable, Sendable {
         return try? JSONDecoder().decode(Self.self, from: data)
     }
     public static func build(root: URL, tracked: [String], changes: [StatusEntry]) -> FinderSnapshot {
-        var states: [String: FileState] = [:]
-        for path in tracked { states[root.appendingPathComponent(path).path] = .normal }
+        var states: GitPathMap<FileState> = [:]
+        for path in tracked { states[root.path + "/" + path] = .normal }
         let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
-        for change in changes { states[root.appendingPathComponent(change.path).path] = change.state }
+        for change in changes { states[root.path + "/" + change.path] = change.state }
         let files = states
         for (path, state) in files {
-            var parent = URL(fileURLWithPath: path).deletingLastPathComponent()
+            var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(path))
             while parent.path == root.path || parent.path.hasPrefix(root.path + "/") {
                 if priority[state, default: 0] >= priority[states[parent.path] ?? .normal, default: 0] { states[parent.path] = state }
                 if parent.path == root.path { break }
-                parent.deleteLastPathComponent()
+                parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
             }
         }
         states[root.path] = states[root.path] ?? .normal
@@ -580,7 +602,7 @@ public enum FinderShellRules {
         // ContextMenu::Initialize stops fetching status after its representative
         // item. Later items still contribute cardinality/patch-file metadata.
         if let first = paths.first {
-            let path = first.standardizedFileURL
+            let path = first
             let directory = (try? path.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? path.hasDirectoryPath
             if directory { flags.insert(.folder) }
             let root = snapshot?.repositoryRoot(for: path)
@@ -658,14 +680,14 @@ extension GitRepository {
         }
         return try await scanFinderSubmodules(authorizedRoot:authorizedRoot,additionalAuthorizedRoots:additionalAuthorizedRoots,ancestors:[],cancellation:cancellation)
     }
-    private func configuredFinderSubmodulePaths(cancellation:OperationCancellation?) throws -> Set<String> {
+    private func configuredFinderSubmodulePaths(cancellation:OperationCancellation?) throws -> GitPathSet {
         let modules = root.appendingPathComponent(".gitmodules")
         guard FileManager.default.fileExists(atPath: modules.path) else { return [] }
         guard (try FileManager.default.attributesOfItem(atPath: modules.path)[.type] as? FileAttributeType) == .typeRegular else {
             throw SubmoduleComparisonFailure.unsafeCheckout
         }
         let names = try run(["config", "--no-includes", "--null", "--file", modules.path, "--name-only", "--get-regexp", "^submodule\\..*\\.path$"], successfulExitCodes:0...1,cancellation:cancellation).stdout.split(separator: 0)
-        var paths = Set<String>()
+        var paths = GitPathSet()
         for name in names {
             let values = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get-all", String(decoding: name, as: UTF8.self)], successfulExitCodes:0...1,cancellation:cancellation).stdout.split(separator: 0)
             paths.formUnion(values.map { String(decoding: $0, as: UTF8.self) })
@@ -678,12 +700,12 @@ extension GitRepository {
         let canonical = root.resolvingSymlinksInPath().path
         guard !ancestors.contains(canonical) else { return result }
         let visited = ancestors.union([canonical])
-        let paths: Set<String>
+        let paths: GitPathSet
         do { paths = try configuredFinderSubmodulePaths(cancellation:cancellation) }
         catch { try cancellation?.check();result.failures[root.path] = error.localizedDescription; return result }
         for path in paths.sorted() {
             try cancellation?.check()
-            var failurePath = root.appendingPathComponent(path).path
+            var failurePath = root.path + "/" + path
             do {
                 let location = try restoreLocation(path)
                 failurePath = location.path

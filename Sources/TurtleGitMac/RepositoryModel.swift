@@ -282,8 +282,8 @@ import UniformTypeIdentifiers
             eventRefresh=refresh;fileMonitor=monitor;watchPaths=directories
         } catch { refresh.retire();finderStatus="Filesystem monitoring unavailable: "+error.localizedDescription }
     }
-    private var cacheStates: [String: FileState] = [:]
-    private var cacheOverlayEntries: [String: FileState]?
+    private var cacheStates: GitPathMap<FileState> = [:]
+    private var cacheOverlayEntries: GitPathMap<FileState>?
     private var cacheIndexFlags: GitPathMap<FinderIndexFlags>?
     private var cacheRepositories: [String: FinderRepositoryMetadata] = [:]
     private var monitoredRoots: [String] = []

@@ -5,7 +5,7 @@ import TurtleGitCore
 /// Finder never launches Git. Only the containing application scans repositories.
 @objc(FinderSync) final class FinderSync: FIFinderSync {
     private var snapshot: FinderSnapshot?
-    private var badges: [String: FinderOverlayBadge] = [:]
+    private var badges: GitPathMap<FinderOverlayBadge> = [:]
     private var iconSet: FinderOverlayIconSet?
     private var fileSystem = FinderOverlayFileSystem()
     private var badgeLookup = FinderOverlayBadgeLookup(badges: [:], caseSensitive: { _ in true })
@@ -37,10 +37,10 @@ import TurtleGitCore
         } else { badges = [:] }
         badgeLookup = FinderOverlayBadgeLookup(badges: badges, caseSensitive: { fileSystem.volume($0).caseSensitive })
         controller.directoryURLs = Set((snapshot?.roots ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) })
-        let paths = Set(old.keys).union(badges.keys)
+        let paths = GitPathSet(old.keys).union(GitPathSet(badges.keys))
         for path in paths where changedIcons || old[path] != badges[path] {
-            if changedIcons { controller.setBadgeIdentifier("", for: URL(fileURLWithPath: path)) }
-            controller.setBadgeIdentifier(badgeLookup.badge(for: path, caseSensitive: fileSystem.volume(path).caseSensitive)?.rawValue ?? "", for: URL(fileURLWithPath: path))
+            if changedIcons { controller.setBadgeIdentifier("", for: FileTransferPaths.fileURL(path)) }
+            controller.setBadgeIdentifier(badgeLookup.badge(for: path, caseSensitive: fileSystem.volume(path).caseSensitive)?.rawValue ?? "", for: FileTransferPaths.fileURL(path))
         }
     }
     override func requestBadgeIdentifier(for url: URL) {

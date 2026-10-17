@@ -29,12 +29,17 @@ public struct FinderRequest: Sendable {
         // its existing repository root to /tmp. Normalize the existing ancestor
         // and append missing components. Keep the selected leaf itself literal:
         // a tracked symlink is a Git path, not a request for its external target.
-        var parent = url.deletingLastPathComponent(), components = [url.lastPathComponent]
-        while parent.path != "/", (try? FileManager.default.attributesOfItem(atPath: parent.path)) == nil {
-            components.append(parent.lastPathComponent); parent.deleteLastPathComponent()
+        let literal = FileTransferPaths.lexicalPath(url.path)
+        var parentPath = FinderSnapshot.parentPath(literal)
+        var components = [String(literal.utf8.split(separator:47).last.map { String(decoding:$0,as:UTF8.self) } ?? "")]
+        while parentPath != "/", (try? FileManager.default.attributesOfItem(atPath:parentPath)) == nil {
+            components.append(String(decoding:parentPath.utf8.split(separator:47).last!,as:UTF8.self))
+            parentPath = FinderSnapshot.parentPath(parentPath)
         }
-        let physicalParent = parent.standardizedFileURL.path
-        let literalParent = physicalParent == parent.path ? FileTransferPaths.lexicalPath(parent.path) : physicalParent
+        let physicalParent = FileTransferPaths.fileURL(parentPath).standardizedFileURL.path
+        // Unicode-only differences are filesystem aliases, not permission to
+        // rewrite the captured Git namespace. Retain every literal component.
+        let literalParent = physicalParent == parentPath ? parentPath : physicalParent
         let path = components.reversed().reduce(literalParent) { $0 + ($0 == "/" ? "":"/") + $1 }
         return FileTransferPaths.fileURL(path)
     }

@@ -32,7 +32,7 @@ public struct FinderIndexFlags: Codable, Equatable, Sendable {
 extension GitRepository {
     public func finderIndexFlags(cancellation: OperationCancellation? = nil) throws -> GitPathMap<FinderIndexFlags> {
         var flags: GitPathMap<FinderIndexFlags> = [:]
-        for record in try run(["ls-files", "-v", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
+        for record in try run(["-c", "core.precomposeunicode=false", "ls-files", "-v", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
             guard record.count >= 3 else { throw GitConfigurationFailure.output }
             let bytes = Array(record), code = bytes[0]
             guard bytes[1] == 32 else { throw GitConfigurationFailure.output }
@@ -136,60 +136,60 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
     }
     /// Badge projection stays independent of the snapshot used for context-menu
     /// eligibility. No Git command runs in the extension.
-    public func badges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool = { _ in true }) -> [String: FileState] {
+    public func badges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool = { _ in true }) -> GitPathMap<FileState> {
         projectedBadges(snapshot: snapshot, volume: volume, isDirectory: isDirectory, caseSensitive: caseSensitive, policy: pathPolicy)
     }
-    private func projectedBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool, policy: FinderOverlayPathPolicy) -> [String: FileState] {
+    private func projectedBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool, policy: FinderOverlayPathPolicy) -> GitPathMap<FileState> {
         let roots = snapshot.roots.sorted { $0.count > $1.count }
         let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
-        var badges: [String: FileState] = [:], folders = Set(roots)
+        var badges: GitPathMap<FileState> = [:], folders = GitPathSet(roots)
         if cacheMode == .none {
             for path in (snapshot.overlayEntries ?? snapshot.states).keys {
                 guard let root = roots.first(where: { path == $0 || path.hasPrefix($0 + "/") }) else { continue }
                 if isDirectory(path) { folders.insert(path) }
-                var parent = URL(fileURLWithPath: path).deletingLastPathComponent()
+                var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(path))
                 while parent.path == root || parent.path.hasPrefix(root + "/") {
-                    folders.insert(parent.path); if parent.path == root { break }; parent.deleteLastPathComponent()
+                    folders.insert(parent.path); if parent.path == root { break }; parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
                 }
             }
-            badges = Dictionary(uniqueKeysWithValues: folders.map { ($0, .normal) })
+            badges = GitPathMap(uniqueKeysWithValues: folders.map { ($0, .normal) })
         }
         else {
             for (path, state) in snapshot.overlayEntries ?? snapshot.states {
                 guard let root = roots.first(where: { path == $0 || path.hasPrefix($0 + "/") }) else { continue }
                 if priority[state, default: 0] >= priority[badges[path] ?? .normal, default: 0] { badges[path] = state }
-                var parent = URL(fileURLWithPath: path).deletingLastPathComponent()
+                var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(path))
                 let contribution: FileState = state == .untracked ? (unversionedAsModified ? .modified : .normal) : state == .ignored ? .normal : state
                 while parent.path == root || parent.path.hasPrefix(root + "/") {
                     folders.insert(parent.path)
                     if priority[contribution, default: 0] >= priority[badges[parent.path] ?? .normal, default: 0] { badges[parent.path] = contribution }
-                    if parent.path == root { break }; parent.deleteLastPathComponent()
+                    if parent.path == root { break }; parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
                 }
             }
             for root in roots { badges[root] = badges[root] ?? .normal }
             if recurseSubmodules {
                 for root in roots {
                     guard let parentRoot = snapshot.repositories[root]?.submoduleParentRoot, let state = badges[root] else { continue }
-                    var parent = URL(fileURLWithPath: root).deletingLastPathComponent()
+                    var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(root))
                     while parent.path == parentRoot || parent.path.hasPrefix(parentRoot + "/") {
                         folders.insert(parent.path)
                         if priority[state, default: 0] > priority[badges[parent.path] ?? .normal, default: 0] { badges[parent.path] = state }
-                        if parent.path == parentRoot { break }; parent.deleteLastPathComponent()
+                        if parent.path == parentRoot { break }; parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
                     }
                 }
             }
         }
-        return badges.reduce(into: [:]) { result, entry in
+        return badges.reduce(into: GitPathMap<FileState>()) { result, entry in
             guard !entry.key.split(separator: "/").contains(".git") else { return }
             if policy.allows(entry.key, fallback: volumes.contains(volume(entry.key)), caseSensitive: caseSensitive(entry.key)) {
                 if !hiddenStates.contains(entry.value) { result[entry.key] = entry.value }
             } else if showExcludedAsNormal && (folders.contains(entry.key) || isDirectory(entry.key)) { result[entry.key] = .normal }
         }
     }
-    public func overlayBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool = { _ in true }) -> [String: FinderOverlayBadge] {
+    public func overlayBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool = { _ in true }) -> GitPathMap<FinderOverlayBadge> {
         let policy = pathPolicy
         let states = projectedBadges(snapshot: snapshot, volume: volume, isDirectory: isDirectory, caseSensitive: caseSensitive, policy: policy)
-        return states.mapValues { FinderOverlayBadge(rawValue: $0.rawValue)! }.reduce(into: [:]) { result, entry in
+        return states.mapValues { FinderOverlayBadge(rawValue: $0.rawValue)! }.reduce(into: GitPathMap<FinderOverlayBadge>()) { result, entry in
             var badge = entry.value
             if cacheMode == .standard, badge == .normal, let flags = snapshot.indexFlags?[entry.key] {
                 guard policy.allows(entry.key, fallback: volumes.contains(volume(entry.key)), caseSensitive: caseSensitive(entry.key)) else { result[entry.key] = badge; return }
@@ -325,7 +325,7 @@ public final class FinderOverlayFileSystem {
 public struct FinderOverlayBadgeLookup {
     private var exact: [GitReferenceName: FinderOverlayBadge] = [:]
     private var folded: [GitReferenceName: FinderOverlayBadge] = [:]
-    public init(badges: [String: FinderOverlayBadge], caseSensitive: (String) -> Bool) {
+    public init(badges: GitPathMap<FinderOverlayBadge>, caseSensitive: (String) -> Bool) {
         let rank: [FinderOverlayBadge: Int] = [.normal: 0, .assumeUnchanged: 1, .skipWorktree: 2, .ignored: 3, .untracked: 4, .added: 5, .deleted: 6, .modified: 7, .conflicted: 8]
         for (path, badge) in badges {
             exact[GitReferenceName(path)] = badge

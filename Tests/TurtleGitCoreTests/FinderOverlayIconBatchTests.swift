@@ -56,7 +56,7 @@ final class FinderOverlayIconBatchTests: XCTestCase {
     func testOverlayProjectionUsesEachMountAndPolicyForIndexHandlers() {
         let snapshot = FinderSnapshot(roots: ["/repo"], states: ["/repo/mount/file": .normal], overlayEntries: ["/repo/local": .normal, "/repo/mount/file": .normal, "/repo/mount/folder": .normal], indexFlags: ["/repo/mount/file": .init(skipWorktree: true), "/repo/local": .init(assumeUnchanged: true)])
         var settings = FinderOverlaySettings()
-        func badges() -> [String: FinderOverlayBadge] {
+        func badges() -> GitPathMap<FinderOverlayBadge> {
             settings.overlayBadges(snapshot: snapshot, volume: { $0.hasPrefix("/repo/mount") ? .network : .fixed }, isDirectory: { $0 == "/repo/mount/folder" }, caseSensitive: { $0.hasPrefix("/repo/mount") })
         }
         XCTAssertEqual(badges()["/repo/local"], .assumeUnchanged)
@@ -122,7 +122,7 @@ final class FinderOverlayIconBatchTests: XCTestCase {
         let both = FinderIndexFlags(skipWorktree: true, assumeUnchanged: true)
         let snapshot = FinderSnapshot(roots: ["/repo"], states: [:], overlayEntries: ["/repo/clean": .normal, "/repo/changed": .modified, "/repo/conflict": .conflicted, "/repo/folder": .normal], indexFlags: ["/repo/clean": both, "/repo/changed": both, "/repo/conflict": both, "/repo/folder": both])
         var settings = FinderOverlaySettings(); settings.volumes = [.network]
-        func badges() -> [String: FinderOverlayBadge] {
+        func badges() -> GitPathMap<FinderOverlayBadge> {
             settings.overlayBadges(snapshot: snapshot, volume: { _ in .network }, isDirectory: { $0 == "/repo/folder" })
         }
         XCTAssertEqual(badges()["/repo/clean"], .skipWorktree)
