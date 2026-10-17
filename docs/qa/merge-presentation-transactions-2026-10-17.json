@@ -1,0 +1,107 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "2049eaf4f4b7ecdf2da17a350f092cca57b68a74",
+  "scope": "Atomic native Compare/Merge presentation across ordinary hosting and aligned result installation; deferred caret geometry and selection-notification gates",
+  "source_inputs_sha256": {
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "b36e19ad87682ecc070fe8f8425007eb6afd1a5e4982079b46a44e4e901ce068",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "9a8095319f39813f4fe919eef66038f569eed2dfd7abec96f6a48e97ba407e18",
+    "docs/qa/merge-folding-native-2026-10-14.swift": "53172496203ca15c371291254e0ef9d87f0aa650d891dacb3a8fcf470672f9b3"
+  },
+  "baseline": {
+    "wrapped_navigation": "Local pre-change check passed; receiver 20905 reaped",
+    "log": "build/qa/merge-layout-baseline-2026-10-17.log"
+  },
+  "validation_status": "Scoped local grouped checkpoint passed; hosted CI cause/resolution unproven",
+  "ci": "03d15e28 job 117479311724 failed on wrapped-navigation timeout; older b818 job stalled at folding. Current instrumented 5024e351 job 117493722287 last observed building app. Root cause remains unproven.",
+  "core": "No Core changes; full Core suite not repeated",
+  "limits": [
+    "Hosted macOS 15 stall resolution",
+    "Physical gestures and VoiceOver",
+    "Minimum macOS version",
+    "Signed installed editor/Finder/App Store acceptance",
+    "Full source layout and workflow parity"
+  ],
+  "validation": {
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/merge-presentation-build-2026-10-17.log",
+      "diagnostics": "SDK/compiler warnings and zero-exit/no-output diagnostics retained"
+    },
+    "wrapped_editor_family": {
+      "cases": 12,
+      "receivers": [
+        21082,
+        21086,
+        21092,
+        21095,
+        21099,
+        21110,
+        21113,
+        21174,
+        21228,
+        21233,
+        21240,
+        21244
+      ],
+      "log": "build/qa/merge-presentation-wrapped-2026-10-17.log",
+      "first_run": "passed"
+    },
+    "editing_family": {
+      "cases": [
+        "typing",
+        "two-pane",
+        "three-pane"
+      ],
+      "receivers": [
+        21299,
+        21303,
+        21323
+      ],
+      "log": "build/qa/merge-presentation-editing-2026-10-17.log",
+      "first_run": "passed"
+    },
+    "new_observers": {
+      "two_panes": "6 complete storage notifications, zero intermediate fold maps",
+      "three_panes": "11 complete storage notifications, zero intermediate fold maps",
+      "unchanged": "Source text and carets retained through hosted style refresh"
+    },
+    "coverage": [
+      "Native margin/moved/block/context navigation and ownership",
+      "Terminal records, wrapping/reflow/anchors, folding and Find",
+      "Unicode typing, selection, source-gap handling and one-step Undo/Redo",
+      "Ordinary and filtered ranges, ignored conflicts, exact BOM/CRLF/UTF-16 Save, Reload and cancellation",
+      "Retirement, private preferences, unchanged inputs/HEAD until explicit Save"
+    ],
+    "core": "Unchanged; full suite not repeated",
+    "new_screenshots": "None; no intended visual/layout change; existing style and native geometry regressions retained"
+  },
+  "cleanup": {
+    "baseline_receiver": 20905,
+    "group_receivers": [
+      21082,
+      21086,
+      21092,
+      21095,
+      21099,
+      21110,
+      21113,
+      21174,
+      21228,
+      21233,
+      21240,
+      21244,
+      21299,
+      21303,
+      21323
+    ],
+    "all_reaped_and_independently_absent": true,
+    "installed_app_instances": 0,
+    "owned_fixtures": "Private temporary repositories, preferences and output; owned windows/helpers closed"
+  },
+  "documentation": {
+    "site": "286 docs, zero unresolved fragments",
+    "localizations": "38 languages, 1281 keys; --check passed",
+    "bundled_help": "38 docs, 48 topics, 58 files; --check passed",
+    "dialog_coverage": "130 dialogs, 120 partial, 10 pending, zero certified; reconciled"
+  }
+}

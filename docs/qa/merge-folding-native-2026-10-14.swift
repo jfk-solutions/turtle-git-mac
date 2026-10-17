@@ -6,6 +6,28 @@ struct MergeFoldingNativeVerification {
     static func require(_ condition: Bool, _ message: String) throws { if !condition { throw Failure(message: message) } }
     static func phase(_ text: String) { FileHandle.standardError.write(Data(("Folding phase: " + text + "\n").utf8)) }
     @MainActor final class Notifications { var edits = 0 }
+    @MainActor final class HostedNotifications { var edits = 0, partial = 0 }
+    @MainActor static func verifyHostedRefresh(_ views:[NSTextView], change:()->Void, settled:()->Bool) async throws {
+        let events = HostedNotifications()
+        var observations:[NSObjectProtocol] = []
+        defer { for observation in observations { NotificationCenter.default.removeObserver(observation) } }
+        for view in views {
+            guard let storage = view.textStorage, storage.length > 0,
+                  storage.attribute(.mergeFoldMarker,at:0,effectiveRange:nil) != nil else { throw Failure(message:"Hosted refresh requires a settled prefix fold") }
+            observations.append(NotificationCenter.default.addObserver(forName:NSTextStorage.didProcessEditingNotification,object:storage,queue:nil) { _ in
+                MainActor.assumeIsolated {
+                    events.edits += 1
+                    if storage.length == 0 || storage.attribute(.mergeFoldMarker,at:0,effectiveRange:nil) == nil { events.partial += 1 }
+                }
+            })
+        }
+        let original = views.map(\.string), selections = views.map{$0.selectedRange()}
+        change()
+        try await TwoPaneEngineVerification.wait { events.edits >= views.count && settled() }
+        try require(events.partial == 0,"Hosted refresh published restored/half-styled fold paragraphs: \(events.partial) of \(events.edits)")
+        try require(views.map(\.string) == original && views.map{$0.selectedRange()} == selections,"Styled fold refresh changed source text or caret")
+        phase("hosted atomic refresh: \(views.count) panes, \(events.edits) complete notifications")
+    }
     @MainActor static func verifyTransactions(preferences: UserDefaults) throws {
         let text = (0..<90).map { "row \($0) 🐢\n" }.joined()
         let view = NSTextView(frame: NSRect(x:0,y:0,width:640,height:400))
@@ -75,6 +97,8 @@ struct MergeFoldingNativeVerification {
         phase("pair loaded; collapsing")
         two.setCollapsed(true)
         try await TwoPaneEngineVerification.wait { views.allSatisfy { $0.textStorage?.attribute(.mergeFoldMarker, at: 0, effectiveRange: nil) != nil } }
+        phase("fold attributes applied; hosted presentation refresh")
+        try await verifyHostedRefresh(views, change:{ two.showInlineDiff.toggle() }, settled:{ !two.lineWrapping.isGeometryPending })
         phase("fold attributes applied; measuring TextKit")
         for view in views {
             guard let layout = view.layoutManager, let container = view.textContainer else { throw Failure(message: "Missing native text layout") }
@@ -105,6 +129,12 @@ struct MergeFoldingNativeVerification {
         let three = triple.model; three.load()
         try await ThreePaneEngineVerification.wait { !three.busy && three.document != nil }
         try await ThreePaneEngineVerification.wait { three.resultFolding.folding.visibility.contains(.marker) }
+        try await ThreePaneEngineVerification.wait {
+            let panes = ThreePaneEngineVerification.textViews(triple.window?.contentView).filter{!$0.isFieldEditor}
+            return panes.count == 3 && panes.allSatisfy { $0.textStorage?.attribute(.mergeFoldMarker,at:0,effectiveRange:nil) != nil }
+        }
+        let panes = ThreePaneEngineVerification.textViews(triple.window?.contentView).filter{!$0.isFieldEditor}
+        try await verifyHostedRefresh(panes, change:{ three.setInlineDiff(!three.showInlineDiff) }, settled:{ !three.lineWrapping.isGeometryPending })
         phase("three-pane loaded; anchored expansion")
         let result = three.result, anchors = three.resultPresentation.foldAnchors, dirty = three.dirty, undo = three.canUndo
         try require(!anchors.offsets.isEmpty, "Engine omitted common result anchors")

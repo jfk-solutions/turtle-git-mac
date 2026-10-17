@@ -1875,12 +1875,10 @@ struct FileComparisonEditor: NSViewRepresentable {
         model.register(scroll, base: base)
         view.backgroundColor = MergePalette.color(MergeSourceState.normal)
         view.insertionPointColor = MergePalette.foreground(.normal)
-        view.font = model.generalPreferences.nativeFont
         if !model.wrapLines { DispatchQueue.main.async { model.refreshLocatorViewport() } }
         // Hosting can deliver a previously captured View value after an edit.
         // Read the current alignment and preserve the selection in source
         // coordinates before replacing attributed display text.
-        (view as? FileComparisonTextView)?.foldLayout.prepare(view)
         let oldDisplay = view.string
         let previousCells = (view as? FileComparisonTextView)?.sourceCells ?? context.coordinator.cells
         let sourceSelection = try? FileComparisonEditing.sourceRange(view.selectedRange(), cells: previousCells)
@@ -1897,19 +1895,28 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
         view.isEditable = model.editingEnabled && model.editableBase == base && !model.busy && !model.confirmingQuit
         (view as? FileComparisonTextView)?.mergeFindController?.updateGates()
-        let value = Self.attributed(cells, font: view.font!, model: model, base: base)
+        let value = Self.attributed(cells, font: model.generalPreferences.nativeFont, model: model, base: base)
         (view as? FileComparisonTextView)?.missingOffsets = Self.missingOffsets(cells, model: model, base: base)
         view.needsDisplay = true
+        // Publish one complete presentation. Restoring hidden-row attributes,
+        // changing fonts/colors and reapplying folds must not expose intermediate
+        // paragraph metrics to TextKit or the wrapping/viewport observers.
+        (view as? FileComparisonTextView)?.presentationDepth += 1
+        view.textStorage?.beginEditing()
+        view.font = model.generalPreferences.nativeFont
+        (view as? FileComparisonTextView)?.foldLayout.prepare(view)
         if !view.string.utf8.elementsEqual(value.string.utf8) { view.textStorage?.setAttributedString(value) }
         else { value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in view.textStorage?.setAttributes(attributes, range: range) } }
+        model.updateFolding()
+        (view as? FileComparisonTextView)?.foldLayout.apply(to: view, controller: model.folding)
+        view.textStorage?.endEditing()
+        (view as? FileComparisonTextView)?.presentationDepth -= 1
         if let sourceSelection, !oldDisplay.utf8.elementsEqual(value.string.utf8) {
             let start = min(FileComparisonEditing.displayOffset(sourceOffset: sourceSelection.location, cells: cells), value.length)
             let end = min(FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(sourceSelection), cells: cells), value.length)
             let range = NSRange(location: start, length: max(0, end - start))
             if view.selectedRange() != range { view.setSelectedRange(range) }
         }
-        model.updateFolding()
-        (view as? FileComparisonTextView)?.foldLayout.apply(to: view, controller: model.folding)
         model.lineWrapping.geometryChanged = { [weak model] in DispatchQueue.main.async { model?.applyViewportNavigation(); model?.refreshLocatorViewport() } }
         model.lineWrapping.update(scroll, key: base ? "Base" : "Mine", aligned: !model.onePaneActive && !model.singleFileMode, enabled: model.wrapLines)
         let moved = model.movedRowLinks(base:base), generation = model.alignmentGeneration
@@ -2027,7 +2034,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             return false
         }
         func textViewDidChangeSelection(_ notification: Notification) {
-            guard let view = notification.object as? NSTextView else { return }
+            guard let view = notification.object as? NSTextView, (view as? FileComparisonTextView)?.presentationDepth == 0 else { return }
             if !model.selectingDifferenceBlock { (view as? FileComparisonTextView)?.foldLayout.reveal(selection: view.selectedRange(), in: view) }
             let range = view.selectedRange(), cells = cells, generation = model.alignmentGeneration
             // A user's new selection supersedes the caret requested by the
@@ -2117,6 +2124,7 @@ struct FileComparisonEditor: NSViewRepresentable {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
 private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+    var presentationDepth = 0
     var marginSelectionAllowed: Bool { navigationAllowed && window?.attachedSheet == nil }
     var marginSelectionStamp: MergeMarginStamp { .init(values:[model?.alignmentGeneration ?? -1,model?.folding.revision ?? -1,navigationIntentRevision],text:string) }
     func beginMarginSelection() { beginUserNavigation();model?.activatePane(base:baseSide) }

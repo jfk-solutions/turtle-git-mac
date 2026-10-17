@@ -1485,10 +1485,8 @@ private struct MergeEditor: NSViewRepresentable {
         let text = editable ? model.resultDisplayText : sourceCells.map { $0.map(\.displayText).joined(separator:"\n") + ($0.isEmpty ? "" : "\n") } ?? self.text
         view.backgroundColor = MergePalette.color(MergeSourceState.normal)
         view.insertionPointColor = MergePalette.foreground(.normal)
-        view.font = model.generalPreferences.nativeFont
         if !model.wrapLines { DispatchQueue.main.async { model.refreshLocatorViewport() } }
         scroll.rulersVisible = true
-        view.setMergeTabWidth(tabWidth)
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
         view.isEditable = editable && model.sourceOperationsAllowed; view.model = model
@@ -1496,9 +1494,15 @@ private struct MergeEditor: NSViewRepresentable {
         if view.blockGeneration != model.navigationGeneration {
             view.blockSelection.clear(in:view); view.invalidateNavigationRevision(); view.blockGeneration = model.navigationGeneration
         }
-        let range = view.selectedRange()
-        if !view.string.utf8.elementsEqual(text.utf8) { view.string = text; view.setSelectedRange(NSRange(location: min(range.location, (text as NSString).length), length: 0)) }
+        let range = view.selectedRange(), replaced = !view.string.utf8.elementsEqual(text.utf8)
+        // A source/result presentation includes its final fold map. Native
+        // observers must not measure the restored, unstyled or half-hidden map.
+        view.presentationDepth += 1
+        view.textStorage?.beginEditing()
+        view.font = model.generalPreferences.nativeFont
+        view.setMergeTabWidth(tabWidth)
         view.foldLayout.prepare(view)
+        if replaced { view.string = text }
         let entire = NSRange(location: 0, length: (text as NSString).length)
         view.textStorage?.addAttributes([.foregroundColor: MergePalette.foreground(.normal), .backgroundColor: MergePalette.color(MergeSourceState.normal), .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
         if editable {
@@ -1506,11 +1510,6 @@ private struct MergeEditor: NSViewRepresentable {
             let states = sourceCells?.map(\.state) ?? model.resultStates
             for (index, range) in MergeLineEndings.lineRanges(in: text).enumerated() where states.indices.contains(index) {
                 view.textStorage?.addAttributes([.backgroundColor: MergePalette.color(states[index]), .foregroundColor: MergePalette.foreground(states[index])], range: range)
-            }
-            if let rawRequest = model.selectionRequest, let requested = model.alignedResultProjection?.displayRange(serializedRange:rawRequest) ?? (sourceCells == nil ? rawRequest : nil), NSMaxRange(requested) <= entire.length {
-                view.installBlock(requested,caret:requested.location,trimFinalEnding:sourceCells == nil)
-                view.blockSelection.centerCaret(in:view)
-                DispatchQueue.main.async { if model.selectionRequest == rawRequest { model.selectionRequest = nil } }
             }
         } else if let sourceCells {
             var offset = 0
@@ -1532,6 +1531,18 @@ private struct MergeEditor: NSViewRepresentable {
         } else { view.inlineMissingOffsets = [] }
         model.updateFolding()
         view.foldLayout.apply(to: view, controller: editable ? model.resultFolding : model.folding)
+        view.textStorage?.endEditing()
+        view.presentationDepth -= 1
+        // Caret visibility and centering query TextKit geometry. They run only
+        // after the complete attributed presentation has committed.
+        if replaced { view.setSelectedRange(NSRange(location:min(range.location,(text as NSString).length),length:0)) }
+        if editable {
+            if let rawRequest = model.selectionRequest, let requested = model.alignedResultProjection?.displayRange(serializedRange:rawRequest) ?? (sourceCells == nil ? rawRequest : nil), NSMaxRange(requested) <= entire.length {
+                view.installBlock(requested,caret:requested.location,trimFinalEnding:sourceCells == nil)
+                view.blockSelection.centerCaret(in:view)
+                DispatchQueue.main.async { if model.selectionRequest == rawRequest { model.selectionRequest = nil } }
+            }
+        }
         model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport() }
         model.lineWrapping.update(scroll, key: label, aligned: sourceCells != nil, enabled: model.wrapLines)
         view.sourceCells = sourceCells; view.sourceLayoutRevision = model.sourceLayoutRevision; view.resultPresentationRevision = model.resultPresentationRevision
@@ -1591,7 +1602,7 @@ private struct MergeEditor: NSViewRepresentable {
             return false
         }
         func textViewDidChangeSelection(_ notification: Notification) {
-            guard let view = notification.object as? MergeTextView else { return }
+            guard let view = notification.object as? MergeTextView, view.presentationDepth == 0 else { return }
             if !model.selectingNavigationBlock { view.foldLayout.reveal(selection: view.selectedRange(), in: view) }
             let range = view.selectedRange()
             DispatchQueue.main.async { [weak view] in
@@ -1606,6 +1617,7 @@ private struct MergeEditor: NSViewRepresentable {
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
 private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+    var presentationDepth = 0
     var marginSelectionAllowed: Bool { navigationAllowed && window?.attachedSheet == nil }
     var marginSelectionStamp: MergeMarginStamp { .init(values:[model?.navigationGeneration ?? -1,model?.sourceLayoutRevision ?? -1,model?.folding.revision ?? -1,model?.resultFolding.revision ?? -1,navigationIntentRevision],text:model?.result ?? string) }
     func beginMarginSelection() { beginUserNavigation();model?.focusNavigation(self) }
@@ -1857,8 +1869,9 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         guard let model else { return }
         let projection = model.alignedResultProjection
         isEditable = mergeEditable && model.sourceOperationsAllowed
-        foldLayout.prepare(self)
+        presentationDepth += 1
         textStorage?.beginEditing()
+        foldLayout.prepare(self)
         sourceCells = projection?.cells; sourceLayoutRevision = model.sourceLayoutRevision; resultPresentationRevision = model.resultPresentationRevision
         string = projection?.displayText ?? model.result
         let entire = NSRange(location:0,length:string.utf16.count)
@@ -1869,6 +1882,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         }
         model.updateFolding(); foldLayout.apply(to:self,controller:model.resultFolding)
         textStorage?.endEditing()
+        presentationDepth -= 1
         whitespaceRenderer.update(text:string,cells:sourceCells,otherCells:nil,preferences:model.whitespaceDisplay)
         whitespaceRenderer.highlightEndings = model.showInlineDiff
         if let scroll = enclosingScrollView {

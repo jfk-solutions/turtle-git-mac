@@ -108,3 +108,35 @@ Windows visual parity.
 ![Wrapped merge sources, light appearance](site/assets/merge-wrapped-navigation-light.png)
 
 ![Wrapped merge sources, dark appearance](site/assets/merge-wrapped-navigation-dark.png)
+
+
+## Complete native presentation transactions — October 17, 2026
+
+Two-pane Compare and the three-pane Merge source/result renderers now commit
+font, per-row colors, inline emphasis and the final fold map in one NSTextStorage
+editing transaction. Restoring hidden attributes no longer publishes an
+intermediate unfolded paragraph map before reapplying source presentation.
+Synchronous aligned-result installation includes its initial fold restoration
+in the same transaction too. Caret translation, block centering and geometry
+measurement occur after that complete attributed snapshot commits. Selection
+notifications caused by installing the presentation cannot reveal a stale fold
+map or replace the pending model caret. User selection callbacks resume when
+installation ends; text, source coordinates and document Undo remain separate.
+
+This repairs a concrete partial-style publication gap in the native port. It is
+not yet proof of the hosted wrapped-navigation/folding stall's cause. The local
+pre-change wrapped-navigation baseline passed, while the older macOS CI job
+timed out. The instrumented current run remains the authority for that gate.
+
+[Batch evidence](qa/merge-presentation-transactions-2026-10-17.json) records the
+grouped native scope and remaining physical/minimum-OS/signed acceptance.
+
+
+The Debug build and all fifteen native cases passed at the grouped checkpoint:
+twelve wrapped/folding/navigation/ownership cases plus Unicode typing and the
+two-pane/three-pane editing engines. The new hosted-refresh observer checks saw
+six and eleven complete storage notifications respectively, with no intermediate
+fold map and unchanged text/carets. Every owned receiver, including the pre-change
+baseline, was reaped and independently absent. Core was unchanged and not rerun.
+This is local unsigned evidence; the active hosted run had not reached its editor
+gate at the final observation, so hosted resolution is not claimed.
