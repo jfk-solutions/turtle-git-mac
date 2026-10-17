@@ -271,3 +271,12 @@ menu expectation was updated for the new Delete command. Only affected/unpassed
 cases continued. All ten receivers, including failures, were reaped and
 independently absent. The native mutation runs emitted NSTableView reentrant
 operation warnings; future SDK/physical table acceptance remains open.
+
+## Exact conflict paths and native checks — October 18, 2026
+
+The [connected Resolve/Rebase conflict family](CONFLICT-PATH-IDENTITY-PARITY.md)
+now preserves distinct valid UTF-8 paths through stage grouping, row IDs,
+checked/highlighted memory, refresh, captured menus and resolution validation.
+The native binary checkbox follows the source highlighted-row rule. Shared
+Git actions retain their existing mutation/cancellation and child lifetimes.
+Physical/signed acceptance and broader invalid-path handling remain open.

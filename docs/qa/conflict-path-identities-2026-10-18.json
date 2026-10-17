@@ -1,0 +1,146 @@
+{
+  "date": "2026-10-18",
+  "scope": "Exact conflict stages and Resolve/Rebase checked/highlighted native selection, source binary checkboxes and checked Rebase recovery index preparation",
+  "base_commit": "cd2c131d3a062fd6f330edf116d5ba33341a29cf",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_review": [
+    "src/Git/Git.cpp index/unmerged path reads",
+    "src/Git/GitStatusListCtrl.cpp:1255 OnLvnItemchanged checks/unchecks highlighted group only when clicked row is highlighted",
+    "src/TortoiseProc/ResolveDlg.cpp checked-path resolution",
+    "src/TortoiseProc/RebaseDlg.cpp conflict/recovery file controls"
+  ],
+  "implementation": [
+    "Exact NUL conflict path-to-stage grouping, exact scopes and byte tie-break for canonical displayed names",
+    "Exact ConflictEntry equality/hash, stale stage validation and specialized editor lookup",
+    "Resolve/Rebase checked and highlighted raw GitPathSet membership, ASCII native row IDs and explicit menu/primary/key boundary decoding",
+    "Shared native binary checkbox with source highlighted-row behavior and existing busy/quit/modal/retired fences",
+    "Exact refresh/check memory, marked targets, working-file command predicates and clipboard selection",
+    "Checked Rebase emptiness/commit sequence accepts exact paths; session branch/conflict snapshots compare exact names",
+    "Private selection indexes seed checked real-index stage-zero identities before Git add so filesystem discovery cannot silently discard a canonical index peer"
+  ],
+  "validation": {
+    "core_initial": {
+      "exit": 1,
+      "executed": 121,
+      "passed": 120,
+      "failed": 1,
+      "log": "build/qa/conflict-identities-core-2026-10-18.log",
+      "failure": "Checked Rebase committed only one of two new canonical index spellings because a fresh private HEAD index rediscovered paths through the aliasing filesystem"
+    },
+    "core_repair": {
+      "exit": 0,
+      "executed": 35,
+      "passed": 35,
+      "failed": 0,
+      "log": "build/qa/conflict-identities-core-repair-2026-10-18.log",
+      "scope": "ConflictPathIdentityTests, CommitAmendTests, CommitSelectionTests, CommitCheckboxIndexTests and affected checked-Rebase tests"
+    },
+    "core_cumulative": {
+      "distinct_passed": 148,
+      "unrepaired_failures": [],
+      "full_suite_rerun": false
+    },
+    "debug_builds": [
+      {
+        "exit": 0,
+        "log": "build/qa/conflict-identities-build-2026-10-18.log"
+      },
+      {
+        "exit": 0,
+        "log": "build/qa/conflict-identities-build-repair-2026-10-18.log",
+        "reason": "Affected shared Core private-index preparation repair"
+      }
+    ],
+    "native": {
+      "distinct_passing_case_engine_combinations": 14,
+      "cases": [
+        "identity",
+        "resolve-mutation",
+        "resolve-files",
+        "resolve-drop",
+        "resolve-progress",
+        "rebase-files",
+        "rebase-refresh"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "runtime_attempts": 15,
+      "passing_runtime_attempts": 14,
+      "failed_runtime_attempts": 1,
+      "logs": [
+        "build/qa/conflict-identities-native-repair-2026-10-18.log",
+        "build/qa/conflict-identities-native-rebase-2026-10-18.log"
+      ],
+      "initial_fixture_compile_log": "build/qa/conflict-identities-native-2026-10-18.log",
+      "owned_receivers": [
+        63296,
+        63826,
+        64211,
+        65043,
+        65574,
+        65846,
+        66110,
+        66375,
+        66621,
+        66831,
+        67022,
+        68296,
+        71372,
+        74375,
+        74770
+      ],
+      "cleanup": "All 15 owned receivers reported reaped; independent ps check returned1/empty for receivers and the initial Core driver/runner"
+    },
+    "new_cases": [
+      "Actual six-stage records across two Unicode-equivalent file names retain independent 1/2/3 stages; exact file and directory scope and editor lookup",
+      "Forged canonical-neighbor stage snapshots rejected before index mutation",
+      "Actual Mine/Theirs resolution retains unselected conflict/index identity, unrelated content, HEAD and configuration",
+      "Distinct two-path resolution works; exact duplicates and pre-cancelled requests refuse mutation",
+      "Real checked Rebase recovery commits both raw tree names while excluded resolution stays staged",
+      "Both native dialogs retain separate canonical checks/highlights and actual table selection IDs, captured confirmation/marks, refresh and private clipboard bytes"
+    ],
+    "fixture_repairs": [
+      "Resolve drop/progress callers now compare/assign GitPathSet instead of Set after the model type migration; no assertions removed",
+      "Retained Rebase sort, metadata clipboard and key targets compare entry.path separately from encoded row.id; original numeric-order/selection assertions retained"
+    ],
+    "warnings": [
+      "Retained Resolve mutation cases emit the existing AppKit reentrant NSTableView delegate warning while entering shared Revert; no full table-delegate repair claimed"
+    ],
+    "environment": {
+      "OS": "macOS27.0.1",
+      "architecture": "arm64",
+      "signing": "unsigned Debug"
+    },
+    "localizations": {
+      "write_and_check": "passed",
+      "languages": 38,
+      "keys": 1281,
+      "log": "build/qa/conflict-identities-localizations-2026-10-18.log",
+      "generated_changes": false
+    },
+    "documentation": {
+      "site_documents": 293,
+      "unresolved_fragments": 0,
+      "log": "build/qa/conflict-identities-site-2026-10-18.log",
+      "dialog_coverage": "130 dialogs, 120 partial reviews, 10 pending, 0 certified; 1659 static controls, 1566 mapped, 93 pending; unchanged and not a completion percentage",
+      "help": "Changed engineering parity guides are not help-topics.json inputs"
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/ConflictResolution.swift": "2ae6e39d4359f8f8177f522d0dbecd500e3acd5e99dd35090d31243bd946320a",
+    "Sources/TurtleGitCore/Rebase.swift": "b1487efb8e2608f1e6022186855a6f050b410373c4515f775526b9438a3ad422",
+    "Sources/TurtleGitCore/TextConflict.swift": "1b62d55ab061afc349663dfd016ec6c9b64ecda473b8a9e40a568f8031d68f5e",
+    "Sources/TurtleGitCore/CommitAmend.swift": "463b5c82750537491f61fff283ed851a2588ef01b564b973d70e1764deaaaca6",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "4fb35f6fc80d5711594f487fcbd5f8cde8db4c69a16042a59d8f8002084fdbc4",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "0e2c3801e606d822a4273e17a6619fca91f274a3027c37db416a27c4e238dd4d"
+  },
+  "limits": [
+    "No claim of two independent physical files on a normalization-aliasing filesystem; raw index paths are independently verified",
+    "Arbitrary invalid UTF-8 paths and broader dialog identity consumers remain open",
+    "Native table/model/menu verification is not physical checkbox clicking or complete visual/accessibility certification",
+    "Current macOS27 arm64 unsigned checks do not prove hosted macOS15 Intel, signed Finder, distribution or App Store acceptance",
+    "Current full hosted CI and earlier wrapped-editor gate still require actual passing evidence"
+  ]
+}

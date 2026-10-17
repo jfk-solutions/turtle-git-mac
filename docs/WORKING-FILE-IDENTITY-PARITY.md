@@ -143,3 +143,9 @@ previously pending Add/Revert outer selection entries; Log, LFS owner and Finder
 state maps, URL invocation spelling and filesystem alias semantics remain open.
 
 The [LFS continuation](LFS-PARITY.md#exact-lock-paths-and-connected-owners--october-17-2026) extends exact identity through lock commands, check restoration, progress/Force targets and Commit/Working Tree owner maps. Earlier LFS owner-map gaps are superseded within that scope; unrelated Finder root maps, URL spelling and filesystem alias behavior remain separate.
+
+
+The [Resolve/Rebase conflict continuation](CONFLICT-PATH-IDENTITY-PARITY.md) now
+covers the shared unmerged-stage reader, exact stage validation, both native
+checked/highlighted lists and checked-recovery Commit. Other dialog consumers,
+invalid UTF-8 paths and physical filesystem alias policy remain separate gaps.

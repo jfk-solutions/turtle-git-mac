@@ -649,3 +649,12 @@ See [batch evidence](qa/rebase-source-family-2026-10-17.json) for actual scope,
 attempts and capture provenance. Hidden reference split-view warnings remain. Full physical alert/default-button/key/focus/VoiceOver,
 all hooks/signing/filesystem/locale combinations, signed Finder/sandbox/App Store
 and complete Rebase/Cherry Pick acceptance remain open.
+
+## Exact conflict/recovery selection — October 18, 2026
+
+The [connected conflict family](CONFLICT-PATH-IDENTITY-PARITY.md) separates exact
+checked and highlighted paths in Resolve and Rebase, including native row IDs,
+source checkbox behavior, refresh memory, marked context targets, clipboard and
+checked-file recovery Commit. Stage and stopped-session comparisons cannot merge
+canonical Unicode neighbors. Other replay-row identities and existing operation
+ownership retain their roles; full physical/signed parity remains open.

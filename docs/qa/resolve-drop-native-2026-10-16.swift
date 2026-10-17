@@ -39,7 +39,7 @@ import TurtleGitCore
         try require(!model.readingDrops,"Drop replaced an active status reader")
         initialReply?.resume();initialReply=nil
         try await wait {!model.busy && model.entries.count==2};model.readConflicts=nil
-        try require(drops==1 && Set(model.paths)==[paths[0],"folder"] && model.checked==Set(paths.prefix(2)),"Coalesced scope/check restoration differs")
+        try require(drops==1 && Set(model.paths)==[paths[0],"folder"] && model.checked==GitPathSet(paths.prefix(2)),"Coalesced scope/check restoration differs")
         model.checked.remove(paths[0]);model.selection=[paths[0]]
         try require(model.receiveFileDrop([provider(root.appendingPathComponent(paths[1]))]),"Descendant drop refused")
         try await wait {!model.busy}
@@ -55,7 +55,7 @@ import TurtleGitCore
         try await wait {!model.busy};try require(model.paths==scope && model.checked==checks && drops==2,"Foreign/nested/admin drop changed scope or refreshed")
         try require(model.receiveFileDrop([provider(root)]),"Root drop refused")
         try await wait {!model.busy && model.entries.count==3}
-        try require(model.paths.isEmpty && model.checked==Set(paths),"Root did not restore complete scope/checks")
+        try require(model.paths.isEmpty && model.checked==GitPathSet(paths),"Root did not restore complete scope/checks")
         // A held provider retains operation/Quit ownership but cannot publish after Cancel.
         var reply:CheckedContinuation<URL,Never>?
         model.readDroppedURL={_ in await withCheckedContinuation {reply=$0}}

@@ -42,7 +42,7 @@ import TurtleGitCore
         let controller=ResolveWindowController(repository:wrapped,access:nil,paths:[],preferences:prefs), model=controller.model
         defer { controller.close() }
         model.load();try await wait { !model.busy && model.entries.count == 2 }
-        model.checked=Set([paths[0]]);var changed="",finished=0
+        model.checked=GitPathSet([paths[0]]);var changed="",finished=0
         model.onChanged={changed=$0};model.onFinished={finished=$0}
         model.resolveChecked();try await wait { FileManager.default.fileExists(atPath:marker.path) && model.output.contains("Unicode 雪") }
         try require(model.output.contains("Work: 35%") && !model.output.contains("Work: 10%"),"Live CR output missing")
@@ -53,7 +53,7 @@ import TurtleGitCore
         try require(try Data(contentsOf:root.appendingPathComponent(".git/index")) == index,"Pre-mutation cancel changed index")
         try require(model.output.contains("Resolution aborted") && !changed.isEmpty,"Cancellation omitted outcome/refresh callback")
         model.closeProgress();try await wait { !model.busy && !model.showingProgress }
-        try Data().write(to:release);model.checked=Set([paths[0]]);model.resolveChecked();try await wait { !model.busy && model.success }
+        try Data().write(to:release);model.checked=GitPathSet([paths[0]]);model.resolveChecked();try await wait { !model.busy && model.success }
         try require(finished == 1 && model.resolvedCount == 1 && model.entries.map(\.path) == [paths[1]],"Checked completion/count/refresh incorrect")
         try require(changed.contains("Work: 10%") && model.output.contains("Resolved: " + paths[0]),"Raw callback or silent-Git notification missing")
         let after=try await repo.run(["rev-parse","HEAD"]).stdout;try require(head == after,"Resolve committed unexpectedly")

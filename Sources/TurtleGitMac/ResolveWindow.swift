@@ -146,6 +146,11 @@ import UniformTypeIdentifiers
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
+struct ResolveConflictRow: Identifiable {
+    let entry: ConflictEntry
+    var id: String { GitPathRowIdentity.encode(entry.path) }
+}
+
 @MainActor final class ResolveWindowModel: ObservableObject {
     let progressPresentation: GitCommandPresentation
     static private(set) var activeOperations = 0
@@ -167,8 +172,15 @@ import UniformTypeIdentifiers
     var readDroppedURL: (NSItemProvider) async throws -> URL = CommitFileURLReader.read
     var readDroppedConflicts: (([String], OperationCancellation) async throws -> ([ConflictEntry], Bool))?
     @Published var entries: [ConflictEntry] = []
-    @Published var checked = Set<String>()
-    @Published var selection = Set<String>()
+    @Published var checked = GitPathSet()
+    private var selectedPaths = GitPathSet()
+    @Published var nativeSelection = Set<String>() {
+        didSet { selectedPaths = GitPathRowIdentity.paths(nativeSelection) }
+    }
+    var selection: GitPathSet {
+        get { selectedPaths }
+        set { let ids = Set(newValue.map(GitPathRowIdentity.encode)); if nativeSelection != ids { nativeSelection = ids } }
+    }
     var focusedFilePath:String?
     @Published private(set) var fileMutationTitle = ""
     private(set) var fileMutationActive = false
@@ -278,12 +290,18 @@ import UniformTypeIdentifiers
             defer { finish(token); withExtendedLifetime(access) {} }
             do {
                 try await refresh(token); guard live(token), !token.isCancelled else { return }
-                if let quick { guard !entries.isEmpty else { throw ResolveFailure.stale }; busy = false; request(quick, ids: Set(entries.map(\.path))) }
+                if let quick { guard !entries.isEmpty else { throw ResolveFailure.stale }; busy = false; request(quick, ids: GitPathSet(entries.map(\.path))) }
             } catch { if live(token), !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
+    func setFileChecked(_ path: String, value: Bool) {
+        guard canInteract, entries.contains(where: { GitReferenceName.equal($0.path, path) }) else { return }
+        let targets = selection.contains(path) ? selection.intersection(entries.map(\.path)) : GitPathSet([path])
+        if value { checked.formUnion(targets) } else { checked.subtract(targets) }
+    }
     func resolveChecked() { guard canInteract else { return }; closeAfterResolution = true; apply(entries.filter { checked.contains($0.path) }, using: .current) }
-    func request(_ choice: ResolveChoice, ids: Set<String>) {
+    func request(_ choice: ResolveChoice, ids values: some Sequence<String>) {
+        let ids = GitPathSet(values)
         let selected = entries.filter { ids.contains($0.path) }
         guard canInteract, !selected.isEmpty else { return }
         closeAfterResolution = false; pendingResolution = (generation, selected, choice); confirm(choice, selected)
@@ -327,7 +345,7 @@ import UniformTypeIdentifiers
             } catch ResolveFailure.submoduleCheckout(let path) {
                 guard live(token), !token.isCancelled else { return }
                 do {
-                    guard let entry = selected.first(where: { $0.path == path }) else { throw ResolveFailure.stale }
+                    guard let entry = selected.first(where: { GitReferenceName.equal($0.path,path) }) else { throw ResolveFailure.stale }
                     let (root, revision) = try await repository.submoduleResetTarget(entry, using: choice, cancellation: token)
                     guard live(token), !token.isCancelled else { return }
                     // The retry retains the original stages and is fenced to this
@@ -353,7 +371,7 @@ import UniformTypeIdentifiers
             do {
                 let next = try await repository.conflicts(paths: paths, cancellation: refreshToken)
                 guard live(token) else { return }
-                let available = Set(next.map(\.path)); entries = next; checked.formIntersection(available); selection.formIntersection(available); reloadQueued = false
+                let available = GitPathSet(next.map(\.path)); entries = next; checked.formIntersection(available); selection.formIntersection(available); reloadQueued = false
             } catch { if live(token) { output = LocalGitCommandProgress.bounded(output + "\nRefresh failed: " + error.localizedDescription, preferences: preferences) } }
             if live(token), token.isCancelled { cancelled = true; success = false }
         }
@@ -382,12 +400,14 @@ import UniformTypeIdentifiers
         else { showingProgress = false; load() }
     }
     func dismissSubmoduleReset() { guard active, hasChild, !busy else { return }; hasChild = false; showingProgress = false; load() }
-    func editOrCompare(_ ids: Set<String>) {
+    func editOrCompare(_ values: some Sequence<String>) {
+        let ids = GitPathSet(values)
         guard canInteract else { return }
         if ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) { onEdit(entry.path) }
         else { compare(ids) }
     }
-    func compare(_ ids: Set<String>) {
+    func compare(_ values: some Sequence<String>) {
+        let ids = GitPathSet(values)
         guard canInteract, !ids.isEmpty else { return }
         let selected = entries.filter { ids.contains($0.path) }; guard !selected.isEmpty else { return }
         let token = begin()
@@ -434,19 +454,20 @@ private struct ResolveDialog: View {
                 HStack(spacing: 16) { GitCommandActivity(animate: model.progressPresentation.animateActivity); Text(model.busy ? "Resolving selected conflicts…" : "Review the selected resolution.") }.padding(20)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    Table(model.entries, selection: $model.selection) {
-                        TableColumn("") { entry in
-                            Toggle("Resolve \(entry.path)", isOn: Binding(get: { model.checked.contains(entry.path) }, set: { if $0 { model.checked.insert(entry.path) } else { model.checked.remove(entry.path) } })).labelsHidden().toggleStyle(.checkbox)
+                    Table(model.entries.map(ResolveConflictRow.init), selection: $model.nativeSelection) {
+                        TableColumn("") { row in
+                            let entry = row.entry
+                            FileSelectionCheckbox(path: entry.path, verb: "Resolve", checked: model.checked.contains(entry.path), enabled: model.canInteract) { model.setFileChecked(entry.path, value: $0) }.frame(width: 20, height: 20)
                         }.width(24)
-                        TableColumn("Path") { entry in HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(FileState.conflicted.textColor) }.repositoryFileHelp(repository: model.repository.root, path: entry.path, preferences: model.preferences) }.width(min: 260, ideal: 440)
-                        TableColumn("Extension") { Text(StatusListClipboard.fileExtension($0.path,isDirectory:$0.isSubmodule)) }.width(70)
+                        TableColumn("Path") { row in let entry = row.entry; HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(FileState.conflicted.textColor) }.repositoryFileHelp(repository: model.repository.root, path: entry.path, preferences: model.preferences) }.width(min: 260, ideal: 440)
+                        TableColumn("Extension") { Text(StatusListClipboard.fileExtension($0.entry.path,isDirectory:$0.entry.isSubmodule)) }.width(70)
                         TableColumn("Status") { _ in Text("Conflicted").foregroundStyle(FileState.conflicted.textColor) }.width(95)
                     }.disabled(!model.canInteract).fileListFont().background(ResolveSelectionMarkProbe(model:model)).contextMenu(forSelectionType: String.self) { ids in
-                        let target = model.fileMenu(ids)
+                        let target = model.fileMenu(GitPathRowIdentity.paths(ids))
                         TurtleGitContextMenu {
                             ResolveSelectionMenu(paths:target.entries.map(\.path),rebase:model.rebase,canEdit:target.entries.count == 1) {action,paths in
                                 model.withFileMenu(target) {
-                                    if action == .editConflict {model.editOrCompare(Set(paths))} else {model.request(action.resolveChoice ?? .current,ids:Set(paths))}
+                                    if action == .editConflict {model.editOrCompare(GitPathSet(paths))} else {model.request(action.resolveChoice ?? .current,ids:GitPathSet(paths))}
                                 }
                             }
                             Divider()
@@ -458,9 +479,9 @@ private struct ResolveDialog: View {
                                 Button {model.copyFileMenu(target,copy:choice.copy)} label: {CommandLabel(title:choice.rawValue,icon:.copy)}
                             }} label: {CommandLabel(title:"Copy to clipboard",icon:.copy)}
                         }
-                    } primaryAction: { ids in model.editOrCompare(ids) }
+                    } primaryAction: { ids in model.editOrCompare(GitPathRowIdentity.paths(ids)) }
                     HStack {
-                        SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count, checkedCount: { model.checked.count }) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.fixedSize().disabled(!model.canInteract)
+                        SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count, checkedCount: { model.checked.count }) { model.checked = $0 ? GitPathSet(model.entries.map(\.path)) : [] }.fixedSize().disabled(!model.canInteract)
                         Spacer()
                         Text("Reminder: Commit your change after resolve").font(.caption).foregroundStyle(.secondary)
                     }
@@ -516,7 +537,7 @@ extension ResolveWindowModel {
         try token.check();guard live(token),readingDrops,!Task.isCancelled else {throw OperationCancellationFailure.cancelled}
     }
     private func publishConflicts(_ next:[ConflictEntry],rebase:Bool,dropped:[WorkingFileDropItem] = []) {
-        let prior = Set(entries.map(\.path)),available = Set(next.map(\.path))
+        let prior = GitPathSet(entries.map(\.path)),available = GitPathSet(next.map(\.path))
         var checks = loaded ? checked.intersection(available).union(available.subtracting(prior)) : available
         for path in available where dropped.contains(where:{item in
             item.path == "." || path.utf8.elementsEqual(item.path.utf8) || item.directory && path.utf8.starts(with:(item.path+"/").utf8)
@@ -626,7 +647,8 @@ struct ResolveFileMenuSnapshot {
 }
 extension ResolveWindowModel {
     private func invalidateFileMenus() {fileMenuEpoch = UUID();usedFileMenus = []}
-    func fileMenu(_ ids:Set<String>,markedPath:String? = nil,permanently:Bool? = nil)->ResolveFileMenuSnapshot {
+    func fileMenu(_ values:some Sequence<String>,markedPath:String? = nil,permanently:Bool? = nil)->ResolveFileMenuSnapshot {
+        let ids = GitPathSet(values)
         let selected = entries.filter{ids.contains($0.path)}
         let ordinary = selected.allSatisfy{!$0.isSubmodule}
         func exists(_ entry:ConflictEntry)->Bool {
@@ -690,7 +712,7 @@ extension ResolveWindowModel {
         guard canFileCommand(command,menu:menu) else {return}
         if command == .revert || command == .delete {mutateFileMenu(command,menu:menu);return}
         usedFileMenus.insert(menu.id)
-        if command == .compareBase {ComparisonToolInvocation.$alternate.withValue(menu.alternate) {compare(Set(menu.paths))};return}
+        if command == .compareBase {ComparisonToolInvocation.$alternate.withValue(menu.alternate) {compare(GitPathSet(menu.paths))};return}
         let alternate = menu.alternate,token = begin()
         Task {
             defer {finish(token);withExtendedLifetime(access) {}}
@@ -754,7 +776,7 @@ extension ResolveWindowModel {
                     onChanged("Deleted \(result.removedPaths.count) working file(s); removed \(result.removedIndexPaths.count) index entries.\n"+result.trashedFiles.map{"Moved to Trash: "+$0.path}.joined(separator:"\n"))
                 } else {
                     let diff = try await repository.run(["diff","--no-ext-diff","--no-textconv","--name-status","-z","HEAD","--"]+menu.paths,cancellation:token).stdout
-                    let modified = Set(CommitFile.parse(names:diff,statistics:Data()).filter{$0.action.hasPrefix("M")}.map(\.path))
+                    let modified = GitPathSet(CommitFile.parse(names:diff,statistics:Data()).filter{$0.action.hasPrefix("M")}.map(\.path))
                     if menu.entries.contains(where:{!$0.isSubmodule && modified.contains($0.path)}) {
                         guard await confirmFileMutation("Revert selected changes?","Revert \(menu.entries.count) selected conflicted file(s) to HEAD? Recoverable working files move to Trash before replacement.") else {return}
                     }

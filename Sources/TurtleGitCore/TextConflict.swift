@@ -137,7 +137,7 @@ public enum TextConflictFailure: LocalizedError {
 extension GitRepository {
     public func textConflictDocument(path: String, engine: SubversionMergeConfiguration? = nil, mergePreferUTF8: Bool? = nil, mergeLegacyEncoding:ComparisonTextEncoding = .windows1252, identityOptions: ConflictIdentityOptions = .init(), cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
         try cancellation?.check()
-        guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
+        guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { GitReferenceName.equal($0.path, path) }) else { throw ResolveFailure.stale }
         guard !entry.isSubmodule, [2, 3].allSatisfy({ stage in entry.stages.contains { $0.number == stage && ["100644", "100755"].contains($0.mode) } }),
               entry.stages.allSatisfy({ ["100644", "100755"].contains($0.mode) }) else { throw TextConflictFailure.unsupported }
         try validateConflicts([entry], using: .current, cancellation: cancellation)

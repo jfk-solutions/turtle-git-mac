@@ -440,8 +440,15 @@ struct RebaseReferenceRequest {
         return entry.state.rawValue.capitalized
     }
     @Published var conflicts: [ConflictEntry] = []
-    @Published var selectedConflicts = Set<String>()
-    @Published var checkedConflicts = Set<String>()
+    private var highlightedConflictPaths = GitPathSet()
+    @Published var nativeConflictSelection = Set<String>() {
+        didSet { highlightedConflictPaths = GitPathRowIdentity.paths(nativeConflictSelection) }
+    }
+    var selectedConflicts: GitPathSet {
+        get { highlightedConflictPaths }
+        set { let ids = Set(newValue.map(GitPathRowIdentity.encode)); if nativeConflictSelection != ids { nativeConflictSelection = ids } }
+    }
+    @Published var checkedConflicts = GitPathSet()
     private var conflictHead = ""
     var canCheckConflictFiles: Bool { fileRecovery && (state?.stoppedAction == .pick || state?.stoppedAction == .edit || state?.stoppedAction == .squash) }
     var prepareReplayMessage:(String,Bool,Bool,OperationCancellation) async throws -> String
@@ -712,13 +719,13 @@ struct RebaseReferenceRequest {
     var readSession:(RebaseConflictIdentity?,OperationCancellation) async throws -> RebaseSessionSnapshot
     private func applyConflictSnapshot(_ snapshot:RebaseSessionSnapshot) {
         conflictMenuGeneration = UUID()
-        let previousPaths=conflictIdentity == snapshot.identity ? Set(conflictRows.map(\.path)):[]
+        let previousPaths=conflictIdentity == snapshot.identity ? GitPathSet(conflictRows.map(\.path)):[]
         if conflictIdentity != snapshot.identity || !snapshot.fileRecovery {checkedConflicts=[]}
         state=snapshot.state;fileRecovery=snapshot.fileRecovery;conflictIdentity=snapshot.identity
         conflicts=snapshot.conflicts;conflictRows=snapshot.rows;conflictStatistics=snapshot.statistics;conflictIndexFlags=snapshot.indexFlags;conflictHead=snapshot.head
-        let paths=Set(snapshot.rows.map(\.path))
+        let paths=GitPathSet(snapshot.rows.map(\.path))
         checkedConflicts.formIntersection(paths);checkedConflicts.formUnion(paths.subtracting(previousPaths))
-        selectedConflicts.formIntersection(Set(snapshot.rows.map(\.id)))
+        selectedConflicts.formIntersection(GitPathSet(snapshot.rows.map(\.id)))
         if !snapshot.fileRecovery {checkedConflicts=[]}
     }
     private func loadConflictFiles(cancellation:OperationCancellation?=nil) async throws {
@@ -740,9 +747,10 @@ struct RebaseReferenceRequest {
         let amendToParent:Bool
         var paths: [String] { rows.map(\.path) }
     }
-    func conflictFileMenu(_ ids: Set<String>,markedPath:String?=nil) -> ConflictFileMenu {
+    func conflictFileMenu(_ values: some Sequence<String>,markedPath:String?=nil) -> ConflictFileMenu {
+        let ids = GitPathSet(values)
         let rows = conflictTableRows.map(\.entry).filter { ids.contains($0.id) }
-        return ConflictFileMenu(generation: conflictMenuGeneration, identity: conflictIdentity, head: conflictHead, rows: rows, conflicts: conflicts.filter { ids.contains($0.id) }, statistics: conflictStatistics,columns:visibleConflictColumns,indexFlags:conflictIndexFlags,mark:(markedPath ?? focusedConflictPath).flatMap {id in rows.contains(where:{$0.id==id}) ? id:nil} ?? rows.first?.id ?? "",comparisonMark:conflictComparisonMark,amendToParent:state?.stoppedAction == .squash)
+        return ConflictFileMenu(generation: conflictMenuGeneration, identity: conflictIdentity, head: conflictHead, rows: rows, conflicts: conflicts.filter { ids.contains($0.id) }, statistics: conflictStatistics,columns:visibleConflictColumns,indexFlags:conflictIndexFlags,mark:(markedPath ?? focusedConflictPath).flatMap {id in rows.contains(where:{GitReferenceName.equal($0.id,id)}) ? id:nil} ?? rows.first?.id ?? "",comparisonMark:conflictComparisonMark,amendToParent:state?.stoppedAction == .squash)
     }
     private func acceptsConflictFileMenu(_ menu: ConflictFileMenu, duringRequest: Bool = false) -> Bool {
         !retired && pendingConfirmation == nil && (duringRequest || !busy) && !viewingConflictBase && !selectingSplit && fileRecovery &&
@@ -751,7 +759,7 @@ struct RebaseReferenceRequest {
     }
     func canConflictFileCommand(_ command: StatusFileCommand, menu: ConflictFileMenu) -> Bool {
         guard acceptsConflictFileMenu(menu) else { return false }
-        let ordinary = menu.rows.allSatisfy { row in menu.statistics[row.path]?.isSubmodule != true && !menu.conflicts.contains(where: { $0.path == row.path && $0.isSubmodule }) }
+        let ordinary = menu.rows.allSatisfy { row in menu.statistics[row.path]?.isSubmodule != true && !menu.conflicts.contains(where: { GitReferenceName.equal($0.path, row.path) && $0.isSubmodule }) }
         switch command {
         case .log: return menu.rows.count == 1
         case .oldNameLog: return menu.rows.count == 1 && menu.rows[0].originalPath != nil
@@ -761,7 +769,7 @@ struct RebaseReferenceRequest {
         case .reveal: return menu.rows.count == 1 && menu.rows[0].state != .deleted
         case .compareTwo: return menu.rows.count == 2 && ordinary && menu.rows.allSatisfy { $0.state != .deleted }
         case .submoduleLog:return menu.rows.count == 1 && !ordinary
-        case .delete: return menu.rows.first(where:{$0.id==menu.mark})?.canDeleteFromStatusList == true
+        case .delete: return menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)})?.canDeleteFromStatusList == true
         }
     }
     private func validateConflictFileMenu(_ menu: ConflictFileMenu, token: OperationCancellation,validateRows:Bool=true) async throws {
@@ -834,8 +842,8 @@ struct RebaseReferenceRequest {
         conflictComparisonMark=PreparedFileComparisonMark(path:access.file.path,revision:"",workingAccess:access)
     }
     func canMarkConflictComparison(_ menu:ConflictFileMenu)->Bool {
-        guard acceptsConflictFileMenu(menu),let mark=menu.rows.first(where:{$0.id==menu.mark}) else {return false}
-        return mark.state != .deleted && menu.statistics[mark.path]?.isSubmodule != true && !menu.conflicts.contains {$0.path==mark.path && $0.isSubmodule}
+        guard acceptsConflictFileMenu(menu),let mark=menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)}) else {return false}
+        return mark.state != .deleted && menu.statistics[mark.path]?.isSubmodule != true && !menu.conflicts.contains {GitReferenceName.equal($0.path,mark.path) && $0.isSubmodule}
     }
     func markConflictForComparison(_ menu:ConflictFileMenu) {
         guard canMarkConflictComparison(menu) else {return}
@@ -852,7 +860,7 @@ struct RebaseReferenceRequest {
         }
     }
     func canShowConflictUnified(_ menu:ConflictFileMenu)->Bool {
-        acceptsConflictFileMenu(menu) && menu.rows.first(where:{$0.id==menu.mark})?.canCompareWithBaseFromStatusList == true && onConflictUnified != nil
+        acceptsConflictFileMenu(menu) && menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)})?.canCompareWithBaseFromStatusList == true && onConflictUnified != nil
     }
     func showConflictUnified(_ menu:ConflictFileMenu,alternate:Bool?=nil) {
         guard canShowConflictUnified(menu) else {return}
@@ -871,7 +879,7 @@ struct RebaseReferenceRequest {
         }
     }
     func canAddConflictFiles(_ menu:ConflictFileMenu,mode:WorkingFileAddMode = .normal)->Bool {
-        guard acceptsConflictFileMenu(menu),let mark=menu.rows.first(where:{$0.id==menu.mark}) else {return false}
+        guard acceptsConflictFileMenu(menu),let mark=menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)}) else {return false}
         guard mark.state == .untracked || mark.state == .ignored || mark.hasUnversionedCopy else {return false}
         if mode != .normal {
             guard let location=try? conflictLocation(mark.path),let attributes=try? FileManager.default.attributesOfItem(atPath:location.path),attributes[.type] as? FileAttributeType != .typeDirectory else {return false}
@@ -889,13 +897,13 @@ struct RebaseReferenceRequest {
         }
     }
     func canIgnoreConflictFiles(_ menu:ConflictFileMenu)->Bool {
-        guard acceptsConflictFileMenu(menu),let mark=menu.rows.first(where:{$0.id==menu.mark}) else {return false}
+        guard acceptsConflictFileMenu(menu),let mark=menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)}) else {return false}
         return mark.state == .untracked || mark.state == .deleted || mark.hasUnversionedCopy
     }
     func ignoreConflictFiles(_ menu:ConflictFileMenu,action:RepositoryAction,paths:[String]) {
         guard canIgnoreConflictFiles(menu),action.isIgnore else {return}
         let folders=menu.paths.map {($0 as NSString).deletingLastPathComponent}.filter {!$0.isEmpty}
-        guard paths == menu.paths || paths.count==1 && folders.contains(paths[0]) else {return}
+        guard paths.map({GitReferenceName($0)}) == menu.paths.map({GitReferenceName($0)}) || paths.count==1 && GitPathSet(folders).contains(paths[0]) else {return}
         runConflictFileMenu(menu) { [self] token in
             try token.check();presentingConflictFileDialog=true
             defer {presentingConflictFileDialog=false;if !retired {pendingSessionRefresh=true;onChanged()}}
@@ -910,7 +918,7 @@ struct RebaseReferenceRequest {
             guard await confirmConflictDeletion(menu.paths,permanently) else {return}
             try await validateConflictFileMenu(menu,token:token)
             defer {if !retired {pendingSessionRefresh=true;onChanged()}}
-            let result=try await repository.deleteWorkingFiles(menu.rows,selectionMark:menu.rows.first {$0.id==menu.mark},permanently:permanently,cancellation:token)
+            let result=try await repository.deleteWorkingFiles(menu.rows,selectionMark:menu.rows.first {GitReferenceName.equal($0.id,menu.mark)},permanently:permanently,cancellation:token)
             guard !retired,!token.isCancelled else {return}
             conflictDeletionResult=result
             output += "Deleted \(result.removedPaths.count) working file(s); removed \(result.removedIndexPaths.count) index entries.\n"
@@ -922,7 +930,7 @@ struct RebaseReferenceRequest {
         acceptsConflictFileMenu(menu) && menu.rows.allSatisfy { ![FileState.untracked,.ignored].contains($0.state) }
     }
     func canSetConflictFlags(_ action:IndexFlagAction,menu:ConflictFileMenu)->Bool {
-        guard acceptsConflictFileMenu(menu),let mark=menu.rows.first(where:{$0.id==menu.mark}) else {return false}
+        guard acceptsConflictFileMenu(menu),let mark=menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)}) else {return false}
         return action.isAvailable(for:mark,flags:menu.indexFlags[mark.path] ?? FinderIndexFlags())
     }
     func setConflictFlags(_ action:IndexFlagAction,menu:ConflictFileMenu) {
@@ -964,17 +972,19 @@ struct RebaseReferenceRequest {
         guard !text.isEmpty else { return }; conflictPasteboard.clearContents(); conflictPasteboard.setString(text, forType: .string)
     }
     func setConflictChecked(_ path:String,checked:Bool) {
-        guard !retired,pendingConfirmation == nil,!busy,!selectingSplit,canCheckConflictFiles,conflictRows.contains(where:{$0.path==path}) else {return}
-        if checked {checkedConflicts.insert(path)} else {checkedConflicts.remove(path)}
+        guard !retired,pendingConfirmation == nil,!busy,!selectingSplit,canCheckConflictFiles,conflictRows.contains(where:{GitReferenceName.equal($0.path,path)}) else {return}
+        let targets = selectedConflicts.contains(path) ? selectedConflicts.intersection(conflictRows.map(\.path)) : GitPathSet([path])
+        if checked {checkedConflicts.formUnion(targets)} else {checkedConflicts.subtract(targets)}
     }
-    func toggleConflictChecks(_ ids: Set<String>, mark: String?) {
+    func toggleConflictChecks(_ values: some Sequence<String>, mark: String?) {
+        let ids = GitPathSet(values)
         guard !retired, pendingConfirmation == nil, !busy, !selectingSplit, fileRecovery, canCheckConflictFiles else { return }
-        let available = Set(conflictRows.map(\.id)), selected = ids.intersection(available)
+        let available = GitPathSet(conflictRows.map(\.id)), selected = ids.intersection(available)
         guard !selected.isEmpty else { return }
         let shouldCheck = !(mark.map { checkedConflicts.contains($0) } ?? selected.allSatisfy { checkedConflicts.contains($0) })
         if shouldCheck { checkedConflicts.formUnion(selected) } else { checkedConflicts.subtract(selected) }
     }
-    func conflictAction(_ action: RepositoryAction, ids: Set<String>) { conflictAction(action, menu: conflictFileMenu(ids)) }
+    func conflictAction(_ action: RepositoryAction, ids: some Sequence<String>) { conflictAction(action, menu: conflictFileMenu(ids)) }
     func conflictAction(_ action: RepositoryAction, menu: ConflictFileMenu) {
         let paths = menu.conflicts.map(\.path)
         guard acceptsConflictFileMenu(menu), !paths.isEmpty, action != .editConflict || paths.count == 1 && menu.rows.count == 1 else { return }
@@ -983,11 +993,12 @@ struct RebaseReferenceRequest {
         }
     }
     func compareConflictMenu(_ menu: ConflictFileMenu) {
-        guard acceptsConflictFileMenu(menu),menu.rows.first(where:{$0.id==menu.mark})?.canCompareWithBaseFromStatusList == true else { return }
-        if menu.rows.count==1,menu.conflicts.count==1 {compareConflicts(Set(menu.conflicts.map(\.id)))}
+        guard acceptsConflictFileMenu(menu),menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)})?.canCompareWithBaseFromStatusList == true else { return }
+        if menu.rows.count==1,menu.conflicts.count==1 {compareConflicts(GitPathSet(menu.conflicts.map(\.id)))}
         else {runConflictFileMenu(menu) { [self] token in try token.check();onConflictWorkingComparison(menu.paths,menu.amendToParent)}}
     }
-    func compareConflicts(_ ids:Set<String>) {
+    func compareConflicts(_ values:some Sequence<String>) {
+        let ids = GitPathSet(values)
         let paths=conflicts.filter {ids.contains($0.id)}.map(\.path)
         guard !retired,!busy,!selectingSplit,!paths.isEmpty else {return}
         let captured=conflictIdentity,request=UUID(),token=OperationCancellation(),alternate=ComparisonToolInvocation.capture
@@ -1002,7 +1013,7 @@ struct RebaseReferenceRequest {
                 try requireAccess()
                 let fresh=try await repository.rebaseState(cancellation:token)
                 guard RebaseConflictIdentity(fresh) == captured else {throw RebaseFailure.changed}
-                if paths.count == 1, let entry = conflicts.first(where: { $0.path == paths[0] }), !entry.isSubmodule, entry.stages.contains(where: { $0.number == 1 }) {
+                if paths.count == 1, let entry = conflicts.first(where: { GitReferenceName.equal($0.path,paths[0]) }), !entry.isSubmodule, entry.stages.contains(where: { $0.number == 1 }) {
                     let prepared = try await repository.conflictBaseComparison(entry, cancellation: token)
                     let current = try await repository.rebaseState(cancellation: token)
                     guard RebaseConflictIdentity(current) == captured else { throw RebaseFailure.changed }
@@ -1934,7 +1945,7 @@ struct RebaseConflictSortableRow:Identifiable {
     let entry:StatusEntry
     let statistics:CommitFile?
     let status:String
-    var id:String { entry.id }
+    var id:String { GitPathRowIdentity.encode(entry.id) }
 }
 struct RebaseConflictSort:SortComparator {
     var column:StatusListColumn
@@ -1954,15 +1965,16 @@ struct RebaseConflictFiles: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: RebaseWindowModel
     var body: some View {
-        Table(model.conflictTableRows, selection: $model.selectedConflicts, sortOrder:Binding(get:{model.conflictSortOrder},set:{model.setConflictSort($0)})) {
-            TableColumn("✓") { row in Toggle((model.supportsConflictSelection ? "Commit ":"Check ")+row.entry.path, isOn: Binding(get: { model.checkedConflicts.contains(row.entry.path) }, set: {model.setConflictChecked(row.entry.path,checked:$0)})).labelsHidden().toggleStyle(.checkbox).disabled(!model.canCheckConflictFiles || model.busy) }.width(28)
+        Table(model.conflictTableRows, selection: $model.nativeConflictSelection, sortOrder:Binding(get:{model.conflictSortOrder},set:{model.setConflictSort($0)})) {
+            TableColumn("✓") { row in FileSelectionCheckbox(path: row.entry.path, verb: model.supportsConflictSelection ? "Commit" : "Check", checked: model.checkedConflicts.contains(row.entry.path), enabled: model.canCheckConflictFiles && !model.busy) { model.setConflictChecked(row.entry.path, checked: $0) }.frame(width: 20, height: 20) }.width(28)
             TableColumn("Path",sortUsing:RebaseConflictSort(column:.path)) { row in HStack(spacing:5) { Image(nsImage:row.entry.state.icon.image() ?? NSImage());cell(row,.path) }.repositoryFileHelp(repository: model.repository.root, path: row.entry.path, preferences: model.columnPreferences) }
             TableColumn("Extension",sortUsing:RebaseConflictSort(column:.fileExtension)) { cell($0,.fileExtension) }.width(min:45,ideal:70)
             TableColumn("Status",sortUsing:RebaseConflictSort(column:.status)) { cell($0,.status) }.width(min:80,ideal:110)
             TableColumn("Lines added",sortUsing:RebaseConflictSort(column:.added)) { cell($0,.added) }.width(min:55,ideal:85)
             TableColumn("Lines removed",sortUsing:RebaseConflictSort(column:.removed)) { cell($0,.removed) }.width(min:55,ideal:95)
         }.fileListFont().contextMenu(forSelectionType: String.self) { ids in
-            let menu = model.conflictFileMenu(ids)
+            let paths = GitPathRowIdentity.paths(ids)
+            let menu = model.conflictFileMenu(paths)
             TurtleGitContextMenu {
                 if model.canAddConflictFiles(menu) {
                     Button {model.addConflictFiles(menu,mode:.normal)} label:{CommandLabel(title:WorkingFileAddMode.normal.rawValue,icon:.add)}
@@ -1974,10 +1986,10 @@ struct RebaseConflictFiles: View {
                     Divider()
                 }
                 Button {model.compareConflictMenu(menu)} label:{CommandLabel(title:"Compare with base",icon:.compare)}
-                    .disabled(model.busy || menu.rows.first(where:{$0.id==menu.mark})?.canCompareWithBaseFromStatusList != true)
+                    .disabled(model.busy || menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)})?.canCompareWithBaseFromStatusList != true)
                 if model.canShowConflictUnified(menu) {Button {model.showConflictUnified(menu)} label:{CommandLabel(title:"Show changes as unified diff",icon:.unifiedDiff)}}
                 Divider()
-                ResolveSelectionMenu(paths: model.conflicts.filter { ids.contains($0.id) }.map(\.path), rebase: true, canEdit: ids.count == 1 && model.conflicts.contains { ids.contains($0.id) }) { action, _ in model.conflictAction(action, menu: menu) }
+                ResolveSelectionMenu(paths: menu.conflicts.map(\.path), rebase: true, canEdit: menu.rows.count == 1 && menu.conflicts.count == 1) { action, _ in model.conflictAction(action, menu: menu) }
                 Divider()
                 ForEach([StatusFileCommand.compareTwo, .log, .submoduleLog, .oldNameLog, .blame], id: \.self) { command in
                     if model.canConflictFileCommand(command, menu: menu) { Button { model.conflictFileCommand(command, menu: menu) } label: { CommandLabel(title: command.rawValue, icon: command.icon) } }
@@ -2014,21 +2026,22 @@ struct RebaseConflictFiles: View {
                 } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(menu.rows.isEmpty || model.busy)
             }
         } primaryAction: { ids in
-            if ids.count == 1 && model.conflicts.contains(where: { ids.contains($0.id) }) { model.conflictAction(.editConflict, ids: ids) }
-            else { model.compareConflictWorkingFiles(model.conflictFileMenu(ids)) }
+            let paths = GitPathRowIdentity.paths(ids)
+            if paths.count == 1 && model.conflicts.contains(where: { paths.contains($0.id) }) { model.conflictAction(.editConflict, ids: paths) }
+            else { model.compareConflictWorkingFiles(model.conflictFileMenu(paths)) }
         }
         .background(CommitFileInteraction(rows:model.conflictTableRows.map { .file($0.entry) },keyboardDeleteEnabled:false,nativeColumns:RebaseWindowModel.conflictColumns,preferences:model.columnPreferences,
             visibleColumns:Set(model.visibleConflictColumns),availableColumns:Set(RebaseWindowModel.conflictColumns),columnText:{model.conflictColumnText($0,$1)},
             savedOrder:model.conflictFileColumns.order,savedWidths:model.conflictFileColumns.widths,
             saveLayout:{model.saveConflictColumnLayout(order:$0,widths:$1)},setColumnVisible:{model.setConflictColumn($0,visible:$1)},
             resetColumns:{model.resetConflictColumns(choose:$0,onAccepted:$1)},focusedPath:$model.focusedConflictPath,enabled:model.conflictColumnsAvailable,
-            delete:{entries,mark,permanently in model.deleteConflictFiles(model.conflictFileMenu(Set(entries.map(\.id)),markedPath:mark.id),permanently:permanently)},copy:{entries,status in model.copyConflictFiles(model.conflictFileMenu(Set(entries.map(\.id))),copy:status ? .pathsAndStatus:.relativePaths)},
-            copyColumn:{entries,column in model.copyConflictFiles(model.conflictFileMenu(Set(entries.map(\.id))),copy:.column(column))},
-            toggleCheck:{entries,mark in model.toggleConflictChecks(Set(entries.map(\.id)),mark:mark.id)}))
+            delete:{entries,mark,permanently in model.deleteConflictFiles(model.conflictFileMenu(GitPathSet(entries.map(\.id)),markedPath:mark.id),permanently:permanently)},copy:{entries,status in model.copyConflictFiles(model.conflictFileMenu(GitPathSet(entries.map(\.id))),copy:status ? .pathsAndStatus:.relativePaths)},
+            copyColumn:{entries,column in model.copyConflictFiles(model.conflictFileMenu(GitPathSet(entries.map(\.id))),copy:.column(column))},
+            toggleCheck:{entries,mark in model.toggleConflictChecks(GitPathSet(entries.map(\.id)),mark:mark.id)}))
         .background(RebaseConflictFileKeys(model: model))
     }
     private func cell(_ row:RebaseConflictSortableRow,_ column:StatusListColumn)->some View {
-        Text(model.conflictColumnText(row.entry,column)).foregroundStyle(row.entry.statusTextColor(selected:model.selectedConflicts.contains(row.id),preferences:model.columnPreferences))
+        Text(model.conflictColumnText(row.entry,column)).foregroundStyle(row.entry.statusTextColor(selected:model.selectedConflicts.contains(row.entry.path),preferences:model.columnPreferences))
     }
 }
 /// Scope upstream's unmodified action keys to the AppKit table hosted by this
@@ -2196,12 +2209,12 @@ struct RebaseConflictFileKeys: NSViewRepresentable {
                   responder === table || responder.isDescendant(of: table) else { return event }
             let flags = event.modifierFlags.intersection([.command, .control, .shift, .option]), key = event.charactersIgnoringModifiers?.lowercased()
             let indexes = table.selectedRowIndexes.filter { model.conflictTableRows.indices.contains($0) }
-            let ids = Set(indexes.map { model.conflictTableRows[$0].id })
+            let ids = GitPathSet(indexes.map { model.conflictTableRows[$0].entry.path })
             if key == "c", flags == .command || flags == .control || flags == [.command, .shift] || flags == [.control, .shift] {
                 model.copyConflictFiles(model.conflictFileMenu(ids), copy: flags.contains(.shift) ? .pathsAndStatus : .relativePaths); return nil
             }
             if event.keyCode == 49, flags.isEmpty || flags == .control {
-                model.toggleConflictChecks(ids, mark: model.conflictTableRows.indices.contains(table.selectedRow) ? model.conflictTableRows[table.selectedRow].id : nil); return nil
+                model.toggleConflictChecks(ids, mark: model.conflictTableRows.indices.contains(table.selectedRow) ? model.conflictTableRows[table.selectedRow].entry.path : nil); return nil
             }
             return event
         }

@@ -359,7 +359,7 @@ import TurtleGitCore
         var release:(()->Void)?
         model.chooseConflictApplication={ await withCheckedContinuation { continuation in release={continuation.resume(returning:root.appendingPathComponent("Fake.app"))} } }
         model.conflictFileCommand(.openWith,menu:menu);try await wait { release != nil }
-        model.selectedConflicts=Set([clean]);release?();try await wait { !model.busy }
+        model.selectedConflicts=GitPathSet([clean]);release?();try await wait { !model.busy }
         try require(opened.map(\.path) == [file.path],"Open With redirected to later highlight")
         let exported=root.appendingPathComponent("export");try FileManager.default.createDirectory(at:exported,withIntermediateDirectories:true)
         model.chooseConflictExport={exported};model.conflictFileCommand(.export,menu:all);try await wait { !model.busy }
@@ -406,7 +406,7 @@ import TurtleGitCore
         model.setConflictSort([RebaseConflictSort(column:.added,order:.reverse)])
         owner.window!.contentView!.layoutSubtreeIfNeeded()
         try await wait { table.tableColumns.first(where:{$0.headerCell.stringValue=="Lines added"})?.isHidden == false }
-        let sorted=model.conflictTableRows.map(\.id)
+        let sorted=model.conflictTableRows.map(\.entry.path)
         try require(sorted.first==clean,"Lines added did not order numeric 10 ahead of 2")
         let selected=Set(sorted),captured=model.conflictFileMenu(selected)
         model.copyConflictFiles(captured,copy:.all)
@@ -430,9 +430,9 @@ import TurtleGitCore
         try require(model.conflictFileColumns==StatusListColumnSettings() && accepted==1,"Accepted Reset did not restore source defaults")
         // A sorted native row routes Copy and Space to its stable path identity.
         model.setConflictSort([RebaseConflictSort(column:.path,order:.reverse)])
-        owner.window!.contentView!.layoutSubtreeIfNeeded();try await wait { fileProbe.rows.compactMap(\.entry).map(\.id)==model.conflictTableRows.map(\.id) }
+        owner.window!.contentView!.layoutSubtreeIfNeeded();try await wait { fileProbe.rows.compactMap(\.entry).map(\.id)==model.conflictTableRows.map(\.entry.path) }
         table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false);owner.window!.makeFirstResponder(table)
-        let sortedFirst=model.conflictTableRows[0].id,checks=model.checkedConflicts
+        let sortedFirst=model.conflictTableRows[0].entry.path,checks=model.checkedConflicts
         try require(probe.handle(event)==nil && pasteboard.string(forType:.string)==sortedFirst+"\n","Sorted Copy targeted old index")
         try require(probe.handle(space)==nil && model.checkedConflicts.contains(sortedFirst) != checks.contains(sortedFirst),"Sorted Space targeted old index")
         try await verifyComparisons(owner:owner,repo:repo,root:root,path:path,clean:clean,prefs:prefs)

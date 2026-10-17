@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Resolve/Rebase conflict path family](CONFLICT-PATH-IDENTITY-PARITY.md)
+now carries exact UTF-8 stage, checked and highlighted identities through both
+native lists, source binary checkboxes, refresh, captured menus and checked Rebase
+recovery. Private commit-index preparation retains new canonical peer identities
+before Git discovers current content. The initial failure, affected repair, 148
+distinct Core passes, two Debug builds and fourteen native case/engine passes
+are recorded in [batch evidence](qa/conflict-path-identities-2026-10-18.json).
+All fifteen owned receivers are absent. The retained Revert table warning and
+full hosted/physical/signed acceptance remain open.
+
+
 The connected [whole-source Merge recovery](TEXT-MERGE-PARITY.md#whole-source-recovery-after-free-result-editing--october-18-2026)
 now keeps Mine/Theirs whole-file choices available after custom editing invalidates
 result row mappings. Selected endings, excluded source records, complete result

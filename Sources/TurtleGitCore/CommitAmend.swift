@@ -108,6 +108,23 @@ extension GitRepository {
             }
         }
         _ = try run(["read-tree", base], environmentOverrides: environment, cancellation: cancellation)
+        // Git discovers only the filesystem's spelling when adding a new path.
+        // Seed checked stage-zero identities first: on normalization-aliasing
+        // volumes two distinct index paths can refer to one physical payload.
+        // Subsequent add still applies current content, clean filters and modes.
+        let selected = GitPathSet(checked.map(\.path)), selectedPaths = Array(selected)
+        var seed = Data(), seeded = GitPathSet()
+        for offset in stride(from: 0, to: selectedPaths.count, by: 64) {
+            let batch = Array(selectedPaths[offset..<min(offset + 64, selectedPaths.count)])
+            for record in try run(["-c","core.precomposeunicode=false","ls-files","--stage","-z","--"] + batch, cancellation: cancellation).stdout.split(separator: 0) {
+                guard let tab = record.firstIndex(of: 9) else { continue }
+                let fields = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
+                let path = String(decoding: record[record.index(after: tab)...], as: UTF8.self)
+                guard fields.count == 3, fields[2] == "0", selected.contains(path), !retainedDeletes.contains(path), seeded.insert(path).inserted else { continue }
+                seed.append(contentsOf: record); seed.append(0)
+            }
+        }
+        if !seed.isEmpty { _ = try run(["update-index","-z","--index-info"], environmentOverrides: environment, cancellation: cancellation, input: seed) }
         if !paths.isEmpty {
             _ = try run(["add","--all","--pathspec-from-file=-","--pathspec-file-nul"],environmentOverrides:environment,cancellation:cancellation,input:literalPathPacket(Array(GitPathSet(paths))))
         }

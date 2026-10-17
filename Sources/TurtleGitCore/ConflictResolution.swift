@@ -9,6 +9,8 @@ public struct ConflictEntry: Identifiable, Hashable, Sendable {
     public var id: String { path }
     public let path: String
     public let stages: [ConflictStage]
+    public static func == (lhs: Self, rhs: Self) -> Bool { GitReferenceName.equal(lhs.path, rhs.path) && lhs.stages == rhs.stages }
+    public func hash(into hasher: inout Hasher) { hasher.combine(GitReferenceName(path)); hasher.combine(stages) }
     public var isSubmodule: Bool { stages.contains { $0.mode == "160000" } }
     public var isDeleteModify: Bool { !isSubmodule && stages.contains(where: { $0.number == 2 }) != stages.contains(where: { $0.number == 3 }) }
 }
@@ -73,11 +75,11 @@ extension GitRepository {
             try cancellation?.check()
             if indexed?.split(separator: 0).contains(where: { record in
                 let fields = record.split(separator: 9, maxSplits: 1)
-                return fields.count == 2 && fields[0].starts(with: "160000 ".utf8) && String(decoding: fields[1], as: UTF8.self) == path
+                return fields.count == 2 && fields[0].starts(with: "160000 ".utf8) && GitReferenceName.equal(String(decoding: fields[1], as: UTF8.self), path)
             }) == true { return containing }
             return resolved
         }
-        if let entries = try? await owner.conflicts(paths: [path], cancellation: cancellation), entries.contains(where: { $0.path == path && $0.isSubmodule }) { return containing }
+        if let entries = try? await owner.conflicts(paths: [path], cancellation: cancellation), entries.contains(where: { GitReferenceName.equal($0.path, path) && $0.isSubmodule }) { return containing }
         try cancellation?.check()
         return resolved
     }
@@ -97,7 +99,7 @@ extension GitRepository {
         guard try !isBare(cancellation: cancellation) else { throw ResolveFailure.selection }
         let scope = paths.filter { $0 != "." }
         if !scope.isEmpty { do { _ = try RemovalRequest(paths: scope, keepLocal: true) } catch { throw ResolveFailure.outsideWorkingTree } }
-        var entries: [String: [ConflictStage]] = [:]
+        var entries = GitPathMap<[ConflictStage]>()
         for record in try run(["ls-files", "--unmerged", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
             let fields = record.split(separator: 9, maxSplits: 1)
             guard fields.count == 2 else { throw ResolveFailure.indexFormat }
@@ -105,17 +107,18 @@ extension GitRepository {
             guard header.count == 3, let number = Int(header[2]), (1...3).contains(number),
                   ["100644", "100755", "120000", "160000"].contains(String(header[0])) else { throw ResolveFailure.indexFormat }
             let path = String(decoding: fields[1], as: UTF8.self)
-            if paths.contains(".") || scope.isEmpty || scope.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) {
-                entries[path, default: []].append(ConflictStage(number: number, mode: String(header[0]), object: String(header[1])))
+            if paths.contains(".") || scope.isEmpty || scope.contains(where: { GitReferenceName.equal(path, $0) || path.utf8.starts(with: ($0 + "/").utf8) }) {
+                var stages = entries[path] ?? []
+                stages.append(ConflictStage(number: number, mode: String(header[0]), object: String(header[1]))); entries[path] = stages
             }
         }
-        return entries.map { ConflictEntry(path: $0.key, stages: $0.value.sorted { $0.number < $1.number }) }.sorted { $0.path < $1.path }
+        return entries.map { ConflictEntry(path: $0.key, stages: $0.value.sorted { $0.number < $1.number }) }.sorted { $0.path < $1.path || $0.path == $1.path && $0.path.utf8.lexicographicallyPrecedes($1.path.utf8) }
     }
     /// Native editor routing needs validated stages and filesystem ownership
     /// before selecting a specialized editor or preparing external tool inputs.
     public func conflictEditorEntry(path: String, cancellation: OperationCancellation? = nil) throws -> ConflictEntry {
         try cancellation?.check()
-        guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
+        guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { GitReferenceName.equal($0.path, path) }) else { throw ResolveFailure.stale }
         try validateConflicts([entry], using: .current, cancellation: cancellation)
         try cancellation?.check(); return entry
     }
@@ -199,8 +202,8 @@ extension GitRepository {
         return output.filter { !$0.isEmpty }.joined(separator: "\n")
     }
     func validateConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice, cancellation: OperationCancellation? = nil) throws {
-        guard !checked.isEmpty, Set(checked.map(\.path)).count == checked.count else { throw ResolveFailure.selection }
-        let current = Dictionary(try conflicts(cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        guard !checked.isEmpty, GitPathSet(checked.map(\.path)).count == checked.count else { throw ResolveFailure.selection }
+        let current = GitPathMap(try conflicts(cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         for entry in checked {
             try cancellation?.check()
             do { _ = try RemovalRequest(paths: [entry.path], keepLocal: true) } catch { throw ResolveFailure.outsideWorkingTree }
