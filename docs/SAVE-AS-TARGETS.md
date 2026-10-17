@@ -21,7 +21,8 @@ The internal copy-export helper remains a separate copy operation.
 
 Three-pane source Save As retains the current merged draft while changing the
 source used by Reload and Compare with Base. A changed source is detected before
-merged Save. Repository merged-result Save As remains a copy; standalone merged
+merged Save. Repository merged-result Save As remains a copy and marks the current draft
+clean without changing its normal-save target; standalone merged
 output retains its existing guarded output-target workflow. The Save As menu
 also offers Continue resolving conflicts when conflict markers remain.
 
@@ -48,3 +49,7 @@ Read-only normal saves now redirect to Save As and establish a target in both
 Compare and the merged-result editor. A repository conflict saved elsewhere keeps
 its original index conflict; later normal saves, backups and Reload use the new
 file. See [save ownership](MERGE-SAVE-WORKFLOWS-PARITY.md#read-only-save-as-and-owned-save-decisions--october-16-2026).
+
+The [result-copy continuation](MERGE-SAVE-WORKFLOWS-PARITY.md#result-copy-savepoints-and-shared-source-writing--october-17-2026)
+records copy savepoints, own-target writes, patch input guards and background
+source/result export ownership. These extend the earlier target-binding checks.

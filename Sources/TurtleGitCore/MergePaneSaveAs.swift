@@ -41,7 +41,7 @@ extension MergePaneSaveAs {
         guard (try? FileManager.default.attributesOfItem(atPath:url.path)) != nil else {return false}
         return !FileManager.default.isWritableFile(atPath:url.path)
     }
-    /// An explicit Save As establishes a new normal-save target. Preserve the
+    /// Write a Save As copy; the caller decides whether to bind its pane. Preserve the
     /// selected existing regular file's mode and refuse links/read-only targets.
     public static func write(_ bytes:Data,to url:URL) throws {
         let manager=FileManager.default,location=url.standardizedFileURL

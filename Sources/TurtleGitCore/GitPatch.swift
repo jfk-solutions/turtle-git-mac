@@ -419,6 +419,26 @@ public struct WorkingTreePatchFileComparison: Sendable {
     fileprivate let review: WorkingTreePatchReview
     fileprivate let inputs: GitPathMap<ComparisonFileContent>
     fileprivate let outputs: GitPathMap<ComparisonFileContent>
+    // Save As may write one of our input paths without applying the patch.
+    // Keep the original inputs for new-file Add policy and historical panes;
+    // only these measured owned writes replace subsequent stale-write guards.
+    fileprivate var ownedWrites = GitPathMap<ComparisonFileContent>()
+    public func recordingOwnedWrite(_ saved:SavedMergePane) -> Self {
+        var next=self
+        for (path,_) in inputs {
+            let location=FileTransferPaths.fileURL(review.repositoryRoot.path+"/"+path).standardizedFileURL
+            if GitReferenceName.equal(location.path,saved.url.path) {
+                let content=saved.content
+                next.ownedWrites[path]=ComparisonFileContent(path:path,revision:.workingTree,bytes:content.bytes,mode:content.mode,permissions:content.permissions,encoding:content.encoding,isDeleted:content.isDeleted)
+            }
+        }
+        return next
+    }
+    fileprivate var currentInputs:GitPathMap<ComparisonFileContent> {
+        var current=inputs
+        for (path,content) in ownedWrites {current[path]=content}
+        return current
+    }
     /// Recorded version-control base used when the working file rejects the patch.
     public let recoveryBase: ComparisonFileContent?
     public let textEncodingPolicy:MergeTextEncodingPolicy?
@@ -612,8 +632,9 @@ extension GitRepository {
     private func savePatchOutputs(_ comparison:WorkingTreePatchFileComparison,outputs:GitPathMap<ComparisonFileContent>,autoAddNewFiles:Bool,message:String,cancellation:OperationCancellation?) throws -> WorkingTreePatchSaveResult {
         try cancellation?.check()
         guard comparison.review.repositoryRoot == root,let destination = outputs[comparison.document.destination.path] else {throw WorkingTreePatchFailure.review}
+        let inputs=comparison.currentInputs
         func validateInputs() throws {
-            for (path, expected) in comparison.inputs {
+            for (path, expected) in inputs {
                 try cancellation?.check()
                 let location = try workingTreePatchLocation(path)
                 var parent = location.deletingLastPathComponent()
@@ -651,7 +672,7 @@ extension GitRepository {
             }
             return try run(location + ["write-tree"], environmentOverrides: environment, cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         }
-        let before = try tree(comparison.inputs), after = try tree(outputs)
+        let before = try tree(inputs), after = try tree(outputs)
         let patch = try run(location + ["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", before, after], environmentOverrides: environment, cancellation: cancellation).stdout
         try validateInputs()
         var output = message

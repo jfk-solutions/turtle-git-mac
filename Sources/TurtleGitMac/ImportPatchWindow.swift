@@ -1196,7 +1196,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             guard let self,let next,!self.retired,let document = next.document else {throw OperationCancellationFailure.cancelled}
             do {
                 try self.checkAccess()
-                let saved = try await self.repository.saveWorkingTreePatchFile(comparison,text:text,encoding:encoding,autoAddNewFiles:MergeEditorPreferences.load(from:self.preferences).autoAdd,cancellation:cancellation)
+                let saved = try await self.repository.saveWorkingTreePatchFile(next.patchComparison ?? comparison,text:text,encoding:encoding,autoAddNewFiles:MergeEditorPreferences.load(from:self.preferences).autoAdd,cancellation:cancellation)
                 self.onChanged(saved.output)
                 if !self.retired {
                     self.appliedPaths.insert(Data(comparison.document.destination.path.utf8));self.output += saved.output

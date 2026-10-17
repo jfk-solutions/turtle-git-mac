@@ -51,3 +51,10 @@ signed/container grants and full upstream/application parity remain open.
 The subsequent [source target batch](qa/save-as-targets-2026-10-15.json) records
 source Save As rebinding, later Save/Reload and owner-approved Quit Save checks,
 with remaining acceptance limits.
+
+
+The [result-copy and shared writer continuation](MERGE-SAVE-WORKFLOWS-PARITY.md#result-copy-savepoints-and-shared-source-writing--october-17-2026)
+adds a clean result-copy baseline while retaining the original normal Save path.
+Source and result copies now share the permission-preserving guarded writer and
+background write/readback ownership; original patch inputs overwritten by an
+owned Save As are adopted without dropping guards on other paths.

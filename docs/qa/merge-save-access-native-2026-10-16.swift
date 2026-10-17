@@ -106,8 +106,9 @@ struct MergeSaveAccessVerification {
         model.exportSource(mine:false);answer?(.OK);try await SaveAsTargetsVerification.wait([window]) {!model.exportingSource}
         try require(model.sourceTargetURL(mine:false)==source,"Source Save As did not bind")
         model.result="related grant\n";model.chooseStandaloneOutput={_,_ in sourceFolder.appendingPathComponent("merged")};completed=nil
+        try await SaveAsTargetsVerification.wait([window]) {model.sourceToolsAllowed}
         model.export();try await SaveAsTargetsVerification.wait([window]) {!model.busy}
-        try require(asks==2 && model.workingMergeOutput?.deletingLastPathComponent().path==sourceFolder.path,"Related exported-source folder scope not reused")
+        try require(asks==2 && model.workingMergeOutput?.deletingLastPathComponent().path==sourceFolder.path,"Related exported-source folder scope not reused: asks=\(asks), target=\(String(describing:model.workingMergeOutput)), error=\(String(describing:model.error)), ready=\(model.nativeEditorReady)")
         var reply:CheckedContinuation<URL?,Never>?
         exporter.selectedURL={_ in late};exporter.saveFolderAccess.chooseFolder={_,_ in await withCheckedContinuation {reply=$0}}
         model.exportSource(mine:true);answer?(.OK);try await SaveAsTargetsVerification.wait([window]) {reply != nil}

@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-17",
+  "scope": "Repository result-copy savepoints, shared source/result Save As writer, owned patch-input adoption and normal-save Add-failure baseline",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "source": "src/TortoiseMerge/MainFrm.cpp",
+    "semantics": "FileSaveAs passes a selected path to SaveFile without rebinding the merged filename; SaveFile marks the result clean.",
+    "blob": "0d5d08525a1ee6a3f8bfa5f15cff9bf6bcba1138"
+  },
+  "validation": {
+    "state": "passed locally, grouped and affected-case repairs",
+    "core": {
+      "log": "build/qa/merge-result-copy-core-2026-10-17.log",
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'WorkingPatchPathTests|WorkingTreePatchReviewTests|TextConflictTests|MergePaneSaveAsTests|SavedMergePaneTests'",
+      "passed": 46,
+      "failures": 0,
+      "first_pass": true
+    },
+    "build": {
+      "log": "build/qa/merge-result-copy-build-2026-10-17.log",
+      "exit_code": 0,
+      "first_pass": true,
+      "diagnostics": "Existing simulator-version, exit-zero Swift frontend, unused value and unreachable catch diagnostics; not a clean-warning build."
+    },
+    "native": {
+      "passed_cumulatively": 9,
+      "groups": {
+        "access": [
+          "system",
+          "bundled 2.55.0"
+        ],
+        "ownership": [
+          "system",
+          "bundled 2.55.0"
+        ],
+        "targets": [
+          "system",
+          "bundled 2.55.0"
+        ],
+        "source": [
+          "system"
+        ],
+        "copy": [
+          "system",
+          "bundled 2.55.0"
+        ]
+      },
+      "accepted_logs": [
+        "build/qa/merge-result-copy-native-ready-2026-10-17.log (six access/ownership/targets cases before source failure)",
+        "build/qa/merge-result-copy-native-final-2026-10-17.log (source case before copy fixture timeout)",
+        "build/qa/merge-result-copy-native-copy-2026-10-17.log (both copy cases)"
+      ],
+      "failures_and_repairs": [
+        {
+          "receiver": 91423,
+          "log": "build/qa/merge-result-copy-native-2026-10-17.log",
+          "failure": "Related exported-source folder scope not reused",
+          "repair": "Existing access fixture changed result then dispatched export before native presentation was ready; wait sourceToolsAllowed before dispatch. App unchanged."
+        },
+        {
+          "receiver": 91848,
+          "log": "build/qa/merge-result-copy-native-ready-2026-10-17.log",
+          "failure": "Merged export gate unavailable",
+          "repair": "Mount source-tools owner and wait for native editor readiness after direct fixture mutations. App unchanged."
+        },
+        {
+          "receiver": 91886,
+          "log": "build/qa/merge-result-copy-native-final-2026-10-17.log",
+          "failure": "Timed out at copy fixture line 58 after successful Add-failure assertions",
+          "repair": "Expected error alert still owned its sheet; fixture now clicks actual OK after each expected failure before dispatching later commands. App unchanged."
+        }
+      ],
+      "checks": [
+        "Copy Cancel and duplicate panel answer",
+        "UTF-16 BOM/CRLF copy bytes and retained original/index",
+        "Executable destination mode and no backup",
+        "Clean copied draft; later edit dirty; return to savepoint clean",
+        "Subsequent normal Save uses original target",
+        "Original-path copy adopts actual working snapshot",
+        "Add failure retains saved file baseline and unresolved index",
+        "Read-only and symlink refusal",
+        "Explicit empty Save As creates empty file",
+        "Held background writer allows main actor and guards Close/Quit",
+        "Retirement cancels held writer and prevents savepoint publication",
+        "Retained source/target/access ownership and backup/reload cases"
+      ]
+    },
+    "resources": {
+      "receivers": [
+        91423,
+        91539,
+        91548,
+        91561,
+        91618,
+        91702,
+        91791,
+        91848,
+        91877,
+        91886,
+        92012,
+        92075
+      ],
+      "cleanup": "Driver reaped each process; independent ps absence audit follows below",
+      "independent_ps_audit": "All 12 receiver PIDs absent after grouped checks, including all three failed attempts."
+    },
+    "documentation": {
+      "site_documents": 284,
+      "unresolved_fragments": [],
+      "localizations": {
+        "languages": 38,
+        "keys": 1240
+      },
+      "coverage": {
+        "dialogs": 130,
+        "partial": 120,
+        "pending_review": 10,
+        "certified": 0,
+        "mapped_controls": 1566,
+        "pending_controls": 93
+      },
+      "note": "Use existing build/site-venv for local site build; system Python lacks markdown_it. No new screenshots; behavior/ownership changes, no layout change."
+    }
+  },
+  "limits": [
+    "No complete application or all-dialog parity certification",
+    "No physical panel or Undo-gesture acceptance in this batch",
+    "No signed installed sandbox/Finder or App Store acceptance",
+    "Cancellation cannot undo a completed atomic write",
+    "No exclusive external-writer lock or multi-file transaction"
+  ],
+  "implementation": [
+    "Captured text/encoding/line-ending/conflict-choice copy savepoint without rebinding repository normal Save",
+    "Owned original-result and bound-source snapshot adoption",
+    "Owned patch-input overlays preserve original before/after and new-file Add policy while retaining other stale guards",
+    "Background guarded source/result writer and readback, retained file/folder scopes and retired callback fences",
+    "Successful file write remains clean if subsequent Git Add fails"
+  ]
+}

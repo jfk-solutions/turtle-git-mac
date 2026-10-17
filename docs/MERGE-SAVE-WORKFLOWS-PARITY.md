@@ -99,8 +99,9 @@ A repository conflict saved to a different file retains its original worktree an
 index conflict. The new result target gets later Save/Reload, backup, empty-file
 Delete/Keep and recreation behavior; Mark as resolved is disabled for that target.
 The window and result caption name the chosen file. Ordinary repository result
-export remains a separate copy until a result target has been rebound; complete
-unification of all explicit result-export commands remains open.
+Save As remains a separate copy until a result target has been rebound. This
+distinction follows FileSaveAs versus source-pane SaveFileTo; those commands
+should not all rebind the result target.
 
 Initial Save As writes an empty regular file without Delete/Keep or backup. Normal
 saves ask the existing empty-file question and honor Backup original file. Automatic
@@ -179,3 +180,41 @@ used in Store builds, with injected grants. All eleven owned receiver processes
 were reaped and independently absent. Core sources were unchanged, so its suite
 was not repeated. Build repairs and the signed/physical acceptance limits are
 recorded separately; no full hosted or signed Store pass is claimed.
+
+
+## Result-copy savepoints and shared source writing — October 17, 2026
+
+Pinned `MainFrm.cpp::FileSaveAs` calls `SaveFile(fileName)` without changing the
+merged filename. `SaveFile` clears the modified flag and marks the history's
+original state. Repository-conflict result Save As now records the captured
+text, encoding, line-ending and conflict-choice state as a clean savepoint,
+while normal Save continues to target the original working file. Edits become
+dirty against that savepoint; returning to it becomes clean. History is retained.
+An external copy does not resolve or stage the original conflict. Saving over the
+original file adopts the actual written snapshot so the next Save does not reject
+our own write as external. Source/result overlaps update bound source snapshots.
+
+Patch comparisons separately retain measured owned writes to input paths for
+later stale-file checks and patch construction. Their original before/after
+panes and new-file Add policy stay intact. Untouched paths and external changes
+after the copy remain guarded. A copy to an external path does not apply the
+patch or mark it completed. The parent uses the editor's current comparison when
+normal PatchSave is subsequently requested.
+
+Source and repository-result copies share the guarded atomic Save As writer.
+Existing executable mode is preserved; read-only, symlink and non-regular
+outputs are refused. Empty Save As creates a file and creates no backup.
+Serialization is captured before the panel; writing and successful-save readback
+run off the main actor. The selected file and covering folder scopes remain
+retained through the callback. Close/Quit are guarded during a held write;
+retirement cancels pending work and prevents late UI publication. Cancellation
+cannot roll back an atomic filesystem write that already completed.
+
+A normal repository save that writes successfully but then fails to stage records
+that actual file as saved, reports the Add failure and leaves the index conflict
+unresolved. It no longer carries a stale dirty baseline for the successful write.
+
+Grouped verification is recorded in
+[the batch record](qa/merge-result-copy-savepoint-2026-10-17.json). Physical panels,
+Undo gestures, source alias variants, signed folder scopes and installed Finder
+acceptance remain open; this does not certify complete merge or application parity.

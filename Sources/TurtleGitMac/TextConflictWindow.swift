@@ -380,16 +380,19 @@ private enum MergeSourceSide {
         do {
             let encoding = (mine ? document.mineEncoding : document.theirsEncoding) ?? document.encoding
             let bytes = try MergePaneSaveAs.sourceBytes(rows: sourceComparison.rows, mine: mine, encoding: encoding)
+            let generation=loadGeneration
             let name = sourceTargets[mine]?.url.lastPathComponent ?? (mine ? "Mine-" : "Theirs-") + (path as NSString).lastPathComponent
             sourceExporter.save(bytes, name: name, owner: window) { [weak self] url, lease in
-                guard let self, !self.retired else { return }
-                let target = try SavedMergePane(url: url, writtenBytes: bytes, encoding: encoding)
+                let target=try await Task.detached {try SavedMergePane(url:url,writtenBytes:bytes,encoding:encoding)}.value
+                guard let self,!self.retired,self.loadGeneration==generation else{return}
                 if let workingMerge = self.workingMerge { try await workingMerge.bindSource(mine: mine, target: target) }
-                guard !self.retired else { return }
+                guard !self.retired,self.loadGeneration==generation else {return}
+                self.patchComparison=self.patchComparison?.recordingOwnedWrite(target)
                 self.sourceTargets[mine] = target; self.workingMergePermissions.append(lease)
                 let output = self.mergedResultTarget?.url ?? (self.workingMerge == nil ? self.repository.root.appendingPathComponent(self.path).standardizedFileURL : self.workingMergeOutput)
-                if output?.standardizedFileURL.path == target.url.path, let current = self.document {
+                if let output,GitReferenceName.equal(output.standardizedFileURL.path,target.url.path),let current=self.document {
                     self.document = try current.recordingOwnedWorkingWrite(target.content)
+                    self.resultCopySavepoint=nil
                     if self.mergedResultTarget != nil {self.mergedResultTarget=target}
                     if self.workingMerge != nil { self.standaloneSavedResult = target.content.text; self.standaloneSavedEncoding = target.content.encoding }
                 }
@@ -555,6 +558,8 @@ private enum MergeSourceSide {
         regexList?.retire(); regexList = nil
         cancelEditorConfigReads()
     }
+    private struct ResultCopySavepoint {let text:String;let encoding:ComparisonTextEncoding}
+    private var resultCopySavepoint:ResultCopySavepoint?
     private var savedIgnoredConflicts: [IgnoredMergeConflict] = []
     private var savedSourceChoiceRevision: UInt64 = 0
     private(set) var resultPresentationRevision = 0
@@ -754,11 +759,12 @@ private enum MergeSourceSide {
     var confirmUnresolvedSave: ((String) -> Bool)?
     var dirty: Bool {
         document.map { document in
-            let previous: String
-            if workingMerge == nil { previous = document.initialResult }
-            else if workingMergeOutput != nil { previous = standaloneSavedResult ?? document.initialResult }
-            else { previous = document.workingContents.flatMap { document.encoding.decode($0) } ?? "" }
-            return resultLineEnding != savedResultLineEnding || !result.utf8.elementsEqual(previous.utf8) || resultPresentation.ignoredConflicts != savedIgnoredConflicts || resultPresentation.sourceChoiceRevision != savedSourceChoiceRevision || encoding != (workingMergeOutput != nil ? standaloneSavedEncoding ?? document.encoding : document.encoding)
+            let previous:String,previousEncoding:ComparisonTextEncoding
+            if workingMerge == nil,mergedResultTarget == nil,let copy=resultCopySavepoint {previous=copy.text;previousEncoding=copy.encoding}
+            else if workingMerge == nil {previous=document.initialResult;previousEncoding=document.encoding}
+            else if workingMergeOutput != nil {previous=standaloneSavedResult ?? document.initialResult;previousEncoding=standaloneSavedEncoding ?? document.encoding}
+            else {previous=document.workingContents.flatMap{document.encoding.decode($0)} ?? "";previousEncoding=document.encoding}
+            return resultLineEnding != savedResultLineEnding || !result.utf8.elementsEqual(previous.utf8) || resultPresentation.ignoredConflicts != savedIgnoredConflicts || resultPresentation.sourceChoiceRevision != savedSourceChoiceRevision || encoding != previousEncoding
         } ?? false
     }
     @Published private(set) var formatPending = false
@@ -926,7 +932,7 @@ private enum MergeSourceSide {
         }
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
-        resetHistory(); canUndo = false; canRedo = false
+        resetHistory(); canUndo = false; canRedo = false;resultCopySavepoint=nil
         document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, states: comparison.resultLocator?.states ?? [], foldAnchors: .init(offsets: comparison.resultAnchors), ignoredConflicts: comparison.ignoredConflicts, navigationMap: comparison.navigationMap).reconciling(next.initialResult); result = next.initialResult; encoding = next.encoding
         savedIgnoredConflicts = resultPresentation.ignoredConflicts
         savedSourceChoiceRevision = resultPresentation.sourceChoiceRevision
@@ -1221,21 +1227,42 @@ private enum MergeSourceSide {
                     let next=try await repository.saveTextConflict(document,result:text,markResolved:markResolved,encoding:outputEncoding,options:options,ignoredConflictsResolved:ignoredResolved,cancellation:token)
                     try ensureSave(token);self.document=next
                 }
+                resultCopySavepoint=nil
                 savedIgnoredConflicts=ignoredSnapshot;savedSourceChoiceRevision=choiceSnapshot;savedResultLineEnding=endingSnapshot
                 onChanged(markResolved && !choosingRepositoryCopy ? "Resolved: " + path : "Saved merged result: " + resultPath)
                 if markResolved && !choosingRepositoryCopy || closeAfter {close()}
                 else if reloadAfter {try await reloadDocument(filterName:regexFilterName,cancellation:token)}
                 saved=true
             } catch let failure as TextConflictSaveFailure {
-                if !retired,!token.isCancelled {self.document=failure.savedDocument;self.error=failure.localizedDescription;onChanged(failure.localizedDescription)}
+                if !retired,!token.isCancelled {self.document=failure.savedDocument;resultCopySavepoint=nil;savedIgnoredConflicts=ignoredSnapshot;savedSourceChoiceRevision=choiceSnapshot;savedResultLineEnding=endingSnapshot;self.error=failure.localizedDescription;onChanged(failure.localizedDescription)}
             } catch {if !retired,!token.isCancelled {self.error=error.localizedDescription}}
         }
     }
     func export() {
         guard sourceToolsAllowed, let window else { return }
         if workingMerge != nil || mergedResultTarget != nil { save(markResolved: false, chooseNewOutput: true); return }
-        do { sourceExporter.save(try encoding.encode(result), name: (path as NSString).lastPathComponent, owner: window, warning: hasUnresolvedConflicts ? "Save with unresolved conflicts?" : nil) }
-        catch { self.error = error.localizedDescription }
+        let text=result,outputEncoding=encoding,ignored=resultPresentation.ignoredConflicts,choice=resultPresentation.sourceChoiceRevision,ending=resultLineEnding,generation=loadGeneration
+        do {
+            let bytes=try outputEncoding.encode(text)
+            sourceExporter.save(bytes,name:(path as NSString).lastPathComponent,owner:window,warning:hasUnresolvedConflicts ? "Save with unresolved conflicts?":nil) { [weak self] url,_ in
+                let written=try await Task.detached {try SavedMergePane(url:url,writtenBytes:bytes,encoding:outputEncoding)}.value
+                guard let self,!self.retired,self.loadGeneration==generation else{return}
+                // FileSaveAs writes a copy and marks the current result clean;
+                // it does not change the repository/patch's normal-save target.
+                let original=self.repository.root.appendingPathComponent(self.path).standardizedFileURL
+                self.patchComparison=self.patchComparison?.recordingOwnedWrite(written)
+                if GitReferenceName.equal(written.url.path,original.path),let document=self.document {
+                    self.document=try document.recordingOwnedWorkingWrite(written.content)
+                    self.resultCopySavepoint=nil
+                    self.onChanged("Saved merged result: "+self.resultPath)
+                } else {self.resultCopySavepoint=ResultCopySavepoint(text:text,encoding:outputEncoding)}
+                for (side,target) in self.sourceTargets where GitReferenceName.equal(target.url.path,written.url.path) {
+                    self.sourceTargets[side]=try target.recording(written.content)
+                }
+                self.savedIgnoredConflicts=ignored;self.savedSourceChoiceRevision=choice;self.savedResultLineEnding=ending
+                self.objectWillChange.send()
+            }
+        } catch { self.error = error.localizedDescription }
     }
 
 }

@@ -17,6 +17,9 @@ import TurtleGitCore
     var present: (NSSavePanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, owner, completion in panel.beginSheetModal(for: owner, completionHandler: completion) }
     var presentQuestion: (NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { alert, owner, completion in alert.beginSheetModal(for: owner, completionHandler: completion) }
     var selectedURL: (NSSavePanel) -> URL? = { $0.url }
+    var write: @Sendable (Data,URL,OperationCancellation) throws -> Void = { bytes,url,token in
+        try token.check();try MergePaneSaveAs.write(bytes,to:url)
+    }
     func save(_ bytes: Data, name: String, owner: NSWindow, warning: String? = nil, didSave: (@MainActor (URL, RepositoryAccessLease) async throws -> Void)? = nil) {
         guard !retired, !writing, panel == nil, question == nil, owner.attachedSheet == nil else { return }
         window = owner; stateChanged(true)
@@ -52,7 +55,10 @@ import TurtleGitCore
                     // containing-folder permission for later Save/backup writes.
                     let covering=existing.filter {$0.permits(url) && $0.permits(url.deletingLastPathComponent())}
                     let retained=lease.retainingRelatedScopes(acquired+covering)
-                    try withExtendedLifetime(retained) {try bytes.write(to:url,options:.atomic)}
+                    defer {withExtendedLifetime(retained) {}}
+                    let writer=self.write
+                    try await Task.detached(priority:.userInitiated) {try writer(bytes,url,token)}.value
+                    try token.check()
                     if !self.retired {try await didSave?(url,retained)}
                 }
                 catch { if !self.retired { self.failure(error.localizedDescription) } }

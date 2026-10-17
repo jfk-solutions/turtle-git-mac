@@ -15,7 +15,7 @@ struct MergeSourceToolsNativeVerification {
         for (url, text) in zip([base, mine, theirs], originals) { try Data(text.utf8).write(to: url) }
         let controller = TextConflictWindowController(repository: GitRepository(root: folder), access: nil, path: "source.cpp", workingMerge: try WorkingTextMerge(base: base, theirs: theirs, mine: mine), preferences: prefs)
         defer { controller.close() }
-        let model = controller.model; model.load()
+        let model = controller.model;controller.window!.alphaValue=0;controller.window!.orderFront(nil);model.load()
         try await ThreePaneEngineVerification.wait { !model.busy && model.document != nil }
         guard let document = model.document, let rows = model.sourceComparison?.rows else { throw Failure(message: "No source document") }
         var answer: ((NSApplication.ModalResponse) -> Void)?
@@ -43,12 +43,14 @@ struct MergeSourceToolsNativeVerification {
         child.close(); try require(!FileManager.default.fileExists(atPath: snapshotRoot.path), "Source comparison leaked private snapshots")
         model.workingMerge = nil
         target = folder.appendingPathComponent("result.out"); model.encoding = .utf16LEBOM; model.result = "captured merged 🐢\r\n"; let result = model.result
+        try await ThreePaneEngineVerification.wait {controller.window?.contentView?.layoutSubtreeIfNeeded();return model.sourceToolsAllowed}
         try require(model.sourceToolsAllowed, "Merged export gate: retired=\(model.retired), busy=\(model.busy), preparing=\(model.preparing), exporting=\(model.exportingSource), sheet=\(String(describing: model.window?.attachedSheet)), document=\(model.document != nil)")
         model.export()
         try require(model.sourceExporter.panel != nil && model.exportingSource, "Merged export did not present owned panel: \(String(describing: model.error))")
         answer?(.OK)
         try await ThreePaneEngineVerification.wait { !model.exportingSource }
         try require(try Data(contentsOf: target) == model.encoding.encode(result), "Merged export bytes differ")
+        try await ThreePaneEngineVerification.wait {controller.window?.contentView?.layoutSubtreeIfNeeded();return model.sourceToolsAllowed}
         target = folder.appendingPathComponent("late.out"); model.exportSource(mine: true); model.retire(); answer?(.OK)
         try require(!FileManager.default.fileExists(atPath: target.path) && model.sourceExporter.panel == nil, "Retired export accepted late answer")
         for (url, text) in zip([base, mine, theirs], originals) { try require(try Data(contentsOf: url) == Data(text.utf8), "Source tool modified input") }

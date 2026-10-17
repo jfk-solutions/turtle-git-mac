@@ -26,6 +26,38 @@ final class WorkingPatchPathTests:XCTestCase {
         _=try await repo.run(["read-tree","HEAD"])
         return (root,repo,patch,base,changed)
     }
+    func testOwnedRenameDestinationCopyRetainsSourceGuardsAndLaterPatchSave() async throws {
+        let (root,repo,patch,_,_)=try await fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let review=try await repo.reviewWorkingTreePatch(patch),comparison=try await repo.compareWorkingTreePatchFile(review,fileID:0)
+        let output=FileTransferPaths.fileURL(root.path+"/"+new),copy=Data("owned copy\n".utf8)
+        try FileManager.default.createDirectory(at:output.deletingLastPathComponent(),withIntermediateDirectories:true)
+        try MergePaneSaveAs.write(copy,to:output)
+        let updated=comparison.recordingOwnedWrite(try SavedMergePane(url:output,writtenBytes:copy,encoding:.utf8))
+        XCTAssertEqual(updated.document.base.bytes,comparison.document.base.bytes)
+        XCTAssertEqual(updated.document.destination.bytes,comparison.document.destination.bytes)
+        _=try await repo.saveWorkingTreePatchFile(updated,text:"later resolved\n",autoAddNewFiles:false)
+        XCTAssertEqual(try Data(contentsOf:output),Data("later resolved\n".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath:FileTransferPaths.fileURL(root.path+"/"+old).path))
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+    func testOwnedCopyRetainsExternalGuardsAndOriginalNewFileAddPolicy() async throws {
+        let (root,repo,patch,_,_)=try await fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let review=try await repo.reviewWorkingTreePatch(patch),comparison=try await repo.compareWorkingTreePatchFile(review,fileID:0)
+        let output=FileTransferPaths.fileURL(root.path+"/"+new),source=FileTransferPaths.fileURL(root.path+"/"+old),copy=Data("owned copy\n".utf8),original=try Data(contentsOf:source)
+        try FileManager.default.createDirectory(at:output.deletingLastPathComponent(),withIntermediateDirectories:true)
+        try MergePaneSaveAs.write(copy,to:output)
+        let updated=comparison.recordingOwnedWrite(try SavedMergePane(url:output,writtenBytes:copy,encoding:.utf8))
+        try Data("external source\n".utf8).write(to:source)
+        do {_=try await repo.saveWorkingTreePatchFile(updated,text:"resolved\n");XCTFail("Lost untouched source guard")} catch FileComparisonEditFailure.changed {}
+        try original.write(to:source);try Data("external destination\n".utf8).write(to:output)
+        do {_=try await repo.saveWorkingTreePatchFile(updated,text:"resolved\n");XCTFail("Lost adopted destination guard")} catch FileComparisonEditFailure.changed {}
+        try copy.write(to:output)
+        let saved=try await repo.saveWorkingTreePatchFile(updated,text:"resolved\n")
+        XCTAssertNil(saved.addError)
+        let staged=try await repo.run(["show",":"+new]).stdout
+        XCTAssertEqual(staged,Data("resolved\n".utf8))
+    }
     func testRenamePreviewEditedSaveAndReversePreserveExactNamesAndIndex() async throws {
         let (root,repo,patch,base,changed)=try await fixture();defer {try? FileManager.default.removeItem(at:root)}
         let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),head=try await repo.run(["rev-parse","HEAD"]).stdout
