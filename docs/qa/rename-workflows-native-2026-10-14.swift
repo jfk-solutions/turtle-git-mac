@@ -19,7 +19,7 @@ import TurtleGitCore
         let helper=root.appendingPathComponent("gated-mv"),marker=root.appendingPathComponent(".git/mv-ready")
         let script = #"""
         #!/bin/sh
-        if [ "$4" = mv ];then
+        if [ "$4" = -c ] && [ "$5" = core.precomposeunicode=false ] && [ "$6" = mv ];then
           printf 'Rename: 10%%\rRename: 35%%\r\n'
           : > "$3/.git/mv-ready"
           while :;do /bin/sleep 0.05;done

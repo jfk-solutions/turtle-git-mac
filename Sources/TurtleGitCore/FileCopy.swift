@@ -12,7 +12,7 @@ public struct FileCopyPlan: Sendable {
     public let targetDirectory: Bool
     public let sourceDirectory: Bool
     let sourceStamp: FileMoveFingerprint
-    let sourceTree: [String: FileMoveFingerprint]
+    let sourceTree: GitPathMap<FileMoveFingerprint>
     let targetStamp: FileMoveFingerprint?
 }
 public struct CopiedRepository: Sendable {
@@ -28,16 +28,18 @@ extension GitRepository {
         try cancellation?.check()
         guard source.isFileURL, !source.path.contains("\0"), !source.pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }) else { throw FileMoveFailure.selection }
         let folder = try fileMoveDestination(folder, cancellation: cancellation)
-        let source = source.standardizedFileURL
+        let source = FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(source.path))
         let proposed = name ?? source.lastPathComponent
         guard !proposed.isEmpty, proposed != ".", proposed != "..", !proposed.contains("/"), !proposed.contains("\0"), proposed.caseInsensitiveCompare(".git") != .orderedSame else { throw FileMoveFailure.name }
-        let target = folder.appendingPathComponent(proposed)
+        let requested = FileTransferPaths.fileURL(folder.path + "/" + proposed)
+        let relative = String(requested.path.dropFirst(root.path.count + 1))
+        let destination = try fileTransferIndex(cancellation:cancellation).resolving(relative)
+        let target = root.appendingPathComponent(destination)
         let sourcePhysical = source.deletingLastPathComponent().resolvingSymlinksInPath().appendingPathComponent(source.lastPathComponent)
-        let targetPhysical = folder.resolvingSymlinksInPath().appendingPathComponent(proposed)
+        let targetPhysical = target.deletingLastPathComponent().resolvingSymlinksInPath().appendingPathComponent(target.lastPathComponent)
         guard sourcePhysical.path != targetPhysical.path else { throw FileMoveFailure.unchanged }
         let stamp = try FileMoveFingerprint(FileManager.default.attributesOfItem(atPath: source.path))
         guard stamp.type != FileAttributeType.typeDirectory.rawValue || !targetPhysical.path.hasPrefix(sourcePhysical.path + "/") else { throw FileMoveFailure.destination }
-        let destination = String(target.path.dropFirst(root.path.count + 1))
         _ = try RemovalRequest(paths: [destination], keepLocal: true)
         let targetStamp = try (try? FileManager.default.attributesOfItem(atPath: target.path)).map(FileMoveFingerprint.init)
         if let targetStamp, targetStamp.inode == stamp.inode && targetStamp.device == stamp.device { throw FileMoveFailure.unchanged }
@@ -48,21 +50,21 @@ extension GitRepository {
     /// Copy first, add second. Failed/cancelled add leaves copied files for recovery.
     /// Metadata choices affect only the new destination, never the original tree.
     public func copyWorkingItem(_ plan: FileCopyPlan, overwrite: Bool, cancellation: OperationCancellation? = nil) throws -> FileCopyResult {
-        let fresh = try prepareFileCopy(source: plan.source, to: plan.folder, name: (plan.destination as NSString).lastPathComponent, cancellation: cancellation)
-        guard fresh.sourceTree == plan.sourceTree, fresh.sourceStamp == plan.sourceStamp, fresh.targetStamp == plan.targetStamp, fresh.destination == plan.destination else { throw FileMoveFailure.changed }
+        let fresh = try prepareFileCopy(source: plan.source, to: plan.folder, name: plan.destination.split(separator:"/").last.map(String.init), cancellation: cancellation)
+        guard fresh.sourceTree == plan.sourceTree, fresh.sourceStamp == plan.sourceStamp, fresh.targetStamp == plan.targetStamp, GitReferenceName.equal(fresh.destination,plan.destination) else { throw FileMoveFailure.changed }
         guard !fresh.targetDirectory, !fresh.occupied || overwrite else { throw FileMoveFailure.occupied }
         let target = root.appendingPathComponent(plan.destination), temporary = plan.folder.appendingPathComponent(".TurtleGit-copy-" + UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: temporary) }
         try cancellation?.check(); try copyTree(plan.source, to: temporary, cancellation: cancellation); try cancellation?.check()
-        let last = try prepareFileCopy(source: plan.source, to: plan.folder, name: target.lastPathComponent, cancellation: cancellation)
-        guard last.sourceTree == plan.sourceTree, last.sourceStamp == plan.sourceStamp, last.targetStamp == plan.targetStamp else { throw FileMoveFailure.changed }
+        let last = try prepareFileCopy(source: plan.source, to: plan.folder, name: plan.destination.split(separator:"/").last.map(String.init), cancellation: cancellation)
+        guard last.sourceTree == plan.sourceTree, last.sourceStamp == plan.sourceStamp, last.targetStamp == plan.targetStamp, GitReferenceName.equal(last.destination,plan.destination) else { throw FileMoveFailure.changed }
         if fresh.occupied {
             guard Darwin.rename(temporary.path, target.path) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
         } else { try FileManager.default.moveItem(at: temporary, to: target) }
         return FileCopyResult(destination: plan.destination, repositories: try copiedRepositories(plan.destination, cancellation: cancellation))
     }
-    private func copyTreeSnapshot(_ source: URL, cancellation: OperationCancellation?) throws -> [String: FileMoveFingerprint] {
-        var result: [String: FileMoveFingerprint] = [:]
+    private func copyTreeSnapshot(_ source: URL, cancellation: OperationCancellation?) throws -> GitPathMap<FileMoveFingerprint> {
+        var result = GitPathMap<FileMoveFingerprint>()
         func visit(_ url: URL, relative: String) throws {
             try cancellation?.check(); let stamp = try FileMoveFingerprint(FileManager.default.attributesOfItem(atPath: url.path)); result[relative] = stamp
             if stamp.type == FileAttributeType.typeDirectory.rawValue {
@@ -99,19 +101,21 @@ extension GitRepository {
     }
     public func removeCopiedGitMetadata(_ item: CopiedRepository, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check(); let location = try restoreLocation(item.path)
-        guard try copiedRepositories(item.path, cancellation: cancellation).contains(where: { $0.path == item.path && $0.gitFile == item.gitFile }),
-              try run(["ls-files", "--stage", "-z", "--", item.path], cancellation: cancellation).stdout.isEmpty else { throw FileMoveFailure.changed }
+        guard try copiedRepositories(item.path, cancellation: cancellation).contains(where: { GitReferenceName.equal($0.path,item.path) && $0.gitFile == item.gitFile }),
+              try run(["-c","core.precomposeunicode=false","ls-files", "--stage", "-z", "--", item.path], cancellation: cancellation).stdout.isEmpty else { throw FileMoveFailure.changed }
         let names = try FileManager.default.contentsOfDirectory(atPath: location.path).filter { $0.caseInsensitiveCompare(".git") == .orderedSame }
         try cancellation?.check(); for name in names { try FileManager.default.removeItem(at: location.appendingPathComponent(name)) }
     }
     public func stageCopiedItem(_ destination: String, ignoredRepositories: [String], cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         _ = try RemovalRequest(paths: [destination], keepLocal: true)
         let remaining = try copiedRepositories(destination, cancellation: cancellation).map(\.path)
-        guard Set(remaining) == Set(ignoredRepositories) else { throw FileMoveFailure.changed }
+        guard GitPathSet(remaining) == GitPathSet(ignoredRepositories) else { throw FileMoveFailure.changed }
         var paths: [String] = []
+        let tracked = try fileTransferIndex(cancellation:cancellation)
         func visit(_ relative: String) throws {
+            let relative = try tracked.resolving(relative)
             try cancellation?.check()
-            guard !ignoredRepositories.contains(where: { relative == $0 || relative.hasPrefix($0 + "/") }) else { return }
+            guard !ignoredRepositories.contains(where: { FileTransferPaths.contains(relative,in:$0) }) else { return }
             let url = try restoreLocation(relative), type = try FileManager.default.attributesOfItem(atPath: url.path)[.type] as? FileAttributeType
             if type == .typeDirectory {
                 for name in try FileManager.default.contentsOfDirectory(atPath: url.path).sorted() {
@@ -124,19 +128,22 @@ extension GitRepository {
         var output = ""
         for start in stride(from: 0, to: paths.count, by: 128) {
             try cancellation?.check()
-            output += try run(["add", "--"] + Array(paths[start..<min(start + 128, paths.count)]), cancellation: cancellation, onOutput: onOutput).text
+            output += try run(["-c","core.precomposeunicode=false","add", "--"] + Array(paths[start..<min(start + 128, paths.count)]), cancellation: cancellation, onOutput: onOutput).text
         }
         return output
     }
     public func clipboardMovePaths(_ urls: [URL], cancellation: OperationCancellation? = nil) throws -> [String] {
-        var result: [String] = [], seen = Set<String>()
+        var result: [String] = [], seen = GitPathSet()
+        let tracked = try fileTransferIndex(cancellation:cancellation)
         for url in urls {
             try cancellation?.check()
             guard url.isFileURL else { throw FileMoveFailure.selection }
             let parent = try fileMoveDestination(url.deletingLastPathComponent(), cancellation: cancellation)
-            let path = String(parent.appendingPathComponent(url.lastPathComponent).path.dropFirst(root.path.count + 1))
+            let requested = String((parent.path + "/" + url.lastPathComponent).dropFirst(root.path.count + 1))
+            let path = try tracked.resolving(requested)
             _ = try RemovalRequest(paths: [path], keepLocal: true)
-            guard try !run(["ls-files", "--stage", "-z", "--", path], cancellation: cancellation).stdout.isEmpty else { throw FileMoveFailure.selection }
+            guard try !run(["-c","core.precomposeunicode=false","ls-files", "--stage", "-z", "--", path], cancellation: cancellation).stdout.isEmpty else { throw FileMoveFailure.selection }
+            for indexed in tracked.paths where FileTransferPaths.contains(indexed,in:path) { _ = try tracked.resolving(indexed) }
             if seen.insert(path).inserted { result.append(path) }
         }
         return result

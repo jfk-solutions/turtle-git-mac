@@ -67,3 +67,54 @@ diagnostic, so this does not verify signed grants. See
 Workspace and Working Tree local URL drops now offer the active pinned transfer
 choices and route captured external sources to Copy/Add. See
 [dropped-file transfer parity](FILE-DROP-TRANSFER-PARITY.md).
+
+## Exact Move/Copy/clipboard/drop identities — October 17, 2026
+
+The connected transfer continuation retains byte-exact source order through
+Copy/Add, Move, clipboard file URLs, captured Finder requests and dropped providers.
+Native source lists use exact Git identities, so Unicode peers occupy separate
+rows. Repeated identical paths still deduplicate. Source authorization matches
+selected URLs once each in captured order; a unique filesystem spelling can
+match one source, while ambiguous peers cannot borrow or duplicate a grant.
+
+A shared index-prefix catalog resolves filesystem-returned spellings only when
+the index supplies one identity. Move/Rename refuse ambiguous source subtrees
+before mutation. Copy/overwrite and Add retain an existing unique index spelling
+rather than adding a canonical peer. Case-insensitive volumes also check case
+aliases; canonical spelling aliases remain guarded on all volumes. Git ls-files,
+mv and add disable argument precomposition for those resolved exact paths.
+Normalization-only rename remains available for a unique source and updates the
+index name while preserving separate staged/working bytes. Destination inode
+checks distinguish an alias of that source from an occupied different file.
+
+Recursive copy preflight now uses an exact-keyed fingerprint map; ignored copied
+repository checks and staging exclusions use exact paths/component prefixes.
+Captured copy targets are compared exactly again before replacement. Move and
+Rename window cache keys retain raw source identities, and workspace callbacks
+remap only the exact moved path/subtree. The workspace overview's broader native
+selection storage is not migrated by this continuation.
+
+The source per-item failure/collision choices, captured destination, progress,
+cancellation, partial-success policy and original icons remain in use. This is
+a macOS filename-identity adaptation of the pinned DropMove/PasteMove/
+DropCopyAdd/PasteCopy workflows, not a new transactional transfer engine.
+See [transfer identity evidence](qa/file-transfer-identities-2026-10-17.json)
+for the grouped checkpoint. Physical drag/panel/Finder acceptance, filesystem
+ACL/xattr fidelity, race-free external mutation exclusion and signed sandbox
+acceptance remain open.
+
+Foundation file-URL construction was observed decomposing the composed spelling
+before identity comparison. Transfer URL construction and Finder request decoding
+now use URLComponents; lexical dot-component cleanup preserves raw path spelling.
+Rename builds its entered target lexically, and Move resolves the destination
+folder separately from the new leaf name. This prevents both accidental ancestor
+renames and loss of an explicit normalization-only rename.
+
+The current Debug build, 61 focused Core cases and all twelve native case/engine
+combinations passed. The first Core checkpoint failed three assertions because
+Foundation had already decomposed the original URL spelling; the correction and
+added destination-folder regression are recorded alongside those failed results.
+The native run retained all six families with system and bundled Git. All twelve
+owned receiver PIDs were reaped and independently absent. No full Core suite was
+rerun and no screenshot or full visual audit is added. Unsigned clipboard
+sandbox-extension diagnostics do not prove signed permission delivery.

@@ -785,7 +785,7 @@ import UniformTypeIdentifiers
         if fresh { controller.model.prepare() }
     }
     private func showRename(repository: GitRepository, access: RepositoryAccessLease?, source: String) {
-        let root = repository.root, key = root.path + "/" + source
+        let root = repository.root, key = GitPathRowIdentity.encode(root.path + "\0" + source)
         let controller = renameWindows[key] ?? RenameWindowController(repository: repository, access: access, source: source)
         controller.onClosed = { [weak self] in self?.renameWindows.removeValue(forKey: key) }
         controller.model.onRenamed = { [weak self] old, new, output in
@@ -793,7 +793,7 @@ import UniformTypeIdentifiers
             self.revertWindows[root.path]?.model.didRename(old,to:new); self.statusWindows[root.path]?.model.didRename(old, to: new)
             self.commitWindows[root.path]?.model.didRename(old, to: new)
             if self.root == root {
-                self.selection = Set(self.selection.map { $0 == old ? new : $0.hasPrefix(old + "/") ? new + $0.dropFirst(old.count) : $0 })
+                self.selection = Set(self.selection.map { FileTransferPaths.remapping($0,source:old,destination:new) })
                 self.output = output.isEmpty ? "Renamed \(old) to \(new)." : output
             }
         }
@@ -805,12 +805,12 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], clipboard: [URL]? = nil, destination: URL? = nil, renameFirst: Bool = false, stopOnError: Bool = true) {
-        let root = repository.root, key = root.path + "\0" + (clipboard == nil ? paths.joined(separator: "\0") : UUID().uuidString)
+        let root = repository.root, key = GitPathRowIdentity.encode(root.path + "\0" + (clipboard == nil ? paths.joined(separator: "\0") : UUID().uuidString))
         let controller = moveWindows[key] ?? FileMoveWindowController(repository: repository, access: access, paths: paths)
         controller.onClosed = { [weak self] in self?.moveWindows.removeValue(forKey: key) }
         controller.model.onMoved = { [weak self] old, new, text in
             guard let self else { return }; self.revertWindows[root.path]?.model.didRename(old,to:new); self.statusWindows[root.path]?.model.didRename(old, to: new); self.commitWindows[root.path]?.model.didRename(old, to: new)
-            if self.root == root { self.selection = Set(self.selection.map { $0 == old ? new : $0.hasPrefix(old + "/") ? new + $0.dropFirst(old.count) : $0 }); self.output = text.isEmpty ? "Moved \(old) to \(new)." : text }
+            if self.root == root { self.selection = Set(self.selection.map { FileTransferPaths.remapping($0,source:old,destination:new) }); self.output = text.isEmpty ? "Moved \(old) to \(new)." : text }
         }
         controller.model.onChanged = { [weak self] in
             self?.revertWindows[root.path]?.model.requestReload(); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)

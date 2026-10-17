@@ -20,7 +20,7 @@ public struct FinderRequest: Sendable {
     /// Menu eligibility and the captured request must use the same cardinality,
     /// order and literal-leaf normalization.
     public static func normalizedSelection(_ urls: [URL]) -> [URL] {
-        var seen = Set<String>()
+        var seen = GitPathSet()
         return urls.map(normalizedSelectionURL).filter { seen.insert($0.path).inserted }
     }
     private static func normalizedSelectionURL(_ url: URL) -> URL {
@@ -33,7 +33,10 @@ public struct FinderRequest: Sendable {
         while parent.path != "/", (try? FileManager.default.attributesOfItem(atPath: parent.path)) == nil {
             components.append(parent.lastPathComponent); parent.deleteLastPathComponent()
         }
-        return components.reversed().reduce(parent.standardizedFileURL) { $0.appendingPathComponent($1) }
+        let physicalParent = parent.standardizedFileURL.path
+        let literalParent = physicalParent == parent.path ? FileTransferPaths.lexicalPath(parent.path) : physicalParent
+        let path = components.reversed().reduce(literalParent) { $0 + ($0 == "/" ? "":"/") + $1 }
+        return FileTransferPaths.fileURL(path)
     }
     public init?(url: URL) {
         guard url.scheme == "turtlegit", url.host == "action",
@@ -54,7 +57,7 @@ public struct FinderRequest: Sendable {
         let sourceFields = fields.filter { $0.name == "source" }, sources = sourceFields.compactMap(\.value)
         guard sources.count == sourceFields.count, sources.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
               action.isFileTransfer ? paths.count == 1 && !sources.isEmpty && sources.count <= 256 && url.absoluteString.utf8.count <= 131072 : sources.isEmpty else { return nil }
-        self.init(action: action, paths: paths.map { URL(fileURLWithPath: $0) }, sources: sources.map { URL(fileURLWithPath: $0) }, alternateTool:alternateTool, requestPullEnd: endFields.first?.value, requestPullURL: urlFields.first?.value)
+        self.init(action: action, paths: paths.map { FileTransferPaths.fileURL($0) }, sources: sources.map { FileTransferPaths.fileURL($0) }, alternateTool:alternateTool, requestPullEnd: endFields.first?.value, requestPullURL: urlFields.first?.value)
     }
     public var url: URL? {
         guard !action.isMenuHeader, !paths.isEmpty || action.allowsEmptySelection,

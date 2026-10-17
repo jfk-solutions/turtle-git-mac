@@ -53,3 +53,5 @@ Clipboard Paste Move and native Copy/Add are now tracked in
 The native application drop consumer now preserves Move/Rename and Drop Move's
 Ignore/Abort recovery separately from clipboard Paste Move. See
 [dropped-file transfer parity](FILE-DROP-TRANSFER-PARITY.md).
+
+The connected [exact transfer identity continuation](FILE-TRANSFER-PARITY.md#exact-movecopyclipboarddrop-identities--october-17-2026) covers source rows, clipboard/drop capture, working-path resolution and Move/Rename/Copy/Add targets. Physical/signed and full dialog acceptance remain partial.

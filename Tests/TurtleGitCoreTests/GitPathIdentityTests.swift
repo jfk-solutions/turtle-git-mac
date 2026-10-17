@@ -316,4 +316,32 @@ final class GitPathIdentityTests: XCTestCase {
         XCTAssertEqual(GitPathOperationOrder.sorted(result.reversed()).map {Data($0.utf8)},result.map {Data($0.utf8)})
     }
 
+    func testTransferURLsPermissionsRequestsAndRemappingKeepExactIdentities() throws {
+        let root = URL(fileURLWithPath:"/tmp/TransferIdentity-"+UUID().uuidString)
+        let a = FileTransferPaths.fileURL(root.path + "/" + composed), b = FileTransferPaths.fileURL(root.path + "/" + decomposed)
+        XCTAssertEqual(FileTransferPaths.uniqueURLs([a,b,a]).map {GitReferenceName($0.path)},[GitReferenceName(a.path),GitReferenceName(b.path)])
+        let grants = try XCTUnwrap(FileTransferPaths.authorizedSources([b,a],for:[a,b]))
+        XCTAssertEqual(grants.map {GitReferenceName($0.path)},[GitReferenceName(a.path),GitReferenceName(b.path)])
+        XCTAssertNil(FileTransferPaths.authorizedSources([a,a],for:[a,b]))
+        XCTAssertNil(FileTransferPaths.authorizedSources([a],for:[a,b]))
+        XCTAssertNotNil(FileTransferPaths.authorizedSources([b],for:[a]))
+        let child = decomposed+"/child 雪\n"
+        XCTAssertEqual(GitReferenceName(FileTransferPaths.remapping(child,source:composed,destination:"moved")),GitReferenceName(child))
+        XCTAssertEqual(FileTransferPaths.remapping(child,source:decomposed,destination:"moved"),"moved/child 雪\n")
+        let request = FinderRequest(action:.pasteCopy,paths:[root],sources:[a,b,a])
+        XCTAssertEqual(request.sources.count,2)
+        let decoded = try XCTUnwrap(request.url.flatMap {FinderRequest(url:$0)})
+        XCTAssertEqual(decoded.sources.map {GitReferenceName($0.lastPathComponent)},[GitReferenceName(composed),GitReferenceName(decomposed)])
+    }
+    func testTransferIndexResolvesUniqueFilesystemSpellingAndRejectsAliases() throws {
+        let index = FileTransferIndex(paths:[composed+"/tracked", "other"])
+        XCTAssertEqual(GitReferenceName(try index.resolving(decomposed+"/new")),GitReferenceName(composed+"/new"))
+        let ambiguous = FileTransferIndex(paths:[composed+"/first",decomposed+"/second"])
+        XCTAssertThrowsError(try ambiguous.resolving(composed+"/first"))
+        let cases = FileTransferIndex(paths:["Case/a","case/b"],caseSensitive:false)
+        XCTAssertThrowsError(try cases.resolving("Case/a"))
+        let sensitive = FileTransferIndex(paths:["Case/a","case/b"],caseSensitive:true)
+        XCTAssertEqual(try sensitive.resolving("Case/a"),"Case/a")
+    }
+
 }

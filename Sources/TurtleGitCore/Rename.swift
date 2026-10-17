@@ -1,7 +1,7 @@
 import Foundation
 
 public enum RenameFailure: LocalizedError {
-    case name, outsideWorkingTree, unchanged, exists, source, changed
+    case name, outsideWorkingTree, unchanged, exists, source, changed, ambiguousPath
     public var errorDescription: String? {
         switch self {
         case .name: return "Enter a relative file or folder name."
@@ -10,6 +10,7 @@ public enum RenameFailure: LocalizedError {
         case .exists: return "A file or folder already exists at the destination."
         case .changed: return "The source, index or HEAD changed. Refresh before renaming."
         case .source: return "Select one existing versioned file or folder to rename."
+        case .ambiguousPath: return FileMoveFailure.ambiguousPath.localizedDescription
         }
     }
 }
@@ -23,22 +24,24 @@ public struct RenameOptions: Sendable {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, !name.hasPrefix("/"), !name.contains("\0"), !source.isEmpty,
               !source.hasPrefix("/"), !source.contains("\0") else { throw RenameFailure.name }
-        let sourceURL = root.appendingPathComponent(source).standardizedFileURL
-        let target = sourceURL.deletingLastPathComponent().appendingPathComponent(name).standardizedFileURL
         let base = root.standardizedFileURL.path
+        let sourcePath = FileTransferPaths.lexicalPath(base + "/" + source)
+        let parent = sourcePath.split(separator:"/").dropLast().joined(separator:"/")
+        let sourceURL = FileTransferPaths.fileURL(sourcePath)
+        let target = FileTransferPaths.fileURL(FileTransferPaths.lexicalPath("/" + parent + "/" + name))
         guard sourceURL.path.hasPrefix(base + "/"), target.path.hasPrefix(base + "/"),
               RepositoryAccessLease.pathIsContained(sourceURL.deletingLastPathComponent(), by: root),
               RepositoryAccessLease.pathIsContained(target.deletingLastPathComponent(), by: root) else { throw RenameFailure.outsideWorkingTree }
         let relative = String(target.path.dropFirst(base.count + 1))
         guard !source.components(separatedBy: "/").contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }),
               !relative.components(separatedBy: "/").contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }) else { throw RenameFailure.outsideWorkingTree }
-        guard target.path != sourceURL.path else { throw RenameFailure.unchanged }
+        guard !GitReferenceName.equal(target.path,sourceURL.path) else { throw RenameFailure.unchanged }
         return relative
     }
 }
 extension GitRepository {
     public func prepareRename(_ options: RenameOptions, cancellation: OperationCancellation? = nil) throws -> FileMovePlan {
-        try cancellation?.check(); let target = try options.destination(root: root), url = root.appendingPathComponent(target)
+        try cancellation?.check(); let target = try options.destination(root: root), url = FileTransferPaths.fileURL(root.path + "/" + target)
         do { return try prepareFileMove(source: options.source, to: url.deletingLastPathComponent(), name: url.lastPathComponent, cancellation: cancellation) }
         catch let failure as FileMoveFailure { throw renameFailure(failure) }
     }
@@ -50,15 +53,15 @@ extension GitRepository {
         try executeRename(prepareRename(options, cancellation: cancellation), cancellation: cancellation, onOutput: onOutput)
     }
     private func renameFailure(_ failure: FileMoveFailure) -> RenameFailure {
-        switch failure { case .selection: return .source; case .destination: return .outsideWorkingTree; case .name: return .name; case .occupied: return .exists; case .unchanged: return .unchanged; case .changed: return .changed }
+        switch failure { case .selection: return .source; case .destination: return .outsideWorkingTree; case .name: return .name; case .occupied: return .exists; case .unchanged: return .unchanged; case .changed: return .changed; case .ambiguousPath: return .ambiguousPath }
     }
     public func renameDestination(_ target: URL, source: String, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()
         guard target.isFileURL, !target.path.contains("\0") else { throw RenameFailure.outsideWorkingTree }
         let parent = try fileMoveDestination(target.deletingLastPathComponent(), cancellation: cancellation)
-        let resolved = parent.appendingPathComponent(target.lastPathComponent)
+        let resolved = FileTransferPaths.fileURL(parent.path + "/" + target.lastPathComponent)
         let base = root.appendingPathComponent(source).deletingLastPathComponent().pathComponents, parts = resolved.pathComponents
-        var shared = 0; while shared < min(base.count, parts.count), base[shared] == parts[shared] { shared += 1 }
+        var shared = 0; while shared < min(base.count, parts.count), GitReferenceName.equal(base[shared],parts[shared]) { shared += 1 }
         let relative = (Array(repeating: "..", count: base.count - shared) + parts.dropFirst(shared)).joined(separator: "/")
         _ = try RenameOptions(source: source, name: relative).destination(root: root); try cancellation?.check(); return relative
     }

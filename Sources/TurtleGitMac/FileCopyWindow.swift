@@ -10,12 +10,12 @@ import TurtleGitCore
     private var panel: NSOpenPanel?
     private var pending: (UUID, NSAlert, (Int) -> Void)?
     private(set) var name: FileCopyNameController?
-    init(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], folder: URL? = nil, paste: Bool = false, sourceProvider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(), preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], folder: URL? = nil, paste: Bool = false, sourceProvider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(), preferences: UserDefaults = .standard, savesGeometry:Bool = true) {
         model = FileCopyWindowModel(repository: repository, access: access, sources: sources, folder: folder, paste: paste, sourceProvider: sourceProvider, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 440), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Copy and Add", preferences: preferences); window.contentMinSize = NSSize(width: 650, height: 340); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: FileCopyDialog(model: model))
-        super.init(window: window); window.delegate = self; window.center(); DialogGeometry.attach(window, identifier: "TurtleGit.FileCopy")
+        super.init(window: window); window.delegate = self; window.center(); if savesGeometry { DialogGeometry.attach(window, identifier: "TurtleGit.FileCopy") }
         model.close = { [weak self] in self?.window?.performClose(nil) }
         model.browse = { [weak self] sources in self?.browse(sources: sources) }
         model.collision = { [weak self] destination in
@@ -60,13 +60,10 @@ import TurtleGitCore
                 guard let self, self.panel === panel else { return }; self.panel = nil; self.model.question = false
                 let reply = self.authorizationReply; self.authorizationReply = nil
                 guard !self.model.retired, response == .OK else { reply?(nil); return }
-                let selected = panel.urls, normalized = FinderRequest(action: .status, paths: selected).paths
-                let ordered = sources.compactMap { original -> RepositoryAccessLease? in
-                    let path = FinderRequest(action: .status, paths: [original]).paths[0].path
-                    guard let index = normalized.firstIndex(where: { $0.path == path }) else { return nil }
-                    return RepositoryAccessLease(url: selected[index])
+                guard let selected = FileTransferPaths.authorizedSources(panel.urls,for:sources) else {
+                    self.model.error = "Choose exactly the captured source files or folders."; reply?(nil); return
                 }
-                guard selected.count == sources.count, ordered.count == sources.count else { self.model.error = "Choose exactly the captured source files or folders."; reply?(nil); return }
+                let ordered = selected.map { RepositoryAccessLease(url:$0) }
                 reply?(ordered)
             }
         }
@@ -135,7 +132,7 @@ import TurtleGitCore
         setSources(sources)
     }
     func setSources(_ urls: [URL]) {
-        guard canEdit else { return }; var seen = Set<String>(); sources = urls.filter { $0.isFileURL && seen.insert($0.path).inserted }; sourceAccess = sources.map { RepositoryAccessLease(url: $0, provider: sourceProvider) }
+        guard canEdit else { return }; sources = FileTransferPaths.uniqueURLs(urls); sourceAccess = sources.map { RepositoryAccessLease(url: $0, provider: sourceProvider) }
     }
     @discardableResult func drop(_ providers: [NSItemProvider]) -> Bool {
         guard canEdit, !providers.isEmpty, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }) else { return false }
@@ -190,7 +187,7 @@ import TurtleGitCore
                     guard !retired else { return }; copied += 1; append("Copied: \(source.path) → \(result.destination)"); onCopied(result.destination)
                     var ignored: [String] = []
                     while true {
-                        let repos = try await repository.copiedRepositories(result.destination, cancellation: token).filter { !ignored.contains($0.path) }
+                        let repos = try await repository.copiedRepositories(result.destination, cancellation: token).filter { !GitPathSet(ignored).contains($0.path) }
                         guard let item = repos.first else { break }
                         let choice = await repositoryChoice(item); try token.check(); guard !retired else { return }
                         switch choice {
@@ -235,7 +232,7 @@ private struct FileCopyDialog: View {
                 Text(model.busy ? model.current : model.cancelled ? "Cancelled. Copied files and earlier additions remain." : model.failed ? "Stopped. Copied files remain for recovery." : "Copied \(model.copied); kept \(model.kept).").lineLimit(2)
                 HStack { if model.busy { ProgressView(value: Double(model.processed), total: Double(max(1, model.sources.count))) }; Spacer(); Button(model.busy ? "Cancel" : "Close") { if model.busy { model.cancel() } else { model.saveActionLog(); model.close() } }.disabled(model.question || model.confirmingCancel) }
             } else {
-                List(model.sources, id: \.path) { Text($0.path).textSelection(.enabled) }
+                List(model.sources.map { GitReferenceName($0.path) }, id: \.self) { Text($0.rawValue).textSelection(.enabled) }
                     .onDrop(of: [UTType.fileURL], isTargeted: nil) { model.drop($0) }
                 Button { model.browse(true) } label: { CommandLabel(title: "Choose files…", icon: .copy) }.disabled(!model.canEdit)
                 HStack { Text("Destination:"); Text(model.folder.path).lineLimit(1).truncationMode(.middle); Spacer(); Button("…") { model.browse(false) }.disabled(!model.canEdit) }

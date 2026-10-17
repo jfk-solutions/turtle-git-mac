@@ -43,3 +43,5 @@ Debug and six grouped native cases passed at the first checkpoint with both Git
 engines. Existing Move/Copy regressions were included; Core was unchanged and
 not rerun. Every owned receiver was reaped. See
 [batch evidence](qa/file-drop-transfer-2026-10-14.json).
+
+The connected [exact transfer identity continuation](FILE-TRANSFER-PARITY.md#exact-movecopyclipboarddrop-identities--october-17-2026) covers source rows, clipboard/drop capture, working-path resolution and Move/Rename/Copy/Add targets. Physical/signed and full dialog acceptance remain partial.

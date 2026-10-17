@@ -12,7 +12,7 @@ import TurtleGitCore
     var presentQuestion: (NSWindow, NSAlert, @escaping (NSApplication.ModalResponse) -> Void) -> Bool = { owner, alert, reply in
         guard owner.attachedSheet == nil else { return false }; alert.beginSheetModal(for: owner, completionHandler: reply); return true
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], preferences: UserDefaults = .standard, savesGeometry:Bool = true) {
         model = FileMoveWindowModel(repository: repository, access: access, paths: paths, preferences: preferences)
         let size = NSSize(width: 760, height: 440)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
@@ -34,7 +34,7 @@ import TurtleGitCore
         }
         model.continueAfterError = { [weak self] source, message in await self?.ask(title: "Could not move “\(source)”", message: message, buttons: ["Ignore", "Abort"]) ?? false }
         model.confirmCancellation = { [weak self] reply in Task { reply(await self?.ask(title: "The process is still running.", message: "Are you sure to abort?", buttons: ["Yes", "No"]) ?? false) } }
-        DialogGeometry.attach(window, identifier: "TurtleGit.FileMove")
+        if savesGeometry { DialogGeometry.attach(window, identifier: "TurtleGit.FileMove") }
     }
     private func browse() {
         guard model.canEdit, let window, window.attachedSheet == nil, panel == nil else { return }
@@ -108,7 +108,7 @@ import TurtleGitCore
     var canEdit: Bool { !retired && !busy && !progress && !choosingFolder && !hasQuestion }
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.preferences = preferences; folder = repository.root
-        var seen = Set<String>(); self.paths = paths.filter { seen.insert($0).inserted }
+        var seen = GitPathSet(); self.paths = paths.filter { seen.insert($0).inserted }
     }
     func loadClipboard(_ urls: [URL], destination: URL? = nil, stopOnError: Bool = true) {
         guard canEdit else { return }; pasteMode = stopOnError; let token = OperationCancellation(); cancellation = token; busy = true; error = nil; Self.activeOperations += 1
@@ -207,7 +207,7 @@ private struct FileMoveDialog: View {
                 }
             } else {
                 Text("Move versioned files and folders").font(.headline)
-                List(model.paths, id: \.self) { Text($0).textSelection(.enabled) }
+                List(model.paths.map { GitReferenceName($0) }, id: \.self) { Text($0.rawValue).textSelection(.enabled) }
                 HStack { Text("Destination:"); Text(model.folder.path).lineLimit(1).truncationMode(.middle).textSelection(.enabled); Spacer(); Button("…") { model.browse() }.disabled(!model.canEdit) }
                 if model.paths.count == 1 { Toggle("Rename while moving", isOn: $model.renameFirst).disabled(!model.canEdit) }
                 Text("Moves preserve staged and working contents. A conflicting destination requires a new name.").font(.caption).foregroundStyle(.secondary)

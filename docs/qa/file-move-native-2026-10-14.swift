@@ -24,7 +24,7 @@ import TurtleGitCore
         let helper=root.appendingPathComponent("stream-git"),marker=root.appendingPathComponent("ready")
         let script = #"""
         #!/bin/sh
-        if [ "$4" = mv ];then
+        if [ "$4" = -c ] && [ "$5" = core.precomposeunicode=false ] && [ "$6" = mv ];then
           printf 'Move: 10%%\rMove: 35%%\r\nUnicode ';printf '\351\233';/bin/sleep 0.06;printf '\252\n'
           : > "$3/ready"
           while :;do /bin/sleep 0.05;done

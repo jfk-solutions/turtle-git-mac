@@ -1,0 +1,147 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation_baseline": "411e44c4",
+  "scope": "Connected Move/Rename, Copy/Add, clipboard/paste, dropped providers, source permissions and Finder request identities.",
+  "upstream_sources": {
+    "DropMoveCommand.cpp": "1cd9a7c8fc931d1c6362ab57f443093578417edb",
+    "PasteMoveCommand.cpp": "eb4e590e82870d5c117410fea5829b04db0f7c09",
+    "DropCopyAddCommand.cpp": "da846a4c11ed610d8162cb6f4de6dec88c0395b8",
+    "PasteCopyCommand.cpp": "2180d6ffc4f53d18910bac0321dccfadec68308d"
+  },
+  "implemented": [
+    "Exact source-order deduplication and native source-list identities",
+    "Raw URLComponents file URLs, lexical path cleanup and exact Finder request encode/decode",
+    "Private URL clipboard and one-to-one permission matching; unique filesystem spellings can resolve to one source, ambiguous peers cannot duplicate a grant",
+    "Index-prefix catalog resolves unique filesystem spellings and refuses ambiguous normalization aliases/case aliases on case-insensitive volumes before mutation",
+    "Move/Rename resolve the destination folder separately from the requested leaf; normalization-only rename preserves staged/working contents",
+    "Exact precomposition-disabled ls-files/mv/add arguments and existing-index identity retention for Copy/Add",
+    "Exact recursive copy fingerprints, copied repository exclusions and final destination revalidation",
+    "Exact Move/Rename cache keys and subtree callback remapping"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/transfer-identities-build-2026-10-17.log",
+      "exit_code": 0
+    },
+    {
+      "log": "build/qa/transfer-identities-build-url-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Current objects after raw URL/folder corrections"
+    }
+  ],
+  "core": {
+    "log": "build/qa/transfer-identities-core-url-2026-10-17.log",
+    "exit_code": 0,
+    "cases": 61,
+    "failures": 0,
+    "suites": {
+      "FileCopyTests": 6,
+      "FileMoveTests": 10,
+      "FinderRequestTests": 15,
+      "FinderTransferTests": 4,
+      "GitPathIdentityTests": 17,
+      "RenameTests": 5,
+      "RenameWorkflowTests": 4
+    },
+    "effects": [
+      "Normalization-only rename followed by Move retains exact names, staged/working bytes and HEAD",
+      "Ambiguous local aliases reject Move/Rename/clipboard/Copy/Add before mutation",
+      "Overwrite/Add retains a unique existing NFD index name while core.precomposeunicode=true",
+      "Filesystem-returned destination folder resolves to the unique tracked prefix; same-folder Move stays unchanged",
+      "Existing literal names, directory/symlink, staleness, cancellation and request compatibility cases retained"
+    ]
+  },
+  "initial_core_failure": {
+    "log": "build/qa/transfer-identities-core-2026-10-17.log",
+    "exit_code": 1,
+    "cases": 60,
+    "failures": 3,
+    "unexpected": 1,
+    "cause": "Foundation file URL construction decomposed NFC before identity comparison: normalization-only Rename became unchanged and the URL/grant assertions lost a peer.",
+    "repair": "Raw URLComponents construction and lexical Rename targets; unique destination-folder resolution. Added the ancestor-folder regression and reran affected suites."
+  },
+  "native": {
+    "log": "build/qa/transfer-identities-native-2026-10-17.log",
+    "exit_code": 0,
+    "combinations": 12,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "cases": [
+      "identities: actual separate native rows, private clipboard/request roundtrip, captured multi-source drop, exact Move and Copy/Add effects, unchanged alias entries/HEAD",
+      "move: streamed cancellation, actual collision correction, staged/working data, ordered Ignore, late retirement/Quit",
+      "copy: self-name, Keep/Overwrite, copied repository Delete/Ignore/Abort, streamed Add cancellation, Paste Move",
+      "drop: production Move/Rename and Copy/Add handoffs, provider retirement/Quit and sheet cleanup",
+      "rename: input/browse, byte retention, mv cancellation/Back, late read retirement",
+      "finder: request adoption/authorization, actual copy/stage, late-grant retirement and captured Move destination"
+    ],
+    "fixture_updates": "Three delayed mv/add helpers now match the -c core.precomposeunicode=false prefix; actual started-helper/cancellation assertions remain. Existing cases stay in their grouped CI schedule; CI adds only identities to avoid duplicate execution."
+  },
+  "diagnostics": [
+    "Unsigned private clipboard receivers emitted sandbox_extension_consume failed: 1 (Operation not permitted); exact URL assertions passed. Signed grants remain unproven.",
+    "xcodebuild exited zero with existing unusual exit-zero SwiftCompile diagnostics and environment/target warnings; no clean-diagnostics claim."
+  ],
+  "cleanup": {
+    "owned_receiver_pids": [
+      44773,
+      44835,
+      44904,
+      45003,
+      45105,
+      45219,
+      45341,
+      45432,
+      45529,
+      45572,
+      45622,
+      45705
+    ],
+    "live_owned_pids": [],
+    "independent_scan": "All 12 owned receivers absent; no receiver or tg-transfer-family helper remains. The initial audit accidentally matched its own embedded shell source; the corrected executable/first-argument scan passed."
+  },
+  "validation": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1240,
+      "check": "passed"
+    },
+    "workflow_yaml": "passed",
+    "git_diff_check": "passed",
+    "site": {
+      "documents": 273,
+      "unresolved_fragments": [],
+      "log": "build/qa/transfer-identities-site-final-2026-10-17.log",
+      "exit_code": 0,
+      "initial_doc_repair": "Three cross-links omitted the doubled hyphen generated for the heading em dash; corrected to the actual section ID. Final render has no unresolved fragments."
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial": 120,
+      "pending": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1566,
+      "pending_controls": 93
+    }
+  },
+  "hosted_observation": {
+    "head": "411e44c4",
+    "macos_run": 39031989439,
+    "macos_status": "pending",
+    "pages_run": 39031989545,
+    "pages_conclusion": "success",
+    "previous_macos_run": 39029102213,
+    "previous_status": "in_progress",
+    "full_hosted_success_not_established": true
+  },
+  "limits": [
+    "Physical Finder drag/context-menu, picker, keyboard and accessibility acceptance",
+    "Signed source grants, installed Finder and App Store execution",
+    "Filesystem ACL/xattr fidelity and complete cross-volume alias behavior",
+    "Checks are not cross-process transactions or rollback; completed transfers/stages remain after later failure",
+    "Main workspace selection storage is not migrated by exact callback remapping",
+    "No new screenshot/full visual audit; existing transfer window adaptation/icons remain",
+    "Complete app parity and signed distribution remain unfinished"
+  ]
+}

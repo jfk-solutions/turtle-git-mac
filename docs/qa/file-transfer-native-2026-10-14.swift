@@ -39,7 +39,7 @@ import TurtleGitCore
         let helper=source.appendingPathComponent("stream-git"),marker=root.appendingPathComponent("ready")
         let script = #"""
         #!/bin/sh
-        if [ "$4" = add ];then
+        if [ "$4" = -c ] && [ "$5" = core.precomposeunicode=false ] && [ "$6" = add ];then
           printf 'Add: 10%%\rAdd: 35%%\r\n'
           : > "$3/ready"
           while :;do /bin/sleep 0.05;done

@@ -80,8 +80,8 @@ import TurtleGitCore
         task = Task {
             defer { finish(request) }
             do {
-                var urls: [URL] = [], seen = Set<String>()
-                for provider in providers { try request.check(); let url = try await readURL(provider); guard url.isFileURL, !url.path.contains("\0") else { throw CommitFileURLReader.Failure.invalid }; if seen.insert(url.path).inserted { urls.append(url) } }
+                var urls: [URL] = [], seen = GitPathSet()
+                for provider in providers { try request.check(); let url = try await readURL(provider); guard url.isFileURL, !url.path.contains("\0") else { throw CommitFileURLReader.Failure.invalid }; if seen.insert(FileTransferPaths.lexicalPath(url.path)).inserted { urls.append(url) } }
                 try request.check(); guard !retired else { return }; sources = urls
                 try await resolve(folder, request: request)
             } catch { if !retired && !request.isCancelled { self.error = error.localizedDescription } }
@@ -115,7 +115,7 @@ private struct FileDropTransferDialog: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Choose how to transfer the dropped files").font(.headline)
             HStack { Text("Destination:"); Text(model.folder.path).lineLimit(2).textSelection(.enabled); Spacer(); Button("…") { model.browse() }.disabled(!model.canEdit) }
-            List(model.sources, id: \.path) { Text($0.path).textSelection(.enabled) }
+            List(model.sources.map { GitReferenceName($0.path) }, id: \.self) { Text($0.rawValue).textSelection(.enabled) }
             if let error = model.error { Text(error).foregroundStyle(.red).font(.caption).textSelection(.enabled) }
             if model.ready && !model.canMove { Text("Move requires versioned sources in this working tree.").font(.caption).foregroundStyle(.secondary) }
             HStack {

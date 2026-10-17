@@ -301,6 +301,7 @@ jobs:
           python3 scripts/test-log-file-identities.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-log-controls-layout.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-comparison-workflow.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+          python3 scripts/test-file-transfer-family.py --only identities --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: LFS captured interactions and progress notifications
         run: python3 scripts/test-lfs-interaction.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Bundled Mac help and contextual dispatch

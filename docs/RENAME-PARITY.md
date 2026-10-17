@@ -116,3 +116,5 @@ completion for Rename, Clone, New Worktree and Export, including full-field text
 boundaries, captured directory reads and retired/changed input guards. Earlier
 autocomplete-pending entries above describe the preceding implementation. Physical
 completion/focus/IME and signed access remain open.
+
+The connected [exact transfer identity continuation](FILE-TRANSFER-PARITY.md#exact-movecopyclipboarddrop-identities--october-17-2026) covers source rows, clipboard/drop capture, working-path resolution and Move/Rename/Copy/Add targets. Physical/signed and full dialog acceptance remain partial.
