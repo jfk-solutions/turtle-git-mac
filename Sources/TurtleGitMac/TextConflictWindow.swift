@@ -1274,8 +1274,14 @@ enum MergePalette {
     private final class Storage: @unchecked Sendable {
         let lock = NSLock(); var value = MergeColorPreferences.load(); var revision = 0
         var applied = UserDefaults.standard.data(forKey:"TurtleGitMerge.Colors") != nil
+        private var colors: [String: NSColor] = [:]
         func snapshot() -> (MergeColorPreferences, Int, Bool) { lock.lock(); defer { lock.unlock() }; return (value, revision, applied) }
-        func replace(_ value: MergeColorPreferences, applied: Bool) { lock.lock(); defer { lock.unlock() }; self.value = value; self.applied = applied; revision += 1 }
+        func replace(_ value: MergeColorPreferences, applied: Bool) { lock.lock(); defer { lock.unlock() }; self.value = value; self.applied = applied; revision += 1; colors = [:] }
+        func color(_ key: String, make: (MergeColorPreferences, Bool) -> NSColor) -> NSColor {
+            lock.lock(); defer { lock.unlock() }
+            if let color = colors[key] { return color }
+            let color = make(value, applied); colors[key] = color; return color
+        }
     }
     private static let storage = Storage()
     static var revision: Int { storage.snapshot().1 }
@@ -1284,20 +1290,18 @@ enum MergePalette {
         state.colorRole
     }
     static func roleColor(_ role: MergeColorRole, foreground: Bool = false) -> NSColor {
-        let palette = storage.snapshot().0
-        return NSColor(name: nil) { appearance in
+        storage.color("role:\(role.rawValue):\(foreground)") { palette, _ in NSColor(name: nil) { appearance in
             let color = palette.colors(role, dark: appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua)
             let rgb = foreground ? color.foreground : color.background
             return NSColor(srgbRed: CGFloat((rgb >> 16) & 255) / 255, green: CGFloat((rgb >> 8) & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1)
-        }
+        } }
     }
     private static func stateColor(_ state: MergeSourceState, foreground: Bool) -> NSColor {
-        let (palette,_,applied)=storage.snapshot()
-        return NSColor(name:nil) { appearance in
+        storage.color("state:\(state):\(foreground)") { palette, applied in NSColor(name:nil) { appearance in
             let color=palette.stateColors(state,dark:appearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua,applied:applied)
             let rgb=foreground ? color.foreground:color.background
             return NSColor(srgbRed:CGFloat((rgb >> 16) & 255)/255,green:CGFloat((rgb >> 8) & 255)/255,blue:CGFloat(rgb & 255)/255,alpha:1)
-        }
+        } }
     }
     static func color(_ state: MergeSourceState) -> NSColor {stateColor(state,foreground:false)}
     static func foreground(_ state: MergeSourceState) -> NSColor {stateColor(state,foreground:true)}
@@ -1497,32 +1501,29 @@ private struct MergeEditor: NSViewRepresentable {
         let range = view.selectedRange(), replaced = !view.string.utf8.elementsEqual(text.utf8)
         // A source/result presentation includes its final fold map. Native
         // observers must not measure the restored, unstyled or half-hidden map.
-        view.presentationDepth += 1
-        view.textStorage?.beginEditing()
-        view.font = model.generalPreferences.nativeFont
-        view.setMergeTabWidth(tabWidth)
-        view.foldLayout.prepare(view)
-        if replaced { view.string = text }
+        let font = model.generalPreferences.nativeFont
+        view.setMergeTabWidth(tabWidth, font: font)
+        let value = NSMutableAttributedString(string: text)
         let entire = NSRange(location: 0, length: (text as NSString).length)
-        view.textStorage?.addAttributes([.foregroundColor: MergePalette.foreground(.normal), .backgroundColor: MergePalette.color(MergeSourceState.normal), .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
+        value.addAttributes([.foregroundColor: MergePalette.foreground(.normal), .backgroundColor: MergePalette.color(MergeSourceState.normal), .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
         if editable {
             view.inlineMissingOffsets = []
             let states = sourceCells?.map(\.state) ?? model.resultStates
             for (index, range) in MergeLineEndings.lineRanges(in: text).enumerated() where states.indices.contains(index) {
-                view.textStorage?.addAttributes([.backgroundColor: MergePalette.color(states[index]), .foregroundColor: MergePalette.foreground(states[index])], range: range)
+                value.addAttributes([.backgroundColor: MergePalette.color(states[index]), .foregroundColor: MergePalette.foreground(states[index])], range: range)
             }
         } else if let sourceCells {
             var offset = 0
             view.inlineMissingOffsets = []
             for (row, cell) in sourceCells.enumerated() {
                 let length = (cell.displayText as NSString).length + 1
-                view.textStorage?.addAttributes([.backgroundColor: MergePalette.color(cell.state), .foregroundColor: MergePalette.foreground(cell.state)], range: NSRange(location: offset, length: length))
+                value.addAttributes([.backgroundColor: MergePalette.color(cell.state), .foregroundColor: MergePalette.foreground(cell.state)], range: NSRange(location: offset, length: length))
                 if let sourceSide, let diff = model.inlineDifference(row, mine: sourceSide == .mine) {
                     let left = sourceSide == .theirs
                     let removal = cell.state.isRemoval
-                    view.textStorage?.addAttribute(.backgroundColor, value: MergePalette.inlineCommon, range: NSRange(location: offset, length: length))
+                    value.addAttribute(.backgroundColor, value: MergePalette.inlineCommon, range: NSRange(location: offset, length: length))
                     for range in left ? diff.base : diff.destination {
-                        view.textStorage?.addAttribute(.backgroundColor, value: removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length))
+                        value.addAttribute(.backgroundColor, value: removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length))
                     }
                     view.inlineMissingOffsets += (left ? diff.baseMissing : diff.destinationMissing).map { offset + $0 }
                 }
@@ -1530,8 +1531,8 @@ private struct MergeEditor: NSViewRepresentable {
             }
         } else { view.inlineMissingOffsets = [] }
         model.updateFolding()
-        view.foldLayout.apply(to: view, controller: editable ? model.resultFolding : model.folding)
-        view.textStorage?.endEditing()
+        view.presentationDepth += 1
+        let presentationChanged = view.foldLayout.installPresentation(value, font: font, in: view, controller: editable ? model.resultFolding : model.folding)
         view.presentationDepth -= 1
         // Caret visibility and centering query TextKit geometry. They run only
         // after the complete attributed presentation has committed.
@@ -1553,7 +1554,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.mergeFindHighlights.annotationsChanged = { [weak model] in model?.refreshLocatorHighlights() }
         view.mergeFindHighlights.refresh(in: view)
         model.refreshLocatorHighlights()
-        view.needsDisplay = true
+        if presentationChanged { view.needsDisplay = true }
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = sourceCells?.map(\.lineNumber)
         if let ruler = scroll.verticalRulerView as? MergeLineRuler {
             ruler.showNumbers = model.editorPreferences.showLineNumbers
@@ -1837,12 +1838,12 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
         guard isEditable, model?.busy == false, let edit = MergeWhitespace.indentSelection(in: string, selection: selectedRange(), tabWidth: mergeTabWidth, remove: true) else { return }
         if !(string as NSString).substring(with: edit.range).utf8.elementsEqual(edit.replacement.utf8) { replaceDisplayRange(edit.range, with: edit.replacement, actionName: "Unindent lines") }
     }
-    func setMergeTabWidth(_ width: Int) {
+    func setMergeTabWidth(_ width: Int, font: NSFont? = nil) {
         mergeTabWidth = width
         let paragraph = NSMutableParagraphStyle()
         paragraph.tabStops = []
-        paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: font ?? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)]).width * CGFloat(width)
-        defaultParagraphStyle = paragraph
+        paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: font ?? self.font ?? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)]).width * CGFloat(width)
+        if defaultParagraphStyle != paragraph { defaultParagraphStyle = paragraph }
     }
     private let mergeUndoManager: UndoManager = { let value = UndoManager(); value.groupsByEvent = false; return value }()
     override var undoManager: UndoManager? { mergeEditable ? mergeUndoManager : super.undoManager }

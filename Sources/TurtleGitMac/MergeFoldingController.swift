@@ -91,7 +91,47 @@ extension NSAttributedString.Key {
     private var ranges: [NSRange] = []
     private var states: [MergeFolding.Visibility] = []
     private var originals: [(NSRange, [NSAttributedString.Key: Any])] = []
+    private var presentation: NSAttributedString?
+    private var presentationRevision = -1
+    private var presentationFont: NSFont?
+    private weak var observedStorage: NSTextStorage?
+    private var storageObserver: NSObjectProtocol?
+    private var installing = false
+    deinit { if let storageObserver { NotificationCenter.default.removeObserver(storageObserver) } }
+
+    /// Compare the unfurled source styling, not the live storage: wrapping owns
+    /// paragraph padding and folding owns hidden-row attributes in that storage.
+    /// A no-op hosting update must leave both owners' settled geometry intact.
+    @discardableResult func installPresentation(_ value: NSAttributedString, font: NSFont, in view: NSTextView, controller: MergeFoldingController) -> Bool {
+        guard let storage = view.textStorage else { return false }
+        if observedStorage !== storage {
+            if let storageObserver { NotificationCenter.default.removeObserver(storageObserver) }
+            observedStorage = storage; presentation = nil
+            storageObserver = NotificationCenter.default.addObserver(forName: NSTextStorage.didProcessEditingNotification, object: storage, queue: nil) { [weak self, weak storage] _ in
+                MainActor.assumeIsolated {
+                    guard let self, !self.installing, storage?.editedMask.contains(.editedCharacters) == true else { return }
+                    self.presentation = nil
+                }
+            }
+        }
+        guard self.controller !== controller || presentationRevision != controller.revision || presentation?.isEqual(to: value) != true || presentationFont != font || !view.string.utf8.elementsEqual(value.string.utf8) else { return false }
+        installing = true; defer { installing = false }
+        storage.beginEditing()
+        prepare(view)
+        // Assigning NSTextView.font can rewrite the document's font attributes.
+        if view.font != font { view.font = font }
+        if !storage.string.utf8.elementsEqual(value.string.utf8) { storage.setAttributedString(value) }
+        else {
+            value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in storage.setAttributes(attributes, range: range) }
+        }
+        apply(to: view, controller: controller)
+        storage.endEditing()
+        presentation = NSAttributedString(attributedString: value)
+        presentationRevision = controller.revision; presentationFont = font
+        return true
+    }
     func prepare(_ view: NSTextView) {
+        presentation = nil
         guard let storage = view.textStorage else { return }
         storage.beginEditing(); defer { storage.endEditing() }
         for (range, attributes) in originals where NSMaxRange(range) <= storage.length && range.length > 0 {

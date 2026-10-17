@@ -1897,20 +1897,13 @@ struct FileComparisonEditor: NSViewRepresentable {
         (view as? FileComparisonTextView)?.mergeFindController?.updateGates()
         let value = Self.attributed(cells, font: model.generalPreferences.nativeFont, model: model, base: base)
         (view as? FileComparisonTextView)?.missingOffsets = Self.missingOffsets(cells, model: model, base: base)
-        view.needsDisplay = true
-        // Publish one complete presentation. Restoring hidden-row attributes,
-        // changing fonts/colors and reapplying folds must not expose intermediate
-        // paragraph metrics to TextKit or the wrapping/viewport observers.
-        (view as? FileComparisonTextView)?.presentationDepth += 1
-        view.textStorage?.beginEditing()
-        view.font = model.generalPreferences.nativeFont
-        (view as? FileComparisonTextView)?.foldLayout.prepare(view)
-        if !view.string.utf8.elementsEqual(value.string.utf8) { view.textStorage?.setAttributedString(value) }
-        else { value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in view.textStorage?.setAttributes(attributes, range: range) } }
+        // Preserve settled folds and wrapping on an identical hosting update.
         model.updateFolding()
-        (view as? FileComparisonTextView)?.foldLayout.apply(to: view, controller: model.folding)
-        view.textStorage?.endEditing()
-        (view as? FileComparisonTextView)?.presentationDepth -= 1
+        let target = view as? FileComparisonTextView
+        target?.presentationDepth += 1
+        let presentationChanged = target?.foldLayout.installPresentation(value, font: model.generalPreferences.nativeFont, in: view, controller: model.folding) ?? false
+        target?.presentationDepth -= 1
+        if presentationChanged { view.needsDisplay = true }
         if let sourceSelection, !oldDisplay.utf8.elementsEqual(value.string.utf8) {
             let start = min(FileComparisonEditing.displayOffset(sourceOffset: sourceSelection.location, cells: cells), value.length)
             let end = min(FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(sourceSelection), cells: cells), value.length)

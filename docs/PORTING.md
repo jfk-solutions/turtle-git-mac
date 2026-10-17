@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Compare/Merge presentation family](MERGE-WRAPPING-PARITY.md#stable-presentation-and-redraw--october-18-2026)
+now preserves settled fold and wrap geometry on unchanged hosting updates and
+keeps Find/marked-word paint until an actual input or source-style change. Both
+editor families share an atomic presentation checkpoint, and palette colors
+retain identity across redraws. The single Debug build, 26 focused Core passes
+with one expected skip and 13 distinct grouped native passes are recorded in
+[batch evidence](qa/merge-presentation-family-2026-10-18.json), including fixture
+repairs and cleanup of all 18 receivers. The captured macOS 15 Intel timeout
+still requires a passing current hosted run; local acceptance does not close it.
+
+
 *A macOS fork of TortoiseGit*
 
 The connected [Add/Revert file-command flow](ADD-REVERT-FILE-FLOW-PARITY.md) now

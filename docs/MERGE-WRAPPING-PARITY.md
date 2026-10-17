@@ -140,3 +140,42 @@ fold map and unchanged text/carets. Every owned receiver, including the pre-chan
 baseline, was reaped and independently absent. Core was unchanged and not rerun.
 This is local unsigned evidence; the active hosted run had not reached its editor
 gate at the final observation, so hosted resolution is not claimed.
+
+## Stable presentation and redraw — October 18, 2026
+
+The hosted Intel timeout has an actual [captured stack](qa/ci-wrapped-stack-2026-10-18.json)
+in AppKit/SwiftUI/TextKit layout and drawing. That evidence motivated a connected
+presentation change; it does not by itself identify a deadlock or prove a repair.
+
+Compare and Merge now build source styling off-storage and install it together
+with its final fold map only when the source presentation changes. The shared
+owner compares the unfurled attributed presentation, its font and fold revision;
+it preserves live wrapping padding on identical hosting updates. Character edits,
+including replacement by identical text, invalidate the checkpoint. Explicit fold
+restoration also invalidates it. Dynamic source palette colors retain identity
+until palette replacement and still resolve separate light/dark colors.
+
+Wrapping reflows the group for actual storage, width, inset, enabled or alignment
+changes. Identical registrations do not rewrite paragraphs or publish another
+geometry callback. Scroller width changes still schedule a reconciliation pass,
+and input retains the existing source-row/fraction and caret ownership rules.
+Find preserves temporary paint on unchanged refreshes, but repaints after storage
+styling/character edits, search/options, marked words/separators, layout-manager,
+palette, appearance or base color changes. Marked words still paint before Find,
+and hidden/marker rows remain excluded, as in the pinned source paint ordering.
+
+The grouped receiver includes an explicit unchanged-update check alongside the
+retained navigation, geometry, folding, Find, editing and ownership cases. Local
+checks cannot establish hosted macOS 15/Intel resolution, signed behavior or full
+visual parity; the current hosted failure remains a release gate until a passing
+current run demonstrates otherwise.
+
+The [batch record](qa/merge-presentation-family-2026-10-18.json) records the single
+successful Debug build, 26 relevant Core passes with one expected parser-oracle
+skip, and all 13 distinct native cases passing on the same app sources. Two
+initial fixture issues were diagnosed: AppKit's residual dirty flag was replaced
+by an actual invalidation-request count, and the synthetic wheel's delayed
+30-pixel delivery is observed before beginning a separate reading navigation.
+No behavioral assertion was removed. All 18 receivers across successful and
+failed attempts were reaped and independently confirmed absent. No new visual,
+hosted or distribution acceptance is claimed.

@@ -32,6 +32,13 @@ import TurtleGitCore
     private var cachedStates: [MergeSourceState] = []
     private var cachedQuery = ""
     private var cachedOptions = MergeFindOptions()
+    private weak var observedStorage: NSTextStorage?
+    private weak var paintedLayout: NSLayoutManager?
+    private var storageObserver: NSObjectProtocol?
+    private var storageRevision = 0, paintedRevision = -1, paintedPalette = -1
+    private var paintedAppearance: NSAppearance.Name?
+    private var paintedBackground: NSColor?, paintedForeground: NSColor?
+    deinit { if let storageObserver { NotificationCenter.default.removeObserver(storageObserver) } }
     func set(_ query: String, options: MergeFindOptions, in text: NSTextView) {
         self.query = query; self.options = options; refresh(in: text)
     }
@@ -48,22 +55,35 @@ import TurtleGitCore
     }
     func refresh(in text: NSTextView) {
         guard let target = text as? MergeFindProviding, let storage = text.textStorage, let layout = text.layoutManager else { return }
-        let all = NSRange(location: 0, length: storage.length)
-        for key in [NSAttributedString.Key.backgroundColor, .foregroundColor, .mergeFindMatch, .mergeMarkedWord] { layout.removeTemporaryAttribute(key, forCharacterRange: all) }
+        if observedStorage !== storage {
+            if let storageObserver { NotificationCenter.default.removeObserver(storageObserver) }
+            observedStorage = storage; paintedRevision = -1; cachedText = nil
+            storageObserver = NotificationCenter.default.addObserver(forName: NSTextStorage.didProcessEditingNotification, object: storage, queue: nil) { [weak self] _ in
+                MainActor.assumeIsolated { self?.storageRevision &+= 1 }
+            }
+        }
         let lines = target.mergeFindLines, states = lines.map(\.state)
         let contentChanged = cachedText?.utf8.elementsEqual(text.string.utf8) != true || cachedStates != states
-        if contentChanged || !cachedQuery.utf8.elementsEqual(query.utf8) || cachedOptions != options {
+        let searchChanged = contentChanged || !cachedQuery.utf8.elementsEqual(query.utf8) || cachedOptions != options
+        if searchChanged {
             ranges = MergeFind.matches(query, in: lines, options: options)
             var painting = options; painting.modifiedOnly = false
             paintRanges = options.modifiedOnly ? MergeFind.matches(query, in: lines, options: painting) : ranges
             cachedQuery = query; cachedOptions = options
         }
         let separators = MergeFindOptions.load(from: target.mergeFindDefaults).wordSeparators
-        if contentChanged || !cachedMarkedWord.utf8.elementsEqual(markedWord.utf8) || !cachedSeparators.utf8.elementsEqual(separators.utf8) {
+        let markingChanged = contentChanged || !cachedMarkedWord.utf8.elementsEqual(markedWord.utf8) || !cachedSeparators.utf8.elementsEqual(separators.utf8)
+        if markingChanged {
             markedRanges = MergeMarkedWord.matches(markedWord, in: lines, wordSeparators: separators)
             cachedMarkedWord = markedWord; cachedSeparators = separators
         }
         cachedText = text.string; cachedStates = states
+        let appearance = text.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])
+        guard searchChanged || markingChanged || paintedRevision != storageRevision || paintedLayout !== layout || paintedPalette != MergePalette.revision || paintedAppearance != appearance || paintedBackground != text.backgroundColor || paintedForeground != text.textColor else { return }
+        paintedRevision = storageRevision; paintedLayout = layout; paintedPalette = MergePalette.revision
+        paintedAppearance = appearance; paintedBackground = text.backgroundColor; paintedForeground = text.textColor
+        let all = NSRange(location: 0, length: storage.length)
+        for key in [NSAttributedString.Key.backgroundColor, .foregroundColor, .mergeFindMatch, .mergeMarkedWord] { layout.removeTemporaryAttribute(key, forCharacterRange: all) }
         func paint(_ ranges: [NSRange], scale: Int, key: NSAttributedString.Key) {
             for range in ranges where NSMaxRange(range) <= storage.length {
                 var cursor = range.location

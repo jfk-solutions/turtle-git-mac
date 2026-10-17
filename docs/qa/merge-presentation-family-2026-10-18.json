@@ -1,0 +1,149 @@
+{
+  "date": "2026-10-18",
+  "scope": "Compare/Merge stable source presentation, folding, wrapping geometry and Find/marked-word temporary paint",
+  "base_commit": "4f347bb9d45a27b4de03d68189da00b5f2ff3bfd",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_review": [
+    "src/TortoiseMerge/BaseView.cpp:1787 marked-word paint before Find at 1831",
+    "src/TortoiseMerge/BaseView.cpp:5428 WrapChanged invalidates wrap metrics and horizontal offset"
+  ],
+  "implementation": [
+    "Shared base attributed-presentation checkpoint preserves settled live fold attributes and wrapping paragraph padding on unchanged hosting updates",
+    "Character edits including same-text replacements, explicit fold restoration, font, palette and fold revisions invalidate presentation",
+    "Both Compare and Merge source/result panes install complete styling and fold map in one storage transaction",
+    "Palette colors retain identity per revision while resolving light/dark independently",
+    "Wrapping registration skips no-op paragraph work and geometry callbacks; real geometry and aligned peer changes reflow together",
+    "Find caches paint separately from matches and invalidates on storage/style, layout, appearance, palette, base colors, options, query and marked-word changes"
+  ],
+  "validation": {
+    "core": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'MergeFindTests|MergeMarkedWordTests|MergeFoldingTests|MergeInlineComparisonTests'",
+      "exit": 0,
+      "executed": 27,
+      "passed": 26,
+      "skipped": 1,
+      "failures": 0,
+      "skip": "Pinned source parser corpus uses scripts/test-inline-source.py; not rerun in this native presentation batch",
+      "log": "build/qa/merge-presentation-core-2026-10-18.log"
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/merge-presentation-build-2026-10-18.log",
+      "architecture": "arm64",
+      "SDK": "macOS 27",
+      "app_source_builds": 1
+    },
+    "native": {
+      "distinct_passing_cases": [
+        "presentation",
+        "ownership",
+        "terminal",
+        "margin-selection",
+        "margin",
+        "moved",
+        "wrapped",
+        "wrapping",
+        "navigation",
+        "three-pane",
+        "initial",
+        "folding",
+        "find"
+      ],
+      "final_app_sources_unchanged_since_build": true,
+      "logs": [
+        "build/qa/merge-presentation-native-2026-10-18.log",
+        "build/qa/merge-presentation-native-diagnostic-2026-10-18.log",
+        "build/qa/merge-presentation-native-final-2026-10-18.log",
+        "build/qa/merge-presentation-native-followup-2026-10-18.log",
+        "build/qa/merge-presentation-wrapped-diagnostic-2026-10-18.log",
+        "build/qa/merge-presentation-native-remaining-2026-10-18.log"
+      ],
+      "attempts": 18,
+      "passing_attempts": 14,
+      "failed_attempts": 4,
+      "owned_receivers": [
+        47531,
+        47554,
+        47583,
+        47584,
+        47589,
+        47595,
+        47598,
+        47602,
+        47609,
+        47654,
+        47705,
+        47739,
+        47743,
+        47747,
+        47759,
+        47761,
+        47767,
+        47771
+      ],
+      "cleanup": "All 18 receivers reported reaped; independent ps check exit 1 with empty output confirms absence"
+    },
+    "presentation_assertions": [
+      "20 identical presentation/wrapping updates cause zero text storage edits and zero geometry callbacks",
+      "20 identical Find refreshes preserve temporary color object identity and issue zero display invalidations",
+      "Changed source style, light/dark appearance, marked word, clear, font, fold/unfold, same-text character replacement and palette replacement remain observable",
+      "Source UTF-8, native selection, source styling and Undo invariants retained"
+    ],
+    "retained_assertions": [
+      "Actual wrapped first/last fragment and context caret navigation",
+      "Shared source-row/fraction anchors through resize/font/wrap, including three aligned panes",
+      "Atomic folding across source and result, reveal, combined mode and retirement",
+      "Native Find/Count, modified restriction, Unicode Replace All and single Undo/Redo",
+      "Margin click/Shift/drag/autoscroll, moved blocks, ownership and terminal record saved-byte invariants"
+    ],
+    "documentation": {
+      "site_documents": 292,
+      "unresolved_fragments": 0,
+      "log": "build/qa/merge-presentation-site-2026-10-18.log",
+      "dialog_coverage": "130 dialogs, 120 partial family reviews, 10 pending, 0 certified; 1659 controls, 1566 mapped, 93 pending; counts unchanged and not a completion percentage",
+      "localization": "No literal native UI label changes; localization regeneration not required",
+      "help": "Changed engineering parity/status guides are not help-topics.json inputs"
+    }
+  },
+  "initial_failures_and_repairs": [
+    {
+      "attempts": 2,
+      "kind": "presentation fixture display-state assertion",
+      "evidence": "Identical temporary NSColor object and zero storage edits, but AppKit needsDisplay stayed true after assigning false",
+      "repair": "Count NSTextView display invalidation setter requests; require zero alongside retained identity and storage invariants; no app changes"
+    },
+    {
+      "attempts": 2,
+      "kind": "wrapped fixture responsive wheel delivery race",
+      "evidence": "Failed viewport y=1654.4 vs explicit y=1624.4, exactly the earlier requested 30-pixel wheel delta; cached row60 fraction stayed0.35; observing event delivery first retains explicit fraction0.35",
+      "repair": "Wait for actual synthetic wheel bounds movement before resuming stale Go to Line reply and starting a different reading navigation; preserve original caret, anchor, resize and history assertions; no app changes"
+    }
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "ad14578d909a68c7a11cf1fc956b789906e7ecfc441d36dfff758fc651f9b18b",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "336146bb99e243d615acdfedcaac6b1de387fe00a1e8c8ba08eae142500c63f3",
+    "Sources/TurtleGitMac/MergeComparisonControls.swift": "690944ef17ab9e3f7813b380d50eb027dc30a0e12e2a09faeff37ee47755a269",
+    "Sources/TurtleGitMac/MergeFindWindow.swift": "35c1bd98d45ca8c1afd38138b6f0d1ae5d06a15c4a755f793e8674f99d6895a8",
+    "Sources/TurtleGitMac/MergeFoldingController.swift": "5e35564161cd19b020cbe9406f37534a7b58eb9fedbfbe6af73fc78fdaf8f7db"
+  },
+  "limits": [
+    "Current macOS 27 arm64 unsigned local checks do not prove captured macOS15 Intel hosted timeout resolved",
+    "No signed deployment, installed Finder, App Store export/submission or new visual certification in this batch",
+    "All source attributed strings are still composed on hosting updates; large-file memory/performance acceptance remains open",
+    "Original separate TurtleGit icon unavailable locally; no substitute artwork introduced"
+  ],
+  "environment": {
+    "OS": "macOS 27.0.1 (26A434)",
+    "architecture": "arm64",
+    "signing": "unsigned Debug"
+  },
+  "hosted_observation_before_push": {
+    "run": 39074660712,
+    "job": 117520509979,
+    "commit": "ae48b26a9d6e0d9c5e1cfb09bc480ea8d0efb67d",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39074660712",
+    "result": "completed failure; first five retained cases passed, wrapped receiver25205 timed out300s and was reaped; sampler itself timed out10s, no artifact uploaded",
+    "scope": "Prior editor code, before this presentation batch; does not test this repair",
+    "next_gate": "Full passing current hosted macOS integration run"
+  }
+}

@@ -456,8 +456,13 @@ struct MergeLocatorBar: NSViewRepresentable {
             })
             entries[key] = entry
         }
-        entries[key]?.aligned = aligned; entries[key]?.enabled = enabled
-        schedule()
+        guard let entry = entries[key] else { return }
+        if entry.aligned != aligned || entry.enabled != enabled { entry.geometryDirty = true }
+        entry.aligned = aligned; entry.enabled = enabled
+        let insets = clipInsets(scroll)
+        let width = scroll.contentView.bounds.width - insets.left - insets.right
+        if (entry.measuredWidth.map({ abs($0 - width) > 0.5 }) ?? true) || entry.leadingInset != insets.left { entry.geometryDirty = true }
+        if entry.geometryDirty { schedule() }
     }
     private func schedule() {
         guard !retired, !queued, !applying else { return }; queued = true
@@ -515,11 +520,19 @@ struct MergeLocatorBar: NSViewRepresentable {
         scroll.reflectScrolledClipView(scroll.contentView)
     }
     private func apply() {
-        guard !retired, !applying else { return }; applying = true; defer { applying = false; geometryChanged() }
+        guard !retired, !applying else { return }
         let visible = entries.values.compactMap { entry -> (Entry, NSScrollView, NSTextView)? in
             guard let scroll = entry.scroll, let view = scroll.documentView as? NSTextView, view.window != nil else { return nil }
             return (entry, scroll, view)
         }
+        // Identical representable updates must not enqueue another paragraph
+        // rewrite and geometry callback. A new/changed peer reflows the group.
+        guard visible.contains(where: { entry, scroll, _ in
+            let insets = clipInsets(scroll)
+            let width = scroll.contentView.bounds.width - insets.left - insets.right
+            return entry.geometryDirty || entry.applied != entry.enabled || entry.leadingInset != insets.left || (entry.measuredWidth.map { abs($0 - width) > 0.5 } ?? true)
+        }) else { return }
+        applying = true; defer { applying = false; geometryChanged() }
         // An edit/replacement invalidates the old text-coordinate anchors for
         // the entire aligned group. Typing and model caret requests keep ownership.
         let aligned = visible.filter { $0.0.aligned }
@@ -606,6 +619,10 @@ struct MergeLocatorBar: NSViewRepresentable {
             let insets = clipInsets(scroll), width = scroll.contentView.bounds.width - insets.left - insets.right
             return entry.measuredWidth.map { abs($0 - width) > 0.5 && width > 32 } ?? false
         }) {
+            for (entry, scroll, _) in visible {
+                let insets = clipInsets(scroll), width = scroll.contentView.bounds.width - insets.left - insets.right
+                if entry.measuredWidth.map({ abs($0 - width) > 0.5 }) ?? true { entry.geometryDirty = true }
+            }
             DispatchQueue.main.async { [weak self] in self?.schedule() }
         }
     }

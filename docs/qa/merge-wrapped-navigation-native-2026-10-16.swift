@@ -97,15 +97,22 @@ struct MergeWrappedNavigationVerification {
         try await wait {answer != nil}
         let heldCaret=right.selectedRange()
         let wheel=CGEvent(scrollWheelEvent2Source:nil,units:.pixel,wheelCount:1,wheel1:-30,wheel2:0,wheel3:0)!
+        let wheelOrigin = right.enclosingScrollView!.contentView.bounds.minY
         right.scrollWheel(with:NSEvent(cgEvent:wheel)!)
+        // Responsive AppKit scrolling may deliver this 30-pixel input after
+        // scrollWheel returns. Observe delivery before starting a different
+        // explicit navigation; otherwise the old wheel races that new anchor.
+        try await wait { abs(right.enclosingScrollView!.contentView.bounds.minY - wheelOrigin) > 0.5 }
         answer!.resume(returning:1);answer=nil
         try await wait {!navigation.navigationPending}
         try require(right.selectedRange()==heldCaret,"Wheel input allowed a stale Go to Line response")
         // Hold a source row and fractional reading position through width, font
         // and wrap reflow; literal pixel offsets are deliberately not retained.
-        try readAt(right,marker:"line 060",next:"line 061",fraction:0.35);await Task.yield()
+        try readAt(right,marker:"line 060",next:"line 061",fraction:0.35)
+        await Task.yield()
         try await wait {!model.lineWrapping.isGeometryPending}
         let before=try readingPosition(right,marker:"line 060",next:"line 061"),height=rect(right,(try row(right,containing:"line 061")).location).minY
+        print("Two-pane pre-resize diagnostic: fraction=\(before), owner=\(model.lineWrapping.viewportDiagnostics), caret=\(right.selectedRange()), bounds=\(right.enclosingScrollView!.contentView.bounds)")
         try require(abs(before - 0.35)<0.05,"Two-pane reading input was overwritten before resize")
         let selection=views.map{$0.selectedRange()}
         owner.window!.setContentSize(.init(width:900,height:720));owner.window!.contentView!.layoutSubtreeIfNeeded()
