@@ -99,7 +99,7 @@
           "anchor": "ProjectDialogSettingsModel"
         }
       ],
-      "parity_document": "docs/GIT-CONFIGURATION-PARITY.md",
+      "parity_document": "docs/CONFIGURATION-LIFECYCLE-PARITY.md",
       "status": "partial-native-replacement"
     },
     {

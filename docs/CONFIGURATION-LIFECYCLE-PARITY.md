@@ -37,8 +37,9 @@ security-scope leases and Quit ownership are macOS adaptations around that behav
 The visible controls of `IDD_SETTINGSDIALOGS3` map to the native source radio
 picker, Commit language/Limit/Border/Signed-Off-By controls, icon field/Browse/
 inherit and Save to picker. Native CoreFoundation locale choices replace Windows
-locale enumeration. The four literal hierarchy separators (`|`, `<<`) have no
-literal native equivalent and stay pending in the control ledger. The hidden
+locale enumeration. The four literal hierarchy separators (`|`, `<<`) initially had no native
+equivalent; the October 17 continuation below maps their meaning to an explicit
+native hierarchy hint, without claiming identical geometry. The hidden
 `IDC_KEEPFILELISTSENGLISH` combo and its hidden label are unused by the pinned
 C++ page and remain explicitly unmapped. No extra checkbox is introduced.
 Visible mappings remain partial: a model check does not prove full visual parity.
@@ -67,3 +68,44 @@ locally against the current Debug app at `b5ecda0b`; no production workaround or
 longer timeout was introduced. Wait failures now identify the fixture source line
 so a future hosted failure can identify the stalled condition. The hosted timeout
 remains unresolved; the local pass does not establish hosted success.
+
+
+## Project dialog source forms — October 17, 2026
+
+Dialogs 3 now captures each field, inheritance toggle, language/sign-off picker,
+source selection, Save to selection and icon Browse action with its owner, source
+and form generation. Source reloads, busy operations, inheritance changes, chooser
+roundtrips, cancellation and suspension retire the rendered callbacks. Cached
+pages can still participate in Apply; accepted source-ordered writes retain their
+captured values until settlement and do not publish after owner closure.
+
+The icon chooser opens in the current icon’s folder and displays its relative or
+absolute path in the native sheet message. NSOpenPanel does not use the inherited
+Save-panel filename property, as documented in the AppKit SDK. Its result
+is accepted once, only for the same active owner/source and exact original icon
+draft. Repository-relative paths stay relative; external paths stay absolute.
+A delayed result cannot overwrite a newer icon or persist an obsolete bookmark.
+The native sheet is dismissed on suspension/cancellation/close. Exact UTF-8 icon
+spellings also participate in modified-state and property-sheet notification;
+canonically equivalent spellings are no longer silently treated as unchanged.
+
+The source Config source / Commit / Dialogs / Save to order remains visible in a
+scrollable native page. An explicit hierarchy hint explains the source separators.
+Bare repositories retain their read-only HEAD project-config source and cannot
+save into a worktree project file; Local/Global remain valid destinations.
+Global-only settings cannot select repository sources/destinations. Language
+validation accepts auto, disable, decimal and hexadecimal DWORD locale values;
+out-of-range/invalid values and NUL icon paths fail before saving. Hidden, unused
+file-list-English controls remain unmapped. The four separators are represented
+by the native explanatory hint, while complete source geometry remains partial.
+
+Core serialization is unchanged and its suite was not repeated. The Debug build
+and the grouped native source family passed with system and bundled Git. The first
+fixture assumed the Save-panel filename property applied to Open panels; the SDK
+marks it unused. A focused repair now displays the current icon in the native
+message and verifies its folder and cancellation, while injected replies cover
+acceptance and stale/duplicate results. Two raw light/dark captures were reviewed.
+All four receivers were reaped and independently checked absent. Exact attempts,
+coverage and limits are recorded in [the checkpoint](qa/project-dialog-source-family-2026-10-17.json).
+Physical chooser selection, signed bookmark grants and complete keyboard/VoiceOver/
+small-window/visual acceptance remain open. No dialog is certified complete.

@@ -2041,3 +2041,19 @@ details, Retina/physical acceptance and signed distribution remain open.
 The previous Pages run failed because generated Mac Help lagged DIALOG-GUIDE.md.
 The Help book has been regenerated and its freshness check passes locally. A new
 hosted run is still required; local success is not a hosted integration result.
+
+
+## Project-dialog source settings — October 17, 2026
+
+Dialogs 3 now uses captured source/dependency contexts throughout its native
+fields, source/destination pickers and icon Browse flow. Current-icon folder and
+path display, once-only chooser results, exact UTF-8 modified-state, owner-close
+retirement, invalid-value refusal and readable scrolling are implemented together.
+Bare HEAD project configuration stays readable while worktree-only destinations
+stay unavailable. The grouped native family passed with both Git engines, including
+real five-key writes/removals, exact Unicode property-sheet Apply, private picker
+cancellation and held reads/writes across closure. Core serialization was unchanged.
+Two raw appearance captures were reviewed; all four owned receivers are absent.
+Four source separator controls map partially to the native hierarchy hint. Full
+physical/geometry/signed sandbox acceptance remains open. See
+[scope and evidence](CONFIGURATION-LIFECYCLE-PARITY.md#project-dialog-source-forms--october-17-2026).

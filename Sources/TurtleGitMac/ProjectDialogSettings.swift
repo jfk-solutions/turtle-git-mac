@@ -35,11 +35,21 @@ import TurtleGitCore
     var authorizeFile: ((URL) async -> Bool)?
     var confirmSavingTo: ((ProjectDialogSettingsSource) async -> Bool)?
 
-    @Published private(set) var source: ProjectDialogSettingsSource = .effective
-    @Published var destination: ProjectDialogSettingsSource = .local
-    @Published var draft = ProjectDialogSettings()
+    @Published private(set) var source: ProjectDialogSettingsSource = .effective { didSet { if oldValue != source { formRevision = UUID() } } }
+    @Published var destination: ProjectDialogSettingsSource = .local { didSet { if oldValue != destination { formRevision = UUID() } } }
+    @Published var draft = ProjectDialogSettings() {
+        didSet {
+            if oldValue.minimumMessageLength.inherit != draft.minimumMessageLength.inherit ||
+                oldValue.messageWidthMarker.inherit != draft.messageWidthMarker.inherit ||
+                oldValue.icon.inherit != draft.icon.inherit || oldValue.language.inherit != draft.language.inherit {
+                formRevision = UUID()
+            }
+        }
+    }
     @Published private(set) var loaded = false
-    @Published private(set) var busy = false
+    @Published private(set) var busy = false { didSet { if oldValue != busy { formRevision = UUID() } } }
+    @Published private(set) var selectingIcon = false { didSet { if oldValue != selectingIcon { formRevision = UUID() } } }
+    @Published private var formRevision = UUID()
     @Published var error: String?
     private var saved = ProjectDialogSettings(), savedDestination: ProjectDialogSettingsSource = .local
     private var repository: GitRepository?, access: RepositoryAccessLease?
@@ -50,16 +60,103 @@ import TurtleGitCore
     private var panel: NSOpenPanel?, alert: NSAlert?
     private var answer: ((Bool) -> Void)?
     weak var window: NSWindow?
-    var editable: Bool { loaded && source != .effective && !busy }
-    var modified: Bool { loaded && (draft != saved || destination != savedDestination) }
+    // Each field/action belongs to the source and dependency state that rendered it.
+    struct FormContext: Equatable {
+        let owner: ObjectIdentifier
+        let revision: UUID
+        let source: ProjectDialogSettingsSource
+    }
+    enum IdentityField { case minimum, border, icon }
+    var formContext: FormContext { .init(owner: ObjectIdentifier(self), revision: formRevision, source: source) }
+    var editable: Bool { active && !invalidated && loaded && source != .effective && !busy && !selectingIcon && panel == nil && alert == nil }
+    var canSelectSource: Bool { active && !invalidated && !busy && !saving && !selectingIcon && panel == nil && alert == nil }
+    private func accepts(_ context: FormContext) -> Bool { editable && context == formContext }
+    func sourceAvailable(_ value: ProjectDialogSettingsSource) -> Bool {
+        switch value {
+        case .local: return localAvailable
+        case .project: return localAvailable
+        default: return true
+        }
+    }
+    func destinationAvailable(_ value: ProjectDialogSettingsSource) -> Bool {
+        value == .global || localAvailable && (value == .local || value == .project && !bare)
+    }
+    private func identity(_ field: IdentityField) -> GitConfigurationIdentity {
+        switch field { case .minimum: return draft.minimumMessageLength; case .border: return draft.messageWidthMarker; case .icon: return draft.icon }
+    }
+    private func replaceIdentity(_ field: IdentityField, _ value: GitConfigurationIdentity) {
+        switch field { case .minimum: draft.minimumMessageLength = value; case .border: draft.messageWidthMarker = value; case .icon: draft.icon = value }
+    }
+    func text(_ field: IdentityField, context: FormContext) -> Binding<String> {
+        Binding(get: { self.identity(field).value }, set: { value in
+            guard self.accepts(context), !self.identity(field).inherit else { return }
+            var identity = self.identity(field); identity.value = value; self.replaceIdentity(field, identity)
+        })
+    }
+    func inherit(_ field: IdentityField, context: FormContext) -> Binding<Bool> {
+        Binding(get: { self.identity(field).inherit }, set: { value in
+            guard self.accepts(context) else { return }
+            var identity = self.identity(field); identity.inherit = value; self.replaceIdentity(field, identity)
+        })
+    }
+    func language(context: FormContext) -> Binding<String> {
+        Binding(get: { self.draft.language.inherit ? "" : self.draft.language.value }, set: { value in
+            guard self.accepts(context) else { return }
+            self.draft.language = .init(value: value, inherit: value.isEmpty)
+        })
+    }
+    func signedOff(context: FormContext) -> Binding<GitConfigurationBoolean> {
+        Binding(get: { self.draft.warnNoSignedOffBy }, set: { value in
+            guard self.accepts(context) else { return }; self.draft.warnNoSignedOffBy = value
+        })
+    }
+    func sourceSelection(context: FormContext) -> Binding<ProjectDialogSettingsSource> {
+        Binding(get: { self.source }, set: { value in
+            guard self.canSelectSource, context == self.formContext, self.sourceAvailable(value) else { return }
+            self.load(value)
+        })
+    }
+    func destinationSelection(context: FormContext) -> Binding<ProjectDialogSettingsSource> {
+        Binding(get: { self.destination }, set: { value in
+            guard self.accepts(context), self.destinationAvailable(value) else { return }
+            self.destination = value
+        })
+    }
+    // Injectable picker boundary; production always uses an owned native sheet.
+    var chooseIcon: ((URL, @escaping (URL?) -> Void) -> Void)?
+    var rememberIcon: (URL) throws -> Void = { try ProjectDialogIcons.remember($0) }
+    private var iconRequest: UUID?
+    struct State: Equatable {
+        let strings: [Data]
+        let signedOff: GitConfigurationBoolean
+        let destination: ProjectDialogSettingsSource
+    }
+    private static func strings(_ value: ProjectDialogSettings) -> [Data] {
+        [value.language, value.minimumMessageLength, value.messageWidthMarker, value.icon].flatMap {
+            [Data([$0.inherit ? 1 : 0]), Data($0.value.utf8)]
+        }
+    }
+    var state: State { .init(strings: Self.strings(draft), signedOff: draft.warnNoSignedOffBy, destination: destination) }
+    var modified: Bool { loaded && state != State(strings: Self.strings(saved), signedOff: saved.warnNoSignedOffBy, destination: savedDestination) }
+    private var ownerObserver: NSObjectProtocol?
+    deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
+    func attach(to owner: NSWindow?) {
+        guard !invalidated, let owner, window !== owner || ownerObserver == nil else { return }
+        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }
+        if let previous = window, previous !== owner { suspend() }
+        window = owner; formRevision = UUID()
+        ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.invalidate() }
+        }
+    }
     func activate(repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
         guard !invalidated, !saving else { return }
-        if loaded && self.repository?.root == repository.root && self.repository?.executable == repository.executable && self.localAvailable == localAvailable { active = true; showHierarchyHint(); return }
+        if loaded && self.repository?.root == repository.root && self.repository?.executable == repository.executable && self.localAvailable == localAvailable { active = true; formRevision = UUID(); showHierarchyHint(); return }
         suspend(); self.repository = repository; self.access = access; self.localAvailable = localAvailable
         destination = localAvailable ? .local : .global; active = true; load(.effective)
     }
     func suspend() {
-        active = false; request = UUID(); token?.cancel(); token = nil
+        active = false; formRevision = UUID(); iconRequest = nil; selectingIcon = false; request = UUID(); token?.cancel(); token = nil
         if !saving { busy = false }
         if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
         if let alert { window?.endSheet(alert.window, returnCode: .abort) }; alert = nil
@@ -91,7 +188,7 @@ import TurtleGitCore
         }
     }
     func load(_ source: ProjectDialogSettingsSource) {
-        guard active, !saving, !invalidated, let repository, source != .local && source != .project || localAvailable else { return }
+        guard active, !saving, !selectingIcon, panel == nil, alert == nil, !invalidated, let repository, sourceAvailable(source) else { return }
         token?.cancel(); let cancellation = OperationCancellation(), generation = UUID(); token = cancellation; request = generation
         self.source = source; loaded = false; busy = true; error = nil
         if [.local, .project, .global].contains(source) { destination = source }
@@ -103,6 +200,7 @@ import TurtleGitCore
                 let files = try await readConfigurationFiles(repository, localAvailable, cancellation)
                 guard active, !invalidated, request == generation, !cancellation.isCancelled else { return }
                 bare = files.bare
+                if !destinationAvailable(destination) { destination = localAvailable ? .local : .global }
                 if source == .effective || source == .global {
                     for file in [files.global, files.xdg].compactMap({ $0 }) {
                         guard await permit(file), active, !invalidated, request == generation, !cancellation.isCancelled else { return }
@@ -117,13 +215,13 @@ import TurtleGitCore
     }
     func showHierarchyHint() {
         guard active, loaded, !hintShown, !preferences.bool(forKey: "HintHierarchicalConfig"), let window, window.attachedSheet == nil else { return }
-        hintShown = true
+        hintShown = true; formRevision = UUID()
         let question = NSAlert(); question.messageText = "Git configuration"
         question.informativeText = "Git uses hierarchical configuration: settings in higher levels override lower levels. Effective shows the read-only values for the current scope. Select a level to see its stored values. To change settings, select a level, enter the values and choose where to save them."
         question.addButton(withTitle: "OK"); question.showsSuppressionButton = true
         question.suppressionButton?.title = "Do not show this message again"; alert = question
         question.beginSheetModal(for: window) { [weak self] response in
-            guard let self, self.alert === question else { return }; self.alert = nil
+            guard let self, self.alert === question else { return }; self.alert = nil; self.formRevision = UUID()
             if response == .alertFirstButtonReturn && question.suppressionButton?.state == .on {
                 self.preferences.set(true, forKey: "HintHierarchicalConfig")
             }
@@ -133,7 +231,10 @@ import TurtleGitCore
         for (label, value) in [("Limit", draft.minimumMessageLength), ("Border", draft.messageWidthMarker)] where !value.inherit && !value.value.isEmpty {
             guard let number = Int32(value.value), number >= 0 else { return "Enter a nonnegative number for " + label + "." }
         }
-        if !draft.language.inherit && ProjectLanguages.code(draft.language.value) == nil { return "Choose a project language." }
+        if !draft.language.inherit {
+            guard let code = ProjectLanguages.code(draft.language.value), code == -1 || (0...Int64(UInt32.max)).contains(code) else { return "Choose a project language." }
+        }
+        if !draft.icon.inherit && draft.icon.value.utf8.contains(0) { return "The overlay icon path contains a null character." }
         return nil
     }
     private func confirmDestination(source: ProjectDialogSettingsSource, destination: ProjectDialogSettingsSource) async -> Bool {
@@ -155,7 +256,7 @@ import TurtleGitCore
     }
     func apply(owner: NSWindow?) async -> Bool {
         guard !invalidated else { return false }; if !modified { return true }
-        guard loaded, source != .effective, !busy, validationError == nil, let repository else { return false }
+        guard loaded, source != .effective, !busy, !selectingIcon, panel == nil, alert == nil, destinationAvailable(destination), validationError == nil, let repository else { return false }
         let wasActive = active; active = true; if window == nil { window = owner }
         let generation = request, settings = draft, destination = destination, source = source, grant = access, local = localAvailable
         busy = true; saving = true; error = nil; Self.activeSaves += 1
@@ -175,20 +276,42 @@ import TurtleGitCore
             saved = settings; savedDestination = destination; return true
         } catch { if !invalidated, request == generation { self.error = error.localizedDescription }; return false }
     }
-    func cancel() { guard !saving else { return }; draft = saved; destination = savedDestination }
-    func browseIcon() {
-        guard editable, !draft.icon.inherit, let window, window.attachedSheet == nil, let repository else { return }
+    func cancel() {
+        guard !saving else { return }
+        iconRequest = nil; selectingIcon = false; formRevision = UUID()
+        if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
+        draft = saved; destination = savedDestination
+    }
+    func browseIcon() { browseIcon(context: formContext) }
+    func browseIcon(context: FormContext) {
+        guard accepts(context), !draft.icon.inherit, let window, window.attachedSheet == nil, let repository else { return }
+        let original = draft.icon, source = source, root = repository.root, generation = UUID()
+        let current = original.value.isEmpty ? root : original.value.hasPrefix("/") ? URL(fileURLWithPath: original.value) : root.appendingPathComponent(original.value)
+        iconRequest = generation; selectingIcon = true
+        let finish: (URL?) -> Void = { [weak self] file in
+            guard let self, self.iconRequest == generation else { return }
+            self.iconRequest = nil; self.selectingIcon = false
+            guard self.active, !self.invalidated, self.source == source, self.repository?.root == root,
+                  self.draft.icon.inherit == original.inherit, self.draft.icon.value.utf8.elementsEqual(original.value.utf8), let file else { return }
+            do {
+                try self.rememberIcon(file)
+                let base = root.standardizedFileURL.path + "/", path = file.standardizedFileURL.path
+                self.draft.icon.value = path.hasPrefix(base) ? String(path.dropFirst(base.count)) : path
+            } catch { self.error = error.localizedDescription }
+        }
+        if let chooseIcon { chooseIcon(current, finish); return }
         let chooser = NSOpenPanel(); chooser.canChooseDirectories = false; chooser.allowsMultipleSelection = false
-        chooser.title = "Select project overlay icon"; chooser.prompt = "Select"; chooser.directoryURL = repository.root
+        chooser.title = "Select project overlay icon"; chooser.prompt = "Select"
+        var directory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: current.path, isDirectory: &directory), directory.boolValue { chooser.directoryURL = current }
+        else { chooser.directoryURL = current.deletingLastPathComponent() }
+        // NSOpenPanel does not use NSSavePanel.nameFieldStringValue (AppKit SDK).
+        // Keep the current choice visible while browsing its containing folder.
+        if !original.value.isEmpty { chooser.message = "Current overlay icon: " + original.value }
         panel = chooser
         chooser.beginSheetModal(for: window) { [weak self] response in
             guard let self, self.panel === chooser else { return }; self.panel = nil
-            guard response == .OK, self.active, !self.invalidated, let file = chooser.url else { return }
-            do {
-                try ProjectDialogIcons.remember(file)
-                let base = repository.root.standardizedFileURL.path + "/", path = file.standardizedFileURL.path
-                self.draft.icon.value = path.hasPrefix(base) ? String(path.dropFirst(base.count)) : path
-            } catch { self.error = error.localizedDescription }
+            finish(response == .OK ? chooser.url : nil)
         }
     }
 }
@@ -198,26 +321,30 @@ struct ProjectDialogSettingsPage: View {
     var globalOnly = false
     @Environment(\.settingsTransaction) private var transaction
     @StateObject private var model: ProjectDialogSettingsModel
-    init(workspace: RepositoryModel, globalOnly: Bool = false, preferences: UserDefaults = .standard, model: ProjectDialogSettingsModel? = nil) {
-        self.workspace = workspace; self.globalOnly = globalOnly
+    var contextProvider: (() throws -> (repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool))?
+    init(workspace: RepositoryModel, globalOnly: Bool = false, preferences: UserDefaults = .standard, model: ProjectDialogSettingsModel? = nil,
+         contextProvider: (() throws -> (repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool))? = nil) {
+        self.workspace = workspace; self.globalOnly = globalOnly; self.contextProvider = contextProvider
         _model = StateObject(wrappedValue: model ?? ProjectDialogSettingsModel(preferences: preferences))
     }
-    private var language: Binding<String> {
-        Binding(get: { model.draft.language.inherit ? "" : model.draft.language.value }, set: { model.draft.language = .init(value: $0, inherit: $0.isEmpty) })
-    }
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let context = model.formContext
+        ScrollView { VStack(alignment: .leading, spacing: 16) {
             GroupBox("Config source") {
-                Picker("Config source", selection: Binding(get: { model.source }, set: model.load)) {
+                VStack(alignment: .leading, spacing: 8) {
+                Picker("Config source", selection: model.sourceSelection(context: context)) {
                     ForEach(ProjectDialogSettingsSource.allCases, id: \.self) { source in
-                        Text(source.rawValue).tag(source).disabled((source == .local || source == .project) && !model.localAvailable)
+                        Text(source.rawValue).tag(source).disabled(!model.sourceAvailable(source))
                     }
-                }.pickerStyle(.radioGroup).horizontalRadioGroupLayout().labelsHidden().padding(8).disabled(model.busy)
+                }.pickerStyle(.radioGroup).horizontalRadioGroupLayout().labelsHidden().disabled(!model.canSelectSource)
+                Text("Local overrides Project; Project overrides Global; Global overrides System. Effective shows the combined result.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }.padding(8)
             }
             GroupBox("Commit") {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Select the language this project is using. This setting affects the spell checker used for commit messages.")
-                    Picker("Language:", selection: language) {
+                    Picker("Language:", selection: model.language(context: context)) {
                         Text(" ").tag(""); Text("(auto)").tag("0"); Text("(disable)").tag("-1")
                         if !model.draft.language.value.isEmpty && !["0", "-1"].contains(model.draft.language.value) && !ProjectLanguages.choices.contains(where: { $0.value == model.draft.language.value }) {
                             Text(ProjectLanguages.identifier(model.draft.language.value) ?? model.draft.language.value).tag(model.draft.language.value)
@@ -225,10 +352,10 @@ struct ProjectDialogSettingsPage: View {
                         ForEach(ProjectLanguages.choices, id: \.value) { choice in Text(choice.title).tag(choice.value) }
                     }.disabled(!model.editable)
                     Text("Minimum number of chars for a commit message:")
-                    inherited("Limit:", field: $model.draft.minimumMessageLength)
+                    inherited("Limit:", identity: model.draft.minimumMessageLength, text: model.text(.minimum, context: context), inherit: model.inherit(.minimum, context: context))
                     Text("Char position where to show a border line in commit text boxes:")
-                    inherited("Border:", field: $model.draft.messageWidthMarker)
-                    Picker("Warn on missing Signed-Off-By on commit", selection: $model.draft.warnNoSignedOffBy) {
+                    inherited("Border:", identity: model.draft.messageWidthMarker, text: model.text(.border, context: context), inherit: model.inherit(.border, context: context))
+                    Picker("Warn on missing Signed-Off-By on commit", selection: model.signedOff(context: context)) {
                         ForEach(GitConfigurationBoolean.allCases, id: \.self) { Text($0.rawValue.isEmpty ? " " : $0.rawValue).tag($0) }
                     }.disabled(!model.editable)
                 }.padding(8)
@@ -237,15 +364,15 @@ struct ProjectDialogSettingsPage: View {
                 VStack(alignment: .leading) {
                     HStack {
                         Text("Overlay Icon:")
-                        TextField("Overlay Icon", text: $model.draft.icon.value).disabled(!model.editable || model.draft.icon.inherit)
-                        Button("Browse…", action: model.browseIcon).disabled(!model.editable || model.draft.icon.inherit)
+                        TextField("Overlay Icon", text: model.text(.icon, context: context)).disabled(!model.editable || model.draft.icon.inherit)
+                        Button("Browse…") { model.browseIcon(context: context) }.disabled(!model.editable || model.draft.icon.inherit)
                     }
-                    Toggle("inherit", isOn: $model.draft.icon.inherit).disabled(!model.editable)
+                    Toggle("inherit", isOn: model.inherit(.icon, context: context)).disabled(!model.editable)
                 }.padding(8)
             }
             HStack {
                 Text("Save to:")
-                Picker("Save to", selection: $model.destination) {
+                Picker("Save to", selection: model.destinationSelection(context: context)) {
                     if model.localAvailable { Text("Local").tag(ProjectDialogSettingsSource.local) }
                     if model.localAvailable && !model.bare { Text("Project").tag(ProjectDialogSettingsSource.project) }
                     Text("Global").tag(ProjectDialogSettingsSource.global)
@@ -253,9 +380,8 @@ struct ProjectDialogSettingsPage: View {
             }
             if let error = model.error ?? model.validationError { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             if model.busy { ProgressView().controlSize(.small) }
-            Spacer()
-        }.padding(20).background(ProjectDialogWindowProbe(model: model).frame(width: 0, height: 0))
-        .settingsParticipant("dialogs3", page: .dialogs3, value: model.draft, modified: { model.modified }, validate: { model.validationError },
+        }.padding(20).frame(maxWidth: .infinity, alignment: .leading) }.background(ProjectDialogWindowProbe(model: model).frame(width: 0, height: 0))
+        .settingsParticipant("dialogs3", page: .dialogs3, value: model.state, modified: { model.modified }, validate: { model.validationError },
             apply: { await model.apply(owner: transaction?.window) }, cancel: model.cancel)
         .onChange(of: model.destination) { _ in transaction?.notify() }
         .onAppear(perform: activate).onDisappear { model.suspend() }
@@ -265,20 +391,25 @@ struct ProjectDialogSettingsPage: View {
         }
     }
     private func activate() {
-        do { let context = try workspace.gitConfigurationContext(globalOnly: globalOnly); model.activate(repository: context.repository, access: context.access, localAvailable: context.localAvailable) }
+        do { let context = try contextProvider?() ?? workspace.gitConfigurationContext(globalOnly: globalOnly); model.activate(repository: context.repository, access: context.access, localAvailable: context.localAvailable) }
         catch { model.error = error.localizedDescription }
     }
-    private func inherited(_ label: String, field: Binding<GitConfigurationIdentity>) -> some View {
-        HStack { Text(label).frame(width: 95, alignment: .leading); TextField(label, text: field.value).frame(width: 90).disabled(!model.editable || field.wrappedValue.inherit); Toggle("inherit", isOn: field.inherit).disabled(!model.editable); Spacer() }
+    private func inherited(_ label: String, identity: GitConfigurationIdentity, text: Binding<String>, inherit: Binding<Bool>) -> some View {
+        HStack {
+            Text(label).frame(width: 95, alignment: .leading)
+            TextField(label, text: text).frame(width: 90).disabled(!model.editable || identity.inherit)
+            Toggle("inherit", isOn: inherit).disabled(!model.editable).help("Use the value from a lower configuration level.")
+            Spacer()
+        }
     }
 }
 private struct ProjectDialogWindowProbe: NSViewRepresentable {
     let model: ProjectDialogSettingsModel
     func makeNSView(context: Context) -> Probe { let view = Probe(); view.model = model; return view }
-    func updateNSView(_ view: Probe, context: Context) { model.window = view.window }
+    func updateNSView(_ view: Probe, context: Context) { model.attach(to: view.window) }
     final class Probe: NSView {
         weak var model: ProjectDialogSettingsModel?
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.window = window; model?.showHierarchyHint() }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.attach(to: window); model?.showHierarchyHint() }
     }
 }
 

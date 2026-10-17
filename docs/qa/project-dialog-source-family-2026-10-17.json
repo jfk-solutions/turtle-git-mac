@@ -1,0 +1,134 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "d3d19a6b7b2e68283e87b5f0df9b334566ad7285",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Dialogs 3 source/dependency field contexts and source/destination selection",
+    "Once-only native current-icon chooser with stale/draft/owner fences",
+    "Exact UTF-8 modified-state and property-sheet Apply",
+    "Locale/path validation, bare/global scopes, scrollable native source grouping"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/project-dialog-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/project-dialog-picker-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "reason": "NSOpenPanel does not use inherited Save-panel name field; show current icon in message and open its folder."
+    }
+  ],
+  "core": {
+    "production_serialization_changed": false,
+    "suite_repeated": false
+  },
+  "native": {
+    "driver": "scripts/test-project-dialog-source-family.py",
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "whole_family_engine_passes": 2,
+    "attempts": [
+      {
+        "log": "build/qa/project-dialog-source-native-2026-10-17.log",
+        "exit": 1,
+        "pids": [
+          56043
+        ],
+        "failure": "Native filename assertion; no second engine or captures."
+      },
+      {
+        "log": "build/qa/project-dialog-source-picker-diagnostic-2026-10-17.log",
+        "exit": 1,
+        "pids": [
+          56117
+        ],
+        "failure": "Directory correct; NSOpenPanel returns Untitled for unused nameFieldStringValue."
+      },
+      {
+        "log": "build/qa/project-dialog-picker-native-2026-10-17.log",
+        "exit": 0,
+        "pids": [
+          56229,
+          56351
+        ]
+      }
+    ],
+    "coverage": [
+      "Effective read-only precedence and source-roundtrip/foreign-context rejection",
+      "Inheritance, cancel and picker transitions invalidate retained fields",
+      "Canonically equivalent icon spellings produce modified-state and real exact-byte Git writes through SettingsTransaction",
+      "Injected chooser initial relative path, duplicate-result rejection, newer-draft refusal and suspend/reactivate retirement",
+      "Actual native Open panel correct folder/current-path message and sheet cancellation",
+      "All five project fields written in real config, inherited removal and Local isolation",
+      "Invalid/overflow/negative locale rejection; valid hexadecimal locale; NUL icon rejection",
+      "Bare HEAD project source remains readable with worktree project destination unavailable",
+      "Global-only scopes reject repository sources/destinations",
+      "Accepted captured write finishes after owner closure without late publication",
+      "Uncooperative discovery read retains cancellation/count and rejects late publication",
+      "HEAD and index bytes unchanged"
+    ],
+    "ownership": {
+      "receiver_pids": [
+        56043,
+        56117,
+        56229,
+        56351
+      ],
+      "all_independently_absent": true,
+      "private_paths_absent": true,
+      "activation": "prohibited; owned window orderFront only",
+      "inputs": "Private Git repositories/preferences; file authorizations and picker acceptance injected; native cancellation uses own sheet return code; no global input or real bookmark mutation"
+    },
+    "picker_reference": {
+      "sdk": "AppKit NSSavePanel.h explicitly documents NSOpenPanel: Not used for nameFieldStringValue.",
+      "apple_documentation": "https://developer.apple.com/documentation/appkit/nssavepanel/namefieldstringvalue"
+    }
+  },
+  "captures": {
+    "files": [
+      "project-dialog-source-light.png",
+      "project-dialog-source-dark.png"
+    ],
+    "directory": "docs/site/assets",
+    "raw": true,
+    "child_windows_included": false,
+    "individually_reviewed": true,
+    "pixels": "1520x1464",
+    "observation": "Visible source/Commit/Dialogs/Save to order, controls fit in both palettes. Capture is the standalone hosted page, not a complete Settings navigation-window acceptance."
+  },
+  "ledger": {
+    "new_partial_control_mappings": 4,
+    "mapped_controls": 1551,
+    "pending_controls": 108,
+    "certified_dialogs": 0
+  },
+  "hosted_observed": {
+    "commit": "d3d19a6b7b2e68283e87b5f0df9b334566ad7285",
+    "macos": {
+      "id": 39003295938,
+      "status": "pending"
+    },
+    "pages": {
+      "id": 39003295949,
+      "conclusion": "success"
+    }
+  },
+  "remaining": [
+    "Complete Settings window/minimum-size and physical keyboard/VoiceOver acceptance",
+    "Physical native picker file acceptance and signed bookmark/sandbox grants",
+    "Hidden unused file-list English controls remain unmapped",
+    "Full hosted macOS CI/current universal preview/signed Finder/App Store acceptance"
+  ],
+  "certified_complete": false,
+  "site": {
+    "log": "build/qa/project-dialog-source-site-2026-10-17.log",
+    "exit": 0,
+    "documents": 265,
+    "unresolved_fragments": 0
+  }
+}
