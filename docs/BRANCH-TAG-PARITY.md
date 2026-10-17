@@ -190,3 +190,48 @@ See [grouped evidence](qa/branch-tag-completion-2026-10-16.json) for actual buil
 Core/native results, any repairs and process cleanup. These checks do not certify
 all source focus/balloon behavior, physical signing/transport prompts, complete
 visual/VoiceOver parity, signed sandbox handoffs or App Store acceptance.
+
+## Source form and exact creation handoffs — October 17, 2026
+
+Name, Base On, Options and Description/Message retain their source order. HEAD is
+left aligned with the other radio rows. Captured name/options/message/base/focus
+and Browse bindings reject a replaced load, active picker, busy or created form,
+cancellation and closed owner. Name changes and remote-name suggestions compare
+exact UTF-8, so an edited canonical Unicode spelling is not replaced as an old
+suggestion. Picker intent now includes all creation flags and message text.
+Native name focus follows load completion. Explicit content sizing keeps the form
+and footer within a resizable native window.
+
+The shared three-state Track checkbox now honors its parent's disabled state,
+updates rapid clicks synchronously, and retires on native teardown/owner closure.
+Base radios retain that same owned button lifetime. These choices are also used
+by Switch, Worktree Create and configuration-source forms; their source meanings
+and existing three-state order remain unchanged.
+
+Creation validation, base resolution, branch/tag writes and descriptions preserve
+exact names/messages using a command-only `core.precomposeunicode=false` override.
+The connected Switch and Push validation/mutation paths use it too, so a newly
+created name cannot select a canonically equivalent ref for a follow-up action.
+Persistent Git path preferences are retained. Missing-ref checks distinguish an
+ordinary absence from other Git failures. Ref checks remain preflight guards,
+not an atomic multi-ref transaction. Normalizing filesystems can still constrain
+coexisting loose names; full filesystem/transport/signing acceptance remains open.
+
+All 22 previously pending static controls now receive partial mappings (24/24
+including existing Help/footer mappings). The build and eight grouped native
+case/engine runs pass. Initial Core failures exposed command-wrapper error
+arguments and normalization of catalog reads; both were repaired. The 13 affected
+Core checks then passed; the other 22 initial checks had already passed. Native
+validation first required a fixture entry-point repair, then found asynchronous
+Track updates after a later click. Name-dependent tracking now updates
+synchronously in the model, and the native fixture waits for rendered readiness.
+Four raw light/dark captures were individually reviewed; all owned receivers were
+reaped and independently absent. See [batch evidence](qa/branch-tag-source-family-2026-10-17.json).
+
+The grouped checks cover actual private branch/tag creation, description, Switch,
+Push handoffs, private bare-remote push, recovery, cancellation, reference/Log
+pickers and retired controls with system and bundled Git. Native split-view
+layout warnings remain in the hidden picker harness. Signed tag/key prompts,
+complete physical/keyboard/VoiceOver, all Git/version/locale/FS boundaries and
+signed sandbox/App Store acceptance remain open. No full port certification is
+claimed.

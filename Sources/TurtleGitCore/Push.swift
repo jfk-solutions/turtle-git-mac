@@ -51,22 +51,27 @@ public enum PushValidationFailure: LocalizedError {
     }
 }
 extension GitRepository {
+    private func pushCommand(_ arguments: [String], environmentOverrides: [String:String] = [:], cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+        do { return try run(["-c", "core.precomposeunicode=false"] + arguments, environmentOverrides: environmentOverrides, cancellation: cancellation, onOutput: onOutput) }
+        catch let failure as GitFailure { throw GitFailure(arguments: arguments, code: failure.code, message: failure.message) }
+    }
+
     public func remoteURLs(name: String) throws -> (fetch: String, push: String) {
-        let fetch = try run(["remote", "get-url", "--", name]).text.trimmingCharacters(in: .newlines)
+        let fetch = try pushCommand(["remote", "get-url", "--", name]).text.trimmingCharacters(in: .newlines)
         return (fetch, pushConfig("remote." + name + ".pushurl"))
     }
     public func saveRemote(name: String, fetchURL: String, pushURL: String, existing: Bool) throws {
-        guard !name.isEmpty, !name.hasPrefix("-"), !name.contains("/"), !fetchURL.isEmpty, !fetchURL.contains("\0"), !pushURL.contains("\0"), (try? run(["check-ref-format", "refs/remotes/" + name + "/test"])) != nil else { throw PushValidationFailure.remote }
-        if existing { _ = try run(["remote", "set-url", "--", name, fetchURL]) }
-        else { _ = try run(["remote", "add", "--", name, fetchURL]) }
-        if pushURL.isEmpty { if !pushConfig("remote." + name + ".pushurl").isEmpty { _ = try run(["config", "--local", "--unset-all", "remote." + name + ".pushurl"]) } }
-        else { _ = try run(["config", "--local", "remote." + name + ".pushurl", pushURL]) }
+        guard !name.isEmpty, !name.hasPrefix("-"), !name.contains("/"), !fetchURL.isEmpty, !fetchURL.contains("\0"), !pushURL.contains("\0"), (try? pushCommand(["check-ref-format", "refs/remotes/" + name + "/test"])) != nil else { throw PushValidationFailure.remote }
+        if existing { _ = try pushCommand(["remote", "set-url", "--", name, fetchURL]) }
+        else { _ = try pushCommand(["remote", "add", "--", name, fetchURL]) }
+        if pushURL.isEmpty { if !pushConfig("remote." + name + ".pushurl").isEmpty { _ = try pushCommand(["config", "--local", "--unset-all", "remote." + name + ".pushurl"]) } }
+        else { _ = try pushCommand(["config", "--local", "remote." + name + ".pushurl", pushURL]) }
     }
-    public func remoteNames(cancellation: OperationCancellation? = nil) throws -> [String] { try run(["remote"], cancellation: cancellation).text.split(separator: "\n").map(String.init) }
-    private func pushConfig(_ key: String) -> String { ((try? run(["config", "--get", key]).text) ?? "").trimmingCharacters(in: .newlines) }
+    public func remoteNames(cancellation: OperationCancellation? = nil) throws -> [String] { try pushCommand(["remote"], cancellation: cancellation).text.split(separator: "\n").map(String.init) }
+    private func pushConfig(_ key: String) -> String { ((try? pushCommand(["config", "--get", key]).text) ?? "").trimmingCharacters(in: .newlines) }
     public func pushDefaults(source: String, cancellation: OperationCancellation? = nil) throws -> PushDefaults {
         func optionalRead(_ arguments: [String]) throws -> GitResult? {
-            do { return try run(arguments, cancellation: cancellation) }
+            do { return try pushCommand(arguments, cancellation: cancellation) }
             catch { try cancellation?.check(); return nil }
         }
         func configuration(_ key: String) throws -> String {
@@ -92,12 +97,12 @@ extension GitRepository {
     public func pushSubmoduleDefault(cancellation: OperationCancellation?) throws -> PushSubmodules {
         try cancellation?.check()
         do {
-            let value = try run(["config", "--get", "push.recurseSubmodules"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            let value = try pushCommand(["config", "--get", "push.recurseSubmodules"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             return PushSubmodules(rawValue: value) ?? .none
         } catch { try cancellation?.check(); return .none }
     }
     private func optionalPushRead(_ arguments: [String], cancellation: OperationCancellation?) throws -> GitResult? {
-        do { return try run(arguments, cancellation: cancellation) }
+        do { return try pushCommand(arguments, cancellation: cancellation) }
         catch { try cancellation?.check(); return nil }
     }
     private func pushSourceIsUnique(_ source: String, cancellation: OperationCancellation?) throws -> Bool {
@@ -138,7 +143,7 @@ extension GitRepository {
     }
     /// The upstream first-parent counter is a display value, not a unique revision ID.
     public func branchRevisionNumber(_ revision: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
-        try run(["rev-list", "--count", "--first-parent", "--end-of-options", revision, "--"], cancellation: cancellation, onOutput: onOutput).text.trimmingCharacters(in: .newlines)
+        try pushCommand(["rev-list", "--count", "--first-parent", "--end-of-options", revision, "--"], cancellation: cancellation, onOutput: onOutput).text.trimmingCharacters(in: .newlines)
     }
     public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> String {
         let token = cancellation ?? OperationCancellation(); try token.check()
@@ -146,11 +151,11 @@ extension GitRepository {
         let source = plan.source, destination = plan.destination, remotes = plan.remotes, destinationRef = plan.destinationRef
         if options.savePushRemote || options.savePushBranch {
             guard !options.arbitraryURL, !options.allRemotes, !options.allBranches, !options.setUpstream, let branch = plan.localBranch else { throw PushValidationFailure.combination }
-            if options.savePushRemote { _ = try run(["config", "--local", "branch." + branch + ".pushRemote", options.remote], cancellation: cancellation) }
+            if options.savePushRemote { _ = try pushCommand(["config", "--local", "branch." + branch + ".pushRemote", options.remote], cancellation: cancellation) }
             if options.savePushBranch {
                 let key = "branch." + branch + ".pushbranch"
-                if destination.isEmpty { if let value = try optionalPushRead(["config", "--get", key], cancellation: cancellation), !value.text.trimmingCharacters(in: .newlines).isEmpty { _ = try run(["config", "--local", "--unset-all", key], cancellation: cancellation) } }
-                else { _ = try run(["config", "--local", key, destination], cancellation: cancellation) }
+                if destination.isEmpty { if let value = try optionalPushRead(["config", "--get", key], cancellation: cancellation), !value.text.trimmingCharacters(in: .newlines).isEmpty { _ = try pushCommand(["config", "--local", "--unset-all", key], cancellation: cancellation) } }
+                else { _ = try pushCommand(["config", "--local", key, destination], cancellation: cancellation) }
             }
         }
         var flags = ["--porcelain", "--progress", "--recurse-submodules=" + options.submodules.rawValue]
@@ -165,15 +170,15 @@ extension GitRepository {
                 defer { withExtendedLifetime(session) {} }
                 let environment = session?.transportEnvironment ?? [:]
                 if options.allBranches {
-                    output += try run(["push", "--all"] + flags + ["--", remote], environmentOverrides: environment, cancellation: token, onOutput: onOutput).text
+                    output += try pushCommand(["push", "--all"] + flags + ["--", remote], environmentOverrides: environment, cancellation: token, onOutput: onOutput).text
                     completed.append(remote + " (branches)")
-                    if options.includeTags { output += try run(["push", "--tags"] + flags + ["--", remote], environmentOverrides: environment, cancellation: token, onOutput: onOutput).text; completed.append(remote + " (tags)") }
+                    if options.includeTags { output += try pushCommand(["push", "--tags"] + flags + ["--", remote], environmentOverrides: environment, cancellation: token, onOutput: onOutput).text; completed.append(remote + " (tags)") }
                 } else {
                     var args = ["push"] + flags
                     if options.includeTags { args.append("--tags") }
                     args += ["--", remote]
                     if !source.isEmpty || !destination.isEmpty { args.append(source + (destinationRef.isEmpty ? "" : ":" + destinationRef)) }
-                    output += try run(args, environmentOverrides: environment, cancellation: token, onOutput: onOutput).text; completed.append(remote)
+                    output += try pushCommand(args, environmentOverrides: environment, cancellation: token, onOutput: onOutput).text; completed.append(remote)
                     if options.showBranchRevisionNumber { output += try branchRevisionNumber(source, cancellation: token, onOutput: onOutput) + "\n" }
                 }
             } catch { throw PushExecutionFailure(completed: completed, failedRemote: remote, details: error.localizedDescription, output: output, commandFailure: error as? GitFailure) }

@@ -42,9 +42,17 @@ import TurtleGitCore
         let quoted = "'" + git.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
         let script = """
         #!/bin/sh
+        task_find_command() {
+          if [ "$1" = --literal-pathspecs ] || [ "$1" = --no-literal-pathspecs ]; then shift; fi
+          if [ "$1" = -C ]; then shift 2; fi
+          while [ "$1" = -c ]; do shift 2; done
+          task_command=$1
+          task_argument=$2
+        }
+        task_find_command "$@"
         task_mode=$(/bin/cat "$0.mode" 2>/dev/null)
         task_match=no
-        if [ "$4" = branch ] && [ "$5" != --show-current ]; then
+        if [ "$task_command" = branch ] && [ "$task_argument" != --show-current ]; then
           if [ "$task_mode" = lock-after-branch ]; then
             \(quoted) "$@"
             task_result=$?
@@ -53,9 +61,9 @@ import TurtleGitCore
           fi
           if [ "$task_mode" = hold-branch ]; then task_match=yes; fi
         fi
-        if [ "$4" = -c ] && [ "$5" = tag.gpgSign=false ] && [ "$6" = tag ] && [ "$task_mode" = hold-tag ]; then task_match=yes; fi
-        if [ "$4" = -c ] && [ "$5" = core.precomposeunicode=false ] && [ "$6" = config ] && [ "$task_mode" = hold-description ]; then task_match=yes; fi
-        if [ "$4" = branch ] && [ "$5" = --show-current ] && [ "$task_mode" = hold-load ]; then task_match=yes; fi
+        if [ "$task_command" = tag ] && [ "$task_mode" = hold-tag ]; then task_match=yes; fi
+        if [ "$task_command" = config ] && [ "$task_argument" = --local ] && [ "$task_mode" = hold-description ]; then task_match=yes; fi
+        if [ "$task_command" = branch ] && [ "$task_argument" = --show-current ] && [ "$task_mode" = hold-load ]; then task_match=yes; fi
         if [ "$task_match" = yes ] && [ -f "$0.pause" ]; then
           /bin/rm "$0.pause"
           /bin/sleep 30 &

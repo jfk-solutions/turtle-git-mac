@@ -1909,3 +1909,13 @@ fresh UTF-16 issue styling; retired clipboard/editor bindings cannot publish.
 All fifty source controls receive partial mappings. See
 [issue parity](ISSUE-TRACKER-PARITY.md#source-configuration-and-exact-tester-drafts--october-17-2026).
 The Debug build, 12 focused Core checks and five native case/engine runs pass. The initial source assertion and diagnostic recheck exposed Git’s argv precomposition; a private reproduction confirmed the cause, and the scoped writer now preserves exact values with a command-only override. Core verifies all writable scopes and the unchanged persistent preference; native source/configuration checks pass with system and bundled Git, plus the retained actual C++ Regex Tester. All four raw light/dark captures were individually reviewed, and all seven owned receivers were reaped and independently absent. See [batch evidence](qa/issue-tracker-source-family-2026-10-17.json) for exact attempts, provenance and remaining acceptance.
+
+### Branch/Tag source forms and exact follow-ups — October 17, 2026
+
+The connected creation family now captures fields, base selectors and picker
+intent, preserves edited Unicode suggestions, and retires shared native radio/
+Track targets. Tracking respects disabled parent forms and rapid source cycling.
+Git creation, description, Switch and Push commands retain exact names/messages
+without changing persistent path preferences. All 22 source controls have partial
+mappings. See [Branch/Tag parity](BRANCH-TAG-PARITY.md#source-form-and-exact-creation-handoffs--october-17-2026).
+The Debug build and eight grouped native case/engine checks pass. Core initially passed 32 of 35 cases; repairs to exact catalog reads and semantic error arguments then passed all 13 affected cases without rerunning unaffected checks. Native validation exposed a fixture entry-point error and delayed Track updates; both were repaired before the grouped pass. All four raw light/dark captures were individually reviewed, and all nine owned receivers from the attempts were reaped and independently absent. See [batch evidence](qa/branch-tag-source-family-2026-10-17.json) for failures, scope and remaining acceptance.

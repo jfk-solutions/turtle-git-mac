@@ -24,25 +24,30 @@ public enum ReferenceCreationFailure: LocalizedError {
     }
 }
 extension GitRepository {
+    /// Reference names, base revisions and messages are data, not filesystem
+    /// spellings. Git on macOS otherwise precomposes all command-line arguments.
+    private func creationCommand(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil) throws -> GitResult {
+        do { return try run(["-c", "core.precomposeunicode=false"] + arguments, successfulExitCodes: successfulExitCodes, cancellation: cancellation) }
+        catch let failure as GitFailure { throw GitFailure(arguments: arguments, code: failure.code, message: failure.message) }
+    }
     public func createReference(_ options: ReferenceCreationOptions, writeDescription: Bool = true, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()
         func exists(_ ref: String) throws -> Bool {
-            do { _ = try run(["show-ref", "--verify", "--quiet", ref], cancellation: cancellation); return true }
-            catch { try cancellation?.check(); return false }
+            try creationCommand(["show-ref", "--verify", "--quiet", ref], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0
         }
         let name = options.name.trimmingCharacters(in: .whitespacesAndNewlines)
         let prefix = options.isTag ? "refs/tags/" : "refs/heads/"
         do {
-            _ = try run(["check-ref-format", prefix + name], cancellation: cancellation)
+            _ = try creationCommand(["check-ref-format", prefix + name], cancellation: cancellation)
             // Git's branch-name rules also reject leading dashes and checkout shorthand.
-            _ = try run(["check-ref-format", "--branch", name], cancellation: cancellation)
+            _ = try creationCommand(["check-ref-format", "--branch", name], cancellation: cancellation)
         } catch { try cancellation?.check(); throw ReferenceCreationFailure.invalidName }
         if !options.force, try exists(prefix + name) { throw ReferenceCreationFailure.exists }
         let other = options.isTag ? "refs/heads/" : "refs/tags/"
         if !options.allowNameConflict, try exists(other + name) { throw ReferenceCreationFailure.nameConflict }
         let hash: String
         do {
-            let output = try run(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"], cancellation: cancellation).stdout
+            let output = try creationCommand(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"], cancellation: cancellation).stdout
             hash = String(decoding: output, as: UTF8.self).trimmingCharacters(in: .newlines)
             guard [40, 64].contains(hash.count), hash.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw ReferenceCreationFailure.invalidRevision }
         }
@@ -65,23 +70,23 @@ extension GitRepository {
             } else { args.append("--no-track") }
             args += ["--", name, remote ? options.revision : hash]
         }
-        let output = try run(args, cancellation: cancellation).text
-        if writeDescription, !options.isTag, !message.isEmpty { _ = try run(["config", "--local", "branch." + name + ".description", message], cancellation: cancellation) }
+        let output = try creationCommand(args, cancellation: cancellation).text
+        if writeDescription, !options.isTag, !message.isEmpty { _ = try creationCommand(["config", "--local", "branch." + name + ".description", message], cancellation: cancellation) }
         return output
     }
     /// Source CreateBranchTag writes the description after PerformSwitch returns,
     /// even when checkout failed. Keep this phase separable for native ownership.
     public func updateBranchDescription(_ name: String, message: String, cancellation: OperationCancellation? = nil, expectedHash: String? = nil) throws {
         try cancellation?.check()
-        do { _ = try run(["check-ref-format", "refs/heads/" + name], cancellation: cancellation) }
+        do { _ = try creationCommand(["check-ref-format", "refs/heads/" + name], cancellation: cancellation) }
         catch OperationCancellationFailure.cancelled { throw OperationCancellationFailure.cancelled }
         catch { throw ReferenceCreationFailure.invalidName }
         try validateBrowserReference(GitReferenceName("refs/heads/" + name), expectedHash: expectedHash, cancellation: cancellation)
         let value = message.replacingOccurrences(of: "\r", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         let key = "branch." + name + ".description"
         if value.isEmpty {
-            do { _ = try run(["-c", "core.precomposeunicode=false", "config", "--local", "--unset-all", key], cancellation: cancellation) }
+            do { _ = try creationCommand(["config", "--local", "--unset-all", key], cancellation: cancellation) }
             catch let failure as GitFailure where failure.code == 5 { /* Already absent. */ }
-        } else { _ = try run(["-c", "core.precomposeunicode=false", "config", "--local", key, value], cancellation: cancellation) }
+        } else { _ = try creationCommand(["config", "--local", key, value], cancellation: cancellation) }
     }
 }

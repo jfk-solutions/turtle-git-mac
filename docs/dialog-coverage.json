@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 328,
-    "mapped_controls": 1331,
+    "pending_control_reviews": 306,
+    "mapped_controls": 1353,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -2361,23 +2361,10 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 24,
-      "mapped_controls": 2,
-      "pending_control_reviews": 22,
+      "mapped_controls": 24,
+      "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [
-        {
-          "path": "Sources/TurtleGitMac/SwitchWindow.swift",
-          "origin": "recorded-control-mapping"
-        },
-        {
-          "path": "Sources/TurtleGitMac/BranchTagWindow.swift",
-          "origin": "recorded-control-mapping"
-        },
-        {
-          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
-          "origin": "recorded-control-mapping"
-        }
-      ],
+      "native_sources": [],
       "missing_native_references": [],
       "parity_documents": [
         "docs/BRANCH-TAG-PARITY.md",
@@ -2387,6 +2374,7 @@
       "qa_records": [
         "docs/qa/branch-tag-completion-2026-10-16.json",
         "docs/qa/branch-tag-handoff-2026-10-08.json",
+        "docs/qa/branch-tag-source-family-2026-10-17.json",
         "docs/qa/creation-pickers-2026-10-09.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",

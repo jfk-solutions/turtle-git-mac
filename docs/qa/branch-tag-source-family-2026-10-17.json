@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "4b1eb5e500793a40ab0fb760491bba931c391186",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source Branch/Tag form hierarchy, guarded fields/base/picker contexts and owned native controls",
+    "Synchronous exact-name suggestion/tracking updates and three-state native Track cycle/disabled/retired guards",
+    "Command-only Unicode preservation across creation, description, catalog, Switch and Push; semantic GitFailure arguments retained",
+    "22 newly mapped static controls; 24/24 total partial mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/branch-tag-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 8
+    },
+    {
+      "log": "build/qa/branch-tag-source-unicode-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/branch-tag-source-tracking-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "core": {
+    "initial": {
+      "log": "build/qa/branch-tag-source-core-2026-10-17.log",
+      "exit": 1,
+      "tests": 35,
+      "failures": 3,
+      "failure": "Push failure arguments exposed internal -c prefix; two exact-name tests failed because catalog reads precomposed names."
+    },
+    "repair": {
+      "log": "build/qa/branch-tag-source-core-repair-2026-10-17.log",
+      "exit": 0,
+      "tests": 13,
+      "failures": 0,
+      "filter": "ReferenceCreationUnicodeTests|CheckoutTests|PushTests.testOutputObserverRetainsPartialPublicationAndStructuredCommandFailure"
+    },
+    "interpretation": "35 distinct cases have passing evidence across initial and repair runs; not one fresh 35-case pass. Unaffected checks were not repeated."
+  },
+  "native": {
+    "distinct_case_engine_passes": 8,
+    "cases": [
+      "source",
+      "completion",
+      "handoff",
+      "pickers"
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/branch-tag-source-native-2026-10-17.log",
+        "exit": 1,
+        "failure": "Fixture compilation: handoff has main entry rather than verify; runner corrected. No receiver launched."
+      },
+      {
+        "log": "build/qa/branch-tag-source-native-entry-2026-10-17.log",
+        "exit": 1,
+        "failure": "Source Track cycling assertion: asynchronous name-change update could overwrite a later click. Repaired with synchronous model update and rendered-control readiness."
+      },
+      {
+        "log": "build/qa/branch-tag-source-native-tracking-2026-10-17.log",
+        "exit": 0,
+        "passed_cases": 8
+      }
+    ],
+    "owned_receivers_reaped": [
+      22930,
+      23038,
+      23121,
+      23201,
+      23525,
+      23847,
+      24017,
+      24186,
+      24821
+    ],
+    "independently_absent_owned_receivers": [
+      22930,
+      23038,
+      23121,
+      23201,
+      23525,
+      23847,
+      24017,
+      24186,
+      24821
+    ],
+    "diagnostics": "NSSplitView zero-size arranged-view warnings remain in hidden retained picker cases."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/create-branch-source-light.png",
+      "sha256": "a6efafe66804e975b5ed06a6c8a4118b4e5dcb32e696b9b3ce4afa5351c331ff",
+      "pixels": [
+        1320,
+        1184
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/create-branch-source-dark.png",
+      "sha256": "41d7bd31d814af9d2cab18842dc07d67834c54ee1c70799d906965936f693862",
+      "pixels": [
+        1320,
+        1184
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/create-tag-source-light.png",
+      "sha256": "ebeaced55de8ddac29cfdc0f7bd5227ff18c0cd646027ab58135e99df3019b4e",
+      "pixels": [
+        1320,
+        1184
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/create-tag-source-dark.png",
+      "sha256": "9d43877ce78659ef9d4941e0bc24af273fbe2b3fbeec848aa5a6509577c9e52c",
+      "pixels": [
+        1320,
+        1184
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of actual BranchTagWindowController windows with private repositories/preferences. Passive windows; no global focus or input. System Git source case only; private branches/tags and local bare remote. No physical signing prompt or public network acceptance.",
+  "hosted_observation": {
+    "head": "4b1eb5e500793a40ab0fb760491bba931c391186",
+    "macos": {
+      "run": 38993184019,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38993183952,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Normalizing filesystems may constrain coexisting loose canonical-equivalent refs; no atomic multi-ref transaction",
+    "Public transport, interactive tag signing and all Git/version/locale/filesystem boundaries remain unverified",
+    "Complete keyboard/VoiceOver and physical Finder, signed sandbox/App Store acceptance remain open",
+    "Focused grouped checks do not certify complete hosted CI or full dialog/port parity"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/branch-tag-source-site-2026-10-17.log"
+  }
+}

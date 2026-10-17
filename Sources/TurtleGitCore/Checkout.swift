@@ -72,7 +72,7 @@ public enum CheckoutFailure: LocalizedError {
 
 extension GitRepository {
     public func checkoutReferences(includeAll: Bool = false, includeFetchHead: Bool = false, localBranchesFirst: Bool? = nil, cancellation: OperationCancellation? = nil) throws -> [CheckoutReference] {
-        let bytes = try run(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)%00"] + (includeAll ? [] : ["refs/heads", "refs/remotes", "refs/tags"]), cancellation: cancellation).stdout
+        let bytes = try checkoutCommand(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)%00"] + (includeAll ? [] : ["refs/heads", "refs/remotes", "refs/tags"]), cancellation: cancellation).stdout
         let fields = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\0")
         var result: [CheckoutReference] = []
         var i = 0
@@ -85,16 +85,20 @@ extension GitRepository {
             // Exactly one for-merge FETCH_HEAD, matching GetBranchList's choice.
             if let hash = try? fetchHeadForMerge(cancellation: cancellation),
                (hash.count == 40 || hash.count == 64), hash.allSatisfy({ $0.isASCII && $0.isHexDigit }),
-               try run(["rev-parse", "--verify", "--quiet", "--end-of-options", hash + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 {
+               try checkoutCommand(["rev-parse", "--verify", "--quiet", "--end-of-options", hash + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 {
                 result.append(CheckoutReference(name: "FETCH_HEAD", symbolicTarget: nil))
             }
             try cancellation?.check()
         }
         return CheckoutReferenceOrdering.sorted(result, localBranchesFirst: localBranchesFirst ?? AdvancedListBehavior().localBranchesFirst)
     }
+    private func checkoutCommand(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+        do { return try run(["-c", "core.precomposeunicode=false"] + arguments, successfulExitCodes: successfulExitCodes, cancellation: cancellation, onOutput: onOutput) }
+        catch let failure as GitFailure { throw GitFailure(arguments: arguments, code: failure.code, message: failure.message) }
+    }
     public func checkout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
-        return try run(checkoutArguments(options, cancellation: cancellation), cancellation: cancellation, onOutput: onOutput).text
+        return try checkoutCommand(checkoutArguments(options, cancellation: cancellation), cancellation: cancellation, onOutput: onOutput).text
     }
     /// Read-only validation before a native options dialog hands off to progress.
     public func validateCheckout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws { _ = try checkoutArguments(options, cancellation: cancellation) }
@@ -110,7 +114,7 @@ extension GitRepository {
             guard reference?.target == .tag else { throw CheckoutFailure.invalidRevision }
         }
         let resolved: String
-        do { resolved = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+        do { resolved = try checkoutCommand(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
         catch { try cancellation?.check(); throw CheckoutFailure.invalidRevision }
         var args = ["switch", "--no-guess"]
         if options.overwriteChanges { args.append("--discard-changes") }
@@ -118,11 +122,11 @@ extension GitRepository {
         if options.createBranch {
             let name = options.branchName.trimmingCharacters(in: .whitespacesAndNewlines)
             do {
-                _ = try run(["check-ref-format", "refs/heads/" + name], cancellation: cancellation)
-                _ = try run(["check-ref-format", "--branch", name], cancellation: cancellation)
+                _ = try checkoutCommand(["check-ref-format", "refs/heads/" + name], cancellation: cancellation)
+                _ = try checkoutCommand(["check-ref-format", "--branch", name], cancellation: cancellation)
             } catch { try cancellation?.check(); throw CheckoutFailure.invalidBranch }
             func exists(_ reference: String) throws -> Bool {
-                do { _ = try run(["show-ref", "--verify", "--quiet", reference], cancellation: cancellation); return true }
+                do { _ = try checkoutCommand(["show-ref", "--verify", "--quiet", reference], cancellation: cancellation); return true }
                 catch { try cancellation?.check(); return false }
             }
             if !options.overrideBranch, try exists("refs/heads/" + name) { throw CheckoutFailure.branchExists }

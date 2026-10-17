@@ -441,21 +441,46 @@ struct SwitchReferenceChooser: View {
     }
 }
 
+/// Shared native reference choices retire their target on owner closure, even
+/// when a cached host keeps its NSButton alive after the window closes.
+@MainActor final class ReferenceChoiceButton: NSButton {
+    private(set) var retired = false
+    private weak var observedWindow: NSWindow?
+    private var closeObserver: NSObjectProtocol?
+    deinit { if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) } }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard !retired, let window, observedWindow !== window else { return }
+        if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
+        observedWindow = window
+        closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in
+            MainActor.assumeIsolated { guard let self else { return }; self.retired = true; self.isEnabled = false; self.target = nil; self.action = nil }
+        }
+    }
+}
+
 struct TrackingCheckbox: NSViewRepresentable {
     @Binding var value: CheckoutTracking
     let enabled: Bool
+    @Environment(\.isEnabled) private var parentEnabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSButton {
-        let button = NSButton(checkboxWithTitle: "Track", target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
+        let button = ReferenceChoiceButton(checkboxWithTitle: "Track", target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
         button.allowsMixedState = true; return button
     }
     func updateNSView(_ button: NSButton, context: Context) {
-        button.state = value == .automatic ? .mixed : (value == .track ? .on : .off); button.isEnabled = enabled
+        button.state = value == .automatic ? .mixed : (value == .track ? .on : .off); button.isEnabled = enabled && parentEnabled && (button as? ReferenceChoiceButton)?.retired != true
         context.coordinator.change = { value = $0 }; context.coordinator.value = value
     }
+    static func dismantleNSView(_ button: NSButton, coordinator: Coordinator) { coordinator.live = false; button.isEnabled = false; button.target = nil; button.action = nil }
     final class Coordinator: NSObject {
-        var change: (CheckoutTracking) -> Void = { _ in }; var value = CheckoutTracking.automatic
-        @objc func clicked(_ sender: NSButton) { change(value == .automatic ? .noTrack : (value == .noTrack ? .track : .automatic)) }
+        var change: (CheckoutTracking) -> Void = { _ in }; var value = CheckoutTracking.automatic; var live = true
+        @objc func clicked(_ sender: NSButton) {
+            guard live, sender.isEnabled, sender.window != nil else { return }
+            value = value == .automatic ? .noTrack : value == .noTrack ? .track : .automatic
+            sender.state = value == .automatic ? .mixed : value == .track ? .on : .off
+            change(value)
+        }
     }
 }
 
