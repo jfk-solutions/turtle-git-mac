@@ -207,3 +207,36 @@ evidence are separate from ordinary difference/conflict navigation above.
 [Margin selection](MERGE-MARGINS-PARITY.md#margin-selection-and-capture--october-16-2026)
 adds native gutter text/peer-row selection, fixed Shift/drag origins, wrapped
 fragment entry, folded marker expansion and owned autoscroll/retirement.
+
+## Attached pane startup and deferred writers — October 17, 2026
+
+Automatic appearance loading now runs only once after a load is accepted.
+Repeated appearance does not reset initial navigation, reload an open document or
+invoke a dirty Reload question. Explicit Reload and File/Open transfer still use
+the ordinary load path, including error/cancellation and Save/discard behavior.
+A deferred initial document can still begin its first load after preparation.
+
+Initial entry now requires current text/generation and usable geometry in all
+required panes attached to the owning editor window. Layout is forced for both
+before block/peer/inline entry consumes the request. Registration refuses panes
+from another model/window and keeps an attached current pane authoritative until
+a replacement attaches. Native updates refresh the pane-side identity; retired
+representables unregister only their own slot, detach observers and Find/delegate
+receivers, and cannot unregister a newer viewport.
+
+Viewport callbacks capture their scroll identity and recheck the current visible
+slot/owner at dispatch. Initial selection, Undo caret restore, active-pane lookup
+and block/margin navigation share current-viewport guards. A detached history
+restore stays pending rather than consuming the caret into an outgoing view.
+User input continues to revoke pending initial/Undo requests, and explicit
+Reload remains available.
+
+These are concrete ownership/readiness fixes for the workflow in which the
+October 17 search batch observed an intermittent initial block/caret assertion.
+They do not prove that observation had only one cause. A deterministic native
+case holds initial selection with an owned sheet, detaches fully prepared panes,
+checks deferred entry/history, reattaches and checks exact block/inline/peer
+state, then exercises appearance, dirty preservation, foreign registration,
+explicit Reload and retirement. The Debug build and six grouped native families have passing runs: deterministic ownership, initial navigation, wrapping, margin, folding and Find. The first margin run timed out at editability; the unchanged assertion passed after adding diagnostics, without an app change. That intermittent timeout remains open. All seven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-viewport-ownership-2026-10-17.json) for the exact attempts and limits. Physical gestures,
+all host/replacement timing, large-file performance and signed acceptance remain
+open; no dialog certification is added.

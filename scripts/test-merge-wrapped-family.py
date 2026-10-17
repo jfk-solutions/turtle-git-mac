@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 from native_receiver import build_receiver, run_receiver
 parser=argparse.ArgumentParser(description=__doc__)
-cases={'terminal':'MergeTerminalRecordVerification','margin-selection':'MergeMarginSelectionVerification','margin':'MergeMarginVerification','moved':'MergeMovedBlocksVerification','wrapped':'MergeWrappedNavigationVerification','wrapping':'MergeWrappingVerification','navigation':'MergeBlockNavigationVerification','three-pane':'MergeThreePaneNavigationVerification','initial':'MergeInitialNavigationVerification','folding':'MergeFoldingNativeVerification','find':'MergeFindNativeVerification'}
+cases={'ownership':'MergeViewportOwnershipVerification','terminal':'MergeTerminalRecordVerification','margin-selection':'MergeMarginSelectionVerification','margin':'MergeMarginVerification','moved':'MergeMovedBlocksVerification','wrapped':'MergeWrappedNavigationVerification','wrapping':'MergeWrappingVerification','navigation':'MergeBlockNavigationVerification','three-pane':'MergeThreePaneNavigationVerification','initial':'MergeInitialNavigationVerification','folding':'MergeFoldingNativeVerification','find':'MergeFindNativeVerification'}
 parser.add_argument('--only',choices=cases,action='append')
 parser.add_argument('--captures',type=Path)
 args=parser.parse_args()
@@ -14,7 +14,7 @@ root=Path(__file__).resolve().parent.parent
 with tempfile.TemporaryDirectory(prefix='turtlegit-wrapped-editors-') as temporary:
     folder=Path(temporary);inputs=root/'build/qa/merge-wrapped-fixtures';inputs.mkdir(parents=True,exist_ok=True)
     sources=[]
-    for name in ['merge-terminal-record-native-2026-10-16.swift','merge-margin-selection-native-2026-10-16.swift','merge-margin-native-2026-10-16.swift','two-pane-engine-native-2026-10-12.swift','three-pane-engine-native-2026-10-12.swift','merge-wrapped-navigation-native-2026-10-16.swift','merge-moved-blocks-native-2026-10-16.swift','merge-wrapping-native-2026-10-12.swift','merge-block-navigation-native-2026-10-15.swift','merge-three-pane-navigation-native-2026-10-15.swift','merge-initial-navigation-native-2026-10-15.swift','merge-folding-native-2026-10-14.swift','merge-find-native-2026-10-12.swift']:
+    for name in ['merge-viewport-ownership-native-2026-10-17.swift','merge-terminal-record-native-2026-10-16.swift','merge-margin-selection-native-2026-10-16.swift','merge-margin-native-2026-10-16.swift','two-pane-engine-native-2026-10-12.swift','three-pane-engine-native-2026-10-12.swift','merge-wrapped-navigation-native-2026-10-16.swift','merge-moved-blocks-native-2026-10-16.swift','merge-wrapping-native-2026-10-12.swift','merge-block-navigation-native-2026-10-15.swift','merge-three-pane-navigation-native-2026-10-15.swift','merge-initial-navigation-native-2026-10-15.swift','merge-folding-native-2026-10-14.swift','merge-find-native-2026-10-12.swift']:
         source=inputs/name;source.write_text((root/'docs/qa'/name).read_text().replace('@main ', '',1));sources.append(source)
     main=inputs/'WrappedMain.swift'
     main.write_text('import AppKit\n@main struct WrappedMain { @MainActor static func main() async throws { NSApplication.shared.setActivationPolicy(ProcessInfo.processInfo.environment["TURTLEGIT_WRAP_CAPTURE"] == nil ? .prohibited : .accessory); switch ProcessInfo.processInfo.environment["TURTLEGIT_WRAP_CASE"]! {\n'+''.join('case "'+name+'": try await '+kind+'.verify()\n' for name,kind in cases.items())+'default: fatalError("Unknown wrapped editor case")\n}; print("PASS: wrapped editor case completed") } }\n')

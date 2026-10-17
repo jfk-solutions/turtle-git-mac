@@ -51,7 +51,16 @@ struct MergeMarginVerification {
             try require(lr.view(lr,stringForToolTip:0,point:NSPoint(x:5,y:point.y),userData:nil)=="Whitespace-only changes","Actual visible margin tooltip missing")
         }
         try await capture(pair.window!,"merge-margin-compare")
-        model.activatePane(base:false);model.editingEnabled=true;try await wait {right.isEditable}
+        model.activatePane(base:false);model.editingEnabled=true
+        var readinessPolls = 0
+        try await wait {
+            readinessPolls += 1
+            if readinessPolls == 1999 {
+                let live = views().map { "id=\(ObjectIdentifier($0)), attached=\($0.window === pair.window), editable=\($0.isEditable), allowed=\(($0 as? MergeFindProviding)?.mergeFindAllowed == true)" }
+                print("Margin edit readiness: old=\(ObjectIdentifier(right)), attached=\(right.window === pair.window), editing=\(model.editingEnabled), busy=\(model.busy), filtering=\(model.filtering), current=\(live)"); fflush(stdout)
+            }
+            return right.isEditable
+        }
         model.selectedRows=2..<3;model.markBlock(true,targetBase:false)
         try await wait {rr.markedRows.contains(2)}
         try require(rr.symbol(at:2) == .marked,"Marked block did not override state icon")

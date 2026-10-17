@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "ca73133a31479d096fcd2aa07592335eb3d88997",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Appearance-once Compare loading preserves accepted document, caret and dirty draft while explicit Reload remains available",
+    "Initial block/inline/peer entry waits for current text, generation, geometry and owner attachment; both TextKit layouts prepared before consumption",
+    "Viewport registration rejects foreign models/windows and retains current attached pane until replacement attaches",
+    "Deferred callbacks and history restoration capture current owner/slot; detached Undo requests remain pending",
+    "Native representable retirement removes only its own slot/observer/Find/delegate receivers and updates pane-side identity"
+  ],
+  "build": {
+    "log": "build/qa/merge-viewport-ownership-build-2026-10-17.log",
+    "exit": 0,
+    "exit_zero_no_output_diagnostics": 3
+  },
+  "native": {
+    "distinct_family_passes": 6,
+    "families": [
+      "deterministic viewport ownership",
+      "initial block/inline/peer and stale/fresh Go to Line",
+      "wrapped navigation/reflow",
+      "margin/artwork/edited/Undo/combined ownership",
+      "folding",
+      "actual two/three-pane Find/Replace/Undo"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/merge-viewport-ownership-native-2026-10-17.log",
+        "exit": 1,
+        "failure": "Fixture beginSheet selected the async overload because it omitted completionHandler; no receiver started. Used explicit native completion closure."
+      },
+      {
+        "log": "build/qa/merge-viewport-ownership-native-recheck-2026-10-17.log",
+        "exit": 1,
+        "passed_families": 3,
+        "failure": "Margin fixture timed out enabling the retained right editor at line 54 after light/dark draw checks."
+      },
+      {
+        "log": "build/qa/merge-viewport-margin-diagnostic-2026-10-17.log",
+        "exit": 0,
+        "passed_families": 3,
+        "note": "Added diagnostic values for retained/current view identities, attachment, editability and model state without changing the assertion. Margin passed without app changes; folding/Find passed. The original intermittent timeout remains unexplained."
+      }
+    ],
+    "owned_receivers_reaped": [
+      12595,
+      12606,
+      12612,
+      12618,
+      12713,
+      12725,
+      12733
+    ],
+    "independently_absent_owned_receivers": [
+      12595,
+      12606,
+      12612,
+      12618,
+      12713,
+      12725,
+      12733
+    ],
+    "actual_git_engine": "system Git in retained Find conflict workflow; remaining cases are native/standalone"
+  },
+  "core": {
+    "repeated": false,
+    "reason": "Core comparison/state/inline/source-coordinate and file write algorithms unchanged."
+  },
+  "screenshots": {
+    "generated": false,
+    "reason": "No visible layout/style changes; existing reviewed source dialog and editor captures remain. Validation uses actual private native editors."
+  },
+  "hosted_observation": {
+    "head": "ca73133a31479d096fcd2aa07592335eb3d88997",
+    "pages": {
+      "run": 38987518999,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 38987519003,
+      "status": "queued",
+      "conclusion": null
+    }
+  },
+  "limitations": [
+    "Deterministic attachment and appearance gaps are fixed; passing checks do not prove these were the only causes of the prior intermittent initial-selection observation",
+    "The margin editability timeout passed on its diagnostic continuation without an app repair; intermittent cause remains open and diagnostics are retained",
+    "All host/pane/replacement transitions, physical gestures/VoiceOver, large-file performance and signed/App Store/full hosted CI acceptance remain open"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/merge-viewport-ownership-site-2026-10-17.log"
+  }
+}

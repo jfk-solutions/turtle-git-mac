@@ -1829,3 +1829,12 @@ native source-shaped range/input/OK/Cancel sheet, one-response cancellation and
 independent request drain for Quit. All 18 static controls have partial mappings.
 See [search parity](MERGE-FIND-PARITY.md#source-search-forms-and-pane-ownership--october-17-2026).
 All three native families have passing runs, including the actual Find/Replace/Undo Git-conflict workflow with system and bundled Git. The source-form and initial-navigation cases exercise native UI without Git commands; their repeated engine environments do not prove additional Git backend coverage. Affected source rechecks pass after capture/footer repairs. One initial-navigation block/caret assertion failed before the two passing diagnostic attempts; its intermittent cause remains open. Four final raw light/dark captures were individually reviewed, and all eleven receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-search-source-family-2026-10-17.json) for exact failures, repairs, capture provenance and acceptance limits.
+
+### Merge startup and viewport ownership — October 17, 2026
+
+Compare now separates one-time appearance loading from explicit Reload, waits
+for attached current panes before initial block/inline selection, fences deferred
+viewport/history writes by visible owner/slot and retires native pane callbacks
+without removing a newer replacement. Dirty drafts survive repeated appearance.
+See [navigation parity](MERGE-NAVIGATION-PARITY.md#attached-pane-startup-and-deferred-writers--october-17-2026).
+The Debug build and six grouped native families have passing runs: deterministic ownership, initial navigation, wrapping, margin, folding and Find. The first margin run timed out at editability; the unchanged assertion passed after adding diagnostics, without an app change. That intermittent timeout remains open. All seven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-viewport-ownership-2026-10-17.json) for the exact attempts and limits. The earlier intermittent initial-navigation observation is not treated as proven fixed merely from these changes.

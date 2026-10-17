@@ -1060,7 +1060,7 @@ private extension FileComparisonDocument {
         alignmentSelections = [:]; selectionRequest = nil
     }
     func captureHistoryCaret(base: Bool) -> HistoryCaret? {
-        guard let view = scrolls[base]?.documentView as? FileComparisonTextView,
+        guard let scroll = scrolls[base], ownsViewport(scroll, base: base), let view = scroll.documentView as? FileComparisonTextView,
               let source = try? FileComparisonEditing.sourceRange(NSRange(location:view.selectedRange().location,length:0),cells:view.sourceCells) else { return nil }
         return HistoryCaret(displayText:view.string,displayOffset:view.selectedRange().location,sourceOffset:source.location)
     }
@@ -1070,7 +1070,7 @@ private extension FileComparisonDocument {
         historyCaretRequests[base] = (alignmentGeneration,caret)
     }
     func restoreHistoryCaret(base: Bool, view: NSTextView, cells: [MergeSourceCell]) {
-        guard !retired, !filtering, let request = historyCaretRequests[base] else { return }
+        guard !retired, !filtering, let scroll = scrolls[base], ownsViewport(scroll, base: base), scroll.documentView === view, let request = historyCaretRequests[base] else { return }
         guard request.generation == alignmentGeneration else { historyCaretRequests.removeValue(forKey:base); return }
         let expected = cells.map(\.displayText).joined(separator:"\n") + (cells.isEmpty ? "" : "\n")
         guard view.string.utf8.elementsEqual(expected.utf8) else { return }
@@ -1084,7 +1084,23 @@ private extension FileComparisonDocument {
     var selectionRequest: Int?
     private var scrolls: [Bool: NSScrollView] = [:]
     private var viewportNavigation: [Bool: () -> Void] = [:]
-    func registerViewportNavigation(base: Bool, action: @escaping () -> Void) { guard !retired else { return }; viewportNavigation[base] = action }
+    func registerViewportNavigation(base: Bool, scroll: NSScrollView, action: @escaping () -> Void) {
+        guard !retired, scrolls[base] === scroll else { return }
+        viewportNavigation[base] = { [weak self, weak scroll] in
+            guard let self, let scroll, self.ownsViewport(scroll, base: base) else { return }
+            action()
+        }
+    }
+    func ownsViewport(_ scroll: NSScrollView, base: Bool) -> Bool {
+        guard !retired, !base || !onePaneActive && !singleFileMode, let window,
+              scrolls[base] === scroll, scroll.window === window,
+              let view = scroll.documentView as? FileComparisonTextView else { return false }
+        return view.window === window && view.model === self
+    }
+    func unregister(_ scroll: NSScrollView, base: Bool) {
+        guard scrolls[base] === scroll else { return }
+        scrolls.removeValue(forKey: base); viewportNavigation.removeValue(forKey: base)
+    }
     func applyViewportNavigation() { guard !retired else { return }; for action in viewportNavigation.values { action() } }
     private var synchronizing = false
     var onRegisterScroll: (NSScrollView, Bool) -> Void = { _, _ in }
@@ -1191,9 +1207,15 @@ private extension FileComparisonDocument {
         closeAfterLoad = true; loadSession.cancel(); return true
     }
     var initialLoadDeferred = false
+    private var attemptedAppearanceLoad = false
+    func loadOnAppearance() {
+        guard !attemptedAppearanceLoad else { return }
+        load()
+    }
     func beginTransferredDocument() { initialLoadDeferred = false; load() }
     func load(discardingDraft: Bool = false) {
         guard !initialLoadDeferred, !retired, !busy, !hasPendingEditorChoice, !confirmingQuit, window?.attachedSheet == nil else { return }
+        attemptedAppearanceLoad = true
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
         if !loadedPaneMode { onePaneMode = OnePaneFileComparison.defaultEnabled(from: comparisonDefaults); loadedPaneMode = true }
@@ -1488,12 +1510,13 @@ private extension FileComparisonDocument {
         guard generation == alignmentGeneration else { initialBlockGeneration = nil; return }
         let sides: [Bool] = onePaneActive || singleFileMode ? [false] : [true,false]
         for side in sides {
-            guard let scroll = scrolls[side], scroll.contentSize.width > 32, scroll.contentSize.height > 32,
+            guard let scroll = scrolls[side], ownsViewport(scroll, base: side), scroll.contentSize.width > 32, scroll.contentSize.height > 32,
                   let view = scroll.documentView as? FileComparisonTextView,
                   view.blockGeneration == generation else { return }
             let cells = displayCells(base:side)
             let expected = cells.map(\.displayText).joined(separator:"\n") + (cells.isEmpty ? "" : "\n")
-            guard view.string.utf8.elementsEqual(expected.utf8) else { return }
+            guard view.string.utf8.elementsEqual(expected.utf8), let layout = view.layoutManager, let container = view.textContainer else { return }
+            layout.ensureLayout(for: container)
         }
         initialBlockGeneration = nil; alignmentSelections = [:]; selectionRequest = nil
         updateFolding()
@@ -1504,8 +1527,14 @@ private extension FileComparisonDocument {
         selectDifferenceBlock(target,base:base,advanceInline:true)
     }
     func register(_ scroll: NSScrollView, base: Bool) {
-        guard !retired,!base || !onePaneActive && !singleFileMode else {return}
-        scrolls[base] = scroll;onRegisterScroll(scroll,base);refreshLocatorViewport()
+        guard !retired, !base || !onePaneActive && !singleFileMode,
+              let view = scroll.documentView as? FileComparisonTextView, view.model === self,
+              scroll.window == nil || scroll.window === window else { return }
+        guard scrolls[base] !== scroll else { return }
+        // A new representable registers before attachment. Keep the live pane
+        // authoritative until its replacement actually joins this editor window.
+        if let current = scrolls[base], current.window != nil, scroll.window == nil { return }
+        scrolls[base] = scroll; onRegisterScroll(scroll,base); refreshLocatorViewport()
     }
     func scrolled(_ source: NSScrollView) {
         defer {
@@ -1533,7 +1562,7 @@ private extension FileComparisonDocument {
     }
     private(set) var selectingDifferenceBlock = false
     func selectMargin(rows: Range<Int>, selection: NSRange, caret: Int, base: Bool) {
-        guard contextCommandsAllowed, !filtering, let active = scrolls[base]?.documentView as? FileComparisonTextView,
+        guard contextCommandsAllowed, !filtering, let scroll = scrolls[base], ownsViewport(scroll, base: base), let active = scroll.documentView as? FileComparisonTextView,
               MergeMarginGeometry.range(rows:rows,in:active) != nil, NSMaxRange(selection) <= active.string.utf16.count else { return }
         selectingDifferenceBlock = true
         defer { selectingDifferenceBlock = false; lineWrapping.recordViewportIntent() }
@@ -1589,7 +1618,7 @@ private extension FileComparisonDocument {
             }
         }
         for (side, scroll) in scrolls {
-            guard let text = scroll.documentView as? NSTextView else { continue }
+            guard ownsViewport(scroll, base: side), let text = scroll.documentView as? NSTextView else { continue }
             let cells = displayCells(base: side)
             guard cells.indices.contains(target.rows.lowerBound), cells.indices.contains(target.rows.upperBound - 1) else { continue }
             let start = cells.prefix(target.rows.lowerBound).reduce(0) { $0 + $1.displayText.utf16.count + 1 }
@@ -1615,8 +1644,9 @@ private extension FileComparisonDocument {
         objectWillChange.send()
     }
     var activeFindText: NSTextView? {
-        scrolls.values.compactMap { $0.documentView as? NSTextView }.first { $0.window?.firstResponder === $0 }
-            ?? (scrolls[activeBase]?.documentView as? NSTextView)
+        let current = scrolls.filter { ownsViewport($0.value, base: $0.key) }
+        return current.values.compactMap { $0.documentView as? NSTextView }.first { $0.window?.firstResponder === $0 }
+            ?? (current[activeBase]?.documentView as? NSTextView)
     }
     func find(_ action: NSTextFinder.Action) {
         (activeFindText as? MergeLineNavigationProviding)?.beginUserNavigation()
@@ -1676,7 +1706,7 @@ private struct FileComparisonDialog: View {
             if let images = model.imageComparison, let document = model.document {
                 ImageComparisonDialog(images: images, document: document, model: model.imageViewerModel).id(images.id)
             } else { textBody }
-        }.onAppear { model.load() }
+        }.onAppear { model.loadOnAppearance() }
         .onReceive(NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged)) { _ in model.refreshPreferences() }
         .onReceive(NotificationCenter.default.publisher(for: .mergeRegexFiltersChanged)) { _ in model.refreshRegexFilters() }
         .alert("Comparison failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
@@ -1805,6 +1835,8 @@ struct FileComparisonEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? NSTextView else { return }
+        (view as? FileComparisonTextView)?.baseSide = base
+        model.register(scroll, base: base)
         view.backgroundColor = MergePalette.color(MergeSourceState.normal)
         view.insertionPointColor = MergePalette.foreground(.normal)
         view.font = model.generalPreferences.nativeFont
@@ -1856,7 +1888,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
         (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.onePaneActive ? Set((model.combined?.rows ?? []).enumerated().compactMap { model.annotations(base: false).marked.contains($0.element.alignmentRow) ? $0.offset : nil }) : model.annotations(base: base).marked
         scroll.verticalRulerView?.needsDisplay = true
-        model.registerViewportNavigation(base: base) { [weak coordinator = context.coordinator] in coordinator?.applyViewportSelection() }
+        model.registerViewportNavigation(base: base, scroll: scroll) { [weak coordinator = context.coordinator] in coordinator?.applyViewportSelection() }
         if let target = view as? MergeFindProviding {
             target.mergeFindHighlights.annotationsChanged = { [weak model] in model?.refreshLocatorHighlights() }
             target.mergeFindHighlights.refresh(in: view)
@@ -1864,6 +1896,14 @@ struct FileComparisonEditor: NSViewRepresentable {
         model.refreshLocatorHighlights()
         // Run once after layout, including the first representable update.
         DispatchQueue.main.async { [weak coordinator = context.coordinator] in coordinator?.applyViewportSelection() }
+    }
+    static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
+        coordinator.model.unregister(scroll, base: coordinator.base)
+        NotificationCenter.default.removeObserver(coordinator)
+        if let view = scroll.documentView as? FileComparisonTextView {
+            view.mergeFindController?.close(); view.delegate = nil; view.model = nil; view.history = nil
+        }
+        coordinator.scroll = nil
     }
     static func inline(_ row: Int, model: FileComparisonWindowModel, base: Bool) -> MergeInlineComparison? {
         if model.onePaneActive, !base, model.showInlineDiff, let combined = model.combined, combined.rows.indices.contains(row) {
@@ -1912,8 +1952,8 @@ struct FileComparisonEditor: NSViewRepresentable {
         init(model: FileComparisonWindowModel) { self.model = model; history = model.comparisonHistory }
         func applyViewportSelection() {
             let model = self.model, base = self.base
-            guard let scroll, scroll.window != nil, scroll.contentSize.width > 32, scroll.contentSize.height > 32,
-                  let view = scroll.documentView as? NSTextView,
+            guard let scroll, model.ownsViewport(scroll, base: base), scroll.contentSize.width > 32, scroll.contentSize.height > 32,
+                  let view = scroll.documentView as? FileComparisonTextView, view.blockGeneration == model.alignmentGeneration,
                   let layout = view.layoutManager, let container = view.textContainer else { return }
             layout.ensureLayout(for:container)
             model.applyInitialBlockSelection()
