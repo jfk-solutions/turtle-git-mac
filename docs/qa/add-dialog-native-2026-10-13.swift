@@ -155,7 +155,7 @@ import TurtleGitCore
         precondition(Set(after) == [file, ignored])
         try FileManager.default.createDirectory(at: folder.appendingPathComponent("sub"), withIntermediateDirectories: true)
         for path in ["ignore-a.txt", "ignore-b.TXT", "sub/folder.tmp", "mixed.data"] { try Data(path.utf8).write(to: folder.appendingPathComponent(path)) }
-        model.includeIgnored = false; try await model.read()
+        model.setScope(["."]);model.includeIgnored = false; try await model.read()
         var ignoreRequests: [([String], Bool)] = []; model.onIgnore = { ignoreRequests.append(($0, $1)) }
         model.highlighted = ["ignore-a.txt", "ignore-b.TXT"]; receiver.refresh(); receiver.menuNeedsUpdate(menu)
         let sameExtension = menu.items.first { $0.title == "Ignore" }!

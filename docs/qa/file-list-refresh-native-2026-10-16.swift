@@ -63,11 +63,12 @@ import TurtleGitCore
             func key(_ code:UInt16,_ flags:NSEvent.ModifierFlags)->NSEvent {NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:flags,timestamp:0,windowNumber:host.owner.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:code)!}
             try require(probe.observe(key(0,.control)) == nil,"Ctrl A not handled: \(kind)")
             try await wait {host.selected().count == probe.rows.compactMap(\.entry).count}
-            try require(Set(probe.rows.compactMap{$0.entry?.path}) == host.selected() && host.checks()==checked,"Select All selected group/check state: \(kind)")
+            try require(GitPathSet(probe.rows.compactMap{$0.entry?.path}) == host.selected() && host.checks()==checked,"Select All selected group/check state: \(kind)")
             try require(probe.observe(key(0,.command)) == nil,"Cmd A not handled: \(kind)")
+            try await wait {host.selected().count == probe.rows.compactMap(\.entry).count && table.selectedRowIndexes.count == host.selected().count}
             prefs.set(false,forKey:"RememberFileListPosition");host.reload()
             try await wait {!host.busy() && !host.coordinator.hasPendingPosition}
-            try require(host.selected().isEmpty && clip.bounds.origin.y < 2 && host.checks()==checked,"Disabled position preference retained selection/scroll or changed checks: \(kind)")
+            try require(host.selected().isEmpty && clip.bounds.origin.y < 2 && host.checks()==checked,"Disabled position preference retained selection/scroll or changed checks: \(kind), selected=\(host.selected().count), native=\(table.selectedRowIndexes.count), origin=\(clip.bounds.origin.y), checksMatch=\(host.checks()==checked)")
             // A newer table gesture cancels a pending restore rather than moving its viewport later.
             prefs.set(true,forKey:"RememberFileListPosition")
             CommitFileInteraction.replaceSelection(in:table,with:IndexSet(integer:host.ids().firstIndex(of:target)!))

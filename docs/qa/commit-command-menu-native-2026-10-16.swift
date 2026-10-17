@@ -45,7 +45,7 @@ struct CommitCommandMenuVerification {
         send(item("Modified"));try require(model.checked==["file","other"],"Native category check")
         model.checked.insert("new");model.check({$0.state == .modified},checking:false)
         try require(model.checked==["new"],"Reverse category check changed unrelated rows")
-        model.checkAll(true);try require(model.checked==Set(model.visibleEntries.filter{$0.state != .conflicted}.map(\.id)),"Reverse None/check all")
+        model.checkAll(true);try require(model.checked==GitPathSet(model.visibleEntries.filter{$0.state != .conflicted}.map(\.id)),"Reverse None/check all")
         send(item("Staging support (EXPERIMENTAL)"));try await wait {!model.busy && !model.savingPreferences && model.stagingEnabled}
         model.check({$0.state == .modified},checking:true);try await wait {!model.busy && CommitWindowModel.activeFileOperations==0}
         try require(model.visibleEntries.filter{$0.state == .modified}.allSatisfy{model.isStaged($0)},"Staging category check")

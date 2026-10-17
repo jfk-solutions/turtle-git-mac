@@ -88,3 +88,10 @@ reentrancy warning remain open.
 ![Revert exact selection, light](site/assets/revert-path-selection-light.png)
 
 ![Revert exact selection, dark](site/assets/revert-path-selection-dark.png)
+
+
+The [file-command continuation](ADD-REVERT-FILE-FLOW-PARITY.md) supersedes the
+pending checked acceptance-order and picker lifetime entries above. Reinspection
+confirmed that the source sorts checked pathnames after collecting rows; it does
+not launch in arbitrary displayed sort order. Locale/physical/signed limits and
+the existing Revert table delegate warning remain open.

@@ -214,4 +214,16 @@ final class GitPathIdentityTests: XCTestCase {
         let finalHead = try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(finalHead,head)
     }
 
+    func testCheckedOperationOrderIsOrdinalAndPreservesDistinctGitNames() {
+        let a = "café",b = "cafe\u{301}"
+        let result = GitPathOperationOrder.sorted(["file2","B","a","file10","A",a,b,"B"])
+        XCTAssertEqual(Array(result.prefix(3)),["A","a","B"])
+        XCTAssertTrue(result.firstIndex(of:"file10")! < result.firstIndex(of:"file2")!)
+        XCTAssertEqual(result.count,7)
+        XCTAssertEqual(GitPathOperationOrder.sorted(["a/child","a1","a.txt"]),["a.txt","a1","a/child"])
+        XCTAssertEqual(result.filter {GitReferenceName.equal($0,a)}.count,1)
+        XCTAssertEqual(result.filter {GitReferenceName.equal($0,b)}.count,1)
+        XCTAssertEqual(GitPathOperationOrder.sorted(result.reversed()).map {Data($0.utf8)},result.map {Data($0.utf8)})
+    }
+
 }

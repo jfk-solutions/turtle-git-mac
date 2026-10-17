@@ -1,0 +1,209 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation_baseline": "6f1b5062",
+  "scope": "Connected Add/Revert checked acceptance, native chooser and file-command/launch ownership family, plus hosted compiler repair for exact-path equality overloads.",
+  "source": [
+    "src/Git/GitStatusListCtrl.cpp::WriteCheckedNamesToPathList collects checked rows then calls SortByPathname",
+    "src/Git/TGitPath.cpp::SortByPathname / CTGitPath::Compare",
+    "src/Utils/StringUtils.cpp::FastCompareNoCase ASCII fast path and CRT non-ASCII fallback",
+    "Native Add/Revert Save/Export/Open With/Alternative Editor adaptations"
+  ],
+  "implemented": [
+    "One-shot Add/Revert acceptance; explicit new scope begins another invocation",
+    "Exact checked-path operation order independent of visual logical sort; ASCII case-insensitive UTF-16 ordinal with source separator comparison and byte-exact ties",
+    "Same operation ordering in reviewed Add/mode and Revert/Retry bounded batches",
+    "OwnedFilePanelSession strict picker identity, once-only replies, next-turn sheet-release gate, idempotent endSheet and cancellation overriding pending approval",
+    "Add operation owns picker through copy or workspace/editor completion, retained repository/application grants, duplicate/busy/Quit fences and retired error suppression",
+    "Revert Save As and embedded shared commands use the same cancel/release/retirement session",
+    "Cross-type GitPathSet/Set equality operators removed; typed comparisons are explicit and unrelated Set literals again resolve to ordinary Set equality"
+  ],
+  "build_attempts": [
+    {
+      "log": "build/qa/add-revert-file-flow-build-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Debug macOS arm64"
+    },
+    {
+      "log": "build/qa/add-revert-file-flow-build-table-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Normal table rebuild after unchanged-source timestamp/cache guard mismatch"
+    },
+    {
+      "log": "build/qa/add-revert-file-flow-build-final-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Owned panel idempotent end-sheet review; Core unchanged"
+    },
+    {
+      "log": "build/qa/add-revert-file-flow-compat-build-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Strict same-type equality after hosted compiler diagnosis"
+    }
+  ],
+  "core_attempts": [
+    {
+      "log": "build/qa/add-revert-file-flow-core-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 44,
+      "scope": "Relevant identity/order, Add/mode, Revert selection/Retry/Trash/cancellation/progress cases"
+    },
+    {
+      "log": "build/qa/add-revert-file-flow-compat-core-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 22,
+      "overlap_with_original": 13,
+      "scope": "13 exact-path/order and 9 Blame presentation/selection cases after equality overload removal; 31 unaffected original passes retained"
+    }
+  ],
+  "core_distinct_final_passes": 53,
+  "native_attempts": [
+    {
+      "log": "build/qa/add-revert-file-flow-native-final-2026-10-17.log",
+      "exit_code": 0,
+      "final_case_engine_passes": 2,
+      "scope": "New actual file-flow cases, system/bundled Git; captured targets, real Save/Export bytes, actual native panel cancellation/reuse/forced retirement, held launch/Quit ownership and unchanged HEAD/stage/source bytes",
+      "pids": [
+        13269,
+        13336
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-file-flow-add-2026-10-17.log",
+      "exit_code": 0,
+      "final_case_engine_passes": 2,
+      "scope": "Retained complete Add selector/progress/menu/restore/copy/mode/flags/Ignore families",
+      "pids": [
+        13427,
+        13433,
+        13839
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-file-flow-revert-2026-10-17.log",
+      "exit_code": 0,
+      "final_case_engine_passes": 4,
+      "scope": "Retained Revert Save/Mark/file commands and planning with both engines",
+      "pids": [
+        14255,
+        14298,
+        14353,
+        14542
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-file-flow-refresh-2026-10-17.log",
+      "exit_code": 1,
+      "final_case_engine_passes": 1,
+      "scope": "System Git shared refresh passed; bundled Commit disabled-position assertion failed before final native publication was settled",
+      "pids": [
+        14710,
+        14970
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-file-flow-identities-2026-10-17.log",
+      "exit_code": 0,
+      "final_case_engine_passes": 2,
+      "scope": "Retained exact Add/Revert selection, checkbox/menu/focus/refresh/retirement with both engines",
+      "pids": [
+        15177,
+        15226
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-file-flow-refresh-repair-2026-10-17.log",
+      "exit_code": 0,
+      "final_case_engine_passes": 1,
+      "scope": "Affected bundled refresh case after waiting for the preceding Cmd-A selection and native count before changing the preference; no unique production cause claimed",
+      "pids": [
+        15863
+      ]
+    }
+  ],
+  "native_distinct_final_case_engine_combinations": 12,
+  "native_initial_block": {
+    "log": "build/qa/add-revert-file-flow-native-2026-10-17.log",
+    "exit_code": 1,
+    "phase": "Before receiver compile/launch",
+    "failure": "Native cache guard considered restored unchanged AddFileTable source newer than its cached object. Added a relevant visual-versus-operation sorting comment and rebuilt the source normally; no object timestamps were falsified."
+  },
+  "fixture_compile_attempts": [
+    {
+      "log": "build/qa/add-revert-file-flow-compat-fixtures-2026-10-17.log",
+      "exit_code": 1,
+      "phase": "Fixture wrapper setup; no application launched",
+      "failure": "The existing grouped Commit command fixture has no standalone @main entry; supplied a compile-only entry point"
+    },
+    {
+      "log": "build/qa/add-revert-file-flow-compat-fixtures-final-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 3,
+      "scope": "Commit command menu, Commit selection settings and new file-flow fixture compile compatibility; not additional runtime combinations"
+    }
+  ],
+  "source_review_correction": "The initial displayed-order assumption was rejected on reading the full upstream method: it explicitly sorts checked paths. The implementation and new tests follow that source ordering. Legacy fixtures now explicitly begin another scope after their intercepted acceptance before testing unrelated later commands.",
+  "hosted_failures": [
+    {
+      "head": "267d1520",
+      "run": 39022844344,
+      "job": 117372262105,
+      "step": "Application and embedded Finder extension",
+      "error": "GitBlamePresentation.swift:48 ambiguous use of operator ==",
+      "conclusion": "failure"
+    },
+    {
+      "head": "6f1b5062",
+      "run": 39024394655,
+      "job": 117373346384,
+      "step": "Application and embedded Finder extension",
+      "error": "GitBlamePresentation.swift:48 ambiguous use of operator ==",
+      "conclusion": "failure"
+    }
+  ],
+  "hosted_repair": "The newly introduced cross-type equality overloads made selected == [hash] ambiguous on the hosted compiler. Removed all four overloads rather than changing Blame selection semantics or adding compiler-specific overload priorities. Native typed Set comparisons are explicit. Hosted verification of this repair remains pending the new push.",
+  "visual_scope": "No changed dialog layout or new screenshot claim. Existing Add/Revert selection captures remain valid; actual stock-panel cancellation/reuse/retirement is exercised without capturing unrelated windows. External application launches use injected completions.",
+  "known_diagnostics": "Retained Revert planning emits the already-recorded AppKit reentrant table-delegate warning; no new cause or repair claimed.",
+  "remaining": [
+    "Full non-ASCII Windows CRT locale sort equivalence and macOS-only filename semantics",
+    "Physical chooser Browse/approval and VoiceOver acceptance",
+    "Signed security scopes, external application launch handoff, Finder/App Group and App Store distribution acceptance",
+    "Existing Revert table reentrancy warning, wider source popup/state parity and full current hosted CI",
+    "Remaining Log/LFS ownership/Finder state path-identity migration and invalid UTF-8/filesystem alias behavior"
+  ],
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ],
+  "cleanup": {
+    "owned_receivers_or_helpers_reaped": [
+      13269,
+      13336,
+      13427,
+      13433,
+      13839,
+      14255,
+      14298,
+      14353,
+      14542,
+      14710,
+      14970,
+      15177,
+      15226,
+      15863
+    ],
+    "independent_ps_absence": true
+  },
+  "documentation": {
+    "localization_write_log": "build/qa/add-revert-file-flow-localizations-write-2026-10-17.log",
+    "workflow": "Native exact file selection families also runs new file-flow case with both Git engines; Ruby Psych YAML syntax passed",
+    "coverage": "Partial dialog ledger remains distinct from source certification",
+    "localization_check_log": "build/qa/add-revert-file-flow-localizations-check-2026-10-17.log",
+    "languages": 38,
+    "safe_literal_keys": 1242,
+    "site_log": "build/qa/add-revert-file-flow-site-2026-10-17.log",
+    "site_documents": 270,
+    "unresolved_fragments": [],
+    "coverage_log": "build/qa/add-revert-file-flow-coverage-2026-10-17.log",
+    "diff_check": "passed"
+  }
+}

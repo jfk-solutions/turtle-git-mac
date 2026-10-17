@@ -2,6 +2,16 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected [Add/Revert file-command flow](ADD-REVERT-FILE-FLOW-PARITY.md) now
+uses source checked-path ordering, once-only acceptance and owned native file
+choosers through copy/launch drain, including forced closure and late replies.
+A hosted equality-overload compilation failure was diagnosed and repaired without
+changing Blame selection behavior. The checkpoint passed 53 distinct relevant
+Core cases and twelve native case/engine combinations across retained and affected
+runs; three affected fixture callers compile, and all owned helpers are absent.
+[Batch evidence](qa/add-revert-file-flow-2026-10-17.json) records the native cache/
+refresh fixture repairs, hosted failures and remaining physical/signed/CI limits.
+
 The connected [Add/Revert selection family](ADD-REVERT-IDENTITY-PARITY.md) now
 retains exact Git path keys through checked/highlighted native rows, marked menus,
 refresh and private-index Add/mode/Revert/Retry operations. Revert checkbox clicks

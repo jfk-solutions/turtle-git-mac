@@ -133,10 +133,6 @@ public struct GitPathSet: SetAlgebra, Sequence, ExpressibleByArrayLiteral, Hasha
         var container = encoder.singleValueContainer(); try container.encode(sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) })
     }
 }
-public func == (lhs:GitPathSet,rhs:Set<String>)->Bool { lhs == GitPathSet(rhs) }
-public func == (lhs:Set<String>,rhs:GitPathSet)->Bool { GitPathSet(lhs) == rhs }
-public func != (lhs:GitPathSet,rhs:Set<String>)->Bool { !(lhs == rhs) }
-public func != (lhs:Set<String>,rhs:GitPathSet)->Bool { !(lhs == rhs) }
 
 /// An ASCII identity at the SwiftUI/AppKit table boundary. Raw Git path text is
 /// kept separately for captions and operations, including synthetic group IDs.
@@ -149,4 +145,20 @@ public enum GitPathRowIdentity {
         return path
     }
     public static func paths<S:Sequence>(_ ids:S)->GitPathSet where S.Element == String { GitPathSet(ids.compactMap(decode)) }
+}
+
+/// WriteCheckedNamesToPathList sorts paths after collecting checked rows. Match
+/// its ASCII case-insensitive ordinal behavior, retaining distinct Git spellings
+/// with an exact tie-break. Compare slash separators as upstream backslashes,
+/// while returning the original macOS Git path text.
+public enum GitPathOperationOrder {
+    public static func sorted(_ paths:some Sequence<String>)->[String] {
+        let keys = GitPathSet(paths).map {path in
+            (path:path,folded:path.utf16.map {unit in unit == 47 ? 92:(65...90).contains(unit) ? unit+32:unit})
+        }
+        return keys.sorted {lhs,rhs in
+            if lhs.folded != rhs.folded {return lhs.folded.lexicographicallyPrecedes(rhs.folded)}
+            return lhs.path.utf8.lexicographicallyPrecedes(rhs.path.utf8)
+        }.map(\.path)
+    }
 }

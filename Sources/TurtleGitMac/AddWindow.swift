@@ -19,6 +19,7 @@ private final class AddNativeWindow: NSWindow {
     private(set) var lfsOperation: LFSFileOperationController?
     private var columnAlert: NSAlert?
     private var closing = false
+    private(set) lazy var filePanels = OwnedFilePanelSession(window:window)
     var onPullAfterLFSLock: () -> Void = {}
     var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
     var onClosed: () -> Void = {}
@@ -32,14 +33,18 @@ private final class AddNativeWindow: NSWindow {
         window.setContentSize(NSSize(width: 760, height: 480))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.close() }
-        model.onOpen = { [weak self] path, action in self?.openFile(path, action: action) }
+        model.onOpen = { [weak model] path,action in _ = model?.requestOpen(path,action:action) }
+        model.chooseSaveFile = { [weak self] path in await self?.chooseSave(path) }
+        model.chooseExportFolder = { [weak self] in await self?.chooseExportFolder() }
+        model.chooseApplication = { [weak self] in await self?.chooseApplication() }
+        model.cancelFileChoice = { [weak self] in self?.filePanels.cancel() }
         model.onIgnore = { [weak self] paths, mask in self?.ignore(paths, mask: mask) }
         model.onIndexFlags = { [weak self] action, paths, mark in self?.confirmFlags(action, paths: paths, mark: mark) }
         model.onRevertRequest = { [weak self] rows in self?.confirmRevert(rows) }
         model.onRestore = { [weak self] paths in self?.confirmRestore(paths) }
         model.onDelete = { [weak self] selected, permanently in self?.confirmDelete(selected, permanently: permanently) }
-        model.onSave = { [weak self] path in self?.saveFile(path) }
-        model.onExport = { [weak self] paths in self?.exportFiles(paths) }
+        model.onSave = { [weak model] path in _ = model?.requestSave(path) }
+        model.onExport = { [weak model] paths in _ = model?.requestExport(paths) }
         model.onResetColumns = { [weak self] in self?.confirmColumnReset() }
         model.onLFSOperation = { [weak self, weak window] paths, locked in
             guard let self, !self.closing, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
@@ -67,27 +72,27 @@ private final class AddNativeWindow: NSWindow {
             self.columnAlert = nil; self.model.finishColumnReset(accepted: response == .alertFirstButtonReturn)
         }
     }
-    private func saveFile(_ path: String) {
-        guard let window, window.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return }
-        let panel = NSSavePanel(); panel.title = "Save As"; panel.canCreateDirectories = true
-        let file = model.repository.root.appendingPathComponent(path)
-        let name = file.lastPathComponent, ext = StatusListClipboard.fileExtension(path)
-        panel.nameFieldStringValue = String(name.dropLast(ext.count)) + "-" + ext
+    private func chooseSave(_ path:String) async -> URL? {
+        guard !closing,!model.retired,let window,window.attachedSheet == nil else {return nil}
+        let panel = NSSavePanel();panel.title = "Save As";panel.canCreateDirectories = true
+        let file = model.repository.root.appendingPathComponent(path),ext = StatusListClipboard.fileExtension(path)
+        panel.nameFieldStringValue = String(file.lastPathComponent.dropLast(ext.count)) + "-" + ext
         panel.directoryURL = file.deletingLastPathComponent()
-        panel.beginSheetModal(for: window) { [weak model] response in
-            guard response == .OK, let target = panel.url else { return }
-            _ = model?.startSave(path, to: target)
-        }
+        return await filePanels.choose(panel)
     }
-    private func exportFiles(_ paths: [String]) {
-        guard let window, window.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return }
-        let panel = NSOpenPanel(); panel.title = "Export"; panel.prompt = "Export"
-        panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false; panel.directoryURL = model.repository.root
-        panel.beginSheetModal(for: window) { [weak model] response in
-            guard response == .OK, let folder = panel.url else { return }
-            _ = model?.startExport(paths, to: folder)
-        }
+    private func chooseExportFolder() async -> URL? {
+        guard !closing,!model.retired,let window,window.attachedSheet == nil else {return nil}
+        let panel = NSOpenPanel();panel.title = "Export";panel.prompt = "Export"
+        panel.canChooseDirectories = true;panel.canChooseFiles = false;panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false;panel.directoryURL = model.repository.root
+        return await filePanels.choose(panel)
+    }
+    private func chooseApplication() async -> URL? {
+        guard !closing,!model.retired,let window,window.attachedSheet == nil else {return nil}
+        let panel = NSOpenPanel();panel.title = "Open With";panel.prompt = "Open"
+        panel.allowedContentTypes = [.applicationBundle];panel.canChooseDirectories = false;panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath:"/Applications",isDirectory:true)
+        return await filePanels.choose(panel)
     }
     private func confirmDelete(_ selected: [StatusEntry], permanently: Bool) {
         guard let window, window.attachedSheet == nil, model.beginDeleteConfirmation(selected, permanently: permanently) else { return }
@@ -133,31 +138,12 @@ private final class AddNativeWindow: NSWindow {
         alert.addButton(withTitle: "Abort"); alert.addButton(withTitle: "Restore")
         alert.beginSheetModal(for: window) { [weak model] response in _ = model?.finishRestoreConfirmation(accepted: response == .alertSecondButtonReturn) }
     }
-    private func openFile(_ path: String, action: AddFileOpenAction) {
-        guard let window, !model.busy, !model.confirmingQuit, window.attachedSheet == nil else { return }
-        let file = model.repository.root.appendingPathComponent(path)
-        if action == .openWith {
-            let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
-            panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
-            panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
-            panel.beginSheetModal(for: window) { [weak model] response in
-                guard response == .OK, let application = panel.url, let model, !model.busy, !model.confirmingQuit else { return }
-                let scoped = application.startAccessingSecurityScopedResource()
-                NSWorkspace.shared.open([file], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { _, error in
-                    if scoped { application.stopAccessingSecurityScopedResource() }
-                    DispatchQueue.main.async { if let error { model.error = error.localizedDescription } }
-                }
-            }
-        } else if action == .editor {
-            AlternativeEditor.open(file, permissions: access.map { [$0] } ?? []) { [weak model] failure in if let failure { model?.error = failure } }
-        } else if !NSWorkspace.shared.open(file) { model.error = "Could not open the file. Choose an application using Open With." }
-    }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if sender.attachedSheet != nil { return false }; if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
     func windowWillClose(_ notification: Notification) {
-        closing = true; model.invalidate(); columnAlert = nil
+        closing = true;filePanels.retire();model.invalidate();columnAlert = nil
         lfsOperation?.model.retire(); lfsOperation?.close(); lfsOperation = nil
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
-        ignoreController?.close(); ignoreController = nil; onClosed()
+        ignoreController?.close();ignoreController = nil;window?.contentViewController = nil;onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -311,6 +297,7 @@ private final class AddNativeWindow: NSWindow {
     private var cancellation = OperationCancellation()
     var close: () -> Void = {}
     var onAccepted: ([String]) -> Void = { _ in }
+    private var accepted = false
     var onPreview: (String) -> Void = { _ in }
     var onCompare: ([String]) -> Void = { _ in }
     var onCompareTwo: ([String]) -> Void = { _ in }
@@ -337,20 +324,82 @@ private final class AddNativeWindow: NSWindow {
     func exportFiles(_ paths: [String], to folder: URL) async { await startExport(paths, to: folder)?.value }
     @discardableResult func startSave(_ path: String, to target: URL) -> Task<Void, Never>? { startCopy([path], to: target, save: true) }
     @discardableResult func startExport(_ paths: [String], to folder: URL) -> Task<Void, Never>? { startCopy(paths, to: folder, save: false) }
-    private func startCopy(_ paths: [String], to target: URL, save: Bool) -> Task<Void, Never>? {
-        guard !retired, !busy, !confirmingQuit, !paths.isEmpty else { return nil }; busy = true; cancellation = OperationCancellation()
-        return performOperation { [self] in
-            let scoped = target.startAccessingSecurityScopedResource()
-            defer { if scoped { target.stopAccessingSecurityScopedResource() }; busy = false; cancellation = OperationCancellation() }
-            do {
-                try validateAccess()
-                if GitRuntime.isAppStoreBuild && !scoped { throw RepositoryAccessFailure.securityScopeUnavailable }
-                if save {
-                    try await repository.saveWorkingFile(path: paths[0], to: target, cancellation: cancellation); if !retired { information = "Saved " + target.path }
-                } else {
-                    let count = try await repository.exportWorkingFiles(paths: paths, to: target, cancellation: cancellation); if !retired { information = "\(count) file(s) exported." }
+    var chooseSaveFile:(String) async -> URL? = {_ in nil}
+    var chooseExportFolder:() async -> URL? = {nil}
+    var chooseApplication:() async -> URL? = {nil}
+    var cancelFileChoice:()->Void = {}
+    private var fileIOActive = false
+    var openWorkingFile:(URL,URL?) async throws -> Void = {file,application in
+        if let application {
+            try await withCheckedThrowingContinuation { (reply:CheckedContinuation<Void,Error>) in
+                NSWorkspace.shared.open([file],withApplicationAt:application,configuration:NSWorkspace.OpenConfiguration()) {_,error in
+                    if let error {reply.resume(throwing:error)} else {reply.resume()}
                 }
-            } catch { if !retired { self.error = error.localizedDescription } }
+            }
+        } else if !NSWorkspace.shared.open(file) {throw StatusFileActionFailure(message:"Could not open the file. Choose an application using Open With.")}
+    }
+    lazy var openAlternativeEditor:(URL) async throws -> Void = { [weak self] file in
+        guard let self else {throw OperationCancellationFailure.cancelled}
+        try await withCheckedThrowingContinuation { (reply:CheckedContinuation<Void,Error>) in
+            AlternativeEditor.open(file,preferences:self.defaults,permissions:self.access.map {[$0]} ?? []) {failure in
+                if let failure {reply.resume(throwing:StatusFileActionFailure(message:failure))} else {reply.resume()}
+            }
+        }
+    }
+    private func fileRequestIsLive(_ token:OperationCancellation)->Bool {!retired && !confirmingQuit && cancellation === token && !token.isCancelled}
+    @discardableResult private func fileRequest(_ paths:[String],operation:@escaping (OperationCancellation) async throws -> Void)->Task<Void,Never>? {
+        guard !retired,!accepted,!busy,!confirmingQuit,!paths.isEmpty,GitPathSet(paths).count == paths.count else {return nil}
+        let token = OperationCancellation();cancellation = token;fileIOActive = true;busy = true
+        return performOperation { [self] in
+            defer {
+                withExtendedLifetime(access) {}
+                if cancellation === token {
+                    fileIOActive = false;busy = false;cancellation = OperationCancellation()
+                    if !retired,token.isCancelled {close()}
+                }
+            }
+            do {try validateAccess();try await operation(token)}
+            catch {if fileRequestIsLive(token) {self.error = error.localizedDescription}}
+        }
+    }
+    @discardableResult func requestOpen(_ path:String,action:AddFileOpenAction)->Task<Void,Never>? {
+        guard entries.contains(where:{GitReferenceName.equal($0.path,path) && !$0.isDirectory}) else {return nil}
+        return fileRequest([path]) { [self] token in
+            let application = action == .openWith ? await chooseApplication():nil
+            guard fileRequestIsLive(token),action != .openWith || application != nil else {return}
+            let file = repository.root.appendingPathComponent(path)
+            let scoped = application?.startAccessingSecurityScopedResource() ?? false
+            defer {if scoped {application?.stopAccessingSecurityScopedResource()}}
+            if action == .editor {try await openAlternativeEditor(file)} else {try await openWorkingFile(file,application)}
+        }
+    }
+    @discardableResult func requestSave(_ path:String)->Task<Void,Never>? {
+        guard entries.contains(where:{GitReferenceName.equal($0.path,path) && !$0.isDirectory}) else {return nil}
+        return fileRequest([path]) { [self] token in
+            guard let target = await chooseSaveFile(path),fileRequestIsLive(token) else {return}
+            try await copy([path],to:target,save:true,token:token)
+        }
+    }
+    @discardableResult func requestExport(_ paths:[String])->Task<Void,Never>? {
+        guard paths.allSatisfy({path in entries.contains(where:{GitReferenceName.equal($0.path,path)})}) else {return nil}
+        return fileRequest(paths) { [self] token in
+            guard let target = await chooseExportFolder(),fileRequestIsLive(token) else {return}
+            try await copy(paths,to:target,save:false,token:token)
+        }
+    }
+    private func startCopy(_ paths:[String],to target:URL,save:Bool)->Task<Void,Never>? {
+        fileRequest(paths) { [self] token in try await copy(paths,to:target,save:save,token:token) }
+    }
+    private func copy(_ paths:[String],to target:URL,save:Bool,token:OperationCancellation) async throws {
+        guard fileRequestIsLive(token) else {throw OperationCancellationFailure.cancelled}
+        let scoped = target.startAccessingSecurityScopedResource();defer {if scoped {target.stopAccessingSecurityScopedResource()}}
+        if GitRuntime.isAppStoreBuild && !scoped {throw RepositoryAccessFailure.securityScopeUnavailable}
+        if save {
+            try await repository.saveWorkingFile(path:paths[0],to:target,cancellation:token)
+            if fileRequestIsLive(token) {information = "Saved " + target.path}
+        } else {
+            let count = try await repository.exportWorkingFiles(paths:paths,to:target,cancellation:token)
+            if fileRequestIsLive(token) {information = "\(count) file(s) exported."}
         }
     }
     var onDelete: ([StatusEntry], Bool) -> Void = { _, _ in }
@@ -465,7 +514,7 @@ private final class AddNativeWindow: NSWindow {
             await work()
         }
     }
-    var canApply: Bool { !retired && !busy && !confirmingQuit && !checked.isEmpty }
+    var canApply: Bool { !retired && !accepted && !busy && !confirmingQuit && entries.contains {checked.contains($0.path)} }
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.defaults = defaults
         if defaults.integer(forKey: Self.columnKey + ".Version") == 1 { fileColumns = .load(from: defaults, key: Self.columnKey) }
@@ -477,13 +526,13 @@ private final class AddNativeWindow: NSWindow {
         }
     }
     func invalidateFileMenus() {fileMenuGeneration = UUID()}
-    func setScope(_ paths: [String]) { guard !retired, !busy else { return }; self.paths = paths.isEmpty ? ["."] : paths; loaded = false; checked = []; highlighted = []; selectionMark = nil; hasHead = false }
+    func setScope(_ paths: [String]) { guard !retired, !busy else { return }; self.paths = paths.isEmpty ? ["."] : paths; loaded = false;accepted = false; checked = []; highlighted = []; selectionMark = nil; hasHead = false }
     private func validateAccess() throws {
         guard !retired, !cancellation.isCancelled else { throw OperationCancellationFailure.cancelled }
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func invalidate() {
-        guard !retired else { return }; retired = true; cancellation.cancel(); readTask?.cancel(); readTask = nil
+        guard !retired else { return }; retired = true; cancellation.cancel();cancelFileChoice(); readTask?.cancel(); readTask = nil
         cancelRevert?(); cancelRevert = nil; reverting = false
         pendingFlags = nil; pendingDelete = nil; pendingRestore = nil; pendingRevert = nil; ignoring = false
         restoreCopies.removeAll(); lockingFiles = false; resettingColumns = false; busy = false
@@ -520,11 +569,16 @@ private final class AddNativeWindow: NSWindow {
     }
     func cancel() {
         guard !retired, !confirmingQuit, !ignoring, !lockingFiles, !resettingColumns, pendingDelete == nil, pendingRestore == nil, pendingRevert == nil, pendingFlags == nil else { return }
-        if reverting { closeAfterRevert = true; cancelRevert?() }
+        if fileIOActive {cancellation.cancel();cancelFileChoice()}
+        else if reverting { closeAfterRevert = true; cancelRevert?() }
         else if busy { cancellation.cancel() }
         else { close() }
     }
-    func apply() { guard canApply else { return }; onAccepted(entries.filter { checked.contains($0.path) }.map(\.path)); close() }
+    func apply() {
+        guard canApply else {return}
+        let paths = GitPathOperationOrder.sorted(entries.filter {checked.contains($0.path)}.map(\.path))
+        guard !paths.isEmpty else {return};accepted = true;onAccepted(paths);close()
+    }
     var canReceiveFileDrop: Bool { !retired && !busy && !confirmingQuit && loaded }
     @discardableResult func addDropped(_ urls: [URL]) -> Bool {
         guard canReceiveFileDrop, !urls.isEmpty, urls.allSatisfy(\.isFileURL) else { return false }

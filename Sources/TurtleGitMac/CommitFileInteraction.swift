@@ -172,6 +172,59 @@ final class FileListWatermark: NSView {
     func retire() { retired = true; cancel(); probe = nil }
 }
 
+/// A dialog-owned native file chooser. A response is delivered once and only
+/// after AppKit has released its sheet; forced retirement cancels a queued OK.
+@MainActor final class OwnedFilePanelSession {
+    private final class Request {
+        let picker:NSSavePanel
+        let continuation:CheckedContinuation<URL?,Never>
+        var responded = false
+        var releasing = false
+        var result:URL?
+        var observer:NSObjectProtocol?
+        init(_ picker:NSSavePanel,_ continuation:CheckedContinuation<URL?,Never>) {self.picker = picker;self.continuation = continuation}
+    }
+    private weak var window:NSWindow?
+    private var request:Request?
+    private var retired = false
+    var currentPanel:NSSavePanel? {request?.picker}
+    init(window:NSWindow?) {self.window = window}
+    func choose(_ picker:NSSavePanel) async -> URL? {
+        guard !retired,request == nil,let window,window.attachedSheet == nil else {return nil}
+        return await withCheckedContinuation { continuation in
+            let pending = Request(picker,continuation);request = pending
+            pending.observer = NotificationCenter.default.addObserver(forName:NSWindow.didEndSheetNotification,object:window,queue:.main) { [weak self,weak pending] _ in
+                DispatchQueue.main.async {if let pending {self?.drain(pending)}}
+            }
+            picker.beginSheetModal(for:window) { [weak self] response in self?.receive(picker,response:response) }
+        }
+    }
+    func receive(_ picker:NSSavePanel,response:NSApplication.ModalResponse) {
+        guard let pending = request,pending.picker === picker,!pending.responded else {return}
+        pending.responded = true;pending.result = !retired && response == .OK ? picker.url:nil
+        release(pending,response:response)
+    }
+    func cancel() {
+        guard let pending = request else {return}
+        pending.responded = true;pending.result = nil;release(pending,response:.cancel)
+    }
+    func retire() {retired = true;cancel()}
+    private func release(_ pending:Request,response:NSApplication.ModalResponse) {
+        if !pending.releasing {
+            pending.releasing = true
+            if pending.picker.sheetParent === window {window?.endSheet(pending.picker,returnCode:response)}
+            pending.picker.orderOut(nil)
+        }
+        DispatchQueue.main.async { [weak self,weak pending] in if let pending {self?.drain(pending)} }
+    }
+    private func drain(_ pending:Request) {
+        guard request === pending,pending.responded,pending.picker.sheetParent == nil,window?.attachedSheet !== pending.picker else {return}
+        request = nil
+        if let observer = pending.observer {NotificationCenter.default.removeObserver(observer);pending.observer = nil}
+        pending.continuation.resume(returning:!retired && window != nil && window?.attachedSheet == nil ? pending.result:nil)
+    }
+}
+
 /// Native binary checkbox shared by file-selection dialogs. Git membership is
 /// authoritative even when AppKit has already advanced its cell's visual state.
 struct FileSelectionCheckbox:NSViewRepresentable {

@@ -21,7 +21,7 @@ private final class RevertNativeWindow:NSWindow {
     var onClosed:()->Void = {}
     var commandKeyWindow:()->NSWindow? = {NSApp.keyWindow}
     private var question:(NSAlert,CheckedContinuation<Bool,Never>)?
-    private var panel:(NSSavePanel,CheckedContinuation<URL?,Never>)?
+    private(set) lazy var filePanels = OwnedFilePanelSession(window:window)
     private var lfsOperation:LFSFileOperationController?
     private var sheetObserver:NSObjectProtocol?
     private(set) var revertProgress:RevertProgressWindowController?
@@ -41,6 +41,7 @@ private final class RevertNativeWindow:NSWindow {
         window.commandKeyWindow = { [weak self] in self?.commandKeyWindow() }
         window.refresh = { [weak model] in model?.reload() };window.accept = { [weak model] in model?.apply() }
         model.chooseSaveFile = { [weak self] path in await self?.chooseSave(path:path) }
+        model.cancelFileChoice = { [weak self] in self?.filePanels.cancel() }
         model.commands.chooseApplication = { [weak self] in await self?.choose(application:true) }
         model.commands.chooseExportFolder = { [weak self] in await self?.choose(application:false) }
         model.commands.confirmDeletion = { [weak self] paths,permanent in
@@ -77,34 +78,23 @@ private final class RevertNativeWindow:NSWindow {
         DialogGeometry.attach(window,identifier:"RevertDialog",legacyName:"RevertDialog")
     }
     private func choose(application:Bool) async -> URL? {
-        guard !model.retired,panel == nil,question == nil,let window,window.attachedSheet == nil else {return nil}
+        guard !model.retired,filePanels.currentPanel == nil,question == nil,let window,window.attachedSheet == nil else {return nil}
         let picker = NSOpenPanel();picker.allowsMultipleSelection = false
         picker.title = application ? "Open With":"Export working files";picker.prompt = application ? "Open":"Export"
         picker.canChooseFiles = application;picker.canChooseDirectories = !application;picker.canCreateDirectories = !application
         if application {picker.allowedContentTypes = [.applicationBundle];picker.directoryURL = URL(fileURLWithPath:"/Applications")}
-        return await withCheckedContinuation { continuation in
-            panel = (picker,continuation)
-            picker.beginSheetModal(for:window) { [weak self] response in self?.finishPanel(picker,response:response) }
-        }
+        return await filePanels.choose(picker)
     }
     private func chooseSave(path:String) async -> URL? {
-        guard !model.retired,panel == nil,question == nil,let window,window.attachedSheet == nil else {return nil}
+        guard !model.retired,filePanels.currentPanel == nil,question == nil,let window,window.attachedSheet == nil else {return nil}
         let picker = NSSavePanel(),file = URL(fileURLWithPath:path)
         picker.title = "Save As";picker.canCreateDirectories = true
         picker.nameFieldStringValue = file.deletingPathExtension().lastPathComponent + "-" + (file.pathExtension.isEmpty ? "":"." + file.pathExtension)
         picker.directoryURL = model.repository.root.appendingPathComponent(path).deletingLastPathComponent()
-        return await withCheckedContinuation {continuation in
-            panel = (picker,continuation)
-            picker.beginSheetModal(for:window) { [weak self] response in self?.finishPanel(picker,response:response) }
-        }
-    }
-    private func finishPanel(_ picker:NSSavePanel,response:NSApplication.ModalResponse) {
-        guard let pending = panel,pending.0 === picker else {return};panel = nil
-        if picker.sheetParent === window {window?.endSheet(picker)};picker.orderOut(nil)
-        pending.1.resume(returning:!model.retired && response == .OK ? picker.url:nil)
+        return await filePanels.choose(picker)
     }
     private func ask(title:String,detail:String,yesDefault:Bool) async -> Bool {
-        guard !model.retired,question == nil,panel == nil,let window,window.attachedSheet == nil else {return false}
+        guard !model.retired,question == nil,filePanels.currentPanel == nil,let window,window.attachedSheet == nil else {return false}
         let alert = NSAlert();alert.messageText = title;alert.informativeText = detail
         alert.addButton(withTitle:yesDefault ? "Yes":"No");alert.addButton(withTitle:yesDefault ? "No":"Yes")
         return await withCheckedContinuation { continuation in
@@ -124,9 +114,8 @@ private final class RevertNativeWindow:NSWindow {
         if model.cancel(closeAfter:true) {return false};return !model.commands.busy && !model.commands.unifiedViewerBusy
     }
     func windowWillClose(_ notification:Notification) {
-        model.invalidate()
+        filePanels.retire();model.invalidate()
         if let sheetObserver {NotificationCenter.default.removeObserver(sheetObserver);self.sheetObserver = nil}
-        if let pending = panel {finishPanel(pending.0,response:.cancel)}
         if let pending = question {finishQuestion(pending.0,accepted:false)}
         lfsOperation?.close();lfsOperation = nil;revertProgress?.close();revertProgress = nil
         window?.contentViewController = nil;onClosed()
@@ -180,6 +169,8 @@ private final class RevertNativeWindow:NSWindow {
     var close:()->Void = {}
     var updateTitle:(URL)->Void = {_ in}
     var onAccepted:([StatusEntry])->Void = {_ in}
+    var cancelFileChoice:()->Void = {}
+    private var accepted = false
     var onFileLog:(String)->Void = {_ in}
     var onAction:(RepositoryAction,[String])->Void = {_,_ in}
     var onChanged:()->Void = {}
@@ -194,7 +185,7 @@ private final class RevertNativeWindow:NSWindow {
     var chooseSaveFile:(String) async -> URL? = {_ in nil}
     var saveWorkingFile:(String,URL,OperationCancellation) async throws -> Void
 
-    var canInteract:Bool {!retired && !busy && !commands.busy && !confirmingQuit && !hasChild && !commands.unifiedViewerBusy && window?.attachedSheet == nil}
+    var canInteract:Bool {!retired && !accepted && !busy && !commands.busy && !confirmingQuit && !hasChild && !commands.unifiedViewerBusy && window?.attachedSheet == nil}
     var canApply:Bool {canInteract && entries.contains{checked.contains($0.path)}}
     var rows:[StatusRow] {commands.sortedRows}
     static let columnKey = "RevertDlg.FileColumns"
@@ -232,7 +223,7 @@ private final class RevertNativeWindow:NSWindow {
     }
     func setScope(_ paths:[String]) {
         guard !retired,!confirmingQuit,!commands.busy,!hasChild,!exclusiveAction,!closeAfterRead,window?.attachedSheet == nil else {return}
-        pendingDrops = [];self.paths = paths.isEmpty ? ["."]:paths;hasLoaded = false;checked = [];highlighted = [];reload()
+        pendingDrops = [];self.paths = paths.isEmpty ? ["."]:paths;hasLoaded = false;accepted = false;checked = [];highlighted = [];reload()
     }
     func didRename(_ old:String,to new:String) {
         guard !retired else {return}
@@ -300,12 +291,15 @@ private final class RevertNativeWindow:NSWindow {
         }
     }
     @discardableResult func cancel(closeAfter:Bool = false)->Bool {
-        if let request {closeAfterRead = closeAfterRead || closeAfter;request.cancel();fileListRefresh.cancel();cancelling = true;return true}
-        if commands.cancelOperation() {closeAfterRead = closeAfterRead || closeAfter;return true};return false
+        if let request {closeAfterRead = closeAfterRead || closeAfter;request.cancel();fileListRefresh.cancel();cancelFileChoice();cancelling = true;return true}
+        if commands.cancelOperation() {closeAfterRead = closeAfterRead || closeAfter;cancelFileChoice();return true};return false
     }
-    func invalidate() {guard !retired else {return};retired = true;fileListRefresh.retire();generation = UUID();request?.cancel();refreshRequested = false;commands.invalidate()}
+    func invalidate() {guard !retired else {return};retired = true;fileListRefresh.retire();generation = UUID();request?.cancel();refreshRequested = false;commands.invalidate();cancelFileChoice()}
     func apply() {
-        guard canApply else {return};onAccepted(entries.filter{checked.contains($0.path)});close()
+        guard canApply else {return}
+        let selected = GitPathMap(uniqueKeysWithValues:entries.filter {checked.contains($0.path)}.map {($0.path,$0)})
+        let ordered = GitPathOperationOrder.sorted(selected.keys).compactMap {selected[$0]}
+        guard !ordered.isEmpty else {return};accepted = true;onAccepted(ordered);close()
     }
     func diff(_ paths:some Sequence<String>) {
         let ids = GitPathSet(paths)

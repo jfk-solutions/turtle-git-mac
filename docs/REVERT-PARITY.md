@@ -298,3 +298,13 @@ acceptance. This supersedes the pending Add/Revert outer-selection migration;
 full dialog parity remains partial.
 
 [Grouped selection evidence](qa/add-revert-identities-2026-10-17.json).
+
+
+## Checked acceptance and owned file commands
+
+The connected [file-command flow](ADD-REVERT-FILE-FLOW-PARITY.md) now uses the
+source's checked-path ordering and once-only acceptance. Add owns Save/Export/
+Open With/editor from its chooser through worker/launch drain; Add and Revert
+share a picker identity/release/retirement session. Actual grouped evidence,
+compatibility diagnosis and acceptance boundaries are in
+[the batch record](qa/add-revert-file-flow-2026-10-17.json).

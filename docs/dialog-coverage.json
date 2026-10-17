@@ -591,6 +591,7 @@
         "docs/qa/add-missing-pair-2026-10-06.json",
         "docs/qa/add-restore-2026-10-06.json",
         "docs/qa/add-revert-2026-10-06.json",
+        "docs/qa/add-revert-file-flow-2026-10-17.json",
         "docs/qa/add-revert-identities-2026-10-17.json",
         "docs/qa/add-status-menu-2026-10-06.json",
         "docs/qa/add-unified-2026-10-06.json",
@@ -1126,6 +1127,7 @@
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/add-revert-file-flow-2026-10-17.json",
         "docs/qa/add-revert-identities-2026-10-17.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
@@ -1339,6 +1341,7 @@
         "docs/REVERT-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/add-revert-file-flow-2026-10-17.json",
         "docs/qa/add-revert-identities-2026-10-17.json",
         "docs/qa/revert-file-commands-2026-10-16.json",
         "docs/qa/revert-planning-2026-10-16.json",

@@ -30,7 +30,7 @@ extension GitRepository {
         var result = current.filter { ![FileState.untracked, .ignored].contains($0.state) && (requested.contains($0.path) || $0.originalPath.map { requested.contains($0) } == true) }
         let represented = GitPathSet(result.flatMap { [$0.path] + ($0.originalPath.map { [$0] } ?? []) })
         let tracked = GitPathSet(try trackedPaths(cancellation: cancellation))
-        for path in requested.sorted(by:{$0.utf8.lexicographicallyPrecedes($1.utf8)}) where !represented.contains(path) && tracked.contains(path) { result.append(StatusEntry(path: path, originalPath: nil, index: " ", worktree: " ")) }
+        for path in GitPathOperationOrder.sorted(requested) where !represented.contains(path) && tracked.contains(path) { result.append(StatusEntry(path: path, originalPath: nil, index: " ", worktree: " ")) }
         try cancellation?.check(); return result
     }
     /// Revert selected status rows, preserving added working files and recycling
@@ -123,7 +123,7 @@ extension GitRepository {
             }
         }
         do {
-            try runBatches(unstage.sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}, step: .unstage, arguments: ["rm", "-f", "--cached", "--ignore-unmatch"])
+            try runBatches(GitPathOperationOrder.sorted(unstage), step: .unstage, arguments: ["rm", "-f", "--cached", "--ignore-unmatch"])
             for location in recycling {
                 try cancellation?.check()
                 let path = String(location.path.dropFirst(root.path.count + 1))
@@ -140,7 +140,7 @@ extension GitRepository {
                 _ = try run(["-c","core.precomposeunicode=false","mv", "-f", "--", new, old], environmentOverrides: environment, onOutput: onOutput)
                 notify(.move, new, finished: true)
             }
-            try runBatches(restore.sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}, step: .restore, arguments: ["restore", "--source=" + source, "--staged", "--worktree"])
+            try runBatches(GitPathOperationOrder.sorted(restore), step: .restore, arguments: ["restore", "--source=" + source, "--staged", "--worktree"])
             try cancellation?.check()
             let permissions = try manager.attributesOfItem(atPath: index.path)[.posixPermissions]
             if let permissions { try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: lock.path) }

@@ -67,6 +67,7 @@ struct AddFileTable: NSViewRepresentable {
         private let columnDefinitions: [String: StatusListColumn] = ["path":.path,"ext":.fileExtension,"date":.lastModified,"size":.fileSize]
         private(set) var contextColumnID: String?
         init(model: AddWindowModel) { self.model = model }
+        // Visual list sorting is independent of the model's checked-operation path order.
         var rows: [AddDialogEntry] {
             let descriptor = table.sortDescriptors.first
             return model.entries.sorted { a, b in

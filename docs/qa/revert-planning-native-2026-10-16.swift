@@ -88,6 +88,8 @@ import TurtleGitCore
         try require(controller.window!.performKeyEquivalent(with:event(36,.control)) && accepts == [[paths[0]]],"Ctrl Return did not submit checked rows")
         try require(controller.window!.performKeyEquivalent(with:event(96,[])) && model.busy,"F5 did not refresh")
         model.apply();try require(accepts.count == 1,"Busy apply submitted");try await wait {!model.busy}
+        // Begin a new planning invocation after the intercepted acceptance.
+        model.setScope(["."]);try await wait {!model.busy}
         // Context Revert No preserves bytes; Yes creates the existing real progress child and blocks the parent.
         var questions = 0
         model.requestRevert(model.commands.fileMenu([paths[0]]))

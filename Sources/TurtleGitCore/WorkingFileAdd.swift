@@ -13,7 +13,7 @@ extension GitRepository {
     /// non-directory entries' Git mode. This does not chmod or create disk links.
     public func addWorkingFiles(paths: [String], mode: WorkingFileAddMode = .normal, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
-        let paths = GitPathSet(paths).sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}
+        let paths = GitPathOperationOrder.sorted(paths)
         guard !paths.isEmpty else { throw GitFailure(arguments: ["add"], code: 1, message: "Select files to add.") }
         for path in paths { _ = try restoreLocation(path) }
         try withPrivateAddIndex(cancellation: cancellation) { environment in
@@ -41,7 +41,7 @@ extension GitRepository {
     public func setAddedFileMode(paths: [String], mode: WorkingFileAddMode, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
         guard let indexMode = mode.indexMode, !paths.isEmpty else { throw AddFailure.selection }
-        let paths = GitPathSet(paths).sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}
+        let paths = GitPathOperationOrder.sorted(paths)
         for path in paths { _ = try restoreLocation(path) }
         try withPrivateAddIndex(cancellation: cancellation) { environment in
             for path in paths {

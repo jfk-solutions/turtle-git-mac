@@ -25,7 +25,7 @@ import TurtleGitCore
         defer { defaults.removePersistentDomain(forName: suite) }
         func model() -> CommitWindowModel { CommitWindowModel(repository: repo, access: nil, unversionedDefaults: defaults, dialogDefaults: defaults) }
         let standard = model(); standard.reload(paths: ["."]); try await wait(standard)
-        precondition(standard.checked == Set(tracked), "Defaults must check tracked/missing/staged deletion, exclude untracked")
+        precondition(standard.checked == GitPathSet(tracked), "Defaults must check tracked/missing/staged deletion, exclude untracked")
         let preservedPaths = [".git/index", ".git/config", ".git/HEAD", ".git/refs/heads/main", "modified", "dir/modified", "unknown", "dir/unknown"]
         let before = try preservedPaths.map { try Data(contentsOf: root.appendingPathComponent($0)) }
         defaults.set(true, forKey: "AutoselectMissingFiles")
