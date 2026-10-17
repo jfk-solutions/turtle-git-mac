@@ -21,6 +21,7 @@ import TurtleGitCore
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let suite = "TurtleGit.InlineEngine." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: folder) }
+        MergeGeneralPreferences(firstDifference: false, firstConflict: false).save(to: prefs)
         for word in [false, true] {
             for (old, new) in [("aba", "baa"), ("baa", "aba")] {
                 let a = "keep " + (word ? old.map(String.init).joined(separator: " ") : old) + " shared tail"
@@ -35,19 +36,41 @@ import TurtleGitCore
                 } }
                 let base = folder.appendingPathComponent("base.txt"), mine = folder.appendingPathComponent("mine.txt")
                 try Data((a + "\n").utf8).write(to: base); try Data((b + "\n").utf8).write(to: mine)
-                let owner = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: [])
+                let owner = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: [], preferences: prefs)
                 do {
                     defer { owner.close() }
-                    let model = owner.model; model.comparisonDefaults = prefs; model.load()
+                    let model = owner.model; model.load()
                     try await TwoPaneEngineVerification.settled(model)
                     model.setInlineWordDiff(word)
                     owner.window?.contentView?.layoutSubtreeIfNeeded()
-                    try await TwoPaneEngineVerification.wait { TwoPaneEngineVerification.editors(owner.window?.contentView).count == 2 }
+                    // An ended source has its real text record plus the pinned
+                    // final empty NoEnding record. Both occupy a native display
+                    // row, but the extra display LF contributes no source bytes.
+                    let displayStrings = [a, b].map { $0 + "\n\n" }
+                    for side in [true, false] {
+                        let cells = model.displayCells(base: side)
+                        try MergeInlineNativeVerification.require(cells.count == 2 && cells[1].lineNumber == 2 && cells[1].text.isEmpty && cells[1].state == .normal, "Missing final source NoEnding record")
+                        try MergeInlineNativeVerification.require(model.draftText(base: side) == (side ? a : b) + "\n", "Display EOF record changed source text")
+                    }
+                    // Two NSTextViews can exist before SwiftUI has published the
+                    // loaded source strings. Count alone observes construction,
+                    // not the presentation consumed by the assertions below.
+                    var presented = false
+                    for _ in 0..<1000 {
+                        owner.window?.contentView?.layoutSubtreeIfNeeded()
+                        let views = TwoPaneEngineVerification.editors(owner.window?.contentView)
+                        presented = !model.busy && !model.filtering && views.count == 2 &&
+                            displayStrings.allSatisfy { value in views.contains { $0.window === owner.window && $0.string == value } }
+                        if presented { break }
+                        try await Task.sleep(nanoseconds: 10_000_000)
+                    }
+                    let actual = TwoPaneEngineVerification.editors(owner.window?.contentView).map { $0.string.debugDescription }.joined(separator: "; ")
+                    try MergeInlineNativeVerification.require(presented, "Repeated source presentation not ready: word=\(word), base=\(a.debugDescription), mine=\(b.debugDescription), busy=\(model.busy), filtering=\(model.filtering), error=\(String(describing: model.error)), actual=[\(actual)]")
                     let diff = try MergeInlineNativeVerification.unwrap(model.inlineDifference(0), "Missing repeated-text inline result")
                     try MergeInlineNativeVerification.require(diff.basePositions == expected[0] && diff.destinationPositions == expected[1], "Model diverged from original source tie choice")
                     let views = TwoPaneEngineVerification.editors(owner.window?.contentView)
                     for side in 0...1 {
-                        let view = try MergeInlineNativeVerification.unwrap(views.first { $0.string == (side == 0 ? a : b) + "\n" }, "Missing repeated source pane")
+                        let view = try MergeInlineNativeVerification.unwrap(views.first { $0.string == displayStrings[side] }, "Missing repeated source pane")
                         let nav = try MergeInlineNativeVerification.unwrap(view as? MergeInlineNavigationProviding, "Missing source navigator")
                         view.setSelectedRange(NSRange(location: 0, length: 0))
                         for target in Array(Set(expected[side].flatMap { [$0.location, NSMaxRange($0)] })).sorted() {

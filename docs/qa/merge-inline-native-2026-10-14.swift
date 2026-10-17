@@ -14,9 +14,9 @@ struct MergeInlineNativeVerification {
         let baseText = "🐢 stable prefix value 00 suffix constant\r\n", mineText = "🐢 stable prefix value 20 suffix constant\r\n", theirsText = "🐢 stable prefix value 10 suffix constant\r\n"
         try Data(baseText.utf8).write(to: base); try Data(mineText.utf8).write(to: mine); try Data(theirsText.utf8).write(to: theirs)
         var general = MergeGeneralPreferences(firstDifference: false, firstConflict: false); general.save(to: prefs)
-        let pair = FileComparisonWindowController(comparison: try WorkingFileComparison(base: theirs, destination: mine), permissions: [])
+        let pair = FileComparisonWindowController(comparison: try WorkingFileComparison(base: theirs, destination: mine), permissions: [], preferences: prefs)
         defer { pair.close() }
-        let two = pair.model; two.comparisonDefaults = prefs; two.load()
+        let two = pair.model; two.load()
         try await TwoPaneEngineVerification.settled(two)
         pair.window?.contentView?.layoutSubtreeIfNeeded()
         try await TwoPaneEngineVerification.wait { TwoPaneEngineVerification.editors(pair.window?.contentView).count == 2 }

@@ -97,3 +97,23 @@ is implied.
 The four diagnostic window captures were inspected and rejected because the
 capture omitted some SwiftUI/native chrome. They remain under build/qa only; no
 new screenshot was published from this batch.
+
+## Hosted final-record fixture repair — 17 October 2026
+
+Hosted run `39066931716` completed with a failure in the repeated-source pane
+lookup after its 1821 Core cases passed (two skipped). The retained fixture
+expected one native display LF for an ended one-line file. The source final
+NoEnding-record port deliberately presents a second, empty row. A diagnostic
+run confirmed exact loaded strings with two display LFs, both models settled
+and no model error. This was an obsolete fixture expectation.
+
+The grouped inline fixture now separately checks the terminal record (normal,
+empty, source line 2), exact two-row native display and unchanged one-LF source
+text/files. Preferences are supplied before hosting, and pane lookup awaits
+exact attached source strings rather than view count alone. All source-oracle
+ranges, caret stops, preview/native colors, Aqua/Dark Aqua and Undo/data assertions
+remain. The affected grouped native recheck passed; both attempted receivers were
+reaped and independently absent. No app/Core change, rebuild or full-suite repeat
+was needed. [Dated evidence](qa/inline-presentation-repair-2026-10-17.json) retains
+the initial failure and scope. This does not establish a passing current hosted
+workflow or complete editor parity.

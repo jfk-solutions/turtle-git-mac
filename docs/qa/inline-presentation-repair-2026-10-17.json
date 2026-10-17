@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "b9e618f229635f35f91b42417555ba33f8708803",
+  "scope": "Repair retained inline native expectations after source final NoEnding-record presentation, preserving all source-oracle, color, caret and immutable-input assertions",
+  "source_inputs_sha256": {
+    "docs/qa/inline-engine-native-2026-10-15.swift": "fb3ddac59ad0979237e62a037b1a0fc6b16af0e949852ab65207d02584bb7d03",
+    "docs/qa/merge-inline-native-2026-10-14.swift": "887efb269741377e3059a0ca4ce3c648d489740be8f4c2f873e6ef98e6f99791"
+  },
+  "hosted_failure": {
+    "run": 39066931716,
+    "job": 117498247855,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39066931716",
+    "result": "completed failure in scripts/test-inline-native.py: Missing repeated source pane",
+    "core": "1821 cases, 2 skipped, 0 failures in that earlier revision; not a current-revision full-suite certification"
+  },
+  "attempts": [
+    {
+      "kind": "Native diagnostic",
+      "log": "build/qa/inline-presentation-native-2026-10-17.log",
+      "receiver": 37615,
+      "result": "exit 1; full original inline family passed; exact-string diagnostic showed both correct source panes with two display LFs, busy=false/filtering=false/error=nil. Fixture expected only one LF and omitted the pinned terminal NoEnding display row."
+    },
+    {
+      "kind": "Native affected repair",
+      "log": "build/qa/inline-presentation-native-repair-2026-10-17.log",
+      "receiver": 37674,
+      "result": "exit 0; original inline family and four repeated-text character/word direction combinations passed. Exact two-row/NoEnding state, source text, model ranges, caret stop ranges, paint, Aqua/Dark Aqua, bytes, dirty and Undo assertions retained/passed."
+    }
+  ],
+  "changes": [
+    "Supply private preferences at controller construction rather than after hosting; source range checks disable unrelated startup scrolling explicitly.",
+    "Wait for exact strings in attached production editors, rather than only counting two constructed NSTextViews.",
+    "Check the exact source NoEnding record and separately assert native display strings and unchanged single-LF source text."
+  ],
+  "checks_not_repeated": "No app/Core source or labels changed; no build, full Core, localization or unrelated native suites repeated. Existing Debug receiver cache reused.",
+  "cleanup": {
+    "receivers": [
+      37615,
+      37674
+    ],
+    "independent_ps": "both absent",
+    "resources": "owned hidden windows closed; disposable files/private preference suites removed"
+  },
+  "limits": [
+    "Current hosted workflow has not yet passed",
+    "This corrects a fixture regression, not a product implementation",
+    "Physical shortcut/focus/VoiceOver and signed/minimum-OS acceptance remain open"
+  ],
+  "documentation_checks": {
+    "site": "289 documents, zero unresolved fragments; build/qa/inline-presentation-site-2026-10-17.log",
+    "coverage": "reconciled, unchanged counts; not feature-completion certification",
+    "diff": "git diff --check passed"
+  }
+}
