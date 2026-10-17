@@ -1878,3 +1878,14 @@ ECMAScript validation retains independent worker accounting until drain after
 forced closure. All fourteen source controls have partial mappings. See
 [regex parity](MERGE-REGEX-FILTERS-PARITY.md#source-listeditor-ownership--october-17-2026).
 The Debug build and both grouped native families pass: source list/editor ownership and retained actual comparison filtering. Raw light/dark captures of both windows were individually reviewed; source labels, complete fields, action icons and footer buttons fit. The first capture exposed collapsed editor width, now fixed with an explicit native content size. A retained fixture expected content at the final EOF row; diagnostics showed source line 3 plus the deliberate blank line 4, and assertions now check both and the complete draft. All five owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-regex-source-family-2026-10-17.json) for exact attempts and acceptance limits.
+
+### Source Context Menu settings pair — October 17, 2026
+
+Both pages now retain headerless native checkbox/icon lists, selected-row keyboard
+toggling, source groups and shared draft publication. Captured page/owner contexts
+fence cached native callbacks; Apply validates first, preserves current Advanced
+icons, rejects reentrant/changed drafts and orders notification after local save.
+Errors and unsigned notices are separate. Source drag-menu limits remain explicit;
+clipboard actions are a separate macOS group. All fourteen source controls have
+partial mappings. See [context parity](CONTEXT-MENU-SETTINGS-PARITY.md#native-source-lists-and-shared-publication--october-17-2026).
+The Debug build and both grouped native families pass: source pages/native actions and retained settings/publication/Advanced/transaction behavior. The initial source check found disabled native rows; diagnostics isolated the missing observation of model changes, repaired with direct observation and rendered-state readiness. All four raw light/dark captures were individually reviewed: source groups, original icons, native checkboxes, exclusions and page controls fit. All four owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/context-menu-source-family-2026-10-17.json) for exact attempts, provenance and acceptance limits.

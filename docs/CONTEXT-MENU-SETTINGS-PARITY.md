@@ -92,3 +92,35 @@ unavailable counts above are superseded by the SVN, Daemon and patch ports.
 See [current Finder handoffs](FINDER-COMMAND-HANDOFF-PARITY.md), including captured
 comparison-tool choice. Full shell appearance/conditions and signed acceptance
 remain open.
+
+## Native source lists and shared publication — October 17, 2026
+
+Both source pages now use a headerless native single-selection list with source
+checkbox/icon/label rows, the original 55 catalog entries and selected-row Space
+toggling. Native Select/deselect all retains its three states; Restore Default
+resets only that page. Captured row and bulk actions retain unknown mask bits.
+All catalog groups now have routes, so the obsolete unavailable-commands notice
+is removed. Source group/description/list/footer order remains. The source drag
+switch stays disabled with a visible Finder Sync explanation. Clipboard transfers
+have their own macOS group below the source controls.
+
+Both pages share one draft and property-sheet participant. A captured page/owner
+revision fences fields and native callbacks across Apply, Cancel, Restore,
+page changes, dismantling and owner closure; the observer remains attached while
+a cached page is hidden. The actual Settings navigator explicitly activates the
+selected context page. Authorized hidden-page Apply remains supported.
+
+Apply captures the whole policy, validates exclusions before invoking publication,
+and uses Advanced's currently accepted icon preference. Publication failure keeps
+the draft and local preferences, with errors separate from unsigned-build notices.
+Reentrant Apply/Cancel is refused. A draft or icon-owner change during publication
+refuses later local writes and notifications; an already completed shared-file
+write cannot be rolled back by that guard. A successful shared save notifies only
+after private/local preferences are saved. Cancel restores both page masks and
+path/Hide/clipboard settings without changing Advanced's icon ownership.
+
+Line-specific native exclusion errors retain the existing source path grammar;
+no Core policy, schema, menu eligibility or Finder runtime code changed. All
+fourteen static source controls now have partial native mappings. The Debug build and both grouped native families pass: source pages/native actions and retained settings/publication/Advanced/transaction behavior. The initial source check found disabled native rows; diagnostics isolated the missing observation of model changes, repaired with direct observation and rendered-state readiness. All four raw light/dark captures were individually reviewed: source groups, original icons, native checkboxes, exclusions and page controls fit. All four owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/context-menu-source-family-2026-10-17.json) for exact attempts, provenance and acceptance limits. Physical installed Finder
+menus/Shift, filesystem edge cases, keyboard/VoiceOver, signed App Group and
+App Store acceptance remain open. No dialog is certified complete.

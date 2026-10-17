@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "dbb38d090eef69670bf0a7fcbba8b9ff9b9f9650",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Connected Context Menu and Context Menu 2 source forms with 55 native checkbox/icon rows and selected-row Space",
+    "Page/owner captured bindings, row and bulk actions, unknown bits and page-specific Restore",
+    "Shared property-sheet draft/Apply/Cancel, early validation, captured publication and current Advanced icon preference",
+    "Separate publication error/unsigned notice, reentrant and changed-draft refusal, notification after local save",
+    "All fourteen static source controls partially mapped; explicit unavailable Finder drag-menu switch and separate macOS clipboard group"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/context-menu-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 2
+    },
+    {
+      "log": "build/qa/context-menu-source-observation-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "repair": "Native list directly observes its model so cached representable receives active-page/mask changes."
+    }
+  ],
+  "native": {
+    "distinct_family_passes": 2,
+    "families": [
+      "source pages, actual native checkbox/Space, contexts and publication",
+      "retained settings/Advanced/shared transaction behavior"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/context-menu-source-native-2026-10-17.log",
+        "exit": 1,
+        "failure": "First native checkbox remained disabled after attaching/activating the page."
+      },
+      {
+        "log": "build/qa/context-menu-source-diagnostic-2026-10-17.log",
+        "exit": 1,
+        "failure": "Unchanged assertion with diagnostics: correct owner/window/active page and table dimensions, but row remained disabled."
+      },
+      {
+        "log": "build/qa/context-menu-source-observed-native-2026-10-17.log",
+        "exit": 0,
+        "passed_families": 2,
+        "repair": "ObservedObject native list and fixture waits for actual enabled/current rendered mask before clicks and Space."
+      }
+    ],
+    "owned_receivers_reaped": [
+      17124,
+      17160,
+      17242,
+      17251
+    ],
+    "independently_absent_owned_receivers": [
+      17124,
+      17160,
+      17242,
+      17251
+    ],
+    "private_publication": "Atomic JSON file in temporary directory, private UserDefaults and injected notification callback asserting both records agree. No user App Group or distributed notification modified."
+  },
+  "core": {
+    "repeated": false,
+    "reason": "Core settings schema, menu/path policy and Finder menu builder unchanged. Retained native checks exercise actual Core save/read behavior."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/context-menu-source-light.png",
+      "sha256": "15d9b280ffad3e7f69e37e26f6f26b9ce814065547e404e64a32bdbe5e413fac",
+      "pixels": [
+        1640,
+        1864
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/context-menu-source-dark.png",
+      "sha256": "ce81e4a0e091345016266a4502a598220d4b193cde1e396bf87c57c46f75ac78",
+      "pixels": [
+        1640,
+        1864
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/context-menu-2-source-light.png",
+      "sha256": "d028994ef5b450c5491b914560bd78abd3254b1e29022c245f1cd364ff80c198",
+      "pixels": [
+        1640,
+        1864
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/context-menu-2-source-dark.png",
+      "sha256": "f4066d7b63ec8adc900922594a915bfcdb7874d3361c9758f5853ddb3d0157f1",
+      "pixels": [
+        1640,
+        1864
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit images of actual source pages in production SettingsPageViewport with four-edge host constraints. One passive owned window, cached primary/extended views, private preferences/sample paths and notifications. Captures exclude outer Settings tree/footer; actual shared transaction asserted separately. No global focus/input or Finder extension activation.",
+  "hosted_observation": {
+    "head": "dbb38d090eef69670bf0a7fcbba8b9ff9b9f9650",
+    "macos": {
+      "run": 38990594450,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38990594476,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Finder Sync has no source Explorer drag context-menu surface; switch remains disabled with explanation",
+    "An already completed shared-file publication is not rolled back if later context guard refuses local persistence",
+    "Source controls/mappings are partial and do not certify all source menu conditions or layout",
+    "Physical installed Finder/Shift, filesystem aliases/mount boundaries, keyboard/VoiceOver and signed App Group/sandbox/App Store acceptance remain open",
+    "Focused local checks do not certify complete hosted CI or full port parity"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/context-menu-source-site-2026-10-17.log"
+  }
+}

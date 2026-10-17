@@ -277,6 +277,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             content.addSubview(busyShield)
             NSLayoutConstraint.activate([busyShield.leadingAnchor.constraint(equalTo: content.leadingAnchor), busyShield.trailingAnchor.constraint(equalTo: content.trailingAnchor), busyShield.topAnchor.constraint(equalTo: content.topAnchor), busyShield.bottomAnchor.constraint(equalTo: content.bottomAnchor)])
         } else { content.addSubview(busyShield,positioned:.above,relativeTo:nil) }
+        contextMenuDraft.setActive(page == .contextMenu ? .primary : page == .contextMenu2 ? .extended : nil)
         current = controller; selected = page; content.minimumPageWidth = page.minimumPageWidth; content.restoreOrigin(pageOrigins[page] ?? .zero)
         TurtleGitHelp.attach(view.window,topic:TurtleGitHelp.settingsTopic(page))
         heading.stringValue = nodes.first(where:{ $0.id == page })?.title ?? "Settings"

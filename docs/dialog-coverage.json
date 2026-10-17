@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 405,
-    "mapped_controls": 1254,
+    "pending_control_reviews": 391,
+    "mapped_controls": 1268,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -1489,8 +1489,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 9,
-      "mapped_controls": 0,
-      "pending_control_reviews": 9,
+      "mapped_controls": 9,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -1503,7 +1503,8 @@
         "docs/CONTEXT-MENU-SETTINGS-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/context-menu-settings-batch-2026-10-12.json"
+        "docs/qa/context-menu-settings-batch-2026-10-12.json",
+        "docs/qa/context-menu-source-family-2026-10-17.json"
       ]
     },
     {
@@ -3127,8 +3128,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 5,
-      "mapped_controls": 0,
-      "pending_control_reviews": 5,
+      "mapped_controls": 5,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -3141,7 +3142,8 @@
         "docs/CONTEXT-MENU-SETTINGS-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/context-menu-settings-batch-2026-10-12.json"
+        "docs/qa/context-menu-settings-batch-2026-10-12.json",
+        "docs/qa/context-menu-source-family-2026-10-17.json"
       ]
     },
     {
