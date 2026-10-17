@@ -30,6 +30,37 @@ struct FileListLanguagesVerification {
         try require(NSApp.sendAction(restore.action!,to:restore.target,from:restore),"Column restore not dispatched")
         try await wait(window) {probe(window)?.visibleColumns.contains(.status)==before}
     }
+    @MainActor static func checkGroups(_ window:NSWindow) async throws {
+        try await wait(window) {
+            let titles=descendants(window.contentView).compactMap {$0 as? FileListGroupHeaders}.flatMap { $0.headings.map(\.title) }
+            return titles.contains(FileListLabels.groupTitle(.modified)) && titles.contains(FileListLabels.groupTitle(.unversioned)) && titles.contains("Modified Files")
+        }
+        let titles=descendants(window.contentView).compactMap {$0 as? FileListGroupHeaders}.flatMap {$0.headings.map(\.title)}
+        if Bundle.main.preferredLocalizations.first=="en" {try require(titles.filter {$0=="Modified Files"}.count==2,"English builtin/changelist groups lost their separate slots")}
+    }
+    @MainActor static func checkCommitSelection(_ owner:CommitWindowController) async throws {
+        let window=owner.window!,model=owner.model,main=NSMenu(title:"Private language commands"),windows=NSMenu(title:"Semantic window owner")
+        let previous=NSApp.windowsMenu;NSApp.windowsMenu=windows;defer {NSApp.windowsMenu=previous}
+        let windowItem=NSMenuItem(title:"Independent window label",action:nil,keyEquivalent:"");windowItem.submenu=windows;main.addItem(windowItem)
+        let commands=owner.commandMenu!,previousMenu=commands.applicationMenu,previousKey=commands.keyWindow
+        commands.applicationMenu={main};commands.keyWindow={window};commands.install()
+        defer {commands.remove();commands.applicationMenu=previousMenu;commands.keyWindow=previousKey}
+        guard let root=main.items.first(where:{$0.identifier?.rawValue=="TurtleGit.Commit.Commands"}),let menu=root.submenu else {throw Failure(description:"Missing localized Commit menu")}
+        try require(main.index(of:root)<main.index(of:windowItem) && root.title==NSLocalizedString("Commit",comment:""),"Localized root lost semantic Window placement")
+        guard let check=menu.items.first(where:{$0.title==NSLocalizedString("Check files",comment:"")})?.submenu else {throw Failure(description:"Missing translated Check files group")}
+        for key in ["All","None"] {
+            let shift=NSEvent.modifierFlags.contains(.shift),checking=key == "None" ? shift:!shift
+            guard let item=check.items.first(where:{$0.title==NSLocalizedString(key,comment:"")}) else {throw Failure(description:"Missing translated selection action")}
+            try require(commands.validateMenuItem(item) && item.image != nil,"Selection caption lost action/icon availability")
+            try require(NSApp.sendAction(item.action!,to:item.target,from:item),"Translated selection action did not dispatch")
+            try await wait(window) {model.checkedPathsForCommit.count == (checking ? model.visibleEntries.count:0)}
+        }
+        model.check({$0.path=="Modified"},checking:true)
+        try await wait(window) {model.checkedPathsForCommit.count==1}
+        let one=FileListLabels.selectionSummary(checked:model.checkedPathsForCommit.count,shown:model.visibleEntries.count)
+        try require(!one.contains("{") && one.contains("1") && one.contains("3"),"Selected-file count fields missing")
+        model.checkAll(false)
+    }
     @MainActor static func verify() async throws {
         let locale=CommandLine.arguments[1]
         try require(Bundle.main.preferredLocalizations.first==locale,"Wrong process locale")
@@ -37,6 +68,15 @@ struct FileListLanguagesVerification {
             try require(FileListLabels.caption("Renamed")=="umbenannt" && FileListLabels.caption("Untracked")=="unversioniert","Reviewed source aliases missing")
             try require(FileListLabels.caption("Modified (staged)")=="Verändert (vorgemerkt)","Composed staged caption missing")
         }
+        for name in ["Modified Files","Not Versioned Files","cafe\u{301}","café","ignore-on-commit"] {
+            try require(FileListLabels.groupTitle(.changelist(name)).utf8.elementsEqual(name.utf8),"Localized a user changelist")
+        }
+        if locale != "en" {try require(FileListLabels.groupTitle(.modified) != StatusListGroup.modified.title,"Builtin group bypassed source catalog")}
+        for (checked,shown) in [(0,0),(1,1),(1,3),(3,1),(3,3)] {
+            let caption=FileListLabels.selectionSummary(checked:checked,shown:shown)
+            try require(!caption.contains("{") && caption.contains(String(checked)) && caption.contains(String(shown)),"Selection summary field loss")
+        }
+        for count in [0,1,3] {try require(!FileListLabels.stagingSummary(staged:2,unstaged:count).contains("{"),"Staging summary field loss")}
         for untouched in ["cafe\u{301}/Modified", "refs/heads/Status", "Modified (staged) suffix", "server %s diagnostic"] {
             try require(FileListLabels.caption(untouched).utf8.elementsEqual(untouched.utf8),"Unknown caption changed")
         }
@@ -57,6 +97,8 @@ struct FileListLanguagesVerification {
         let status=StatusWindowController(repository:repo,access:nil,defaults:prefs),statusWindow=status.window!
         statusWindow.alphaValue=0;statusWindow.orderFront(nil);status.model.reload()
         try await wait(statusWindow) {!status.model.busy && status.model.visibleFiles.count==3}
+        status.model.changelists=GitChangelists(assignments:["Modified":"Modified Files"])
+        try await checkGroups(statusWindow)
         for row in status.model.tableRows.compactMap(\.contents) {
             try require(status.model.columnText(row,.path)==StatusListClipboard.displayedPath(row.file.entry),"Translated a working path")
             try require(status.model.columnText(row,.status)==FileListLabels.caption(status.model.showsStagedStatus ? row.status:row.file.status),"Working status cell bypassed catalog")
@@ -64,7 +106,12 @@ struct FileListLanguagesVerification {
         let packet=status.model.clipboardText(GitPathSet(["Modified"]),copy:.pathsAndStatus)
         try require(packet.contains("\nModified\t"+FileListLabels.caption("Modified")),"Working clipboard changed path or lost translated status")
         try await checkColumns(statusWindow)
-        if locale=="de" {try await LanguageFamilyVerification.capture(statusWindow,name:"working-file-status")}
+        let footer=descendants(statusWindow.contentView).compactMap {$0 as? NSTextField}.first {$0.accessibilityLabel()==NSLocalizedString("Working Tree statistics",comment:"")}!
+        try await wait(statusWindow) {footer.stringValue==status.model.summary && footer.toolTip==status.model.nativeSummary}
+        try require(!footer.isEditable && footer.isSelectable && !footer.stringValue.contains("{"),"Localized footer lost fields or readonly selection")
+        if locale=="de" {try require(footer.stringValue.hasPrefix("Zeilen:") && footer.toolTip?.contains("Dateien angezeigt")==true,"Footer/tooltip bypassed translated count template")}
+        if locale=="fr" {try require(footer.stringValue.hasPrefix("lignes :"),"French footer bypassed count template")}
+        if locale=="de" {try await LanguageFamilyVerification.capture(statusWindow,name:"working-file-groups")}
         status.close()
         let commit=CommitWindowController(repository:repo,access:nil,defaults:prefs),commitWindow=commit.window!
         commitWindow.alphaValue=0;commitWindow.orderFront(nil);commit.model.reload()
@@ -72,8 +119,11 @@ struct FileListLanguagesVerification {
         guard let modified=commit.model.visibleEntries.first(where:{$0.path=="Modified"}) else {throw Failure(description:"Missing literal Modified path")}
         try require(probe(commitWindow)!.columnText(modified,.status)==FileListLabels.caption("Modified"),"Commit displayed cell bypassed catalog")
         try require(probe(commitWindow)!.columnText(modified,.path)=="Modified","Commit translated literal path")
+        commit.model.changelists=GitChangelists(assignments:["Modified":"Modified Files"])
+        try await checkGroups(commitWindow)
         try await checkColumns(commitWindow)
-        if locale=="de" {try await LanguageFamilyVerification.capture(commitWindow,name:"commit-file-status")}
+        try await checkCommitSelection(commit)
+        if locale=="de" {try await LanguageFamilyVerification.capture(commitWindow,name:"commit-file-groups")}
         commit.close()
         let comparison=RevisionComparisonWindowController(repository:repo,access:nil,from:.revision("HEAD"),to:.workingTree,preferences:prefs),comparisonWindow=comparison.window!
         comparison.model.clipboard=board;comparisonWindow.alphaValue=0;comparisonWindow.orderFront(nil);comparison.model.load()
@@ -95,6 +145,6 @@ struct FileListLanguagesVerification {
         try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==index && Data(contentsOf:root.appendingPathComponent(".git/config"))==config,"Display/columns mutated Git index/config")
         let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout
         try require(finalHead==head,"Display mutated HEAD")
-        print("PASS language file lists \(locale): actual Working Tree/Commit/Comparison cells and column identity/toggles, source aliases, staged composition, literal paths, private clipboard, native Add headers and HEAD/index/config preservation; owned windows closed")
+        print("PASS language file lists \(locale): actual Working Tree/Commit/Comparison cells and column identity/toggles, source aliases, staged composition, literal paths, private clipboard, native Add headers and HEAD/index/config preservation; localized builtin groups/literal changelists, named counters, translated selection menu/icon/actions and semantic Window placement; owned windows closed")
     }
 }

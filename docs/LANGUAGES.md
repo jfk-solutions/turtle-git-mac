@@ -55,9 +55,10 @@ Its column caption uses the same catalog. This does not certify every AppKit men
 or alert caption in the app.
 
 The pinned `CTGitPath::GetActionName` and GitStatusListCtrl use resource-backed
-status/action labels. The native catalog adds three explicit spelling aliases:
+status/action labels. The native catalog uses explicit spelling aliases:
 `Renamed` from `renamed`, `Untracked` from `Unversioned`, and `Skip-worktree` from
-`skip-worktree`. They retain native English keys and source translations, without
+`skip-worktree`. Metadata headers also use `Last modified` from `Modification date`
+and `File size` from `Size`. They retain native English keys and source translations, without
 general case folding. Ambiguous/fuzzy/missing translations still fall back to
 English. Reviewed German/French native wording covers type changes, the
 assume-unchanged flag, staged qualifiers and the column prefix. Other languages
@@ -72,12 +73,48 @@ KeepFileListsEnglish control is activated: the pinned resource hides it and the
 source has no consumer.
 
 
-These unaltered native captures show German status captions and deliberately
-English filenames. Standard group labels, quick-check links, some metadata
-headings and dynamic counters still use English; their translation is separate
-remaining work. These images do not claim a fully localized dialog.
+The earlier [status-caption evidence](qa/file-list-languages-2026-10-17.json)
+retains that checkpoint's captures. The current group/count captures below
+supersede its English group, metadata and count limitations within this scope.
 
-![Working Tree status captions, German, light](site/assets/working-file-status-language-de-light.png)
-![Working Tree status captions, German, dark](site/assets/working-file-status-language-de-dark.png)
-![Commit status captions, German, light](site/assets/commit-file-status-language-de-light.png)
-![Commit status captions, German, dark](site/assets/commit-file-status-language-de-dark.png)
+## Group, selection and count continuation — October 17, 2026
+
+Commit and Working Tree now translate built-in group headings through their
+semantic group role. User changelist names, including `Modified Files`, remain
+literal. Both the drawn native heading and its underlying SwiftUI/accessibility
+caption follow that rule. Group IDs, selection and Git path membership are
+unchanged. Quick-check buttons and the Commit menu now request their label
+translations; All/None, Shift inversion, icons and command ownership are retained.
+The native Commit menu is placed before macOS's semantic Window/Help menus even
+when their captions are translated.
+
+Commit's checked/shown and staged/unstaged summaries, plus Working Tree's source
+line/action totals and visible-file tooltip, use named integer templates.
+`Configuration/NativeTranslations.json` supplies reviewed German/French forms.
+Translation fields can be reordered, but omission, duplication, invented fields,
+malformed braces and printf-style substitutions are refused by generation. The
+runtime independently falls back to the English template for invalid fields.
+Only integer values are substituted in one pass. Checked/shown text selects
+English singular/other forms for each count; staged text distinguishes a single
+unstaged file. This is not a complete CLDR/plural port across all languages.
+
+The original totals, including the pinned normal-count behavior, are preserved.
+Type-specific metadata headings reuse their reviewed source labels. The patch
+and partial-staging controls now localize their dynamic captions; their actions
+and right-hand staging window behavior stay the same. Other untranslated native
+messages and full physical/RTL/VoiceOver/signed acceptance remain open.
+
+[Continuation evidence](qa/file-list-groups-languages-2026-10-17.json) records the
+Core format contracts, converter validation, native command and counter checks,
+source provenance, actual captures and receiver cleanup.
+
+
+These unaltered German light/dark captures show translated built-in groups,
+selection links, counters and metadata headings. The English group `Modified Files`
+is a deliberately named user changelist; filenames also deliberately retain English.
+Other untranslated messages and full application parity remain separate work.
+
+![Working Tree groups and counters, German, light](site/assets/working-file-groups-language-de-light.png)
+![Working Tree groups and counters, German, dark](site/assets/working-file-groups-language-de-dark.png)
+![Commit groups and selection, German, light](site/assets/commit-file-groups-language-de-light.png)
+![Commit groups and selection, German, dark](site/assets/commit-file-groups-language-de-dark.png)

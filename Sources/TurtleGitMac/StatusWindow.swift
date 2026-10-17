@@ -13,7 +13,7 @@ func changelistNameHelp(_ name: GitReferenceName, names: [GitReferenceName]) -> 
 
 func changelistGroupHelp(_ group: StatusListGroup, lists: GitChangelists) -> String {
     if case .changelist(let name) = group { return changelistNameHelp(GitReferenceName(name), names: lists.nameIdentities) }
-    return group.title
+    return FileListLabels.groupTitle(group)
 }
 
 struct StatusRow: Identifiable {
@@ -375,7 +375,7 @@ final class StatusNativeWindow: NSWindow {
     var summary:String {StatusFooterStatistics(files:files,statistics:statistics,filter:filter).text}
     var nativeSummary: String {
         let rows = visibleFiles
-        return "\(rows.count) files shown, \(rows.filter { $0.entry.staged }.count) staged, \(rows.filter { $0.state == .modified }.count) modified, \(rows.filter { $0.state == .untracked }.count) unversioned"
+        return FileListLabels.counts("{shown} files shown, {staged} staged, {modified} modified, {unversioned} unversioned",values:["shown":rows.count,"staged":rows.filter {$0.entry.staged}.count,"modified":rows.filter {$0.state == .modified}.count,"unversioned":rows.filter {$0.state == .untracked}.count])
     }
     var folderFiltersEnabled: Bool { invocation.singleDirectory }
     var stashActions: [RepositoryAction] { hasStash ? [.stash, .stashPop, .stashApply, .stashList] : [.stash] }
@@ -759,7 +759,7 @@ struct StatusFooterStatistics {
     var text:String {
         // Pinned BuildStatistics resets normal but never increments it. The
         // hidden Show unmodified control is not exposed as a new native option.
-        "line: \(addedLines)(+) \(removedLines)(-) files: normal=0, unversioned=\(unversioned), modified=\(modified), added=\(added), deleted=\(deleted), conflicted=\(conflicted)"
+        FileListLabels.counts("line: {added_lines}(+) {removed_lines}(-) files: normal=0, unversioned={unversioned}, modified={modified}, added={added}, deleted={deleted}, conflicted={conflicted}",values:["added_lines":addedLines,"removed_lines":removedLines,"unversioned":unversioned,"modified":modified,"added":added,"deleted":deleted,"conflicted":conflicted])
     }
 }
 struct StatusStatisticsField:NSViewRepresentable {
@@ -767,7 +767,7 @@ struct StatusStatisticsField:NSViewRepresentable {
     func makeNSView(context:Context)->NSTextField {
         let field=NSTextField(wrappingLabelWithString:"");field.isEditable=false;field.isSelectable=true;field.isBezeled=false;field.drawsBackground=false
         field.font = .systemFont(ofSize:NSFont.smallSystemFontSize);field.lineBreakMode = .byWordWrapping;field.maximumNumberOfLines=0
-        field.setAccessibilityLabel("Working Tree statistics");return field
+        field.setAccessibilityLabel(NSLocalizedString("Working Tree statistics",comment:""));return field
     }
     func updateNSView(_ field:NSTextField,context:Context) {
         if field.stringValue != model.summary {if field.currentEditor() != nil {field.window?.makeFirstResponder(nil)};field.stringValue=model.summary}
@@ -832,7 +832,7 @@ struct StatusDialog: View {
                     if let row = item.contents {
                         HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).lineLimit(1) }
                             .repositoryFileHelp(repository: model.repository.root, path: row.path, detail: row.file.entry.originalPath.map { "Renamed from " + $0 } ?? "", preferences: model.colorPreferences)
-                    } else if let group = item.row.group { Text(group.title).font(.headline).foregroundStyle(Color.accentColor).help(changelistGroupHelp(group, lists: model.changelists)).accessibilityLabel(changelistGroupHelp(group, lists: model.changelists)) }
+                    } else if let group = item.row.group { Text(verbatim:FileListLabels.groupTitle(group)).font(.headline).foregroundStyle(Color.accentColor).help(changelistGroupHelp(group, lists: model.changelists)).accessibilityLabel(changelistGroupHelp(group, lists: model.changelists)) }
                 }.width(min: 250, ideal: 380)
                 TableColumn("Filename", sortUsing: StatusGroupedSort(column: .fileName)) { item in groupCell(item, column: .fileName) }.width(min: 100, ideal: 180)
                 TableColumn("Extension", sortUsing: StatusGroupedSort(column: .fileExtension)) { item in groupCell(item, column: .fileExtension) }.width(min: 45, ideal: 65)

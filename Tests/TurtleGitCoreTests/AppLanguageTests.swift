@@ -2,6 +2,25 @@ import XCTest
 @testable import TurtleGitCore
 
 final class AppLanguageTests: XCTestCase {
+    func testCountTemplatesReorderIntegerFieldsWithoutPrintfExecution() {
+        let english="{checked} files checked, {shown} files shown"
+        XCTAssertEqual(LocalizedCountTemplate.render(english,translation:"Affichés : {shown}; cochés : {checked}",values:["checked":1,"shown":2000]),"Affichés : 2000; cochés : 1")
+        XCTAssertEqual(LocalizedCountTemplate.render("{value}",translation:"Wert {value}",values:["value":Int.min]),"Wert "+String(Int.min))
+    }
+    func testMissingDuplicateUnknownAndMalformedCountFieldsUseEnglish() {
+        let english="{checked} checked, {shown} shown",values=["checked":0,"shown":3]
+        for invalid in ["", "{checked}", "{checked} {checked}", "{checked} {other}", "{checked} {shown", "{checked} {shown}}", "{checked} {shown} %n", "{checked} {shown} {extra}", "{Checked} {shown}"] {
+            XCTAssertFalse(LocalizedCountTemplate.accepts(invalid,for:english),invalid)
+            XCTAssertEqual(LocalizedCountTemplate.render(english,translation:invalid,values:values),"0 checked, 3 shown",invalid)
+        }
+    }
+    func testInvalidCountContractsDoNotCrashOrLoseTheOriginalTemplate() {
+        for english in ["{count", "{count} {count}", "no fields", "{cöunt}"] {
+            XCTAssertEqual(LocalizedCountTemplate.render(english,translation:"bad",values:["count":1]),english)
+        }
+        XCTAssertEqual(LocalizedCountTemplate.render("{count}",translation:"{count}",values:[:]),"{count}")
+        XCTAssertEqual(LocalizedCountTemplate.render("{count}",translation:"{count}",values:["count":1,"other":2]),"{count}")
+    }
     func testChoicesAreBundledUniqueAndHaveReadableTitles() {
         XCTAssertEqual(AppLanguageChoice.bundledIDs.count,38)
         XCTAssertEqual(Set(AppLanguageChoice.bundledIDs).count,38)

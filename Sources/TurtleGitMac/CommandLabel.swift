@@ -116,6 +116,26 @@ enum FileListLabels {
         guard statuses.contains(raw) || StatusListColumn.allCases.contains(where:{$0.rawValue==raw}) else {return raw}
         return bundle.localizedString(forKey:raw,value:raw,table:nil)
     }
+    static func groupTitle(_ group:StatusListGroup)->String {
+        if case .changelist(let name)=group {return name}
+        return NSLocalizedString(group.title,comment:"")
+    }
+    static func counts(_ english:String,values:[String:Int])->String {
+        LocalizedCountTemplate.render(english,translation:NSLocalizedString(english,comment:""),values:values)
+    }
+    static func selectionSummary(checked:Int,shown:Int)->String {
+        let template:String
+        switch (checked==1,shown==1) {
+        case (true,true):template="{checked} file checked, {shown} file shown"
+        case (true,false):template="{checked} file checked, {shown} files shown"
+        case (false,true):template="{checked} files checked, {shown} file shown"
+        case (false,false):template="{checked} files checked, {shown} files shown"
+        }
+        return counts(template,values:["checked":checked,"shown":shown])
+    }
+    static func stagingSummary(staged:Int,unstaged:Int)->String {
+        counts(unstaged==1 ? "{staged} staged, {unstaged} unstaged file shown":"{staged} staged, {unstaged} unstaged files shown",values:["staged":staged,"unstaged":unstaged])
+    }
     /// A localized header is presentation, never a persisted column identifier.
     /// Resolve only an unambiguous current-locale caption; callers retain their
     /// declared-order fallback when multiple headers translate to the same text.

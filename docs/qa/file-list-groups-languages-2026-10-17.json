@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-17",
+  "scope": "Connected file-list groups, selection and Commit menus, count/footer templates, metadata headers and patch/staging captions",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "source": "GitStatusListCtrl group/selection/statistics behavior, TortoiseProcENG resource group names and IDS_STATUSLIST_STATUSLINE1/2; native PO blob provenance remains in LocalizationManifest.json",
+    "resource_blob": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "validation": {
+    "core": {
+      "passed": 20,
+      "first_pass": true,
+      "log": "build/qa/file-list-groups-core-2026-10-17.log",
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'AppLanguageTests|StatusListClipboardTests|ComparisonFileListTests'",
+      "scope": "Reordered named integer fields, malformed/missing/duplicate/unknown/printf refusal with English fallback, invalid contract preservation, language preferences and clipboard/data boundaries"
+    },
+    "converter": {
+      "passed": 8,
+      "first_pass": true,
+      "log": "build/qa/file-list-groups-converter-2026-10-17.log"
+    },
+    "build": {
+      "exit_code": 0,
+      "first_pass": true,
+      "log": "build/qa/file-list-groups-build-2026-10-17.log",
+      "diagnostics": "Existing simulator, exit-zero frontend, actor/concurrency/selector and build-phase diagnostics remain; not a clean-warning build."
+    },
+    "native": {
+      "passed": 6,
+      "first_pass": true,
+      "cases": {
+        "settings": [
+          "de",
+          "fr",
+          "en"
+        ],
+        "file_lists_groups_counts": [
+          "de",
+          "fr",
+          "en"
+        ]
+      },
+      "log": "build/qa/file-list-groups-native-2026-10-17.log",
+      "scope": [
+        "Retained compiled locale/settings/wizard and file-list/column/clipboard checks",
+        "Live drawn builtin group headings and separate literal user group named Modified Files",
+        "NFC/NFD and reserved-name changelist captions remain byte-exact",
+        "Working Tree selectable readonly footer and translated visible-file tooltip",
+        "Selection/staging count cases include zero, one and several values",
+        "Translated native All/None actions execute with expected checks and source Shift choice",
+        "Native command icons and ownership retained",
+        "Commit root placed before the semantic Window menu with an unrelated caption",
+        "HEAD/index/config unchanged"
+      ],
+      "diagnostics": "Private unsigned QA app emits sandbox_extension_issue_file_to_process diagnostics despite zero exits; not signed sandbox evidence."
+    },
+    "cleanup": {
+      "receivers": [
+        98029,
+        98038,
+        98039,
+        98040,
+        98132,
+        98221
+      ],
+      "independent_ps_audit": "All six receiver PIDs absent after first-pass grouped checks."
+    },
+    "screenshots": {
+      "method": "Unmodified compositor captures; each of the four new images individually reviewed",
+      "files": [
+        {
+          "path": "docs/site/assets/working-file-groups-language-de-light.png",
+          "sha256": "7041de51d07539fb4e9efc4aa2f64357c821c64008a17387ea5f213452d055bc"
+        },
+        {
+          "path": "docs/site/assets/working-file-groups-language-de-dark.png",
+          "sha256": "788b2a4855a5003a051468054fe011dc5518814bd8e323b767a0fe27ad191699"
+        },
+        {
+          "path": "docs/site/assets/commit-file-groups-language-de-light.png",
+          "sha256": "6a615791e78c4ca2c4dc452ebdb2673b0a47421559586169f7ec86910cb7eef8"
+        },
+        {
+          "path": "docs/site/assets/commit-file-groups-language-de-dark.png",
+          "sha256": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed"
+        }
+      ],
+      "observations": "Built-in groups, quick links, footer counts and metadata labels fit in light/dark. English filenames and the user group Modified Files are intentional literals. Existing General/Wizard captures are supplementary and not newly published or claimed as visually reviewed."
+    },
+    "localizations": {
+      "languages": 38,
+      "keys": 1273
+    },
+    "help": {
+      "documents": 37,
+      "topics": 48,
+      "files": 55,
+      "bytes": 3397026,
+      "resource_build_exit_code": 0,
+      "matched_bundle_files": [
+        "Contents/Info.plist",
+        "Contents/Resources/manifest.json",
+        "Contents/Resources/en.lproj/LANGUAGES.html",
+        "Contents/Resources/en.lproj/images/e5a8120dd8ea-working-file-groups-language-de-dark.png",
+        "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png",
+        "Contents/Resources/en.lproj/images/3c0868a3c127-working-file-groups-language-de-light.png",
+        "Contents/Resources/en.lproj/images/6a93fbb42338-commit-file-groups-language-de-light.png"
+      ],
+      "log": "build/qa/file-list-groups-help-build-2026-10-17.log"
+    },
+    "site": {
+      "documents": 284,
+      "unresolved_fragments": [],
+      "log": "build/qa/file-list-groups-site-2026-10-17.log"
+    },
+    "full_hosted_macOS": "not established by local scoped results"
+  },
+  "limits": [
+    "Partial localization and source parity, not a finished application",
+    "Count forms do not implement all CLDR plural categories or all locales",
+    "Physical menu/pointer/RTL/VoiceOver and signed installed Finder/App Store acceptance remain open"
+  ],
+  "implementation": [
+    "Semantic builtin-group localization with literal changelist names and unchanged row identities",
+    "Localized quick-check links, primary Commit action, native Commit command/root/group menus and semantic Window/Help placement",
+    "Validated named integer templates for checked/shown/staged counts, source line/action totals and visible-file tooltip",
+    "Reviewed metadata label aliases and German/French patch/staging captions",
+    "Existing Shift inversion, icons, ownership and Git effects retained"
+  ]
+}

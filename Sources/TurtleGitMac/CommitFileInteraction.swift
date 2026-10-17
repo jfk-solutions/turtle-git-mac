@@ -90,7 +90,7 @@ final class FileListGroupHeaders: NSView {
             guard let group = row.group else { return nil }
             var rect = table.rect(ofRow: index)
             rect.origin.x = visible.minX; rect.size.width = visible.width
-            return (group.title, rect)
+            return (FileListLabels.groupTitle(group), rect)
         }
     }
     override func draw(_ dirtyRect: NSRect) {

@@ -25,8 +25,17 @@ class LocalizationContracts(unittest.TestCase):
         self.assertIn(('Renamed','umbenannt'),module.variants('renamed','umbenannt'))
         self.assertIn(('Untracked','unversioniert'),module.variants('Unversioned','unversioniert'))
         self.assertIn(('Skip-worktree','skip-worktree'),module.variants('skip-worktree','skip-worktree'))
+        self.assertIn(('Last modified','Änderungsdatum'),module.variants('Modification date','Änderungsdatum'))
+        self.assertIn(('File size','Größe'),module.variants('Size','Größe'))
         self.assertNotIn(('Renamed','x'),module.variants('RENAMED','x'))
         self.assertNotIn(('Untracked','x'),module.variants('Unversioned file','x'))
+    def test_named_counts_keep_all_fields_and_allow_reordering(self):
+        module.validate_native_translation('{checked} checked, {shown} shown','{shown} affichés, {checked} cochés')
+        self.assertEqual(module.count_fields('line: {added_lines}(+) {removed_lines}(-)'), ['added_lines','removed_lines'])
+    def test_named_counts_reject_missing_duplicate_unknown_or_format_fields(self):
+        for value in ['', '{checked}', '{checked} {checked}', '{checked} {other}', '{checked} {shown', '{checked} {shown}}', '{checked} {shown} %n']:
+            with self.assertRaises(ValueError):module.validate_native_translation('{checked} {shown}',value)
+        with self.assertRaises(ValueError):module.validate_native_translation('Plain label','{invented}')
     def test_malformed_po_is_refused(self):
         with self.assertRaises(ValueError):module.parse_po('not a directive\n')
         with self.assertRaises((ValueError,SyntaxError)):module.parse_po('msgid "unterminated\n')

@@ -46,9 +46,10 @@ translated Copy to Clipboard parent still receives its current-column command.
 Its column caption uses the same catalog. This does not certify every AppKit menu
 or alert caption in the app.</p>
 <p>The pinned <code>CTGitPath::GetActionName</code> and GitStatusListCtrl use resource-backed
-status/action labels. The native catalog adds three explicit spelling aliases:
+status/action labels. The native catalog uses explicit spelling aliases:
 <code>Renamed</code> from <code>renamed</code>, <code>Untracked</code> from <code>Unversioned</code>, and <code>Skip-worktree</code> from
-<code>skip-worktree</code>. They retain native English keys and source translations, without
+<code>skip-worktree</code>. Metadata headers also use <code>Last modified</code> from <code>Modification date</code>
+and <code>File size</code> from <code>Size</code>. They retain native English keys and source translations, without
 general case folding. Ambiguous/fuzzy/missing translations still fall back to
 English. Reviewed German/French native wording covers type changes, the
 assume-unchanged flag, staged qualifiers and the column prefix. Other languages
@@ -60,12 +61,41 @@ all locales, RTL, full status sorting/source variants, VoiceOver and signed
 sandbox/installed Finder acceptance remain open. No hidden Windows
 KeepFileListsEnglish control is activated: the pinned resource hides it and the
 source has no consumer.</p>
-<p>These unaltered native captures show German status captions and deliberately
-English filenames. Standard group labels, quick-check links, some metadata
-headings and dynamic counters still use English; their translation is separate
-remaining work. These images do not claim a fully localized dialog.</p>
-<p><img src="images/b474eebe2f0c-working-file-status-language-de-light.png" alt="Working Tree status captions, German, light" />
-<img src="images/c2077ea69dad-working-file-status-language-de-dark.png" alt="Working Tree status captions, German, dark" />
-<img src="images/4f3dd84d719e-commit-file-status-language-de-light.png" alt="Commit status captions, German, light" />
-<img src="images/c5be4780d49c-commit-file-status-language-de-dark.png" alt="Commit status captions, German, dark" /></p>
+<p>The earlier <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/file-list-languages-2026-10-17.json">status-caption evidence</a>
+retains that checkpoint's captures. The current group/count captures below
+supersede its English group, metadata and count limitations within this scope.</p>
+<h2 id="group-selection-and-count-continuation--october-17-2026">Group, selection and count continuation — October 17, 2026</h2>
+<p>Commit and Working Tree now translate built-in group headings through their
+semantic group role. User changelist names, including <code>Modified Files</code>, remain
+literal. Both the drawn native heading and its underlying SwiftUI/accessibility
+caption follow that rule. Group IDs, selection and Git path membership are
+unchanged. Quick-check buttons and the Commit menu now request their label
+translations; All/None, Shift inversion, icons and command ownership are retained.
+The native Commit menu is placed before macOS's semantic Window/Help menus even
+when their captions are translated.</p>
+<p>Commit's checked/shown and staged/unstaged summaries, plus Working Tree's source
+line/action totals and visible-file tooltip, use named integer templates.
+<code>Configuration/NativeTranslations.json</code> supplies reviewed German/French forms.
+Translation fields can be reordered, but omission, duplication, invented fields,
+malformed braces and printf-style substitutions are refused by generation. The
+runtime independently falls back to the English template for invalid fields.
+Only integer values are substituted in one pass. Checked/shown text selects
+English singular/other forms for each count; staged text distinguishes a single
+unstaged file. This is not a complete CLDR/plural port across all languages.</p>
+<p>The original totals, including the pinned normal-count behavior, are preserved.
+Type-specific metadata headings reuse their reviewed source labels. The patch
+and partial-staging controls now localize their dynamic captions; their actions
+and right-hand staging window behavior stay the same. Other untranslated native
+messages and full physical/RTL/VoiceOver/signed acceptance remain open.</p>
+<p><a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/file-list-groups-languages-2026-10-17.json">Continuation evidence</a> records the
+Core format contracts, converter validation, native command and counter checks,
+source provenance, actual captures and receiver cleanup.</p>
+<p>These unaltered German light/dark captures show translated built-in groups,
+selection links, counters and metadata headings. The English group <code>Modified Files</code>
+is a deliberately named user changelist; filenames also deliberately retain English.
+Other untranslated messages and full application parity remain separate work.</p>
+<p><img src="images/3c0868a3c127-working-file-groups-language-de-light.png" alt="Working Tree groups and counters, German, light" />
+<img src="images/e5a8120dd8ea-working-file-groups-language-de-dark.png" alt="Working Tree groups and counters, German, dark" />
+<img src="images/6a93fbb42338-commit-file-groups-language-de-light.png" alt="Commit groups and selection, German, light" />
+<img src="images/f7856202ab6a-commit-file-groups-language-de-dark.png" alt="Commit groups and selection, German, dark" /></p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

@@ -2146,7 +2146,7 @@ struct CommitDialog: View {
                 Button("Refresh") { model.reload() }.disabled(model.inputsBlocked)
                 Spacer()
                 HStack(spacing: 0) {
-                    Button(model.currentCompletionAction.rawValue) { model.commitCurrentAction() }.keyboardShortcut(.return, modifiers: [.command])
+                    Button(LocalizedStringKey(model.currentCompletionAction.rawValue)) { model.commitCurrentAction() }.keyboardShortcut(.return, modifiers: [.command])
                     if model.replaySplit == nil && model.historyCombine == nil { Menu {
                         ForEach(CommitWindowModel.CompletionAction.allCases, id: \.self) { action in
                             Button { model.commit(action) } label: { CommandLabel(title: action.rawValue, icon: action == .push ? .push : .commit) }
@@ -2225,12 +2225,12 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                             Spacer()
                             VStack(alignment: .trailing, spacing: 6) {
                                 if model.stagingEnabled {
-                                    Button(model.partialMode == false ? "Hide Staging «" : "Partial Staging »") { model.showPartial(false) }
-                                    Button(model.partialMode == true ? "Hide Unstaging «" : "Partial Unstaging »") { model.showPartial(true) }
+                                    Button(LocalizedStringKey(model.partialMode == false ? "Hide Staging «" : "Partial Staging »")) { model.showPartial(false) }
+                                    Button(LocalizedStringKey(model.partialMode == true ? "Hide Unstaging «" : "Partial Unstaging »")) { model.showPartial(true) }
                                 } else {
-                                    Button(model.viewingPatch ? "Hide Patch «" : "View Patch »") { model.showViewPatch() }
+                                    Button(LocalizedStringKey(model.viewingPatch ? "Hide Patch «" : "View Patch »")) { model.showViewPatch() }
                                 }
-                                Text(model.stagingEnabled ? "\(model.stagedEntries.count) staged, \(model.unstagedEntries.count) unstaged files shown" : "\(model.checkedPathsForCommit.count) files checked, \(model.visibleEntries.count) files shown").font(.caption)
+                                Text(model.stagingEnabled ? FileListLabels.stagingSummary(staged:model.stagedEntries.count,unstaged:model.unstagedEntries.count):FileListLabels.selectionSummary(checked:model.checkedPathsForCommit.count,shown:model.visibleEntries.count)).font(.caption)
                             }
                         }
                     }.padding(4)
@@ -2267,7 +2267,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     }.repositoryFileHelp(repository: model.repository.root, path: entry.path, detail: model.fileHelp(entry), preferences: model.colorPreferences)
                 } else if let group = row.group {
                     HStack {
-                        Text(group.title).font(.headline).foregroundStyle(Color.accentColor)
+                        Text(verbatim:FileListLabels.groupTitle(group)).font(.headline).foregroundStyle(Color.accentColor)
                         Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1)
                     }.help(changelistGroupHelp(group, lists: model.changelists)).accessibilityLabel(changelistGroupHelp(group, lists: model.changelists))
                 }
@@ -2452,7 +2452,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
         } else { groupRule }
     }
     private var groupRule: some View { Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1) }
-    func checkButton(_ title: String, enabled: Bool = true, action: @escaping (Bool) -> Void) -> some View { Button(title) {action(!NSEvent.modifierFlags.contains(.shift))}.buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled).help(title == "None" ? "Uncheck all files. Shift-click checks all files." : "Check matching files. Shift-click unchecks matching files.") }
+    func checkButton(_ title: String, enabled: Bool = true, action: @escaping (Bool) -> Void) -> some View { Button(LocalizedStringKey(title)) {action(!NSEvent.modifierFlags.contains(.shift))}.buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled).help(title == "None" ? "Uncheck all files. Shift-click checks all files." : "Check matching files. Shift-click unchecks matching files.") }
 }
 
 /// Keep the source destination/issue bands on one line when they fit. At the
@@ -2743,23 +2743,25 @@ private struct CommitProgressDialog: View {
         if installedMenu === main,root?.menu === main {refresh();return}
         remove();installedMenu=main
         for item in main.items where item.identifier?.rawValue=="TurtleGit.Commit.Commands" {main.removeItem(item)}
-        let root=NSMenuItem(title:"Commit",action:nil,keyEquivalent:"");root.identifier = .init("TurtleGit.Commit.Commands")
-        let menu=NSMenu(title:"Commit");menu.delegate=self;root.submenu=menu;self.root=root
+        let root=NSMenuItem(title:NSLocalizedString("Commit",comment:""),action:nil,keyEquivalent:"");root.identifier = .init("TurtleGit.Commit.Commands")
+        let menu=NSMenu(title:NSLocalizedString("Commit",comment:""));menu.delegate=self;root.submenu=menu;self.root=root
         func append(_ commands:[Command],to menu:NSMenu) {
             for command in commands {
-                let binding=shortcut(command),item=NSMenuItem(title:command.rawValue,action:#selector(invoke(_:)),keyEquivalent:binding?.0 ?? "")
+                let binding=shortcut(command),item=NSMenuItem(title:NSLocalizedString(command.rawValue,comment:""),action:#selector(invoke(_:)),keyEquivalent:binding?.0 ?? "")
                 item.keyEquivalentModifierMask=binding?.1 ?? [];item.target=self;item.representedObject=Invocation(command,epoch)
                 item.image=icon(command).contextImage(defaults:owner?.presentationPreferences ?? .standard)
                 menu.addItem(item);items.append(item)
             }
         }
-        func group(_ title:String,_ commands:[Command]) {let item=NSMenuItem(title:title,action:nil,keyEquivalent:"");let child=NSMenu(title:title);child.delegate=self;item.submenu=child;menu.addItem(item);append(commands,to:child)}
+        func group(_ title:String,_ commands:[Command]) {let caption=NSLocalizedString(title,comment:"");let item=NSMenuItem(title:caption,action:nil,keyEquivalent:"");let child=NSMenu(title:caption);child.delegate=self;item.submenu=child;menu.addItem(item);append(commands,to:child)}
         append([.current],to:menu);group("Commit actions",[.commit,.recommit,.push]);menu.addItem(.separator())
         group("Check files",[.all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules])
         group("Message",[.focus,.history,.hash,.message,.pasteFiles,.signOff])
         group("Options",[.staging,.showUnversioned,.whole,.messageOnly,.amend])
         append([.patch,.partialStage,.partialUnstage,.refresh,.help],to:menu)
-        let index=main.items.firstIndex(where:{["Window","Help"].contains($0.title)}) ?? main.numberOfItems
+        let index=main.items.firstIndex(where:{item in
+            item.submenu.map {$0 === NSApp.windowsMenu || $0 === NSApp.helpMenu} == true || ["Window","Help",NSLocalizedString("Window",comment:""),NSLocalizedString("Help",comment:"")].contains(item.title)
+        }) ?? main.numberOfItems
         main.insertItem(root,at:index);refresh()
     }
     func remove() {epoch=UUID();if let root,let menu=root.menu {menu.removeItem(root)};root=nil;installedMenu=nil;items=[]}
@@ -2819,7 +2821,7 @@ private struct CommitProgressDialog: View {
         }
     }
     private func refresh() {
-        for item in items {guard let invocation=item.representedObject as? Invocation else {continue};let command=invocation.command;item.isEnabled=attached(item) && enabled(command);item.state=checked(command) ? .on:.off;if command == .current {item.title=owner?.model.currentCompletionAction.rawValue ?? command.rawValue}}
+        for item in items {guard let invocation=item.representedObject as? Invocation else {continue};let command=invocation.command;item.isEnabled=attached(item) && enabled(command);item.state=checked(command) ? .on:.off;if command == .current {item.title=NSLocalizedString(owner?.model.currentCompletionAction.rawValue ?? command.rawValue,comment:"")}}
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {guard let invocation=item.representedObject as? Invocation else {return false};return invocation.epoch==epoch && attached(item) && enabled(invocation.command)}
     @objc private func invoke(_ item:NSMenuItem) {
