@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "3f941f82b65de42732c2a5b500d36eaf588ab596",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source-format selectable read-only action/line statistics and acquisition filters",
+    "Native original-icon Stash popup with captured single-use owner/generation dispatch",
+    "Fifteen partial source mappings including hidden/dormant controls"
+  ],
+  "build": {
+    "log": "build/qa/working-tree-footer-build-2026-10-17.log",
+    "exit": 0,
+    "exit_zero_no_output_diagnostics": 3
+  },
+  "native": {
+    "distinct_case_engine_passes": 4,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "source_log": "build/qa/working-tree-footer-native-fitting-2026-10-17.log",
+    "scope_log": "build/qa/working-tree-scope-repair-2026-10-17.log",
+    "owned_receivers_reaped": [
+      8378,
+      8480,
+      8574,
+      8652,
+      8752,
+      9089,
+      9218,
+      9367
+    ],
+    "independently_absent_owned_receivers": [
+      8378,
+      8480,
+      8574,
+      8652,
+      8752,
+      9089,
+      9218,
+      9367
+    ],
+    "actual_stash_child_dispatch": false
+  },
+  "repairs": [
+    "First two source fixtures required an arbitrary 40-point native field height although the two-line field intrinsic height is 28. Wait for current text and assert fitting intrinsic height instead; no app code changed.",
+    "Initial scope and diagnostic runs showed an extra untracked global.config created inside the repository by the new runner. Moved config/XDG files outside the repository; retained exact read/scope assertions. Deferred refresh itself was correct.",
+    "The failing scope runs emitted an NSTableView reentrant delegate warning; no claim that this general warning is resolved."
+  ],
+  "core": {
+    "repeated": false,
+    "reason": "Native-only changes; Core algorithms unchanged."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/working-tree-footer-light.png",
+      "sha256": "42a4222b57d51ed5de44d01b5e0e7d94a6746dbec937ecedfabb3d4684949ae8",
+      "pixels": [
+        2200,
+        1324
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/working-tree-footer-dark.png",
+      "sha256": "d939f4ec34dbba0a220dff91066de834da5396da5b65d649ec62e7e915e1227b",
+      "pixels": [
+        2200,
+        1324
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of the production StatusWindowController, passive owned windows and private Git repository/preferences. No global input or user focus activation.",
+  "help": {
+    "files": 50,
+    "bytes": 1968682,
+    "unchanged": true
+  },
+  "limitations": [
+    "Source normal counter remains zero as in pinned BuildStatistics",
+    "Consolidated removed-index/unversioned-copy rows and full combined raw actions require further review",
+    "Menu actions intercepted after real stash-ref preflight; real child-dialog completion is not certified",
+    "Physical keyboard/VoiceOver, signed Finder/App Store and complete hosted CI acceptance remain open"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "interpreter": "build/site-venv/bin/python",
+    "initial_invocation_failure": "System python3 lacked markdown_it; used existing site environment without dependency changes."
+  }
+}

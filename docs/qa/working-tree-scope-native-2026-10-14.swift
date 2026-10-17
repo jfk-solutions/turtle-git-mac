@@ -82,7 +82,7 @@ import TurtleGitCore
         model.requestReload(); model.requestReload(); model.setScope(["outside"])
         reply?.resume(returning: previous); reply = nil
         try await wait { !model.busy && StatusWindowModel.activeOperations == 0 }
-        try require(reads == 2 && model.filter.paths == ["outside"] && model.visibleFiles.map(\.id) == ["outside"], "Deferred changes/scope were dropped or redundantly reloaded")
+        try require(reads == 2 && model.filter.paths == ["outside"] && model.visibleFiles.map(\.id) == ["outside"], "Deferred changes/scope were dropped or redundantly reloaded: reads=\(reads), paths=\(model.filter.paths), visible=\(model.visibleFiles.map(\.id)), error=\(String(describing:model.error))")
         model.confirmingQuit = true; model.setScope(["folder"])
         try require(model.filter.paths == ["outside"], "Quit confirmation changed invocation")
         model.confirmingQuit = false

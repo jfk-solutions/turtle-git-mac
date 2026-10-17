@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Adapts ChangedDlg/GitStatusListCtrl; Copyright (C) 2008-2026 TortoiseGit; 2003-2008, 2013-2015 TortoiseSVN.
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
@@ -340,12 +342,22 @@ final class StatusNativeWindow: NSWindow {
         }
     }
     var sortedRows: [StatusRow] { groupsEnabled ? tableRows.compactMap(\.contents):ungroupedSortedRows }
-    var summary: String {
+    var summary:String {StatusFooterStatistics(files:files,statistics:statistics,filter:filter).text}
+    var nativeSummary: String {
         let rows = visibleFiles
         return "\(rows.count) files shown, \(rows.filter { $0.entry.staged }.count) staged, \(rows.filter { $0.state == .modified }.count) modified, \(rows.filter { $0.state == .untracked }.count) unversioned"
     }
     var folderFiltersEnabled: Bool { invocation.singleDirectory }
     var stashActions: [RepositoryAction] { hasStash ? [.stash, .stashPop, .stashApply, .stashList] : [.stash] }
+    func stashMenuSnapshot()->StatusStashMenuSnapshot? {
+        guard !retired,!busy,!confirmingQuit,actionOwnerAvailable() else {return nil}
+        return StatusStashMenuSnapshot(owner:ObjectIdentifier(self),generation:menuGeneration,actions:stashActions)
+    }
+    func performStashAction(_ action:RepositoryAction,snapshot:StatusStashMenuSnapshot) {
+        guard snapshot.owner==ObjectIdentifier(self),snapshot.generation==menuGeneration,snapshot.actions.contains(action),stashActions.contains(action),stashMenuSnapshot() != nil else {return}
+        performDialogAction(action)
+    }
+
     private func updateScopeTitle() {
         let path = invocation.titlePath(wholeProject: filter.wholeProject)
         let location = path.isEmpty ? repository.root : repository.root.appendingPathComponent(path)
@@ -699,6 +711,76 @@ final class StatusNativeWindow: NSWindow {
     }
 }
 
+/// Native adaptation of ChangedDlg::UpdateStatistics and status-list action flags.
+struct StatusFooterStatistics {
+    var addedLines=0,removedLines=0,unversioned=0,modified=0,added=0,deleted=0,conflicted=0
+    init(files:[WorkingTreeFile],statistics:[String:CommitFile],filter:WorkingTreeFilter) {
+        var acquired=filter;acquired.showUnmodified=true
+        for file in files where acquired.includes(file) {
+            let counts=statistics[file.id];addedLines += counts?.added ?? 0;removedLines += counts?.removed ?? 0
+            if [.untracked,.ignored].contains(file.state) {unversioned += 1;continue}
+            let codes=Set([file.entry.index,file.entry.worktree])
+            if !codes.isDisjoint(with:Set("AC")) {added += 1}
+            if codes.contains("D") {deleted += 1}
+            if !codes.isDisjoint(with:Set("MRT")) {modified += 1}
+            if file.state == .conflicted {conflicted += 1}
+        }
+    }
+    var text:String {
+        // Pinned BuildStatistics resets normal but never increments it. The
+        // hidden Show unmodified control is not exposed as a new native option.
+        "line: \(addedLines)(+) \(removedLines)(-) files: normal=0, unversioned=\(unversioned), modified=\(modified), added=\(added), deleted=\(deleted), conflicted=\(conflicted)"
+    }
+}
+struct StatusStatisticsField:NSViewRepresentable {
+    @ObservedObject var model:StatusWindowModel
+    func makeNSView(context:Context)->NSTextField {
+        let field=NSTextField(wrappingLabelWithString:"");field.isEditable=false;field.isSelectable=true;field.isBezeled=false;field.drawsBackground=false
+        field.font = .systemFont(ofSize:NSFont.smallSystemFontSize);field.lineBreakMode = .byWordWrapping;field.maximumNumberOfLines=0
+        field.setAccessibilityLabel("Working Tree statistics");return field
+    }
+    func updateNSView(_ field:NSTextField,context:Context) {
+        if field.stringValue != model.summary {if field.currentEditor() != nil {field.window?.makeFirstResponder(nil)};field.stringValue=model.summary}
+        field.toolTip=model.nativeSummary;field.preferredMaxLayoutWidth=440
+    }
+    static func dismantleNSView(_ field:NSTextField,coordinator:()) {field.isSelectable=false}
+}
+struct StatusStashMenuSnapshot {
+    let owner:ObjectIdentifier,generation:UUID
+    let actions:[RepositoryAction]
+}
+struct StatusStashMenu:NSViewRepresentable {
+    @ObservedObject var model:StatusWindowModel
+    @Environment(\.isEnabled) private var enabled
+    func makeCoordinator()->Coordinator {Coordinator(model:model)}
+    func makeNSView(context:Context)->NSPopUpButton {
+        let button=NSPopUpButton(frame:.zero,pullsDown:true);button.bezelStyle = .rounded;button.addItem(withTitle:"Stash");button.menu?.autoenablesItems=false;button.menu?.delegate=context.coordinator
+        button.setAccessibilityLabel("Stash");context.coordinator.button=button;return button
+    }
+    func updateNSView(_ button:NSPopUpButton,context:Context) {context.coordinator.model=model;button.isEnabled=enabled && model.stashMenuSnapshot() != nil}
+    static func dismantleNSView(_ button:NSPopUpButton,coordinator:Coordinator) {coordinator.retired=true;button.menu?.delegate=nil;button.menu?.items.forEach {$0.target=nil}}
+    @MainActor final class Coordinator:NSObject,NSMenuDelegate {
+        var model:StatusWindowModel
+        weak var button:NSPopUpButton?
+        var retired=false
+        init(model:StatusWindowModel) {self.model=model}
+        final class Invocation:NSObject {let snapshot:StatusStashMenuSnapshot,action:RepositoryAction;var used=false;init(_ snapshot:StatusStashMenuSnapshot,_ action:RepositoryAction) {self.snapshot=snapshot;self.action=action}}
+        func menuNeedsUpdate(_ menu:NSMenu) {
+            menu.removeAllItems();let title=NSMenuItem(title:"Stash",action:nil,keyEquivalent:"");title.isHidden=true;menu.addItem(title)
+            guard !retired,button?.window != nil,button?.window?.attachedSheet==nil,let snapshot=model.stashMenuSnapshot() else {return}
+            for action in snapshot.actions {
+                let name:String,icon:MenuIcon
+                switch action {case .stash:name="Stash save…";icon = .stash;case .stashPop:name="Stash pop";icon = .stashPop;case .stashApply:name="Stash apply";icon = .stashPop;default:name="Stash list";icon = .log}
+                let item=NSMenuItem(title:name,action:#selector(invoke(_:)),keyEquivalent:"");item.target=self;item.image=icon.contextImage(defaults:model.colorPreferences);item.representedObject=Invocation(snapshot,action);menu.addItem(item)
+            }
+        }
+        @objc func invoke(_ item:NSMenuItem) {
+            guard !retired,button?.window != nil,button?.window?.attachedSheet==nil,let invocation=item.representedObject as? Invocation,!invocation.used else {return}
+            invocation.used=true;model.performStashAction(invocation.action,snapshot:invocation.snapshot)
+        }
+    }
+}
+
 struct StatusDialog: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: StatusWindowModel
@@ -842,20 +924,13 @@ struct StatusDialog: View {
                     Toggle("Show Whole Project", isOn: Binding(get: { model.filter.wholeProject }, set: { var value = model.filter; value.wholeProject = $0; model.setFilter(value) })).disabled(model.filter.paths.isEmpty)
                 }.toggleStyle(.checkbox)
                 Spacer()
-                Text(model.summary).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
+                StatusStatisticsField(model:model).frame(width:440,height:48,alignment:.topLeading)
             }
             HStack {
                 Spacer()
                 Button("Save unified diff") { model.scopeUnifiedDiff(alternate: NSEvent.modifierFlags.contains(.shift)) }
                     .help("Open the invocation scope as a unified diff. Hold Shift to use the alternative viewer; save from the viewer.")
-                Menu("Stash") {
-                    Button { model.performDialogAction(.stash) } label: { CommandLabel(title: "Stash save…", icon: .stash) }
-                    if model.hasStash {
-                        Button { model.performDialogAction(.stashPop) } label: { CommandLabel(title: "Stash pop", icon: .stashPop) }
-                        Button { model.performDialogAction(.stashApply) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }
-                        Button { model.performDialogAction(.stashList) } label: { CommandLabel(title: "Stash list", icon: .log) }
-                    }
-                }
+                StatusStashMenu(model:model).frame(width:100,height:24)
                 Button("Commit") { model.performDialogAction(.commit) }
                 Button("Refresh") { model.reload() }.keyboardShortcut("r")
                 Button("OK") { model.close() }.keyboardShortcut(.defaultAction)

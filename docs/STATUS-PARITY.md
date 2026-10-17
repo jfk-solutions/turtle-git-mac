@@ -374,3 +374,34 @@ columns settle. Working Tree collects optional LFS metadata before publishing it
 new table, and quiet read cancellation retains the prior snapshot. Source
 preference, multi-selection/focus, file-only Select All and owning F5/Escape are
 connected in the [file-list refresh family](FILE-LIST-REFRESH-PARITY.md). Eight grouped case/engine runs pass; physical and signed acceptance remain open.
+
+## Detailed statistics and native Stash footer — October 17, 2026
+
+The information field now follows ChangedDlg::UpdateStatistics and
+GitStatusListCtrl::GetStatisticsString: line additions/deletions, normal,
+unversioned, modified, added, deleted and conflicted totals in the source compact
+format. Its native read-only multiline field supports text selection; the former
+native visible/staged overview remains as its tooltip. Totals use accepted file
+and numeric-statistic data, invocation/Whole Project/Show all staged scope, and
+unversioned/ignored/local-flag acquisition choices. Ignored files join the source
+unversioned category; rename/type-change action codes join modified, copies join
+added and action categories can overlap. Binary/absent line counts contribute
+zero, matching source numeric conversion.
+
+The pinned BuildStatistics resets normal without incrementing it; the native
+source-format field retains that zero. Show unmodified remains a hidden source
+control. ChangedDlg does not attach IDC_SUMMARYTEXT through SetStatLabel, so no
+selected-file summary is invented for that dormant resource. Consolidated
+removed-index/unversioned-copy rows and every combined raw-action case remain
+separate review work; this is not certification of all status-list statistics.
+
+Stash now uses an owned native pull-down with the source Save/Pop/Apply/List order
+and original icons from its own preferences. Popup items capture their model,
+accepted file-list generation and available actions; each is single use. Refresh,
+foreign owners and retirement reject stale commands. The existing real stash-ref
+preflight still controls dispatch, and the existing repository/lease routes and
+scope behavior remain. No extra Git fetch or remote-status feature is introduced.
+
+All fifteen static Changed Files controls now have partial mappings, including
+explicit dormant-resource decisions. Four distinct native case/engine combinations pass with system and bundled Git. Both raw light/dark captures were individually reviewed: the selectable statistics wrap without clipping and the native Stash footer fits. All eight owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/working-tree-footer-2026-10-17.json) for the fixture repairs and remaining acceptance. Physical input/VoiceOver, all mixed-action cases, real child-dialog
+completion and signed Finder/App Store acceptance remain open.

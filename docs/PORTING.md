@@ -1800,3 +1800,12 @@ source hierarchy row and use bounded native mixed-state inputs. Editor delivery
 uses the owning preferences, and the recovery folder chooser owns Quit/Settings.
 See [Git configuration parity](GIT-CONFIGURATION-PARITY.md#coherent-source-forms-and-owning-editors--october-17-2026).
 Four distinct native case/engine combinations pass with system and bundled Git; the two affected source cases pass again after visual layout repairs and the recorded fixture correction. Both raw light/dark page captures were individually reviewed, including full-width CrLf and three editor columns. All eight owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/git-config-source-family-2026-10-17.json) for build diagnostics, fixture failures, intercepted editor scope and open physical/signed acceptance.
+
+### Working Tree detailed footer and captured Stash — October 17, 2026
+
+Working Tree now offers source-format action/line statistics in a selectable
+read-only native field, plus source-ordered Stash choices with original icons and
+single-use captured popup dispatch. Scope/filter acquisition, dormant source
+controls and source normal-counter behavior are explicit. See
+[Working Tree parity](STATUS-PARITY.md#detailed-statistics-and-native-stash-footer--october-17-2026).
+Four distinct native case/engine combinations pass with system and bundled Git. Both raw light/dark captures were individually reviewed: the selectable statistics wrap without clipping and the native Stash footer fits. All eight owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/working-tree-footer-2026-10-17.json) for the fixture repairs and remaining acceptance. Physical/signed and all combined-action acceptance remain separate.

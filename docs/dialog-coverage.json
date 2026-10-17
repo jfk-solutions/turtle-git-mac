@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 536,
-    "mapped_controls": 1123,
+    "pending_control_reviews": 521,
+    "mapped_controls": 1138,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -548,10 +548,15 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 15,
-      "mapped_controls": 0,
-      "pending_control_reviews": 15,
+      "mapped_controls": 15,
+      "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/StatusWindow.swift",
+          "origin": "recorded-control-mapping"
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/PRIMARY-DIALOG-VISUAL-REVIEW.md",
@@ -576,6 +581,7 @@
         "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/working-tree-columns-2026-10-09.json",
         "docs/qa/working-tree-file-menu-2026-10-14.json",
+        "docs/qa/working-tree-footer-2026-10-17.json",
         "docs/qa/working-tree-groups-2026-10-14.json",
         "docs/qa/working-tree-lifecycle-2026-10-14.json",
         "docs/qa/working-tree-scope-2026-10-14.json"
