@@ -49,7 +49,7 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?
     @Published var locks: [LFSLock] = [] { didSet { menuGeneration = UUID() } }
     @Published var hasLFS = false { didSet { menuGeneration = UUID() } }
-    @Published var checked = Set<String>() {
+    @Published var checked = GitPathSet() {
         didSet { for lock in locks { checkedPaths[lock.path] = checked.contains(lock.id) } }
     }
     private var menuGeneration = UUID()
@@ -59,30 +59,36 @@ import TurtleGitCore
         let rows: [LFSListRow]
         let columns: [StatusListColumn]
         let actions: [LFSLockMenuAction]
+        let receipt = MenuReceipt()
     }
-    func menuTarget(_ ids: Set<String>) -> MenuTarget? {
+    final class MenuReceipt { var consumed = false }
+    func menuTarget(_ values: some Sequence<String>) -> MenuTarget? {
+        let ids = GitPathSet(values)
         guard menuAvailable else { return nil }
         let selected = rows.filter { ids.contains($0.id) }
         guard !ids.isEmpty, selected.count == ids.count else { return nil }
         return MenuTarget(owner: ObjectIdentifier(self), generation: menuGeneration, rows: selected, columns: visibleColumns, actions: lfsActions(ids))
     }
     private var menuAvailable: Bool { !retired && !busy && !confirmingQuit && !showingProgress }
-    func accepts(_ target: MenuTarget) -> Bool { menuAvailable && target.owner == ObjectIdentifier(self) && target.generation == menuGeneration }
+    func accepts(_ target: MenuTarget) -> Bool { !target.receipt.consumed && menuAvailable && target.owner == ObjectIdentifier(self) && target.generation == menuGeneration }
     func copy(_ target: MenuTarget, information: StatusListCopy) {
-        guard accepts(target) else { return }
+        guard accepts(target) else { return }; target.receipt.consumed = true
         let text = clipboardText(selected: target.rows, copy: information, visible: target.columns)
         if !text.isEmpty { publishClipboard(text) }
     }
     func setSelectionLocked(_ target: MenuTarget, locked: Bool) async {
-        guard accepts(target), target.actions.contains(locked ? .lock : .unlock) else { return }
+        guard accepts(target), target.actions.contains(locked ? .lock : .unlock) else { return }; target.receipt.consumed = true
         await perform(paths: target.rows.map(\.path), locked: locked)
     }
     var publishClipboard: (String) -> Void = { NSPasteboard.general.clearContents(); NSPasteboard.general.setString($0, forType: .string) }
-    private var checkedPaths: [String: Bool] = [:]
-    @Published var selection = Set<String>()
+    private var checkedPaths: GitPathMap<Bool> = [:]
+    @Published var selection = GitPathSet()
     @Published var sortOrder = [LFSFileSort(column: .path)]
     @Published var fileColumns: StatusListColumnSettings { didSet { menuGeneration = UUID() } }
     @Published var fileMetadata: GitPathMap<StatusListMetadata> = [:] { didSet { menuGeneration = UUID() } }
+    func pathHelp(_ path: String) -> String {
+        changelistNameHelp(GitReferenceName(path), names: locks.map { GitReferenceName($0.path) })
+    }
     var presentationPreferences: UserDefaults { defaults }
     private let defaults: UserDefaults
     private static let columnKey = "LFSLocks.FileColumns"
@@ -100,7 +106,9 @@ import TurtleGitCore
     private var attemptStarted = false
     private var operationCancelled = false
     private var operationFailed = false
-    private var startedPaths = Set<String>()
+    private var startedPaths = GitPathSet()
+    private var completedPaths = GitPathSet()
+    private var operationScope = GitPathSet()
     private var fileStarted: @Sendable (String) -> Void = { _ in }
     var actionLogRepository: URL { repository.root }
     var actionLogFailed: Bool { operationFailed }
@@ -160,7 +168,7 @@ import TurtleGitCore
     var restoreListPosition: ([String], Bool) async -> Void = { _,_ in }
     private var rememberListPosition: Bool { (defaults.object(forKey: "RememberFileListPosition") as? NSNumber)?.boolValue ?? true }
     private func restoreChecks() async {
-        checked = Set(locks.filter { checkedPaths[$0.path] ?? true }.map(\.id))
+        checked = GitPathSet(locks.filter { checkedPaths[$0.path] ?? true }.map(\.id))
         await restoreListPosition(rows.map(\.id), rememberListPosition)
     }
     var refreshLocksAfterOperation = true
@@ -208,8 +216,9 @@ import TurtleGitCore
             menuGeneration = UUID(); fileColumns = Self.defaultColumns; fileColumns.save(to: defaults, key: Self.columnKey); onAccepted()
         }
     }
-    func clipboardText(_ ids: Set<String>, copy: StatusListCopy) -> String {
-        clipboardText(selected: rows.filter { ids.contains($0.id) }, copy: copy, visible: visibleColumns)
+    func clipboardText(_ ids: some Sequence<String>, copy: StatusListCopy) -> String {
+        let ids = GitPathSet(ids)
+        return clipboardText(selected: rows.filter { ids.contains($0.id) }, copy: copy, visible: visibleColumns)
     }
     private func clipboardText(selected: [LFSListRow], copy: StatusListCopy, visible: [StatusListColumn]) -> String {
         guard !selected.isEmpty else { return "" }
@@ -230,16 +239,16 @@ import TurtleGitCore
             }
         }.joined(separator: "\n") + "\n"
     }
-    func copy(_ ids: Set<String>, information: StatusListCopy) {
+    func copy(_ ids: some Sequence<String>, information: StatusListCopy) {
         guard let target = menuTarget(ids) else { return }; copy(target, information: information)
     }
     func checkClicked(_ id: String, value: Bool) {
         guard menuAvailable else { return }
-        let targets: Set<String> = selection.contains(id) ? selection : [id]
+        let targets: GitPathSet = selection.contains(id) ? selection : [id]
         for id in targets { setChecked(id, value) }
     }
     func toggleChecks(_ ids: [String], mark: String) {
-        guard !retired, !busy, !confirmingQuit, !showingProgress, locks.contains(where: { $0.id == mark }) else { return }
+        guard !retired, !busy, !confirmingQuit, !showingProgress, locks.contains(where: { GitReferenceName.equal($0.id,mark) }) else { return }
         let value = !checked.contains(mark)
         for id in ids { setChecked(id, value) }
     }
@@ -247,21 +256,23 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func setChecked(_ id: String, _ value: Bool) {
-        guard !retired, !busy, !confirmingQuit, !showingProgress, locks.contains(where: { $0.id == id }) else { return }
+        guard !retired, !busy, !confirmingQuit, !showingProgress, locks.contains(where: { GitReferenceName.equal($0.id,id) }) else { return }
         if value { checked.insert(id) } else { checked.remove(id) }
     }
     func selectAll(_ value: Bool) {
-        guard !retired, !busy, !confirmingQuit, !showingProgress else { return }; checked = value ? Set(locks.map(\.id)) : []
+        guard !retired, !busy, !confirmingQuit, !showingProgress else { return }; checked = value ? GitPathSet(locks.map(\.id)) : []
     }
     func setForce(_ value: Bool) { guard !retired, !busy, !confirmingQuit, !showingProgress else { return }; force = value }
-    func lfsActions(_ ids: Set<String>) -> [LFSLockMenuAction] {
+    func lfsActions(_ values: some Sequence<String>) -> [LFSLockMenuAction] {
+        let ids = GitPathSet(values)
         let selected = rows.filter { ids.contains($0.id) }
         guard !retired, hasLFS, !ids.isEmpty, selected.count == ids.count,
               selected.allSatisfy({ $0.metadata?.isDirectory != true }) else { return [] }
         return LFSLockMenu.actions(paths: selected.map(\.path), ownersVisible: fileColumns.visible.contains(.lfsOwner),
-            lockedPaths: Set(locks.map(\.path)), ownershipKnown: true)
+            lockedPaths: GitPathSet(locks.map(\.path)), ownershipKnown: true)
     }
-    func setSelectionLocked(_ ids: Set<String>, locked: Bool) async {
+    func setSelectionLocked(_ values: some Sequence<String>, locked: Bool) async {
+        let ids = GitPathSet(values)
         guard !retired, !busy, !confirmingQuit, !showingProgress,
               lfsActions(ids).contains(locked ? .lock : .unlock) else { return }
         await perform(paths: rows.filter { ids.contains($0.id) }.map(\.path), locked: locked)
@@ -315,18 +326,21 @@ import TurtleGitCore
     }
     func perform(paths: [String], locked: Bool) async {
         guard !retired, !busy, !confirmingQuit, !showingProgress, !paths.isEmpty else { return }
-        operationPaths = paths; operationLocked = locked; operationForce = false; resetTargetChecks = true
+        var seen = GitPathSet()
+        operationPaths = paths.filter { seen.insert($0).inserted }; operationLocked = locked; operationForce = false; resetTargetChecks = true
         await runOperation(forceRetry: false)
     }
     private func runOperation(forceRetry: Bool) async {
         guard !retired, !progressActionBusy, !operationPaths.isEmpty, !forceRetry || showingProgress && results.contains(where: { !$0.success }) else { return }
+        var seen = GitPathSet(); operationPaths = operationPaths.filter { seen.insert($0).inserted }
+        operationScope = GitPathSet(operationPaths)
         ProgressActionLog.nextAttempt(self); attemptStarted = true
         let began = ProcessInfo.processInfo.systemUptime
         let useForce = !operationLocked && (forceRetry || operationForce)
         refreshAfterReview = refreshLocksAfterOperation
         busy = true; showingProgress = true; results = []; error = nil
         cancellation = OperationCancellation(); batchID = UUID(); acceptingBatchResults = true; let generation = batchID
-        menuGeneration = UUID(); notifications = []; currentPath = ""; startedPaths = []
+        menuGeneration = UUID(); notifications = []; currentPath = ""; startedPaths = []; completedPaths = []
         operationCancelled = false; operationFailed = false
         appendNotification(action: "Command", text: operationLocked ? "Lock" : "Unlock", kind: .command)
         let mailbox = LFSProgressMailbox()
@@ -357,8 +371,10 @@ import TurtleGitCore
             else { batch = try await change(operationPaths, useForce, cancellation, report) }
             guard !retired, batchID == generation else { return }
             drain(mailbox, generation: generation); acceptingBatchResults = false
+            let returned = GitPathSet(batch.files.map(\.path))
+            guard returned.count == batch.files.count, returned.isSubset(of: operationScope) else { throw LFSLocksFailure.selection }
             results = batch.files
-            notifications = []; startedPaths = []
+            notifications = []; startedPaths = []; completedPaths = []
             appendNotification(action: "Command", text: operationLocked ? "Lock" : "Unlock", kind: .command)
             for result in batch.files { record(result, appendResult: false) }
             operationCancelled = batch.cancelled || cancellation.isCancelled
@@ -383,10 +399,12 @@ import TurtleGitCore
         }
     }
     private func recordStart(_ path: String) {
+        guard operationScope.contains(path) else { return }
         currentPath = path
         if startedPaths.insert(path).inserted { appendNotification(action: operationLocked ? "Lock" : "Unlock", text: path, kind: .file) }
     }
     private func record(_ result: LFSFileResult, appendResult: Bool = true) {
+        guard operationScope.contains(result.path), completedPaths.insert(result.path).inserted else { return }
         recordStart(result.path)
         if appendResult { results.append(result) }
         if !result.success { appendNotification(action: "Error", text: result.output, kind: .error) }

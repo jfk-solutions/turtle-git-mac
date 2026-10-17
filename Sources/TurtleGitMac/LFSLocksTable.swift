@@ -89,7 +89,7 @@ struct LFSLocksTable: NSViewRepresentable {
             table.setAccessibilityLabel("LFS locked files")
             let check = NSTableColumn(identifier: .init("check")); check.title = ""; check.width = 26; check.minWidth = 26; check.maxWidth = 26; check.resizingMask = []; table.addTableColumn(check)
             for definition in nativeColumns {
-                let column = NSTableColumn(identifier: .init(definition.rawValue)); column.title = definition.rawValue
+                let column = NSTableColumn(identifier: .init(definition.rawValue)); column.title = FileListLabels.caption(definition.rawValue)
                 column.width = widths[definition] ?? 100; column.minWidth = definition == .path ? 120 : 40
                 column.sortDescriptorPrototype = NSSortDescriptor(key: definition.rawValue, ascending: true); table.addTableColumn(column)
             }
@@ -136,7 +136,7 @@ struct LFSLocksTable: NSViewRepresentable {
             guard displayedRows.indices.contains(index) else { return nil }; let row = displayedRows[index]
             if column?.identifier.rawValue == "check" {
                 let check = Check(); check.rowID = row.id; check.title = ""; check.setButtonType(.switch)
-                check.state = model.checked.contains(row.id) ? .on : .off; check.isEnabled = enabled; check.target = self; check.action = #selector(checkRow(_:)); check.setAccessibilityLabel("Select " + row.path); return check
+                check.state = model.checked.contains(row.id) ? .on : .off; check.isEnabled = enabled; check.target = self; check.action = #selector(checkRow(_:)); check.setAccessibilityLabel("Select " + model.pathHelp(row.path)); return check
             }
             guard let column, let definition = StatusListColumn(rawValue: column.identifier.rawValue) else { return nil }
             let text = NSTextField(labelWithString: row.text(definition)); text.lineBreakMode = .byTruncatingMiddle
@@ -145,12 +145,13 @@ struct LFSLocksTable: NSViewRepresentable {
             let view = NSView(frame: NSRect(x:0,y:0,width:column.width,height:22))
             let icon = NSImageView(frame:NSRect(x:2,y:3,width:16,height:16)); icon.image = MenuIcon.lock.image(); view.addSubview(icon)
             text.frame = NSRect(x:22,y:2,width:max(0,column.width-24),height:18); text.autoresizingMask = [.width]; view.addSubview(text)
-            view.toolTip = RepositoryPresentationSettings(defaults:model.presentationPreferences).fileTooltip(repository:model.repository.root,path:row.path); return view
+            let tooltip = RepositoryPresentationSettings(defaults:model.presentationPreferences).fileTooltip(repository:model.repository.root,path:row.path)
+            let help = model.pathHelp(row.path); view.toolTip = GitReferenceName.equal(help,row.path) ? tooltip : [tooltip,help].compactMap { $0 }.joined(separator:"\n"); text.setAccessibilityHelp(help); return view
         }
         @objc private func checkRow(_ sender: Check) { model.checkClicked(sender.rowID,value:sender.state == .on); refresh() }
         func tableViewSelectionDidChange(_ notification: Notification) {
             guard !updating else { return }; guard enabled else { refresh(); return }
-            model.selection = Set(table.selectedRowIndexes.compactMap { displayedRows.indices.contains($0) ? displayedRows[$0].id : nil })
+            model.selection = GitPathSet(table.selectedRowIndexes.compactMap { displayedRows.indices.contains($0) ? displayedRows[$0].id : nil })
             if let row = table.selectedRowIndexes.first, displayedRows.indices.contains(row), mark == nil || !model.selection.contains(mark!) { mark = displayedRows[row].id }
         }
         func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
@@ -177,7 +178,7 @@ struct LFSLocksTable: NSViewRepresentable {
             if useDefault { saved.removeValue(forKey:definition) }
             else {
                 let font = NSFont.systemFont(ofSize:NSFont.systemFontSize)
-                let width = ([definition.rawValue] + displayedRows.map{$0.text(definition)}).map { ($0 as NSString).size(withAttributes:[.font:font]).width }.max() ?? 100
+                let width = ([FileListLabels.caption(definition.rawValue)] + displayedRows.map{$0.text(definition)}).map { ($0 as NSString).size(withAttributes:[.font:font]).width }.max() ?? 100
                 saved[definition] = min(1500,max(40,width + (definition == .path ? 30 : 16)))
             }
             _ = model.saveColumnLayout(order:model.fileColumns.order,widths:saved); refresh(); return true
@@ -185,7 +186,7 @@ struct LFSLocksTable: NSViewRepresentable {
         private final class Item: NSMenuItem {
             private let invoke: () -> Void
             init(_ title: String, icon: NSImage? = nil, invoke: @escaping () -> Void) {
-                self.invoke = invoke; super.init(title:title,action:#selector(run),keyEquivalent:""); target = self; image = icon
+                self.invoke = invoke; super.init(title:NSLocalizedString(title,comment:""),action:#selector(run),keyEquivalent:""); target = self; image = icon
             }
             required init(coder:NSCoder) { fatalError("init(coder:) is not supported") }
             @objc private func run() { invoke() }
@@ -201,7 +202,7 @@ struct LFSLocksTable: NSViewRepresentable {
                 menu.addItem(.separator())
             }
             for definition in nativeColumns {
-                let item = Item(definition.rawValue) { [weak model] in guard let model else { return }; model.setColumn(definition,visible:!model.fileColumns.visible.contains(definition)) }
+                let item = Item(FileListLabels.caption(definition.rawValue)) { [weak model] in guard let model else { return }; model.setColumn(definition,visible:!model.fileColumns.visible.contains(definition)) }
                 item.state = model.fileColumns.visible.contains(definition) ? .on : .off; item.isEnabled = enabled && definition != .path; menu.addItem(item)
             }
             return menu
@@ -215,12 +216,12 @@ struct LFSLocksTable: NSViewRepresentable {
             if let alert = resetAlert { resetAlert = nil; alert.window.sheetParent?.endSheet(alert.window,returnCode:.abort); alert.window.orderOut(nil) }
             reply?(accepted)
         }
-        func storeListPosition() { position = (table.enclosingScrollView?.contentView.bounds.origin ?? .zero,table.selectedRowIndexes.first,mark.flatMap { id in displayedRows.firstIndex { $0.id == id } }) }
+        func storeListPosition() { position = (table.enclosingScrollView?.contentView.bounds.origin ?? .zero,table.selectedRowIndexes.first,mark.flatMap { id in displayedRows.firstIndex { GitReferenceName.equal($0.id,id) } }) }
         func cancelListPosition() { position = nil; finishReset(false) }
         func restoreListPosition(ids:[String],enabled remember:Bool) {
             refresh(); let saved = position; position = nil
             let row = remember ? saved?.1 : nil
-            model.selection = row.flatMap { ids.indices.contains($0) ? Set([ids[$0]]) : nil } ?? []
+            model.selection = row.flatMap { ids.indices.contains($0) ? GitPathSet([ids[$0]]) : nil } ?? []
             mark = remember ? saved?.2.flatMap { ids.indices.contains($0) ? ids[$0] : nil } : nil
             refresh()
             if let scroll = table.enclosingScrollView {
@@ -237,9 +238,9 @@ struct LFSLocksTable: NSViewRepresentable {
                 menu.addItem(Item(action.rawValue,icon:(action == .lock ? MenuIcon.lock : .unlock).contextImage(defaults:model.presentationPreferences)) { [weak model] in Task { await model?.setSelectionLocked(target,locked:action == .lock) } })
             }
             if !target.actions.isEmpty { menu.addItem(.separator()) }
-            let copy = NSMenuItem(title:"Copy to Clipboard",action:nil,keyEquivalent:""); copy.image = MenuIcon.copy.contextImage(defaults:model.presentationPreferences)
+            let copy = NSMenuItem(title:NSLocalizedString("Copy to Clipboard",comment:""),action:nil,keyEquivalent:""); copy.image = MenuIcon.copy.contextImage(defaults:model.presentationPreferences)
             let child = NSMenu(); child.autoenablesItems = false
-            let choices: [(String,StatusListCopy)] = [("Full paths",.fullPaths),("Relative paths",.relativePaths),("File/folder names",.names),("Copy all information to clipboard",.all)] + (contextColumn.map{[("column '\($0.rawValue)'",.column($0))]} ?? [])
+            let choices: [(String,StatusListCopy)] = [("Full paths",.fullPaths),("Relative paths",.relativePaths),("File/folder names",.names),("Copy all information to clipboard",.all)] + (contextColumn.map{[("column '\(FileListLabels.caption($0.rawValue))'",.column($0))]} ?? [])
             for (title,information) in choices { child.addItem(Item(title,icon:MenuIcon.copy.contextImage(defaults:model.presentationPreferences)) { [weak model] in model?.copy(target,information:information) }) }
             copy.submenu = child; menu.addItem(copy)
         }

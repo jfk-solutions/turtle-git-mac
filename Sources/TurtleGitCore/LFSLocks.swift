@@ -5,6 +5,9 @@ public struct LFSLock: Identifiable, Equatable, Sendable {
     public let path: String
     public let owner: String
     public init(id: String, path: String, owner: String) { self.id = id; self.path = path; self.owner = owner }
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        GitReferenceName.equal(lhs.id,rhs.id) && GitReferenceName.equal(lhs.path,rhs.path) && GitReferenceName.equal(lhs.owner,rhs.owner)
+    }
     /// git-lfs locks --json emits an array, not the locking HTTP API envelope.
     public static func parse(_ data: Data) throws -> [Self] {
         guard !data.isEmpty else { return [] }
@@ -23,11 +26,14 @@ public struct LFSLock: Identifiable, Equatable, Sendable {
     }
 }
 public struct LFSFileResult: Identifiable, Equatable, Sendable {
-    public var id: String { path }
+    public var id: String { GitPathRowIdentity.encode(path) }
     public let path: String
     public let success: Bool
     public let output: String
     public init(path: String, success: Bool, output: String) { self.path = path; self.success = success; self.output = output }
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        GitReferenceName.equal(lhs.path,rhs.path) && lhs.success == rhs.success && GitReferenceName.equal(lhs.output,rhs.output)
+    }
 }
 public struct LFSBatchResult: Equatable, Sendable {
     public let files: [LFSFileResult]
@@ -49,19 +55,19 @@ extension GitRepository {
     public func finderLFSPaths(_ paths: [String], cancellation: OperationCancellation? = nil) throws -> [String] {
         try cancellation?.check()
         guard !paths.isEmpty, try !isBare(cancellation: cancellation), try hasLFS(cancellation: cancellation) else { throw LFSLocksFailure.selection }
-        var versioned = Set<String>()
+        var versioned = GitPathSet()
         for record in try run(["ls-files", "--stage", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
             let fields = record.split(separator: 9, maxSplits: 1)
-            if fields.count == 2, ["100644", "100755", "120000"].contains(String(decoding: fields[0].prefix(6), as: UTF8.self)) { versioned.insert(String(decoding: fields[1], as: UTF8.self)) }
+            if fields.count == 2, ["100644", "100755", "120000"].contains(String(decoding: fields[0].prefix(6), as: UTF8.self)), let path = String(data: Data(fields[1]), encoding: .utf8) { versioned.insert(path) }
         }
         let head = try run(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
         if head.exitCode == 0 {
             for record in try run(["ls-tree", "-r", "-z", "HEAD", "--"], cancellation: cancellation).stdout.split(separator: 0) {
                 let fields = record.split(separator: 9, maxSplits: 1)
-                if fields.count == 2, ["100644", "100755", "120000"].contains(String(decoding: fields[0].prefix(6), as: UTF8.self)) { versioned.insert(String(decoding: fields[1], as: UTF8.self)) }
+                if fields.count == 2, ["100644", "100755", "120000"].contains(String(decoding: fields[0].prefix(6), as: UTF8.self)), let path = String(data: Data(fields[1]), encoding: .utf8) { versioned.insert(path) }
             }
         }
-        var seen = Set<String>(), result: [String] = []
+        var seen = GitPathSet(), result: [String] = []
         for path in paths where seen.insert(path).inserted {
             let location = try restoreLocation(path)
             var directory: ObjCBool = false
@@ -89,7 +95,7 @@ extension GitRepository {
     public func setLFSLocked(paths: [String], locked: Bool, force: Bool = false, cancellation: OperationCancellation? = nil, onFileStarted: (@Sendable (String) -> Void)? = nil, onResult: (@Sendable (LFSFileResult) -> Void)? = nil) throws -> LFSBatchResult {
         if cancellation?.isCancelled == true { return LFSBatchResult(files: [], cancelled: true) }
         guard !paths.isEmpty, try !isBare() else { throw LFSLocksFailure.selection }
-        var seen = Set<String>(), targets: [String] = []
+        var seen = GitPathSet(), targets: [String] = []
         for path in paths where seen.insert(path).inserted {
             let location = try restoreLocation(path)
             if let type = try? FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType, type == .typeDirectory { throw LFSLocksFailure.directory }

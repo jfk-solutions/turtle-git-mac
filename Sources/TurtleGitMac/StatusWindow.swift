@@ -238,7 +238,7 @@ final class StatusNativeWindow: NSWindow {
     static var defaultColumns: StatusListColumnSettings { StatusListColumnSettings(visible: Set(StatusListColumn.defaultColumns + [.lastModified])) }
     var visibleColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) && ($0 != .lfsOwner || hasLFS) } }
     var availableColumns: Set<StatusListColumn> { Set(StatusListColumn.allCases.filter { $0 != .lfsOwner || hasLFS }) }
-    @Published var lfsOwners: [String: String] = [:]
+    @Published var lfsOwners: GitPathMap<String> = [:]
     @Published var lfsLockedPaths = GitPathSet()
     @Published var lfsOwnershipKnown = false
     private let defaults: UserDefaults
@@ -505,7 +505,7 @@ final class StatusNativeWindow: NSWindow {
             selection.formIntersection(GitPathSet(visibleFiles.map(\.id)))
             lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
             if ownersVisible {
-                lfsOwners = Dictionary(nextLocks.map {($0.path,$0.owner)},uniquingKeysWith:{first,_ in first})
+                lfsOwners = GitPathMap(nextLocks.map {($0.path,$0.owner)},uniquingKeysWith:{first,_ in first})
                 lfsLockedPaths = GitPathSet(nextLocks.map(\.path));lfsOwnershipKnown = true
             }
             if !position.remember {selection = []}

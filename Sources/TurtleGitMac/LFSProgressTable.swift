@@ -164,7 +164,7 @@ struct LFSProgressTable: NSViewRepresentable {
         private final class CopyItem: NSMenuItem {
             private let invoke: () -> Void
             init(title: String, icon: MenuIcon = .copy, preferences: UserDefaults, invoke: @escaping () -> Void) {
-                self.invoke = invoke; super.init(title: title, action: #selector(copyRows), keyEquivalent: "")
+                self.invoke = invoke; super.init(title: NSLocalizedString(title,comment:""), action: #selector(copyRows), keyEquivalent: "")
                 target = self; image = icon.contextImage(defaults: preferences)
             }
             required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }

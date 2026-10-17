@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected LFS exact filenames, ownership columns, lock-list selection/check persistence, captured menus, notifications and Force retry. No full LFS/dialog/installed acceptance claim.",
+  "source": [
+    "src/TortoiseProc/LFSLocksDlg.cpp::LocksThread / OnBnClickedUnLock",
+    "src/TortoiseProc/ProgressCommands/LFSSetLockedProgressCommand.cpp::Run",
+    "src/Git/GitStatusListCtrl.cpp::AppendLocksMenuItems"
+  ],
+  "implemented": [
+    "Exact valid UTF-8 index/HEAD eligibility and literal backend de-duplication, including staged deletions and refusal of an unversioned canonical neighbor.",
+    "Exact lock/result equality, encoded file-result identities, lock-ID checked/highlighted membership and path-keyed check restoration across changed server IDs.",
+    "Exact Commit/Working Tree owner-map population, owner-column lookup and clipboard joins.",
+    "Once-only captured lock-list menu receipts retain original selection/order/columns and expire on refresh/policy/owner retirement.",
+    "Exact progress start/completion membership, duplicate and foreign callback refusal, final batch membership validation and original-target Force retry.",
+    "Existing source layout/icons/first-selection-index refresh policy preserved; ambiguity byte help and existing-resource native headers/menu localization added."
+  ],
+  "validation": {
+    "core": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'LFSLocksTests|LFSPathIdentityTests|FinderLFSMailBatchTests|StatusListClipboardTests'",
+      "tests": 24,
+      "failures": 0,
+      "invocations": 1,
+      "exit_code": 0,
+      "log": "build/qa/lfs-path-core-2026-10-17.log",
+      "duration_seconds": 4.71,
+      "limits": "New literal command and Finder membership Core cases use the system Git wrapper; native fixtures separately exercise both engines."
+    },
+    "app_build": {
+      "exit_code": 0,
+      "invocations": 1,
+      "configuration": "Debug arm64",
+      "log": "build/qa/lfs-path-build-2026-10-17.log",
+      "diagnostics": "Existing concurrency/unused-value warnings, unrelated CoreSimulator version diagnostic and one driver diagnostic reporting command exit zero without output. Terminal build succeeded; native linker accepted current objects. No clean-diagnostics claim."
+    },
+    "native": {
+      "command": "python3 scripts/test-lfs-path-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit_code": 0,
+      "invocations": 1,
+      "cases_per_engine": [
+        "exact paths/owners/progress/Force continuation",
+        "retained LFS interaction/progress action family"
+      ],
+      "engines": [
+        "Apple Git 2.54.0 (Git-157)",
+        "bundled Git 2.55.0"
+      ],
+      "owned_receiver_pids": [
+        13549,
+        13666,
+        13695,
+        13809
+      ],
+      "log": "build/qa/lfs-path-native-2026-10-17.log",
+      "covered": [
+        "Changed server IDs preserve separate unchecked/checked canonical path names.",
+        "Actual AppKit selection for separate opaque ID spellings; ambiguity byte help.",
+        "Captured menu order/targets and once-only copy; refresh/policy/retirement refusal.",
+        "Live duplicate/foreign progress callbacks, final foreign results and original-target Force retry.",
+        "Real Commit/Working Tree status/index reads with exact injected owner responses and exact ownership clipboard.",
+        "Retained literal backend command, source notification rows/icons/copy, per-attempt logs, review refresh and action ownership.",
+        "HEAD and exact index bytes retained; private windows/receivers closed."
+      ],
+      "limits": "LFS server replies/actions are injected or executed by private simulator wrappers; no authenticated remote server or physical input acceptance. No new screenshot/pixel comparison."
+    },
+    "localization": {
+      "languages": 38,
+      "keys": 1281,
+      "write_before_build": true,
+      "check_exit_code": 0
+    },
+    "site": {
+      "documents": 286,
+      "unresolved_fragments": []
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_reviews": 120,
+      "pending_family_reviews": 10,
+      "certified_dialogs": 0,
+      "mapped_controls": 1566,
+      "pending_controls": 93,
+      "completion_percentage": false
+    }
+  },
+  "sha256": {
+    "Sources/TurtleGitCore/LFSLocks.swift": "39bd2af0996b60f8b4de36bbb35dfd49e8ce34877f9be42dea8efd8adb746344",
+    "Sources/TurtleGitCore/StatusListClipboard.swift": "faf99b1ca1ba1faa44d7537944522a405f0735149ebbcc0d5afdc39ae805c0a7",
+    "Sources/TurtleGitMac/CommitWindow.swift": "aa44367045443829276d6e8881b2c19e5a77be717029d1c03445e69af59ee2f0",
+    "Sources/TurtleGitMac/StatusWindow.swift": "03081f5b0b5cba9ffaf5c5a0f5b0fa3db1c71f89db6e453714f56417346c6c7b",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "50d215fa5533f9c0db1d6feea4afdcd30723869bd7231c316607aaf01d052552",
+    "Sources/TurtleGitMac/LFSLocksTable.swift": "45de24ed06527b31e7121465ce48aa6f97f0ca0defe1770dc7d30ed1dade2cbd",
+    "Sources/TurtleGitMac/LFSProgressTable.swift": "d6026a71ee054e77e86eeb7ec52a5eb0bda80ba8e89f8491cc705aa445ea1b4c",
+    "Tests/TurtleGitCoreTests/LFSPathIdentityTests.swift": "2ea85e0a08c2e3d878ac097ee009ddca2885525a705ae67b5b3333e689b3956a",
+    "docs/qa/lfs-path-identities-native-2026-10-17.swift": "2a61a123e559582f38bf3e0509f446033335d72eebc19ef4517f98eaa129d15c",
+    "scripts/test-lfs-path-family.py": "e47548609a05ea6903c697f5970f8fa1a91475502d019e9ed6b69b56982b20ed"
+  },
+  "remaining": [
+    "Physical filesystem aliases and invalid UTF-8 names are not solved by retaining distinct valid Git/server spellings.",
+    "Authenticated LFS, physical keyboard/popup/VoiceOver/exact source geometry, signed installed Finder/App Store acceptance remain open.",
+    "Previous signed universal development checkpoint predates this LFS batch; no new signed candidate/archive/export claimed.",
+    "Hosted folding stall/full current CI and complete application parity remain open."
+  ]
+}

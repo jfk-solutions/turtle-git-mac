@@ -424,3 +424,52 @@ results are recorded in [native-list evidence](qa/lfs-native-table-2026-10-15.js
 Core is unchanged. Physical gestures/VoiceOver, large-list performance, exact
 source geometry, authenticated LFS and signed Finder/App Store acceptance remain
 open. This is not complete dialog or application certification.
+
+
+## Exact lock paths and connected owners — October 17, 2026
+
+The pinned `LFSLocksDlg::LocksThread` / `OnBnClickedUnLock` and
+`LFSSetLockedProgressCommand::Run` retain checked file targets, emit a notification
+before each operation, continue after individual failures and offer Force unlock
+for the original selection. The native lock list, per-path progress and Force
+continuation now preserve distinct valid UTF-8 spellings throughout that sequence.
+The source list arrangement, original artwork, captured menu order and post-lock
+Pull remain unchanged.
+
+Lock queries preserve exact path/owner text; path-keyed checkbox memory,
+Commit/Working Tree owner maps and owner-column clipboard use `GitPathMap`.
+LFS eligibility joins exact index/HEAD paths, including staged deletions, without
+admitting an unversioned canonical neighbor. Backend batch de-duplication keeps
+only repeated exact paths and retains both canonical spellings. Result identity
+and equality use exact bytes; result IDs encode the path for native collection
+consumers. The lock server's opaque IDs remain separate from file names and use
+exact checked/highlighted membership in the AppKit list.
+
+Changing server IDs on refresh restores each path's own check state. The native
+list preserves its source first-selection-index/viewport policy; this is not a
+new path-based multi-selection refresh policy. Identical-looking lock paths expose
+UTF-8 bytes in tooltip/accessibility help. Lock-list headers and menus now use the
+existing native localization resources while keeping raw paths and owner names
+literal.
+
+Each captured lock-list menu runs at most once for its original rows and columns.
+Selection and sort changes preserve that snapshot, as before; refresh, column
+policy, a busy owner or retirement refuse it. Progress ignores duplicate and
+out-of-scope callbacks and validates final result membership before replacing
+reviewed rows or offering successful Lock → Pull. Force retry captures the same
+exact original paths even when current selection/checks change. Cancellation and
+closed owners keep their existing generation and operation-lifetime fences.
+
+Physical filesystem aliasing is unchanged: two Git index paths can name the same
+file on macOS. This work preserves distinct index/server identities and does not
+create independent physical files. Invalid UTF-8 names, authenticated remote LFS,
+physical popup/keyboard/VoiceOver and signed installed Finder acceptance remain
+open. Complete LFS/source dialog and application certification is not claimed.
+
+The grouped checkpoint passed 24 focused Core checks, one Debug app build and
+four native case/engine combinations on the first invocation, with no repairs or
+repeated checks. The native family uses system and bundled Git, private repositories,
+preferences and simulated LFS replies; no remote authenticated locking is claimed.
+All four receivers were reaped and independently absent. Existing build warnings
+and the zero-exit driver diagnostic are retained in [batch evidence](qa/lfs-path-identities-2026-10-17.json).
+No new visual capture certifies the full dialog.

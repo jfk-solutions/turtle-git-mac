@@ -425,7 +425,7 @@ import UniformTypeIdentifiers
 
     @Published var fileMetadata: GitPathMap<StatusListMetadata> = [:] { didSet { if fileMetadata.mapValues({ $0.isDirectory }) != oldValue.mapValues({ $0.isDirectory }) { fileMenuGeneration = UUID() } } }
     @Published var hasLFS = false
-    @Published var lfsOwners: [String: String] = [:]
+    @Published var lfsOwners: GitPathMap<String> = [:]
     @Published var lfsLockedPaths = GitPathSet()
     @Published var lfsOwnershipKnown = false
     private var lfsOwnerCancellation: OperationCancellation?
@@ -1292,14 +1292,14 @@ import UniformTypeIdentifiers
                     nextHistory = CommitMessageHistory(repositoryIdentity:identity,defaults:dialogDefaults,limit:limit)
                     seed = try await readReload(token) { try await loadMessageSeed(cancellation:token) }
                 } else { nextIssueProperties=nil;nextProjectSettings=nil;nextHistory=nil;seed=nil }
-                var nextOwners:[String:String]=[:],nextLocked=GitPathSet(),nextOwnershipKnown=false
+                var nextOwners:GitPathMap<String>=[:],nextLocked=GitPathSet(),nextOwnershipKnown=false
                 var warnings=seed?.warnings ?? []
                 if nextHasLFS && fileColumns.visible.contains(.lfsOwner) {
                     lfsOwnerCancellation=token
                     defer {if lfsOwnerCancellation === token {lfsOwnerCancellation=nil}}
                     do {
                         let locks = try await readReload(token) { try await queryLFSOwners(token) }
-                        nextOwners=Dictionary(locks.map {($0.path,$0.owner)},uniquingKeysWith:{first,_ in first})
+                        nextOwners=GitPathMap(locks.map {($0.path,$0.owner)},uniquingKeysWith:{first,_ in first})
                         nextLocked=GitPathSet(locks.map(\.path));nextOwnershipKnown=true
                     } catch {
                         try token.check()

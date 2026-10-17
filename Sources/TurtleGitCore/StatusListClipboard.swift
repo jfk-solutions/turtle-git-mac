@@ -90,7 +90,7 @@ public enum StatusListClipboard {
 
     /// Copy the displayed row order. Explicit single-column output has no
     /// heading; Copy all retains headings, with tabs and macOS LF endings.
-    public static func text(_ entries: [StatusEntry], root: URL, statistics: GitPathMap<CommitFile>, copy: StatusListCopy, metadata: GitPathMap<StatusListMetadata> = [:], lfsOwners: [String: String] = [:], visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns, label:(String)->String = {$0}) -> String {
+    public static func text(_ entries: [StatusEntry], root: URL, statistics: GitPathMap<CommitFile>, copy: StatusListCopy, metadata: GitPathMap<StatusListMetadata> = [:], lfsOwners: GitPathMap<String> = [:], visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns, label:(String)->String = {$0}) -> String {
         func cell(_ entry: StatusEntry, _ column: StatusListColumn) -> String {
             let stats = statistics[entry.path]
             switch column {
