@@ -174,3 +174,9 @@ and physical/signed acceptance remain open.
 progress and transport consumers, preserves raw recovery results and keeps
 completion diagnostics within the captured output limit. Full progress-dialog
 parity and physical/signed acceptance remain open.
+
+
+The [connected Daemon progress family](DAEMON-PARITY.md#connected-native-progress-family--october-17-2026)
+adopts shared native Copy/styling/completion, captured auto-close, once-only kill
+questions, Action log and independently owned process/Dock/permission lifetime.
+Physical and signed acceptance remain separate.

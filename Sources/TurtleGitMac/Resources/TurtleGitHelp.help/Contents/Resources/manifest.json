@@ -1,7 +1,7 @@
 {
   "files": {
-    "Contents/Info.plist": "c2ef9f69c2bff0342cbd96d4dfc8155997dd6e4ea234ec9e279bbb58cc683568",
-    "Contents/Resources/en.lproj/ACTION-LOG.html": "bffe41983454087ae3e242c659e7cfd6ff5c1d6a262f5246d5cdd772d84f2c4b",
+    "Contents/Info.plist": "270d930fdb24210cedb6f9b280ef32d1dc5e3132b7f2fa9f400583b2b588ec73",
+    "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "ea62e9255277183fb721ceb36a97a21b113f94329e42eef862414b541f4853fd",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
     "Contents/Resources/en.lproj/BUNDLED-COMPARISONS.html": "ca44634f35d7a4655304e97466c657b748f9f859fb32211be67bdddcc44e92c1",
@@ -59,7 +59,7 @@
     "Contents/Resources/en.lproj/topics.json": "8d6e3a40a0de03aad48e3d333943ba2ca8887ebc1e302e2c8bec23dde7264d65"
   },
   "source_hashes": {
-    "docs/ACTION-LOG.md": "ea90931832ee313fe03815ccb3a392b0eda50026fdb0324fbd0a2b38b5f00963",
+    "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
     "docs/BLAME-FILE-OPEN.md": "3036f8fc1ca73a25dd9db1b463231bf92eacd7d59b8990755c67c0d707093ae9",
     "docs/BLAME-MENUS.md": "c73086907f5d2a44e7bb99da451cb6861e58ccfa7dcacae8b865565a314a32f3",
     "docs/BUNDLED-COMPARISONS.md": "d3848ab5b58eb5d23b60575e9e397aa1660c411a4e173d3181732cb36df71064",

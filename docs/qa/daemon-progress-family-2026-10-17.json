@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "5024e3519d8553bcf24d02550246090b30be5a67",
+  "scope": "Connected Daemon progress output, completion, cancellation confirmation, Action log and worker/Dock lifetime",
+  "source_inputs_sha256": {
+    "Sources/TurtleGitMac/GitDaemonWindow.swift": "693626846b3bb5887b2e99c9cee0945b40b5b087db8d190bfb565c986623ba96",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "3e43e0f97a52bf165dc731d13d03da2f2fcb9c3f711a733a8fd6d259e2b46623",
+    "docs/qa/daemon-progress-native-2026-10-17.swift": "45e4959a69a8908438dbd64ca2556a864c902d1c3c49e0d570b40cf00688e540",
+    "scripts/test-daemon-progress-family.py": "67a8fe020d920b99464961a88a7854a93bcb77c5e75ded0cc3fe4ecfc47ab914"
+  },
+  "validation_status": "Scoped grouped checkpoint passed; full port and hosted CI remain open",
+  "core": "No Core source changes; existing backend retained; full Core suite not repeated",
+  "limits": [
+    "Physical Yes/No keyboard/default button and VoiceOver",
+    "Actual Dock display",
+    "Signed installed Daemon/Finder handoff and App Store sandbox acceptance",
+    "Public LAN/firewall and IPv6 acceptance"
+  ],
+  "first_checkpoint": {
+    "debug_build": "exit 0; build/qa/daemon-progress-build-2026-10-17.log",
+    "native": "Both Git engines passed; receivers 20326 and 20334 reaped",
+    "repair": "Raw light/dark review found separate address text ellipsized and consuming log space, plus duplicate streamed failure detail. Updated app to source m_PreText in shared log and avoid re-appending a delivered tail. Fixture captures now use explicit loopback addresses rather than local interface enumeration. Only affected Daemon family rebuilt/rechecked.",
+    "tooling": "build-help.py rejected an unsupported --write option before running; default write invocation passed. No source/build repair for this invocation."
+  },
+  "final_checkpoint": {
+    "debug_build": "Terminal exit 0; build/qa/daemon-progress-layout-build-2026-10-17.log; retained SDK/compiler warnings, not warning-free certification",
+    "native": {
+      "log": "build/qa/daemon-progress-final-native-2026-10-17.log",
+      "git_engines": [
+        "/usr/bin/git 2.54.0",
+        "build/git-runtime/Git/bin/git 2.55.0"
+      ],
+      "receivers": [
+        20570,
+        20578
+      ],
+      "all_reaped_and_independently_absent": true,
+      "checks": [
+        "Legacy warning/remembered Proceed/Abort and forced-close coverage",
+        "Natural exit while kill question pending; Quit fence; captured auto-close; late/duplicate answer refusal",
+        "Declined cancellation continues serving; replacement question refuses obsolete replies",
+        "Cancelled result completion, failed Dock state, Action log once-only retention",
+        "Actual native output Copy icons/private pasteboard and selection retention",
+        "Colored failure footer, source pretext and command, no duplicate streamed diagnostic",
+        "Nonzero injected return code and bounded flooding failure",
+        "Forced window close preserves worker ownership through drain and refuses late UI publication",
+        "Real shipping model Git daemon starts and serves ls-remote over loopback, then cancels and drains"
+      ]
+    },
+    "captures": {
+      "source": "Actual hidden shipping controller; native ScreenCaptureKit raw captures, not mockups; explicit loopback fixture configuration",
+      "reviewed": [
+        "daemon-progress-light.png",
+        "daemon-progress-dark.png"
+      ],
+      "path": "docs/site/assets",
+      "first_attempt": "Initial captures inspected but not published; enumerated host interfaces and separate address region were replaced by source pretext layout."
+    },
+    "core": "Unchanged; full Core suite not repeated. Real backend execution included in the native family."
+  },
+  "cleanup": {
+    "owned_receivers": [
+      20326,
+      20334,
+      20570,
+      20578
+    ],
+    "independently_absent": true,
+    "public_listener": "None; actual Git configured 127.0.0.1 with disposable port only",
+    "installed_app_launched": false,
+    "finder_extension_activated": false,
+    "fixtures": "Private temporary repositories/action log/pasteboard; receiver directory removed",
+    "main_private_preferences": "Removed by suite name; original legacy receiver uses its existing independent QA suite",
+    "test_app_instances_remaining": 0
+  },
+  "documentation": {
+    "localizations": "38 languages, 1281 keys; check passed",
+    "bundled_help": "38 docs, 48 topics, 58 files; check passed",
+    "dialog_coverage": "130 dialogs, 120 partial, 10 pending, zero certified; reconciled",
+    "website": "286 docs, zero unresolved fragments"
+  },
+  "hosted_ci": {
+    "prior_run": 39058837911,
+    "job": 117479311724,
+    "status": "Completed failure: wrapped-navigation timeout after five preceding cases passed; receiver 45741 reaped",
+    "current_run": 39065868784,
+    "current_job": 117493722287,
+    "last_observed": "In progress: Application and embedded Finder extension",
+    "root_cause": "Unproven; current instrumented run supplies owned timeout samples if it stalls. No cancellation/restart performed."
+  }
+}

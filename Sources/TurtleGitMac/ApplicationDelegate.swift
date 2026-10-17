@@ -82,7 +82,7 @@ import AppKit
         if LocalGitCommandProgress.activeOperations > 0 { return .terminateCancel }
         if StatusWindowModel.activeOperations > 0 { return .terminateCancel }
         if WorkingTreePatchWindowModel.activeOperations > 0 || FileComparisonWindowModel.activePaneExports > 0 || FileComparisonWindowModel.activeProjectionChoices > 0 { return .terminateCancel }
-        if GitDaemonWindowModel.activeOperations > 0 { return .terminateCancel }
+        if GitDaemonWindowModel.activeOperations > 0 || GitDaemonWindowModel.activeQuestions > 0 { return .terminateCancel }
         if FirstStartWizardModel.activeWrites > 0 || GeneralGitSettingsModel.activeOperations > 0 || GeneralGitSettingsModel.activeDialogs > 0 { return .terminateCancel }
         if GitConfigurationSettingsModel.activeFolderChoosers > 0 {return .terminateCancel}
         if MergeFormatPrompt.activeDialogs > 0 { return .terminateCancel }

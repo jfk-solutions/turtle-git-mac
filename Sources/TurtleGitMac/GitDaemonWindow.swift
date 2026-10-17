@@ -24,20 +24,27 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
     }
 }
 
-@MainActor final class GitDaemonWindowModel: ObservableObject {
+@MainActor final class GitDaemonWindowModel: ObservableObject, ActionLogProgress {
     enum Phase { case warning, running, stopping, finished }
     static private(set) var activeOperations = 0
+    static private(set) var activeQuestions = 0
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let configuration: GitDaemonConfiguration
     let preferences: UserDefaults
+    private let autoClosePolicy: GitProgressAutoClose
     @Published private(set) var phase = Phase.warning
     @Published var rememberWarning = false
     @Published private(set) var output = ""
     @Published private(set) var status = ""
     @Published private(set) var urls: [String] = []
     @Published private(set) var error: String?
+    @Published private(set) var success = false
+    @Published private(set) var cancelled = false
+    @Published private(set) var completionRange: NSRange?
+    @Published private(set) var confirmingCancellation = false
     var close: () -> Void = {}
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var run: @Sendable (GitRepository, GitDaemonConfiguration, OperationCancellation, @escaping @Sendable (GitOutputChunk) -> Void) throws -> Int32 = {
         try GitDaemon.run(repository: $0, configuration: $1, cancellation: $2, onOutput: $3)
     }
@@ -47,11 +54,25 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
     private var outputState: GitProgressOutputState
     var progressPresentation: GitCommandPresentation { outputState.presentation }
     private var started = false, retired = false, closeAfterStop = false
+    private var question: UUID?
     private var pump: Task<Void, Never>?
+    private let workerDock = UUID()
+    var dockRegistry: DockProgressRegistry = .shared
     var busy: Bool { phase == .running || phase == .stopping }
-    var command: String { (try? configuration.arguments(root: repository.root))?.map { $0.contains(" ") ? "\"" + $0 + "\"" : $0 }.joined(separator: " ") ?? "git daemon" }
+    var canCancel: Bool { !retired && !confirmingCancellation && phase != .stopping }
+    var dockState: DockProgressState? {
+        guard started, !retired else { return nil }
+        if confirmingCancellation { return .init(.paused) }
+        return .command(busy:busy, success:success, percentage:busy ? nil : 100)
+    }
+    var actionLogRepository: URL { repository.root }
+    var actionLogFailed: Bool { !success }
+    var actionLogCancelled: Bool { cancelled }
+    var actionLogEligible: Bool { started && !busy }
+    var command: String { (try? configuration.arguments(root: repository.root))?.map { $0.contains(" ") ? "\"" + $0 + "\"" : $0 }.joined(separator: " ") ?? "daemon" }
     init(repository: GitRepository, access: RepositoryAccessLease?, configuration: GitDaemonConfiguration = .init(), preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.configuration = configuration; self.preferences = preferences
+        autoClosePolicy = GitProgressAutoClose(preferences:preferences)
         outputState = GitProgressOutputState(preferences: preferences)
         parser = GitCliOutputParser(limit: outputState.limit)
     }
@@ -61,17 +82,25 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
     }
     func proceed() {
         guard !started, !retired, phase == .warning else { return }
-        guard !GitRuntime.isAppStoreBuild || (access?.hasSecurityScope == true && access?.contains(repository.root) == true) else {
-            error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; phase = .finished; return
+        do {
+            guard !GitRuntime.isAppStoreBuild || (access?.hasSecurityScope == true && access?.contains(repository.root) == true) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+            _ = try configuration.arguments(root: repository.root)
+        } catch {
+            self.error = error.localizedDescription; status = "Git daemon failed."; phase = .finished
+            output = LocalGitCommandProgress.bounded(error.localizedDescription, preferences:preferences); return
         }
-        do { _ = try configuration.arguments(root: repository.root) }
-        catch { self.error = error.localizedDescription; phase = .finished; return }
         preferences.set(rememberWarning || preferences.bool(forKey: "DaemonNoSecurityWarning"), forKey: "DaemonNoSecurityWarning")
         started = true; phase = .running; status = "Starting Git daemon…"; urls = configuration.urls()
+        // DaemonCommand supplies these addresses as ProgressDlg.m_PreText. Keep
+        // them in the scrollable/copyable log even on hosts with many interfaces.
+        parser.appendChunk(Data((urls.joined(separator:"\n") + "\n\ngit " + command + "\n\n").utf8))
+        outputState.consume(parser.processPending(), parser:parser); output = outputState.output
         Self.activeOperations += 1
+        dockRegistry.update(workerDock, .init(.running))
         let repository = repository, configuration = configuration, token = token, mailbox = mailbox, runner = run
-        // Keep the real security scope alive until the daemon and its workers stop.
-        let access = access
+        // Own the repository scope, Dock and Quit lease until the real process drains,
+        // independently of a forced window close or a pending cancellation question.
+        let access = access, began = Date()
         pump = Task { [weak self] in
             while !Task.isCancelled {
                 self?.drain()
@@ -82,32 +111,87 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
             let result = await Task.detached {
                 withExtendedLifetime(access) { Result { try runner(repository, configuration, token, { mailbox.append($0) }) } }
             }.value
-            Self.activeOperations -= 1
-            pump?.cancel(); pump = nil; drain()
-            outputState.consume(parser.finish(), parser: parser); output = outputState.output
-            phase = .finished
-            if token.isCancelled { status = "Git daemon stopped." }
-            else {
-                switch result {
-                case .success: status = "Git daemon exited."
-                case .failure(let failure): error = failure.localizedDescription; status = "Git daemon failed."
-                }
+            defer { Self.activeOperations -= 1; dockRegistry.remove(workerDock) }
+            pump?.cancel(); pump = nil
+            consumeMailbox(); outputState.consume(parser.finish(), parser:parser)
+            let wasCancelled = token.isCancelled
+            var exitCode: Int32?, failure: Error?
+            switch result {
+            case .success(let code):
+                exitCode = code
+                if code != 0 && !wasCancelled { failure = GitDaemonFailure.failed(code, "") }
+            case .failure(let caught):
+                failure = caught
+                if let daemonFailure = caught as? GitDaemonFailure, case .failed(let code, _) = daemonFailure { exitCode = code }
             }
-            if closeAfterStop && !retired { close() }
+            let passed = !wasCancelled && failure == nil
+            var text = outputState.output
+            if let failure, !wasCancelled {
+                // Retain the diagnostic even when the producer hit its captured limit.
+                if let daemonFailure = failure as? GitDaemonFailure, case .failed(_, let detail) = daemonFailure {
+                    // The runner retains a raw diagnostic tail independently of
+                    // the display limit. Append it only if it was not delivered.
+                    if !detail.isEmpty && Data(text.utf8).range(of:Data(detail.utf8)) == nil {
+                        text = GitProgressFailureOutput.renderDetails(detail, existing:text, limit:outputState.limit, preferTail:true)
+                    }
+                } else { text = GitProgressFailureOutput.render(failure, existing:text, limit:outputState.limit) }
+            }
+            let footer = SubmoduleProgressCompletion(success:passed, cancelled:wasCancelled, exitCode:exitCode, elapsed:Date().timeIntervalSince(began), preferences:preferences)
+            let range = footer.append(to:&text)
+            if retired {
+                ProgressActionLog.record(owner:self, repository:repository.root, output:text, cancelled:wasCancelled, failed:!passed)
+                return
+            }
+            output = text; completionRange = range; success = passed; cancelled = wasCancelled
+            error = wasCancelled ? nil : failure?.localizedDescription
+            status = wasCancelled ? "Git daemon stopped." : passed ? "Git daemon exited." : "Git daemon failed."
+            phase = .finished
+            finishClose()
         }
     }
+    private func consumeMailbox() {
+        let (bytes, _) = mailbox.take()
+        parser.appendChunk(bytes); outputState.consume(parser.processPending(), parser:parser)
+    }
     private func drain() {
+        guard !retired else { return }
         let (bytes, ready) = mailbox.take()
-        parser.appendChunk(bytes); outputState.consume(parser.processPending(), parser: parser); output = outputState.output
+        parser.appendChunk(bytes); outputState.consume(parser.processPending(), parser:parser); output = outputState.output
         if ready && phase == .running { status = "Git daemon is running." }
     }
-    func cancel(closeWhenStopped: Bool = false) {
-        guard !retired else { return }
-        if phase == .warning { preferences.removeObject(forKey: "DaemonNoSecurityWarning"); close(); return }
-        if busy { closeAfterStop = closeAfterStop || closeWhenStopped; phase = .stopping; status = "Stopping Git daemon…"; token.cancel() }
-        else { close() }
+    private func finishClose() {
+        guard !retired, !busy, !confirmingCancellation else { return }
+        if closeAfterStop || autoClosePolicy.shouldClose(success:success, postActionCount:0) { close() }
     }
-    func retire() { retired = true; token.cancel(); pump?.cancel(); pump = nil }
+    func cancel(closeWhenStopped: Bool = false) {
+        guard canCancel else { return }
+        if phase == .warning { preferences.removeObject(forKey:"DaemonNoSecurityWarning"); close(); return }
+        guard busy else { close(); return }
+        if preferences.bool(forKey:"ConfirmKillProcess") {
+            let request = UUID(); question = request; confirmingCancellation = true; Self.activeQuestions += 1
+            dockRegistry.update(workerDock, .init(.paused))
+            confirmCancellation { [weak self] accepted in
+                guard let self, !self.retired, self.question == request else { return }
+                self.question = nil; self.confirmingCancellation = false; Self.activeQuestions -= 1
+                if self.busy {
+                    self.dockRegistry.update(self.workerDock, .init(.running))
+                    if accepted { self.stop(closeWhenStopped:closeWhenStopped) }
+                }
+                self.finishClose()
+            }
+        } else { stop(closeWhenStopped:closeWhenStopped) }
+    }
+    private func stop(closeWhenStopped: Bool) {
+        closeAfterStop = closeAfterStop || closeWhenStopped
+        phase = .stopping; status = "Stopping Git daemon…"; token.cancel()
+    }
+    func retire() {
+        guard !retired else { return }
+        retired = true
+        if question != nil { question = nil; confirmingCancellation = false; Self.activeQuestions -= 1 }
+        if !busy { saveActionLog() }
+        token.cancel(); pump?.cancel(); pump = nil
+    }
 }
 
 @MainActor final class GitDaemonWindowController: NSWindowController, NSWindowDelegate {
@@ -115,20 +199,34 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, configuration: GitDaemonConfiguration = .init(), preferences: UserDefaults = .standard) {
         model = GitDaemonWindowModel(repository: repository, access: access, configuration: configuration, preferences: preferences)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Daemon", preferences: preferences)
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 620, height: 380)
         window.contentViewController = NSHostingController(rootView: GitDaemonDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
-        model.close = { [weak self] in guard let self, !self.model.busy else { return }; self.window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.confirmingCancellation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        window.escapeAction = { [weak model] in model?.cancel() }
+        model.confirmCancellation = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational
+            alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle:"Yes"); alert.addButton(withTitle:"No")
+            yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.beginSheetModal(for:window) { choose($0 == .alertFirstButtonReturn) }
+        }
         DialogGeometry.attach(window, identifier: "DaemonProgressDialog", legacyName: "DaemonProgressDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.busy { model.cancel(closeWhenStopped: true); return false }
+        guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }
         if model.phase == .warning { model.preferences.removeObject(forKey: "DaemonNoSecurityWarning") }
         return true
     }
-    func windowWillClose(_ notification: Notification) { model.retire(); onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        model.retire()
+        if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode:.abort); sheet.orderOut(nil) }
+        onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -147,18 +245,16 @@ private struct GitDaemonDialog: View {
                 Spacer()
                 HStack { Spacer(); Button("Abort") { model.cancel() }.keyboardShortcut(.cancelAction); Button("Proceed") { model.proceed() }.keyboardShortcut(.defaultAction) }
             } else {
-                Text(model.urls.joined(separator: "\n")).textSelection(.enabled).foregroundStyle(.blue)
-                Text("git " + model.command).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-                ScrollView([.horizontal, .vertical]) {
-                    Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .topLeading)
-                }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor)).overlay(Rectangle().stroke(Color(nsColor: .separatorColor)))
+                SubmoduleProgressOutputView(text:model.output, completed:model.phase == .finished,
+                    completionRange:model.completionRange, success:model.success, preferences:model.preferences)
+                    .frame(maxWidth:.infinity, maxHeight:.infinity)
                 HStack {
                     if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
-                    Text(model.error ?? model.status).foregroundStyle(model.error == nil ? Color.primary : Color.red).textSelection(.enabled)
+                    Text(model.status).foregroundStyle(model.error == nil ? Color.primary : Color.red).textSelection(.enabled)
                     Spacer()
-                    Button(model.busy ? "Cancel" : "Close") { model.cancel() }.disabled(model.phase == .stopping).keyboardShortcut(.cancelAction)
+                    Button(model.busy ? "Cancel" : "Close") { model.cancel() }.disabled(!model.canCancel).keyboardShortcut(.cancelAction)
                 }
             }
-        }.padding(16).frame(minWidth: 600, minHeight: 360)
+        }.padding(16).frame(minWidth: 600, minHeight: 360).gitDockProgress(model.dockState)
     }
 }

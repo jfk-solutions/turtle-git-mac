@@ -7,7 +7,7 @@ Show opens the UTF-8 log in the system text viewer. Clear deletes this log only.
 
 The following native progress windows save their displayed output when closed:
 Clone, Commit, Push, Fetch, Pull, Merge, Abort Merge, Switch, Reset, Clean,
-Export, Format Patch, Stash Save, New Worktree, Worktree management progress, and Bisect. Each entry starts with an empty separator line, the
+Export, Format Patch, Stash Save, New Worktree, Worktree management progress, Bisect, and Daemon. Each entry starts with an empty separator line, the
 local date and time, and the repository path (Clone uses its destination).
 Cancelled results append **User cancelled**. Quiet operations still save the
 header. The stored text follows the visible output limit, rather than the full
@@ -49,3 +49,9 @@ decisions. Other saved-data groups remain to be ported.
 Other progress implementations, including replay and reference restoration,
 have not yet been wired to this persistent log. Physical Show/text-viewer UI,
 signed sandbox persistence and App Store distribution remain unverified.
+
+
+Daemon saves after its process finishes when the result closes. Forced closure
+keeps process ownership until drain, then records the final bounded output
+without reopening the retired window. The initial security-warning page creates
+no Action log entry. See [Daemon progress](DAEMON-PARITY.md).

@@ -59,3 +59,48 @@ and Quit ownership alongside the existing LFS/mail fixtures. Daemon native
 process responses were injected; real mail used only the owned loopback SMTP
 fixture. No installed app or Finder extension was activated. See
 [the dated record](qa/daemon-batch-2026-10-12.json).
+
+
+## Connected native progress family — October 17, 2026
+
+Daemon now uses the shared native progress output control rather than a plain
+SwiftUI text block. It provides icon-bearing Copy/Copy All menus, selection
+preservation, completed fatal/error/warning styling, clickable URLs and the
+source completion footer with exit code, optional elapsed time and finish date.
+The display keeps its captured output limit; raw daemon failures remain available
+for diagnostics. The command fallback no longer repeats the `git` prefix. Source `m_PreText`
+addresses and the command now belong to the scrollable/copyable log, so hosts
+with many interfaces do not squeeze the output region. A fully delivered raw
+failure tail is not appended again.
+
+Cancel, Escape and titlebar close now honor ConfirmKillProcess through a single
+owned Yes/No question. Repeated requests and old/duplicate answers cannot stop a
+new question. Natural completion during the question preserves its result and
+defers automatic close until the answer; late Yes cannot turn success into
+cancellation. The captured generic progress auto-close policy applies only to
+successful natural exit. Cancellation/failure remain reviewable unless an
+accepted titlebar close requested closure after drain.
+
+Running/confirmation/result states contribute to the native Dock progress owner.
+A separate worker contribution and the repository access lease survive forced
+window closure until the actual process drains. Quit is also blocked by pending
+Daemon questions after natural process exit. Forced retirement dismisses its
+owned sheet, refuses late UI publication and still records its final Action log.
+Warning-only dismissal writes no progress record. These use native macOS
+lifetimes in place of the source Windows process/taskbar handles.
+
+The source references remain DaemonCommand.cpp plus ProgressDlg.cpp::OnCancel,
+WriteLog and completion/auto-close behavior at the pinned upstream revision.
+The Debug build and the grouped native family passed with system and bundled
+Git. The first passing checkpoint needed the address-region/duplicate-detail
+layout correction found in raw captures; only this family was rebuilt/rechecked.
+All four receivers were reaped and independently absent. Final raw light/dark
+captures were individually reviewed. Core was unchanged and not repeated.
+[The progress QA](qa/daemon-progress-family-2026-10-17.json) retains actual scope,
+repairs, real loopback execution and cleanup. Physical default-button/
+keyboard/VoiceOver, actual Dock display, public LAN/firewall behavior and signed
+Finder/App Store acceptance remain open.
+
+
+![Actual native Daemon failed-result fixture, light](site/assets/daemon-progress-light.png)
+![Actual native Daemon failed-result fixture, dark](site/assets/daemon-progress-dark.png)
