@@ -289,7 +289,7 @@ extension MergeEditorToolbar {
             state: { [weak model] command in
                 guard let model else { return nil }
                 let ready = !model.retired && !model.busy && !model.preparing && !model.exportingSource && !model.formatPending && !model.confirmingQuit && window.attachedSheet == nil && ownerReady()
-                let text = ready && model.document != nil
+                let text = ready && model.sourceToolsAllowed
                 switch command {
                 case .open, .reload, .help: return .init(enabled: ready)
                 case .save: return .init(enabled: text && !model.patchResultCompleted)

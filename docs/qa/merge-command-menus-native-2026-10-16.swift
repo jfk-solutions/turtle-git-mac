@@ -83,12 +83,59 @@ struct MergeCommandMenusVerification {
         try send(try item("Toolbar",in:main));owner.editorToolbar!.refresh();try require(window.toolbar?.isVisible==true,"Menu cannot restore hidden toolbar")
         try require(model.draftText(base:false)==before && model.canUndo==history,"Presentation menu changed text/history")
         let merge=TextConflictWindowController(repository:GitRepository(root:folder,executable:git),access:nil,path:b.path,workingMerge:try WorkingTextMerge(base:a,theirs:t,mine:b),preferences:prefs)
-        defer{merge.close()};merge.model.load();try await ThreePaneEngineVerification.wait{!merge.model.busy && merge.model.document != nil}
+        defer{merge.close()};merge.window!.alphaValue=0;merge.window!.orderFront(nil);merge.model.load()
+        try await ThreePaneEngineVerification.wait{!merge.model.busy && merge.model.document != nil && merge.model.nativeEditorReady}
         menu.remove();focused=merge.window;let triple=merge.editorCommandMenu!;triple.keyWindow={focused};triple.install(in:main)
         merge.model.continueResolving();triple.refresh()
-        let original=merge.model.result
-        try send(try item("Use Mine block",in:main));try require(merge.model.result != original,"Conflict menu did not choose current block")
-        merge.model.undo();try require(merge.model.result==original,"Conflict menu choice lost Undo")
+        let resultView=MergeMarkedWordInterface.panes(in:merge.window!.contentView).first{$0.isEditable}!
+        let original=merge.model.result, initialPresentation=merge.model.resultPresentation
+        let mineView=MergeMarkedWordInterface.panes(in:merge.window!.contentView).first{!$0.isEditable && $0.string.contains("new one")}!
+        let sourceClipboard=NSPasteboard.withUniqueName();defer{sourceClipboard.releaseGlobally()}
+        let sourceMenu=(mineView as! MergeContextMenuProviding).mergeContextMenu(defaults:prefs,pasteboard:sourceClipboard)
+        let oldWhole=try item("Use this whole file",in:sourceMenu)
+        try send(try item("Use Mine block",in:main));try require(merge.model.result != original && merge.model.canUndo,"Conflict menu did not choose with native history")
+        let chosen=merge.model.resultPresentation
+        try require(resultView.string==merge.model.resultDisplayText && merge.model.nativeEditorReady,"Choice returned with stale native geometry")
+        do {
+            guard let projection=merge.model.alignedResultProjection,let row=projection.cells.firstIndex(where:{$0.state == .resolved}) else { throw Failure(description:"Conflict choice did not produce a resolved row for immediate color verification") }
+            let offset=projection.displayRanges[row].location
+            let painted=resultView.textStorage?.attribute(.backgroundColor,at:offset,effectiveRange:nil) as? NSColor
+            try require(painted != nil,"Immediate source choice did not install row colors")
+            for appearance in [NSAppearance.Name.aqua,.darkAqua] {
+                var actual:NSColor?,expected:NSColor?
+                NSAppearance(named:appearance)!.performAsCurrentDrawingAppearance {
+                    actual=painted?.usingColorSpace(.sRGB);expected=MergePalette.color(.resolved).usingColorSpace(.sRGB)
+                }
+                try require(actual == expected,"Immediate row color differs before SwiftUI refresh")
+            }
+        }
+        // No event-loop turn between choice, Undo and Redo: model, rows, colors
+        // and action availability must commit together.
+        merge.model.undo();try require(merge.model.result==original && merge.model.resultPresentation==initialPresentation && merge.model.canRedo,"Conflict menu choice lost Undo")
+        try require(resultView.string==merge.model.resultDisplayText && merge.model.nativeEditorReady,"Undo left stale native geometry")
+        merge.model.redo();try require(merge.model.resultPresentation==chosen && merge.model.canUndo,"Immediate Redo lost conflict metadata")
+        merge.model.undo();try require(merge.model.resultPresentation==initialPresentation,"Second Undo failed")
+        let scope=resultView as! MergeContextMenuProviding
+        try require(scope.mergeSourceRowsReady,"History left a stale row stamp")
+        let resultScroll=resultView.enclosingScrollView!
+        resultScroll.documentView=nil
+        try require(!merge.model.nativeEditorReady && !merge.model.sourceToolsAllowed,"Detached result retained native actions")
+        triple.refresh();let unavailable=try item("Use Mine block",in:main)
+        try require(!unavailable.isEnabled,"Detached result menu enabled a model-only choice")
+        try send(unavailable);merge.model.redo();try require(merge.model.resultPresentation==initialPresentation,"Detached native action bypassed history ownership")
+        resultScroll.documentView=resultView
+        try await ThreePaneEngineVerification.wait{merge.model.nativeEditorReady}
+        triple.refresh();merge.model.redo();try require(merge.model.resultPresentation==chosen,"Reattached editor lost native Redo")
+        merge.model.undo();try require(merge.model.resultPresentation==initialPresentation,"Reattached editor lost native Undo")
+        try send(oldWhole);try require(merge.model.resultPresentation==initialPresentation,"Old whole-file menu revived after identical-text Undo")
+        try await ThreePaneEngineVerification.wait{(mineView as! MergeContextMenuProviding).mergeSourceRowsReady}
+        let freshWhole=(mineView as! MergeContextMenuProviding).mergeContextMenu(defaults:prefs,pasteboard:sourceClipboard)
+        try send(try item("Use this whole file",in:freshWhole))
+        try require(!merge.model.hasUnresolvedConflicts && merge.model.canUndo,"Whole-file native choice bypassed resolution/history")
+        let whole=merge.model.resultPresentation
+        merge.model.undo();try require(merge.model.resultPresentation==initialPresentation,"Whole-file Undo lost conflict metadata")
+        merge.model.redo();try require(merge.model.resultPresentation==whole,"Whole-file Redo lost aligned presentation")
+        merge.model.undo();try require(merge.model.resultPresentation==initialPresentation,"Whole-file second Undo failed")
         try require(try item("Next conflict",in:main).keyEquivalent==String(UnicodeScalar(NSF8FunctionKey)!),"Conflict shortcut missing")
         let tripleWrap=try item("Wrap long lines",in:main);triple.remove();focused=window;menu.install(in:main)
         try send(tripleWrap);try require(!merge.model.wrapLines,"Resigned Merge menu mutated result owner")

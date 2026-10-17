@@ -1,0 +1,153 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected native conflict/result editing readiness, immediate history/presentation and captured whole-source context actions. No full Merge/application certification.",
+  "source": [
+    "Pinned src/TortoiseMerge/BottomView.cpp::UseBlock/UseBothBlocks",
+    "Pinned src/TortoiseMerge/Undo.cpp::Undo/Redo, active-view ClearSelection, caret restoration and screen-vector refresh"
+  ],
+  "implemented": [
+    "Attached current result-editor gate shared by model/toolbar/menu/footer mutation routes; headless model computation retained",
+    "Exact source-layout and result-presentation revisions fence stale native geometry, typing/history and old source actions",
+    "Deduplicated deferred native readiness refresh and changed-only Undo/Redo flag publication",
+    "Synchronous result text/state colors/folding/whitespace/ruler installation across edits and history; current readonly source text/cells remain coherent",
+    "Whole-source native menu uses captured SourceBlockCommand, rejecting late callbacks even after Undo returns identical text",
+    "Reload clears exposed history flags; retired/detached owner cannot revive commands"
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false
+  },
+  "builds": [
+    {
+      "log": "build/qa/merge-edit-history-build-2026-10-17.log",
+      "exit_code": 65,
+      "empty_output_exit_zero_diagnostics": 0
+    },
+    {
+      "log": "build/qa/merge-edit-history-build-repair-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 3
+    },
+    {
+      "log": "build/qa/merge-edit-history-coherent-build-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 1
+    },
+    {
+      "log": "build/qa/merge-edit-history-render-repair-build-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 1
+    },
+    {
+      "log": "build/qa/merge-edit-history-whole-source-build-2026-10-17.log",
+      "exit_code": 0,
+      "empty_output_exit_zero_diagnostics": 2
+    }
+  ],
+  "failures_and_repairs": [
+    {
+      "kind": "compile",
+      "reason": "Initial scripted change missed the private(set) presentation declaration; added the actual revision property/observer.",
+      "log": "build/qa/merge-edit-history-build-2026-10-17.log"
+    },
+    {
+      "kind": "render loop",
+      "reason": "New unconditional updateUndoState at updateNSView end re-published unchanged Published flags. Removed the redundant render refresh and guarded history flag assignments by value.",
+      "log": "build/qa/merge-edit-history-view-native-2026-10-17.log",
+      "sample": "build/qa/merge-edit-history-live-sample-2026-10-17.txt",
+      "receiver_pid": 83235,
+      "termination": "Owned PID sampled for one second, then SIGTERM; run_receiver reaped its process group. No format/fold cases ran in this failed set-e attempt."
+    }
+  ],
+  "diagnostic": {
+    "log": "build/qa/merge-history-readiness-reproduction-2026-10-17.log",
+    "exit_code": 0,
+    "receiver_pid": 82581,
+    "note": "Pre-change local diagnostic passed after enumerating hosted panes. It does not reproduce or prove the exact hosted timing/root cause."
+  },
+  "native": {
+    "exit_code": 0,
+    "cases": [
+      "Menu source icons/shortcuts, immediate conflict choice/Undo/Redo metadata and native geometry",
+      "Immediate resolved row background in both light/dark appearance, before a SwiftUI refresh",
+      "Detached owner disables menu and rejects model Redo; reattachment retains native history",
+      "Captured whole-source menu cannot revive after identical-text Undo; fresh whole-source resolution/Undo/Redo",
+      "Typing Insert/Overwrite, Unicode, selection, paste, row endings, marks, Undo, exact Save and retired/busy gates",
+      "Real three-pane engine ignored conflicts, aliases, Cancel/Undo, reload/save/discard and unchanged Git state",
+      "Aligned result formats, native format sheet/late callbacks, encoding/ending history, Save-vs-input/Quit fences and exact UTF16 output",
+      "Fold transactions, engine-anchored aligned reveal, accessibility and appearance",
+      "Native wrapping/reflow, aligned row heights, unchanged text/selection/history/files",
+      "Initial navigation and later input invalidation, versioned Go to Line and unchanged files"
+    ],
+    "group_count": 7,
+    "logs": [
+      "build/qa/merge-edit-history-view-native-repair-2026-10-17.log",
+      "build/qa/merge-edit-history-format-native-2026-10-17.log",
+      "build/qa/merge-edit-history-fold-native-2026-10-17.log"
+    ],
+    "receiver_pids": [
+      83539,
+      83561,
+      83566,
+      83883,
+      83923,
+      83927,
+      83931
+    ],
+    "all_attempt_receiver_pids": [
+      82581,
+      83235,
+      83539,
+      83561,
+      83566,
+      83883,
+      83923,
+      83927,
+      83931,
+      84159
+    ],
+    "independently_absent": true,
+    "git": "system Git; bundled merge engine/runtime exercised by three-pane; no bundled Git engine matrix claim",
+    "captures": "No new captures; no layout changes. Direct attributed row colors tested synchronously in light/dark.",
+    "focused_recheck": {
+      "case": "menus",
+      "log": "build/qa/merge-edit-history-color-guard-native-2026-10-17.log",
+      "exit_code": 0,
+      "receiver_pid": 84159,
+      "reason": "Require an actual resolved row before both appearance color assertions; no conditional skip. Fixture-only change; app and Core not rebuilt/repeated."
+    }
+  },
+  "coverage": {
+    "new_control_mappings": 0,
+    "certified_dialogs": 0
+  },
+  "hosted": {
+    "older_failed_run": 39007075056,
+    "older_failed_commit": "d7133b3b",
+    "failure": "Conflict menu choice lost Undo",
+    "full_current_pass": false,
+    "latest_observed_other_run": 39008624452,
+    "latest_observed_status": "in_progress: Git integration tests",
+    "note": "Do not infer current hosted acceptance from focused local checks."
+  },
+  "remaining": [
+    "Current full hosted Merge/CI result; exact older hosted timing still unreproduced",
+    "Physical keyboard/context-menu/caret/VoiceOver acceptance and every source edit consumer",
+    "Large-document end-to-end performance and signed Finder/AppStore/security scopes",
+    "Complete source dialog parity and updated distribution snapshot at next checkpoint"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "80eb13f5a8b689a84df2c878504a8df4c29009a8b699080bcf4471602da0575c",
+    "Sources/TurtleGitMac/MergeEditorToolbar.swift": "be9dd99840dbe4dcfdfd7dc52fb164fd5d0039e187e52f3bfc6e57fa49db8730",
+    "docs/qa/merge-command-menus-native-2026-10-16.swift": "1388d4320c8ff6398e0118d99af34d7b72f5cf1fa5149e8d6d9c4b7bf5585d64"
+  },
+  "documentation": {
+    "coverage_reconciled": true,
+    "site": {
+      "documents": 267,
+      "unresolved_fragments": [],
+      "log": "build/qa/merge-edit-history-site-final-2026-10-17.log"
+    }
+  }
+}

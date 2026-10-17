@@ -269,3 +269,10 @@ Native aligned editor evidence: [October 16 grouped verification](qa/merge-align
 All-pane block-choice evidence: [October 16 grouped verification](qa/merge-both-blocks-2026-10-16.json).
 
 Aligned result-format evidence: [October 16 grouped verification](qa/merge-result-format-2026-10-16.json).
+
+
+The [native history readiness continuation](TEXT-MERGE-PARITY.md#native-editing-readiness-and-immediate-history--october-17-2026)
+adds attached result-owner gates and synchronous result color/fold/ruler installation
+across native edits and Undo/Redo. Seven grouped native cases pass, including
+immediate metadata/colors, whole-source stale-menu and detach/reattach checks.
+The hosted conflict-menu Undo failure still requires a current hosted result.

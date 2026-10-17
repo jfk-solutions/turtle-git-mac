@@ -1738,7 +1738,7 @@ through full pre-removal revalidation. Required native pickers share cancellatio
 retirement/late-response fencing and operation-scoped grant/Quit ownership. See
 [CLEAN-PARITY](CLEAN-PARITY.md#metadata-preparation-and-recursive-access--october-17-2026).
 Thirty-eight distinct focused Core cases and eight grouped native case/engine
-combinations pass after two fixture/runner repairs. All nine owned receivers
+combinations pass after two fixture/runner repairs. All ten owned receivers
 were reaped and independently absent. Signed/physical and complete upstream
 acceptance remain open; see [the batch evidence](qa/clean-metadata-access-2026-10-17.json).
 
@@ -2261,3 +2261,29 @@ Separately, hosted d7133b3b passed Git integration but failed the Merge menus st
 with `Conflict menu choice lost Undo`; the receiver was reaped. That outstanding
 Undo defect is distinct from the earlier folding timeout. No full hosted green
 result is claimed from this local batch.
+
+
+## Native Merge editing and history readiness — October 17, 2026
+
+Native conflict commands now require an attached result editor carrying the
+current source-layout and presentation revisions. Toolbar, menu, footer and actual
+model dispatch share the gate, preventing an early/detached choice from using the
+model-only fallback without Undo. Headless model computations retain their path.
+Result edit/Undo/Redo synchronously installs aligned text, row colors, folding,
+whitespace and ruler data; queued rendering uses coherent current source/result
+projections. Whole-source context commands now capture their source/layout/result
+identity and reject retained actions after edits or identical-text Undo.
+
+Seven grouped native cases pass: menus, typing, three-pane engine, result formats,
+folding, wrapping and initial navigation. The menu case checks immediate Undo/Redo
+and light/dark colors, detach/reattach, stale/fresh whole-file actions and unchanged
+inputs. Ten owned receivers including the initial diagnostic and interrupted
+render-loop attempt were reaped and independently absent. Core was unchanged and
+not repeated. The batch needed a missing-declaration build repair and removal of
+an unconditional view-update history publication; a process sample confirmed that
+render loop. History flags now publish only changed values.
+
+The older hosted `Conflict menu choice lost Undo` timing was not reproduced by
+the local diagnostic, and a current hosted pass remains necessary. Complete
+physical input, source behavior and signed acceptance remain open. See
+[batch evidence](qa/merge-edit-history-2026-10-17.json).

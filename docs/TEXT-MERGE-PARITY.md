@@ -648,3 +648,48 @@ open.
 The [line-change margin continuation](MERGE-MARGINS-PARITY.md) now retains
 original state/whitespace icons in two/three-pane views and an icon-only margin
 when numbers are disabled. This supersedes the earlier no-rulers behavior.
+
+
+## Native editing readiness and immediate history — October 17, 2026
+
+A native conflict controller now requires an attached result editor with matching
+source-layout and presentation revisions before accepting source/format/history
+commands. This prevents the model-only fallback from bypassing native Undo while
+views are still mounting or detached. Non-window model callers retain their
+existing computation path. Toolbar, menu and footer availability share the gate.
+Whole-source menu actions capture the source layout/presentation like block
+choices, so retained menus cannot revive after edits, Reload or identical-text
+Undo. View attachment/generation changes publish a deferred, deduplicated readiness
+refresh; retired owners cannot revive it. Reload resets the exposed history flags.
+
+Result mutations and Undo/Redo now install the current aligned text, row state
+colors, folding, whitespace and ruler records synchronously. The queued SwiftUI
+update reads the current result projection instead of combining an earlier text
+value with newer maps. The model revision protects typing/history/source actions
+until that exact presentation is installed. Undo follows the pinned source's
+caret restoration and selection clearing rather than preserving an obsolete
+block selection. Existing snapshots retain all-pane comparison, resolution and
+format data.
+
+The final Debug build and seven grouped native cases passed: menus, typing,
+three-pane engine, result formats, folding, wrapping and initial navigation.
+The menu receiver now mounts its owned conflict window and waits for actual native
+readiness. It verifies immediate choice/Undo/Redo metadata and light/dark row
+colors, detached/reattached history gates, stale whole-file refusal after identical
+text Undo, fresh whole-file resolution and Undo/Redo. All ten owned receivers from
+the diagnostic, interrupted render-loop attempt and final cases were reaped and
+independently absent. Core was unchanged and not repeated.
+
+The first build exposed a missed revision property declaration. A native attempt
+then revealed a new render loop from unconditional history-flag publishing during
+view update; a one-second sample confirmed the setter path and the owned receiver
+was stopped and reaped. That redundant refresh was removed and history flags now
+publish only on change. The final grouped pass required no further repair. The color assertion was then
+strengthened to require an actual resolved row; only the menu case was repeated
+and passed, without a Core or app rebuild. See
+[batch evidence](qa/merge-edit-history-2026-10-17.json).
+
+The hosted d7133b3b menu check failed `Conflict menu choice lost Undo`; a local
+diagnostic passed before the change, so the exact hosted timing is not reproduced
+and a current hosted pass is still required. No complete source, physical or
+signed acceptance is claimed.

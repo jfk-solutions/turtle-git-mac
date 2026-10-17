@@ -208,7 +208,7 @@ private enum MergeSourceSide {
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, workingMerge: WorkingTextMerge? = nil, permissions: [RepositoryAccessLease] = [], preferences: UserDefaults = .standard, deferInitialLoad: Bool = false) {
         model = TextConflictWindowModel(repository: repository, access: access, path: path)
-        model.comparisonDefaults = preferences; model.initialLoadDeferred = deferInitialLoad
+        model.comparisonDefaults = preferences; model.initialLoadDeferred = deferInitialLoad; model.requiresNativeEditor = true
         model.workingMerge = workingMerge; model.workingMergePermissions = permissions
         let window = TextConflictNSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
@@ -351,7 +351,28 @@ private enum MergeSourceSide {
         value.failure = { [weak self] in self?.error = $0 }
         return value
     }()
-    var sourceToolsAllowed: Bool { !patchResultCompleted && !retired && !busy && !preparing && !formatPending && !confirmingQuit && !exportingSource && window?.attachedSheet == nil && document != nil }
+    // Native commands must never fall through to the model-only mutation path
+    // before their result view has attached and installed its history handlers.
+    var requiresNativeEditor = false
+    private struct NativeEditorStamp: Equatable {
+        let view: ObjectIdentifier
+        let generation: Int
+        let layout: Int
+        let presentation: Int
+    }
+    private var lastNativeEditorStamp: NativeEditorStamp?
+    var nativeEditorReady: Bool {
+        guard let view = locatorResultScroll?.documentView as? MergeTextView else { return false }
+        return view.window != nil && view.window === window && view.model === self && view.mergeEditable && view.mergeSourceRowsReady && applyAlignedSourceBlock != nil && applyBlock != nil
+    }
+    fileprivate func nativeEditorDidUpdate(_ view: MergeTextView) {
+        let stamp = nativeEditorReady ? NativeEditorStamp(view:ObjectIdentifier(view),generation:loadGeneration,layout:sourceLayoutRevision,presentation:resultPresentationRevision) : nil
+        guard lastNativeEditorStamp != stamp else { return }; lastNativeEditorStamp = stamp
+        // AppKit updates during a SwiftUI render cannot publish synchronously.
+        DispatchQueue.main.async { [weak self] in guard let self, !self.retired else { return }; self.objectWillChange.send() }
+    }
+    var sourceOperationsAllowed: Bool { !patchResultCompleted && !retired && !busy && !preparing && !formatPending && !confirmingQuit && !exportingSource && window?.attachedSheet == nil && document != nil }
+    var sourceToolsAllowed: Bool { sourceOperationsAllowed && (!requiresNativeEditor || nativeEditorReady) }
     func exportSource(mine: Bool) {
         guard sourceToolsAllowed, let window, let document, let sourceComparison else { return }
         do {
@@ -534,7 +555,8 @@ private enum MergeSourceSide {
     }
     private var savedIgnoredConflicts: [IgnoredMergeConflict] = []
     private var savedSourceChoiceRevision: UInt64 = 0
-    @Published private(set) var resultPresentation = MergeResultPresentation(text: "", states: [])
+    private(set) var resultPresentationRevision = 0
+    @Published private(set) var resultPresentation = MergeResultPresentation(text: "", states: []) { didSet { resultPresentationRevision &+= 1 } }
     @Published var result = "" { didSet { if !resultPresentation.text.utf8.elementsEqual(result.utf8) { resultPresentation = resultPresentation.reconciling(result) } } }
     var resultStates: [MergeSourceState] { resultPresentation.states(conflicts: blocks.map(\.range)) }
     private var alignedResultCache: (generation: Int, presentation: MergeResultPresentation, projection: MergeAlignedResultProjection?)?
@@ -871,7 +893,7 @@ private enum MergeSourceSide {
         }
         guard !retired, generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
-        resetHistory()
+        resetHistory(); canUndo = false; canRedo = false
         document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, states: comparison.resultLocator?.states ?? [], foldAnchors: .init(offsets: comparison.resultAnchors), ignoredConflicts: comparison.ignoredConflicts, navigationMap: comparison.navigationMap).reconciling(next.initialResult); result = next.initialResult; encoding = next.encoding
         savedIgnoredConflicts = resultPresentation.ignoredConflicts
         savedSourceChoiceRevision = resultPresentation.sourceChoiceRevision
@@ -978,7 +1000,7 @@ private enum MergeSourceSide {
         guard let range else { return nil }
         return blocks.firstIndex { NSIntersectionRange($0.range,range).length > 0 || range.length == 0 && NSLocationInRange(range.location,$0.range) }
     }
-    var canChooseConflict: Bool { !blocks.isEmpty && (!navigationOwnsChoice || conflictIndex(in:navigationChoiceRange) != nil) }
+    var canChooseConflict: Bool { sourceToolsAllowed && !blocks.isEmpty && (!navigationOwnsChoice || conflictIndex(in:navigationChoiceRange) != nil) }
     fileprivate func selectMargin(in active: MergeTextView, rows:Range<Int>, selection:NSRange, caret:Int) {
         guard sourceToolsAllowed, active.mergeSourceRowsReady, let activeBlock = navigationRange(rows:rows,in:active), NSMaxRange(selection) <= active.string.utf16.count else { return }
         selectingNavigationBlock = true
@@ -1076,7 +1098,7 @@ private enum MergeSourceSide {
         catch { self.error = error.localizedDescription }
     }
     fileprivate func useFile(_ side: MergeSourceSide) {
-        guard !busy, !confirmingQuit, let document else { return }
+        guard sourceToolsAllowed, let document else { return }
         if let comparison = sourceComparison, !comparison.rows.isEmpty,
            let command = sourceBlockCommand(rows:0..<comparison.rows.count,choice:side == .mine ? .mine : .theirs), command.aligned != nil {
             performSourceBlock(command); selectedConflict = 0; return
@@ -1315,8 +1337,8 @@ private struct TextConflictDialog: View {
                 HStack {
                     Text(model.blocks.isEmpty ? (MergeText.hasMarkers(model.result) ? "Incomplete conflict markers" : "No remaining conflicts") : "\(model.blocks[min(model.selectedConflict,model.blocks.count - 1)].isIgnored ? "Ignored conflict" : "Conflict") \(min(model.selectedConflict + 1, model.blocks.count)) of \(model.blocks.count)").foregroundStyle(model.blocks.isEmpty ? Color.secondary : .red)
                     Spacer()
-                    Button { model.undo() } label: { CommandLabel(title: "Undo", icon: .mergeUndo) }.keyboardShortcut("z", modifiers: .command).disabled(!model.canUndo)
-                    Button { model.redo() } label: { CommandLabel(title: "Redo", icon: .mergeRedo) }.keyboardShortcut("z", modifiers: [.command, .shift]).disabled(!model.canRedo)
+                    Button { model.undo() } label: { CommandLabel(title: "Undo", icon: .mergeUndo) }.keyboardShortcut("z", modifiers: .command).disabled(!model.sourceToolsAllowed || !model.canUndo)
+                    Button { model.redo() } label: { CommandLabel(title: "Redo", icon: .mergeRedo) }.keyboardShortcut("z", modifiers: [.command, .shift]).disabled(!model.sourceToolsAllowed || !model.canRedo)
                     Menu("Use text block") {
                         ForEach(MergeBlockChoice.allCases, id: \.self) { choice in Button { model.choose(choice) } label: { CommandLabel(title: choice.rawValue, icon: choice.icon) } }
                     }.disabled(!model.canChooseConflict)
@@ -1396,6 +1418,10 @@ private struct MergeEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? MergeTextView else { return }
+        // Use a single current model generation rather than a queued View value
+        // paired with newer source maps after rapid edits or Undo/Redo.
+        let sourceCells = editable ? model.alignedResultProjection?.cells : sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.mine : $0.theirs } } ?? self.sourceCells
+        let text = editable ? model.resultDisplayText : sourceCells.map { $0.map(\.displayText).joined(separator:"\n") + ($0.isEmpty ? "" : "\n") } ?? self.text
         view.backgroundColor = MergePalette.color(MergeSourceState.normal)
         view.insertionPointColor = MergePalette.foreground(.normal)
         view.font = model.generalPreferences.nativeFont
@@ -1404,7 +1430,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.setMergeTabWidth(tabWidth)
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
-        view.isEditable = editable && model.sourceToolsAllowed; view.model = model
+        view.isEditable = editable && model.sourceOperationsAllowed; view.model = model
         view.mergeFindController?.updateGates()
         if view.blockGeneration != model.navigationGeneration {
             view.blockSelection.clear(in:view); view.invalidateNavigationRevision(); view.blockGeneration = model.navigationGeneration
@@ -1447,7 +1473,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.foldLayout.apply(to: view, controller: editable ? model.resultFolding : model.folding)
         model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport() }
         model.lineWrapping.update(scroll, key: label, aligned: sourceCells != nil, enabled: model.wrapLines)
-        view.sourceCells = sourceCells; view.sourceLayoutRevision = model.sourceLayoutRevision
+        view.sourceCells = sourceCells; view.sourceLayoutRevision = model.sourceLayoutRevision; view.resultPresentationRevision = model.resultPresentationRevision
         let other = sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.theirs : $0.mine } }
         view.whitespaceRenderer.update(text: text, cells: sourceCells, otherCells: other, preferences: model.whitespaceDisplay)
         view.whitespaceRenderer.removal = sourceSide == .theirs
@@ -1466,6 +1492,7 @@ private struct MergeEditor: NSViewRepresentable {
         }
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
         scroll.verticalRulerView?.needsDisplay = true
+        if editable { model.nativeEditorDidUpdate(view) }
     }
     func makeCoordinator() -> Coordinator { Coordinator(model: model, editable: editable) }
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
@@ -1530,7 +1557,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     var navigationPending = false
     @objc private func expandFoldedSection(_ sender: Any?) { _ = foldLayout.expandSelection(in: self) }
     var navigationCells: [MergeSourceCell]? { sourceCells }
-    var mergeSourceRowsReady:Bool { sourceCells == nil || sourceLayoutRevision == model?.sourceLayoutRevision }
+    var mergeSourceRowsReady:Bool { (sourceCells == nil || sourceLayoutRevision == model?.sourceLayoutRevision) && (!mergeEditable || resultPresentationRevision == model?.resultPresentationRevision) }
     var navigationAllowed: Bool { model?.sourceToolsAllowed == true && mergeSourceRowsReady }
     private(set) var navigationIntentRevision = 0
     func invalidateNavigationRevision() { navigationIntentRevision &+= 1 }
@@ -1571,6 +1598,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     var sourceSide: MergeSourceSide?
     var sourceCells: [MergeSourceCell]?
     var sourceLayoutRevision = -1
+    var resultPresentationRevision = -1
     let mergeFindHighlights = MergeFindHighlights()
     var mergeFindController: MergeFindWindowController?
     var mergeFindDefaults: UserDefaults { model?.comparisonDefaults ?? .standard }
@@ -1745,7 +1773,11 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     }
     private let mergeUndoManager: UndoManager = { let value = UndoManager(); value.groupsByEvent = false; return value }()
     override var undoManager: UndoManager? { mergeEditable ? mergeUndoManager : super.undoManager }
-    func updateUndoState() { model?.canUndo = mergeUndoManager.canUndo; model?.canRedo = mergeUndoManager.canRedo }
+    func updateUndoState() {
+        guard let model else { return }
+        if model.canUndo != mergeUndoManager.canUndo { model.canUndo = mergeUndoManager.canUndo }
+        if model.canRedo != mergeUndoManager.canRedo { model.canRedo = mergeUndoManager.canRedo }
+    }
     var historyAllowed:Bool { isEditable && mergeEditable && mergeSourceRowsReady && model?.sourceToolsAllowed == true }
     func undoMergeEdit() { guard historyAllowed else { return }; if mergeUndoManager.canUndo { beginUserNavigation(); mergeUndoManager.undo() }; updateUndoState() }
     func redoMergeEdit() { guard historyAllowed else { return }; if mergeUndoManager.canRedo { beginUserNavigation(); mergeUndoManager.redo() }; updateUndoState() }
@@ -1763,9 +1795,30 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     func installResultView() {
         guard let model else { return }
         let projection = model.alignedResultProjection
-        sourceCells = projection?.cells; sourceLayoutRevision = model.sourceLayoutRevision
+        isEditable = mergeEditable && model.sourceOperationsAllowed
+        foldLayout.prepare(self)
+        textStorage?.beginEditing()
+        sourceCells = projection?.cells; sourceLayoutRevision = model.sourceLayoutRevision; resultPresentationRevision = model.resultPresentationRevision
         string = projection?.displayText ?? model.result
-        enclosingScrollView?.verticalRulerView?.needsDisplay = true
+        let entire = NSRange(location:0,length:string.utf16.count)
+        textStorage?.addAttributes([.foregroundColor:MergePalette.foreground(.normal), .backgroundColor:MergePalette.color(.normal), .font:model.generalPreferences.nativeFont, .paragraphStyle:defaultParagraphStyle ?? NSParagraphStyle.default],range:entire)
+        let states = sourceCells?.map(\.state) ?? model.resultStates
+        for (index,range) in MergeLineEndings.lineRanges(in:string).enumerated() where states.indices.contains(index) {
+            textStorage?.addAttributes([.foregroundColor:MergePalette.foreground(states[index]), .backgroundColor:MergePalette.color(states[index])],range:range)
+        }
+        model.updateFolding(); foldLayout.apply(to:self,controller:model.resultFolding)
+        textStorage?.endEditing()
+        whitespaceRenderer.update(text:string,cells:sourceCells,otherCells:nil,preferences:model.whitespaceDisplay)
+        whitespaceRenderer.highlightEndings = model.showInlineDiff
+        if let scroll = enclosingScrollView {
+            model.lineWrapping.update(scroll,key:accessibilityLabel() ?? "Merged",aligned:sourceCells != nil,enabled:model.wrapLines)
+            if let ruler = scroll.verticalRulerView as? MergeLineRuler {
+                ruler.sourceNumbers = sourceCells?.map(\.lineNumber)
+                let records = sourceCells ?? zip(MergeRegexFilters.lines(string),model.resultStates).enumerated().map { MergeSourceCell(text:$0.element.0,lineNumber:$0.offset + 1,state:$0.element.1) }
+                ruler.updateRecords(records,peers:nil); ruler.updateMetrics(for:self); ruler.needsDisplay = true
+            }
+        }
+        model.nativeEditorDidUpdate(self); needsDisplay = true
     }
     func replaceAlignedRange(_ range:NSRange,with replacement:String,actionName:String) {
         guard isEditable, let model, model.sourceToolsAllowed, let comparison = model.sourceComparison else { return }
@@ -1841,7 +1894,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if mergeEditable { (window as? TextConflictNSWindow)?.mergedText = self }
+        if mergeEditable { (window as? TextConflictNSWindow)?.mergedText = self; model?.nativeEditorDidUpdate(self) }
     }
     func selectContextBlock(at displayOffset: Int) {
         beginUserNavigation()
@@ -1897,7 +1950,8 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
             let useFile = NSMenuItem(title: "Use this whole file", action: #selector(useSourceFile(_:)), keyEquivalent: "")
             editingItem("Save this pane as…", #selector(saveSourceAs(_:)), MenuIcon.mergeSaveAs.contextImage(defaults: defaults), model?.sourceToolsAllowed == true)
             editingItem("Compare with Base", #selector(compareSourceWithBase(_:)), MenuIcon.compare.contextImage(defaults: defaults), model?.sourceToolsAllowed == true)
-            useFile.target = self; useFile.isEnabled = model?.document != nil && model?.busy == false && model?.confirmingQuit == false; useFile.image = sourceSide.icon.contextImage(defaults: defaults); menu.addItem(useFile)
+            let wholeCommand = model?.sourceComparison.flatMap { comparison in model?.sourceBlockCommand(rows:comparison.rows.indices,choice:sourceSide == .mine ? .mine : .theirs) }
+            useFile.target = self; useFile.representedObject = wholeCommand; useFile.isEnabled = wholeCommand != nil; useFile.image = sourceSide.icon.contextImage(defaults: defaults); menu.addItem(useFile)
         }
         guard mergeEditable, let model else { return menu }
         menu.addItem(.separator())
@@ -1961,7 +2015,10 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
             return mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && MergeLineEnding.allCases.indices.contains(menuItem.tag)
         }
         if menuItem.action == #selector(saveSourceAs(_:)) || menuItem.action == #selector(compareSourceWithBase(_:)) { return sourceSide != nil && model?.sourceToolsAllowed == true }
-        if menuItem.action == #selector(useSourceFile(_:)) { return sourceSide != nil && model?.document != nil && model?.busy == false && model?.confirmingQuit == false }
+        if menuItem.action == #selector(useSourceFile(_:)) {
+            guard sourceSide != nil, let command = menuItem.representedObject as? TextConflictWindowModel.SourceBlockCommand else { return false }
+            return model?.canPerformSourceBlock(command) == true
+        }
         if menuItem.action == #selector(useBlock(_:)) {
             guard mergeEditable, isEditable, let command = menuItem.representedObject as? TextConflictWindowModel.SourceBlockCommand else { return false }
             return model?.canPerformSourceBlock(command) == true
@@ -1971,8 +2028,8 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeL
     @objc private func saveSourceAs(_ sender: Any?) { guard let sourceSide else { return }; model?.exportSource(mine: sourceSide == .mine) }
     @objc private func compareSourceWithBase(_ sender: Any?) { guard let sourceSide else { return }; model?.compareSourceWithBase(mine: sourceSide == .mine) }
     @objc private func useSourceFile(_ sender: NSMenuItem) {
-        guard let sourceSide else { return }
-        model?.useFile(sourceSide)
+        guard sourceSide != nil, let command = sender.representedObject as? TextConflictWindowModel.SourceBlockCommand else { return }
+        model?.performSourceBlock(command)
     }
     @objc private func changeEncoding(_ sender: NSMenuItem) {
         guard mergeEditable, isEditable, ComparisonTextEncoding.allCases.indices.contains(sender.tag) else { return }
