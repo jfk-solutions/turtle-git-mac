@@ -30,7 +30,7 @@ import TurtleGitCore
         prefs.set(false, forKey: "RevertWithRecycleBin"); defer { prefs.removePersistentDomain(forName: suite) }
         var owners: [RevisionComparisonWindowController] = []; defer { owners.forEach { $0.close() } }
         func make(_ repository: GitRepository, from: ComparisonRevision, to: ComparisonRevision) -> RevisionComparisonWindowController {
-            let owner = RevisionComparisonWindowController(repository: repository, access: nil, from: from, to: to, preferences: prefs)
+            let owner = RevisionComparisonWindowController(repository: repository, access: nil, from: from, to: to, preferences: prefs,savesGeometry:false)
             owners.append(owner); owner.window?.alphaValue = 0; owner.window?.orderFront(nil); owner.model.load(); return owner
         }
         func ready(_ model: RevisionComparisonWindowModel) async throws { try await wait { !model.busy && RevisionComparisonWindowModel.activeFileOperations == 0 } }

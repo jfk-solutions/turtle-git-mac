@@ -238,7 +238,7 @@ import TurtleGitCore
         try require(opened.isEmpty && workspace.error == nil, "Closed source read published a viewer/error")
         // A child viewer also owns and cancels its historical blob read.
         try FileManager.default.removeItem(at: marker)
-        let blobScript = "#!/bin/sh\nif [ \"$4\" = ls-tree ]; then\n /usr/bin/touch " + quote(marker.path) + "\n while :; do /bin/sleep 1; done\nfi\nexec " + quote(executable.path) + " \"$@\"\n"
+        let blobScript = "#!/bin/sh\nif [ \"$4\" = -c ] && [ \"$5\" = core.precomposeunicode=false ] && [ \"$6\" = ls-tree ]; then\n /usr/bin/touch " + quote(marker.path) + "\n while :; do /bin/sleep 1; done\nfi\nexec " + quote(executable.path) + " \"$@\"\n"
         try Data(blobScript.utf8).write(to: wrapper)
         let snapshot = try await repo.revisionFileComparison(from: .revision("HEAD"), to: .workingTree, paths: [paths[0]])
         let viewer = FileComparisonWindowModel(repository: GitRepository(root: root, executable: wrapper), access: nil, snapshot: snapshot, path: paths[0])
@@ -283,7 +283,7 @@ import TurtleGitCore
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
     @MainActor static func verifyRevisionControls(repo: GitRepository, prefs: UserDefaults) async throws {
         let helper = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
-        let controller = RevisionComparisonWindowController(repository: repo, access: nil, from: .revision("HEAD"), to: .workingTree, preferences: prefs, historyRegexExecutable: helper)
+        let controller = RevisionComparisonWindowController(repository: repo, access: nil, from: .revision("HEAD"), to: .workingTree, preferences: prefs, historyRegexExecutable: helper, savesGeometry: false)
         defer { controller.close() }; controller.window!.alphaValue = 0; controller.showWindow(nil)
         let model = controller.model; model.load()
         try await wait { !model.busy && model.snapshot != nil }
@@ -383,7 +383,7 @@ import TurtleGitCore
         for path in ["modified","dir/nested","added"] {try Data("new\n".utf8).write(to:root.appendingPathComponent(path))}
         try await repo.stage(["modified","dir/nested","added"]);_ = try await repo.commit(message:"changes")
         let tip=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
-        let owner=RevisionComparisonWindowController(repository:repo,access:RepositoryAccessLease(url:root),from:.revision(base),to:.revision(tip),preferences:prefs),model=owner.model
+        let owner=RevisionComparisonWindowController(repository:repo,access:RepositoryAccessLease(url:root),from:.revision(base),to:.revision(tip),preferences:prefs,savesGeometry:false),model=owner.model
         owner.window!.alphaValue=0;model.confirmManyDiffs={_ in true};owner.showWindow(nil);model.load();try await wait{!model.busy && model.snapshot != nil};defer{owner.close()}
         let stale=model.captureFileMenu(["modified"]);model.from="HEAD~1"
         try require(!model.claimFileMenu(stale),"Old file menu accepted changed revision input");model.from=base
@@ -421,7 +421,7 @@ import TurtleGitCore
         let gate=root.appendingPathComponent(".git/action-gate"),ready=root.appendingPathComponent(".git/action-ready"),release=root.appendingPathComponent(".git/action-release"),helper=root.appendingPathComponent(".git/action-git")
         let script="""
         #!/bin/sh
-        if [ "$4" = checkout ] && [ -f \(quote(gate.path)) ];then
+        if [ "$4" = -c ] && [ "$5" = core.precomposeunicode=false ] && [ "$6" = checkout ] && [ -f \(quote(gate.path)) ];then
           : > \(quote(ready.path))
           while [ ! -f \(quote(release.path)) ];do /bin/sleep 0.02;done
         fi
@@ -430,7 +430,7 @@ import TurtleGitCore
         try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
         for forced in [false,true] {
             for file in [gate,ready,release]{try? FileManager.default.removeItem(at:file)}
-            let child=RevisionComparisonWindowController(repository:GitRepository(root:root,executable:helper),access:RepositoryAccessLease(url:root),from:.revision(base),to:.revision(tip),preferences:prefs)
+            let child=RevisionComparisonWindowController(repository:GitRepository(root:root,executable:helper),access:RepositoryAccessLease(url:root),from:.revision(base),to:.revision(tip),preferences:prefs,savesGeometry:false)
             child.window!.alphaValue=0;child.showWindow(nil);child.model.load();try await wait{!child.model.busy && child.model.snapshot != nil};defer{child.close()}
             var results=0;child.model.fileActionNotice={_ in results += 1}
             try Data().write(to:gate);child.model.revertFiles(["modified"],base:true);try await wait{FileManager.default.fileExists(atPath:ready.path)}

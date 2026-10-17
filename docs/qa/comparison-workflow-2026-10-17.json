@@ -1,0 +1,181 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation_baseline": "d265e016",
+  "scope": "Connected Compare Revisions / Changed Files source controls, ranged history, exact path targeting and owned file operations.",
+  "source": [
+    "src/TortoiseProc/FileDiffDlg.cpp and IDD_DIFFFILES",
+    "src/Utils/MenuButton.cpp split-selector behavior",
+    "doc/images/en/CompareRevisions.png blob d0c367dfd37d9261ccbd0bb1f6e98e4753cad941"
+  ],
+  "implemented": [
+    "Compared base..destination Show log with owned standalone child lifetime and normal application routing",
+    "Native Diff Options hierarchy, checked states, original icons and one-use epoch-bound targets",
+    "Per-side RefBrowse/Log/RefLog split selectors retaining the last action",
+    "Encoded native row IDs with exact Git path selections, completions, copy/list/patch/compare targets and viewer caches",
+    "Source five-column captions and status foreground colors across cells with native selected-row contrast",
+    "Captured owner/epoch/selection/snapshot file menus and cancellation of obsolete preparation",
+    "Owned Save/Export/Open With/Save-list panel sessions and counted operation lifetimes through actual sheet release",
+    "Exact selected Revert/Export preflight and execution, raw packed-reference resolution, refusal of colliding local writes while permitting exact index-only removals"
+  ],
+  "core": [
+    {
+      "log": "build/qa/comparison-workflow-core-repair-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 41,
+      "scope": "RevisionComparisonTests 24, GitPathIdentityTests 15, ComparisonFileListTests 2"
+    },
+    {
+      "log": "build/qa/comparison-workflow-core-final-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 39,
+      "scope": "Affected comparison/path suites after allowing all-index-removal alias batches; the two unchanged list cases retain their prior pass"
+    },
+    {
+      "log": "build/qa/comparison-workflow-ci-cancellation-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 7,
+      "scope": "Seven related CommitHistoryTests cancellation helpers publish complete PID markers atomically"
+    }
+  ],
+  "distinct_core_cases": 48,
+  "native": [
+    {
+      "log": "build/qa/comparison-workflow-native-sheet-cancel-2026-10-17.log",
+      "exit_code": 0,
+      "combinations": 2,
+      "scope": "New comparison workflow with system and bundled Git; actual owned Save/Export/Open With cancellation and retirement, exact native selection/copy/viewer caches, menus, split-selector dispatch and compared-range Log; unchanged HEAD/index"
+    },
+    {
+      "log": "build/qa/comparison-workflow-retained-2026-10-17.log",
+      "exit_code": 1,
+      "passed_combinations": 4,
+      "scope": "Recovery and Rebase embedded file lists passed with both engines. The remaining launch fixture timed out before its delayed blob marker because its wrapper still expected ls-tree at argument 4."
+    },
+    {
+      "log": "build/qa/comparison-workflow-retained-prefix-2026-10-17.log",
+      "exit_code": 0,
+      "combinations": 2,
+      "scope": "Retained complete launch/Changed Files controls and actions with system and bundled Git after correcting both delayed helper prefixes. Actual started-read cancellation, protected checkout requested/forced-close drain and repository preservation assertions passed."
+    }
+  ],
+  "failed_attempts": [
+    {
+      "log": "build/qa/comparison-workflow-core-2026-10-17.log",
+      "scope": "Compile error: HistoryRevisionRange initializer is nonoptional; fixed call site before executing Core cases"
+    },
+    {
+      "log": "build/qa/comparison-workflow-native-2026-10-17.log",
+      "scope": "Fixture momentary selector repeat did not dispatch"
+    },
+    {
+      "log": "build/qa/comparison-workflow-native-repair-2026-10-17.log",
+      "scope": "Fixture assumed programmatic setSelected affected a momentary selector; changed to its actual target dispatcher"
+    },
+    {
+      "logs": [
+        "build/qa/comparison-workflow-native-final-2026-10-17.log",
+        "build/qa/comparison-workflow-native-owner-2026-10-17.log",
+        "build/qa/comparison-workflow-native-attachment-2026-10-17.log"
+      ],
+      "scope": "Save sheet did not attach after direct controller closure of preceding Log picker. Added selection/attachment diagnostics and used the normal Log Cancel action. Kept actual Save sheet attachment assertions."
+    },
+    {
+      "log": "build/qa/comparison-workflow-retained-launch-2026-10-17.log",
+      "scope": "After fixing the delayed ls-tree prefix, the protected-checkout wrapper still expected checkout at argument 4. Corrected the -c configuration prefix; preserved started-write and close/drain assertions."
+    }
+  ],
+  "hosted_ci": {
+    "failed_run": 39026026679,
+    "head": "f34b33db",
+    "core_cases": 1739,
+    "skipped": 2,
+    "failures": 1,
+    "failure": "CommitHistoryTests.testDetailCancellationStopsOwnedStatisticsReadAndLeavesOtherReaderAndIndexIntact observed empty PID marker",
+    "repair": "Seven helpers write to a temporary file and atomically rename the complete PID marker; cancellation/reaping assertions retained",
+    "latest_inspected_run": 39029102213,
+    "latest_inspected_head": "d265e016",
+    "latest_inspected_status": "in_progress",
+    "pages_run": 39029102015,
+    "pages_conclusion": "success",
+    "full_success_not_established": true
+  },
+  "captures": {
+    "files": [
+      "docs/site/assets/comparison-workflow-light.png",
+      "docs/site/assets/comparison-workflow-dark.png"
+    ],
+    "pixels": [
+      2000,
+      1464
+    ],
+    "reviewed": true,
+    "observations": "Source toolbar, grouped revision fields, RefBrowse split selectors, filter, five columns and status colors retained. Native chrome/group spacing and count/View Patch footer differ. Controlled Unicode-pair fixture and inactive native selection do not certify all visual states."
+  },
+  "limits": [
+    "Physical mouse/keyboard/popup and splitter gestures",
+    "VoiceOver and complete accessibility",
+    "Signed sandbox grants, installed Finder integration and actual external application handoffs",
+    "All source comparison variants and complete dialog parity",
+    "Filesystem case-folding and alias behavior beyond the explicit destination-collision checks",
+    "Successful complete hosted CI and signed distribution are still unverified"
+  ],
+  "distinct_native_combinations": 8,
+  "builds": [
+    {
+      "log": "build/qa/comparison-workflow-build-checkpoint-2026-10-17.log",
+      "exit_code": 0
+    },
+    {
+      "log": "build/qa/comparison-workflow-build-owner-2026-10-17.log",
+      "terminal_observation": "No build process remains; original shell exit status unavailable. Subsequent passing native receivers consumed the current app/Core objects through native_receiver freshness checks."
+    }
+  ],
+  "diagnostics": [
+    "The retained launch fixtures emit zero-size two-pane NSSplitView layout warnings also recorded before this batch. Native assertions pass; this batch does not establish a production cause or resolution."
+  ],
+  "cleanup": {
+    "owned_receivers": [
+      35475,
+      36155,
+      37637,
+      38100,
+      38367,
+      38593,
+      38772,
+      38964,
+      39063,
+      39173,
+      39366,
+      39573,
+      39781,
+      40150,
+      40765
+    ],
+    "independent_ps_check": "All listed owned receiver PIDs absent after terminal results. No active native QA receiver, test runner or owned slow-Git wrapper remains.",
+    "live_owned_pids": []
+  },
+  "validation": {
+    "localizations": {
+      "languages": 38,
+      "safe_keys": 1240,
+      "check": "passed"
+    },
+    "dialog_inventory": {
+      "dialogs": 130,
+      "partial": 120,
+      "pending": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1566,
+      "pending_controls": 93
+    },
+    "yaml_parse": "passed",
+    "git_diff_check": "passed",
+    "site": {
+      "documents": 273,
+      "unresolved_fragments": [],
+      "log": "build/qa/comparison-workflow-site-2026-10-17.log",
+      "exit_code": 0
+    }
+  }
+}

@@ -88,3 +88,9 @@ Grouped native evidence and limits: [tool-selection batch](qa/comparison-tool-fa
 Core engine behavior is unchanged; no Core suite was repeated for these native
 routing changes. Physical Shift/menu gestures, actual third-party application
 activation, signed grants and all-dialog parity remain separate acceptance work.
+
+
+[Changed Files workflow parity](COMPARE-WORKFLOW-PARITY.md) continues the native
+comparison controls, exact file selections/caches, compared-range Log routing,
+owned Save/Export/Open With/list panels and exact Revert/Export backends. Its
+grouped evidence and explicit acceptance limits supplement this family.

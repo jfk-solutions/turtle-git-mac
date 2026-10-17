@@ -1619,6 +1619,7 @@ import UniformTypeIdentifiers
             self?.refreshRepositoryLogs(repository.root);self?.statusWindows[repository.root.path]?.model.requestReload();self?.commitWindows[repository.root.path]?.model.reload()
             if self?.root==repository.root {Task{await self?.refresh()}}
         }
+        model.onLogRange = { [weak self] range in self?.showLog(repository:repository,access:access,paths:[],revisionRange:range) }
         model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
         model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
         model.onSubmoduleCompare = { [weak self] path, oldPath, old, new in

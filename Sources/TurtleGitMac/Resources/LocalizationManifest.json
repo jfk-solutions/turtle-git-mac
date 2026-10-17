@@ -1,14 +1,14 @@
 {
   "schema": 1,
   "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
-  "catalog_sha256": "cb5d3f87f064f0852b6a77866c4ffeffad8e8bddfb3ec1d1b8452f1a8ee40039",
-  "keys": 1242,
+  "catalog_sha256": "9b7d25c785f35511792f9ecc0c54dfc9c5c3aa40720bfaaf479a06aec37a6157",
+  "keys": 1240,
   "languages": [
     {
       "id": "bg",
       "source": "Languages/Tortoise_bg.po",
       "blob": "6aa521fc86d45a9008101feb887a1fed1b48c5d7",
-      "translated_keys": 603,
+      "translated_keys": 602,
       "ambiguous_keys_skipped": 16,
       "formatted_entries_skipped": 144
     },
@@ -16,7 +16,7 @@
       "id": "ca",
       "source": "Languages/Tortoise_ca.po",
       "blob": "cff9f98797dd8aa093864e9f6c21eeb1db923d50",
-      "translated_keys": 1170,
+      "translated_keys": 1168,
       "ambiguous_keys_skipped": 31,
       "formatted_entries_skipped": 284
     },
@@ -24,7 +24,7 @@
       "id": "cs",
       "source": "Languages/Tortoise_cs.po",
       "blob": "2ac7817c8cf8e8bc3c554bef7442d17915e41cbd",
-      "translated_keys": 1134,
+      "translated_keys": 1132,
       "ambiguous_keys_skipped": 20,
       "formatted_entries_skipped": 246
     },
@@ -40,7 +40,7 @@
       "id": "de",
       "source": "Languages/Tortoise_de.po",
       "blob": "ccabc4dfd31b7f687b19e16c538cff834977533c",
-      "translated_keys": 1221,
+      "translated_keys": 1219,
       "ambiguous_keys_skipped": 22,
       "formatted_entries_skipped": 288
     },
@@ -56,7 +56,7 @@
       "id": "es",
       "source": "Languages/Tortoise_es.po",
       "blob": "204f07036c526c2460df952b8a89e1f72eccbc0b",
-      "translated_keys": 1097,
+      "translated_keys": 1095,
       "ambiguous_keys_skipped": 49,
       "formatted_entries_skipped": 241
     },
@@ -64,7 +64,7 @@
       "id": "fa",
       "source": "Languages/Tortoise_fa.po",
       "blob": "9a007068d29320be2bcfb4b844ecfd2b0ee24ab7",
-      "translated_keys": 577,
+      "translated_keys": 576,
       "ambiguous_keys_skipped": 34,
       "formatted_entries_skipped": 98
     },
@@ -80,7 +80,7 @@
       "id": "fr",
       "source": "Languages/Tortoise_fr.po",
       "blob": "70fc13d85763d6d4b057f7ef4c59b76528d306c2",
-      "translated_keys": 1192,
+      "translated_keys": 1190,
       "ambiguous_keys_skipped": 37,
       "formatted_entries_skipped": 286
     },
@@ -96,7 +96,7 @@
       "id": "hu",
       "source": "Languages/Tortoise_hu.po",
       "blob": "4da53c31ab0d5a616fc120392bc60ed4289e205f",
-      "translated_keys": 596,
+      "translated_keys": 595,
       "ambiguous_keys_skipped": 15,
       "formatted_entries_skipped": 149
     },
@@ -104,7 +104,7 @@
       "id": "id",
       "source": "Languages/Tortoise_id.po",
       "blob": "9e8a1f704328d9a090973e064c0cea6a36c1ab09",
-      "translated_keys": 477,
+      "translated_keys": 476,
       "ambiguous_keys_skipped": 21,
       "formatted_entries_skipped": 138
     },
@@ -112,7 +112,7 @@
       "id": "it",
       "source": "Languages/Tortoise_it.po",
       "blob": "75430b313382bd762cd2c1fce7fdaaa6e0ac0402",
-      "translated_keys": 851,
+      "translated_keys": 850,
       "ambiguous_keys_skipped": 30,
       "formatted_entries_skipped": 199
     },
@@ -120,7 +120,7 @@
       "id": "ja",
       "source": "Languages/Tortoise_ja.po",
       "blob": "d6ab82ad5025d78ca808e8e794d5d284efafad1a",
-      "translated_keys": 1086,
+      "translated_keys": 1084,
       "ambiguous_keys_skipped": 126,
       "formatted_entries_skipped": 284
     },
@@ -128,7 +128,7 @@
       "id": "ko",
       "source": "Languages/Tortoise_ko.po",
       "blob": "19d09be9ad8f08a8ae29f7875d6f1544a8d36f3b",
-      "translated_keys": 939,
+      "translated_keys": 937,
       "ambiguous_keys_skipped": 122,
       "formatted_entries_skipped": 222
     },
@@ -144,7 +144,7 @@
       "id": "nl",
       "source": "Languages/Tortoise_nl.po",
       "blob": "0fe4934d8ac6fb572fc9edf97b7bb316ea641475",
-      "translated_keys": 1051,
+      "translated_keys": 1049,
       "ambiguous_keys_skipped": 23,
       "formatted_entries_skipped": 225
     },
@@ -160,7 +160,7 @@
       "id": "pl",
       "source": "Languages/Tortoise_pl.po",
       "blob": "e387c045ce15fb0ffd9e0f650daab2bbe4fce7c1",
-      "translated_keys": 994,
+      "translated_keys": 993,
       "ambiguous_keys_skipped": 31,
       "formatted_entries_skipped": 229
     },
@@ -168,7 +168,7 @@
       "id": "pt-BR",
       "source": "Languages/Tortoise_pt_BR.po",
       "blob": "b8bbc9f96d0bc434b840084bb3defbd1272f7e2f",
-      "translated_keys": 1205,
+      "translated_keys": 1203,
       "ambiguous_keys_skipped": 24,
       "formatted_entries_skipped": 286
     },
@@ -176,7 +176,7 @@
       "id": "pt-PT",
       "source": "Languages/Tortoise_pt_PT.po",
       "blob": "288407d8c45b344a820ce7699c5388c6a3a2e532",
-      "translated_keys": 562,
+      "translated_keys": 561,
       "ambiguous_keys_skipped": 24,
       "formatted_entries_skipped": 159
     },
@@ -184,7 +184,7 @@
       "id": "ro",
       "source": "Languages/Tortoise_ro.po",
       "blob": "3d6f5d0731aa2d7df5938bf9963feffd53bf6732",
-      "translated_keys": 1002,
+      "translated_keys": 1000,
       "ambiguous_keys_skipped": 13,
       "formatted_entries_skipped": 209
     },
@@ -192,7 +192,7 @@
       "id": "ru",
       "source": "Languages/Tortoise_ru.po",
       "blob": "b8404bef8342d742612a4ff1c71fac5f97f334bb",
-      "translated_keys": 1188,
+      "translated_keys": 1186,
       "ambiguous_keys_skipped": 34,
       "formatted_entries_skipped": 285
     },
@@ -216,7 +216,7 @@
       "id": "sq",
       "source": "Languages/Tortoise_sq.po",
       "blob": "e606714350fa046610ba1f15d8ef69432384402c",
-      "translated_keys": 392,
+      "translated_keys": 391,
       "ambiguous_keys_skipped": 16,
       "formatted_entries_skipped": 87
     },
@@ -232,7 +232,7 @@
       "id": "sr-Latn",
       "source": "Languages/Tortoise_sr@latin.po",
       "blob": "c80efa49106dca2e661454557bdfdc634d00f528",
-      "translated_keys": 589,
+      "translated_keys": 588,
       "ambiguous_keys_skipped": 33,
       "formatted_entries_skipped": 167
     },
@@ -240,7 +240,7 @@
       "id": "sv",
       "source": "Languages/Tortoise_sv.po",
       "blob": "bfeb15e5bdb9dc48b7c1e34d937de868addc58ee",
-      "translated_keys": 1016,
+      "translated_keys": 1014,
       "ambiguous_keys_skipped": 24,
       "formatted_entries_skipped": 217
     },
@@ -248,7 +248,7 @@
       "id": "ta",
       "source": "Languages/Tortoise_ta_IN.po",
       "blob": "6b6671d86587db9f6fc12f36a0a56d218a4ea624",
-      "translated_keys": 1179,
+      "translated_keys": 1177,
       "ambiguous_keys_skipped": 50,
       "formatted_entries_skipped": 286
     },
@@ -264,7 +264,7 @@
       "id": "tr",
       "source": "Languages/Tortoise_tr.po",
       "blob": "b9710895483df922e656396753b9eb1030a6ed4a",
-      "translated_keys": 738,
+      "translated_keys": 737,
       "ambiguous_keys_skipped": 34,
       "formatted_entries_skipped": 159
     },
@@ -272,7 +272,7 @@
       "id": "uk",
       "source": "Languages/Tortoise_uk.po",
       "blob": "37e589c44ec202a2540a86fda76fe51f3b41ec5d",
-      "translated_keys": 793,
+      "translated_keys": 792,
       "ambiguous_keys_skipped": 34,
       "formatted_entries_skipped": 184
     },
@@ -280,7 +280,7 @@
       "id": "vi",
       "source": "Languages/Tortoise_vi.po",
       "blob": "9c00367021c2191a61d58b849603e26e977b1ba0",
-      "translated_keys": 650,
+      "translated_keys": 649,
       "ambiguous_keys_skipped": 24,
       "formatted_entries_skipped": 162
     },
@@ -288,7 +288,7 @@
       "id": "zh-Hans",
       "source": "Languages/Tortoise_zh_CN.po",
       "blob": "5b8b8dfc6dfb605a92c4552dd90eb271b90491a5",
-      "translated_keys": 1097,
+      "translated_keys": 1095,
       "ambiguous_keys_skipped": 132,
       "formatted_entries_skipped": 286
     },
@@ -296,7 +296,7 @@
       "id": "zh-Hant",
       "source": "Languages/Tortoise_zh_TW.po",
       "blob": "9de4c85545f776b1da881f81438167caf2c54480",
-      "translated_keys": 1065,
+      "translated_keys": 1063,
       "ambiguous_keys_skipped": 122,
       "formatted_entries_skipped": 284
     }

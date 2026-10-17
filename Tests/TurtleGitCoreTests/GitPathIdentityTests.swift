@@ -244,6 +244,66 @@ final class GitPathIdentityTests: XCTestCase {
         let targets = try await repo.prepareLogFileRevert(row,files:[selected],parent:false)
         XCTAssertEqual(targets.count,1); XCTAssertTrue(GitReferenceName.equal(targets[0].path,a))
     }
+    func testChangedFilesExactSelectionRevertExportAndPackedReferences() async throws {
+        let (root,repo,normal) = try await GitPatchTests().fixture()
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:root); try? FileManager.default.removeItem(at:folder) }
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        _ = try await repo.run(["config","core.precomposeunicode","true"])
+        let a = "café.txt", b = "cafe\u{301}.txt"
+        func blob(_ text:String) async throws -> String { try await repo.run(["hash-object","-w","--stdin"],input:Data(text.utf8)).text.trimmingCharacters(in:.newlines) }
+        let old = try await blob("base\n"), new = try await blob("new\n")
+        _ = try await repo.run(["update-index","-z","--index-info"],input:Data([a,b].map {"100644 \(old)\t\($0)\0"}.joined().utf8))
+        _ = try await repo.commit(message:"pair base")
+        let base = try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["update-index","-z","--index-info"],input:Data([a,b].map {"100644 \(new)\t\($0)\0"}.joined().utf8))
+        _ = try await repo.commit(message:"pair tip")
+        let tip = try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let beforeNormal = try Data(contentsOf:root.appendingPathComponent(normal))
+        let snapshot = try await repo.revisionComparison(from:.revision(base),to:.revision(tip))
+        let files = snapshot.files.filter { GitPathSet([a,b]).contains($0.path) }
+        XCTAssertEqual(files.count,2)
+        do { _ = try await repo.prepareComparisonRevertBatch(snapshot,files:files,base:true); XCTFail("Two local aliases accepted for restore") }
+        catch RevisionComparisonFailure.localPathCollision {}
+        do { _ = try await repo.prepareComparisonExport(snapshot,files:files,to:folder); XCTFail("Two local aliases accepted for export") }
+        catch WorkingFileExportFailure.collision {}
+        let selected = try XCTUnwrap(files.first { GitReferenceName.equal($0.path,b) })
+        let batch = try await repo.prepareComparisonRevertBatch(snapshot,files:[selected],base:true)
+        let target = try await repo.prepareComparisonRevertFile(batch,file:selected)
+        XCTAssertTrue(GitReferenceName.equal(target.path,b))
+        _ = try await repo.revertComparisonFile(target,recycle:false)
+        var index = try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertTrue(index.split(separator:0).contains { $0.elementsEqual(Data("100644 \(new) 0\t\(a)".utf8)) })
+        XCTAssertTrue(index.split(separator:0).contains { $0.elementsEqual(Data("100644 \(old) 0\t\(b)".utf8)) })
+        let export = try await repo.prepareComparisonExport(snapshot,files:[selected],to:folder)
+        do { try await repo.exportComparisonFile(export,path:a); XCTFail("Unselected canonical export neighbor accepted") }
+        catch RevisionComparisonFailure.selection {}
+        try await repo.exportComparisonFile(export,path:b)
+        XCTAssertEqual(try Data(contentsOf:folder.appendingPathComponent(b)),Data("new\n".utf8))
+        let added = try await repo.revisionComparison(from:.emptyTree,to:.revision(tip))
+        let unstage = try XCTUnwrap(added.files.first { GitReferenceName.equal($0.path,b) })
+        let removeBatch = try await repo.prepareComparisonRevertBatch(added,files:[unstage],base:true)
+        let removal = try await repo.prepareComparisonRevertFile(removeBatch,file:unstage)
+        _ = try await repo.revertComparisonFile(removal,recycle:false)
+        index = try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertTrue(index.split(separator:0).contains { $0.elementsEqual(Data("100644 \(new) 0\t\(a)".utf8)) })
+        XCTAssertFalse(index.split(separator:0).contains { $0.suffix(b.utf8.count).elementsEqual(b.utf8) })
+        let removals = added.files.filter { GitPathSet([a,b]).contains($0.path) }
+        let removeBoth = try await repo.prepareComparisonRevertBatch(added,files:removals,base:true)
+        for file in removeBoth.files {
+            let target = try await repo.prepareComparisonRevertFile(removeBoth,file:file)
+            _ = try await repo.revertComparisonFile(target,recycle:false)
+        }
+        index = try await repo.run(["ls-files","--stage","-z"]).stdout
+        for path in [a,b] { XCTAssertFalse(index.split(separator:0).contains { $0.suffix(path.utf8.count).elementsEqual(path.utf8) }) }
+        let ra = "refs/tags/café", rb = "refs/tags/cafe\u{301}"
+        let records = [(ra,base),(rb,tip)].sorted { $0.0.utf8.lexicographicallyPrecedes($1.0.utf8) }
+        try Data(("# pack-refs with: sorted\n" + records.map { $0.1+" "+$0.0+"\n" }.joined()).utf8).write(to:root.appendingPathComponent(".git/packed-refs"))
+        let named = try await repo.revisionComparison(from:.revision(ra),to:.revision(rb))
+        XCTAssertEqual(named.from,.revision(base)); XCTAssertEqual(named.to,.revision(tip))
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(normal)),beforeNormal)
+        let head = try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines); XCTAssertEqual(head,tip)
+    }
     func testCheckedOperationOrderIsOrdinalAndPreservesDistinctGitNames() {
         let a = "café",b = "cafe\u{301}"
         let result = GitPathOperationOrder.sorted(["file2","B","a","file10","A",a,b,"B"])

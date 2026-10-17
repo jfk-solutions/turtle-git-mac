@@ -1694,15 +1694,20 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/COMPARE-WORKFLOW-PARITY.md",
         "docs/LOG-PARITY.md",
-        "docs/SUBMODULE-DIFF-PARITY.md"
+        "docs/SUBMODULE-DIFF-PARITY.md",
+        "docs/UI-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/branch-revision-number-2026-10-08.json",
         "docs/qa/changed-files-actions-2026-10-15.json",
         "docs/qa/changed-files-recovery-2026-10-16.json",
         "docs/qa/ci-compatibility-2026-10-10.json",
+        "docs/qa/comparison-workflow-2026-10-17.json",
         "docs/qa/dialog-captures-2026-10-10.json",
+        "docs/qa/dialog-geometry-2026-10-08.json",
+        "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/followed-history-2026-10-15.json",
         "docs/qa/historical-export-2026-10-05.json",
         "docs/qa/historical-save-2026-10-05.json",
@@ -1771,11 +1776,15 @@
         "docs/qa/log-tag-dates-2026-10-06.json",
         "docs/qa/log-tag-search-2026-10-06.json",
         "docs/qa/log-working-commands-2026-10-15.json",
+        "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/prepared-submodule-2026-10-16.json",
         "docs/qa/primary-live-presentation-2026-10-16.json",
+        "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/repository-presentation-2026-10-15.json",
+        "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/shared-unversioned-2026-10-07.json",
         "docs/qa/submodule-handoffs-2026-10-14.json",
+        "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/workspace-metadata-access-2026-10-15.json"
       ]
     },

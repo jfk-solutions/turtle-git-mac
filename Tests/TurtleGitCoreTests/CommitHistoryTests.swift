@@ -1313,7 +1313,8 @@ final class CommitHistoryTests: XCTestCase {
             /bin/sleep 30 &
             task_history_child=$!
             trap 'kill "$task_history_child" 2>/dev/null; wait "$task_history_child" 2>/dev/null; exit 143' TERM INT
-            echo "$$ $task_history_child" > "$0.started"
+            echo "$$ $task_history_child" > "$0.started.tmp"
+            /bin/mv "$0.started.tmp" "$0.started"
             wait "$task_history_child"
             ;;
         esac
@@ -1366,7 +1367,8 @@ final class CommitHistoryTests: XCTestCase {
             /bin/sleep 30 &
             task_details_child=$!
             trap 'kill "$task_details_child" 2>/dev/null; wait "$task_details_child" 2>/dev/null; exit 143' TERM INT
-            echo "$$ $task_details_child" > "$0.started"
+            echo "$$ $task_details_child" > "$0.started.tmp"
+            /bin/mv "$0.started.tmp" "$0.started"
             wait "$task_details_child"
             ;;
         esac
@@ -1421,7 +1423,8 @@ final class CommitHistoryTests: XCTestCase {
             /bin/sleep 30 &
             task_actions_child=$!
             trap 'kill "$task_actions_child" 2>/dev/null; wait "$task_actions_child" 2>/dev/null; exit 143' TERM INT
-            echo "$$ $task_actions_child" > "$0.started"
+            echo "$$ $task_actions_child" > "$0.started.tmp"
+            /bin/mv "$0.started.tmp" "$0.started"
             wait "$task_actions_child"
             ;;
         esac
@@ -1479,7 +1482,8 @@ final class CommitHistoryTests: XCTestCase {
             /bin/sleep 30 &
             task_clipboard_child=$!
             trap 'kill "$task_clipboard_child" 2>/dev/null; wait "$task_clipboard_child" 2>/dev/null; exit 143' TERM INT
-            echo "$$ $task_clipboard_child" > "$0.started"
+            echo "$$ $task_clipboard_child" > "$0.started.tmp"
+            /bin/mv "$0.started.tmp" "$0.started"
             wait "$task_clipboard_child"
             ;;
         esac
@@ -1585,7 +1589,8 @@ final class CommitHistoryTests: XCTestCase {
             /bin/sleep 30 &
             task_jump_child=$!
             trap 'kill "$task_jump_child" 2>/dev/null; wait "$task_jump_child" 2>/dev/null; exit 143' TERM INT
-            echo "$$ $task_jump_child" > "$0.started"
+            echo "$$ $task_jump_child" > "$0.started.tmp"
+            /bin/mv "$0.started.tmp" "$0.started"
             wait "$task_jump_child"
             ;;
         esac
@@ -1695,7 +1700,8 @@ final class CommitHistoryTests: XCTestCase {
             /bin/sleep 30 &
             task_note_child=$!
             trap 'kill "$task_note_child" 2>/dev/null; wait "$task_note_child" 2>/dev/null; exit 143' TERM INT
-            echo "$$ $task_note_child" > "$0.started"
+            echo "$$ $task_note_child" > "$0.started.tmp"
+            /bin/mv "$0.started.tmp" "$0.started"
             wait "$task_note_child"
             ;;
         esac
@@ -1810,7 +1816,8 @@ final class CommitHistoryTests: XCTestCase {
         /bin/sleep 30 &
         task_parent_child=$!
         trap 'kill "$task_parent_child" 2>/dev/null; wait "$task_parent_child" 2>/dev/null; exit 143' TERM INT
-        echo "$$ $task_parent_child" > "$0.started"
+        echo "$$ $task_parent_child" > "$0.started.tmp"
+        /bin/mv "$0.started.tmp" "$0.started"
         wait "$task_parent_child"
         exec /usr/bin/git "$@"
         """

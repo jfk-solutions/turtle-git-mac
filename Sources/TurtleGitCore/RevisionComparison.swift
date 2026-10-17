@@ -67,9 +67,9 @@ public struct RevisionComparisonSnapshot: Sendable {
     }
 }
 public enum RevisionComparisonFailure: LocalizedError {
-    case range, selection
+    case range, selection, localPathCollision
     public var errorDescription: String? {
-        switch self { case .range: return "At least one comparison side must be a revision or the empty tree."; case .selection: return "Choose files from this comparison and repository." }
+        switch self { case .range: return "At least one comparison side must be a revision or the empty tree."; case .selection: return "Choose files from this comparison and repository."; case .localPathCollision: return "The selected Git paths map to the same local filename. Choose one path to restore." }
     }
 }
 extension GitRepository {
@@ -79,7 +79,7 @@ extension GitRepository {
     func comparisonObject(_ name: String, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()
         guard !name.isEmpty, !name.utf8.contains(0) else { throw RevisionComparisonFailure.range }
-        let object = try run(["rev-parse", "--verify", "--end-of-options", name + "^{}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let object = try run(["-c", "core.precomposeunicode=false", "rev-parse", "--verify", "--end-of-options", name + "^{}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         let kind = try run(["cat-file", "-t", object], cancellation: cancellation).text
         guard kind == "commit\n" || kind == "tree\n" else { throw RevisionComparisonFailure.range }
         return object
@@ -268,7 +268,7 @@ public struct ComparisonFileExport: Sendable {
 extension GitRepository {
     private func checkedComparisonSelection(_ snapshot: RevisionComparisonSnapshot, files: [CommitFile], cancellation: OperationCancellation?) throws {
         try cancellation?.check()
-        guard snapshot.root == root, !files.isEmpty, Set(files.map(\.path)).count == files.count,
+        guard snapshot.root == root, !files.isEmpty, GitPathSet(files.map(\.path)).count == files.count,
               files.allSatisfy({ snapshot.files.contains($0) }) else { throw RevisionComparisonFailure.selection }
         for side in [snapshot.from, snapshot.to] {
             if case .revision(let hash) = side {
@@ -280,6 +280,17 @@ extension GitRepository {
     public func prepareComparisonRevertBatch(_ snapshot: RevisionComparisonSnapshot, files: [CommitFile], base: Bool, cancellation: OperationCancellation? = nil) throws -> ComparisonRevertBatch {
         try checkedComparisonSelection(snapshot, files: files, cancellation: cancellation)
         guard try !isBare(cancellation: cancellation) else { throw RevisionComparisonFailure.selection }
+        // This map deliberately compares local destination names, not Git IDs.
+        // Multiple exact index removals can share a local alias; a restore that
+        // writes bytes must never collide with another selected local action.
+        var destinations: [String:Bool] = [:]
+        for file in files {
+            let path = base && file.action.hasPrefix("R") ? file.oldPath ?? file.path:file.path
+            let destination = root.appendingPathComponent(path).standardizedFileURL.path
+            let writes = !(base ? file.action.hasPrefix("A"):file.action.hasPrefix("D"))
+            if let previousWrites = destinations[destination], previousWrites || writes { throw RevisionComparisonFailure.localPathCollision }
+            destinations[destination] = writes
+        }
         let revision: String
         switch base ? snapshot.from : snapshot.to {
         case .workingTree: throw RevisionComparisonFailure.selection
@@ -296,7 +307,7 @@ extension GitRepository {
         guard snapshot.root == root, batch.files.contains(file) else { throw RevisionComparisonFailure.selection }
         if snapshot.from == .workingTree || snapshot.to == .workingTree {
             let fresh = try revisionComparison(from: snapshot.from, to: snapshot.to, options: snapshot.options, cancellation: cancellation, paths: snapshot.scopePaths)
-            guard fresh.files.contains(where: { $0.path == file.path && $0.oldPath == file.oldPath && $0.action == file.action && $0.isSubmodule == file.isSubmodule }) else { throw WorkingFileRestoreFailure.changed }
+            guard fresh.files.contains(where: { GitReferenceName.equal($0.path,file.path) && $0.oldPath.map({GitReferenceName($0)}) == file.oldPath.map({GitReferenceName($0)}) && $0.action == file.action && $0.isSubmodule == file.isSubmodule }) else { throw WorkingFileRestoreFailure.changed }
         }
         let added=file.action.hasPrefix("A"),deleted=file.action.hasPrefix("D"),renamed=file.action.hasPrefix("R")
         let unstage=base ? added : deleted
@@ -308,7 +319,7 @@ extension GitRepository {
             if renamed,otherWorking { removals.append((base ? file.path : file.oldPath ?? file.path,true)) }
             removals.append((path,false))
             // Validate the chosen tree entry before deleting or recycling anything.
-            let records=try run(["ls-tree","-z",revision,"--",path],cancellation:cancellation).stdout.split(separator:0)
+            let records=try run(["-c","core.precomposeunicode=false","ls-tree","-z",revision,"--",path],cancellation:cancellation).stdout.split(separator:0)
             guard records.contains(where: { record in
                 guard let tab=record.firstIndex(of:9),Data(record[record.index(after:tab)...])==Data(path.utf8) else { return false }
                 let mode=String(decoding:record[..<tab],as:UTF8.self).split(separator:" ").first
@@ -340,8 +351,8 @@ extension GitRepository {
                     if let moved { trash.append(moved as URL) }
                 } else { try FileManager.default.removeItem(at:url) }
             }
-            if target.unstage { _ = try run(["rm","--cached"] + (target.ignoreUnmatched ? ["--ignore-unmatch"] : []) + ["--",target.path]) }
-            else { _ = try run(["checkout",target.revision,"--",target.path]) }
+            if target.unstage { _ = try run(["-c","core.precomposeunicode=false","rm","--cached"] + (target.ignoreUnmatched ? ["--ignore-unmatch"] : []) + ["--",target.path]) }
+            else { _ = try run(["-c","core.precomposeunicode=false","checkout",target.revision,"--",target.path]) }
             return trash
         } catch { throw WorkingFileRevertFailure(gitError:error.localizedDescription,wasCancelled:false,trashedFiles:trash) }
     }
@@ -350,6 +361,8 @@ extension GitRepository {
         let folder=folder.standardizedFileURL.resolvingSymlinksInPath()
         guard try folder.resourceValues(forKeys:[.isDirectoryKey]).isDirectory==true,!folder.pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}) else { throw WorkingFileExportFailure.location }
         let paths=files.filter{!$0.isSubmodule && !$0.action.hasPrefix("D")}.map(\.path)
+        let destinations = paths.map { folder.appendingPathComponent($0).standardizedFileURL.path }
+        guard Set(destinations).count == paths.count else { throw WorkingFileExportFailure.collision }
         let sources=try paths.map { try restoreLocation($0).resolvingSymlinksInPath().path }
         for path in paths {
             let destination=folder.appendingPathComponent(path).standardizedFileURL
@@ -360,7 +373,7 @@ extension GitRepository {
     }
     public func exportComparisonFile(_ export: ComparisonFileExport, path: String, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
-        guard export.snapshot.root==root,export.paths.contains(path) else { throw RevisionComparisonFailure.selection }
+        guard export.snapshot.root==root,GitPathSet(export.paths).contains(path) else { throw RevisionComparisonFailure.selection }
         let destination=export.folder.appendingPathComponent(path),parent=destination.deletingLastPathComponent()
         guard RepositoryAccessLease.pathIsContained(parent,by:export.folder),!parent.resolvingSymlinksInPath().pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}) else { throw WorkingFileExportFailure.location }
         try FileManager.default.createDirectory(at:parent,withIntermediateDirectories:true)
