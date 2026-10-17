@@ -130,3 +130,14 @@ mouse/keyboard, accessibility and signed acceptance remain open.
 ![Working Tree file selection, light](site/assets/working-tree-file-selection-light.png)
 
 ![Working Tree file selection, dark](site/assets/working-tree-file-selection-dark.png)
+
+
+## Add and Revert continuation — October 17, 2026
+
+The [connected Add/Revert family](ADD-REVERT-IDENTITY-PARITY.md) extends exact
+selection through both dialogs' outer checked/highlighted models, scope readers,
+marked menus, restoration copies, refresh, Add modes, Revert preparation and Retry.
+Revert now uses encoded native row IDs and highlighted-row checkbox rules. Add
+context callbacks retain epoch/command/payload receipts. This supersedes the
+previously pending Add/Revert outer selection entries; Log, LFS owner and Finder
+state maps, URL invocation spelling and filesystem alias semantics remain open.

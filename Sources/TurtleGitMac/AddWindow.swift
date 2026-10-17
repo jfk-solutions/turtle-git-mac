@@ -174,7 +174,7 @@ private final class AddNativeWindow: NSWindow {
     private static let columnKey = "Add.FileColumns"
     static let columns: [StatusListColumn] = [.path, .fileExtension, .lastModified, .fileSize]
     static var defaultColumns: StatusListColumnSettings { StatusListColumnSettings(visible: [.path,.fileExtension], order: columns) }
-    @Published private(set) var fileColumns: StatusListColumnSettings
+    @Published private(set) var fileColumns: StatusListColumnSettings {didSet {fileMenuGeneration = UUID()}}
     @Published private(set) var columnResetGeneration = 0
     private(set) var resettingColumns = false
     var onResetColumns: () -> Void = {}
@@ -184,8 +184,8 @@ private final class AddNativeWindow: NSWindow {
     var onLFSChanged: () -> Void = {}
     func lfsActions(_ selected: [AddDialogEntry], marked: String?) -> [LFSLockMenuAction] {
         guard !retired, hasLFS, !selected.isEmpty,
-              selected.allSatisfy({ candidate in entries.contains { $0.path == candidate.path && $0.status == candidate.status } }),
-              let mark = selected.first(where: { $0.path == marked }) ?? selected.first,
+              selected.allSatisfy({ candidate in entries.contains { GitReferenceName.equal($0.path,candidate.path) && $0.status == candidate.status } }),
+              let mark = selected.first(where: { GitReferenceName.equal($0.path,marked) }) ?? selected.first,
               mark.status.canCompareWithBaseFromStatusList, mark.state != .conflicted,
               selected.allSatisfy({ row in
                   guard !row.isDirectory else { return false }
@@ -223,28 +223,29 @@ private final class AddNativeWindow: NSWindow {
         guard !retired, resettingColumns else { return }; resettingColumns = false; busy = false
         if accepted { fileColumns = Self.defaultColumns; fileColumns.save(to: defaults, key: Self.columnKey); columnResetGeneration += 1 }
     }
-    @Published var entries: [AddDialogEntry] = []
-    @Published var checked = Set<String>()
-    @Published var highlighted = Set<String>()
-    @Published var selectionMark: String?
+    private(set) var fileMenuGeneration = UUID()
+    @Published var entries: [AddDialogEntry] = [] {didSet {fileMenuGeneration = UUID()}}
+    @Published var checked = GitPathSet()
+    @Published var highlighted = GitPathSet() {didSet {if highlighted != oldValue {fileMenuGeneration = UUID()}}}
+    @Published var selectionMark: String? {didSet {if selectionMark.map({GitReferenceName($0)}) != oldValue.map({GitReferenceName($0)}) {fileMenuGeneration = UUID()}}}
     @Published private(set) var hasHead = false
     @Published var includeIgnored = false
-    @Published var busy = false
-    @Published var confirmingQuit = false
+    @Published var busy = false {didSet {if busy != oldValue {fileMenuGeneration = UUID()}}}
+    @Published var confirmingQuit = false {didSet {if confirmingQuit != oldValue {fileMenuGeneration = UUID()}}}
     @Published var error: String?
     @Published var sortOrder = [KeyPathComparator(\AddDialogEntry.path)]
     private var paths: [String] = ["."]
     var scopePaths: [String] { paths }
     private var loaded = false
     private(set) var ignoring = false
-    @Published var restoreCopies: [String: WorkingFileRestoreCopy] = [:]
+    @Published var restoreCopies: GitPathMap<WorkingFileRestoreCopy> = [:] {didSet {fileMenuGeneration = UUID()}}
     @Published private(set) var indexFlagFiles: [WorkingTreeFile] = []
     private var pendingFlags: (IndexFlagAction, [String], String)?
     var onIndexFlags: (IndexFlagAction, [String], String) -> Void = { _, _, _ in }
     func beginFlagConfirmation(_ action: IndexFlagAction, paths: [String], mark: String) -> Bool {
-        guard !retired, !busy, !confirmingQuit, !paths.isEmpty, paths.contains(mark),
-              paths.allSatisfy({ path in entries.contains { $0.path == path } }),
-              let marked = indexFlagFiles.first(where: { $0.id == mark }), action.isAvailable(for: [marked]) else { return false }
+        guard !retired, !busy, !confirmingQuit, !paths.isEmpty, GitPathSet(paths).contains(mark),
+              paths.allSatisfy({ path in entries.contains { GitReferenceName.equal($0.path,path) } }),
+              let marked = indexFlagFiles.first(where: { GitReferenceName.equal($0.id,mark) }), action.isAvailable(for: [marked]) else { return false }
         pendingFlags = (action, paths, mark); busy = true; return true
     }
     @discardableResult func finishFlagConfirmation(accepted: Bool) -> Task<Void, Never>? {
@@ -276,7 +277,7 @@ private final class AddNativeWindow: NSWindow {
     var onRevert: ([StatusEntry], @escaping (Bool) -> Void) -> (() -> Void) = { _, done in done(false); return {} }
     var revertNeedsConfirmation: Bool { pendingRevert?.contains { !$0.isDirectory && [$0.status.index, $0.status.worktree].contains { $0 == "M" || $0 == "T" } } == true }
     func beginRevertConfirmation(_ rows: [AddDialogEntry]) -> Bool {
-        let marked = rows.first { $0.path == selectionMark } ?? rows.first
+        let marked = rows.first { GitReferenceName.equal($0.path,selectionMark) } ?? rows.first
         guard !retired, !busy, !confirmingQuit, !rows.isEmpty, marked?.status.canCompareWithBaseFromStatusList == true else { return false }
         pendingRevert = rows; busy = true; return true
     }
@@ -296,7 +297,7 @@ private final class AddNativeWindow: NSWindow {
             do {
                 try await read()
                 if succeeded {
-                    let clean = Set(selected.filter { !$0.isDirectory && $0.state != .added }.map(\.path))
+                    let clean = GitPathSet(selected.filter { !$0.isDirectory && $0.state != .added }.map(\.path))
                     entries.removeAll { clean.contains($0.path) && $0.state == .normal }
                 }
             } catch { if !retired && !cancellation.isCancelled { self.error = error.localizedDescription } }
@@ -383,7 +384,7 @@ private final class AddNativeWindow: NSWindow {
         }
     }
     @discardableResult func startMarkForRestore(_ paths: [String]) -> Task<Void, Never>? {
-        let files = paths.filter { path in entries.contains { $0.path == path && !$0.isDirectory } && restoreCopies[path] == nil }
+        let files = paths.filter { path in entries.contains { GitReferenceName.equal($0.path,path) && !$0.isDirectory } && restoreCopies[path] == nil }
         guard !retired, !busy, !confirmingQuit, !files.isEmpty else { return nil }
         busy = true; cancellation = OperationCancellation()
         return performOperation { [self] in
@@ -433,9 +434,9 @@ private final class AddNativeWindow: NSWindow {
         }
     }
     @discardableResult func startUnifiedDiff(paths: [String], alternate: Bool = false) -> Task<Void, Never>? {
-        let marked = entries.first { $0.path == selectionMark && paths.contains($0.path) } ?? entries.first { $0.path == paths.first }
+        let marked = entries.first { GitReferenceName.equal($0.path,selectionMark) && GitPathSet(paths).contains($0.path) } ?? entries.first { GitReferenceName.equal($0.path,paths.first) }
         guard !retired, !busy, !confirmingQuit, !unifiedViewerBusy(), hasHead, !paths.isEmpty,
-              Set(paths).count == paths.count, paths.allSatisfy({ path in entries.contains { $0.path == path } }),
+              GitPathSet(paths).count == paths.count, paths.allSatisfy({ path in entries.contains { GitReferenceName.equal($0.path,path) } }),
               marked?.status.canCompareWithBaseFromStatusList == true else { return nil }
         busy = true; cancellation = OperationCancellation()
         return performOperation { [self] in
@@ -448,7 +449,7 @@ private final class AddNativeWindow: NSWindow {
                 try validateAccess(); if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                 var bytes = Data()
                 for path in paths {
-                    bytes.append(try await repository.run(["diff", "--no-ext-diff", "--no-color", "--stat", "-p", "--end-of-options", "HEAD", "--", path], cancellation: cancellation).stdout)
+                    bytes.append(try await repository.run(["-c","core.precomposeunicode=false","diff", "--no-ext-diff", "--no-color", "--stat", "-p", "--end-of-options", "HEAD", "--", path], cancellation: cancellation).stdout)
                 }
                 if retired || cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                 if unifiedViewerBusy() { throw NSError(domain: "TurtleGit.Add", code: 1, userInfo: [NSLocalizedDescriptionKey: "Finish the open unified diff operation before showing another comparison."]) }
@@ -475,6 +476,7 @@ private final class AddNativeWindow: NSWindow {
             fileColumns = value
         }
     }
+    func invalidateFileMenus() {fileMenuGeneration = UUID()}
     func setScope(_ paths: [String]) { guard !retired, !busy else { return }; self.paths = paths.isEmpty ? ["."] : paths; loaded = false; checked = []; highlighted = []; selectionMark = nil; hasHead = false }
     private func validateAccess() throws {
         guard !retired, !cancellation.isCancelled else { throw OperationCancellationFailure.cancelled }
@@ -501,11 +503,11 @@ private final class AddNativeWindow: NSWindow {
         let lfs = try await repository.hasLFS(cancellation: token)
         guard !retired, cancellation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
         hasHead = head != nil; indexFlagFiles = flags; hasLFS = lfs
-        let previous = Set(entries.map(\.path))
+        let previous = GitPathSet(entries.map(\.path))
         entries = selection.entries
-        if loaded { checked.formIntersection(Set(entries.map(\.path))); checked.formUnion(selection.initiallyChecked.subtracting(previous)) }
+        if loaded { checked.formIntersection(GitPathSet(entries.map(\.path))); checked.formUnion(selection.initiallyChecked.subtracting(previous)) }
         else { checked = selection.initiallyChecked; loaded = true }
-        highlighted.formIntersection(Set(entries.map(\.path)))
+        highlighted.formIntersection(GitPathSet(entries.map(\.path)))
     }
     func reload() {
         guard !retired, !busy, !confirmingQuit else { return }; busy = true; cancellation = OperationCancellation()
@@ -538,13 +540,13 @@ private final class AddNativeWindow: NSWindow {
                 guard !items.isEmpty else { return }
                 if items.contains(where: { $0.path == "." }) { self.paths = ["."] }
                 else if !self.paths.contains(".") {
-                    for item in items where !self.entries.contains(where: { $0.path.utf8.elementsEqual(item.path.utf8) }) && !self.paths.contains(where: { $0.utf8.elementsEqual(item.path.utf8) || item.path.hasPrefix($0 + "/") }) { self.paths.append(item.path) }
+                    for item in items where !self.entries.contains(where: { $0.path.utf8.elementsEqual(item.path.utf8) }) && !self.paths.contains(where: { $0.utf8.elementsEqual(item.path.utf8) || item.path.utf8.starts(with:($0 + "/").utf8) }) { self.paths.append(item.path) }
                 }
                 try await self.read()
                 guard !self.retired, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 for item in items {
-                    for row in self.entries where item.path == "." || row.path.utf8.elementsEqual(item.path.utf8) || item.directory && row.path.hasPrefix(item.path + "/") {
-                        if row.state == .untracked || row.status.hasUnversionedCopy || self.paths.contains(row.path) { self.checked.insert(row.path) }
+                    for row in self.entries where item.path == "." || row.path.utf8.elementsEqual(item.path.utf8) || item.directory && row.path.utf8.starts(with:(item.path + "/").utf8) {
+                        if row.state == .untracked || row.status.hasUnversionedCopy || self.paths.contains(where:{GitReferenceName.equal($0,row.path)}) { self.checked.insert(row.path) }
                         else { self.checked.remove(row.path) }
                     }
                 }
@@ -561,7 +563,7 @@ struct AddDialogView: View {
         VStack(spacing: 10) {
             AddFileTable(model: model).frame(minHeight: 220)
             HStack {
-                SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count, checkedCount: { model.checked.count }) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.frame(width: 180, height: 22)
+                SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count, checkedCount: { model.checked.count }) { model.checked = $0 ? GitPathSet(model.entries.map(\.path)) : [] }.frame(width: 180, height: 22)
                 Toggle("Include ignored files", isOn: $model.includeIgnored).toggleStyle(.checkbox).onChange(of: model.includeIgnored) { _ in model.reload() }
                 Spacer()
             }.disabled(model.busy)

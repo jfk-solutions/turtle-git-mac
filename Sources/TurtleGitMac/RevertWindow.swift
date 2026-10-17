@@ -144,8 +144,19 @@ private final class RevertNativeWindow:NSWindow {
     weak var window:NSWindow?
     @Published private(set) var entries:[StatusEntry] = []
     @Published private(set) var statistics:GitPathMap<CommitFile> = [:]
-    @Published var checked = Set<String>()
-    @Published var highlighted = Set<String>() {didSet {commands.selection = GitPathSet(highlighted)}}
+    @Published var checked = GitPathSet()
+    private var highlightedPaths = GitPathSet()
+    @Published var nativeSelection = Set<String>() {
+        didSet {
+            guard nativeSelection != oldValue else {return}
+            highlightedPaths = GitPathRowIdentity.paths(nativeSelection)
+            commands.selection = highlightedPaths
+        }
+    }
+    var highlighted:GitPathSet {
+        get {highlightedPaths}
+        set {let ids = Set(newValue.map(GitPathRowIdentity.encode));if ids != nativeSelection {nativeSelection = ids}}
+    }
     @Published private(set) var busy = false
     @Published var confirmingQuit = false {didSet {commands.confirmingQuit = confirmingQuit;if !confirmingQuit {resumePendingRefresh()}}}
     @Published var error:String?
@@ -159,7 +170,7 @@ private final class RevertNativeWindow:NSWindow {
     private var paths = ["."],hasLoaded = false,closeAfterRead = false
     private var request:OperationCancellation?
     private var generation = UUID()
-    private var queuedForce = Set<String>()
+    private var queuedForce = GitPathSet()
     private var refreshRequested = false
     private var observer:AnyCancellable?
     private(set) var retired = false
@@ -225,8 +236,8 @@ private final class RevertNativeWindow:NSWindow {
     }
     func didRename(_ old:String,to new:String) {
         guard !retired else {return}
-        func moved(_ path:String)->String {path == old ? new:path.hasPrefix(old + "/") ? new + path.dropFirst(old.count):path}
-        paths = paths.map(moved);checked = Set(checked.map(moved));highlighted = Set(highlighted.map(moved))
+        func moved(_ path:String)->String {GitReferenceName.equal(path,old) ? new:path.utf8.starts(with:(old + "/").utf8) ? new + path.dropFirst(old.count):path}
+        paths = paths.map(moved);checked = GitPathSet(checked.map(moved));highlighted = GitPathSet(highlighted.map(moved))
         if busy && !exclusiveAction {reload()} else {requestReload()}
     }
     private func validateAccess() throws {
@@ -238,11 +249,12 @@ private final class RevertNativeWindow:NSWindow {
         if busy || commands.busy || confirmingQuit || hasChild || window?.attachedSheet != nil {refreshRequested = true;return}
         reload()
     }
-    func reload(forceChecked:Set<String> = []) {start(forceChecked:forceChecked,drops:pendingDrops)}
-    private func start(forceChecked:Set<String>,drops:[URL]) {
+    func reload(forceChecked:GitPathSet = []) {start(forceChecked:forceChecked,drops:pendingDrops)}
+    func reload(forceChecked:some Sequence<String>) {reload(forceChecked:GitPathSet(forceChecked))}
+    private func start(forceChecked:GitPathSet,drops:[URL]) {
         guard !retired,!confirmingQuit,!hasChild,!exclusiveAction,!closeAfterRead else {return}
         if commands.busy {refreshRequested = true;queuedForce.formUnion(forceChecked);return}
-        let position = fileListRefresh.begin(preferences:preferences,reset:!hasLoaded,selectedIDs:GitPathSet(highlighted))
+        let position = fileListRefresh.begin(preferences:preferences,reset:!hasLoaded,selectedIDs:highlighted)
         refreshRequested = false;request?.cancel();let token = OperationCancellation(),identity = UUID(),scope = paths
         request = token;generation = identity;busy = true;cancelling = false;error = nil
         let forced = queuedForce.union(forceChecked);queuedForce = [];Self.activeOperations += 1
@@ -255,27 +267,27 @@ private final class RevertNativeWindow:NSWindow {
                 }
             }
             do {
-                try validateAccess();var nextScope = scope,dropPaths = Set<String>()
+                try validateAccess();var nextScope = scope,dropPaths = GitPathSet()
                 if !drops.isEmpty {try await Task.sleep(nanoseconds:200_000_000);try token.check()}
                 for url in drops {try token.check();try await validateDrop(url,token)}
                 if !drops.isEmpty {
                     let added = FinderRequest(action:.revert,paths:drops).relativePaths(root:repository.root)
-                    if !nextScope.contains(".") {nextScope = Array(Set(nextScope + added)).sorted()}
-                    dropPaths = Set(added)
+                    if !nextScope.contains(".") {nextScope = Array(GitPathSet(nextScope + added)).sorted()}
+                    dropPaths = GitPathSet(added)
                 }
                 let invocation = try await repository.workingTreeInvocation(paths:nextScope,cancellation:token)
                 let files = try await readStatus(token);try token.check()
-                let direct = Set(nextScope.filter {path in path != "." && (try? FileManager.default.attributesOfItem(atPath:repository.root.appendingPathComponent(path).path)[.type]) as? FileAttributeType != .typeDirectory})
+                let direct = GitPathSet(nextScope.filter {path in path != "." && (try? FileManager.default.attributesOfItem(atPath:repository.root.appendingPathComponent(path).path)[.type]) as? FileAttributeType != .typeDirectory})
                 let status = files.filter{$0.state != .normal || direct.contains($0.id)}.map(\.entry)
                 let selection = RevertDialogSelection(status:status,paths:nextScope,directFiles:direct)
-                let ids = Set(selection.entries.map(\.path)),selectedFiles = files.filter{ids.contains($0.id)}
+                let ids = GitPathSet(selection.entries.map(\.path)),selectedFiles = files.filter{ids.contains($0.id)}
                 let stats = GitPathMap(try await readStatistics(token).map{($0.path,$0)},uniquingKeysWith:{_,last in last})
                 let metadata = await repository.statusListMetadata(paths:selection.entries.map(\.path));try token.check()
                 let modules = try await repository.submodulePaths(cancellation:token),rebase = try await repository.conflictIsRebase(cancellation:token)
                 let hasHead = try await repository.run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:token).exitCode == 0
                 let hasLFS = try await repository.hasLFS(cancellation:token)
                 guard !retired,request === token,generation == identity,!token.isCancelled else {return}
-                let oldPaths = Set(entries.map(\.path));paths = nextScope;pendingDrops = []
+                let oldPaths = GitPathSet(entries.map(\.path));paths = nextScope;pendingDrops = []
                 entries = selection.entries;statistics = stats;hasUnversionedItems = selection.hasUnversionedItems
                 let location = invocation.titlePath(wholeProject:false);updateTitle(location.isEmpty ? repository.root:repository.root.appendingPathComponent(location))
                 if !hasLoaded {checked = selection.initiallyChecked;hasLoaded = true}
@@ -295,7 +307,8 @@ private final class RevertNativeWindow:NSWindow {
     func apply() {
         guard canApply else {return};onAccepted(entries.filter{checked.contains($0.path)});close()
     }
-    func diff(_ ids:Set<String>) {
+    func diff(_ paths:some Sequence<String>) {
+        let ids = GitPathSet(paths)
         guard canInteract,!ids.isEmpty else {return}
         let snapshot = commands.fileMenu(ids)
         guard !snapshot.entries.isEmpty else {return}
@@ -305,7 +318,7 @@ private final class RevertNativeWindow:NSWindow {
         guard !retired,!commands.busy,!confirmingQuit,!hasChild,!exclusiveAction,!closeAfterRead,window?.attachedSheet == nil,!urls.isEmpty else {return false}
         let values = FinderRequest(action:.revert,paths:urls).paths
         guard values.count > 0,values.allSatisfy({$0.isFileURL && RepositoryAccessLease.pathIsContained($0,by:repository.root)}) else {return false}
-        var seen = Set<String>();pendingDrops = (pendingDrops + values).filter{seen.insert($0.path).inserted}
+        var seen = GitPathSet();pendingDrops = (pendingDrops + values).filter{seen.insert($0.path).inserted}
         start(forceChecked:[],drops:pendingDrops);return true
     }
     func requestRevert(_ snapshot:StatusFileMenuSnapshot) {
@@ -315,7 +328,7 @@ private final class RevertNativeWindow:NSWindow {
         request = token;busy = true;exclusiveAction = true;Self.activeOperations += 1
         Task { [self] in
             defer {Self.activeOperations -= 1;exclusiveAction = false;if request === token {request = nil;busy = false;cancelling = false;if closeAfterRead {closeAfterRead = false;if !retired {close()}} else {resumePendingRefresh()}}}
-            let needsQuestion = rows.contains{entry in commands.files.contains{$0.id == entry.path && $0.state == .modified} && commands.fileMetadata[entry.path]?.isDirectory != true && !commands.submodules.contains(entry.path)}
+            let needsQuestion = rows.contains{entry in commands.files.contains{GitReferenceName.equal($0.id,entry.path) && $0.state == .modified} && commands.fileMetadata[entry.path]?.isDirectory != true && !commands.submodules.contains(entry.path)}
             let accepted = needsQuestion ? await confirmRevert(rows):true
             guard accepted,!retired,request === token,!token.isCancelled,generation == identity,rows.allSatisfy({entries.contains($0)}) else {return}
             request = nil;busy = false;exclusiveAction = false;onRevert(rows)
@@ -354,9 +367,9 @@ private final class RevertNativeWindow:NSWindow {
         commands.withFileMenu(menu.file) {onPreparedFileCompare(marked,PreparedFileComparisonMark(path:current.path,revision:"",isDirectory:menu.file.markIsDirectory))}
     }
     func captureColumnCopy(_ ids:[String],column:StatusListColumn)->(() -> Void)? {
-        guard canInteract else {return nil};let snapshot = commands.fileMenu(Set(ids))
+        guard canInteract else {return nil};let snapshot = commands.fileMenu(GitPathSet(ids))
         guard !snapshot.entries.isEmpty else {return nil}
-        let value = commands.clipboardText(Set(ids),copy:.column(column))
+        let value = commands.clipboardText(GitPathSet(ids),copy:.column(column))
         return { [weak self] in
             guard let self,self.canInteract else {return}
             self.commands.withFileMenu(snapshot) {self.commands.clipboard.clearContents();self.commands.clipboard.setString(value,forType:.string)}
@@ -382,7 +395,11 @@ private final class RevertNativeWindow:NSWindow {
             } catch {if !retired,request === token,!token.isCancelled {self.error = error.localizedDescription}}
         }
     }
-    func setChecked(_ ids:Set<String>,value:Bool) {guard canInteract else {return};if value {checked.formUnion(ids.intersection(Set(entries.map(\.path))))} else {checked.subtract(ids)}}
+    func setChecked(_ paths:some Sequence<String>,value:Bool) {let ids = GitPathSet(paths);guard canInteract else {return};if value {checked.formUnion(ids.intersection(GitPathSet(entries.map(\.path))))} else {checked.subtract(ids)}}
+    func setFileChecked(_ path:String,value:Bool) {
+        guard canInteract,entries.contains(where:{GitReferenceName.equal($0.path,path)}) else {return}
+        setChecked(highlighted.contains(path) ? highlighted:GitPathSet([path]),value:value)
+    }
     @discardableResult func saveColumns(order:[StatusListColumn],widths:[StatusListColumn:Double])->Bool {
         guard canInteract else {return false};fileColumns = .init(visible:fileColumns.visible,order:order,widths:widths);persistColumns();return true
     }
@@ -401,35 +418,50 @@ private final class RevertNativeWindow:NSWindow {
     }
 }
 
+private struct RevertFileRow:Identifiable {
+    let value:StatusRow
+    var id:String {GitPathRowIdentity.encode(value.id)}
+}
+private struct RevertFileSort:SortComparator {
+    let column:StatusListColumn
+    var order:SortOrder = .forward
+    func compare(_ lhs:RevertFileRow,_ rhs:RevertFileRow)->ComparisonResult {StatusFileSort(column:column,order:order).compare(lhs.value,rhs.value)}
+}
 private struct RevertDialog:View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model:RevertWindowModel
-    @State private var focusedPath:String?
+    @State private var focusedIdentity:GitReferenceName?
+    private var focusedPath:String? {focusedIdentity?.rawValue}
+    private var focusBinding:Binding<String?> {Binding(get:{focusedIdentity?.rawValue},set:{
+        let next = $0.map {GitReferenceName($0)}
+        if next != focusedIdentity {focusedIdentity = next;model.commands.invalidateFileMenus()}
+    })}
     private func fileCommand(_ command:StatusFileCommand,snapshot:StatusFileMenuSnapshot)->some View {
         Button {model.commands.fileAction(command,snapshot:snapshot,permanently:NSEvent.modifierFlags.contains(.shift))} label:{CommandLabel(title:command.rawValue,icon:command.icon)}
     }
     var body:some View {
-        let rows = model.rows,byID = Dictionary(uniqueKeysWithValues:rows.map{($0.id,$0)})
+        let rows = model.rows,byID = GitPathMap(uniqueKeysWithValues:rows.map{($0.id,$0)})
         VStack(spacing:10) {
-            Table(rows,selection:$model.highlighted,sortOrder:$model.sortOrder) {
-                TableColumn("") {row in Toggle("Revert \(row.path)",isOn:Binding(get:{model.checked.contains(row.path)},set:{model.setChecked([row.path],value:$0)})).labelsHidden().toggleStyle(.checkbox)}.width(24)
-                TableColumn("Path",sortUsing:StatusFileSort(column:.path)) {row in HStack {Image(nsImage:row.file.state.icon.image() ?? NSImage()).resizable().frame(width:16,height:16);Text(row.path).foregroundStyle(model.highlighted.contains(row.path) ? Color.primary:row.file.state.textColor)}.repositoryFileHelp(repository:model.repository.root,path:row.path,detail:row.file.entry.originalPath.map{"Renamed from " + $0} ?? "",preferences:model.preferences)}.width(min:250,ideal:390)
-                TableColumn("Filename",sortUsing:StatusFileSort(column:.fileName)) {row in Text(row.fileName)}.width(min:70,ideal:120)
-                TableColumn("Extension",sortUsing:StatusFileSort(column:.fileExtension)) {row in Text(row.fileExtension)}.width(min:45,ideal:70)
-                TableColumn("Status",sortUsing:StatusFileSort(column:.status)) {row in Text(row.status)}.width(min:90,ideal:110)
-                TableColumn("Lines added",sortUsing:StatusFileSort(column:.added)) {row in Text(row.addedText)}.width(min:65,ideal:80)
-                TableColumn("Lines removed",sortUsing:StatusFileSort(column:.removed)) {row in Text(row.removedText)}.width(min:75,ideal:95)
-                TableColumn("Modification date",sortUsing:StatusFileSort(column:.lastModified)) {row in Text(row.metadata?.dateText ?? "–")}.width(min:100,ideal:150)
-                TableColumn("File size",sortUsing:StatusFileSort(column:.fileSize)) {row in Text(row.sizeText)}.width(min:70,ideal:100)
+            Table(rows.map {RevertFileRow(value:$0)},selection:$model.nativeSelection,sortOrder:Binding(get:{model.sortOrder.map {RevertFileSort(column:$0.column,order:$0.order)}},set:{model.sortOrder = $0.map {StatusFileSort(column:$0.column,order:$0.order)}})) {
+                TableColumn("") {row in FileSelectionCheckbox(path:row.value.path,verb:"Revert",checked:model.checked.contains(row.value.path),enabled:model.canInteract) {model.setFileChecked(row.value.path,value:$0)}.frame(width:20,height:20)}.width(24)
+                TableColumn("Path",sortUsing:RevertFileSort(column:.path)) {row in HStack {Image(nsImage:row.value.file.state.icon.image() ?? NSImage()).resizable().frame(width:16,height:16);Text(row.value.path).foregroundStyle(model.highlighted.contains(row.value.path) ? Color.primary:row.value.file.state.textColor)}.repositoryFileHelp(repository:model.repository.root,path:row.value.path,detail:row.value.file.entry.originalPath.map{"Renamed from " + $0} ?? "",preferences:model.preferences)}.width(min:250,ideal:390)
+                TableColumn("Filename",sortUsing:RevertFileSort(column:.fileName)) {row in Text(row.value.fileName)}.width(min:70,ideal:120)
+                TableColumn("Extension",sortUsing:RevertFileSort(column:.fileExtension)) {row in Text(row.value.fileExtension)}.width(min:45,ideal:70)
+                TableColumn("Status",sortUsing:RevertFileSort(column:.status)) {row in Text(row.value.status)}.width(min:90,ideal:110)
+                TableColumn("Lines added",sortUsing:RevertFileSort(column:.added)) {row in Text(row.value.addedText)}.width(min:65,ideal:80)
+                TableColumn("Lines removed",sortUsing:RevertFileSort(column:.removed)) {row in Text(row.value.removedText)}.width(min:75,ideal:95)
+                TableColumn("Modification date",sortUsing:RevertFileSort(column:.lastModified)) {row in Text(row.value.metadata?.dateText ?? "–")}.width(min:100,ideal:150)
+                TableColumn("File size",sortUsing:RevertFileSort(column:.fileSize)) {row in Text(row.value.sizeText)}.width(min:70,ideal:100)
             }.fileListFont().disabled(!model.canInteract)
             .background(CommitFileInteraction(rows:rows.map{.file($0.file.entry)},nativeColumns:StatusListColumn.allCases.filter{$0 != .lfsOwner},captureColumnCopy:{model.captureColumnCopy($0,column:$1)},configureRefresh:{model.fileListRefresh.attach($0)},watermarkIcon:.revertBackdrop,preferences:model.preferences,
                 visibleColumns:Set(model.fileColumns.order.filter{model.fileColumns.visible.contains($0)}),availableColumns:model.availableColumns,
                 columnText:{entry,column in byID[entry.path].map{model.commands.columnText($0,column)} ?? ""},savedOrder:model.fileColumns.order,savedWidths:model.fileColumns.widths,
-                saveLayout:{model.saveColumns(order:$0,widths:$1)},setColumnVisible:{model.setColumn($0,visible:$1)},resetColumns:{model.resetColumns(choose:$0,accepted:$1)},focusedPath:$focusedPath,
-                enabled:model.canInteract,delete:{entries,mark,permanent in guard mark.canDeleteWithKeyboard else {return};model.commands.fileAction(.delete,snapshot:model.commands.fileMenu(Set(entries.map(\.path)),mark:mark.path),permanently:permanent)},
-                copy:{entries,status in model.commands.copy(Set(entries.map(\.path)),information:status ? .pathsAndStatus:.relativePaths)},copyColumn:{entries,column in model.commands.copy(Set(entries.map(\.path)),information:.column(column))},
-                toggleCheck:{entries,mark in model.setChecked(Set(entries.map(\.path)),value:!model.checked.contains(mark.path))}))
-            .contextMenu(forSelectionType:String.self) {ids in
+                saveLayout:{model.saveColumns(order:$0,widths:$1)},setColumnVisible:{model.setColumn($0,visible:$1)},resetColumns:{model.resetColumns(choose:$0,accepted:$1)},focusedPath:focusBinding,
+                enabled:model.canInteract,delete:{entries,mark,permanent in guard mark.canDeleteWithKeyboard else {return};model.commands.fileAction(.delete,snapshot:model.commands.fileMenu(GitPathSet(entries.map(\.path)),mark:mark.path),permanently:permanent)},
+                copy:{entries,status in model.commands.copy(GitPathSet(entries.map(\.path)),information:status ? .pathsAndStatus:.relativePaths)},copyColumn:{entries,column in model.commands.copy(GitPathSet(entries.map(\.path)),information:.column(column))},
+                toggleCheck:{entries,mark in model.setChecked(GitPathSet(entries.map(\.path)),value:!model.checked.contains(mark.path))}))
+            .contextMenu(forSelectionType:String.self) {nativeIDs in
+                let ids = GitPathRowIdentity.paths(nativeIDs)
                 let snapshot = model.commands.fileMenu(ids,mark:focusedPath)
                 let prepared = model.preparedMenu(snapshot)
                 TurtleGitContextMenu {
@@ -442,7 +474,7 @@ private struct RevertDialog:View {
                             Button {model.commands.withFileMenu(snapshot){model.setChecked(ids,value:false)}} label:{CommandLabel(title:"Uncheck selected files",icon:.revert)}
                         }
                         if snapshot.offersRevert {Button {model.requestRevert(snapshot)} label:{CommandLabel(title:"Revert…",icon:.revert)}}
-                        if let mark = model.commands.files.first(where:{$0.id == snapshot.mark?.path}) {IndexFlagsMenu(files:model.commands.files.filter{ids.contains($0.id)},selectionMark:mark){action in model.commands.withFileMenu(snapshot){model.commands.setFlags(action,files:model.commands.files.filter{ids.contains($0.id)},selectionMark:mark)}}}
+                        if let mark = model.commands.files.first(where:{GitReferenceName.equal($0.id,snapshot.mark?.path)}) {IndexFlagsMenu(files:model.commands.files.filter{ids.contains($0.id)},selectionMark:mark){action in model.commands.withFileMenu(snapshot){model.commands.setFlags(action,files:model.commands.files.filter{ids.contains($0.id)},selectionMark:mark)}}}
                         Group {
                             if snapshot.offersIgnore {IgnoreSelectionMenu(paths:snapshot.entries.map(\.path),action:{action,paths in model.commands.withFileMenu(snapshot){model.onAction(action,paths)}})}
                             if snapshot.entries.count == 1,let entry = snapshot.entries.first,entry.state != .deleted,entry.worktree != "D" {Button {model.commands.withFileMenu(snapshot){model.onAction(.rename,[entry.path])}} label:{CommandLabel(title:"Rename…",icon:.rename)}}
@@ -467,9 +499,9 @@ private struct RevertDialog:View {
                         } label:{CommandLabel(title:"Copy to Clipboard",icon:.copy)}
                     }
                 }.disabled(!model.canInteract)
-            } primaryAction:{model.diff($0)}
+            } primaryAction:{model.diff(GitPathRowIdentity.paths($0))}
             HStack {
-                SelectionAllCheckbox(checked:model.checked.count,total:model.entries.count,checkedCount:{model.checked.count}) {model.setChecked(Set(model.entries.map(\.path)),value:$0)}.frame(width:190,height:22).disabled(!model.canInteract)
+                SelectionAllCheckbox(checked:model.checked.count,total:model.entries.count,checkedCount:{model.checked.count}) {model.setChecked(GitPathSet(model.entries.map(\.path)),value:$0)}.frame(width:190,height:22).disabled(!model.canInteract)
                 Spacer()
                 if model.hasUnversionedItems && (model.preferences.object(forKey:"UnversionedAsModified") as? NSNumber)?.boolValue == true {Text("Note: the folder contains unversioned items").font(.caption).foregroundStyle(.secondary)}
             }

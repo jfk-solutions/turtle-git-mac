@@ -284,3 +284,17 @@ only after its complete owned snapshot reaches the actual table. Checks retain
 their independent lifetime; new scopes reset position, and cancellation or newer
 reading intent retires older callbacks. Source preference and file-only Ctrl/Cmd-A
 share the [file-list refresh family](FILE-LIST-REFRESH-PARITY.md). Eight grouped case/engine runs pass; physical and signed acceptance remain open.
+
+
+## Exact planning, checkbox and operation identity
+
+The connected [Add/Revert selection family](ADD-REVERT-IDENTITY-PARITY.md) now
+retains exact valid UTF-8 Git names through checked/highlighted rows, marked
+menus, refresh and private-index operations. Revert checkboxes apply to the
+highlighted files as in the source; Add native menu invocations retain their
+original payload and reject stale or retired targets. See the family document
+for actual grouped evidence, light/dark captures and remaining physical/signed
+acceptance. This supersedes the pending Add/Revert outer-selection migration;
+full dialog parity remains partial.
+
+[Grouped selection evidence](qa/add-revert-identities-2026-10-17.json).

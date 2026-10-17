@@ -65,7 +65,7 @@ private struct RevertProgressRow: Identifiable {
     private var started = false
     private(set) var retired = false
     private var completedSuccessfully = false
-    private var rowIndices: [String: Int] = [:]
+    private var rowIndices: GitPathMap<Int> = [:]
     @Published fileprivate var rows: [RevertProgressRow] = []
     @Published var busy = true
     @Published private(set) var confirmingCancellation = false
@@ -148,7 +148,7 @@ private struct RevertProgressRow: Identifiable {
             }
         }
     }
-    private func retainCopies(_ urls: [URL]) { var seen = Set(trashedFiles.map(\.path)); trashedFiles += urls.filter { seen.insert($0.path).inserted } }
+    private func retainCopies(_ urls: [URL]) { var seen = GitPathSet(trashedFiles.map(\.path)); trashedFiles += urls.filter { seen.insert($0.path).inserted } }
     private func finishAutomaticClose() {
         guard !retired, !busy, !confirmingCancellation, completedSuccessfully else { return }
         if autoCloseSuccess && submodulePaths.isEmpty || autoClosePolicy.shouldClose(success: true, postActionCount: submodulePaths.isEmpty ? 0 : 1) { close() }

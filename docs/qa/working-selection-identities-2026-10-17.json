@@ -299,5 +299,29 @@
       "commit-column-sorting"
     ],
     "scope": "Updated API caller compile compatibility; not runtime coverage of these four families"
-  }
+  },
+  "early_build_repairs": [
+    {
+      "log": "build/qa/working-selection-build-2026-10-17.log",
+      "exit_code": 65,
+      "compile_errors": [
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/Sources/TurtleGitMac/StatusWindow.swift:500:116: error: cannot convert value of type 'GitPathSet' to expected argument type 'Set<String>'"
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-build-adapters-2026-10-17.log",
+      "exit_code": 65,
+      "compile_errors": [
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/Sources/TurtleGitCore/Rebase.swift:1058:9: error: missing return in instance method expected to return 'String'"
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-build-repair-2026-10-17.log",
+      "exit_code": 65,
+      "compile_errors": [
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/Sources/TurtleGitMac/CommitWindow.swift:1777:114: error: cannot convert value of type 'GitPathSet' to expected argument type 'Set<String>'",
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/Sources/TurtleGitMac/SynchronizationWindow.swift:3111:13: error: no exact matches in call to initializer"
+      ]
+    }
+  ]
 }

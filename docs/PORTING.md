@@ -2,6 +2,16 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected [Add/Revert selection family](ADD-REVERT-IDENTITY-PARITY.md) now
+retains exact Git path keys through checked/highlighted native rows, marked menus,
+refresh and private-index Add/mode/Revert/Retry operations. Revert checkbox clicks
+follow the highlighted-row rule; Add context actions retain command/payload/epoch
+receipts. The checkpoint passed 43 relevant Core cases and twelve distinct final
+native case/engine combinations with system/bundled Git. Four raw light/dark
+captures were individually reviewed and all owned receivers/helpers are absent.
+See [batch evidence](qa/add-revert-identities-2026-10-17.json) for the initial
+compile/fixture repairs, existing AppKit diagnostic and remaining acceptance.
+
 The connected [Commit/Working Tree selection family](WORKING-FILE-IDENTITY-PARITY.md)
 now preserves exact Git path membership through native row IDs, checked/highlighted
 sets, marked menus, groups, refresh and selected-index preparation, including the

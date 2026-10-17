@@ -12,7 +12,7 @@ public struct AddDialogEntry: Identifiable, Sendable {
 }
 public struct AddDialogSelection: Sendable {
     public let entries: [AddDialogEntry]
-    public let initiallyChecked: Set<String>
+    public let initiallyChecked: GitPathSet
 }
 public enum AddFailure: LocalizedError {
     case selection, outsideRepository
@@ -34,13 +34,13 @@ extension GitRepository {
         try cancellation?.check()
         let scope = paths.filter { $0 != "." && !$0.isEmpty }
         for path in scope { _ = try restoreLocation(path) }
-        let direct = Set(scope.filter { path in
+        let direct = GitPathSet(scope.filter { path in
             (try? FileManager.default.attributesOfItem(atPath: restoreLocation(path).path)[.type] as? FileAttributeType).map { $0 != .typeDirectory } ?? false
         })
         let status = StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"], cancellation: cancellation).stdout)
-        var rows: [String: AddDialogEntry] = [:]
-        var checked = Set<String>()
-        for row in status where scope.isEmpty || scope.contains(where: { row.path == $0 || row.path.hasPrefix($0 + "/") }) {
+        var rows: GitPathMap<AddDialogEntry> = [:]
+        var checked = GitPathSet()
+        for row in status where scope.isEmpty || scope.contains(where: { GitReferenceName.equal(row.path,$0) || row.path.utf8.starts(with:($0 + "/").utf8) }) {
             guard row.state == .untracked || includeIgnored && row.state == .ignored || row.hasUnversionedCopy || direct.contains(row.path) else { continue }
             let location = try restoreLocation(row.path)
             let attributes = try? FileManager.default.attributesOfItem(atPath: location.path)
@@ -53,13 +53,13 @@ extension GitRepository {
             rows[path] = AddDialogEntry(path: path, state: .normal, status: StatusEntry(path: path, originalPath: nil, index: " ", worktree: " "), isDirectory: false, size: (attributes[.size] as? NSNumber)?.int64Value, modified: attributes[.modificationDate] as? Date)
             checked.insert(path)
         }
-        return AddDialogSelection(entries: rows.values.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }, initiallyChecked: checked)
+        return AddDialogSelection(entries: rows.values.sorted { let order = $0.path.localizedStandardCompare($1.path);return order == .orderedSame ? $0.path.utf8.lexicographicallyPrecedes($1.path.utf8):order == .orderedAscending }, initiallyChecked: checked)
     }
     /// Original CLI AddProgressCommand uses add -f for the explicitly reviewed list.
     public func addReviewedPaths(_ paths: [String], mode: WorkingFileAddMode = .normal, cancellation: OperationCancellation? = nil) async throws -> String {
         try cancellation?.check()
-        guard !paths.isEmpty, Set(paths).count == paths.count, try !isBare() else { throw AddFailure.selection }
-        var parents = Set<String>()
+        guard !paths.isEmpty, GitPathSet(paths).count == paths.count, try !isBare() else { throw AddFailure.selection }
+        var parents = GitPathSet()
         for path in paths {
             try cancellation?.check()
             let location = try restoreLocation(path)

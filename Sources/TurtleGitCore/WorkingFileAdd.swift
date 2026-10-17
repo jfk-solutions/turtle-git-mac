@@ -13,25 +13,25 @@ extension GitRepository {
     /// non-directory entries' Git mode. This does not chmod or create disk links.
     public func addWorkingFiles(paths: [String], mode: WorkingFileAddMode = .normal, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
-        let paths = Array(Set(paths)).sorted()
+        let paths = GitPathSet(paths).sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}
         guard !paths.isEmpty else { throw GitFailure(arguments: ["add"], code: 1, message: "Select files to add.") }
         for path in paths { _ = try restoreLocation(path) }
         try withPrivateAddIndex(cancellation: cancellation) { environment in
             for offset in stride(from: 0, to: paths.count, by: 64) {
-                _ = try run(["add", "-f", "--"] + Array(paths[offset..<min(offset + 64, paths.count)]), environmentOverrides: environment, cancellation: cancellation)
+                _ = try run(["add","-f","--pathspec-from-file=-","--pathspec-file-nul"],environmentOverrides:environment,cancellation:cancellation,input:literalPathPacket(Array(paths[offset..<min(offset + 64, paths.count)])))
             }
             if let indexMode = mode.indexMode {
                 for path in paths {
                     let location = root.appendingPathComponent(path)
                     let type = try FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType
                     if type == .typeDirectory { continue }
-                    let records = try run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: environment, cancellation: cancellation).stdout.split(separator: 0)
+                    let records = try run(["-c","core.precomposeunicode=false","ls-files", "--stage", "-z", "--", path], environmentOverrides: environment, cancellation: cancellation).stdout.split(separator: 0)
                     guard let record = records.first, records.count == 1, let tab = record.firstIndex(of: 9) else {
                         throw GitFailure(arguments: ["add"], code: 1, message: "Could not read the staged file mode for " + path)
                     }
                     let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
                     guard header.count == 3, header[2] == "0" else { throw GitFailure(arguments: ["add"], code: 1, message: "The file has unresolved index entries: " + path) }
-                    _ = try run(["update-index", "--cacheinfo", indexMode, String(header[1]), path], environmentOverrides: environment, cancellation: cancellation)
+                    _ = try run(["update-index","-z","--index-info"],environmentOverrides:environment,cancellation:cancellation,input:Data((indexMode + " " + String(header[1]) + "\t" + path + "\0").utf8))
                 }
             }
         }
@@ -41,14 +41,14 @@ extension GitRepository {
     public func setAddedFileMode(paths: [String], mode: WorkingFileAddMode, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
         guard let indexMode = mode.indexMode, !paths.isEmpty else { throw AddFailure.selection }
-        let paths = Array(Set(paths)).sorted()
+        let paths = GitPathSet(paths).sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}
         for path in paths { _ = try restoreLocation(path) }
         try withPrivateAddIndex(cancellation: cancellation) { environment in
             for path in paths {
-                let records = try run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: environment, cancellation: cancellation).stdout.split(separator: 0)
+                let records = try run(["-c","core.precomposeunicode=false","ls-files", "--stage", "-z", "--", path], environmentOverrides: environment, cancellation: cancellation).stdout.split(separator: 0)
                 let exact = records.filter { record in
                     guard let tab = record.firstIndex(of: 9) else { return false }
-                    return String(decoding: record[record.index(after: tab)...], as: UTF8.self) == path
+                    return GitReferenceName.equal(String(decoding: record[record.index(after: tab)...], as: UTF8.self),path)
                 }
                 if exact.isEmpty && !records.isEmpty { continue } // Folder children retain their modes.
                 guard exact.count == 1, let record = exact.first, let tab = record.firstIndex(of: 9) else {
@@ -59,7 +59,7 @@ extension GitRepository {
                     throw GitFailure(arguments: ["update-index"], code: 1, message: "The file has unresolved index entries: " + path)
                 }
                 if header[0] == "160000" { continue } // Submodule directories are not file blobs.
-                _ = try run(["update-index", "--cacheinfo", indexMode, String(header[1]), path], environmentOverrides: environment, cancellation: cancellation)
+                _ = try run(["update-index","-z","--index-info"],environmentOverrides:environment,cancellation:cancellation,input:Data((indexMode + " " + String(header[1]) + "\t" + path + "\0").utf8))
             }
         }
     }

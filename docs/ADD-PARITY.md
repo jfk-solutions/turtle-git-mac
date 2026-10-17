@@ -306,3 +306,17 @@ Core operations were unchanged. See [exact evidence](qa/add-list-family-2026-10-
 Shared repository titles and path-cell tooltips now consume the source Advanced
 preferences; see [repository presentation](REPOSITORY-PRESENTATION-PARITY.md)
 and its [grouped evidence](qa/repository-presentation-2026-10-15.json).
+
+
+## Exact file selection and captured menus
+
+The connected [Add/Revert selection family](ADD-REVERT-IDENTITY-PARITY.md) now
+retains exact valid UTF-8 Git names through checked/highlighted rows, marked
+menus, refresh and private-index operations. Revert checkboxes apply to the
+highlighted files as in the source; Add native menu invocations retain their
+original payload and reject stale or retired targets. See the family document
+for actual grouped evidence, light/dark captures and remaining physical/signed
+acceptance. This supersedes the pending Add/Revert outer-selection migration;
+full dialog parity remains partial.
+
+[Grouped selection evidence](qa/add-revert-identities-2026-10-17.json).

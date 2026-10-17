@@ -172,6 +172,29 @@ final class FileListWatermark: NSView {
     func retire() { retired = true; cancel(); probe = nil }
 }
 
+/// Native binary checkbox shared by file-selection dialogs. Git membership is
+/// authoritative even when AppKit has already advanced its cell's visual state.
+struct FileSelectionCheckbox:NSViewRepresentable {
+    let path:String
+    let verb:String
+    let checked:Bool
+    let enabled:Bool
+    let change:(Bool)->Void
+    func makeCoordinator()->Coordinator {Coordinator()}
+    func makeNSView(context:Context)->NSButton {NSButton(checkboxWithTitle:"",target:context.coordinator,action:#selector(Coordinator.clicked(_:)))}
+    func updateNSView(_ button:NSButton,context:Context) {
+        context.coordinator.change = change;context.coordinator.nextChecked = !checked
+        button.state = checked ? .on:.off;button.isEnabled = enabled && context.environment.isEnabled
+        button.setAccessibilityLabel(verb + " " + path)
+    }
+    static func dismantleNSView(_ button:NSButton,coordinator:Coordinator) {button.isEnabled = false;button.target = nil;button.action = nil;coordinator.change = {_ in}}
+    final class Coordinator:NSObject {
+        var nextChecked = true
+        var change:(Bool)->Void = {_ in}
+        @objc func clicked(_ sender:NSButton) {guard sender.isEnabled else {return};change(nextChecked)}
+    }
+}
+
 /// Observe the public AppKit table without replacing its selection, accessibility
 /// or context-menu implementation.
 struct CommitFileInteraction: NSViewRepresentable {

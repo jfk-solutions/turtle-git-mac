@@ -32,8 +32,8 @@ import TurtleGitCore
                 host = Host(owner:controller,coordinator:model.fileListRefresh,ids:{model.tableRows.map(\.row.id)},selected:{model.selection},checks:{[]},busy:{model.busy},choose:{model.selection = $0},reload:{model.reload()},filter:{var value=model.filter;value.showUnversioned = false;model.setFilter(value)})
             } else if kind == "revert" {
                 let controller = RevertWindowController(repository:repo,access:nil,preferences:prefs),model = controller.model;owned.append(controller)
-                host = Host(owner:controller,coordinator:model.fileListRefresh,ids:{model.rows.map(\.id)},selected:{GitPathSet(model.highlighted)},checks:{GitPathSet(model.checked)},busy:{model.busy},choose:{model.highlighted = Set($0)},reload:{model.reload()},filter:{model.reload()})
-                model.checked = Set(paths.prefix(3))
+                host = Host(owner:controller,coordinator:model.fileListRefresh,ids:{model.rows.map(\.id)},selected:{model.highlighted},checks:{model.checked},busy:{model.busy},choose:{model.highlighted = $0},reload:{model.reload()},filter:{model.reload()})
+                model.checked = GitPathSet(paths.prefix(3))
             } else {
                 let controller = CommitWindowController(repository:repo,access:nil,defaults:prefs),model = controller.model;owned.append(controller)
                 host = Host(owner:controller,coordinator:model.fileListRefresh,ids:{model.visibleFileRowIDs},selected:{model.selection},checks:{model.checked},busy:{model.busy},choose:{model.selection = $0},reload:{model.reload()},filter:{model.setShowUnversioned(false)})
@@ -41,7 +41,7 @@ import TurtleGitCore
             }
             host.owner.window?.alphaValue = 0;host.owner.window?.orderFront(nil);host.reload()
             try await wait {!host.busy() && !host.coordinator.hasPendingPosition && host.ids().count >= paths.count}
-            if let owner = host.owner as? RevertWindowController {owner.model.checked = Set(paths.prefix(3))}
+            if let owner = host.owner as? RevertWindowController {owner.model.checked = GitPathSet(paths.prefix(3))}
             if let owner = host.owner as? CommitWindowController {owner.model.checked = GitPathSet(paths.prefix(3))}
             let allViews = views(host.owner.window!.contentView!),probe = allViews.compactMap{$0 as? CommitFileInteraction.Probe}.first!,table = allViews.compactMap{$0 as? NSTableView}.first!
             try await wait {table.numberOfRows == host.ids().count && probe.rows.map(\.id) == host.ids()}

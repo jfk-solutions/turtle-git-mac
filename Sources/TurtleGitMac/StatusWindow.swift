@@ -250,6 +250,7 @@ final class StatusNativeWindow: NSWindow {
     @Published var files: [WorkingTreeFile] = []
     @Published var statistics: GitPathMap<CommitFile> = [:]
     private var menuGeneration = UUID()
+    func invalidateFileMenus() {menuGeneration = UUID()}
     private var selectedPaths = GitPathSet()
     @Published var nativeFileSelection = Set<String>() {
         didSet {

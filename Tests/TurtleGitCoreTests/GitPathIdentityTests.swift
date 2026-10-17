@@ -148,4 +148,70 @@ final class GitPathIdentityTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
     }
 
+    func testAddAndRevertScopesKeepCanonicalPathsAndDirectoryBoundaries() async throws {
+        let a = "café.txt",b = "cafe\u{301}.txt"
+        let (root,repo,_) = try await GitPatchTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let blob = try await repo.run(["hash-object","-w","--stdin"],input:bytes("base\n")).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["update-index","-z","--index-info"],input:bytes([a,b].map {"100644 \(blob)\t\($0)\0"}.joined()))
+        _ = try await repo.commit(message:"paired names")
+        try bytes("changed\n").write(to:root.appendingPathComponent(a))
+        let index = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let add = try await repo.addDialogSelection(paths:[a,b],includeIgnored:false)
+        XCTAssertEqual(add.entries.count,2);XCTAssertEqual(add.initiallyChecked.count,2)
+        let scoped = try await repo.addDialogSelection(paths:[a],includeIgnored:false)
+        XCTAssertEqual(scoped.entries.map {bytes($0.path)},[bytes(a)])
+        let rows = StatusEntry.parse(bytes(" M café/file\0 M cafe\u{301}/file\0 M cafés/file\0"))
+        let revert = RevertDialogSelection(status:rows,paths:["café"],directFiles:GitPathSet(["cafe\u{301}/file"]))
+        XCTAssertEqual(revert.entries.map {bytes($0.path)},[bytes("café/file")]);XCTAssertTrue(revert.initiallyChecked.isEmpty)
+        let all = RevertDialogSelection(status:rows,paths:["."],directFiles:GitPathSet(["cafe\u{301}/file"]))
+        XCTAssertEqual(all.initiallyChecked.count,1);XCTAssertTrue(all.initiallyChecked.contains("cafe\u{301}/file"));XCTAssertFalse(all.initiallyChecked.contains("café/file"))
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+    func testReviewedAddAndModePostActionsKeepExactIndexNeighbor() async throws {
+        let a = "café\n.txt",b = "cafe\u{301}\n.txt"
+        let (root,repo,_) = try await GitPatchTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
+        _ = try await repo.run(["config","core.precomposeunicode","true"])
+        let blob = try await repo.run(["hash-object","-w","--stdin"],input:bytes("base\n")).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["update-index","-z","--index-info"],input:bytes([a,b].map {"100644 \(blob)\t\($0)\0"}.joined()))
+        let head = try await repo.run(["rev-parse","HEAD"]).stdout
+        try await repo.setAddedFileMode(paths:[b],mode:.executable)
+        func has(_ records:Data,_ mode:String,_ hash:String,_ path:String)->Bool {records.split(separator:0).contains {$0.elementsEqual(bytes("\(mode) \(hash) 0\t\(path)"))}}
+        var staged = try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertTrue(has(staged,"100644",blob,a));XCTAssertTrue(has(staged,"100755",blob,b))
+        try await repo.setAddedFileMode(paths:[a,b],mode:.symlink)
+        staged = try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertTrue(has(staged,"120000",blob,a));XCTAssertTrue(has(staged,"120000",blob,b))
+        try bytes("new working bytes\n").write(to:root.appendingPathComponent(b))
+        let working = try Data(contentsOf:root.appendingPathComponent(b))
+        _ = try await repo.addReviewedPaths([b],mode:.executable)
+        staged = try await repo.run(["ls-files","--stage","-z"]).stdout
+        let newBlob = try await repo.run(["hash-object","--stdin"],input:working).text.trimmingCharacters(in:.newlines)
+        XCTAssertTrue(has(staged,"120000",blob,a));XCTAssertTrue(has(staged,"100755",newBlob,b))
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(b)),working)
+        let finalHead = try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(finalHead,head)
+    }
+    func testRevertAndRetryRestoreOnlyExactSelectedIndexName() async throws {
+        let a = "café.txt",b = "cafe\u{301}.txt"
+        let (root,repo,_) = try await GitPatchTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
+        _ = try await repo.run(["config","core.precomposeunicode","true"])
+        let blob = try await repo.run(["hash-object","-w","--stdin"],input:bytes("base\n")).text.trimmingCharacters(in:.newlines)
+        func packet(_ hash:String,_ path:String)->Data {bytes("100644 \(hash)\t\(path)\0")}
+        _ = try await repo.run(["update-index","-z","--index-info"],input:packet(blob,a)+packet(blob,b))
+        _ = try await repo.commit(message:"paired names")
+        let head = try await repo.run(["rev-parse","HEAD"]).stdout
+        let neighbor = try await repo.run(["hash-object","-w","--stdin"],input:bytes("unrelated staged neighbor\n")).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["update-index","-z","--index-info"],input:packet(neighbor,a))
+        let selected = try await repo.status().filter {GitReferenceName.equal($0.path,b)}
+        XCTAssertEqual(selected.count,1)
+        let result = try await repo.revertWorkingFiles(selected)
+        XCTAssertEqual(result.revertedPaths.map(bytes),[bytes(b)]);XCTAssertTrue(result.trashedFiles.isEmpty)
+        let staged = try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertTrue(staged.split(separator:0).contains {$0.elementsEqual(bytes("100644 \(neighbor) 0\t\(a)"))})
+        XCTAssertTrue(staged.split(separator:0).contains {$0.elementsEqual(bytes("100644 \(blob) 0\t\(b)"))})
+        let retry = try await repo.workingFileRevertSelection(selected)
+        XCTAssertEqual(retry.map {bytes($0.path)},[bytes(b)])
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(b)),bytes("base\n"))
+        let finalHead = try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(finalHead,head)
+    }
+
 }

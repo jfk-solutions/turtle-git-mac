@@ -77,7 +77,7 @@ struct AddFileTable: NSViewRepresentable {
                 case "date": result = (a.modified ?? .distantPast).compare(b.modified ?? .distantPast)
                 default: result = a.path.localizedStandardCompare(b.path)
                 }
-                if result == .orderedSame { return a.path.localizedStandardCompare(b.path) == .orderedAscending }
+                if result == .orderedSame { let order = a.path.localizedStandardCompare(b.path);return order == .orderedSame ? a.path.utf8.lexicographicallyPrecedes(b.path.utf8):order == .orderedAscending }
                 return descriptor?.ascending == false ? result == .orderedDescending : result == .orderedAscending
             }
         }
@@ -106,26 +106,26 @@ struct AddFileTable: NSViewRepresentable {
             let reset = NSMenuItem(title: "Reset columns", action: #selector(resetColumns), keyEquivalent: ""); reset.target = self
             header.addItem(reset); header.addItem(.separator())
             for (key, title) in [("ext", "Extension"), ("date", "Modification date"), ("size", "Size")] {
-                let item = NSMenuItem(title: title, action: #selector(toggleColumn(_:)), keyEquivalent: ""); item.target = self; item.representedObject = key; header.addItem(item)
+                let item = AddMenuItem(title: title, action: #selector(toggleColumn(_:)), keyEquivalent: ""); item.target = self; item.representedObject = key; header.addItem(item)
             }
             header.delegate = self; table.headerView?.menu = header
             let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
             for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Compare with base", #selector(compareBase), .compare), ("Show changes as unified diff", #selector(unifiedDiff), .unifiedDiff), ("Compare two files", #selector(compareTwo), .compare), ("Show log", #selector(showLog), .log), ("Show log of old name", #selector(showOldLog), .log), ("Blame", #selector(blame), .blame), ("Revert", #selector(revertItem), .revert), ("Restore after commit", #selector(restoreItem), .restore), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore), ("Save As…", #selector(saveAs), .saveAs), ("Export…", #selector(export), .export), ("Delete", #selector(deleteItem), .remove)] {
-                let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(); menu.addItem(item)
+                let item = AddMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(); menu.addItem(item)
             }
             for action in IndexFlagAction.allCases {
-                let item = NSMenuItem(title: action.rawValue, action: #selector(indexFlags(_:)), keyEquivalent: "")
+                let item = AddMenuItem(title: action.rawValue, action: #selector(indexFlags(_:)), keyEquivalent: "")
                 item.target = self; item.representedObject = action; item.image = MenuIcon.ignore.contextImage(); menu.addItem(item)
             }
             for action in LFSLockMenuAction.allCases {
-                let item = NSMenuItem(title: action.rawValue, action: #selector(lfsLock(_:)), keyEquivalent: "")
+                let item = AddMenuItem(title: action.rawValue, action: #selector(lfsLock(_:)), keyEquivalent: "")
                 item.target = self; item.representedObject = action; item.image = (action == .lock ? MenuIcon.lock : .unlock).contextImage(); menu.addItem(item)
             }
             menu.addItem(.separator())
             let clipboard = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: ""); clipboard.image = MenuIcon.copy.contextImage()
             let submenu = NSMenu(); submenu.autoenablesItems = false
             for (key, title) in [("full", "Full paths"), ("relative", "Relative paths"), ("names", "File/folder names"), ("ext", "Extensions"), ("column", "Current column"), ("all", "All visible columns")] {
-                let item = NSMenuItem(title: title, action: #selector(copyItem(_:)), keyEquivalent: ""); item.target = self; item.representedObject = key; item.image = MenuIcon.copy.contextImage(); submenu.addItem(item)
+                let item = AddMenuItem(title: title, action: #selector(copyItem(_:)), keyEquivalent: ""); item.target = self; item.representedObject = key; item.image = MenuIcon.copy.contextImage(); submenu.addItem(item)
             }
             clipboard.submenu = submenu; menu.addItem(clipboard)
             table.menu = menu; scroll.documentView = table; applyingColumns = false; refresh(); return scroll
@@ -188,6 +188,7 @@ struct AddFileTable: NSViewRepresentable {
             guard rows.indices.contains(index) else { return nil }; let row = rows[index]
             if tableColumn?.identifier.rawValue == "check" {
                 let button = NSButton(checkboxWithTitle: "", target: self, action: #selector(toggleRow(_:))); button.identifier = NSUserInterfaceItemIdentifier(row.path)
+                button.setAccessibilityLabel("Add " + row.path)
                 button.state = model.checked.contains(row.path) ? .on : .off; button.isEnabled = !model.retired && !model.busy && !model.confirmingQuit; return button
             }
             let field = NSTextField(labelWithString: ""); field.lineBreakMode = .byTruncatingMiddle; field.font = fileListFont ?? .systemFont(ofSize: NSFont.systemFontSize)
@@ -205,14 +206,14 @@ struct AddFileTable: NSViewRepresentable {
             return field
         }
         func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !updating else { return }; model.highlighted = Set(table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].path : nil })
+            guard !updating else { return }; model.highlighted = GitPathSet(table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].path : nil })
             if rows.indices.contains(table.clickedRow), table.selectedRowIndexes.contains(table.clickedRow) { model.selectionMark = rows[table.clickedRow].path }
             else { model.selectionMark = selectedRows.first?.path }
         }
-        func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) { refresh() }
+        func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {model.invalidateFileMenus();refresh()}
         @objc func toggleRow(_ sender: NSButton) {
-            guard !model.retired, !model.busy, !model.confirmingQuit, let path = sender.identifier?.rawValue, model.entries.contains(where: { $0.path == path }) else { return }
-            let targets = model.highlighted.contains(path) ? Set(selectedRows.map(\.path)) : [path]
+            guard !model.retired, !model.busy, !model.confirmingQuit, let path = sender.identifier?.rawValue, model.entries.contains(where: { GitReferenceName.equal($0.path,path) }) else { return }
+            let targets = model.highlighted.contains(path) ? GitPathSet(selectedRows.map(\.path)) : [path]
             if sender.state == .on { model.checked.formUnion(targets) } else { model.checked.subtract(targets) }
             refresh()
         }
@@ -236,6 +237,7 @@ struct AddFileTable: NSViewRepresentable {
         @objc func editor() { openSelected(.editor) }
         @objc func reveal() { guard canAct, selectedRows.count == 1 else { return }; NSWorkspace.shared.activateFileViewerSelecting(selectedRows.map { model.repository.root.appendingPathComponent($0.path) }) }
         func prepareContext(row: Int, column: Int) {
+            model.invalidateFileMenus()
             contextColumnID = nil
             guard rows.indices.contains(row) else { return }
             model.selectionMark = rows[row].path
@@ -291,7 +293,7 @@ struct AddFileTable: NSViewRepresentable {
             guard canAct, let action = sender.representedObject as? LFSLockMenuAction, lfsActions.contains(action) else { return }
             model.setLFSLocked(selectedRows, marked: model.selectionMark, locked: action == .lock)
         }
-        var markedRow: AddDialogEntry? { selectedRows.first { $0.path == model.selectionMark } ?? selectedRows.first }
+        var markedRow: AddDialogEntry? { selectedRows.first { GitReferenceName.equal($0.path,model.selectionMark) } ?? selectedRows.first }
         var canCompareBase: Bool { canAct && markedRow?.status.canCompareWithBaseFromStatusList == true }
         var canUnifiedDiff: Bool { canCompareBase && model.hasHead && !model.unifiedViewerBusy() }
         @objc func unifiedDiff() { guard canUnifiedDiff else { return }; _ = model.startUnifiedDiff(paths: selectedRows.map(\.path), alternate: NSApp.currentEvent?.modifierFlags.contains(.shift) == true) }
@@ -310,7 +312,7 @@ struct AddFileTable: NSViewRepresentable {
         @objc func showOldLog() { guard let path = oldLogPath else { return }; model.onLog(path) }
         @objc func blame() { guard canBlame, let row = markedRow else { return }; model.onBlame(row.path) }
         func canSetFlags(_ action: IndexFlagAction) -> Bool {
-            guard canAct, let mark = markedRow, let file = model.indexFlagFiles.first(where: { $0.id == mark.path }) else { return false }
+            guard canAct, let mark = markedRow, let file = model.indexFlagFiles.first(where: { GitReferenceName.equal($0.id,mark.path) }) else { return false }
             return action.isAvailable(for: [file])
         }
         @objc func indexFlags(_ sender: NSMenuItem) {
@@ -357,7 +359,7 @@ struct AddFileTable: NSViewRepresentable {
             let same = Set(extensions.map { $0.lowercased() }).count == 1
             let title = paths.count == 1 ? (paths[0] as NSString).lastPathComponent : "Ignore \(paths.count) items"
             func item(_ title: String, _ action: Selector? = nil) -> NSMenuItem {
-                let result = NSMenuItem(title: title, action: action, keyEquivalent: ""); result.target = self
+                let result = AddMenuItem(title: title, action: action, keyEquivalent: ""); result.target = self
                 result.image = MenuIcon.ignore.contextImage(); result.representedObject = "Add.Ignore"; return result
             }
             let index = menu.items.firstIndex(where: \.isSeparatorItem) ?? menu.items.count
@@ -375,8 +377,42 @@ struct AddFileTable: NSViewRepresentable {
                 if extensions.contains(where: { !$0.isEmpty }) { menu.insertItem(item("Ignore \(paths.count) items by extension", #selector(ignoreExtensions)), at: index + 1) }
             }
         }
+        private final class AddMenuItem:NSMenuItem {var invocation:MenuInvocation?}
+        private final class MenuInvocation:NSObject {
+            let generation:UUID
+            let command:Selector
+            let payload:Any?
+            var used = false
+            init(generation:UUID,command:Selector,payload:Any?) {self.generation = generation;self.command = command;self.payload = payload}
+        }
+        private func restoreMenuActions(_ menu:NSMenu) {
+            for item in menu.items {
+                if let captured = item as? AddMenuItem,let invocation = captured.invocation {
+                    item.action = invocation.command;captured.invocation = nil
+                }
+                if let child = item.submenu {restoreMenuActions(child)}
+            }
+        }
+        private func captureMenuActions(_ menu:NSMenu) {
+            for item in menu.items {
+                if let child = item.submenu {captureMenuActions(child)}
+                guard let captured = item as? AddMenuItem,item.target === self,let command = item.action,!item.isSeparatorItem else {continue}
+                captured.invocation = MenuInvocation(generation:model.fileMenuGeneration,command:command,payload:item.representedObject)
+                item.action = #selector(invokeFileMenu(_:))
+            }
+        }
+        @objc private func invokeFileMenu(_ sender:NSMenuItem) {
+            guard canAct,sender.isEnabled,let invocation = (sender as? AddMenuItem)?.invocation,
+                  !invocation.used,invocation.generation == model.fileMenuGeneration else {return}
+            invocation.used = true
+            let captured = NSMenuItem(title:sender.title,action:invocation.command,keyEquivalent:"")
+            captured.representedObject = invocation.payload
+            if NSStringFromSelector(invocation.command).hasSuffix(":") {_ = perform(invocation.command,with:captured)}
+            else {_ = perform(invocation.command)}
+        }
         func menuNeedsUpdate(_ menu: NSMenu) {
             if menu === table.menu {
+                restoreMenuActions(menu)
                 updateIgnoreMenu(menu)
                 for item in menu.items where !item.isSeparatorItem {
                     let icon: MenuIcon = item.action == #selector(lfsLock(_:)) ? (item.representedObject as? LFSLockMenuAction == .lock ? .lock : .unlock) : item.action == #selector(indexFlags(_:)) ? .ignore : item.action == #selector(revertItem) ? .revert : item.action == #selector(restoreItem) ? .restore : item.action == #selector(unifiedDiff) ? .unifiedDiff : item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(saveAs) ? .saveAs : item.action == #selector(export) ? .export : item.action == #selector(deleteItem) ? .remove : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(compareBase) || item.action == #selector(compareTwo) ? .compare : item.action == #selector(showLog) || item.action == #selector(showOldLog) ? .log : item.action == #selector(blame) ? .blame : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
@@ -408,6 +444,7 @@ struct AddFileTable: NSViewRepresentable {
                         if isCurrentColumn { child.title = currentClipboardColumn.map { "Column '\($0.title)'" } ?? "Current column" }
                     }
                 }
+                captureMenuActions(menu)
             } else {
                 for item in menu.items {
                     item.isEnabled = model.columnCommandsAvailable && table.window?.attachedSheet == nil

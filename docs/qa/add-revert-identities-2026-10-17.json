@@ -1,0 +1,211 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation_baseline": "267d1520",
+  "source": [
+    "src/TortoiseProc/AddDlg.cpp checked path export",
+    "src/TortoiseProc/RevertDlg.cpp checked path export",
+    "src/Git/GitStatusListCtrl.cpp::OnLvnItemchanged highlighted checkbox propagation; Init default column order",
+    "src/TortoiseProc/ProgressCommands/AddProgressCommand.cpp",
+    "src/TortoiseProc/ProgressCommands/RevertProgressCommand.cpp"
+  ],
+  "scope": "Connected native Add/Revert valid UTF-8 selection, marked-menu, checkbox, refresh and private-index operation family; not full dialog certification.",
+  "implemented": [
+    "Exact Add scope/direct-file/initial-check maps and directory-boundary comparisons",
+    "Exact Add checked/highlighted/mark/restore-copy and flag/LFS/unified targets, native checkbox keys and deterministic ties for localized-equal names",
+    "Native Add context leaf receipts retaining command, enum/string payload, epoch and one-shot dispatch; stale selection-away/return/mark/data/sort/layout/busy and retired targets refused",
+    "Exact Revert outer checks/highlights/drop/queued/rename scopes, encoded native IDs, row metadata and focus invalidation through shared Status commands",
+    "Binary native Revert checkboxes now apply to highlighted rows as in the pinned source, independently of the highlight itself",
+    "Exact reviewed Add and staged-mode requests; NUL stage and index-info mode records preserve neighbor blobs/modes and working bytes",
+    "Exact Revert/Retry preflight/request/current/tracked/submodule sets and bounded NUL rm/restore batches with retained cancellation/private-index publication/Trash behavior",
+    "Exact Revert progress step/path keys; shared file-list refresh fixture migrated with actual checkbox/selection/keyboard checks retained"
+  ],
+  "build_attempts": [
+    {
+      "log": "build/qa/add-revert-identities-build-2026-10-17.log",
+      "exit_code": 65,
+      "failure": "Two accidental GitPathGitPathSet replacement names in RevertWindow; corrected before the executable checks"
+    },
+    {
+      "log": "build/qa/add-revert-identities-build-repair-2026-10-17.log",
+      "exit_code": 0,
+      "scope": "Debug macOS arm64"
+    }
+  ],
+  "core_attempts": [
+    {
+      "log": "build/qa/add-revert-identities-core-2026-10-17.log",
+      "exit_code": 1,
+      "phase": "compile; no executed tests",
+      "failure": "Same RevertWindow replacement typos while SwiftPM built the executable target"
+    },
+    {
+      "log": "build/qa/add-revert-identities-core-repair-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 43,
+      "scope": "Identity, Add, WorkingFileAdd, RevertDialogSelection, Revert/Retry and cancellation/progress cases"
+    }
+  ],
+  "native_attempts": [
+    {
+      "log": "build/qa/add-revert-identities-native-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_combinations": 2,
+      "scope": "Original identity/capture case",
+      "owned_receivers_or_helpers_reaped": [
+        8349,
+        8415
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-identities-add-list-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_combinations": 2,
+      "scope": "Retained LFS/columns/reset/checkbox family",
+      "owned_receivers_or_helpers_reaped": [
+        8498,
+        8545
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-identities-add-dialog-2026-10-17.log",
+      "exit_code": 1,
+      "case_engine_combinations": 0,
+      "scope": "Fixture expected old Size-before-Date order; pinned Init puts LastModificationDate before FileSize",
+      "owned_receivers_or_helpers_reaped": [
+        8593,
+        8606
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-identities-add-dialog-repair-2026-10-17.log",
+      "exit_code": 1,
+      "case_engine_combinations": 0,
+      "scope": "After private preferences/column correction, fixture Space toggle assumed no explicit mark; set unchecked mark to exercise the intended check-all then uncheck-all sequence",
+      "owned_receivers_or_helpers_reaped": [
+        8742,
+        8764
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-identities-add-dialog-final-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_combinations": 2,
+      "scope": "Full retained Add dialog/progress/flags/restore/ignore/comparison/mode family with isolated preferences and source-shaped marked toggle",
+      "owned_receivers_or_helpers_reaped": [
+        8871,
+        8883,
+        9288
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-identities-revert-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_combinations": 4,
+      "scope": "Revert planning plus progress/Retry/cancellation/retirement, both Git engines",
+      "owned_receivers_or_helpers_reaped": [
+        9706,
+        9853,
+        10007,
+        10054
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-identities-refresh-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_combinations": 2,
+      "scope": "Commit/Working Tree/Revert shared native list refresh and ownership, both engines",
+      "owned_receivers_or_helpers_reaped": [
+        10114,
+        10379
+      ]
+    },
+    {
+      "log": "build/qa/add-revert-identities-native-payload-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_combinations": 2,
+      "scope": "Same identity case expanded with actual captured enum-payload dispatch; overlaps first two case/engine combinations",
+      "owned_receivers_or_helpers_reaped": [
+        10642,
+        10691
+      ]
+    }
+  ],
+  "native_distinct_final_case_engine_combinations": 12,
+  "native_new_evidence": "Actual native Add/Revert checkbox independence and highlighted bulk behavior, exact canonical names, Add real menu dispatch/one-shot/epoch rejection, enum-payload LFS route via injected callback, Revert focus/menu generations, refresh/retired callbacks and unchanged HEAD/stage records/working bytes. Capture run passed before fixture-only payload assertions; the expanded case passed with both engines without recapturing unchanged layouts.",
+  "captures": {
+    "files": [
+      "site/assets/add-path-selection-light.png",
+      "site/assets/add-path-selection-dark.png",
+      "site/assets/revert-path-selection-light.png",
+      "site/assets/revert-path-selection-dark.png"
+    ],
+    "individually_reviewed": true,
+    "notes": "Separate paired rows, one checked/highlighted item, original status icons/watermarks, source column order and footer fit; inactive gray native highlight. No physical-input/signed acceptance claim."
+  },
+  "known_diagnostics": "The retained Revert planning cases emit an AppKit reentrant NSTableView delegate warning. The same warning is present in October 16 retained logs, including revert-planning-native-2026-10-16.log and revert-file-commands-native-targets-2026-10-16.log; no unique new cause or repair is claimed.",
+  "localizations": {
+    "languages": 38,
+    "safe_literal_keys": 1242,
+    "write_log": "build/qa/add-revert-identities-localizations-write-2026-10-17.log"
+  },
+  "preserved_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ],
+  "hosted_observation": {
+    "pages_head": "267d1520",
+    "pages_run": 39022844328,
+    "pages_conclusion": "success",
+    "macos_head": "267d1520",
+    "macos_run": 39022844344,
+    "macos_status": "pending",
+    "older_live_head": "bd7ace20",
+    "older_live_run": 39018627436,
+    "older_live_job": 117357969167,
+    "older_live_step": "Shared message styles and spelling",
+    "scope": "Read-only observation before this batch push, not current-batch CI acceptance"
+  },
+  "remaining": [
+    "Complete Add/Revert source menu/state and displayed-sort acceptance-order behavior",
+    "File-panel/external application lifecycle and physical native input/VoiceOver acceptance",
+    "Existing AppKit Revert reentrancy warning",
+    "Other dialogs including Log; wider operation sets, LFS owner and Finder state/overlay/repository maps",
+    "URL-derived invocation spelling, invalid UTF-8 Git filenames and physical filesystem case/normalization aliases",
+    "Signed Finder/App Group/security scopes, signed distribution, App Store acceptance and full current hosted CI"
+  ],
+  "cleanup": {
+    "owned_receivers_or_helpers_reaped": [
+      8349,
+      8415,
+      8498,
+      8545,
+      8593,
+      8606,
+      8742,
+      8764,
+      8871,
+      8883,
+      9288,
+      9706,
+      9853,
+      10007,
+      10054,
+      10114,
+      10379,
+      10642,
+      10691
+    ],
+    "independent_ps_absence": true
+  },
+  "documentation": {
+    "localization_check": "38 languages / 1242 safe keys; passed",
+    "site_log": "build/qa/add-revert-identities-site-2026-10-17.log",
+    "site_documents": 269,
+    "unresolved_fragments": [],
+    "coverage_log": "build/qa/add-revert-identities-coverage-2026-10-17.log",
+    "coverage": "130 dialogs; 120 partial audits; 10 pending family reviews; 0 certified; 1566 mapped / 93 pending static controls",
+    "ci_workflow": "Native exact file selection families step now runs Commit and Add/Revert identity receivers with both engines; Ruby Psych YAML syntax parse passed. Python environment lacked PyYAML; no package installed. Hosted execution remains pending.",
+    "diff_check": "passed"
+  }
+}

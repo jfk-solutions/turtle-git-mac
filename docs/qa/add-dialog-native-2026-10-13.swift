@@ -18,13 +18,15 @@ import TurtleGitCore
         try await repo.stage([".gitignore"]); _ = try await repo.commit(message: "base")
         let file = "new 雪\n.txt", unchecked = "unchecked.txt", ignored = "ignored.log"
         for path in [file, unchecked, ignored] { try Data(path.utf8).write(to: folder.appendingPathComponent(path)) }
-        let model = AddWindowModel(repository: repo, access: nil); model.setScope(["."])
+        let suite = "TurtleGit.AddDialog.QA." + UUID().uuidString,preferences = UserDefaults(suiteName:suite)!
+        defer {preferences.removePersistentDomain(forName:suite)}
+        let model = AddWindowModel(repository: repo, access: nil, defaults:preferences); model.setScope(["."])
         try await model.read(); precondition(model.checked == [file, unchecked] && !model.entries.contains { $0.path == ignored })
         model.checked.remove(unchecked); try await model.read(); precondition(!model.checked.contains(unchecked))
         model.includeIgnored = true; try await model.read(); precondition(model.entries.contains { $0.path == ignored } && !model.checked.contains(ignored))
         model.checked.insert(ignored)
         let receiver = AddFileTable.Coordinator(model: model), scroll = receiver.make()
-        precondition(receiver.table.tableColumns.map(\.title) == ["", "Path", "Extension", "Size", "Modification date"])
+        precondition(receiver.table.tableColumns.map(\.title) == ["", "Path", "Extension", "Modification date", "Size"])
         precondition(receiver.numberOfRows(in: receiver.table) == 3 && scroll.documentView === receiver.table)
         precondition((receiver.table as? NativeWatermarkTable)?.watermarkImage != nil)
         let watermarkDomain = "TurtleGitAddWatermark-" + UUID().uuidString
@@ -59,6 +61,7 @@ import TurtleGitCore
         precondition(receiver.clipboardText("names") == displayed.map { ($0 as NSString).lastPathComponent }.joined(separator: "\n") + "\n")
         precondition(receiver.clipboardText("ext") == ".txt\n.txt\n")
         precondition(receiver.clipboardText("all").hasPrefix("Path\tExtension"))
+        model.selectionMark = unchecked
         receiver.toggleSelectedChecks(); precondition(model.checked.contains(unchecked)); receiver.toggleSelectedChecks()
         precondition(!model.checked.contains(file) && !model.checked.contains(unchecked)); model.checked = [file, ignored]
         var opened: [(String, AddFileOpenAction)] = []; model.onOpen = { opened.append(($0, $1)) }
@@ -316,7 +319,7 @@ import TurtleGitCore
         try FileManager.default.createDirectory(at: unbornFolder, withIntermediateDirectories: false)
         let unbornRepo = GitRepository(root: unbornFolder, executable: repo.executable); _ = try await unbornRepo.run(["init", "-b", "main"])
         try Data("first\n".utf8).write(to: unbornFolder.appendingPathComponent("first.txt")); try await unbornRepo.stage(["first.txt"])
-        let unbornModel = AddWindowModel(repository: unbornRepo, access: nil); unbornModel.setScope(["first.txt"]); try await unbornModel.read(); unbornModel.highlighted = ["first.txt"]
+        let unbornModel = AddWindowModel(repository: unbornRepo, access: nil, defaults:preferences); unbornModel.setScope(["first.txt"]); try await unbornModel.read(); unbornModel.highlighted = ["first.txt"]
         let unbornReceiver = AddFileTable.Coordinator(model: unbornModel); _ = unbornReceiver.make()
         precondition(unbornReceiver.canCompareBase && !unbornModel.hasHead && !unbornReceiver.canUnifiedDiff && unbornModel.startUnifiedDiff(paths: ["first.txt"]) == nil)
         let history = try await repo.history(options: historyOptions)
