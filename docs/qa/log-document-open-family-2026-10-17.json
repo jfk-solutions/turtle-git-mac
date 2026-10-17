@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "282d9bd725bb5e6c6db1cb176dcb18a70b3a6339",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log Open/Open With/alternative editor connected read, chooser, preview, permission and asynchronous application handoff ownership",
+  "source_inputs_sha256": {
+    "Sources/TurtleGitCore/WorkingFileExport.swift": "f71ebb2090a2deab8f1899a1c9be3a23a24e6522f2de55c9635a4cb194fab93b",
+    "Sources/TurtleGitMac/AlternativeEditorSettings.swift": "84d9bc87c9ee2c6c6dd2182c327970485f50881bfb1a03d9bdc11da8067ef30a",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "98f73c3a299800849f4f0a86ab004c68e130b8edcec5c9d947a6a8be7bc0d7b7",
+    "Sources/TurtleGitMac/LogWindow.swift": "af31df92a24d193b5371881f5c3b994f513994c6add9b4929905d4700bce9b5a",
+    "Tests/TurtleGitCoreTests/WorkingFileExportTests.swift": "9fb881a2de2547b4fc1866b5621e6109a74a568516aaa13261f66f1fe809569b",
+    "docs/qa/log-document-open-native-2026-10-17.swift": "28a23d57ed5890dab70fc80d81cd647951fb9e2fa7b4290fede9208e6317eef9",
+    "scripts/test-log-document-open.py": "d42721c20b0ed11d48ca0804db3f5668200200d237575a52682522bc73f93d79"
+  },
+  "attempts": [
+    {
+      "kind": "Debug build",
+      "log": "build/qa/log-document-open-build-2026-10-17.log",
+      "result": "exit 0; retained SDK/CoreSimulator and zero-exit/no-output diagnostics"
+    },
+    {
+      "kind": "Core focused",
+      "log": "build/qa/log-document-open-core-2026-10-17.log",
+      "result": "12 tests passed, 9 WorkingFileExportTests and 3 historical FileComparisonTests; cancellation before Git metadata read verified with an executable that must never run"
+    },
+    {
+      "kind": "Grouped native",
+      "log": "build/qa/log-document-open-native-2026-10-17.log",
+      "receivers": [
+        30790,
+        31123,
+        31457,
+        31593
+      ],
+      "result": "4 cases passed, new document Open family and retained Log exact file-action family across system/bundled Git"
+    },
+    {
+      "kind": "Source/native Close review",
+      "result": "After first grouped pass, found generic busy guard rejected normal Close during preview preparation or pending launch. Added existing-owned-session exception while preserving sheet/reference/tool guards."
+    },
+    {
+      "kind": "Debug affected Close build",
+      "log": "build/qa/log-document-open-close-build-2026-10-17.log",
+      "result": "exit 0; no Core change or repeat"
+    },
+    {
+      "kind": "Affected native Close recheck",
+      "log": "build/qa/log-document-open-close-native-2026-10-17.log",
+      "receivers": [
+        31839,
+        32185
+      ],
+      "result": "2 document Open cases passed across system/bundled Git with explicit production windowShouldClose assertions for preparation and pending launch. Unaffected retained file cases not repeated."
+    }
+  ],
+  "coverage": [
+    "Real historical Git read to native document-open arguments and read-only exact preview bytes",
+    "Default application resolution and missing-handler error/undispatched preview cleanup",
+    "Open With cancellation, duplicate request refusal and selection-epoch retirement",
+    "Alternative editor captured settings and native document arguments",
+    "Working Tree actual path and current disk bytes",
+    "Close during preview preparation, cancelled undispatched preview disposal and independent Quit lifetime",
+    "Close after launch attempt, late-error rejection and retention of possibly accepted input",
+    "HEAD/index preservation and final empty request counters",
+    "Retained exact selection, parent groups, menu ownership and native chooser cancellation/reuse/retirement"
+  ],
+  "owned_cleanup": {
+    "pids": [
+      30790,
+      31123,
+      31457,
+      31593,
+      31839,
+      32185
+    ],
+    "receiver_report": "all reaped",
+    "independent_ps_check": "all absent",
+    "user_receiving_apps": "none launched; fixture launch callbacks injected",
+    "preview_cleanup": "fixture retains exact created URLs and discards them after checks"
+  },
+  "limits": [
+    "No physical app picker or receiving-application delivery acceptance",
+    "No VoiceOver/IME/physical keyboard verification",
+    "No signed App Store grants or runtime verification",
+    "CLI child settlement uses existing shared process pool, not relaunched by this native fixture",
+    "Historical reads cancel on selection/retirement; normal native Close exception added for preview/launch ownership only",
+    "Launch Services completion is not proof a receiving application finished reading/using a document",
+    "No new screenshots: source menu captions/artwork and dialog layout unchanged",
+    "No full Core suite or complete hosted CI pass claimed",
+    "No full Log/dialog/application parity certification"
+  ],
+  "checks": {
+    "localization": "38 languages / 1281 keys --check passed",
+    "help": "38 documents / 48 topics --check passed",
+    "ledger": "reconciled; unchanged 130 dialogs, 120 partial family audits, 10 pending, zero certified; not feature percentages",
+    "diff": "git diff --check passed",
+    "site": "287 documents, zero unresolved fragments",
+    "CI scope": "New CI step runs --only open; retained Log file identity family already has its own CI step, so it is not duplicated"
+  }
+}

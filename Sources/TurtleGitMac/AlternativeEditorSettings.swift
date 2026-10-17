@@ -5,24 +5,45 @@ import TurtleGitCore
 
 @MainActor enum AlternativeEditor {
     private(set) static var activeRequests = 0
-    static func open(_ file: URL, preferences defaults: UserDefaults = .standard, permissions: [RepositoryAccessLease] = [], completion: @escaping @MainActor @Sendable (String?) -> Void) {
-        let preferences = AlternativeEditorPreferences.load(from: defaults)
-        guard preferences.valid else { completion("Choose an application bundle or executable in Settings → Alternative Editor."); return }
-        let custom = preferences.customApplication
-        guard let application = custom ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.TextEdit") else {
-            completion("TextEdit is unavailable. Choose a custom editor in Settings → Alternative Editor."); return
+    enum Failure: LocalizedError {
+        case configuration, unavailable
+        var errorDescription: String? {
+            switch self {
+            case .configuration: return "Choose an application bundle or executable in Settings → Alternative Editor."
+            case .unavailable: return "TextEdit is unavailable. Choose a custom editor in Settings → Alternative Editor."
+            }
         }
-        var program = preferences.program; program.applicationPath = application.path
-        if custom == nil { program.bookmark = nil }
+    }
+    static func open(_ file: URL, preferences defaults: UserDefaults = .standard, permissions: [RepositoryAccessLease] = [], completion: @escaping @MainActor @Sendable (String?) -> Void) {
+        let settings = AlternativeEditorPreferences.load(from: defaults)
+        guard settings.valid else { completion(Failure.configuration.localizedDescription); return }
         activeRequests += 1
         Task {
             defer { activeRequests -= 1 }
-            do {
-                try await ExternalDocumentApplication.open(file: file, program: program, arguments: [file.path], nativeDocumentOpen: true,
-                    permissions: permissions + GitConfigurationPermissions.retained(for: file), requiresProgramScope: custom != nil)
-                completion(nil)
-            } catch { completion(error.localizedDescription) }
+            do { try await perform(file, settings: settings, permissions: permissions); completion(nil) }
+            catch { completion(error.localizedDescription) }
         }
+    }
+    /// Awaitable form for dialog owners: capture settings at invocation and keep
+    /// cancellation, permissions and error delivery in the originating workflow.
+    static func openDocument(_ file: URL, settings: AlternativeEditorPreferences,
+                             permissions: [RepositoryAccessLease], cancellation: OperationCancellation,
+                             launch: ExternalDocumentApplication.Launch? = nil) async throws {
+        activeRequests += 1; defer { activeRequests -= 1 }
+        try await perform(file, settings: settings, permissions: permissions, cancellation: cancellation, launch: launch)
+    }
+    private static func perform(_ file: URL, settings: AlternativeEditorPreferences,
+                                permissions: [RepositoryAccessLease], cancellation: OperationCancellation? = nil,
+                                launch: ExternalDocumentApplication.Launch? = nil) async throws {
+        try cancellation?.check()
+        guard settings.valid else { throw Failure.configuration }
+        let custom = settings.customApplication
+        guard let application = custom ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.TextEdit") else { throw Failure.unavailable }
+        var program = settings.program; program.applicationPath = application.path
+        if custom == nil { program.bookmark = nil }
+        try await ExternalDocumentApplication.open(file: file, program: program, arguments: [file.path], nativeDocumentOpen: true,
+            permissions: permissions + GitConfigurationPermissions.retained(for: file), cancellation: cancellation,
+            requiresProgramScope: custom != nil, launch: launch)
     }
 
 }

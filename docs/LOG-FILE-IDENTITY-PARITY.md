@@ -70,8 +70,8 @@ The focused checks cover private repositories/preferences/pasteboards and owned
 native windows. Native table selection and native sheet cancellation are exercised;
 menu receipt checks invoke the production dispatch guard and callbacks directly.
 They do not establish physical popup tracking, mouse/keyboard layouts, VoiceOver,
-Open With application delivery or signed security-scoped grants. External app
-launch completion ownership remains separate work. Existing broader Log view,
+Open With application delivery or signed security-scoped grants. The [external document opening continuation](LOG-DOCUMENT-OPEN-PARITY.md)
+connects launch completion ownership, captured editor settings and preview retirement. Existing broader Log view,
 reference chooser, merge/group presentation and signed Finder acceptance gaps in
 [Log parity](LOG-PARITY.md) remain open. Complete application parity, hosted CI and
 App Store acceptance are not established by this batch.

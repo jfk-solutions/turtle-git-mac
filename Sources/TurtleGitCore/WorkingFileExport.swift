@@ -16,12 +16,13 @@ public enum WorkingFileExportFailure: LocalizedError {
 extension GitRepository {
     /// Open the current disk item itself, rather than a historical temporary copy.
     /// File symlinks keep their selected path and follow their target when opened.
-    public func workingFileOpenLocation(path: String) throws -> URL {
-        guard try !isBare() else { throw RevisionComparisonFailure.selection }
+    public func workingFileOpenLocation(path: String, cancellation: OperationCancellation? = nil) throws -> URL {
+        try cancellation?.check()
+        guard try !isBare(cancellation: cancellation) else { throw RevisionComparisonFailure.selection }
         let location = try restoreLocation(path)
         let target = location.resolvingSymlinksInPath()
         guard try FileManager.default.attributesOfItem(atPath: target.path)[.type] as? FileAttributeType == .typeRegular else { throw WorkingFileExportFailure.unsupported }
-        return location
+        try cancellation?.check(); return location
     }
     /// Working-tree Save As copies current disk bytes, following file symlinks,
     /// without reading or changing the Git index.

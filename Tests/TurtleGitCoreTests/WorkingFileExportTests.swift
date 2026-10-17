@@ -9,6 +9,11 @@ final class WorkingFileExportTests: XCTestCase {
         try bytes.write(to: url)
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do {
+            _ = try await GitRepository(root: root, executable: root.appendingPathComponent("never-run")).workingFileOpenLocation(path: path, cancellation: cancelled)
+            XCTFail("Cancelled Open started its Git metadata read")
+        } catch is OperationCancellationFailure {}
         let location = try await repo.workingFileOpenLocation(path: path); XCTAssertEqual(location, url)
         try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("link").path, withDestinationPath: path)
         let linked = try await repo.workingFileOpenLocation(path: "link"); XCTAssertEqual(linked, root.appendingPathComponent("link"))

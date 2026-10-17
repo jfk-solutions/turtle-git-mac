@@ -106,8 +106,88 @@ final class LogHistoryWindow: NSWindow {
     }
 }
 
+/// Owns the entire deferred panel/preview/Launch Services handoff. Closing a
+/// window cancels undispatched work; an accepted launch keeps its Quit lifetime
+/// and grants until the receiving application has acknowledged the handoff.
+@MainActor final class LogDocumentOpenSession {
+    private(set) static var activeRequests = 0
+    let cancellation = OperationCancellation()
+    private let model: LogWindowModel
+    private let generation: Int
+    private let selection: UUID
+    private let editor: AlternativeEditorPreferences
+    private let permissions: [RepositoryAccessLease]
+    private let panels: OwnedFilePanelSession
+    private var finished = false
+    var defaultApplication: (URL) -> URL? = { NSWorkspace.shared.urlForApplication(toOpen: $0) }
+    var launch: ExternalDocumentApplication.Launch?
+    var chooseApplication: ((NSOpenPanel) async -> URL?)?
+    var preparePreview: (ComparisonFileContent, OperationCancellation) async throws -> HistoricalFilePreview = { content, token in
+        try await Task.detached { try token.check(); return try HistoricalFilePreview.create(content) }.value
+    }
+    init(model: LogWindowModel, preferences: UserDefaults, permissions: [RepositoryAccessLease], panels: OwnedFilePanelSession) {
+        self.model = model; generation = model.generation; selection = model.fileSelectionGeneration
+        editor = .load(from: preferences); self.permissions = permissions; self.panels = panels
+        model.busy = true; Self.activeRequests += 1
+    }
+    var current: Bool { !finished && !cancellation.isCancelled && !model.isInvalidated && model.generation == generation && model.fileSelectionGeneration == selection }
+    func retire() { cancellation.cancel(); panels.cancel() }
+    private func finish() {
+        guard !finished else { return }; finished = true; Self.activeRequests -= 1
+        if !model.isInvalidated && model.generation == generation { model.busy = false }
+    }
+    func run(content: ComparisonFileContent?, workingFile: URL?, action: HistoricalOpenAction) async {
+        defer { finish(); withExtendedLifetime(permissions) {} }
+        var preview: HistoricalFilePreview?, dispatched = false
+        do {
+            await Task.yield(); try cancellation.check(); guard current else { return }
+            var application: URL?
+            if action == .openWith {
+                let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
+                panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
+                panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+                if let chooseApplication { application = await chooseApplication(panel) }
+                else { application = await panels.choose(panel) }
+                guard current, application != nil else { return }
+            }
+            let applicationGrant = application.map { RepositoryAccessLease(url: $0) }
+            defer { withExtendedLifetime(applicationGrant) {} }
+            guard !GitRuntime.isAppStoreBuild || application == nil || applicationGrant?.hasSecurityScope == true else { throw ExternalDocumentApplication.Failure.programPermission }
+            let file: URL
+            if let content {
+                let prepared = try await preparePreview(content, cancellation); preview = prepared; file = prepared.file
+            } else if let workingFile {
+                try model.validateWorkingFileAccess(workingFile); file = workingFile
+            } else { throw RevisionComparisonFailure.selection }
+            try cancellation.check(); guard current else { preview?.discard(); return }
+            if action != .alternativeEditor {
+                guard let selected = application ?? defaultApplication(file) else {
+                    throw CocoaError(.fileReadUnknown, userInfo: [NSLocalizedDescriptionKey: "Could not open the file. Choose an application using Open With."])
+                }
+                application = selected
+            }
+            if let preview { HistoricalPreviewFiles.retain(preview) }
+            // A receiving app may consume the input before Launch Services sends
+            // its callback, even if that callback later reports a failure.
+            dispatched = true
+            if action == .alternativeEditor {
+                try await AlternativeEditor.openDocument(file, settings: editor, permissions: permissions, cancellation: cancellation, launch: launch)
+            } else if let application {
+                var program = DiffToolProgram(); program.enabled = true; program.applicationPath = application.path
+                try await ExternalDocumentApplication.open(file: file, program: program, arguments: [], nativeDocumentOpen: true,
+                    permissions: permissions, cancellation: cancellation, requiresProgramScope: false, launch: launch)
+            }
+        } catch {
+            if !dispatched { preview?.discard() }
+            if current { model.error = error.localizedDescription }
+        }
+    }
+}
+
 @MainActor final class LogWindowController: NSWindowController, NSWindowDelegate {
     private(set) lazy var filePanels = OwnedFilePanelSession(window: window)
+    private(set) var documentOpen: LogDocumentOpenSession?
+    var configureDocumentOpen: (LogDocumentOpenSession) -> Void = { _ in }
     private(set) static var activeReferencePickers = 0
     private var startReferenceRequest: UUID?
     private(set) var startReferencePicker: ReferenceBrowserWindowController?
@@ -216,13 +296,14 @@ final class LogHistoryWindow: NSWindow {
         }
         model.finishSelection = { [weak self] revision in self?.finishSelection(revision) }
         model.finishMultipleSelection = { [weak self] revisions in self?.finishMultipleSelection(revisions) }
-        model.cancelFileChoice = { [weak self] in self?.filePanels.cancel() }
+        model.cancelFileChoice = { [weak self] in self?.filePanels.cancel(); self?.documentOpen?.retire() }
+        model.cancelFileOpen = { [weak self] in self?.documentOpen?.retire() }
         model.presentHistoricalSave = { [weak self] content, short in
             // Let the originating context-menu tracking finish before presenting AppKit UI.
             DispatchQueue.main.async { [weak self] in self?.saveHistoricalFile(content, short: short) }
         }
         model.presentHistoricalOpen = { [weak self] content, action in
-            DispatchQueue.main.async { [weak self] in self?.openHistoricalFile(content, action: action) }
+            self?.openDocument(content: content, action: action)
         }
         model.presentHistoricalExport = { [weak self] revision, files in
             DispatchQueue.main.async { [weak self] in self?.chooseHistoricalExport(revision: revision, files: files) }
@@ -234,7 +315,7 @@ final class LogHistoryWindow: NSWindow {
             DispatchQueue.main.async { [weak self] in self?.chooseWorkingCopy(paths: paths, save: false) }
         }
         model.presentWorkingOpen = { [weak self] file, action in
-            DispatchQueue.main.async { [weak self] in self?.openWorkingFile(file, action: action) }
+            self?.openDocument(workingFile: file, action: action)
         }
         model.confirmExportFailure = { [weak self] message in
             guard let window = self?.window else { return false }
@@ -289,57 +370,15 @@ final class LogHistoryWindow: NSWindow {
             model?.copyWorkingFiles(paths, to: target, save: save)
         }
     }
-    private func openWorkingFile(_ file: URL, action: HistoricalOpenAction) {
-        guard let window, window.attachedSheet == nil, !model.busy, !model.isInvalidated else { return }
-        if action == .openWith {
-            let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
-            panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
-            panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
-            chooseFile(panel) { [weak self] app in
-                self?.launchWorkingFile(file, action: action, application: app)
-            }
-        } else { launchWorkingFile(file, action: action) }
-    }
-    private func launchWorkingFile(_ file: URL, action: HistoricalOpenAction, application: URL? = nil) {
-        guard !model.busy, !model.isInvalidated else { return }
-        do { try model.validateWorkingFileAccess(file) } catch { model.error = error.localizedDescription; return }
-        let failed: @MainActor @Sendable (String?) -> Void = { [weak model] error in if let error { model?.error = error } }
-        if action == .alternativeEditor { AlternativeEditor.open(file, preferences: findPreferences, permissions: findAccess.map { [$0] } ?? [], completion: failed) }
-        else if let application {
-            let scoped = application.startAccessingSecurityScopedResource()
-            NSWorkspace.shared.open([file], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { _, error in
-                if scoped { application.stopAccessingSecurityScopedResource() }
-                DispatchQueue.main.async { failed(error?.localizedDescription) }
-            }
-        } else if !NSWorkspace.shared.open(file) { failed("Could not open the working file. Choose an application using Open With.") }
-    }
-    private func openHistoricalFile(_ content: ComparisonFileContent, action: HistoricalOpenAction) {
-        guard let window, window.attachedSheet == nil else { return }
-        if action == .openWith {
-            let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
-            panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
-            panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
-            chooseFile(panel) { [weak self] app in
-                self?.launchHistoricalFile(content, action: action, application: app)
-            }
-        } else { launchHistoricalFile(content, action: action) }
-    }
-    private func launchHistoricalFile(_ content: ComparisonFileContent, action: HistoricalOpenAction, application: URL? = nil) {
-        do {
-            let preview = try HistoricalFilePreview.create(content)
-            HistoricalPreviewFiles.retain(preview)
-            let failed: @MainActor @Sendable (String?) -> Void = { [weak model] error in
-                if let error { HistoricalPreviewFiles.discard(preview.file); model?.error = error }
-            }
-            if action == .alternativeEditor { AlternativeEditor.open(preview.file, preferences: findPreferences, permissions: findAccess.map { [$0] } ?? [], completion: failed) }
-            else if let application {
-                let scoped = application.startAccessingSecurityScopedResource()
-                NSWorkspace.shared.open([preview.file], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { _, error in
-                    if scoped { application.stopAccessingSecurityScopedResource() }
-                    DispatchQueue.main.async { failed(error?.localizedDescription) }
-                }
-            } else if !NSWorkspace.shared.open(preview.file) { failed("Could not open the historical file. Choose an application using Open With.") }
-        } catch { model.error = error.localizedDescription }
+    private func openDocument(content: ComparisonFileContent? = nil, workingFile: URL? = nil, action: HistoricalOpenAction) {
+        guard let window, window.attachedSheet == nil, !model.busy, !model.isInvalidated, documentOpen == nil else { return }
+        let operation = LogDocumentOpenSession(model: model, preferences: findPreferences,
+            permissions: findAccess.map { [$0] } ?? [], panels: filePanels)
+        configureDocumentOpen(operation); documentOpen = operation
+        Task { [weak self, operation] in
+            await operation.run(content: content, workingFile: workingFile, action: action)
+            if self?.documentOpen === operation { self?.documentOpen = nil }
+        }
     }
     private func saveHistoricalFile(_ content: ComparisonFileContent, short: String) {
         guard let window, window.attachedSheet == nil else { return }
@@ -476,12 +515,12 @@ final class LogHistoryWindow: NSWindow {
         if model.cancelWorkingCommandRead(closeAfter:true) { return false }
         if model.cancelStartReferenceRead() { return false }
         if model.cancelIntegrationRead(closeAfter:true) { return false }
-        guard !model.referencePickerBlocked, (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
+        guard !model.referencePickerBlocked, (!model.busy || model.loadingHistory || documentOpen != nil), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
         model.saveLogViewPreferences(); model.savePaneLayout()
-        filePanels.retire()
+        documentOpen?.retire(); filePanels.retire()
         window?.makeFirstResponder(nil)
         retireStartReferencePicker()
         notePresenter?.close()
@@ -638,6 +677,8 @@ struct LogCommandRequest: Identifiable {
 @MainActor final class LogWindowModel: ObservableObject {
     private(set) static var activeHistoryDeletions = 0
     private(set) static var activeHistoryLoads = 0
+    private(set) static var activeFileOpenReads = 0
+    private var fileOpenRead: OperationCancellation?
     private(set) static var activeActionReads = 0
     private var combineSelectionReads:[UUID:OperationCancellation]=[:]
     func validateCombineSelection(_ entries:[LogEntry],offset:Int,head:String,token:OperationCancellation) async throws {
@@ -930,7 +971,7 @@ struct LogCommandRequest: Identifiable {
     }
     private(set) var fileSelectionGeneration = UUID()
     private var fileMenuGeneration = UUID()
-    private func invalidateFileSelection() { fileSelectionGeneration = UUID(); fileMenuGeneration = UUID() }
+    private func invalidateFileSelection() { cancelFileOpen(); fileOpenRead?.cancel(); fileSelectionGeneration = UUID(); fileMenuGeneration = UUID() }
     func markedFile(_ ids: some Sequence<String>) -> CommitFile? {
         let ids = GitPathSet(ids)
         if let fileSelectionMark, ids.contains(fileSelectionMark), let file = visibleFiles.first(where: { GitReferenceName.equal($0.id, fileSelectionMark) }) { return file }
@@ -1653,7 +1694,7 @@ struct LogCommandRequest: Identifiable {
     }
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     @Published var commandRequest: LogCommandRequest?
-    private var generation = 0
+    fileprivate var generation = 0
     var contextMenuGeneration:Int { generation }
     private(set) var isInvalidated = false
     private var detailGeneration = 0
@@ -1766,6 +1807,7 @@ struct LogCommandRequest: Identifiable {
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
     var cancelFileChoice: () -> Void = {}
+    var cancelFileOpen: () -> Void = {}
     var presentHistoricalSave: (ComparisonFileContent, String) -> Void = { _, _ in }
     var presentHistoricalOpen: (ComparisonFileContent, HistoricalOpenAction) -> Void = { _, _ in }
     var presentHistoricalExport: (String, [CommitFile]) -> Void = { _, _ in }
@@ -2552,20 +2594,25 @@ struct LogCommandRequest: Identifiable {
             } catch { if !isInvalidated, request == generation, fileRequest == fileSelectionGeneration { self.error = error.localizedDescription }; busy = false }
         }
     }
+    private func finishFileOpenRead(_ token: OperationCancellation, generation request: Int) {
+        if fileOpenRead === token { fileOpenRead = nil; if request == generation && !isInvalidated { busy = false } }
+    }
     func openHistoricalFile(_ ids: some Sequence<String>, action: HistoricalOpenAction) {
         let ids = GitPathSet(ids)
         if selectedWorkingTree { openWorkingFile(ids, action: action); return }
-        guard !busy, let revision, ids.count == 1, let window, window.attachedSheet == nil,
+        guard !busy, !isInvalidated, let revision, ids.count == 1, let window, window.attachedSheet == nil,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
-        let request = generation, fileRequest = fileSelectionGeneration
-        busy = true
+        let request = generation, fileRequest = fileSelectionGeneration, token = OperationCancellation()
+        fileOpenRead = token; busy = true; Self.activeFileOpenReads += 1
         Task {
+            defer { Self.activeFileOpenReads -= 1; finishFileOpenRead(token, generation: request); withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let content = try await repository.historicalFile(revision: revision.hash, path: file.path)
-                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration else { busy = false; return }
-                busy = false; presentHistoricalOpen(content, action)
-            } catch { if !isInvalidated, request == generation, fileRequest == fileSelectionGeneration { self.error = error.localizedDescription }; busy = false }
+                let content = try await repository.historicalFile(revision: revision.hash, path: file.path, cancellation: token)
+                try token.check()
+                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration else { return }
+                finishFileOpenRead(token, generation: request); presentHistoricalOpen(content, action)
+            } catch { if !isInvalidated, !token.isCancelled, request == generation, fileRequest == fileSelectionGeneration { self.error = error.localizedDescription } }
         }
     }
     func validateWorkingFileAccess(_ file: URL) throws {
@@ -2575,18 +2622,18 @@ struct LogCommandRequest: Identifiable {
         let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, !bare, ids.count == 1, window?.attachedSheet == nil,
               let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
-        let request = generation, selection = selected
-        let fileRequest = fileSelectionGeneration
-        busy = true
+        let request = generation, selection = selected, fileRequest = fileSelectionGeneration, token = OperationCancellation()
+        fileOpenRead = token; busy = true; Self.activeFileOpenReads += 1
         Task {
-            defer { busy = false }
+            defer { Self.activeFileOpenReads -= 1; finishFileOpenRead(token, generation: request); withExtendedLifetime(access) {} }
             do {
-                try validateWorkingFileAccess(repository.root.appendingPathComponent(file.path))
-                let location = try await repository.workingFileOpenLocation(path: file.path)
+                try token.check(); try validateWorkingFileAccess(repository.root.appendingPathComponent(file.path))
+                let location = try await repository.workingFileOpenLocation(path: file.path, cancellation: token)
+                try token.check()
                 guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration, selection == selected else { return }
                 try validateWorkingFileAccess(location)
-                busy = false; presentWorkingOpen(location, action)
-            } catch { if !isInvalidated, request == generation { self.error = error.localizedDescription } }
+                finishFileOpenRead(token, generation: request); presentWorkingOpen(location, action)
+            } catch { if !isInvalidated, !token.isCancelled, request == generation, fileRequest == fileSelectionGeneration { self.error = error.localizedDescription } }
         }
     }
     func copyWorkingFiles(_ paths: [String], to target: URL, save: Bool) {

@@ -2458,3 +2458,22 @@ Failed attempts, limitations and all seven receiver cleanup checks are retained
 in [dated evidence](qa/log-cache-branding-family-2026-10-17.json).
 No full Core/hosted CI, signed deployment, physical Finder or complete dialog
 parity claim follows from this checkpoint. Inventory counts are unchanged.
+
+### Connected Log external document opening, 2026-10-17
+
+Log Open, Open With and alternative editor now retain the originating file epoch
+through Git reads, application choice, preview creation and Launch Services.
+Historical/working reads have cancellation/Quit ownership; application and
+repository grants survive handoff. Historical previews retain exact read-only
+bytes, undispatched copies are discarded, and possibly accepted inputs survive
+uncertain launch receipts. Editor settings are captured before deferred work.
+Normal Close can retire preview/launch sessions; late callbacks cannot overwrite
+a retired/new selection's errors. Native source menus/icons are unchanged.
+
+Both Debug builds, twelve focused Core cases and four distinct grouped native
+workflow/engine combinations passed. Final Close review required only the two
+affected handoff cases to be repeated. All six receivers were reaped and
+independently absent. [Scope and limits](LOG-DOCUMENT-OPEN-PARITY.md) and
+[dated evidence](qa/log-document-open-family-2026-10-17.json) retain the actual
+checks. Physical receiving-app/AX and signed App Store acceptance remain open;
+this does not certify the whole Log or application port.
