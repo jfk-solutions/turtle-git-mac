@@ -30,7 +30,7 @@ import TurtleGitCore
     @MainActor static func capture(_ owner: FirstStartWizardController, page: String) async throws {
         guard let destination = ProcessInfo.processInfo.environment["TURTLEGIT_FIRST_START_CAPTURE"], let window = owner.window else { return }
         guard #available(macOS 14.4, *) else { throw Failure(description: "Capture API unavailable") }
-        window.alphaValue = 1; window.makeKeyAndOrderFront(nil)
+        window.alphaValue = 1; window.orderFront(nil)
         defer { window.alphaValue = 0 }
         for (appearance, suffix) in [(NSAppearance.Name.aqua,"light"),(.darkAqua,"dark")] {
             window.appearance = NSAppearance(named: appearance); window.contentView?.layoutSubtreeIfNeeded()
@@ -39,13 +39,13 @@ import TurtleGitCore
             guard let own = content.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else { throw Failure(description: "Own wizard missing from compositor") }
             let options = SCStreamConfiguration(); options.width = Int(window.frame.width * window.backingScaleFactor); options.height = Int(window.frame.height * window.backingScaleFactor)
             fputs("Capture \(page)-\(suffix): frame=\(window.frame), compositor=\(own.frame), pixels=\(options.width)x\(options.height)\n", stderr)
-            options.showsCursor = false; options.ignoreShadowsSingleWindow = true
+            options.showsCursor = false; options.ignoreShadowsSingleWindow = true; options.includeChildWindows = false
             let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: own), configuration: options)
             try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: destination).appendingPathComponent("first-start-" + page + "-" + suffix + ".png"))
         }
     }
     @MainActor static func verify() async throws {
-        _ = NSApplication.shared; NSApp.setActivationPolicy(.accessory)
+        _ = NSApplication.shared; NSApp.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), engine = URL(fileURLWithPath: CommandLine.arguments[2])
         let standardBefore = UserDefaults.standard.object(forKey: "TurtleGit.FirstStartComplete") as? Bool
         var suites: [String] = []
@@ -105,15 +105,64 @@ import TurtleGitCore
         func pids(_ helper: URL) -> [Int32] { (try? String(contentsOfFile: helper.path + ".ready", encoding: .utf8))?.split(whereSeparator: \.isWhitespace).compactMap { Int32($0) } ?? [] }
         func ready(_ helper: URL) -> Bool { FileManager.default.fileExists(atPath: helper.path + ".ready") }
         let (directory,helper,global,prefs) = try fixture("flow"), main = owner(directory,helper,prefs), model = main.model
+        model.back(); model.back()
+        try await capture(main,page:"language")
+        let languageContext=model.formContext,languageGeneration=model.pageGeneration
+        model.next(context:languageContext)
+        try await capture(main,page:"welcome")
+        model.next(context:languageContext);model.back(context:languageContext)
+        try require(model.page == .welcome,"Retained Language actions changed Welcome")
+        model.back(context:model.formContext)
+        try require(!model.focusAllowed(page:.language,generation:languageGeneration),"Revisited page accepted an old focus request")
+        model.next(context:model.formContext);model.next(context:model.formContext)
         try require(model.page == .git, "Five-stage ordering")
+        let gitContext=model.formContext,oldGitPath=model.gitText(true,context:gitContext),oldExtraPath=model.gitText(false,context:gitContext)
+        let originalPath=model.git.draft.path
+        var pickerReply:((NSApplication.ModalResponse)->Void)?
+        model.git.presentPanel={_,_,reply in pickerReply=reply}
+        model.git.selectedURL={_ in helper};model.git.bookmark={_ in Data([1,2,3])}
+        model.browseGit(context:gitContext)
+        try require(model.git.selecting && !model.canNavigate && !model.canCancel,"Git picker did not own wizard navigation/Close")
+        oldGitPath.wrappedValue="/stale/git";oldExtraPath.wrappedValue="/stale/path";model.next(context:gitContext)
+        try require(model.page == .git && model.git.draft.path==originalPath && model.git.draft.extraPath.isEmpty,"Pending picker accepted old fields or Next")
+        pickerReply?(.cancel);pickerReply?(.OK)
+        try require(model.canNavigate && GeneralGitSettingsModel.activeDialogs==0 && model.git.draft.bookmark==nil,"Repeated picker reply changed the cancelled draft")
+        oldExtraPath.wrappedValue="/after/cancel"
+        try require(model.git.draft.extraPath.isEmpty,"Cancelled picker revived an old form binding")
+        var inspected=false
+        model.git.inspectEngine={_,token in
+            inspected=true
+            while !token.isCancelled {try await Task.sleep(nanoseconds:10_000_000)}
+            try token.check();return "git version stale"
+        }
+        let checkContext=model.formContext
+        model.checkGit(context:checkContext);try await wait {inspected}
+        try require(model.git.checking && !model.canNavigate && model.canCancel,"Check/Cancel navigation gates")
+        model.back(context:checkContext);model.next(context:checkContext)
+        try require(model.page == .git,"Pending Git check changed pages")
+        model.cancelGitCheck();try await wait {!model.git.busy && GeneralGitSettingsModel.activeOperations==0}
+        try require(model.git.version.isEmpty && model.git.error==nil,"Cancelled check published a stale result")
+        model.git.inspectEngine=nil
+        model.next(context:checkContext)
+        try require(!model.busy && model.page == .git,"Settled check revived its old Next action")
+        try await capture(main,page:"git")
         model.next(); model.next(); try await wait { !model.busy && model.page == .user }
         try require(model.name == "Initial Turtle" && model.helpers.contains("store"), "Private configuration/helper discovery")
         main.window?.contentView?.layoutSubtreeIfNeeded()
         try await wait { views(main.window!.contentView!).compactMap { $0 as? NSTextField }.contains { $0.stringValue == "Initial Turtle" } }
-        model.name = "Ada Turtle"; model.email = "turtle@example.invalid"
+        let userContext=model.formContext,oldName=model.field(\.name,context:userContext),oldEmail=model.field(\.email,context:userContext)
+        oldName.wrappedValue="Ada Turtle";oldEmail.wrappedValue="turtle@example.invalid"
+        let skip=model.field(\.skipUser,context:userContext);skip.wrappedValue=true
+        oldName.wrappedValue="Disabled stale name";oldEmail.wrappedValue="disabled@example.invalid"
+        try require(model.name=="Ada Turtle" && model.email=="turtle@example.invalid","Disabled fields accepted retained values")
+        model.field(\.skipUser,context:model.formContext).wrappedValue=false
+        oldName.wrappedValue="Reenabled stale name"
+        try require(model.name=="Ada Turtle","Reenabled form revived a retained binding")
         try await capture(main, page: "user")
         model.next(); model.name = "late mutation"; model.email = "late@example.invalid"
         try await wait { !model.busy && model.page == .authentication }
+        oldName.wrappedValue="Wrong page";oldEmail.wrappedValue="wrong-page@example.invalid"
+        try require(model.name=="late mutation" && model.email=="late@example.invalid","User bindings survived page navigation")
         let repository = GitRepository(root: directory, executable: helper)
         let savedName = try await repository.run(["config","--global","--get","user.name"]).text.trimmingCharacters(in: .newlines)
         let savedEmail = try await repository.run(["config","--global","--get","user.email"]).text.trimmingCharacters(in: .newlines)
@@ -173,8 +222,25 @@ import TurtleGitCore
         credential.close(); try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel, "Closed credential reader lost Quit accounting")
         try await wait { CredentialSettingsModel.activeReads == 0 }
         try require(pids(credentialTool).allSatisfy { kill($0,0) != 0 }, "Credential read leaked helper")
+        let (finishFolder,finishTool,_,finishPrefs)=try fixture("finish-once"),finisher=owner(finishFolder,finishTool,finishPrefs),finishModel=finisher.model
+        finishModel.next();try await wait {!finishModel.busy && finishModel.page == .user}
+        finishModel.skipUser=true;finishModel.next();try await wait {!finishModel.busy && finishModel.page == .authentication}
+        var finishCount=0;finishModel.finish={finishCount += 1};finishModel.skipHelper=true
+        let finishContext=finishModel.formContext,oldHelper=finishModel.field(\.helper,context:finishContext)
+        finishModel.next(context:finishContext);try await wait {!finishModel.busy}
+        oldHelper.wrappedValue="store";finishModel.next(context:finishContext);finishModel.next();finishModel.back()
+        try require(finishCount==1 && finishPrefs.bool(forKey:"TurtleGit.FirstStartComplete") && !finishModel.canNavigate && !finishModel.canCancel && finishModel.page == .authentication,"Finish completion was replayed or re-enabled navigation")
+        finisher.close()
+        let (pickerFolder,pickerTool,_,pickerPrefs)=try fixture("retired-picker"),pickerOwner=owner(pickerFolder,pickerTool,pickerPrefs)
+        var retiredReply:((NSApplication.ModalResponse)->Void)?
+        pickerOwner.model.git.presentPanel={_,_,reply in retiredReply=reply}
+        pickerOwner.model.git.selectedURL={_ in engine};pickerOwner.model.git.bookmark={_ in Data([9])}
+        pickerOwner.model.browseGit(context:pickerOwner.model.formContext)
+        try require(GeneralGitSettingsModel.activeDialogs==1,"Picker not accounted")
+        pickerOwner.close();retiredReply?(.OK)
+        try require(GeneralGitSettingsModel.activeDialogs==0 && pickerOwner.model.git.draft.path==pickerTool.path,"Closed wizard accepted picker reply or leaked ownership")
         try require(UserDefaults.standard.object(forKey:"TurtleGit.FirstStartComplete") as? Bool == standardBefore, "Wizard wrote shared completion preferences")
         try require(FirstStartWizardModel.activeWrites == 0 && GeneralGitSettingsModel.activeOperations == 0 && CredentialSettingsModel.activeReads == 0, "Setup operation counts did not settle")
-        print("PASS: First Start source forms/order, captured engine/identity, Don't store/Advanced/SSH sheets, private Finish, cached General Apply, cancellable reads and accepted-write/partial-failure lifetime")
+        print("PASS: First Start source forms/order, captured form/picker/check/focus generations, once-only Finish, captured engine/identity, Don't store/Advanced/SSH sheets, private Finish, cached General Apply, cancellable reads and accepted-write/partial-failure lifetime")
     }
 }

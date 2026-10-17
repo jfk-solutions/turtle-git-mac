@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "40d4c48329539cbc1194ad12be49fba4cc51bd30",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Five-page source order, original header artwork, native window appearance and persistent footer around a scrollable body",
+    "Captured page/dependency fields/actions, Git picker/check generation fences and queued focus ownership",
+    "Git recommendation/help and OpenSSH setup/FAQ help links",
+    "Cancel Check, cancellable reads, retained accepted writes and once-only Finish",
+    "14 partial source control mappings; native localization/download/Refresh and Windows hacks remain unmapped"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/first-start-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1,
+      "remaining_warnings": [
+        "Existing BlameMenuCommands actor isolation",
+        "Existing RevisionComparisonWindow actor isolation"
+      ]
+    }
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false,
+    "reason": "Native wizard-only behavior; retained native flow verifies actual private identity/helper configuration writes and cancellation with each engine."
+  },
+  "native": {
+    "log": "build/qa/first-start-source-native-2026-10-17.log",
+    "exit": 0,
+    "distinct_case_engine_passes": 2,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "receivers": [
+      47978,
+      48142
+    ],
+    "independently_absent": true,
+    "helper_cleanup": "Held script/sleep descendant PID absence asserted by receiver; post-run process listing found no private First Start helper paths.",
+    "fixture": "docs/qa/first-start-native-2026-10-15.swift",
+    "coverage": [
+      "All five source page transitions",
+      "Stale fields/actions after page revisit, dependency toggle and child picker/check transitions",
+      "Picker blocks navigation/Close, one-response cancellation and late owner-close reply",
+      "Injected cancellation-aware Check now, no stale results or old Next callback revival",
+      "Private global identity/helper configuration, Dont store and Advanced preserve drafts",
+      "Actual owned credentials and SSH key generation sheets",
+      "Read cancellation retains Quit accounting and reaps helper descendants",
+      "Accepted writes survive forced closure, partial failure reports written-key boundary",
+      "Finish callback deliberately leaves owner open; subsequent old/current actions cannot replay completion",
+      "Private completion preferences; shared preferences unchanged"
+    ],
+    "capture_changes": "Receiver activation is prohibited; orderFront only, no makeKey or global input. Raw SCK owned-window captures exclude child windows."
+  },
+  "captures": {
+    "directory": "docs/site/assets",
+    "files": [
+      "first-start-authentication-dark.png",
+      "first-start-authentication-light.png",
+      "first-start-git-dark.png",
+      "first-start-git-light.png",
+      "first-start-language-dark.png",
+      "first-start-language-light.png",
+      "first-start-user-dark.png",
+      "first-start-user-light.png",
+      "first-start-welcome-dark.png",
+      "first-start-welcome-light.png"
+    ],
+    "raw": true,
+    "pixels": "1400x1184",
+    "individually_reviewed": true,
+    "observations": "All page controls and persistent footer fit; both window appearances, original artwork and source ordering visible. Long private Git executable is horizontally scrollable in its field."
+  },
+  "remaining": [
+    "English only: native translation installation and refresh",
+    "Arbitrary SSH client selection",
+    "Physical keyboard/VoiceOver acceptance",
+    "Every helper/include/XDG configuration and permission renewal",
+    "Signed installed Finder, Keychain/TCC and App Store sandbox acceptance",
+    "Complete passing hosted macOS CI and refreshed universal preview"
+  ],
+  "hosted_observed": {
+    "commit": "40d4c48329539cbc1194ad12be49fba4cc51bd30",
+    "macos": {
+      "id": 38999577669,
+      "status": "in_progress"
+    },
+    "pages": {
+      "id": 38999577737,
+      "conclusion": "success"
+    }
+  },
+  "certified_complete": false,
+  "ledger": {
+    "mapped_controls": 1502,
+    "pending_controls": 157,
+    "new_partial_mappings": 14,
+    "certified_dialogs": 0
+  },
+  "site": {
+    "log": "build/qa/first-start-source-site-2026-10-17.log",
+    "exit": 0,
+    "documents": 265,
+    "unresolved_fragments": 0
+  }
+}

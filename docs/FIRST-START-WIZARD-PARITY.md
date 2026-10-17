@@ -120,7 +120,7 @@ engine reloads them. General Apply continues to work for a cached page that has
 disappeared from Settings, while cancellation invalidates pending version results
 and prevents a cancelled check from saving engine preferences.
 
-Source translation installation, SSH FAQ links, arbitrary SSH client selection,
+Source translation installation, arbitrary SSH client selection,
 all physical keyboard/focus gestures, every helper and include/XDG configuration,
 permission renewal and signed App Store sandbox acceptance remain open. No dialog
 is certified complete.
@@ -133,3 +133,47 @@ label as an NSTextField; capture then exposed a real zero-width hosting window,
 fixed by setting content size after host attachment. The final group passed and
 all owned receivers/helpers were reaped. Core operations were unchanged and their
 suites were not repeated. See [exact evidence](qa/first-start-family-2026-10-15.json).
+
+
+## Captured five-page forms and Git checks — October 17, 2026
+
+The complete five-page body now scrolls independently of the persistent source
+Back/Next/Finish/Cancel footer. Git retains introduction, executable and Extra
+PATH rows, Browse, version/Check now and recommendation/help in source order.
+The recommendation points to the bundled macOS runtime, and Authentication adds
+OpenSSH setup/FAQ help. These links open the native Help topics, with the existing
+online fallback when bundled Help is unavailable. The original turtle remains
+in the header; both appearances follow the owning native window.
+
+Fields and page actions capture their owning page and form generation. Leaving
+and revisiting a page, opening/closing a child picker, starting/settling a Git
+check and changing a Don't store dependency invalidate retained callbacks.
+Git's native executable picker blocks page navigation and ordinary Close until
+answered; forced owner closure retires it and rejects late responses. Check now
+retains cancellation/Quit ownership and offers Cancel check outside the disabled
+page body. Read-only checks may still be cancelled by closing the wizard.
+Accepted configuration writes retain the previous noncancellable save behavior.
+Finish records completion once even if the close callback leaves the window open.
+Queued focus requests capture the page visit and wait for navigation to become
+available after configuration reads; old requests cannot focus a revisited page.
+
+Fourteen previously unreviewed source controls receive partial native mappings:
+ten Git controls, three installed-language controls and the Welcome text/link.
+The three language download/Refresh controls remain pending: this app ships only
+English, and cannot install Windows DLL language packs. The three source
+Cygwin/MSYS workaround controls remain pending adaptations and have no native
+checkboxes: their Windows runtime compatibility behavior does not apply to the
+native Git process. Arbitrary SSH client selection, native localization,
+physical keyboard/VoiceOver acceptance, all helper/include/XDG variants,
+permission renewal and signed App Store sandbox acceptance remain open.
+
+The Debug build exited 0. The expanded grouped native flow passed with system
+and bundled Git, including retained form dependencies, picker/check/Close gates,
+cancelled results, once-only Finish with a deliberately open completion callback,
+private identity/helper saves, actual child sheets, read cancellation and accepted
+writes after forced closure. Both receivers were reaped and independently absent.
+All ten raw five-page light/dark captures were individually reviewed: controls,
+source order and footer fit without clipping. Receivers use prohibited activation
+and never make a window key. Core was unchanged and was not repeated. The build
+retains existing isolation warnings and one exit-zero/no-output diagnostic;
+this is not a clean diagnostics claim. See [batch evidence](qa/first-start-source-family-2026-10-17.json).

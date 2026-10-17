@@ -2,7 +2,7 @@
 
 The pinned inventory contains **130 dialogs**: **120 have partial family audits**, **10 await a family review**, and **none are certified complete**.
 
-There are 1659 inventoried static controls. 1488 have recorded native mappings; 171 still have pending control reviews. Dynamic menus, runtime-created controls, full layout and signed acceptance require separate evidence. A partial family audit never clears its unmapped controls. Recorded control mappings also remain partial; they do not prove all associated behavior.
+There are 1659 inventoried static controls. 1502 have recorded native mappings; 157 still have pending control reviews. Dynamic menus, runtime-created controls, full layout and signed acceptance require separate evidence. A partial family audit never clears its unmapped controls. Recorded control mappings also remain partial; they do not prove all associated behavior.
 
 This generated table links explicit implementation/parity reviews and existing QA. Missing links indicate missing recorded evidence, rather than proof that a feature is absent. The full machine-readable ledger is [dialog coverage](dialog-coverage.json). Review decisions live in `dialog-coverage-reviews.json`; regeneration is pinned to the source commit.
 
@@ -84,7 +84,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_APPLY_PATCH_LIST` | partial-native-replacement | 14/14 mapped; 0 pending | [HELP-PARITY](HELP-PARITY.md), [IMPORT-PATCH-PARITY](IMPORT-PATCH-PARITY.md); 28 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FORMAT_PATCH` | partial-native-replacement | 24/24 mapped; 0 pending | [FORMAT-PATCH-PARITY](FORMAT-PATCH-PARITY.md); 3 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_MERGE` | partial-workflow-replacement | 27/27 mapped; 0 pending | [MERGE-PARITY](MERGE-PARITY.md), [MESSAGE-LINK-INTERACTION-PARITY](MESSAGE-LINK-INTERACTION-PARITY.md), [UI-PARITY](UI-PARITY.md); 20 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_START` | partial-native-replacement | 0/1 mapped; 1 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 3 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_START` | partial-native-replacement | 1/1 mapped; 0 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 4 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSCOLORS_1` | partial-native-replacement | 21/21 mapped; 0 pending | [APPEARANCE](APPEARANCE.md), [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 19 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSCOLORS_3` | partial-native-replacement | 22/22 mapped; 0 pending | [APPEARANCE](APPEARANCE.md), [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 19 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_RESET` | partial | 19/19 mapped; 0 pending | [RESET-PARITY](RESET-PARITY.md), [UI-PARITY](UI-PARITY.md); 10 QA records |
@@ -123,10 +123,10 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_RESOLVESUBMODULECONFLICT` | partial | 26/26 mapped; 0 pending | [SUBMODULE-CONFLICT-PARITY](SUBMODULE-CONFLICT-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FINDBAR` | partial-native-replacement | 0/6 mapped; 6 pending | [COMMIT-PARITY](COMMIT-PARITY.md); 52 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_COMMITISONREFS` | partial | 7/7 mapped; 0 pending | [COMMIT-CONTAINING-REFS-PARITY](COMMIT-CONTAINING-REFS-PARITY.md); 4 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_USER` | partial-native-replacement | 7/7 mapped; 0 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 3 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_GIT` | partial-native-replacement | 0/13 mapped; 13 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 3 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_AUTHENTICATION` | partial-native-replacement | 11/11 mapped; 0 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 3 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_LANGUAGE` | partial-native-replacement | 0/6 mapped; 6 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 3 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_USER` | partial-native-replacement | 7/7 mapped; 0 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 4 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_GIT` | partial-native-replacement | 10/13 mapped; 3 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 4 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_AUTHENTICATION` | partial-native-replacement | 11/11 mapped; 0 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 4 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_LANGUAGE` | partial-native-replacement | 3/6 mapped; 3 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 4 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SELECTREMOTEREF` | partial-native-replacement | 6/6 mapped; 0 pending | [REMOTE-DIALOGS-PARITY](REMOTE-DIALOGS-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSWIN11CONTEXTMENU` | pending-review | 0/6 mapped; 6 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_WORKTREE_CREATE` | partial | 23/23 mapped; 0 pending | [WORKTREE-PARITY](WORKTREE-PARITY.md); 8 QA records |

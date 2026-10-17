@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 171,
-    "mapped_controls": 1488,
+    "pending_control_reviews": 157,
+    "mapped_controls": 1502,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -2535,8 +2535,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 1,
-      "mapped_controls": 0,
-      "pending_control_reviews": 1,
+      "mapped_controls": 1,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -2551,6 +2551,7 @@
       "qa_records": [
         "docs/qa/authentication-settings-batch-2026-10-11.json",
         "docs/qa/first-start-family-2026-10-15.json",
+        "docs/qa/first-start-source-family-2026-10-17.json",
         "docs/qa/general-setup-batch-2026-10-11.json"
       ]
     },
@@ -3894,6 +3895,7 @@
       "qa_records": [
         "docs/qa/authentication-settings-batch-2026-10-11.json",
         "docs/qa/first-start-family-2026-10-15.json",
+        "docs/qa/first-start-source-family-2026-10-17.json",
         "docs/qa/general-setup-batch-2026-10-11.json"
       ]
     },
@@ -3904,8 +3906,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 13,
-      "mapped_controls": 0,
-      "pending_control_reviews": 13,
+      "mapped_controls": 10,
+      "pending_control_reviews": 3,
       "certified_complete": false,
       "native_sources": [
         {
@@ -3920,6 +3922,7 @@
       "qa_records": [
         "docs/qa/authentication-settings-batch-2026-10-11.json",
         "docs/qa/first-start-family-2026-10-15.json",
+        "docs/qa/first-start-source-family-2026-10-17.json",
         "docs/qa/general-setup-batch-2026-10-11.json"
       ]
     },
@@ -3946,6 +3949,7 @@
       "qa_records": [
         "docs/qa/authentication-settings-batch-2026-10-11.json",
         "docs/qa/first-start-family-2026-10-15.json",
+        "docs/qa/first-start-source-family-2026-10-17.json",
         "docs/qa/general-setup-batch-2026-10-11.json"
       ]
     },
@@ -3956,8 +3960,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 6,
-      "mapped_controls": 0,
-      "pending_control_reviews": 6,
+      "mapped_controls": 3,
+      "pending_control_reviews": 3,
       "certified_complete": false,
       "native_sources": [
         {
@@ -3972,6 +3976,7 @@
       "qa_records": [
         "docs/qa/authentication-settings-batch-2026-10-11.json",
         "docs/qa/first-start-family-2026-10-15.json",
+        "docs/qa/first-start-source-family-2026-10-17.json",
         "docs/qa/general-setup-batch-2026-10-11.json"
       ]
     },

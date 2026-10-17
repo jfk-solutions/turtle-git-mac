@@ -1979,3 +1979,17 @@ Close/Quit honor their lifetime. Fast-forward/idle footer labels match source.
 All 23 previously pending static controls receive partial mappings. See
 [Rebase parity](REBASE-PARITY.md#source-form-and-reviewed-replay-intent--october-17-2026).
 Both Debug builds pass, with ten distinct native case/engine passes across system and bundled Git. Repairs corrected the source fixture’s internal Cherry Pick Force assumption, the retained reference helper’s global-option parsing and incoming refresh/Fetch ownership during confirmation. Only affected source cases were repeated after that final app repair. Six final raw captures were individually reviewed; all fourteen owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/rebase-source-family-2026-10-17.json) for cumulative scope and remaining acceptance.
+
+
+## First Start five-page source forms — October 17, 2026
+
+The native wizard now retains a persistent footer around its scrollable page body,
+links Git runtime/OpenSSH help, owns executable selection and cancellable version
+checks, rejects retained page/dependency actions and completes Finish once. Fourteen
+previously pending static controls receive partial mappings. Native localization
+and Windows language-pack/workaround adaptations remain explicit gaps. The Debug
+build and two complete native case/engine flows pass with system and bundled Git.
+All ten raw light/dark captures were individually reviewed and both owned receivers
+were reaped and independently absent. Core was unchanged and not repeated. See
+[FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md) and
+[batch evidence](qa/first-start-source-family-2026-10-17.json) for scope and limitations.
