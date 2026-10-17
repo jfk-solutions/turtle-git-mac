@@ -56,9 +56,20 @@ import TurtleGitCore
         let wrapper=root.appendingPathComponent("collision-git"),ready=root.appendingPathComponent("collision-ready")
         try Data(#"""
         #!/bin/sh
-        for argument in "$@"; do
-          if [ "$argument" = config ]; then : > "$3/collision-ready"; /bin/sleep 30; break; fi
+        task_next=""; task_root=""; task_command=""
+        for task_argument in "$@"; do
+          if [ -n "$task_next" ]; then
+            if [ "$task_next" = root ]; then task_root="$task_argument"; fi
+            task_next=""; continue
+          fi
+          case "$task_argument" in
+            -C) task_next=root ;;
+            -c|--git-dir|--work-tree|--namespace|--config-env) task_next=skip ;;
+            -*) ;;
+            *) task_command="$task_argument"; break ;;
+          esac
         done
+        if [ "$task_command" = config ]; then : > "$task_root/collision-ready"; /bin/sleep 30; fi
         exec "$TG_REMOTE_GIT" "$@"
         """#.utf8).write(to:wrapper); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:wrapper.path)
         setenv("TG_REMOTE_GIT",git.path,1); defer { unsetenv("TG_REMOTE_GIT") }
@@ -70,8 +81,21 @@ import TurtleGitCore
         let catalogWrapper=root.appendingPathComponent("catalog-git"),gate=root.appendingPathComponent("catalog-gate"),catalogReady=root.appendingPathComponent("catalog-ready")
         try Data(#"""
         #!/bin/sh
-        if [ "$4" = remote ] && [ -f "$3/catalog-gate" ]; then
-          : > "$3/catalog-ready"; while [ -f "$3/catalog-gate" ]; do /bin/sleep 0.1; done
+        task_next=""; task_root=""; task_command=""
+        for task_argument in "$@"; do
+          if [ -n "$task_next" ]; then
+            if [ "$task_next" = root ]; then task_root="$task_argument"; fi
+            task_next=""; continue
+          fi
+          case "$task_argument" in
+            -C) task_next=root ;;
+            -c|--git-dir|--work-tree|--namespace|--config-env) task_next=skip ;;
+            -*) ;;
+            *) task_command="$task_argument"; break ;;
+          esac
+        done
+        if [ "$task_command" = remote ] && [ -f "$task_root/catalog-gate" ]; then
+          : > "$task_root/catalog-ready"; while [ -f "$task_root/catalog-gate" ]; do /bin/sleep 0.1; done
         fi
         exec "$TG_REMOTE_GIT" "$@"
         """#.utf8).write(to:catalogWrapper); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:catalogWrapper.path)

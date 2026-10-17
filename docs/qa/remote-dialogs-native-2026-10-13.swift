@@ -11,7 +11,9 @@ import TurtleGitCore
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), repository = GitRepository(root: root,executable: URL(fileURLWithPath: CommandLine.arguments[2]),askpass: nil)
         _ = try await repository.run(["init","-b","main"])
-        let add = AddRemoteWindowModel(repository: repository,access: nil)
+        let privateSuite="TurtleGit.RemoteDialogs.Model."+UUID().uuidString,privatePreferences=UserDefaults(suiteName:privateSuite)!
+        defer {privatePreferences.removePersistentDomain(forName:privateSuite)}
+        let add = AddRemoteWindowModel(repository: repository,access: nil,preferences:privatePreferences)
         var closes = 0; add.close = { closes += 1 }; add.name = "origin"; add.url = root.path
         func wait(_ ready: () -> Bool) async throws { for _ in 0..<1000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw NSError(domain: "Remote dialogs timeout",code: 1) }
         add.save(); add.name = "changed-after-click"; add.url = "different"
@@ -22,13 +24,16 @@ import TurtleGitCore
         let unchanged = try await repository.remoteSettings(name: "origin"); precondition(unchanged.url == root.path)
         add.retire(); add.save(); precondition(!add.busy)
 
-        let selector = RemoteReferenceWindowModel(repository: repository,access: nil,remote: "captured-origin")
+        var selector = RemoteReferenceWindowModel(repository: repository,access: nil,remote: "captured-origin",preferences:privatePreferences)
         var captured = ""; selector.query = { remote,_ in captured = remote; return ["branch2","branch10"] }
         selector.refresh(); try await wait { !selector.busy }
         precondition(captured == "captured-origin" && selector.branch == "branch2" && selector.canAccept)
         var chosen: [String] = []; selector.accept = { chosen.append($0) }; selector.branch = "typed-case-sensitive"; selector.choose(); precondition(chosen == ["typed-case-sensitive"])
+        selector.choose(); selector.refresh(); precondition(chosen.count == 1 && !selector.busy)
+        selector.retire(); selector = RemoteReferenceWindowModel(repository:repository,access:nil,remote:"captured-origin",preferences:privatePreferences)
         selector.query = { _,_ in [] }; selector.refresh(); try await wait { !selector.busy }; precondition(!selector.canAccept && selector.branch.isEmpty)
         selector.query = { _,_ in throw NSError(domain: "Fixture remote failure",code: 1) }; selector.refresh(); try await wait { !selector.busy }; precondition(selector.error != nil && selector.refs.isEmpty)
+        selector.acknowledgeError(context:selector.formContext)
         var release: CheckedContinuation<[String],Error>?
         selector.query = { _,_ in try await withCheckedThrowingContinuation { release = $0 } }
         selector.refresh(); try await wait { release != nil }
@@ -37,12 +42,12 @@ import TurtleGitCore
         selector.close = { closes += 1 }; release?.resume(returning: ["late-result"]); release = nil
         try await wait { !selector.busy }; precondition(selector.refs.isEmpty && closes == 2 && RemoteReferenceWindowModel.activeOperations == 0)
         selector.retire(); selector.refresh(); precondition(!selector.busy)
-        let retired = RemoteReferenceWindowModel(repository: repository,access: nil,remote: "another")
+        let retired = RemoteReferenceWindowModel(repository: repository,access: nil,remote: "another",preferences:privatePreferences)
         retired.query = { _,_ in try await withCheckedThrowingContinuation { release = $0 } }
         retired.refresh(); try await wait { release != nil }; retired.retire()
         release?.resume(returning: ["discarded"]); release = nil; try await wait { !retired.busy }; precondition(retired.refs.isEmpty)
         for pull in [false,true] {
-            let fetch = FetchWindowModel(repository: repository,access: nil,isPull: pull)
+            let fetch = FetchWindowModel(repository: repository,access: nil,isPull: pull,preferences:privatePreferences)
             fetch.options.arbitraryURL = true; fetch.url = root.path
             var targets: [String] = []; fetch.onBrowseRemote = { targets.append($0) }
             fetch.browse(); fetch.url = "edited-later"; fetch.browse()

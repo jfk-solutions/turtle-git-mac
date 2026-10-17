@@ -141,6 +141,16 @@ Choose a configured Remote or an Arbitrary URL. Remote Branch narrows the reques
 the browse button selects a remote branch. Manage Remotes opens the repository's
 remote settings. Authentication uses the configured SSH/credential workflow.
 
+Select Remote Ref keeps the captured Remote in a selectable read-only field.
+Choose a listed branch or type its exact name. F5 without modifiers reloads the
+list and selects its first entry; an empty list disables OK. Loading and error
+sheets keep the parent Fetch/Pull draft blocked. Acknowledge a listing error
+before retrying. Cancel leaves the parent branch unchanged.
+
+In Browse References, the remotes folder offers Add Remote. Enter Name and URL
+and choose OK to save the local configuration without fetching. A failed save
+keeps the draft and opens an owned error sheet; acknowledge it to retry.
+
 Fetch obtains remote objects and references. Pull also integrates them into the
 current branch. Pull offers Squash, No Commit, No Fast Forward and Fast Forward
 Only where applicable. Incompatible choices disable one another. Depth is shown

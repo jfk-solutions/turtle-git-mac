@@ -3576,6 +3576,7 @@
         "docs/REMOTE-DIALOGS-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/remote-dialog-source-family-2026-10-17.json",
         "docs/qa/remote-dialogs-2026-10-13.json"
       ]
     },
@@ -4084,6 +4085,7 @@
         "docs/REMOTE-DIALOGS-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/remote-dialog-source-family-2026-10-17.json",
         "docs/qa/remote-dialogs-2026-10-13.json"
       ]
     },

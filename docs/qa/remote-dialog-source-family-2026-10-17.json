@@ -1,0 +1,137 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "66b2ef8a4597aca85472e06394db0999fd51553f",
+  "scope": "Connected Add Remote and Select Remote Ref source forms, exact native inputs, owned error/operation contexts, and Browser/Fetch/Pull handoffs",
+  "source_inputs_sha256": {
+    "Sources/TurtleGitMac/AddRemoteWindow.swift": "1edf34318c49a5b4f5b0ccee2626a26d86259bdbb77e995233b6314042bbc507",
+    "Sources/TurtleGitMac/RemoteReferenceWindow.swift": "49849a78836019d13a1ef8305bf267c6f9d7208744cbe35fa2dd564476e5b181",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "913b2cb8800c8466c6800c0df8effaed34d4b3270e9070ab8c965e7d278b5e5a",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "418607b621c16a79a25847e763dfdaaa6c38a2c2150f0f337484e7f8845e13a0",
+    "docs/qa/remote-dialog-source-native-2026-10-17.swift": "d35109151afdbbbb3a3b6dd3abd9a08510423d6b294e6643b39520591d4940f8",
+    "docs/qa/remote-dialogs-native-2026-10-13.swift": "efaf3c6a37f3c5a5739c1c674b002c6e6b72d7775c6c4f6f06cb2654d6c5eda5",
+    "scripts/test-remote-dialog-source-family.py": "165647c551168bafcb57d653a443a64e53aa23ddbe6cd7a4f09d956ef67140e9",
+    "docs/qa/remote-management-family-native-2026-10-14.swift": "6160e13d26258669b17be2b687a4eb3296ff38f6109b03a9120db86ca5c51be4"
+  },
+  "validation_status": "Scoped grouped checkpoint passed; full dialog/application and hosted acceptance remain open",
+  "core": "Unchanged; full Core suite not repeated; real local Add/list commands and existing parent/settings operations run through native receivers",
+  "fixture_repairs": [
+    "Legacy chooser fixture tried to reuse a consumed accepted window; it now proves once-only acceptance and creates a fresh model for empty/error/retry cases.",
+    "Legacy model checks now use a private preference suite instead of writing branch history to standard preferences."
+  ],
+  "limits": [
+    "Physical input/IME/VoiceOver and actual popup tracking",
+    "Authenticated remote servers/SSH prompts",
+    "Signed application/Finder/sandbox/App Store acceptance",
+    "Complete dialog/application parity"
+  ],
+  "attempts": [
+    {
+      "kind": "Debug build",
+      "result": "Initial exit 65: native input coordinators needed explicit @MainActor; repaired both before receiver launch"
+    },
+    {
+      "kind": "Debug build",
+      "result": "Actor recheck exit 0; retained compiler/SDK warnings and zero-exit/no-output diagnostics"
+    },
+    {
+      "kind": "Native source",
+      "receiver": 22360,
+      "result": "Passed native input/error/F5 and local remote paths, then failed Browser fixture setup: no tracking ref meant no refs/remotes folder; fixture now creates and asserts that folder"
+    },
+    {
+      "kind": "Visual source review",
+      "result": "Initial Add Remote capture exposed an actual collapsed native hosting width; fixed native min/max content bounds and root minimum size. Affected Debug layout build exited 0. Excluded these first captures from publication."
+    },
+    {
+      "kind": "Native source bounds fixture",
+      "receiver": 22484,
+      "result": "Early safe contentLayoutRect assertion failed; native contentView bounds are now checked and printed alongside frame/safe rectangle. Final observed content is 570\u00d7180; no app build repeated for this fixture-only change."
+    },
+    {
+      "kind": "Native connected family",
+      "result": "Four source/dialog case-engine combinations passed; older management cancellation fixture timed out at catalog marker, receiver 23040 reaped. Its fixed-position $4 command check ignored Git global -c options; both private helper scripts now parse global options and preserve original argv. Only management is rechecked."
+    }
+  ],
+  "hosted_ci": {
+    "prior_run": 39065868784,
+    "prior_job": 117493722287,
+    "result": "Ten wrapped editor cases passed; folding timed out at pair loaded/collapsing. sample itself timed out after 10 seconds; no stack artifact created. Owned receiver 27244 reaped. This run predates atomic presentation fix.",
+    "current_run": 39066931716,
+    "current_job": 117498247855,
+    "last_observed": "In progress: Application and embedded Finder extension",
+    "pages_run": 39066931706,
+    "pages_result": "success"
+  },
+  "validation": {
+    "debug_build": "Layout build terminal exit 0; build/qa/remote-dialog-source-layout-build-2026-10-17.log; warnings and zero-exit/no-output diagnostics retained",
+    "native": {
+      "distinct_case_engine_combinations": 6,
+      "engines": [
+        "System Git 2.54.0",
+        "Bundled Git 2.55.0"
+      ],
+      "cases": [
+        "Source forms/native controls/errors and Browser Add child",
+        "Remote Add/collision, chooser defaults/empty/error/cancel and captured Fetch/Pull reference/history handoffs",
+        "Remote management rename/remove/history, catalog retry/cancel and Quit accounting"
+      ],
+      "passing_receivers": [
+        22543,
+        22597,
+        22649,
+        22849,
+        23261,
+        23421
+      ],
+      "passing_logs": [
+        "build/qa/remote-dialog-source-content-native-2026-10-17.log (source/dialogs cases)",
+        "build/qa/remote-dialog-management-recheck-2026-10-17.log (management cases)"
+      ],
+      "repeat_scope": "Only affected management pair repeated after its fixture repair; four passing source/dialogs combinations retained",
+      "new_controls": [
+        "Actual native read-only/editable fields, Unicode combo items, preserved native URL selection",
+        "Stale/busy/closed form bindings/delegates and stale acknowledgements refused",
+        "Actual owned native error sheets and Quit/close/refresh guards",
+        "Exact-window unmodified F5, consumed completion and real local remote read",
+        "Browser preference/appearance/presentation rejection and child settlement"
+      ]
+    },
+    "captures": {
+      "reviewed": [
+        "add-remote-source-light.png",
+        "add-remote-source-dark.png",
+        "remote-reference-source-light.png",
+        "remote-reference-source-dark.png"
+      ],
+      "published": "docs/site/assets",
+      "source": "Raw ScreenCaptureKit captures of actual current Debug controllers in an inactive private receiver; local fixture paths only",
+      "add_remote_content_bounds": "570\u00d7180 points in both engine checks",
+      "excluded": "Initial collapsed Add Remote captures not published"
+    },
+    "documentation": {
+      "site": "286 docs, zero unresolved fragments",
+      "localizations": "38 languages, 1281 keys; --check passed",
+      "bundled_help": "38 docs, 48 topics, 58 files; --check passed",
+      "dialog_coverage": "130 dialogs, 120 partial, 10 pending, zero certified; reconciled"
+    },
+    "core": "Unchanged; not repeated. Actual local Git exercised through native cases."
+  },
+  "cleanup": {
+    "all_owned_receivers": [
+      22360,
+      22484,
+      23040,
+      22543,
+      22597,
+      22649,
+      22849,
+      23261,
+      23421
+    ],
+    "all_reaped_and_independently_absent": true,
+    "installed_app_launched": false,
+    "test_app_instances_remaining": 0,
+    "fixtures": "Private temporary local repositories/preferences/pasteboards; no external server/network operation; owned controllers closed",
+    "management_helpers": "Existing owned Git process-group cancellation/drain contract exercised through repaired private command gates"
+  }
+}

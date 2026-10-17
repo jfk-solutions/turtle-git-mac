@@ -37,6 +37,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     let model: ReferenceBrowserWindowModel
     var onClosed: () -> Void = {}
     private(set) var remoteSettingsDialog: RemoteSettingsWindowController?
+    var configureAddRemote:(AddRemoteWindowController)->Void = { _ in }
+    var presentAddRemote:(NSWindow,NSWindow)->Bool = {owner,child in guard owner.attachedSheet == nil else {return false};owner.beginSheet(child);return true}
     var configureRemoteSettings: (RemoteSettingsWindowController) -> Void = { _ in }
     var presentRemoteSettings: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private(set) var addRemoteDialog: AddRemoteWindowController?
@@ -242,14 +244,15 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     }
     func showAddRemote() {
         guard let owner = window, owner.attachedSheet == nil, model.canUseFolder, model.folder.browserIsFrom("refs/remotes"), addRemoteDialog == nil else { return }
-        model.hasChild = true
-        let child = AddRemoteWindowController(repository: model.repository,access: model.access); addRemoteDialog = child
+        owner.makeFirstResponder(nil); model.hasChild = true
+        let child = AddRemoteWindowController(repository:model.repository,access:model.access,preferences:model.preferences);addRemoteDialog=child
+        child.window?.alphaValue=owner.alphaValue;child.window?.appearance=owner.appearance;configureAddRemote(child)
         child.onClosed = { [weak self, weak child] in
             guard let self, let child, self.addRemoteDialog === child else { return }
             self.addRemoteDialog = nil; self.model.hasChild = false
             if !self.model.closed { self.model.load() }
         }
-        if let window = child.window { owner.beginSheet(window) }
+        guard let window=child.window,presentAddRemote(owner,window) else {child.close();return}
     }
     func showRemoteSettings() {
         guard let owner = window, owner.attachedSheet == nil, model.canUseFolder, model.folder.browserIsFrom("refs/remotes") else { return }

@@ -49,3 +49,59 @@ the child sheet before delivering its once-only result to the parent.
 
 The connected remote-dialog batch passed 22 Core tests and six grouped native
 checks across system and bundled Git. See the [scoped QA record](qa/remote-dialogs-2026-10-13.json).
+
+
+## Connected source forms and native ownership — October 17, 2026
+
+Add Remote retains the pinned Name/URL and OK/Cancel/Help order in its fixed
+compact window. Both inputs are now native NSTextFields. Select Remote Ref
+retains the read-only Remote field, editable branch combo and OK/Cancel footer,
+with horizontal-only resizing as in CHorizontalResizableStandAloneDialog. The
+read-only field remains selectable and both forms retain a compact status row
+while loading/saving. The editable controls use the existing Git URL/path word
+commands and avoid resetting a native selection on unrelated updates.
+
+The branch combo disables automatic completion, retaining exact typed spelling
+and byte-distinct Unicode choices. Every refresh/submission/acknowledgement/close
+replaces its form context. Old bindings, combo delegates and retained buttons
+cannot change or accept the new result; dismantling detaches native delegates.
+F5 is unmodified and scoped to the exact event window with no attached sheet.
+An accepted chooser remains consumed.
+
+Native error sheets replace inline diagnostics that could grow/clamp these
+compact source forms. Each sheet belongs to its controller and error context;
+an old acknowledgement cannot clear a newer failure. Refresh, submission, close
+and Quit wait for acknowledgement. An auth sheet can finish before a queued
+error is shown. Forced closure retires the presenter before dismissing its sheet
+and refuses delayed replies. Query/write lifetime and private repository grants
+remain owned until the worker drains.
+
+Browse References ends its field editor before opening Add Remote, passes its
+private preferences/appearance and owns presentation rejection and refresh after
+child settlement. Fetch/Pull retain their existing captured remote/draft and
+SSH child ownership. Add Remote still completes the intended local configuration
+workflow rather than reproducing the pinned dormant handler's no-op.
+
+[Grouped source QA](qa/remote-dialog-source-family-2026-10-17.json) records the
+actual native/real-local-Git scope. Full physical combo/keyboard/IME/VoiceOver,
+authenticated remote servers and signed Finder/App Store acceptance remain open.
+
+
+![Native Add Remote, light](site/assets/add-remote-source-light.png)
+![Native Add Remote, dark](site/assets/add-remote-source-dark.png)
+![Native Select Remote Ref, light](site/assets/remote-reference-source-light.png)
+![Native Select Remote Ref, dark](site/assets/remote-reference-source-dark.png)
+
+
+The final Debug build and six distinct native case/engine combinations pass
+across the grouped runs. Initial compilation needed explicit main-actor input
+coordinators. Capture review then exposed Add Remote hosting collapse; fixed
+native/root bounds retain its complete fields and footer. Browser fixture setup
+now creates a real tracking namespace; the consumed chooser fixture uses a fresh
+model for later independent cases and acknowledges errors before Retry. An older
+management cancellation helper also needed Git global-option parsing; only that
+affected pair was repeated. Four unaffected passing combinations were retained.
+All nine owned receivers were reaped and independently absent. Four final raw
+light/dark captures were individually reviewed. Native hidden split-view warnings
+remain in the retained logs. Core was unchanged and not repeated. See the linked
+QA record for attempts, exact scope and remaining acceptance.

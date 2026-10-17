@@ -482,6 +482,8 @@ jobs:
         run: python3 scripts/test-reference-browser.py
       - name: Native standalone reference browser
         run: python3 scripts/test-reference-standalone.py
+      - name: Native Add Remote and Select Remote Ref source workflows
+        run: python3 scripts/test-remote-dialog-source-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Source reference forms and owned remote-tag workflows
         run: >-
           python3 scripts/test-reference-source-family.py
