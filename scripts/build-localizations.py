@@ -85,7 +85,7 @@ def validate_native_translation(key, value):
 
 def native_keys():
     keys = set()
-    for folder in ['Sources/TurtleGitMac','Sources/TurtleGitCore']:
+    for folder in ['Sources/TurtleGitMac','Sources/TurtleGitCore','FinderSync']:
         for path in (ROOT/folder).glob('*.swift'):
             if path.name.endswith('.generated.swift'): continue
             for quoted in re.findall(r'"(?:[^"\\]|\\.)*"', path.read_text()):

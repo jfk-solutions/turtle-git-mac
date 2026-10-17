@@ -118,3 +118,29 @@ Other untranslated messages and full application parity remain separate work.
 ![Working Tree groups and counters, German, dark](site/assets/working-file-groups-language-de-dark.png)
 ![Commit groups and selection, German, light](site/assets/commit-file-groups-language-de-light.png)
 ![Commit groups and selection, German, dark](site/assets/commit-file-groups-language-de-dark.png)
+
+
+## Finder command-language handoff
+
+The Finder extension now bundles the same compiled source catalogs as the app.
+General Apply and First Start language acceptance publish the selected language
+with the existing Finder menu preferences. Returning to System Language removes
+only the app override and makes Finder resolve its system language order. Each
+new menu resolves the selected `lproj` explicitly, so an already running extension
+can adopt an accepted choice without relying on its cached `Bundle.main` language.
+A shared-write failure leaves the General choice unapplied for Retry; unsigned
+builds without App Group access still save the local app choice. App startup
+publishes the accepted choice again. Older shared settings without a language
+field retain System Language; unknown identifiers use that same fallback.
+
+Ordinary, creation, LFS, ignore and clipboard commands use semantic caption keys.
+The marked-comparison prefix and validated ignore-count templates are translated
+without interpreting the path or filename as a format string. Actual filenames,
+extension masks, repository paths, URL payloads, menu order and source icons stay
+literal or retain their existing command identity. Context Menu Apply/Cancel uses
+the latest General language rather than restoring an older page draft. Badge
+accessibility captions are registered again after a language change.
+
+Missing source labels still fall back to English. These are native menu-builder
+and resource checks; activation, distributed notification delivery and badge
+announcements in a signed installed Finder extension remain release gates.

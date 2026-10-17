@@ -19,16 +19,19 @@ public enum FinderIntegration {
 /// Presentation preferences are independent of repository status and app menus.
 public struct FinderMenuSettings: Codable, Equatable, Sendable {
     public var showIcons: Bool
+    public var language = AppLanguageChoice.system
     public var topLevelMask = FinderMenuEntry.defaultTopMask
     public var extendedOnlyMask = FinderMenuEntry.defaultExtendedMask
     public var hideForUnversioned = false
     public var excludedPaths = ""
     public var clipboardTransfers = true
     public init(showIcons: Bool = true) { self.showIcons = showIcons }
-    private enum CodingKeys: String, CodingKey { case showIcons, topLevelMask, extendedOnlyMask, hideForUnversioned, excludedPaths, clipboardTransfers }
+    private enum CodingKeys: String, CodingKey { case language, showIcons, topLevelMask, extendedOnlyMask, hideForUnversioned, excludedPaths, clipboardTransfers }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         self.init(showIcons: try values.decodeIfPresent(Bool.self, forKey: .showIcons) ?? true)
+        let requested = try values.decodeIfPresent(String.self, forKey: .language) ?? AppLanguageChoice.system
+        language = AppLanguageChoice.isAvailable(requested) ? requested : AppLanguageChoice.system
         topLevelMask = try values.decodeIfPresent(UInt64.self, forKey: .topLevelMask) ?? FinderMenuEntry.defaultTopMask
         extendedOnlyMask = try values.decodeIfPresent(UInt64.self, forKey: .extendedOnlyMask) ?? FinderMenuEntry.defaultExtendedMask
         hideForUnversioned = try values.decodeIfPresent(Bool.self, forKey: .hideForUnversioned) ?? false
@@ -38,6 +41,7 @@ public struct FinderMenuSettings: Codable, Equatable, Sendable {
     public static var sharedURL: URL? { FinderIntegration.container?.appendingPathComponent("menu-settings.json") }
     public static func from(defaults: UserDefaults = .standard) -> Self {
         var settings = defaults.data(forKey: "TurtleGit.FinderMenuSettings").flatMap { try? JSONDecoder().decode(Self.self, from: $0) } ?? Self()
+        settings.language = AppLanguageChoice.selected(in: defaults)
         settings.showIcons = (defaults.object(forKey: "ShowContextMenuIcons") as? NSNumber)?.boolValue ?? true
         return settings
     }
@@ -54,7 +58,7 @@ public struct FinderMenuSettings: Codable, Equatable, Sendable {
         return true
     }
     public var valid: Bool {
-        !excludedPaths.contains("\0") && excludedPaths.replacingOccurrences(of: "\r", with: "").split(separator: "\n").allSatisfy {
+        AppLanguageChoice.isAvailable(language) && !excludedPaths.contains("\0") && excludedPaths.replacingOccurrences(of: "\r", with: "").split(separator: "\n").allSatisfy {
             $0.hasPrefix("/") || $0 == "~" || $0.hasPrefix("~/") || $0 == "~*" || $0 == "$HOME" || $0.hasPrefix("$HOME/") || $0 == "$HOME*"
         }
     }

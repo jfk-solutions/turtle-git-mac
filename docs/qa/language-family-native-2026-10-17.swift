@@ -59,6 +59,9 @@ import TurtleGitCore
         defer {prefs.removePersistentDomain(forName:suite)}
         let model=GeneralGitSettingsModel(preferences:prefs);model.activate()
         model.inspectEngine={_,_ in throw Failure(description:"Language-only Apply inspected Git")}
+        var languagePublications = [String](), languageNotifications = 0
+        model.publishFinderLanguage = { id in languagePublications.append(id); return true }
+        model.notifyFinderLanguage = { languageNotifications += 1 }
         let old=model.languageBinding();old.wrappedValue="de";old.wrappedValue="fr"
         try require(model.language=="de" && model.languageModified,"Stale language binding changed a newer draft")
         model.cancelLanguage();old.wrappedValue="ja"
@@ -88,8 +91,24 @@ import TurtleGitCore
         try require(AppLanguageChoice.selected(in:prefs)=="fr","Later wizard closure rolled back a saved page")
         model.suspend();old.wrappedValue="ja";model.activate()
         try require(model.language=="fr","Returning General page missed newly saved wizard choice")
+        model.languageBinding().wrappedValue="ja"
+        model.publishFinderLanguage = { _ in throw Failure(description:"private publication failed") }
+        let accepted = AppLanguageChoice.selected(in:prefs), sent = languageNotifications
+        try require(!model.applyLanguage() && model.languageModified && AppLanguageChoice.selected(in:prefs)==accepted && languageNotifications==sent,"Failed Finder language publication changed accepted preferences")
+        model.publishFinderLanguage = { id in languagePublications.append(id);return true }
+        try require(model.applyLanguage() && model.error==nil && AppLanguageChoice.selected(in:prefs)=="ja" && languageNotifications==sent+1,"Finder language Retry did not persist then notify")
         model.languageBinding().wrappedValue=AppLanguageChoice.system;try require(model.applyLanguage(),"System reset failed")
+        try require(languagePublications.last=="system" && languageNotifications>=3,"Finder did not receive System reset")
         try require(prefs.persistentDomain(forName:suite)?["AppleLanguages"]==nil,"System reset retained app-owned language override")
+        var acceptedMenu: FinderMenuSettings?
+        let menus = FinderContextMenuSettingsModel(defaults:prefs,publish:{ acceptedMenu=$0; return true },notify:{})
+        menus.draft.topLevelMask = 0
+        try AppLanguageChoice.save("fr",to:prefs)
+        try require(menus.apply() && acceptedMenu?.language=="fr" && acceptedMenu?.topLevelMask==0,"Older Context Menu draft overwrote General language")
+        try AppLanguageChoice.save("de",to:prefs)
+        try require(!menus.modified,"General language change dirtied Context Menu policy")
+        menus.cancel()
+        try require(menus.draft.language=="de","Cancel restored a stale Finder language")
         window.close();model.suspend()
         try require(GeneralGitSettingsModel.activeOperations==0 && GeneralGitSettingsModel.activeDialogs==0 && FirstStartWizardModel.activeWrites==0,"Language selection leaked owners")
         print("PASS language family de: all compiled locale tables, process label/fallback, General Apply/Cancel/stale callbacks, Wizard page save/late reply/close, system reset and owned light/dark forms; no Git/global preferences touched")

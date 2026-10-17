@@ -89,3 +89,10 @@ Apply, blank reset, independent app changes and saved-but-publication-failed err
 See [Finder verification record](qa/finder-menu-icons-2026-10-06.json).
 Actual signed app-to-extension handoff, activated Finder context menus/badges,
 full shell menu conditions, popup gestures and screenshots remain pending.
+
+
+The [Finder language handoff](LANGUAGES.md#finder-command-language-handoff)
+localizes command and group captions from the extension's compiled catalogs.
+Captured actions, routing payloads, first-level Git placement, source order and
+icons remain independent of translated text. Filenames, masks and marked paths
+are never translated as keys. Full installed Finder acceptance remains open.

@@ -71,3 +71,27 @@ public enum LocalizedCountTemplate {
         return output
     }
 }
+
+/// Extension processes have their own defaults and cached Bundle.main language.
+/// Resolve an explicit, allowlisted lproj on each new menu instead. No path or
+/// user-provided caption is ever used as a localization key.
+public struct FinderMenuCaptions {
+    private let bundle: Bundle?
+    public init(language: String, bundle: Bundle, preferredLanguages: [String] = Locale.preferredLanguages) {
+        let requested = AppLanguageChoice.isAvailable(language) ? language : AppLanguageChoice.system
+        let available = bundle.localizations.filter { AppLanguageChoice.bundledIDs.contains($0) }
+        let selected = requested == AppLanguageChoice.system
+            ? Bundle.preferredLocalizations(from: available, forPreferences: preferredLanguages).first ?? "en"
+            : requested
+        let location = bundle.path(forResource: selected, ofType: "lproj") ?? bundle.path(forResource: "en", ofType: "lproj")
+        self.bundle = location.flatMap(Bundle.init(path:))
+    }
+    public func label(_ english: String) -> String {
+        bundle?.localizedString(forKey: english, value: english, table: nil) ?? english
+    }
+    public func ignoreItems(_ count: Int, byExtension: Bool) -> String {
+        let key = byExtension ? "Ignore {count} items by extension" : "Ignore {count} items by name"
+        return LocalizedCountTemplate.render(key, translation: label(key), values: ["count": count])
+    }
+    public func comparison(path: String) -> String { label("Compare with ") + path }
+}

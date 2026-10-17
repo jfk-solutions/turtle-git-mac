@@ -7,6 +7,7 @@ import TurtleGitCore
     private var snapshot: FinderSnapshot?
     private var badges: GitPathMap<FinderOverlayBadge> = [:]
     private var iconSet: FinderOverlayIconSet?
+    private var badgeLanguage: String?
     private var fileSystem = FinderOverlayFileSystem()
     private var badgeLookup = FinderOverlayBadgeLookup(badges: [:], caseSensitive: { _ in true })
     override init() {
@@ -23,12 +24,14 @@ import TurtleGitCore
         snapshot = FinderSnapshot.read()
         let settings = FinderOverlaySettings.read(), changedIcons = iconSet != settings.iconSet
         let controller = FIFinderSyncController.default()
-        if changedIcons {
+        let menuSettings = FinderMenuSettings.read()
+        let captions = FinderMenuCaptions(language: menuSettings.language, bundle: Bundle(for: FinderSync.self))
+        if changedIcons || badgeLanguage != menuSettings.language {
             for state in FinderOverlayBadge.allCases {
                 guard let image = state.image(set: settings.iconSet) else { continue }
-                controller.setBadgeImage(image, label: state.title, forBadgeIdentifier: state.rawValue)
+                controller.setBadgeImage(image, label: captions.label(state.title), forBadgeIdentifier: state.rawValue)
             }
-            iconSet = settings.iconSet
+            iconSet = settings.iconSet; badgeLanguage = menuSettings.language
         }
         let fileSystem = FinderOverlayFileSystem(); self.fileSystem = fileSystem
         if let snapshot {
@@ -138,7 +141,8 @@ enum FinderMenuBuilder {
     }
     static func make(paths: [URL], snapshot: FinderSnapshot?, settings: FinderMenuSettings,
                      comparisonMark: WorkingComparisonMarkSnapshot?, target: AnyObject?, actionSelector: Selector,
-                     creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false, clipboardSources: [URL] = []) -> NSMenu {
+                     creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false, clipboardSources: [URL] = [], localizationBundle: Bundle? = nil) -> NSMenu {
+        let captions = FinderMenuCaptions(language: settings.language, bundle: localizationBundle ?? Bundle(for: FinderSync.self))
         func image(_ icon: MenuIcon) -> NSImage? { settings.showIcons ? icon.image() : nil }
         let menu = NSMenu(title: "TurtleGit"); menu.autoenablesItems = false
         let normalizedPaths = FinderRequest.normalizedSelection(paths)
@@ -161,7 +165,7 @@ enum FinderMenuBuilder {
             FinderCreationMenuContext.read(directory: $0, snapshot: snapshot, extended: extended).actions
         } ?? (toolbar ? [.clone, .initialize] : [])
         for action in creationActions {
-            let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
+            let item = NSMenuItem(title: captions.label(action.title), action: actionSelector, keyEquivalent: "")
             item.image = image(action.icon); item.target = target
             item.representedObject = FinderMenuCommand(action: action, paths: creationDirectory.map { [$0] } ?? []); submenu.addItem(item)
         }
@@ -171,11 +175,11 @@ enum FinderMenuBuilder {
         for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && !$0.isLFS && $0.resolveChoice == nil }) {
             guard (knownRepository || action.isApplicationUtility || [.sendMail, .reviewPatch].contains(action) || action == .diff && paths.count == 2), FinderShellRules.allows(action, flags: shellFlags) else { continue }
             if action == .diff && paths.count == 2 && paths.contains(where: { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }) { continue }
-            let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
+            let item = NSMenuItem(title: captions.label(action.title), action: actionSelector, keyEquivalent: "")
             item.image = image(action.icon)
             let sameOwner = sharedRepository || ([.rename, .remove, .removeKeep].contains(action) && snapshot?.commonFileOperationOwner(for: paths) != nil)
             if !sameOwner && !action.isApplicationUtility && ![.sendMail, .reviewPatch].contains(action) && !(action == .diff && paths.count == 2) {
-                item.isEnabled = false; item.toolTip = "Select items in one repository to use this command."
+                item.isEnabled = false; item.toolTip = captions.label("Select items in one repository to use this command.")
             }
             if action == .formatPatch || action == .worktreeList { item.isEnabled = item.isEnabled && (paths.count == 1 && (try? paths[0].resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true) }
             if action == .revert { item.isEnabled = item.isEnabled && (snapshot?.canRevert(paths) == true) }
@@ -186,28 +190,28 @@ enum FinderMenuBuilder {
             item.target = target; item.representedObject = FinderMenuCommand(action: action, paths: paths); submenu.addItem(item)
         }
         if snapshot?.repositoryMetadata(for: paths)?.hasLFS == true, FinderShellRules.allows(.lfs, flags: shellFlags) {
-            let choices = NSMenu(title: RepositoryAction.lfs.title); choices.autoenablesItems = false
+            let choices = NSMenu(title: captions.label(RepositoryAction.lfs.title)); choices.autoenablesItems = false
             for action in [RepositoryAction.lfsLocks, .lfsLock, .lfsUnlock] where FinderShellRules.allows(action, flags: shellFlags) {
-                let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
+                let item = NSMenuItem(title: captions.label(action.title), action: actionSelector, keyEquivalent: "")
                 item.image = image(action.icon); item.target = target; item.representedObject = FinderMenuCommand(action: action, paths: paths)
                 choices.addItem(item)
             }
             if !choices.items.isEmpty {
-                let parent = NSMenuItem(title: RepositoryAction.lfs.title, action: nil, keyEquivalent: "")
+                let parent = NSMenuItem(title: captions.label(RepositoryAction.lfs.title), action: nil, keyEquivalent: "")
                 parent.image = image(.lfs); parent.submenu = choices; parent.representedObject = FinderMenuGroup(.lfs); submenu.addItem(parent)
             }
         }
         for deleting in [false, true] where snapshot?.canIgnore(paths, deleting: deleting) == true && FinderShellRules.allows(deleting ? .ignoreDelete : .ignore, flags: shellFlags) {
-            let ignore = NSMenuItem(title: deleting ? "Delete and add to ignore list" : "Add to ignore list", action: nil, keyEquivalent: "")
+            let ignore = NSMenuItem(title: captions.label(deleting ? "Delete and add to ignore list" : "Add to ignore list"), action: nil, keyEquivalent: "")
             ignore.image = image(.ignore); ignore.representedObject = FinderMenuGroup(deleting ? .ignoreDelete : .ignore)
             let choices = NSMenu(title: ignore.title); choices.autoenablesItems = false
-            let name = paths.count == 1 ? paths[0].lastPathComponent : "Ignore \(paths.count) items by name"
+            let name = paths.count == 1 ? paths[0].lastPathComponent : captions.ignoreItems(paths.count, byExtension: false)
             let named = NSMenuItem(title: name, action: actionSelector, keyEquivalent: "")
             named.target = target; named.image = image(.ignore); named.representedObject = FinderMenuCommand(action: deleting ? .ignoreDelete : .ignore, paths: paths)
             choices.addItem(named)
             let singleDirectory = paths.count == 1 && snapshot?.states.keys.contains(where: { $0.hasPrefix(paths[0].path + "/") }) == true
             if !singleDirectory && paths.contains(where: { !$0.pathExtension.isEmpty }) {
-                let title = paths.count == 1 ? "*." + paths[0].pathExtension : "Ignore \(paths.count) items by extension"
+                let title = paths.count == 1 ? "*." + paths[0].pathExtension : captions.ignoreItems(paths.count, byExtension: true)
                 let mask = NSMenuItem(title: title, action: actionSelector, keyEquivalent: "")
                 mask.target = target; mask.image = image(.ignore); mask.representedObject = FinderMenuCommand(action: deleting ? .ignoreDeleteMask : .ignoreMask, paths: paths)
                 choices.addItem(mask)
@@ -216,14 +220,14 @@ enum FinderMenuBuilder {
         }
         if FinderShellRules.allows(.diffLater, flags: shellFlags), (try? paths[0].resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == false {
             let marked = comparisonMark
-            let title = marked.map { "Compare with " + $0.path } ?? RepositoryAction.diffLater.title
+            let title = marked.map { captions.comparison(path: $0.path) } ?? captions.label(RepositoryAction.diffLater.title)
             let item = NSMenuItem(title: title, action: actionSelector, keyEquivalent: "")
             item.target = target; item.image = image(.compare); item.representedObject = FinderMenuCommand(action: .diffLater, paths: paths)
             submenu.addItem(.separator()); submenu.addItem(item)
         }
         if paths.count == 1 {
             for request in FinderTransferContext.requests(destination: paths[0], sources: clipboardSources, snapshot: snapshot, settings: settings) {
-                let item = NSMenuItem(title: request.action.title, action: actionSelector, keyEquivalent: "")
+                let item = NSMenuItem(title: captions.label(request.action.title), action: actionSelector, keyEquivalent: "")
                 item.image = image(request.action.icon); item.target = target; item.representedObject = FinderMenuCommand(request: request)
                 submenu.addItem(item)
             }

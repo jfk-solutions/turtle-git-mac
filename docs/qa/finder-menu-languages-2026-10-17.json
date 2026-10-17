@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-17",
+  "scope": "Connected Finder command language, General/First Start acceptance, Context Menu draft ownership, badge caption registration and extension catalog resources",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "validation": {
+    "core": {
+      "passed": 14,
+      "first_pass": true,
+      "filter": "AppLanguageTests|FinderMenuSettingsTests|FinderContextMenuSettingsTests",
+      "log": "build/qa/finder-languages-core-2026-10-17.log"
+    },
+    "converter": {
+      "passed": 8,
+      "first_pass": true
+    },
+    "app_build": {
+      "exit_code": 0,
+      "first_pass": true,
+      "log": "build/qa/finder-languages-build-2026-10-17.log",
+      "diagnostics": "Existing simulator, exit-zero frontend and Swift warnings; not warning-free."
+    },
+    "native": {
+      "accepted_processes": 4,
+      "log": "build/qa/finder-languages-native-pass-2026-10-17.log",
+      "scope": [
+        "Actual Finder menu builder and retained real repository/clipboard/submodule regressions",
+        "Compiled extension catalogs: all 38 languages present; de/fr/en/system matching, English fallback and switching within one process",
+        "Translated ordinary/ignore captions with preserved order, target, selector, enabled state, icon availability and exact captured URLs",
+        "Literal filenames containing percent/Unicode and extension masks; translated multi-item counts",
+        "General language publication failure leaves preferences unchanged; successful Retry persists then notifies; System reset",
+        "Context Menu Apply/Cancel cannot restore an obsolete General language; General edits do not dirty menu policy",
+        "Retained app resource and First Start General checks in de/fr/en"
+      ]
+    },
+    "fixture_repairs": [
+      "First two attempts stopped at old Clean/Submodule assertions comparing URL directory metadata. Remaining same-family assertions now compare exact UTF-8 path bytes while retaining action, eligibility, icon, target and URL checks.",
+      "Third attempt reached new localization assertions, which wrongly expected Commit for an untracked file; the source-eligible Add command is checked instead.",
+      "Fourth attempt wrongly required nested ignore filename items to have the first-level Git prefix; the assertion now covers actual first-level commands.",
+      "No product code, app build or Core checks were repeated for these fixture-only changes."
+    ],
+    "cleanup": {
+      "receiver_pids": [
+        1018,
+        1068,
+        1154,
+        1444,
+        1699,
+        1855,
+        1860,
+        1862
+      ],
+      "independent_ps_audit": "All receivers from failed and accepted attempts independently absent."
+    },
+    "site": {
+      "documents": 284,
+      "unresolved_fragments": []
+    },
+    "catalog": {
+      "languages": 38,
+      "keys": 1277
+    },
+    "help": {
+      "documents": 37,
+      "topics": 48,
+      "files": 55,
+      "bytes": 3398725,
+      "resource_build": {
+        "exit_code": 0,
+        "log": "build/qa/finder-languages-help-build-2026-10-17.log",
+        "matched_bundle_files": [
+          "Contents/Info.plist",
+          "Contents/Resources/manifest.json",
+          "Contents/Resources/en.lproj/LANGUAGES.html"
+        ]
+      }
+    }
+  },
+  "limits": [
+    "No live Finder extension activation or installed signed App Group notification/badge announcement acceptance",
+    "Missing/ambiguous source labels retain English; not complete localization",
+    "Private unsigned language app emits sandbox_extension_issue_file_to_process diagnostics despite zero exits",
+    "No new screenshot or full visual/dialog certification",
+    "Full hosted macOS run and signed App Store distribution remain open"
+  ]
+}

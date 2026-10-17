@@ -39,7 +39,11 @@
     "None": "Keine",
     "Working Tree statistics": "Statistik des Arbeitsverzeichnisses",
     "Commit actions": "Eintragsaktionen",
-    "Check files": "Dateien markieren"
+    "Check files": "Dateien markieren",
+    "Compare with ": "Vergleichen mit ",
+    "Ignore {count} items by name": "{count} Elemente nach Namen ignorieren",
+    "Ignore {count} items by extension": "{count} Elemente nach Erweiterung ignorieren",
+    "Select items in one repository to use this command.": "Wählen Sie Elemente aus einem Repository, um diesen Befehl zu verwenden."
   },
   "fr": {
     "Type changed": "Type modifié",
@@ -65,6 +69,10 @@
     "All": "Tous",
     "Working Tree statistics": "Statistiques de l’arbre de travail",
     "Commit actions": "Actions de commit",
-    "Check files": "Cocher les fichiers"
+    "Check files": "Cocher les fichiers",
+    "Compare with ": "Comparer avec ",
+    "Ignore {count} items by name": "Ignorer {count} éléments par nom",
+    "Ignore {count} items by extension": "Ignorer {count} éléments par extension",
+    "Select items in one repository to use this command.": "Sélectionnez des éléments dans un seul dépôt pour utiliser cette commande."
   }
 }

@@ -30,10 +30,25 @@ import TurtleGitCore
             self.chooseLanguage(id)
         })
     }
+    var publishFinderLanguage: ((String) throws -> Bool)?
+    var notifyFinderLanguage: () -> Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil) }
     func applyLanguage() -> Bool {
         guard !busy, !selecting, !confirmingUpdates else { return false }
         guard languageModified else { return true }
-        do { try AppLanguageChoice.save(language, to: preferences); savedLanguage = language; languageRevision = UUID(); return true }
+        do {
+            // Publish the accepted choice before changing local defaults so a
+            // failed shared write leaves this draft available for Retry.
+            let shared: Bool
+            if let publishFinderLanguage { shared = try publishFinderLanguage(language) }
+            else if preferences === UserDefaults.standard {
+                var settings = FinderMenuSettings.from(defaults: preferences); settings.language = language
+                shared = try settings.write()
+            } else { shared = false }
+            try AppLanguageChoice.save(language, to: preferences)
+            savedLanguage = language; languageRevision = UUID(); error = nil
+            if shared { notifyFinderLanguage() }
+            return true
+        }
         catch { self.error = error.localizedDescription; return false }
     }
     func cancelLanguage() { language = savedLanguage; languageRevision = UUID() }

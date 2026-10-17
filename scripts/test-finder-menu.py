@@ -4,6 +4,7 @@ import pathlib
 import platform
 import subprocess
 import tempfile
+from native_receiver import run_receiver
 
 root = pathlib.Path(__file__).resolve().parent.parent
 frameworks = root / 'build/Build/Products/Debug'
@@ -228,7 +229,7 @@ import TurtleGitCore
         let cleanItem = items(cleanMenu).first { ($0.representedObject as? FinderMenuCommand)?.request.action == .clean }!
         precondition(cleanItem.isEnabled && cleanItem.image != nil && cleanItem.title == "Clean up…")
         let cleanRequest = FinderRequest(url: (cleanItem.representedObject as! FinderMenuCommand).url()!)!
-        precondition(cleanRequest.action == .clean && cleanRequest.paths == [folder])
+        precondition(cleanRequest.action == .clean && cleanRequest.paths.map { Array($0.path.utf8) } == [Array(folder.path.utf8)])
         precondition(items(make([tracked], settings: allCommands())).allSatisfy { ($0.representedObject as? FinderMenuCommand)?.request.action != .clean })
         let toolbarMenu = FinderMenuBuilder.make(paths: [], snapshot: snapshot, settings: allCommands(),
             comparisonMark: nil, target: target, actionSelector: selector, toolbar: true)
@@ -280,13 +281,13 @@ import TurtleGitCore
         for (selected, extended) in [([patchFile], false), ([tracked], true)] {
             let menu = FinderMenuBuilder.make(paths: selected, snapshot: nil, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector, extended: extended)
             let mail = items(menu).first { FinderShellMenuLayout.action($0) == .sendMail }!
-            precondition((mail.representedObject as! FinderMenuCommand).request.paths == selected && mail.image != nil)
+            precondition((mail.representedObject as! FinderMenuCommand).request.paths.map { Array($0.path.utf8) } == selected.map { Array($0.path.utf8) } && mail.image != nil)
         }
         for (selected, extended) in [([patchFile], false), ([tracked], true)] {
             let menu = FinderMenuBuilder.make(paths: selected, snapshot: nil, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector, extended: extended)
             let item = items(menu).first { FinderShellMenuLayout.action($0) == .reviewPatch }!
             let request = (item.representedObject as! FinderMenuCommand).request
-            precondition(request.paths == selected && item.image != nil && FinderRequest(url: request.url!)?.action == .reviewPatch)
+            precondition(request.paths.map { Array($0.path.utf8) } == selected.map { Array($0.path.utf8) } && item.image != nil && FinderRequest(url: request.url!)?.action == .reviewPatch)
         }
         let severalPatches = FinderMenuBuilder.make(paths: [patchFile, tracked], snapshot: nil, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector, extended: true)
         precondition(!items(severalPatches).contains { FinderShellMenuLayout.action($0) == .reviewPatch })
@@ -333,7 +334,7 @@ import TurtleGitCore
         for action in [RepositoryAction.submoduleAdd, .submoduleSync] {
             guard let item = items(complete).first(where: { FinderShellMenuLayout.action($0) == action }),
                   let command = item.representedObject as? FinderMenuCommand, item.isEnabled, item.image != nil,
-                  item.target === target, item.action == selector, command.request.paths == [folder],
+                  item.target === target, item.action == selector, command.request.paths.map({ Array($0.path.utf8) }) == [Array(folder.path.utf8)],
                   command.url().flatMap(FinderRequest.init(url:))?.action == action else { throw SubmoduleVerificationFailure.routing }
         }
         print("Actual Finder Submodule Add/Sync: pinned group/order, one-folder/container eligibility, original artwork and captured selector/URL routing passed. Signed dispatch remains pending.")
@@ -358,7 +359,7 @@ import TurtleGitCore
             let item = items(menu).first { ($0.representedObject as? FinderMenuCommand)?.request.action == action }!
             let request = (item.representedObject as! FinderMenuCommand).request
             precondition(item.image != nil && item.isEnabled && item.target === target && item.action == selector)
-            precondition(request.paths == [folder] && FinderRequest(url: request.url!)?.action == action)
+            precondition(request.paths.map { Array($0.path.utf8) } == [Array(folder.path.utf8)] && FinderRequest(url: request.url!)?.action == action)
         }
         precondition(!trackedActions.contains(.bisectStart) && !multiple.contains(.bisectStart))
         print("Actual Finder Bisect: inactive Start, active Good/Bad/Skip/Reset, merge/file/multiple exclusion, original icons, selectors, captured folder and URL round-trip passed.")
@@ -367,7 +368,7 @@ import TurtleGitCore
         precondition(rootActions(registered).contains(.rename) && rootActions(registered).contains(.remove) && !rootActions(registered).contains(.removeKeep))
         for action in [RepositoryAction.rename, .remove] {
             let item = registered.items[0].submenu!.items.first { FinderShellMenuLayout.action($0) == action }!
-            precondition(item.isEnabled && (item.representedObject as! FinderMenuCommand).request.paths == [folder])
+            precondition(item.isEnabled && (item.representedObject as! FinderMenuCommand).request.paths.map { Array($0.path.utf8) } == [Array(folder.path.utf8)])
         }
         precondition(!rootActions(ordinary).contains(.rename) && !rootActions(ordinary).contains(.remove))
         print("Actual submodule root menu receiver: registered root enables captured Rename/Remove, excludes RemoveKeep; ordinary root excludes Rename/Remove. Parent authorization and native dispatch remain pending.")
@@ -375,7 +376,7 @@ import TurtleGitCore
         guard let exportItem = items(exportMenu).first(where: { ($0.representedObject as? FinderMenuCommand)?.request.action == .export }) else { fatalError("Folder Export missing") }
         precondition(exportItem.isEnabled && exportItem.image != nil && exportItem.target === target && exportItem.action == selector)
         let exportRequest = (exportItem.representedObject as! FinderMenuCommand).request
-        precondition(FinderRequest(url: exportRequest.url!)?.action == .export && exportRequest.paths == [folder])
+        precondition(FinderRequest(url: exportRequest.url!)?.action == .export && exportRequest.paths.map { Array($0.path.utf8) } == [Array(folder.path.utf8)])
         precondition(!trackedActions.contains(.export) && !multiple.contains(.export))
         let bareMenu = metadataMenu(FinderRepositoryMetadata(bare: true))
         verifyOrder(bareMenu)
@@ -425,7 +426,7 @@ import TurtleGitCore
         verifyOrder(scannedMenu)
         for action in [RepositoryAction.rename, .remove] {
             let item = scannedMenu.items[0].submenu!.items.first { FinderShellMenuLayout.action($0) == action }!
-            precondition(item.isEnabled && (item.representedObject as! FinderMenuCommand).request.paths == [actualChild])
+            precondition(item.isEnabled && (item.representedObject as! FinderMenuCommand).request.paths.map { Array($0.path.utf8) } == [Array(actualChild.path.utf8)])
         }
         let realChildRepo = GitRepository(root: actualChild)
         let owner = try await realChildRepo.discoverSelectionRoot(for: .rename, selected: actualChild)
@@ -487,6 +488,49 @@ import TurtleGitCore
         let copyOnly = FinderMenuBuilder.make(paths: [destination], snapshot: transferSnapshot, settings: allCommands(), comparisonMark: nil, target: target, actionSelector: selector, clipboardSources: [actualSource.appendingPathComponent("file.txt")])
         precondition(items(copyOnly).compactMap { FinderShellMenuLayout.action($0) }.filter(\.isFileTransfer) == [.pasteCopy])
         print("Finder clipboard transfers: actual submenu/icons/request payload, Copy-only external source, captured folder/files and separate disable preference passed. No live Finder activation.")
+        // Use the actual compiled extension tables, with no Finder activation.
+        let resources = Bundle(path: CommandLine.arguments[3])!
+        precondition(Set(AppLanguageChoice.bundledIDs).isSubset(of: Set(resources.localizations)), "Extension missing a compiled language")
+        let literalFile = folder.appendingPathComponent("Commit-%n-é.txt")
+        try Data("literalFile".utf8).write(to: literalFile)
+        var languageSnapshot = snapshot
+        languageSnapshot.states[literalFile.path] = .untracked
+        func commands(_ menu: NSMenu) -> [NSMenuItem] { items(menu).filter { $0.representedObject is FinderMenuCommand } }
+        for language in ["de", "fr", "en", "system"] {
+            var policy = allCommands(); policy.language = language
+            let captions = FinderMenuCaptions(language: language, bundle: resources, preferredLanguages: ["fr-CA", "en"])
+            if language == "system" { precondition(captions.label("Cancel") == "Annuler") }
+            if language == "de" { precondition(captions.label("Cancel") == "Abbrechen") }
+            if language == "en" { precondition(captions.label("Cancel") == "Cancel") }
+            precondition(captions.label("missing native Finder key") == "missing native Finder key")
+            let localized = FinderMenuBuilder.make(paths: [literalFile], snapshot: languageSnapshot, settings: policy,
+                comparisonMark: mark, target: target, actionSelector: selector, localizationBundle: resources)
+            let baseline = FinderMenuBuilder.make(paths: [literalFile], snapshot: languageSnapshot, settings: allCommands(), comparisonMark: mark, target: target, actionSelector: selector)
+            let actual = commands(localized), original = commands(baseline)
+            precondition(actual.count == original.count)
+            for (a,b) in zip(actual,original) {
+                precondition(FinderShellMenuLayout.action(a) == FinderShellMenuLayout.action(b) && a.isEnabled == b.isEnabled && a.target === target && a.action == selector)
+                precondition((a.representedObject as! FinderMenuCommand).url() == (b.representedObject as! FinderMenuCommand).url())
+                precondition((a.image != nil) == (b.image != nil))
+            }
+            let ignore = items(localized).first { FinderShellMenuLayout.action($0) == .ignore && $0.submenu != nil }!
+            precondition(ignore.submenu!.items[0].title == literalFile.lastPathComponent, "Filename was translated/interpreted as formatting")
+            precondition(ignore.submenu!.items[1].title == "*.txt")
+            let countMenu = FinderMenuBuilder.make(paths: [literalFile,untracked], snapshot: languageSnapshot, settings: policy,
+                comparisonMark: nil, target: target, actionSelector: selector, localizationBundle: resources)
+            let countIgnore = items(countMenu).first { FinderShellMenuLayout.action($0) == .ignore && $0.submenu != nil }!
+            precondition(countIgnore.submenu!.items[0].title.contains("2"))
+            if language == "de" || language == "fr" {
+                precondition(countIgnore.submenu!.items[0].title != "Ignore 2 items by name")
+                let add = actual.first { FinderShellMenuLayout.action($0) == .add }!
+                precondition(add.title != RepositoryAction.add.title)
+            }
+            var firstLevel = policy; firstLevel.topLevelMask = FinderMenuEntry.allMask
+            let top = FinderMenuBuilder.make(paths: [tracked], snapshot: snapshot, settings: firstLevel,
+                comparisonMark: nil, target: target, actionSelector: selector, localizationBundle: resources)
+            precondition(top.items.filter { $0.representedObject is FinderMenuCommand && FinderShellMenuLayout.action($0) != .properties }.allSatisfy { $0.title.hasPrefix("Git ") })
+        }
+        print("PASS Finder language family: 38 compiled locale resources, live de/fr/en/system command projection, exact payload/order/icons and literalFile filenames/patterns; private count captions and system matching.")
         for state in FileState.allCases { precondition(state.icon.image() != nil, "Badge artwork stays available") }
         print("Actual Finder menu builder: parent/action/nested-ignore/marked-compare images toggle; six selection cases preserve titles, enabled states and routing; fresh cache reset and badge artwork pass. No Finder controller/extension/window activated; signed integration and gestures remain pending.")
     }
@@ -501,4 +545,4 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitFinderMenuTest-') as directory
                     '-F', str(frameworks), '-framework', 'TurtleGitCore', '-framework', 'FinderSync',
                     '-Xlinker', '-rpath', '-Xlinker', str(frameworks),
                     str(root / 'FinderSync/FinderSync.swift'), str(main), '-o', str(binary)], check=True)
-    subprocess.run([str(binary), str(folder / 'fixture'), str(root / 'docs/upstream-shell-menu-order.json')], check=True)
+    run_receiver([str(binary), str(folder / 'fixture'), str(root / 'docs/upstream-shell-menu-order.json'), str(frameworks/'TurtleGitMac.app/Contents/PlugIns/TurtleGitFinder.appex')], cwd=root, check=True)

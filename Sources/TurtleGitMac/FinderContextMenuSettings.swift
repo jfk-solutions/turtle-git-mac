@@ -24,7 +24,7 @@ import TurtleGitCore
     private let notify: () -> Void
     var message: String? { error ?? notice }
     var modified: Bool { policy(draft) != policy(saved) }
-    private func policy(_ value: FinderMenuSettings) -> FinderMenuSettings { var copy = value; copy.showIcons = true; return copy }
+    private func policy(_ value: FinderMenuSettings) -> FinderMenuSettings { var copy = value; copy.showIcons = true; copy.language = AppLanguageChoice.system; return copy }
     init(defaults: UserDefaults = .standard, publish: @escaping (FinderMenuSettings) throws -> Bool = { try $0.write() },
          notify: @escaping () -> Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil) }) {
         self.defaults = defaults; self.publish = publish; self.notify = notify
@@ -75,11 +75,12 @@ import TurtleGitCore
         var value = captured
         // Advanced owns this preference; use its current accepted value.
         value.showIcons = FinderMenuSettings.from(defaults: defaults).showIcons
+        value.language = AppLanguageChoice.selected(in: defaults)
         applying = true; revision = UUID()
         defer { applying = false; revision = UUID() }
         do {
             let shared = try publish(value)
-            guard !retired, draft == captured, FinderMenuSettings.from(defaults: defaults).showIcons == value.showIcons else {
+            guard !retired, draft == captured, FinderMenuSettings.from(defaults: defaults).showIcons == value.showIcons, AppLanguageChoice.selected(in: defaults) == value.language else {
                 error = "The settings changed during Finder publication. The current draft is retained; apply it again."; notice = nil; return false
             }
             try value.save(to: defaults); draft = value; saved = value
@@ -91,6 +92,7 @@ import TurtleGitCore
     func cancel() {
         guard !retired, !applying else { return }; draft = saved
         draft.showIcons = FinderMenuSettings.from(defaults: defaults).showIcons
+        draft.language = AppLanguageChoice.selected(in: defaults)
         error = nil; notice = nil; revision = UUID()
     }
     func restore(extendedOnly: Bool) {

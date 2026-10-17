@@ -98,4 +98,25 @@ Other untranslated messages and full application parity remain separate work.</p
 <img src="images/e5a8120dd8ea-working-file-groups-language-de-dark.png" alt="Working Tree groups and counters, German, dark" />
 <img src="images/6a93fbb42338-commit-file-groups-language-de-light.png" alt="Commit groups and selection, German, light" />
 <img src="images/f7856202ab6a-commit-file-groups-language-de-dark.png" alt="Commit groups and selection, German, dark" /></p>
+<h2 id="finder-command-language-handoff">Finder command-language handoff</h2>
+<p>The Finder extension now bundles the same compiled source catalogs as the app.
+General Apply and First Start language acceptance publish the selected language
+with the existing Finder menu preferences. Returning to System Language removes
+only the app override and makes Finder resolve its system language order. Each
+new menu resolves the selected <code>lproj</code> explicitly, so an already running extension
+can adopt an accepted choice without relying on its cached <code>Bundle.main</code> language.
+A shared-write failure leaves the General choice unapplied for Retry; unsigned
+builds without App Group access still save the local app choice. App startup
+publishes the accepted choice again. Older shared settings without a language
+field retain System Language; unknown identifiers use that same fallback.</p>
+<p>Ordinary, creation, LFS, ignore and clipboard commands use semantic caption keys.
+The marked-comparison prefix and validated ignore-count templates are translated
+without interpreting the path or filename as a format string. Actual filenames,
+extension masks, repository paths, URL payloads, menu order and source icons stay
+literal or retain their existing command identity. Context Menu Apply/Cancel uses
+the latest General language rather than restoring an older page draft. Badge
+accessibility captions are registered again after a language change.</p>
+<p>Missing source labels still fall back to English. These are native menu-builder
+and resource checks; activation, distributed notification delivery and badge
+announcements in a signed installed Finder extension remain release gates.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

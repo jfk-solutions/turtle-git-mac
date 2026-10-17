@@ -32434,6 +32434,29 @@
         }
       }
     },
+    "Compare with ": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vergleichen mit "
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare with "
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparer avec "
+          }
+        }
+      }
+    },
     "Compare with base": {
       "extractionState": "manual",
       "localizations": {
@@ -82971,6 +82994,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "忽略變更"
+          }
+        }
+      }
+    },
+    "Ignore {count} items by extension": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} Elemente nach Erweiterung ignorieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ignore {count} items by extension"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ignorer {count} éléments par extension"
+          }
+        }
+      }
+    },
+    "Ignore {count} items by name": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} Elemente nach Namen ignorieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ignore {count} items by name"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ignorer {count} éléments par nom"
           }
         }
       }
@@ -149193,6 +149262,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "自動勾選項目"
+          }
+        }
+      }
+    },
+    "Select items in one repository to use this command.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie Elemente aus einem Repository, um diesen Befehl zu verwenden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select items in one repository to use this command."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionnez des éléments dans un seul dépôt pour utiliser cette commande."
           }
         }
       }

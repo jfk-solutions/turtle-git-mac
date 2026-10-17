@@ -2,6 +2,31 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FinderMenuSettingsTests: XCTestCase {
+    func testLanguageHandoffBackwardCompatibilityAndAcceptedPreference() throws {
+        let decoder = JSONDecoder()
+        XCTAssertEqual(try decoder.decode(FinderMenuSettings.self, from: Data("{}".utf8)).language, "system")
+        for language in ["de", "fr", "en", "system"] {
+            var settings = FinderMenuSettings(); settings.language = language
+            XCTAssertEqual(try decoder.decode(FinderMenuSettings.self, from: JSONEncoder().encode(settings)), settings)
+        }
+        for language in ["../../de", "unknown", ""] {
+            let data = try JSONSerialization.data(withJSONObject: ["language": language])
+            XCTAssertEqual(try decoder.decode(FinderMenuSettings.self, from: data).language, "system")
+            var settings = FinderMenuSettings(); settings.language = language
+            XCTAssertFalse(settings.valid)
+            XCTAssertThrowsError(try settings.write(to: nil))
+        }
+        let name = "TurtleGit.FinderLanguage." + UUID().uuidString, defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        var stale = FinderMenuSettings(); stale.language = "de"; stale.topLevelMask = 0
+        try stale.save(to: defaults)
+        XCTAssertEqual(FinderMenuSettings.from(defaults: defaults).language, "system")
+        try AppLanguageChoice.save("fr", to: defaults)
+        XCTAssertEqual(FinderMenuSettings.from(defaults: defaults).language, "fr")
+        XCTAssertEqual(FinderMenuSettings.from(defaults: defaults).topLevelMask, 0)
+        try AppLanguageChoice.save("system", to: defaults)
+        XCTAssertEqual(FinderMenuSettings.from(defaults: defaults).language, "system")
+    }
     func testSeparatePreferenceDefaultsAndNonzero() throws {
         let suite = "TurtleGit.FinderMenuTests." + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
