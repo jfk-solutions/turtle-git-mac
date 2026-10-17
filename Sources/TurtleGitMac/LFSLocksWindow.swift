@@ -455,7 +455,8 @@ struct LFSUnlockProgress: View {
 
 /// Status lists with the optional owner column hidden match upstream's two actions.
 @MainActor enum LFSLockingSelection {
-    static func isAvailable(_ entries: [StatusEntry], hasLFS: Bool, root: URL, directories: Set<String>) -> Bool {
+    static func isAvailable(_ entries: [StatusEntry], hasLFS: Bool, root: URL, directories paths: some Sequence<String>) -> Bool {
+        let directories = GitPathSet(paths)
         guard hasLFS, !entries.isEmpty else { return false }
         return entries.allSatisfy { entry in
             guard entry.state != .conflicted, !directories.contains(entry.path) else { return false }

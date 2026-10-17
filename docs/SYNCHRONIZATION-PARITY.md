@@ -1747,3 +1747,11 @@ Finder/AppStore acceptance remain open.
 ![Sync conflict status table, light](site/assets/sync-conflict-files-light.png)
 
 ![Sync conflict status table, dark](site/assets/sync-conflict-files-dark.png)
+
+
+The conflict table now bridges exact Git path bytes through encoded native row
+IDs and its shared Working Tree selection model, including focus and captured
+menu marks. Shared native refresh/keyboard replacement uses explicit clear/select
+transitions. See the [working-file selection batch](qa/working-selection-identities-2026-10-17.json)
+for its regression scope. Wider LFS/Finder identity maps and physical/signed
+acceptance remain open.

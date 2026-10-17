@@ -2585,3 +2585,22 @@ preserves distinct valid UTF-8 spellings through status/rename/statistics reads,
 amend joins, per-path metadata and index flags. Native row IDs and highlighted/
 checked String sets still require their separate migration; this is not full
 filename-selection parity.
+
+
+## Exact Git path selection and commit preparation
+
+The connected [working-file selection family](WORKING-FILE-IDENTITY-PARITY.md)
+retains distinct valid UTF-8 Git names through native row IDs, independent
+checked/highlighted membership, marked menus, refresh, staging-state lookup and
+restore-copy metadata. Selected commits, checkbox-index restoration, staged modes,
+amend preparation and Split handoff retain the same identities. NUL path packets
+preserve spelling at the Git process boundary. Classic inclusion uses an AppKit
+checkbox alongside the existing three-state staging control.
+
+The native programmatic replacement adapter clears the previous selection before
+selecting the requested rows. This addresses an empty SwiftUI binding reproduced
+with an isolated ASCII table when replacing a multi-selection with its subset.
+It is shared by refresh and group-skipping keyboard navigation. The original
+source layout and staging semantics are retained. See
+[batch evidence](qa/working-selection-identities-2026-10-17.json) for actual checks,
+failures and remaining physical/signed acceptance.

@@ -42,12 +42,12 @@ keys in the new format are rejected.
 
 ## Remaining identity migration
 
-This is a read/metadata family, not complete working-file identity parity.
-Native row IDs and highlighted/checked String sets, wider operation path sets,
-LFS owner maps, Finder state/overlay/repository maps and restore-copy preflights
-still need their connected migration. Two canonical aliases must not be claimed
-fully independent in the native table selection model yet. Arbitrary invalid
-UTF-8 Git paths and filesystem case/normalization aliases require separate work.
+The read/metadata checkpoint did not establish complete working-file identity
+parity. Its pending Commit/Working Tree row and checked/highlighted selection,
+selected operation scopes and restore-copy lookup migration is covered below.
+Other dialog selection/operation sets, LFS owner maps and Finder state/overlay/
+repository maps remain open. Arbitrary invalid UTF-8 Git paths and filesystem
+case/normalization aliases require separate work.
 Physical/signed Finder and App Store acceptance remain open.
 
 See [batch evidence](qa/working-file-identities-2026-10-17.json).
@@ -69,3 +69,64 @@ Tree footer with system and bundled Git. Commit additionally checks exact
 statistics sorting and clipboard columns without putting aliases into the still
 String-keyed native selection model. All four receivers were reaped and
 independently absent. No new visual layout or signed Finder claim is made.
+
+
+## Native Commit and Working Tree selection — October 17, 2026
+
+Commit's checked/highlighted sets and Working Tree's highlighted set now retain
+exact valid UTF-8 path membership. Their SwiftUI table rows use ASCII IDs encoding
+exact path bytes. A stored native selection set and an exact raw-path cache bridge
+those IDs to Git arguments and captions. Group IDs retain their separate NUL
+namespace. Group lookup maps, flag grouping, checkbox multi-selection, marked
+context menus, bulk checks and canonical-only selection replacement use the same
+identity rules. Changing just the spelling invalidates captured menu targets.
+
+Programmatic native selection replacement explicitly clears the old selection
+before selecting the requested rows. A minimal SwiftUI Table with ordinary ASCII
+IDs reproduced the empty-binding failure when `selectRowIndexes` directly replaced
+a multi-selection with its subset. Refresh and ordinary group-skipping keyboard
+navigation use the same replacement adapter as the native regression fixture.
+This does not establish a physical mouse-input failure or certify physical input.
+
+Native list refresh restores the exact selected/focused row. Status and Commit
+share that native adapter; the Sync conflict table now also uses exact row IDs
+and selection through its shared Status model. Existing String-sequence callers
+are captured into exact sets at workflow boundaries. This cannot reconstruct
+names already collapsed by an older caller's Set<String>.
+
+Commit staging-state and restore-copy maps retain exact keys. Commit's selected
+path snapshot, checkbox-index scope/restoration sets, staged mode preservation
+and Rebase Split handoff retain exact selection through the temporary index.
+Stage/Unstage and temporary-index additions/restores use literal NUL path packets;
+empty/NUL-containing entries are refused. Index mode updates use NUL index-info
+records, and literal mode lookups disable argv precomposition for that command
+only. Persistent Git configuration is unchanged. Native Commit/Working Tree
+submodule membership now comes from the already exact submodule-name reader.
+
+The grouped checkpoint covers these two dialogs' file row IDs/checked/highlighted
+sets and supersedes their earlier pending migration. Other dialogs (including Log, Add and Revert outer
+selection models), wider LFS ownership/Finder state maps, URL invocation scopes,
+arbitrary invalid UTF-8 names and physical filesystem alias semantics remain
+open. Two Git index names can refer to one physical file on macOS; independent
+index identity does not create two independent disk files.
+
+See [selection evidence](qa/working-selection-identities-2026-10-17.json).
+
+The grouped checkpoint passed 67 distinct relevant Core cases across the original
+run and affected additions. Ten final native case/engine combinations pass with
+system and bundled Git: exact selection, staging, Commit commands, Sync conflicts
+and shared file-list refresh. Four updated fixture callers compile without
+rerunning unrelated workflows. Initial compile/input/checkbox failures and the
+minimal-table diagnosis are retained in the batch record. All recorded owned
+receivers were reaped and independently absent. Both raw Commit and Working Tree
+light/dark captures were individually reviewed: separate paired rows, single
+highlight/check, source icons, status colors, groups and footer fit. Physical
+mouse/keyboard, accessibility and signed acceptance remain open.
+
+![Commit file selection, light](site/assets/commit-file-selection-light.png)
+
+![Commit file selection, dark](site/assets/commit-file-selection-dark.png)
+
+![Working Tree file selection, light](site/assets/working-tree-file-selection-light.png)
+
+![Working Tree file selection, dark](site/assets/working-tree-file-selection-dark.png)

@@ -153,7 +153,10 @@ final class FileListWatermark: NSView {
         if let probe, probe !== value { cancel() }
         probe = value
     }
-    func begin(preferences: UserDefaults, reset: Bool = false, selectedIDs: Set<String>? = nil) -> Ticket {
+    func begin<S:Sequence>(preferences:UserDefaults,reset:Bool = false,selectedIDs:S)->Ticket where S.Element == String {
+        begin(preferences:preferences,reset:reset,selectedIDs:Optional(GitPathSet(selectedIDs)))
+    }
+    func begin(preferences: UserDefaults, reset: Bool = false, selectedIDs: GitPathSet? = nil) -> Ticket {
         cancel()
         let ticket = Ticket(id: UUID(), remember: !reset && ((preferences.object(forKey: "RememberFileListPosition") as? NSNumber)?.boolValue ?? true))
         current = ticket.id; probe?.storeListPosition(selectedIDs:selectedIDs); return ticket
@@ -172,6 +175,14 @@ final class FileListWatermark: NSView {
 /// Observe the public AppKit table without replacing its selection, accessibility
 /// or context-menu implementation.
 struct CommitFileInteraction: NSViewRepresentable {
+    /// SwiftUI's outline-table coordinator can publish an empty ID set when
+    /// selectRowIndexes replaces a multi-selection with its subset. Use two
+    /// explicit native transitions for refresh and keyboard replacement requests.
+    static func replaceSelection(in table:NSTableView,with indexes:IndexSet) {
+        table.deselectAll(nil)
+        if !indexes.isEmpty {table.selectRowIndexes(indexes,byExtendingSelection:false)}
+    }
+
     @AppStorage("LogFontForFileListCtrl") private var useLogFont = false
     @AppStorage("ShowListBackgroundImage") private var showListBackground = true
     @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
@@ -304,7 +315,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             let origin: NSPoint
             let selectedIndex: Int?
             let focusedIndex: Int?
-            let selectedIDs: Set<String>
+            let selectedIDs: GitPathSet
             let focusedID: String?
             let readingIntent: Int
         }
@@ -315,15 +326,15 @@ struct CommitFileInteraction: NSViewRepresentable {
         private func finishListPosition() { let reply = positionCompletion; positionCompletion = nil; reply?() }
 
         func cancelListPosition() { positionGeneration = UUID(); listPosition = nil; finishListPosition() }
-        func storeListPosition(selectedIDs: Set<String>? = nil) {
+        func storeListPosition(selectedIDs: GitPathSet? = nil) {
             positionGeneration = UUID(); finishListPosition()
             guard let table = configuredTable, let scroll = table.enclosingScrollView else { listPosition = nil; return }
             let ids = itemIDs ?? rows.map(\.id)
             guard table.numberOfRows == ids.count else { return }
-            let selected = selectedIDs ?? Set(table.selectedRowIndexes.compactMap { ids.indices.contains($0) ? ids[$0] : nil })
+            let selected = selectedIDs ?? GitPathSet(table.selectedRowIndexes.compactMap { ids.indices.contains($0) ? ids[$0] : nil })
             let mark = focusedPath?.wrappedValue ?? ids.first {selected.contains($0)}
             listPosition = ListPosition(origin: scroll.contentView.bounds.origin, selectedIndex: ids.indices.first {selected.contains(ids[$0])} ?? table.selectedRowIndexes.first,
-                focusedIndex: mark.flatMap { ids.firstIndex(of: $0) }, selectedIDs: selected, focusedID: mark, readingIntent: readingIntent)
+                focusedIndex: mark.flatMap { mark in ids.firstIndex { GitReferenceName.equal($0,mark) } }, selectedIDs: selected, focusedID: mark, readingIntent: readingIntent)
         }
         func restoreListPosition(ids: [String], enabled: Bool, completion: @escaping () -> Void = {}) {
             finishListPosition()
@@ -353,8 +364,8 @@ struct CommitFileInteraction: NSViewRepresentable {
                 var selected = IndexSet(fileSlots.filter { position.selectedIDs.contains(ids[$0]) })
                 if selected.isEmpty, !position.selectedIDs.isEmpty, let old = position.selectedIndex,
                    let row = fileSlots.min(by: { abs($0 - old) < abs($1 - old) }) { selected.insert(row) }
-                table.selectRowIndexes(selected, byExtendingSelection: false)
-                if let id = position.focusedID, let row = fileSlots.first(where: { ids[$0] == id }) { focusedPath?.wrappedValue = ids[row] }
+                CommitFileInteraction.replaceSelection(in:table,with:selected)
+                if let id = position.focusedID, let row = fileSlots.first(where: { GitReferenceName.equal(ids[$0],id) }) { focusedPath?.wrappedValue = ids[row] }
                 else if let old = position.focusedIndex, let row = fileSlots.min(by: { abs($0 - old) < abs($1 - old) }) { focusedPath?.wrappedValue = ids[row] }
                 else { focusedPath?.wrappedValue = nil }
                 scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(NSRect(origin: position.origin, size: scroll.contentView.bounds.size)).origin)
@@ -680,7 +691,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                 guard enabled else { return event }
                 let ids = itemIDs ?? rows.map(\.id)
                 let slots = ids.indices.filter { rows.count != ids.count || rows[$0].entry != nil }
-                table.selectRowIndexes(IndexSet(slots), byExtendingSelection: false)
+                CommitFileInteraction.replaceSelection(in:table,with:IndexSet(slots))
                 if focusedPath?.wrappedValue == nil, let first = slots.first { focusedPath?.wrappedValue = ids[first] }
                 return nil
             }
@@ -689,12 +700,12 @@ struct CommitFileInteraction: NSViewRepresentable {
                 let selected = table.selectedRowIndexes.compactMap { index in itemIDs.indices.contains(index) && (rows.count != itemIDs.count || rows[index].entry != nil) ? itemIDs[index]:nil }
                 if flags.isEmpty,rows.count == itemIDs.count,rows.contains(where:{$0.group != nil}),[125,126,115,119].contains(event.keyCode) {
                     let forward=event.keyCode == 125 || event.keyCode == 115,endpoint=event.keyCode == 115 || event.keyCode == 119
-                    let anchor=endpoint ? nil:focusedPath?.wrappedValue.flatMap {itemIDs.firstIndex(of:$0)} ?? (table.selectedRow >= 0 ? table.selectedRow:nil)
+                    let anchor=endpoint ? nil:focusedPath?.wrappedValue.flatMap { focus in itemIDs.firstIndex { GitReferenceName.equal($0,focus) }} ?? (table.selectedRow >= 0 ? table.selectedRow:nil)
                     guard let target=StatusListGroups.nextFileRow(after:anchor,forward:forward,in:rows) else {return nil}
-                    table.selectRowIndexes(IndexSet(integer:target),byExtendingSelection:false);table.scrollRowToVisible(target);focusedPath?.wrappedValue=itemIDs[target];return nil
+                    CommitFileInteraction.replaceSelection(in:table,with:IndexSet(integer:target));table.scrollRowToVisible(target);focusedPath?.wrappedValue=itemIDs[target];return nil
                 }
                 if event.keyCode == 49, flags.isEmpty, enabled, leadingColumnCount > 0,
-                   let mark = selected.first(where: { $0 == focusedPath?.wrappedValue }) ?? selected.first {
+                   let mark = selected.first(where: { GitReferenceName.equal($0,focusedPath?.wrappedValue) }) ?? selected.first {
                     toggleCheckIDs?(selected, mark); return nil
                 }
                 let commandCopy = event.keyCode == 8 && flags.contains(.command) && !flags.contains(.control) && !flags.contains(.option)
@@ -710,7 +721,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
             if event.keyCode == 49, flags.isEmpty, enabled, leadingColumnCount > 0 {
                 let selected = StatusListGroups.files(at: table.selectedRowIndexes, in: rows)
-                let mark = selected.first { $0.path == focusedPath?.wrappedValue } ?? selected.first
+                let mark = selected.first { GitReferenceName.equal($0.path,focusedPath?.wrappedValue) } ?? selected.first
                 if let mark { toggleCheck(selected, mark); return nil }
             }
             // Headers are presentation rows. Skip them for ordinary navigation,
@@ -720,7 +731,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                 let endpoint = event.keyCode == 115 || event.keyCode == 119
                 let current = endpoint || table.selectedRow < 0 ? nil : Optional(table.selectedRow)
                 guard let target = StatusListGroups.nextFileRow(after: current, forward: forward, in: rows), let entry = rows[target].entry else { return nil }
-                table.selectRowIndexes(IndexSet(integer: target), byExtendingSelection: false)
+                CommitFileInteraction.replaceSelection(in:table,with:IndexSet(integer:target))
                 table.scrollRowToVisible(target); focusedPath?.wrappedValue = entry.path
                 return nil
             }
@@ -734,7 +745,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             if keyboardDeleteEnabled && (event.keyCode == 51 || event.keyCode == 117) {
                 guard enabled else { return event }
                 let selected = StatusListGroups.files(at: table.selectedRowIndexes, in: rows)
-                let mark = rows.compactMap(\.entry).first { $0.path == focusedPath?.wrappedValue } ?? (selected.count == 1 ? selected.first : nil)
+                let mark = rows.compactMap(\.entry).first { GitReferenceName.equal($0.path,focusedPath?.wrappedValue) } ?? (selected.count == 1 ? selected.first : nil)
                 guard !selected.isEmpty, let mark, mark.canDeleteWithKeyboard else { return event }
                 delete(selected, mark, flags.contains(.shift))
                 return nil

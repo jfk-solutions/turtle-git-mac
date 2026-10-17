@@ -236,5 +236,5 @@ import TurtleGitCore
 }
 struct CommitSortingHost: View {
     @ObservedObject var model: CommitWindowModel
-    var body: some View { CommitDialog(model: model).fileTable(model.visibleEntries, selection: $model.selection, staged: model.stagingEnabled ? model.stagedDiff : nil) }
+    var body: some View { CommitDialog(model: model).fileTable(model.visibleEntries, staged: model.stagingEnabled ? model.stagedDiff : nil) }
 }

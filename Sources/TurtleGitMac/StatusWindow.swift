@@ -40,7 +40,7 @@ struct StatusRow: Identifiable {
 struct StatusGroupedRow: Identifiable {
     let row: StatusListRow
     let contents: StatusRow?
-    var id: String { row.id }
+    var id: String { GitPathRowIdentity.encode(row.id) }
 }
 struct StatusGroupedSort: SortComparator {
     var column: StatusListColumn
@@ -216,11 +216,11 @@ final class StatusNativeWindow: NSWindow {
     var groupsEnabled = true
     var showsStagedStatus = true
     var clipboard = NSPasteboard.general
-    func installEmbeddedFiles(_ rows:[WorkingTreeFile],statistics:GitPathMap<CommitFile>,metadata:GitPathMap<StatusListMetadata>,submodules:Set<String>,hasHead:Bool,rebase:Bool,hasLFS:Bool) {
+    func installEmbeddedFiles(_ rows:[WorkingTreeFile],statistics:GitPathMap<CommitFile>,metadata:GitPathMap<StatusListMetadata>,submodules: some Sequence<String>,hasHead:Bool,rebase:Bool,hasLFS:Bool) { let submodules = GitPathSet(submodules);
         guard !retired,!busy else {return};menuGeneration = UUID()
         files = rows;self.statistics = statistics;fileMetadata = metadata;self.submodules = submodules
         self.hasHead = hasHead;conflictRebase = rebase;self.hasLFS = hasLFS
-        selection.formIntersection(Set(rows.map(\.id)))
+        selection.formIntersection(GitPathSet(rows.map(\.id)))
     }
     let repository: GitRepository
     private let access: RepositoryAccessLease?
@@ -228,7 +228,7 @@ final class StatusNativeWindow: NSWindow {
     @Published private(set) var keepChangelists = false
     var chooseChangelistName: () async -> String? = { nil }
     @Published var conflictRebase = false
-    @Published var submodules = Set<String>()
+    @Published var submodules = GitPathSet()
     @Published var hasLFS = false
     @Published var fileColumns: StatusListColumnSettings
     @Published var fileMetadata: GitPathMap<StatusListMetadata> = [:]
@@ -239,7 +239,7 @@ final class StatusNativeWindow: NSWindow {
     var visibleColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) && ($0 != .lfsOwner || hasLFS) } }
     var availableColumns: Set<StatusListColumn> { Set(StatusListColumn.allCases.filter { $0 != .lfsOwner || hasLFS }) }
     @Published var lfsOwners: [String: String] = [:]
-    @Published var lfsLockedPaths = Set<String>()
+    @Published var lfsLockedPaths = GitPathSet()
     @Published var lfsOwnershipKnown = false
     private let defaults: UserDefaults
     var colorPreferences: UserDefaults { defaults }
@@ -250,7 +250,22 @@ final class StatusNativeWindow: NSWindow {
     @Published var files: [WorkingTreeFile] = []
     @Published var statistics: GitPathMap<CommitFile> = [:]
     private var menuGeneration = UUID()
-    @Published var selection = Set<String>() { didSet { if selection != oldValue { menuGeneration = UUID() } } }
+    private var selectedPaths = GitPathSet()
+    @Published var nativeFileSelection = Set<String>() {
+        didSet {
+            guard nativeFileSelection != oldValue else {return}
+            selectedPaths = GitPathRowIdentity.paths(nativeFileSelection)
+            menuGeneration = UUID()
+        }
+    }
+    var selection: GitPathSet {
+        get {selectedPaths}
+        set {
+            let ids = Set(newValue.map(GitPathRowIdentity.encode))
+            if nativeFileSelection != ids {nativeFileSelection = ids}
+        }
+    }
+
     @Published var sortOrder = [StatusFileSort(column: .path)]
     @Published var filter = WorkingTreeFilter()
     @Published var branch = ""
@@ -349,8 +364,8 @@ final class StatusNativeWindow: NSWindow {
     var visibleFiles: [WorkingTreeFile] { files.filter { filter.includes($0) } }
     private var ungroupedSortedRows: [StatusRow] { visibleFiles.map { StatusRow(file: $0, statistics: statistics[$0.id], lfsOwner: lfsOwners[$0.id] ?? "", metadata: fileMetadata[$0.id]) }.sorted(using: sortOrder) }
     var tableRows: [StatusGroupedRow] {
-        let rows = ungroupedSortedRows, lookup = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
-        let flagged = Set(rows.filter { $0.file.assumeUnchanged || $0.file.skipWorktree }.map(\.id))
+        let rows = ungroupedSortedRows, lookup = GitPathMap(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+        let flagged = GitPathSet(rows.filter { $0.file.assumeUnchanged || $0.file.skipWorktree }.map(\.id))
         return StatusListGroups.rows(entries: rows.map { $0.file.entry }, changelists: changelists, locallyIgnored: flagged).map {
             StatusGroupedRow(row: $0, contents: $0.entry.flatMap { lookup[$0.path] })
         }
@@ -417,8 +432,8 @@ final class StatusNativeWindow: NSWindow {
         defaults.set(value.showUnversioned, forKey: "AddBeforeCommit")
         defaults.set(value.showAllStaged, forKey: "ChangedFilesIncludeStaged")
         if !value.paths.isEmpty { defaults.set(value.wholeProject, forKey: wholeProjectKey) }
-        selection.formIntersection(Set(visibleFiles.map(\.id)));if !position.remember {selection = []};updateScopeTitle()
-        Task { [self] in await fileListRefresh.restore(position,ids:tableRows.map(\.id));fileListRefresh.finish(position) }
+        selection.formIntersection(GitPathSet(visibleFiles.map(\.id)));if !position.remember {selection = []};updateScopeTitle()
+        Task { [self] in await fileListRefresh.restore(position,ids:tableRows.map { $0.row.id });fileListRefresh.finish(position) }
     }
     @discardableResult func cancelOperation() -> Bool {
         guard let token = operationCancellation else { return cancelLFSOwnerQuery() }
@@ -474,7 +489,7 @@ final class StatusNativeWindow: NSWindow {
             let nextBranch = try await repository.branch(cancellation: token)
             let nextHasHead = try await repository.run(["rev-parse", "--verify", "--quiet", "HEAD"], successfulExitCodes:0...1, cancellation:token).exitCode == 0
             let nextRebase = try await repository.conflictIsRebase(cancellation: token)
-            let nextSubmodules = try await repository.submodulePaths(cancellation: token)
+            let nextSubmodules = try await repository.submodulePathNames(cancellation: token).map(\.rawValue)
             let nextLFS = try await repository.hasLFS(cancellation: token)
             let nextMetadata = await repository.statusListMetadata(paths: nextFiles.map(\.id))
             let nextStatistics = try await repository.workingTreeFiles(cancellation: token)
@@ -483,17 +498,17 @@ final class StatusNativeWindow: NSWindow {
             guard isLive(token) else { return }
             resetPositionOnReload = false
             invocation = nextInvocation; hasStash = nextStash; hasHead = nextHasHead; updateScopeTitle()
-            changelists = nextChangelists; files = nextFiles; branch = nextBranch; conflictRebase = nextRebase; submodules = nextSubmodules
+            changelists = nextChangelists; files = nextFiles; branch = nextBranch; conflictRebase = nextRebase; submodules = GitPathSet(nextSubmodules)
             hasLFS = nextLFS; fileMetadata = nextMetadata
             statistics = GitPathMap(nextStatistics.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
-            selection.formIntersection(Set(visibleFiles.map(\.id)))
+            selection.formIntersection(GitPathSet(visibleFiles.map(\.id)))
             lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
             if ownersVisible {
                 lfsOwners = Dictionary(nextLocks.map {($0.path,$0.owner)},uniquingKeysWith:{first,_ in first})
-                lfsLockedPaths = Set(nextLocks.map(\.path));lfsOwnershipKnown = true
+                lfsLockedPaths = GitPathSet(nextLocks.map(\.path));lfsOwnershipKnown = true
             }
             if !position.remember {selection = []}
-            await fileListRefresh.restore(position,ids:tableRows.map(\.id));try token.check()
+            await fileListRefresh.restore(position,ids:tableRows.map { $0.row.id });try token.check()
         })
     }
     func canLockLFS(_ selected: [WorkingTreeFile]) -> Bool {
@@ -503,14 +518,14 @@ final class StatusNativeWindow: NSWindow {
         guard canLockLFS(selected) else { return [] }
         return LFSLockMenu.actions(paths: selected.map(\.id), ownersVisible: ownersVisible, lockedPaths: lfsLockedPaths, ownershipKnown: lfsOwnershipKnown)
     }
-    func setLFSLocked(_ ids: Set<String>, locked: Bool) {
+    func setLFSLocked(_ ids: some Sequence<String>, locked: Bool) { let ids = GitPathSet(ids);
         guard !retired, !busy, !confirmingQuit,actionOwnerAvailable() else { return }
         let selected = sortedRows.map(\.file).filter { ids.contains($0.id) }
         guard selected.count == ids.count, lfsActions(selected).contains(locked ? .lock : .unlock) else { return }
         busy = true
         if !onLFSOperation(selected.map(\.id), locked) { busy = false }
     }
-    func stage(_ ids: Set<String>, staged: Bool) {
+    func stage(_ ids: some Sequence<String>, staged: Bool) { let ids = GitPathSet(ids);
         let paths = sortedRows.map(\.file).filter { ids.contains($0.id) && $0.state != .conflicted }.map(\.id)
         guard !paths.isEmpty else { return }
         runOperation(staged ? "Staging files…" : "Unstaging files…", operation: { [self] token in
@@ -524,7 +539,7 @@ final class StatusNativeWindow: NSWindow {
             try await repository.setIndexFlags(action, paths: files.map(\.id), markedPath: selectionMark?.id, cancellation: token)
         }, completed: { [self] in reload(); onChanged() }, failed: { [self] in reload(); onChanged() })
     }
-    func diff(_ ids: Set<String>, saving: Bool = false) {
+    func diff(_ ids: some Sequence<String>, saving: Bool = false) { let ids = GitPathSet(ids);
         guard !retired, !busy, !confirmingQuit else { return }
         if !saving {
             let paths = sortedRows.filter { ids.contains($0.id) }.map(\.id)
@@ -539,7 +554,7 @@ final class StatusNativeWindow: NSWindow {
     func scopeUnifiedDiff(alternate: Bool) {
         presentUnifiedDiff(paths: invocation.comparisonPaths(wholeProject: filter.wholeProject), alternate: alternate)
     }
-    func unifiedDiff(_ ids: Set<String>, alternate: Bool) {
+    func unifiedDiff(_ ids: some Sequence<String>, alternate: Bool) { let ids = GitPathSet(ids);
         let paths = sortedRows.filter { ids.contains($0.id) }.map(\.id)
         guard !paths.isEmpty else { return }
         presentUnifiedDiff(paths: paths, alternate: alternate)
@@ -560,9 +575,9 @@ final class StatusNativeWindow: NSWindow {
             }
         })
     }
-    func fileMenu(_ ids: Set<String>, mark: String? = nil) -> StatusFileMenuSnapshot {
+    func fileMenu(_ ids: some Sequence<String>, mark: String? = nil) -> StatusFileMenuSnapshot { let ids = GitPathSet(ids);
         let rows = sortedRows.filter { ids.contains($0.id) }, entries = rows.map { $0.file.entry }
-        let focused = files.first { $0.id == mark }?.entry ?? entries.first
+        let focused = files.first { GitReferenceName.equal($0.id,mark) }?.entry ?? entries.first
         func directory(_ row: StatusRow) -> Bool { submodules.contains(row.id) || row.metadata?.isDirectory == true }
         var commands: [StatusFileCommand] = []
         if rows.count == 2 && rows.allSatisfy({ !directory($0) }) { commands.append(.compareTwo) }
@@ -587,7 +602,7 @@ final class StatusNativeWindow: NSWindow {
     func canCommit(_ snapshot: StatusFileMenuSnapshot) -> Bool {
         guard !snapshot.entries.isEmpty, let mark = snapshot.mark else { return false }
         if snapshot.offersAdd { return true }
-        guard let file = files.first(where: { $0.id == mark.path }) else { return false }
+        guard let file = files.first(where: { GitReferenceName.equal($0.id,mark.path) }) else { return false }
         return !file.assumeUnchanged && !file.skipWorktree
     }
     func commitSelection(_ snapshot: StatusFileMenuSnapshot) {
@@ -670,19 +685,19 @@ final class StatusNativeWindow: NSWindow {
         })
     }
     func groupMenu(_ group: StatusListGroup) -> StatusFileMenuSnapshot {
-        fileMenu(Set(StatusListGroups.files(in: group, rows: tableRows.map(\.row)).map(\.path)))
+        fileMenu(GitPathSet(StatusListGroups.files(in: group, rows: tableRows.map(\.row)).map(\.path)))
     }
     func selectGroup(_ group: StatusListGroup, snapshot: StatusFileMenuSnapshot? = nil) {
         let captured = snapshot ?? groupMenu(group)
         guard accepts(captured) else { return }
-        selection = Set(captured.entries.map(\.path))
+        selection = GitPathSet(captured.entries.map(\.path))
     }
     func commitPaths() -> [String] { invocation.commitPaths(wholeProject: filter.wholeProject) }
     func didRename(_ source: String, to destination: String) {
-        func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
-        selection = Set(selection.map(moved)); filter.paths = filter.paths.map(moved); reload()
+        func moved(_ path: String) -> String { GitReferenceName.equal(path,source) ? destination : path.utf8.starts(with:(source + "/").utf8) ? destination + path.dropFirst(source.count) : path }
+        selection = GitPathSet(selection.map(moved)); filter.paths = filter.paths.map(moved); reload()
     }
-    func reveal(_ ids: Set<String>) { guard !retired, !busy, !confirmingQuit else { return }; NSWorkspace.shared.activateFileViewerSelecting(files.filter { ids.contains($0.id) }.map { repository.root.appendingPathComponent($0.id) }) }
+    func reveal(_ ids: some Sequence<String>) { let ids = GitPathSet(ids); guard !retired, !busy, !confirmingQuit else { return }; NSWorkspace.shared.activateFileViewerSelecting(files.filter { ids.contains($0.id) }.map { repository.root.appendingPathComponent($0.id) }) }
     func columnText(_ row: StatusRow, _ column: StatusListColumn) -> String {
         switch column {
         case .path: return StatusListClipboard.displayedPath(row.file.entry)
@@ -696,7 +711,7 @@ final class StatusNativeWindow: NSWindow {
         case .lfsOwner: return row.lfsOwner
         }
     }
-    func clipboardText(_ ids: Set<String>, copy: StatusListCopy) -> String {
+    func clipboardText(_ ids: some Sequence<String>, copy: StatusListCopy) -> String { let ids = GitPathSet(ids);
         let rows = sortedRows.filter { ids.contains($0.id) }
         guard !rows.isEmpty else { return "" }
         let columns: [StatusListColumn]
@@ -717,7 +732,7 @@ final class StatusNativeWindow: NSWindow {
             }
         }.joined(separator: "\n") + "\n"
     }
-    func copy(_ ids: Set<String>, information: StatusListCopy = .relativePaths) {
+    func copy(_ ids: some Sequence<String>, information: StatusListCopy = .relativePaths) { let ids = GitPathSet(ids);
         guard !retired, !busy, !confirmingQuit,actionOwnerAvailable() else { return }
         let text = clipboardText(ids, copy: information)
         guard !text.isEmpty else { return }
@@ -798,16 +813,20 @@ struct StatusStashMenu:NSViewRepresentable {
 struct StatusDialog: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: StatusWindowModel
-    @State private var focusedPath: String?
+    @State private var focusedIdentity: GitReferenceName?
+    private var focusedPath: String? { focusedIdentity?.rawValue }
+    private var focusBinding: Binding<String?> {
+        Binding(get:{ focusedIdentity?.rawValue },set:{ focusedIdentity = $0.map { GitReferenceName($0) } })
+    }
     var body: some View {
         let rows = model.sortedRows
-        let rowsByID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id,$0) })
+        let rowsByID = GitPathMap(uniqueKeysWithValues: rows.map { ($0.id,$0) })
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Button(model.branch.isEmpty ? "Unborn / detached HEAD" : model.branch) { model.performDialogAction(.switchBranch) }.buttonStyle(.link)
                 Spacer(); if model.busy { Text(model.currentOperation).font(.caption); ProgressView().controlSize(.small) }
             }
-            Table(model.tableRows, selection: $model.selection, sortOrder: Binding(get: { model.sortOrder.map { StatusGroupedSort(column: $0.column, order: $0.order) } }, set: { model.setSortOrder($0.map { StatusFileSort(column: $0.column, order: $0.order) }) })) {
+            Table(model.tableRows, selection: $model.nativeFileSelection, sortOrder: Binding(get: { model.sortOrder.map { StatusGroupedSort(column: $0.column, order: $0.order) } }, set: { model.setSortOrder($0.map { StatusFileSort(column: $0.column, order: $0.order) }) })) {
                 TableColumn("Path", sortUsing: StatusGroupedSort(column: .path)) { item in
                     if let row = item.contents {
                         HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).lineLimit(1) }
@@ -831,17 +850,18 @@ struct StatusDialog: View {
                     rowsByID[entry.path].map { model.columnText($0,column) } ?? ""
                 }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,
                 saveLayout: { model.saveColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setColumn($0, visible: $1) },
-                resetColumns: { choose, accepted in model.requestResetColumns(choose: choose, onAccepted: accepted) }, focusedPath: $focusedPath,
+                resetColumns: { choose, accepted in model.requestResetColumns(choose: choose, onAccepted: accepted) }, focusedPath: focusBinding,
                 enabled: !model.busy && !model.confirmingQuit && !model.retired, delete: { entries, mark, permanently in
                     guard mark.canDeleteWithKeyboard else { return }
-                    model.fileAction(.delete, snapshot: model.fileMenu(Set(entries.map(\.path)), mark: mark.path), permanently: permanently)
+                    model.fileAction(.delete, snapshot: model.fileMenu(GitPathSet(entries.map(\.path)), mark: mark.path), permanently: permanently)
                 },
-                copy: { entries, status in model.copy(Set(entries.map(\.path)), information: status ? .pathsAndStatus : .relativePaths) },
-                copyColumn: { entries, column in model.copy(Set(entries.map(\.path)), information: .column(column)) }, toggleCheck: { _,_ in }))
-            .contextMenu(forSelectionType: String.self) { ids in
+                copy: { entries, status in model.copy(GitPathSet(entries.map(\.path)), information: status ? .pathsAndStatus : .relativePaths) },
+                copyColumn: { entries, column in model.copy(GitPathSet(entries.map(\.path)), information: .column(column)) }, toggleCheck: { _,_ in }))
+            .contextMenu(forSelectionType: String.self) { nativeIDs in
+                let ids = GitPathRowIdentity.paths(nativeIDs)
                 let snapshot = model.fileMenu(ids, mark: focusedPath)
                 TurtleGitContextMenu {
-                    if ids.count == 1, let group = model.tableRows.first(where: { ids.contains($0.id) })?.row.group {
+                    if ids.count == 1, let group = model.tableRows.first(where: { ids.contains($0.row.id) })?.row.group {
                         let groupedSelection = model.groupMenu(group)
                         Button("Select group") { model.selectGroup(group, snapshot: groupedSelection) }.disabled(model.busy || model.confirmingQuit)
                     }
@@ -868,7 +888,7 @@ struct StatusDialog: View {
                     if snapshot.entries.contains(where: \.staged) {
                         Button { model.withFileMenu(snapshot) { model.stage(ids, staged:false) } } label: { CommandLabel(title:"Unstage", icon:.revert) }
                     }
-                    if ids.count == 1, let path = ids.first, let row = model.files.first(where: { $0.id == path }), ![FileState.untracked, .ignored, .deleted].contains(row.state) {
+                    if ids.count == 1, let path = ids.first, let row = model.files.first(where: { GitReferenceName.equal($0.id,path) }), ![FileState.untracked, .ignored, .deleted].contains(row.state) {
                         Button { model.withFileMenu(snapshot) { model.onAction(.rename, [path]) } } label: { CommandLabel(title: "Rename…", icon: .rename) }
                     }
                     let selected = model.files.filter { ids.contains($0.id) }
@@ -887,7 +907,7 @@ struct StatusDialog: View {
                     ForEach(model.lfsActions(selected), id: \.self) { action in
                         Button { model.withFileMenu(snapshot) { model.setLFSLocked(ids, locked: action == .lock) } } label: { CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock) }.disabled(model.busy || model.confirmingQuit)
                     }
-                    if let mark = model.files.first(where: { $0.id == snapshot.mark?.path }) {
+                    if let mark = model.files.first(where: { GitReferenceName.equal($0.id,snapshot.mark?.path) }) {
                         IndexFlagsMenu(files:selected, selectionMark:mark) { action in model.withFileMenu(snapshot) { model.setFlags(action, files:selected, selectionMark:mark) } }
                     }
                     if snapshot.offersIgnore {
@@ -922,8 +942,9 @@ struct StatusDialog: View {
                     } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(ids.isEmpty)
                     }
                 }
-            } primaryAction: { ids in
-                if ids.count == 1, let group = model.tableRows.first(where: { ids.contains($0.id) })?.row.group { model.selectGroup(group); return }
+            } primaryAction: { nativeIDs in
+                let ids = GitPathRowIdentity.paths(nativeIDs)
+                if ids.count == 1, let group = model.tableRows.first(where: { ids.contains($0.row.id) })?.row.group { model.selectGroup(group); return }
                 if ids.count == 1, let entry = model.files.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onAction(.editConflict, [entry.id]) }
                 else { model.diff(ids) }
             }
@@ -956,7 +977,7 @@ struct StatusDialog: View {
                     .disabled(model.cancelling || model.retired).padding(12)
             }
         }
-        .onChange(of: model.filter) { _ in model.selection.formIntersection(Set(model.visibleFiles.map(\.id))) }
+        .onChange(of: model.filter) { _ in model.selection.formIntersection(GitPathSet(model.visibleFiles.map(\.id))) }
         .alert("Git operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }

@@ -144,7 +144,7 @@ import TurtleGitCore
         try FileManager.default.removeItem(at:commitRepo.root.appendingPathComponent("fail-post"))
         try Data("recommit change\n".utf8).write(to:commitRepo.root.appendingPathComponent("file.txt"))
         commit.reload(paths:["file.txt"]); try await wait { !commit.busy }
-        commit.checked = Set(commit.entries.filter { $0.path == "file.txt" }.map(\.id))
+        commit.checked = GitPathSet(commit.entries.filter { $0.path == "file.txt" }.map(\.id))
         commit.message = "recommit draft"; try require(commit.canCommit,"ReCommit fixture did not check its changed file"); commit.commit(.recommit); try await wait { !commit.busy }
         try require(commit.message == "start message" && log(commitRepo).last == "start_commit_hook","ReCommit did not re-run Start with fresh draft")
         commit.amend = true; commit.amendDiffToLastCommit = true; commit.message = "amend draft"

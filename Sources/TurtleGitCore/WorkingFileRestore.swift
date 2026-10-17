@@ -31,7 +31,7 @@ public final class WorkingFileRestoreCopy: @unchecked Sendable {
 extension GitRepository {
     public func captureWorkingFileRestoreCopy(path: String, allowUnversioned: Bool = false, cancellation: OperationCancellation? = nil) throws -> WorkingFileRestoreCopy {
         try cancellation?.check()
-        if !allowUnversioned { guard try trackedPaths(cancellation: cancellation).contains(path) else { throw WorkingFileRestoreFailure.selection } }
+        if !allowUnversioned { guard try trackedPaths(cancellation: cancellation).contains(where: { GitReferenceName.equal($0,path) }) else { throw WorkingFileRestoreFailure.selection } }
         let location = try restoreLocation(path)
         if allowUnversioned { try validateRestoreOwner(location, cancellation: cancellation) }
         let manager = FileManager.default

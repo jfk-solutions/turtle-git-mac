@@ -4,12 +4,12 @@ import TurtleGitCore
 @main struct FileListRefreshVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
     static func require(_ value:Bool,_ message:String) throws {if !value {throw Failure(description:message)}}
-    @MainActor static func wait(line:UInt = #line,_ ready:()->Bool) async throws {for _ in 0..<2000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(description:"File-list timeout at line \(line)")}
+    @MainActor static func wait(line:UInt = #line,_ ready:()->Bool) async throws {var settled = 0;for _ in 0..<2000 {try await Task.sleep(nanoseconds:10_000_000);settled = ready() ? settled+1:0;if settled == 2 {return}};throw Failure(description:"File-list timeout at line \(line)")}
     @MainActor static func views(_ root:NSView)->[NSView] {[root]+root.subviews.flatMap(views)}
     @MainActor struct Host {
         let owner:NSWindowController,coordinator:FileListRefreshCoordinator
-        let ids:()->[String],selected:()->Set<String>,checks:()->Set<String>,busy:()->Bool
-        let choose:(Set<String>)->Void,reload:()->Void,filter:()->Void
+        let ids:()->[String],selected:()->GitPathSet,checks:()->GitPathSet,busy:()->Bool
+        let choose:(GitPathSet)->Void,reload:()->Void,filter:()->Void
     }
     @MainActor static func main() async {do {try await verify()} catch {fputs("File-list refresh failed: \(error)\n",stderr);exit(1)}}
     @MainActor static func verify() async throws {
@@ -29,25 +29,25 @@ import TurtleGitCore
             let host:Host
             if kind == "status" {
                 let controller = StatusWindowController(repository:repo,access:nil,defaults:prefs),model = controller.model;owned.append(controller)
-                host = Host(owner:controller,coordinator:model.fileListRefresh,ids:{model.tableRows.map(\.id)},selected:{model.selection},checks:{[]},busy:{model.busy},choose:{model.selection = $0},reload:{model.reload()},filter:{var value=model.filter;value.showUnversioned = false;model.setFilter(value)})
+                host = Host(owner:controller,coordinator:model.fileListRefresh,ids:{model.tableRows.map(\.row.id)},selected:{model.selection},checks:{[]},busy:{model.busy},choose:{model.selection = $0},reload:{model.reload()},filter:{var value=model.filter;value.showUnversioned = false;model.setFilter(value)})
             } else if kind == "revert" {
                 let controller = RevertWindowController(repository:repo,access:nil,preferences:prefs),model = controller.model;owned.append(controller)
-                host = Host(owner:controller,coordinator:model.fileListRefresh,ids:{model.rows.map(\.id)},selected:{model.highlighted},checks:{model.checked},busy:{model.busy},choose:{model.highlighted = $0},reload:{model.reload()},filter:{model.reload()})
+                host = Host(owner:controller,coordinator:model.fileListRefresh,ids:{model.rows.map(\.id)},selected:{GitPathSet(model.highlighted)},checks:{GitPathSet(model.checked)},busy:{model.busy},choose:{model.highlighted = Set($0)},reload:{model.reload()},filter:{model.reload()})
                 model.checked = Set(paths.prefix(3))
             } else {
                 let controller = CommitWindowController(repository:repo,access:nil,defaults:prefs),model = controller.model;owned.append(controller)
                 host = Host(owner:controller,coordinator:model.fileListRefresh,ids:{model.visibleFileRowIDs},selected:{model.selection},checks:{model.checked},busy:{model.busy},choose:{model.selection = $0},reload:{model.reload()},filter:{model.setShowUnversioned(false)})
-                model.message = "Retain this draft";model.checked = Set(paths.prefix(3))
+                model.message = "Retain this draft";model.checked = GitPathSet(paths.prefix(3))
             }
             host.owner.window?.alphaValue = 0;host.owner.window?.orderFront(nil);host.reload()
             try await wait {!host.busy() && !host.coordinator.hasPendingPosition && host.ids().count >= paths.count}
             if let owner = host.owner as? RevertWindowController {owner.model.checked = Set(paths.prefix(3))}
-            if let owner = host.owner as? CommitWindowController {owner.model.checked = Set(paths.prefix(3))}
+            if let owner = host.owner as? CommitWindowController {owner.model.checked = GitPathSet(paths.prefix(3))}
             let allViews = views(host.owner.window!.contentView!),probe = allViews.compactMap{$0 as? CommitFileInteraction.Probe}.first!,table = allViews.compactMap{$0 as? NSTableView}.first!
             try await wait {table.numberOfRows == host.ids().count && probe.rows.map(\.id) == host.ids()}
             let target = paths[110],other = paths[112]
-            let wanted:Set<String> = [target,other]
-            table.selectRowIndexes(IndexSet(host.ids().indices.filter {wanted.contains(host.ids()[$0])}),byExtendingSelection:false)
+            let wanted:GitPathSet = [target,other]
+            CommitFileInteraction.replaceSelection(in:table,with:IndexSet(host.ids().indices.filter {wanted.contains(host.ids()[$0])}))
             try await wait {table.selectedRowIndexes.count == 2 && host.selected() == wanted}
             let clip = table.enclosingScrollView!.contentView
             clip.scroll(to:NSPoint(x:0,y:table.rect(ofRow:85).minY));table.enclosingScrollView!.reflectScrolledClipView(clip)
@@ -58,7 +58,8 @@ import TurtleGitCore
             host.filter();try await wait {!host.busy() && !host.coordinator.hasPendingPosition && table.numberOfRows == host.ids().count}
             try require(host.selected() == [target,other] && abs(clip.bounds.origin.y-origin.y)<2,"Filter lost reading position: \(kind)")
             // Ctrl/Cmd-A selects native file rows, excludes group headers and leaves checkbox contents alone.
-            host.owner.window!.makeFirstResponder(table)
+            try await wait {probe.enabled}
+            try require(host.owner.window!.makeFirstResponder(table),"Native table refused keyboard focus: \(kind)")
             func key(_ code:UInt16,_ flags:NSEvent.ModifierFlags)->NSEvent {NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:flags,timestamp:0,windowNumber:host.owner.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:code)!}
             try require(probe.observe(key(0,.control)) == nil,"Ctrl A not handled: \(kind)")
             try await wait {host.selected().count == probe.rows.compactMap(\.entry).count}
@@ -69,7 +70,7 @@ import TurtleGitCore
             try require(host.selected().isEmpty && clip.bounds.origin.y < 2 && host.checks()==checked,"Disabled position preference retained selection/scroll or changed checks: \(kind)")
             // A newer table gesture cancels a pending restore rather than moving its viewport later.
             prefs.set(true,forKey:"RememberFileListPosition")
-            table.selectRowIndexes(IndexSet(integer:host.ids().firstIndex(of:target)!),byExtendingSelection:false)
+            CommitFileInteraction.replaceSelection(in:table,with:IndexSet(integer:host.ids().firstIndex(of:target)!))
             try await wait {table.selectedRowIndexes.count == 1 && host.selected() == [target]}
             clip.scroll(to:NSPoint(x:0,y:table.rect(ofRow:85).minY));table.enclosingScrollView!.reflectScrolledClipView(clip)
             let ticket = host.coordinator.begin(preferences:prefs,selectedIDs:host.selected())

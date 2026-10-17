@@ -3,15 +3,15 @@
 import Foundation
 
 public struct CommitCheckboxIndexPolicy: Sendable, Equatable {
-    public let paths:Set<String>
+    public let paths:GitPathSet
     public let readdUnchecked:Bool
-    public init(paths:Set<String>,readdUnchecked:Bool=true) {self.paths=paths;self.readdUnchecked=readdUnchecked}
-    public init(paths:Set<String>,defaults:UserDefaults) {
+    public init(paths:some Sequence<String>,readdUnchecked:Bool=true) {self.paths=GitPathSet(paths);self.readdUnchecked=readdUnchecked}
+    public init(paths:some Sequence<String>,defaults:UserDefaults) {
         self.init(paths:paths,readdUnchecked:((defaults.object(forKey:"ReaddUnselectedAddedFilesAfterCommit") as? NSNumber)?.uint32Value ?? 1)==1)
     }
 }
 extension GitRepository {
-    func withCommitCheckboxIndex(_ policy:CommitCheckboxIndexPolicy,changes:[StatusEntry],checked:Set<String>,parentMode:Bool,cancellation:OperationCancellation?,onOutput:(@Sendable(GitOutputChunk)->Void)?,commit:(String) throws -> String) throws -> String {
+    func withCommitCheckboxIndex(_ policy:CommitCheckboxIndexPolicy,changes:[StatusEntry],checked:GitPathSet,parentMode:Bool,cancellation:OperationCancellation?,onOutput:(@Sendable(GitOutputChunk)->Void)?,commit:(String) throws -> String) throws -> String {
         try cancellation?.check()
         // The explicit Ignore-unresolved workflow retains its unmerged stages.
         // Only actual ordinary rows in this dialog's captured scope participate.
@@ -23,8 +23,8 @@ extension GitRepository {
             base=head.exitCode==0 ? head.text.trimmingCharacters(in:.newlines) : try run(["mktree"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
         }
         guard !unchecked.isEmpty else{return try commit(base)}
-        let baseline=Set(try run(["ls-tree","-r","--name-only","-z",base],cancellation:cancellation).stdout.split(separator:0).map{String(decoding:$0,as:UTF8.self)})
-        var reset=Set<String>(),readd=Set<String>(),remove=Set<String>()
+        let baseline=GitPathSet(try run(["ls-tree","-r","--name-only","-z",base],cancellation:cancellation).stdout.split(separator:0).map{String(decoding:$0,as:UTF8.self)})
+        var reset=GitPathSet(),readd=GitPathSet(),remove=GitPathSet()
         for entry in unchecked {
             reset.insert(entry.path)
             let renamed=entry.index=="R" || entry.worktree=="R"
@@ -34,7 +34,7 @@ extension GitRepository {
         }
         // Exact NUL path packets preserve leading dashes, newlines and wildcard
         // characters. Neither preparation nor restoration rewrites working files.
-        func packet(_ paths:Set<String>)->Data {Data(paths.sorted().flatMap{Array($0.utf8)+[0]})}
+        func packet(_ paths:GitPathSet)->Data {Data(paths.sorted().flatMap{Array($0.utf8)+[0]})}
         let restore=reset.intersection(baseline),absent=reset.subtracting(baseline)
         if !restore.isEmpty {_ = try run(["restore","--source="+base,"--staged","--pathspec-from-file=-","--pathspec-file-nul"],cancellation:cancellation,input:packet(restore))}
         if !absent.isEmpty {_ = try run(["update-index","--force-remove","-z","--stdin"],cancellation:cancellation,input:packet(absent))}

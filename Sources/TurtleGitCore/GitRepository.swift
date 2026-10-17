@@ -142,15 +142,22 @@ public actor GitRepository {
         args += paths
         return try run(args).text
     }
-    public func stage(_ paths: [String], cancellation: OperationCancellation? = nil) throws { try cancellation?.check(); if !paths.isEmpty { _ = try run(["add", "--"] + paths, cancellation: cancellation) } }
+    public func stage(_ paths: [String], cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check(); guard !paths.isEmpty else { return }
+        _ = try run(["add","--pathspec-from-file=-","--pathspec-file-nul"],cancellation:cancellation,input:literalPathPacket(paths))
+    }
+    func literalPathPacket(_ paths:[String]) throws -> Data {
+        guard paths.allSatisfy({ !$0.isEmpty && !$0.utf8.contains(0) }) else { throw RevisionComparisonFailure.selection }
+        return Data(paths.flatMap { Array($0.utf8) + [0] })
+    }
     public func unstage(_ paths: [String], cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
         guard !paths.isEmpty else { return }
         let head = try run(["rev-parse", "--verify", "HEAD"], successfulExitCodes: 0...128, cancellation: cancellation)
         try cancellation?.check()
         if head.exitCode == 0 {
-            _ = try run(["restore", "--staged", "--"] + paths, cancellation: cancellation)
-        } else { _ = try run(["rm", "-f", "--cached", "--"] + paths, cancellation: cancellation) }
+            _ = try run(["restore","--staged","--pathspec-from-file=-","--pathspec-file-nul"],cancellation:cancellation,input:literalPathPacket(paths))
+        } else { _ = try run(["rm","-f","--cached","--pathspec-from-file=-","--pathspec-file-nul"],cancellation:cancellation,input:literalPathPacket(paths)) }
     }
     public func commit(message: String) throws -> String {
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {

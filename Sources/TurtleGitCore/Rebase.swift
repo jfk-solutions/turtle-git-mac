@@ -921,7 +921,7 @@ extension GitRepository {
     }
     /// Commit each split part through the same complete selection/index backend.
     /// The first part replaces the stopped commit; later parts create children.
-    private func commitRebaseSplitOwned(message: String, paths: Set<String>, staging: Bool, options: CommitOptions, expected: RebaseSplitState) throws -> String {
+    private func commitRebaseSplitOwned(message: String, paths: GitPathSet, staging: Bool, options: CommitOptions, expected: RebaseSplitState) throws -> String {
         let state = try rebaseState()
         guard let saved = state.split, state.canSplit || saved.conflictRecovery == true, saved.parts == expected.parts, saved.entryID == expected.entryID,
               saved.expectedHead == expected.expectedHead, saved.firstParents == expected.firstParents, try rebaseRevision("HEAD") == saved.expectedHead,
@@ -1053,7 +1053,8 @@ extension GitRepository {
     public func cancelUnstartedRebaseSplit(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> Void {
         try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try cancelUnstartedRebaseSplitOwned() }
     }
-    public func commitRebaseSplit(message: String, paths: Set<String>, staging: Bool, options: CommitOptions, expected: RebaseSplitState, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
-        try withProtectedReplayIO(cancellation: cancellation, onOutput: onOutput) { try commitRebaseSplitOwned(message: message, paths: paths, staging: staging, options: options, expected: expected) }
+    public func commitRebaseSplit(message: String, paths selection: some Sequence<String>, staging: Bool, options: CommitOptions, expected: RebaseSplitState, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+        let paths = GitPathSet(selection)
+        return try withProtectedReplayIO(cancellation: cancellation, onOutput: onOutput) { try commitRebaseSplitOwned(message: message, paths: paths, staging: staging, options: options, expected: expected) }
     }
 }

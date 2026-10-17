@@ -348,7 +348,7 @@ import UniformTypeIdentifiers
             let source = entry.originalPath ?? statistics[entry.path]?.oldPath
             return [entry.path] + (source.map { [$0] } ?? [])
         }
-        partial.model.reload(paths: Array(Set(paths)).sorted(), staged: partial.model.staged)
+        partial.model.reload(paths: Array(GitPathSet(paths)).sorted(), staged: partial.model.staged)
     }
     private func snapPartial() {
         guard !closingCommit, !positioningPartial, let parent = window, let preview = partial?.window,
@@ -382,7 +382,7 @@ import UniformTypeIdentifiers
     @Published var conflictRebase = false
     @Published var entries: [StatusEntry] = [] { didSet { if entries != oldValue { fileMenuGeneration = UUID() } } }
     @Published var indexFlagFiles: [WorkingTreeFile] = []
-    @Published var restoreCopies: [String: WorkingFileRestoreCopy] = [:] { didSet { fileMenuGeneration = UUID() } }
+    @Published var restoreCopies: GitPathMap<WorkingFileRestoreCopy> = [:] { didSet { fileMenuGeneration = UUID() } }
     enum RestoreChoice { case restore, keep, cancel }
     var chooseRestoreCopies: (Bool, @escaping (RestoreChoice) -> Void) -> Void = { _, choose in choose(.keep) }
     @Published var comparisonBase: String?
@@ -404,14 +404,29 @@ import UniformTypeIdentifiers
     private var reloadError:String?
     @Published private var pendingReloadCancel = false
     var queryCommitStatus: (Bool, OperationCancellation) async throws -> [StatusEntry]
-    var queryStagingStates: ([StatusEntry], String?, OperationCancellation) async throws -> [String: CommitStagingState]
+    var queryStagingStates: ([StatusEntry], String?, OperationCancellation) async throws -> GitPathMap<CommitStagingState>
     @Published var statistics: GitPathMap<CommitFile> = [:]
-    @Published var checked = Set<String>()
-    @Published var selection = Set<String>() { didSet { if selection != oldValue { fileMenuGeneration = UUID() } } }
+    @Published var checked = GitPathSet()
+    private var selectedPaths = GitPathSet()
+    @Published var nativeFileSelection = Set<String>() {
+        didSet {
+            guard nativeFileSelection != oldValue else {return}
+            selectedPaths = GitPathRowIdentity.paths(nativeFileSelection)
+            fileMenuGeneration = UUID()
+        }
+    }
+    var selection: GitPathSet {
+        get {selectedPaths}
+        set {
+            let ids = Set(newValue.map(GitPathRowIdentity.encode))
+            if nativeFileSelection != ids {nativeFileSelection = ids}
+        }
+    }
+
     @Published var fileMetadata: GitPathMap<StatusListMetadata> = [:] { didSet { if fileMetadata.mapValues({ $0.isDirectory }) != oldValue.mapValues({ $0.isDirectory }) { fileMenuGeneration = UUID() } } }
     @Published var hasLFS = false
     @Published var lfsOwners: [String: String] = [:]
-    @Published var lfsLockedPaths = Set<String>()
+    @Published var lfsLockedPaths = GitPathSet()
     @Published var lfsOwnershipKnown = false
     private var lfsOwnerCancellation: OperationCancellation?
     var queryLFSOwners: (OperationCancellation) async throws -> [LFSLock]
@@ -420,7 +435,7 @@ import UniformTypeIdentifiers
     var availableFileColumns: Set<StatusListColumn> { Set(StatusListColumn.allCases).subtracting(hasLFS ? [] : [.lfsOwner]) }
     var visibleFileColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) && availableFileColumns.contains($0) } }
     @Published var fileSortOrder = [CommitFileSort(column: .path)] { didSet { if !fileSortOrder.elementsEqual(oldValue, by: { $0.column == $1.column && $0.order == $1.order }) { fileMenuGeneration = UUID() } } }
-    @Published var focusedFiles: [String: String] = [:] { didSet { if focusedFiles != oldValue { fileMenuGeneration = UUID() } } }
+    @Published var focusedFiles: [String: String] = [:] { didSet { if focusedFiles.mapValues({ GitReferenceName($0) }) != oldValue.mapValues({ GitReferenceName($0) }) { fileMenuGeneration = UUID() } } }
     @Published var changelists = GitChangelists() { didSet { if changelists != oldValue { fileMenuGeneration = UUID() } } }
     @Published var changelistsLoaded = false
     @Published var keepChangelists = false
@@ -488,7 +503,7 @@ import UniformTypeIdentifiers
         options.maximumBytes = defaults.object(forKey: "AutocompleteParseMaxSize") as? Int ?? 300000
         options.timeoutSeconds = UInt32(clamping: defaults.object(forKey: "AutocompleteParseTimeout") as? Int ?? 5)
         options.useUTF8 = ComparisonTextEncoding.preferUTF8(from: defaults)
-        let locallyIgnored = Set(indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
+        let locallyIgnored = GitPathSet(indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
         let rows = StatusListGroups.rows(entries: visibleEntries, changelists: changelists, locallyIgnored: locallyIgnored)
         let sources = rows.compactMap(\.entry).map { MessageCodeScanner.Source(path: $0.path, state: $0.state) }
         guard force || sources != completionSources || options != completionOptions || enabled != completionEnabled else { return }
@@ -607,7 +622,7 @@ import UniformTypeIdentifiers
     }
     private func focusConflictedFile(_ conflicts:[StatusEntry]) {
         guard let first=visibleEntries.first(where:{ $0.state == .conflicted }) ?? conflicts.first else { return }
-        if !visibleEntries.contains(where:{ $0.path==first.path }) { showWholeProject=true }
+        if !visibleEntries.contains(where:{ GitReferenceName.equal($0.path,first.path) }) { showWholeProject=true }
         selection=[first.id];focusedFiles[stagingEnabled ? "unstaged" : "checkbox"]=first.id
     }
     var confirmMissingIssue: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
@@ -633,7 +648,7 @@ import UniformTypeIdentifiers
     @Published var resetAuthorDate = false
     @Published var messageOnly = false
     @Published var doNotAutoselectSubmodules = false
-    @Published var submodules = Set<String>() { didSet { if submodules != oldValue { fileMenuGeneration = UUID() } } }
+    @Published var submodules = GitPathSet() { didSet { if submodules != oldValue { fileMenuGeneration = UUID() } } }
     @Published var setAuthor = false
     @Published var author = ""
     @Published private(set) var loadingAuthorIdentity = false
@@ -742,7 +757,7 @@ import UniformTypeIdentifiers
         Task { [self] in await fileListRefresh.restore(position,ids:visibleFileRowIDs);fileListRefresh.finish(position) }
     }
     var visibleFileRowIDs:[String] {
-        let ignored = Set(indexFlagFiles.filter {$0.assumeUnchanged || $0.skipWorktree}.map {$0.entry.path})
+        let ignored = GitPathSet(indexFlagFiles.filter {$0.assumeUnchanged || $0.skipWorktree}.map {$0.entry.path})
         return StatusListGroups.rows(entries:sortedFiles(visibleEntries,statistics:statistics),changelists:changelists,locallyIgnored:ignored).map(\.id)
     }
     var visibleEntries: [StatusEntry] {
@@ -792,7 +807,7 @@ import UniformTypeIdentifiers
     // m_stagingStatus changes independently. Do not replace the displayed rows
     // with porcelain records after each checkbox or partial patch operation.
     @Published private(set) var stagingStateNeedsRefresh = false
-    @Published private var stagingStates: [String: NSControl.StateValue]?
+    @Published private var stagingStates: GitPathMap<NSControl.StateValue>?
     func stagingState(_ entry: StatusEntry) -> NSControl.StateValue {
         if let stagingStates { return stagingStates[entry.path] ?? .off }
         return entry.staged ? (entry.worktree == " " ? .on : .mixed) : .off
@@ -846,9 +861,9 @@ import UniformTypeIdentifiers
     private var fileOperationToken: OperationCancellation?
     @Published private(set) var fileOperationTitle = ""
     @Published private(set) var fileOperationCancelling = false
-    func fileMenu(_ ids: Set<String>, mark: String? = nil, orderedEntries: [StatusEntry]? = nil) -> StatusFileMenuSnapshot {
+    func fileMenu(_ ids: some Sequence<String>, mark: String? = nil, orderedEntries: [StatusEntry]? = nil) -> StatusFileMenuSnapshot { let ids = GitPathSet(ids);
         let selected = (orderedEntries ?? visibleEntries).filter { ids.contains($0.id) }
-        let focused = entries.first { $0.id == mark } ?? selected.first
+        let focused = entries.first { GitReferenceName.equal($0.id,mark) } ?? selected.first
         func directory(_ entry: StatusEntry) -> Bool { submodules.contains(entry.path) || fileMetadata[entry.path]?.isDirectory == true }
         var commands: [StatusFileCommand] = []
         if selected.count == 2, selected.allSatisfy({ !directory($0) }) { commands.append(.compareTwo) }
@@ -1015,7 +1030,7 @@ import UniformTypeIdentifiers
             self.busy = false; self.reload(); self.refreshPartial()
         }
     }
-    func markForRestore(_ paths: Set<String>) {
+    func markForRestore(_ paths: some Sequence<String>) { let paths = GitPathSet(paths);
         guard !paths.isEmpty else { return }
         runFileOperation("Saving working file copies…", operation: { [self] token, _ in
             for path in paths.sorted() where restoreCopies[path] == nil {
@@ -1025,7 +1040,7 @@ import UniformTypeIdentifiers
         })
     }
 
-    private func restoreSavedCopies(_ paths: Set<String>, cancellation: OperationCancellation? = nil) async throws {
+    private func restoreSavedCopies(_ paths: some Sequence<String>, cancellation: OperationCancellation? = nil) async throws { let paths = GitPathSet(paths);
         guard paths.contains(where: { restoreCopies[$0] != nil }) else { return }
         try validateRestoreAccess()
         for path in paths.sorted() {
@@ -1034,7 +1049,7 @@ import UniformTypeIdentifiers
             restoreCopies.removeValue(forKey: path)
         }
     }
-    func restoreNow(_ paths: Set<String>) {
+    func restoreNow(_ paths: some Sequence<String>) { let paths = GitPathSet(paths);
         guard paths.contains(where: { restoreCopies[$0] != nil }) else { return }
         var restored = false
         runFileOperation("Restoring working copies…", operation: { [self] token, captured in
@@ -1055,7 +1070,7 @@ import UniformTypeIdentifiers
         }, completed: { [self] in reload() }, failed: { [self] in reload() })
     }
 
-    func moveToStage(_ paths: Set<String>, staged: Bool) {
+    func moveToStage(_ paths: some Sequence<String>, staged: Bool) { let paths = GitPathSet(paths);
         let valid = entries.filter { paths.contains($0.id) && $0.state != .conflicted }
         guard !valid.isEmpty else { return }
         let amendToParent = self.amendToParent
@@ -1071,7 +1086,7 @@ import UniformTypeIdentifiers
         guard canLockLFS(selected) else { return [] }
         return LFSLockMenu.actions(paths: selected.map(\.path), ownersVisible: visibleFileColumns.contains(.lfsOwner), lockedPaths: lfsLockedPaths, ownershipKnown: lfsOwnershipKnown)
     }
-    func setLFSLocked(_ ids: Set<String>, locked: Bool) {
+    func setLFSLocked(_ ids: some Sequence<String>, locked: Bool) { let ids = GitPathSet(ids);
         guard !busy, !confirmingQuit else { return }
         let selected = entries.filter { ids.contains($0.id) }
         guard selected.count == ids.count, lfsActions(selected).contains(locked ? .lock : .unlock) else { return }
@@ -1100,7 +1115,7 @@ import UniformTypeIdentifiers
 
     func newChangelist(_ selected: [StatusEntry]) {
         guard !busy, !confirmingQuit, !selected.isEmpty else { return }
-        changelistMenu = activeFileMenu ?? fileMenu(Set(selected.map(\.id)))
+        changelistMenu = activeFileMenu ?? fileMenu(GitPathSet(selected.map(\.id)))
         changelistPaths = selected.map(\.path); changelistName = ""; creatingChangelist = true
     }
     func createChangelist() {
@@ -1151,11 +1166,11 @@ import UniformTypeIdentifiers
         let origin = entry.originalPath.map { "Renamed from " + $0 } ?? ""
         return changelists.name(for: entry.path).map { origin + (origin.isEmpty ? "" : "\n") + "Changelist: " + $0 } ?? origin
     }
-    var checkedPathsForCommit: Set<String> { Set(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
+    var checkedPathsForCommit: GitPathSet { GitPathSet(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
     var canCommit: Bool { messageFocusAvailable && !stagingStateNeedsRefresh && !savingPreferences && !stagingHintVisible && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: { isStaged($0) }) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
-        func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
-        checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
+        func moved(_ path: String) -> String { GitReferenceName.equal(path,source) ? destination : path.utf8.starts(with:(source + "/").utf8) ? destination + path.dropFirst(source.count) : path }
+        checked = GitPathSet(checked.map(moved)); selection = GitPathSet(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
     }
     func loadHistoryCombine(_ plan: HistoryCombinePlan, date: RebaseSquashDate) {
         invalidateMetadataLoads(); historyCombine = plan
@@ -1246,7 +1261,7 @@ import UniformTypeIdentifiers
                 let compareParent = nextAmend && !nextAmendDiff
                 let nextBase = compareParent ? try await readReload(token) { try await repository.commitComparisonBase(amendToParent:true,cancellation:token) } : nil
                 let nextEntries = try await readReload(token) { try await queryCommitStatus(compareParent,token) }
-                let nextSubmodules = try await readReload(token) { try await repository.submodulePaths(cancellation:token) }
+                let nextSubmodules = try await readReload(token) { try await repository.submodulePathNames(cancellation:token).map(\.rawValue) }
                 let nextBranch = try await readReload(token) { try await repository.branch(cancellation:token) }
                 let nextMetadata = try await readReload(token) { await repository.statusListMetadata(paths:nextEntries.map(\.path)) }
                 let nextHasLFS = try await readReload(token) { try await repository.hasLFS(cancellation:token) }
@@ -1277,7 +1292,7 @@ import UniformTypeIdentifiers
                     nextHistory = CommitMessageHistory(repositoryIdentity:identity,defaults:dialogDefaults,limit:limit)
                     seed = try await readReload(token) { try await loadMessageSeed(cancellation:token) }
                 } else { nextIssueProperties=nil;nextProjectSettings=nil;nextHistory=nil;seed=nil }
-                var nextOwners:[String:String]=[:],nextLocked=Set<String>(),nextOwnershipKnown=false
+                var nextOwners:[String:String]=[:],nextLocked=GitPathSet(),nextOwnershipKnown=false
                 var warnings=seed?.warnings ?? []
                 if nextHasLFS && fileColumns.visible.contains(.lfsOwner) {
                     lfsOwnerCancellation=token
@@ -1285,7 +1300,7 @@ import UniformTypeIdentifiers
                     do {
                         let locks = try await readReload(token) { try await queryLFSOwners(token) }
                         nextOwners=Dictionary(locks.map {($0.path,$0.owner)},uniquingKeysWith:{first,_ in first})
-                        nextLocked=Set(locks.map(\.path));nextOwnershipKnown=true
+                        nextLocked=GitPathSet(locks.map(\.path));nextOwnershipKnown=true
                     } catch {
                         try token.check()
                         warnings.append("Could not get LFS locks: " + error.localizedDescription)
@@ -1314,7 +1329,7 @@ import UniformTypeIdentifiers
                 amend=nextAmend;amendDiffToLastCommit=nextAmendDiff
                 hasHead=nextHasHead;hasParent=nextHasParent;comparisonBase=nextBase
                 scopePaths=requestedScope;showWholeProject=requestedWholeProject
-                entries=nextEntries;submodules=nextSubmodules;branch=nextBranch;fileMetadata=nextMetadata
+                entries=nextEntries;submodules=GitPathSet(nextSubmodules);branch=nextBranch;fileMetadata=nextMetadata
                 hasLFS=nextHasLFS;messageSnippets=nextSnippets;changelists=nextChangelists;changelistsLoaded=true
                 indexFlagFiles=nextIndexFlags;conflictRebase=nextConflictRebase
                 statistics=nextStatistics;stagedStatistics=nextStaged;unstagedStatistics=nextUnstaged
@@ -1322,14 +1337,14 @@ import UniformTypeIdentifiers
                 lfsOwners=nextOwners;lfsLockedPaths=nextLocked;lfsOwnershipKnown=nextOwnershipKnown
                 nativeIssueProvider=provider.provider;issueProviderError=provider.error
                 if resetChecks {
-                    checked=Set(visibleEntries.filter {entry in
+                    checked=GitPathSet(visibleEntries.filter {entry in
                         let inScope=requestedScope.isEmpty || requestedScope.contains {$0 == entry.path || entry.path.hasPrefix($0 + "/")}
                         let directFile=requestedScope.contains(entry.path)
                         let missing=entry.worktree == "D"
                         let automatic=(selectFilesAutomatically || replaySplit != nil) && entry.state != .untracked && (!doNotAutoselectMissing || !missing)
                         return inScope && (directFile || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted
                     }.map(\.id))
-                } else {checked.formIntersection(Set(entries.map(\.id)))}
+                } else {checked.formIntersection(GitPathSet(entries.map(\.id)))}
                 for item in droppedChecks {
                     for entry in visibleEntries where item.path == "." || entry.path.utf8.elementsEqual(item.path.utf8) || item.directory && entry.path.hasPrefix(item.path + "/") {
                         let missing=entry.worktree == "D"
@@ -1339,7 +1354,7 @@ import UniformTypeIdentifiers
                         else {checked.remove(entry.id)}
                     }
                 }
-                droppedChecks=[];selection.formIntersection(Set(entries.map(\.id)))
+                droppedChecks=[];selection.formIntersection(GitPathSet(entries.map(\.id)))
                 if author.isEmpty,let nextAuthor {author=nextAuthor}
                 hasLoaded=true
                 if let seed {
@@ -1465,20 +1480,20 @@ import UniformTypeIdentifiers
     }
     func check(_ predicate: (StatusEntry) -> Bool,checking:Bool = true) {
         guard messageFocusAvailable,!inputsBlocked else {return}
-        let paths = Set(visibleEntries.filter {(!checking || $0.state != .conflicted) && predicate($0)}.map(\.id))
+        let paths = GitPathSet(visibleEntries.filter {(!checking || $0.state != .conflicted) && predicate($0)}.map(\.id))
         if stagingEnabled {moveToStage(paths,staged:checking)} else if checking {checked.formUnion(paths)} else {checked.subtract(paths)}
     }
     func setGroupChecked(_ files: [StatusEntry], checked value: Bool) {
         guard messageFocusAvailable,!inputsBlocked else {return}
-        let paths = Set(files.map(\.id))
+        let paths = GitPathSet(files.map(\.id))
         if stagingEnabled { moveToStage(paths, staged: value) }
         else if value { checked.formUnion(paths) }
         else { checked.subtract(paths) }
     }
-    func setFileChecked(_ entry: StatusEntry, files: [StatusEntry], highlighted: Set<String>, checked value: Bool) {
+    func setFileChecked(_ entry: StatusEntry, files: [StatusEntry], highlighted: some Sequence<String>, checked value: Bool) { let highlighted = GitPathSet(highlighted);
         guard messageFocusAvailable,!inputsBlocked,entry.state != .conflicted else {return}
         let targets = StatusListSelection.checkboxEntries(entry: entry, entries: files, highlighted: highlighted)
-        let paths = Set(targets.map(\.id))
+        let paths = GitPathSet(targets.map(\.id))
         if stagingEnabled { moveToStage(paths, staged: value) }
         else if value { checked.formUnion(paths) }
         else { checked.subtract(paths) }
@@ -1486,7 +1501,7 @@ import UniformTypeIdentifiers
     func checkAll(_ checking:Bool) {check({_ in true},checking:checking)}
     func uncheckAll() {
         guard messageFocusAvailable,!inputsBlocked else {return}
-        if stagingEnabled { moveToStage(Set(visibleEntries.filter { isStaged($0) }.map(\.id)), staged: false) }
+        if stagingEnabled { moveToStage(GitPathSet(visibleEntries.filter { isStaged($0) }.map(\.id)), staged: false) }
         else { checked.subtract(visibleEntries.map(\.id)) }
     }
     func amendChanged() {
@@ -1625,12 +1640,12 @@ import UniformTypeIdentifiers
             message=IssueTrackerProperties.addingSignOff(trailer,to:message)
         },completed:{ [weak self] in self?.requestMessageFocus() })
     }
-    func compare(paths selected: Set<String>) {
+    func compare(paths selected: some Sequence<String>) { let selected = GitPathSet(selected);
         guard !busy, !confirmingQuit else { return }
         let paths = entries.filter { selected.contains($0.id) }.map(\.path)
         guard !paths.isEmpty else { return }; onCompare(paths, amendToParent)
     }
-    func diff(paths selected: Set<String>, staged: Bool? = nil, alternate: Bool = false) {
+    func diff(paths selected: some Sequence<String>, staged: Bool? = nil, alternate: Bool = false) { let selected = GitPathSet(selected);
         guard messageFocusAvailable, !busy, !confirmingQuit, !unifiedViewerBusy else { return }
         let paths = entries.filter { selected.contains($0.id) }.map(\.path)
         guard !paths.isEmpty else { return }
@@ -1665,14 +1680,14 @@ import UniformTypeIdentifiers
               historyCombine == nil || (amend && !createBranch) else { return }
         if replaySplit == nil && historyCombine == nil { completionAction = action }
         let rawMessage = message, rawIssueID = issueID, properties = issueProperties, provider = nativeIssueProvider, paths = checkedPathsForCommit, staging = stagingEnabled
-        let committedPaths = staging ? Set(entries.filter { isStaged($0) }.map(\.path)) : messageOnly ? Set<String>() : paths
+        let committedPaths = staging ? GitPathSet(entries.filter { isStaged($0) }.map(\.path)) : messageOnly ? GitPathSet() : paths
         let committedPathNames = Set(committedPaths.map { GitReferenceName($0) })
         let retainedChangelists = Set(visibleEntries.filter { !committedPathNames.contains(GitReferenceName($0.path)) }.map { GitReferenceName($0.path) }).union(restoreCopies.keys.map { GitReferenceName($0) })
         let pruningScope = showWholeProject ? [] : scopePaths
         let preserveChangelists = keepChangelists
         var options = CommitOptions(); options.amend = amend; options.amendDiffToLastCommit = amendDiffToLastCommit; options.author = setAuthor ? author : nil
         options.authorDate = setAuthorDate ? authorDate : nil; options.resetAuthorDate = amend && setAuthorDate && resetAuthorDate; options.messageOnly = messageOnly; options.newBranch = createBranch ? newBranch : nil
-        if !staging { options.checkboxIndexPolicy = CommitCheckboxIndexPolicy(paths:Set(visibleEntries.map(\.path)),defaults:dialogDefaults) }
+        if !staging { options.checkboxIndexPolicy = CommitCheckboxIndexPolicy(paths:GitPathSet(visibleEntries.map(\.path)),defaults:dialogDefaults) }
         let preflight=UUID(),preflightToken=OperationCancellation();preflightRequest=preflight;preflightCancellation=preflightToken
         busy = true;Self.activeCommitPreflights += 1
         Task { [self,access] in
@@ -1802,7 +1817,7 @@ import UniformTypeIdentifiers
                 try validatePreflight(preflight,preflightToken)
                 rememberCompletionAction(action)
                 commitProgress = nil
-                do { try await restoreSavedCopies(Set(restoreCopies.keys)) }
+                do { try await restoreSavedCopies(GitPathSet(restoreCopies.keys)) }
                 catch {
                     self.error = "The commit succeeded, but restoring saved working copies failed. The remaining copies are retained in this dialog.\n\n" + error.localizedDescription
                     busy = false; reload(); return
@@ -1851,7 +1866,7 @@ import UniformTypeIdentifiers
                 }
                 var failureMessage = shownInProgress ? "" : commitError
                 if commitAttempted && !restoreCopies.isEmpty, await chooseSavedCopies(allowCancel: false) == .restore {
-                    do { try await restoreSavedCopies(Set(restoreCopies.keys)) }
+                    do { try await restoreSavedCopies(GitPathSet(restoreCopies.keys)) }
                     catch { failureMessage = commitError + "\n\nRestoring saved working copies failed: " + error.localizedDescription }
                 }
                 if commitAttempted, let created = options.newBranch, (try? await repository.branch()) == created {
@@ -1928,7 +1943,7 @@ import UniformTypeIdentifiers
                 let choice = await self.chooseSavedCopies(allowCancel: true)
                 if choice == .cancel { self.busy = false; completion?(false); return }
                 if choice == .restore {
-                    do { try await self.restoreSavedCopies(Set(self.restoreCopies.keys)) }
+                    do { try await self.restoreSavedCopies(GitPathSet(self.restoreCopies.keys)) }
                     catch { self.error = error.localizedDescription; self.busy = false; self.reload(); completion?(false); return }
                 }
                 self.busy = false; finish()
@@ -1946,7 +1961,7 @@ struct CommitSortableRow: Identifiable {
     let isDirectory: Bool
     var metadata: StatusListMetadata? = nil
     var lfsOwner = ""
-    var id: String { row.id }
+    var id: String { GitPathRowIdentity.encode(row.id) }
     var entry: StatusEntry? { row.entry }
     var group: StatusListGroup? { row.group }
 }
@@ -2189,7 +2204,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                             checkButton("Files", enabled: model.visibleEntries.contains { !model.submodules.contains($0.path) }) { checking in model.check({ !model.submodules.contains($0.path) },checking:checking) }
                             checkButton("Submodules", enabled: model.visibleEntries.contains { model.submodules.contains($0.path) }) { checking in model.check({ model.submodules.contains($0.path) },checking:checking) }
                         }.font(.system(size: 12)).disabled(model.messageOnly)
-                        fileTable(model.visibleEntries, selection: $model.selection, staged: model.stagingEnabled ? model.stagedDiff : nil).frame(minHeight: 120).disabled(model.messageOnly)
+                        fileTable(model.visibleEntries, staged: model.stagingEnabled ? model.stagedDiff : nil).frame(minHeight: 120).disabled(model.messageOnly)
                         HStack {
                             VStack(alignment: .leading, spacing: 6) {
                                 Toggle("Staging support (EXPERIMENTAL)",isOn:Binding(get:{model.stagingEnabled},set:{model.setStagingEnabled($0)}))
@@ -2210,23 +2225,24 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     }.padding(4)
                 }
     }
-    func fileTable(_ entries: [StatusEntry], selection: Binding<Set<String>>, staged: Bool?) -> some View {
+    func fileTable(_ entries: [StatusEntry], staged: Bool?) -> some View {
         let statistics = model.statistics
         let entries = model.sortedFiles(entries, statistics: statistics)
         let focusKey = staged.map { $0 ? "staged" : "unstaged" } ?? "checkbox"
         let focus = Binding<String?>(get: { model.focusedFiles[focusKey] }, set: { model.focusedFiles[focusKey] = $0 })
-        let ignored = Set(model.indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
+        let ignored = GitPathSet(model.indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
         let rows = StatusListGroups.rows(entries: entries, changelists: model.changelists, locallyIgnored: ignored)
         let tableRows = rows.map { CommitSortableRow(row: $0, statistics: $0.entry.flatMap { statistics[$0.path] }, isDirectory: $0.entry.map { model.submodules.contains($0.path) } ?? false, metadata: $0.entry.flatMap { model.fileMetadata[$0.path] }, lfsOwner: $0.entry.flatMap { model.lfsOwners[$0.path] } ?? "") }
         let sort = Binding(get: { model.fileSortOrder }, set: { model.setFileSortOrder($0) })
-        return Table(tableRows, selection: selection, sortOrder: sort) {
+        return Table(tableRows, selection: $model.nativeFileSelection, sortOrder: sort) {
             TableColumn("") { (row: CommitSortableRow) in
                 if let entry = row.entry {
                     if staged != nil {
-                        StagingCheckbox(entry:entry,state:model.stagingState(entry),enabled:!model.inputsBlocked) { model.setFileChecked(entry, files: entries, highlighted: selection.wrappedValue, checked: $0) }.frame(width: 20, height: 20)
+                        StagingCheckbox(entry:entry,state:model.stagingState(entry),enabled:!model.inputsBlocked) { model.setFileChecked(entry, files: entries, highlighted: model.selection, checked: $0) }.frame(width: 20, height: 20)
                     } else {
-                        Toggle("Include \(entry.path)", isOn: Binding(get: { model.checked.contains(entry.id) }, set: { model.setFileChecked(entry, files: entries, highlighted: selection.wrappedValue, checked: $0) }))
-                            .labelsHidden().toggleStyle(.checkbox).disabled(entry.state == .conflicted)
+                        StagingCheckbox(entry:entry,state:model.checked.contains(entry.id) ? .on : .off,enabled:!model.inputsBlocked,inclusion:true) {
+                            model.setFileChecked(entry,files:entries,highlighted:model.selection,checked:$0)
+                        }.frame(width:20,height:20)
                     }
                 }
             }.width(24)
@@ -2236,7 +2252,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                         Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay {
                             if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }
                         }
-                        Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences))
+                        Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences))
                     }.repositoryFileHelp(repository: model.repository.root, path: entry.path, detail: model.fileHelp(entry), preferences: model.colorPreferences)
                 } else if let group = row.group {
                     HStack {
@@ -2246,39 +2262,40 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                 }
             }.width(min: 260, ideal: 420)
             TableColumn("Filename", sortUsing: CommitFileSort(column: .fileName)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text((entry.path as NSString).lastPathComponent).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
+                if let entry = row.entry { Text((entry.path as NSString).lastPathComponent).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
             }.width(min: 100, ideal: 180)
             TableColumn("Extension", sortUsing: CommitFileSort(column: .fileExtension)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path) || model.fileMetadata[entry.path]?.isDirectory == true)).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) }
+                if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path) || model.fileMetadata[entry.path]?.isDirectory == true)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) }
                 else { groupRule }
             }.width(min: 40, ideal: 75)
             TableColumn("Status", sortUsing: CommitFileSort(column: .status)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) }
+                if let entry = row.entry { Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) }
                 else { groupRule }
             }.width(min: 60, ideal: 90)
             TableColumn("Lines added", sortUsing: CommitFileSort(column: .added)) { (row: CommitSortableRow) in
-                lineCount(row.row, statistics: statistics, selected: selection.wrappedValue, added: true)
+                lineCount(row.row, statistics: statistics, selected: model.selection, added: true)
             }.width(min: 40, ideal: 80)
             TableColumn("Lines removed", sortUsing: CommitFileSort(column: .removed)) { (row: CommitSortableRow) in
-                lineCount(row.row, statistics: statistics, selected: selection.wrappedValue, added: false)
+                lineCount(row.row, statistics: statistics, selected: model.selection, added: false)
             }.width(min: 40, ideal: 95)
             TableColumn("Last modified", sortUsing: CommitFileSort(column: .lastModified)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(row.metadata?.dateText ?? "–").foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
+                if let entry = row.entry { Text(row.metadata?.dateText ?? "–").foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
             }.width(min: 140, ideal: 180)
             TableColumn("File size", sortUsing: CommitFileSort(column: .fileSize)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(row.metadata?.sizeText ?? "–").foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
+                if let entry = row.entry { Text(row.metadata?.sizeText ?? "–").foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
             }.width(min: 60, ideal: 90)
             TableColumn("LFS Lock", sortUsing: CommitFileSort(column: .lfsOwner)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(row.lfsOwner).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
+                if let entry = row.entry { Text(row.lfsOwner).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
             }.width(min: 100, ideal: 160)
-        }.fileListFont().contextMenu(forSelectionType: String.self) { requested in
+        }.fileListFont().contextMenu(forSelectionType: String.self) { nativeIDs in
+            let requested = GitPathRowIdentity.paths(nativeIDs)
             TurtleGitContextMenu {
-                let ids = requested.intersection(Set(entries.map(\.id)))
-                let mark = StatusListSelection.mark(entries: entries, requested: ids, highlighted: selection.wrappedValue, focusedPath: focus.wrappedValue)
+                let ids = requested.intersection(GitPathSet(entries.map(\.id)))
+                let mark = StatusListSelection.mark(entries: entries, requested: ids, highlighted: model.selection, focusedPath: focus.wrappedValue)
                 let menuSnapshot = model.fileMenu(ids, mark: mark?.id, orderedEntries: rows.compactMap(\.entry))
                 if requested.count == 1, let group = rows.first(where: { requested.contains($0.id) })?.group {
                     let files = StatusListGroups.files(in: group, rows: rows)
-                    let groupSnapshot = model.fileMenu(Set(files.map(\.id)), orderedEntries: files)
+                    let groupSnapshot = model.fileMenu(GitPathSet(files.map(\.id)), orderedEntries: files)
                     Button("Check group") { model.withFileMenu(groupSnapshot) { model.setGroupChecked(files, checked: true) } }.disabled(model.busy || model.confirmingQuit)
                     Button("Uncheck group") { model.withFileMenu(groupSnapshot) { model.setGroupChecked(files, checked: false) } }.disabled(model.busy || model.confirmingQuit)
                 } else {
@@ -2320,7 +2337,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     ForEach(model.lfsActions(selected), id: \.self) { action in
                         Button { model.withFileMenu(menuSnapshot) { model.setLFSLocked(ids, locked: action == .lock) } } label: { CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock) }.disabled(model.busy || model.confirmingQuit)
                     }
-                    if !selected.isEmpty, let mark = model.indexFlagFiles.first(where: { $0.id == selectionMark?.id }) {
+                    if !selected.isEmpty, let mark = model.indexFlagFiles.first(where: { GitReferenceName.equal($0.id,selectionMark?.id) }) {
                         IndexFlagsMenu(files: flagFiles, selectionMark: mark) { action in model.withFileMenu(menuSnapshot) { model.setFlags(action, files: flagFiles, selectionMark: mark) } }
                     }
                     if !selected.isEmpty, selected.allSatisfy({ $0.state != .deleted }) {
@@ -2397,9 +2414,10 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     }
                 }
             }
-        } primaryAction: { requested in
-            let ids = requested.intersection(Set(entries.map(\.id)))
-            selection.wrappedValue = ids
+        } primaryAction: { nativeIDs in
+            let requested = GitPathRowIdentity.paths(nativeIDs)
+            let ids = requested.intersection(GitPathSet(entries.map(\.id)))
+            model.selection = ids
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
@@ -2407,15 +2425,15 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? model.stagingState(mark) != .on : !model.checked.contains(mark.id)
-            model.setFileChecked(mark, files: files, highlighted: Set(files.map(\.id)), checked: next)
+            model.setFileChecked(mark, files: files, highlighted: GitPathSet(files.map(\.id)), checked: next)
         }))
         .onDrop(of: [UTType.fileURL], delegate: CommitFileDropDelegate(model: model, targets: dropTargets, key: focusKey))
-        .onChange(of: selection.wrappedValue) { ids in
-            let files = ids.intersection(Set(entries.map(\.id)))
+        .onChange(of: model.selection) { ids in
+            let files = ids.intersection(GitPathSet(entries.map(\.id)))
             if files.count == 1 && NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty { focus.wrappedValue = files.first }
         }
     }
-    @ViewBuilder private func lineCount(_ row: StatusListRow, statistics: GitPathMap<CommitFile>, selected: Set<String>, added: Bool) -> some View {
+    @ViewBuilder private func lineCount(_ row: StatusListRow, statistics: GitPathMap<CommitFile>, selected: some Sequence<String>, added: Bool) -> some View { let selected = GitPathSet(selected);
         if let entry = row.entry {
             let count: Int? = added ? statistics[entry.path]?.added : statistics[entry.path]?.removed
             let label = count.map { String($0) } ?? "–"
@@ -2502,26 +2520,33 @@ private struct StagingCheckbox: NSViewRepresentable {
     let entry: StatusEntry
     let state: NSControl.StateValue
     let enabled: Bool
+    var inclusion = false
     let change: (Bool) -> Void
     func makeCoordinator() -> Coordinator { Coordinator(change: change) }
     func makeNSView(context: Context) -> NSButton {
         let button = StageButton(checkboxWithTitle: "", target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
-        button.allowsMixedState = true
+        button.allowsMixedState = !inclusion
         return button
     }
     func updateNSView(_ button: NSButton, context: Context) {
         context.coordinator.change = change
-        context.coordinator.nextStaged = state != .on
+        context.coordinator.nextChecked = state != .on
+        button.allowsMixedState = !inclusion
         button.state = state
         button.isEnabled=enabled && context.environment.isEnabled && entry.state != .conflicted
-        button.setAccessibilityLabel("Stage \(entry.path)")
-        button.toolTip = state != .off ? "Click to change staging; a mixed state stages the remaining working-tree changes." : "Click to stage the current file contents."
+        button.setAccessibilityLabel((inclusion ? "Include " : "Stage ") + entry.path)
+        button.toolTip = inclusion ? "Include this file in the commit" : state != .off ? "Click to change staging; a mixed state stages the remaining working-tree changes." : "Click to stage the current file contents."
+    }
+    static func dismantleNSView(_ button:NSButton,coordinator:Coordinator) {
+        button.isEnabled = false;button.target = nil;button.action = nil;coordinator.change = { _ in }
     }
     final class Coordinator: NSObject {
         var change: (Bool) -> Void
-        var nextStaged = true
+        // A mixed native checkbox can advance through NSCell's mixed state
+        // before dispatch. Derive the requested operation from the Git snapshot.
+        var nextChecked = true
         init(change: @escaping (Bool) -> Void) { self.change = change }
-        @objc func clicked(_ sender: NSButton) { change(nextStaged) }
+        @objc func clicked(_ sender: NSButton) { guard sender.isEnabled else {return};change(nextChecked) }
     }
     private final class StageButton: NSButton {
         override func setNextState() { state = state == .on ? .off : .on }
@@ -2537,7 +2562,7 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     let repository: GitRepository
     let action: CommitWindowModel.CompletionAction
     let staging: Bool
-    let paths: Set<String>
+    let paths: GitPathSet
     let options: CommitOptions
     let cancellation = OperationCancellation()
     let cancellable: Bool
@@ -2568,7 +2593,7 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     var onClose: () -> Void = {}
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { !isAbandoned && busy && cancellable && !cancelling && !confirmingCancellation }
-    init(repository: GitRepository, action: CommitWindowModel.CompletionAction, staging: Bool, paths: Set<String>, options: CommitOptions, preferences: UserDefaults, cancellable: Bool) {
+    init(repository: GitRepository, action: CommitWindowModel.CompletionAction, staging: Bool, paths: GitPathSet, options: CommitOptions, preferences: UserDefaults, cancellable: Bool) {
         self.repository = repository; self.action = action; self.staging = staging; self.paths = paths; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.cancellable = cancellable; outputState = GitProgressOutputState(preferences: preferences)
     }
     func complete(output: String, success: Bool, cancelled: Bool, postActions: [CommitPostAction], exitCode: Int32? = nil) {

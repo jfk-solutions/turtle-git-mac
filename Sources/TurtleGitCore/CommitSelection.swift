@@ -41,7 +41,7 @@ extension GitRepository {
     /// TortoiseGit's default checkbox mode commits the current whole-file contents
     /// of checked paths. HEAD-based commits use --only; parent-based amendments
     /// use a separate index so unrelated staged changes remain intact.
-    public func commitSelected(message: String, paths: Set<String>, options: CommitOptions = CommitOptions(), cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+    public func commitSelected(message: String, paths selection: some Sequence<String>, options: CommitOptions = CommitOptions(), cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         func failure(_ message: String) -> GitFailure { GitFailure(arguments: ["commit"], code: 1, message: message) }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw failure("Enter a commit message.") }
@@ -49,7 +49,7 @@ extension GitRepository {
         if operation != nil, options.amend || options.newBranch != nil {
             throw failure("Finish the pending operation before amending or creating a new branch.")
         }
-        let paths = options.messageOnly ? Set<String>() : paths
+        let paths = options.messageOnly ? GitPathSet() : GitPathSet(selection)
         guard !paths.isEmpty || options.amend || options.messageOnly || operation == .merge else { throw failure("Check at least one file to commit.") }
         let parentMode = options.amend && !options.amendDiffToLastCommit
         let changes = try commitDialogStatus(amendToParent:parentMode,cancellation:cancellation)
@@ -68,7 +68,7 @@ extension GitRepository {
         }
         return try commitPreparedSelection(message:message,paths:paths,checked:checked,options:options,parentMode:parentMode,operation:operation,hasConflicts:hasConflicts,cancellation:cancellation,onOutput:onOutput)
     }
-    private func commitPreparedSelection(message:String,paths:Set<String>,checked:[StatusEntry],options:CommitOptions,parentMode:Bool,operation:CommitOperation?,hasConflicts:Bool,cancellation:OperationCancellation?,onOutput:(@Sendable (GitOutputChunk)->Void)?) throws -> String {
+    private func commitPreparedSelection(message:String,paths:GitPathSet,checked:[StatusEntry],options:CommitOptions,parentMode:Bool,operation:CommitOperation?,hasConflicts:Bool,cancellation:OperationCancellation?,onOutput:(@Sendable (GitOutputChunk)->Void)?) throws -> String {
         if operation != nil {
             // A normal commit against a selected temporary index preserves the
             // operation's parents/author/state. --only is forbidden by Git for
@@ -87,7 +87,7 @@ extension GitRepository {
             // Build the selected tree separately while leaving that copy on disk.
             return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", cancellation: cancellation, onOutput: onOutput)
         }
-        let tracked = Set(try trackedPaths())
+        let tracked = GitPathSet(try trackedPaths())
         var stagePaths = checked.filter { $0.state != .deleted || tracked.contains($0.path) }.map(\.path)
         var commitPaths = checked.map(\.path)
         for entry in checked {
@@ -109,7 +109,7 @@ extension GitRepository {
         if commitPaths.isEmpty { return try run(args, cancellation: cancellation, onOutput: onOutput).text }
         let file = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-commit-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: file) }
-        let data = Data(Set(commitPaths).sorted().flatMap { Array($0.utf8) + [0] })
+        let data = Data(GitPathSet(commitPaths).sorted().flatMap { Array($0.utf8) + [0] })
         guard FileManager.default.createFile(atPath: file.path, contents: data, attributes: [.posixPermissions: 0o600]) else {
             throw GitFailure(arguments:["commit"],code:1,message:"Could not prepare the checked file list.")
         }
@@ -119,12 +119,12 @@ extension GitRepository {
 
     /// Preserve staged modes that differ from disk. Ordinary matching entries
     /// can keep using --only without additional per-file Git processes.
-    func selectedStagedFileModes(_ checked: [StatusEntry]) throws -> [String: String] {
+    func selectedStagedFileModes(_ checked: [StatusEntry]) throws -> GitPathMap<String> {
         let paths = checked.filter { $0.index != " " && $0.index != "D" && $0.state != .deleted }.map(\.path)
-        var result: [String: String] = [:]
+        var result: GitPathMap<String> = [:]
         for offset in stride(from: 0, to: paths.count, by: 64) {
             let batch = Array(paths[offset..<min(offset + 64, paths.count)])
-            for record in try run(["ls-files", "--stage", "-z", "--"] + batch).stdout.split(separator: 0) {
+            for record in try run(["-c","core.precomposeunicode=false","ls-files", "--stage", "-z", "--"] + batch).stdout.split(separator: 0) {
                 guard let tab = record.firstIndex(of: 9) else { continue }
                 let fields = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
                 guard fields.count == 3, fields[2] == "0", ["100644", "100755", "120000"].contains(String(fields[0])) else { continue }
@@ -144,16 +144,16 @@ extension GitRepository {
         }
         return result
     }
-    func applySelectedFileModes(_ modes: [String: String], environment: [String: String] = [:], cancellation: OperationCancellation? = nil) throws {
+    func applySelectedFileModes(_ modes: GitPathMap<String>, environment: [String: String] = [:], cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
         for path in modes.keys.sorted() {
-            let records = try run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: environment).stdout.split(separator: 0)
+            let records = try run(["-c","core.precomposeunicode=false","ls-files", "--stage", "-z", "--", path], environmentOverrides: environment).stdout.split(separator: 0)
             guard records.count == 1, let record = records.first, let tab = record.firstIndex(of: 9) else {
                 throw GitFailure(arguments: ["commit"], code: 1, message: "Could not preserve the staged file mode for " + path)
             }
             let fields = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
             guard fields.count == 3, fields[2] == "0" else { throw GitFailure(arguments: ["commit"], code: 1, message: "The selected file has unresolved index entries: " + path) }
-            _ = try run(["update-index", "--cacheinfo", modes[path]!, String(fields[1]), path], environmentOverrides: environment, cancellation: cancellation)
+            _ = try run(["update-index","-z","--index-info"],environmentOverrides:environment,cancellation:cancellation,input:Data((modes[path]! + " " + String(fields[1]) + "\t" + path + "\0").utf8))
         }
     }
 

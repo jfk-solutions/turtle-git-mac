@@ -41,7 +41,7 @@ public enum StatusListRow: Identifiable, Hashable, Sendable {
 public enum StatusListGroups {
     /// Match PrepareGroups/SetItemGroup: explicit membership precedes flags and
     /// status categories; ordinary changelists precede ignore-on-commit.
-    public static func rows(entries: [StatusEntry], changelists: GitChangelists, locallyIgnored: Set<String> = []) -> [StatusListRow] {
+    public static func rows(entries: [StatusEntry], changelists: GitChangelists, locallyIgnored: GitPathSet = []) -> [StatusListRow] {
         let enabled = !changelists.exactAssignments.isEmpty || entries.contains { [.untracked, .ignored].contains($0.state) || locallyIgnored.contains($0.path) }
         guard enabled else { return entries.map(StatusListRow.file) }
         var buckets: [StatusListGroup: [StatusEntry]] = [:]

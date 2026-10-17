@@ -1332,7 +1332,7 @@ import TurtleGitCore
     try Data("ignored bytes\n".utf8).write(to: root.appendingPathComponent("ignored"))
     let model = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: defaults)
     model.reload(paths: ["inside"]); try await settleCommit(model); model.message = "Visible tracked only"
-    let cached: Set<String> = ["inside/file", "inside/unknown", "outside", "ignored", "stale"]
+    let cached: GitPathSet = ["inside/file", "inside/unknown", "outside", "ignored", "stale"]
     model.checked = cached
     precondition(model.checkedPathsForCommit == ["inside/file", "inside/unknown"] && model.canCommit)
     model.setShowUnversioned(false)

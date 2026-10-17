@@ -438,3 +438,17 @@ preserves distinct valid UTF-8 spellings through status/rename/statistics reads,
 amend joins, per-path metadata and index flags. Native row IDs and highlighted/
 checked String sets still require their separate migration; this is not full
 filename-selection parity.
+
+
+## Exact file selection identity
+
+Working Tree now retains distinct valid UTF-8 Git path membership in its native
+row IDs, highlighted selections, group lookup, marked/captured menus, submodule
+and locked-path membership, and selected/focused refresh restoration. Captured
+menus expire when just a canonical spelling changes. The shared native selection
+replacement adapter also serves Commit and Sync conflict lists. Original path
+text remains in captions and operation arguments. See
+[working-file identity](WORKING-FILE-IDENTITY-PARITY.md) and
+[batch evidence](qa/working-selection-identities-2026-10-17.json). This supersedes
+the earlier pending selection migration for this dialog; other dialog models,
+LFS owner maps, Finder states and filesystem alias behavior remain open.

@@ -1,0 +1,303 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "src/Git/GitStatusListCtrl.cpp::OnLvnItemchanged / SetEntryCheck / marked context selection",
+    "src/TortoiseProc/CommitDlg.cpp::PrepareIndexForCommitWithoutStagingSupport / PrepareStagingSupport"
+  ],
+  "scope": "Connected Commit/Working Tree native selection, checkbox, group, captured menu, refresh and selected-index mutation family; shared Sync conflict table bridge.",
+  "implemented": [
+    "GitPathSet exact valid UTF-8 membership, set operations and coding; ASCII-encoded native table IDs with separate group namespace",
+    "Stored native String selection set plus exact raw-path cache; selection/focus spelling-only changes invalidate captured menus",
+    "Classic native inclusion checkbox and snapshot-derived binary/mixed staging intent; retired action guards",
+    "Exact Commit staging-state, checked paths, restore copies, submodule and locked membership; Working Tree groups/menus/focus and Sync conflict row/sort/selection adapter",
+    "Exact selected commit, checkbox-index preparation/restoration, mode maps, amend and Rebase Split handoff",
+    "Literal NUL path packets for Stage/Unstage and temporary-index adds/restores/deletions/modes without persistent configuration changes",
+    "Shared native programmatic replacement for refresh and keyboard selections: clear previous selection then select requested rows"
+  ],
+  "core_attempts": [
+    {
+      "log": "build/qa/working-selection-core-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 64,
+      "scope": "Identity, selected commit, checkbox index, amend, comparison and status group cases"
+    },
+    {
+      "log": "build/qa/working-selection-split-core-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 2,
+      "scope": "Affected Rebase Split replay/handoff cases"
+    },
+    {
+      "log": "build/qa/working-selection-row-bridge-core-2026-10-17.log",
+      "exit_code": 0,
+      "passed": 9,
+      "scope": "Identity cases including one new native row codec case; eight overlap the initial run"
+    }
+  ],
+  "core_distinct_final_passes": 67,
+  "build": "build/qa/working-selection-checkbox-final-build-2026-10-17.log; Debug arm64, exit 0",
+  "native_failures": [
+    {
+      "log": "build/qa/working-selection-native-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 39",
+      "owned_receivers_reaped": [
+        98801
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-bridge-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 63",
+      "owned_receivers_reaped": [
+        274
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-diagnostic-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 63",
+      "owned_receivers_reaped": [
+        99172
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-final-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 63",
+      "owned_receivers_reaped": [
+        99063
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-group-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 118",
+      "owned_receivers_reaped": [
+        2790
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-group-final-2026-10-17.log",
+      "failure": "Native QA failed: Native checkbox did not update independent staging state: enabled=true, state=0, staged=false, canCommit=true, reads=1, error=git restore failed (1):",
+      "owned_receivers_reaped": [
+        2959,
+        3098,
+        3223
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-inputs-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 73",
+      "owned_receivers_reaped": [
+        1255
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-live-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 68",
+      "owned_receivers_reaped": [
+        982
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-minimal-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 46",
+      "owned_receivers_reaped": [
+        2655
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-mouse-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 78",
+      "owned_receivers_reaped": [
+        1893
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-plain-control-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 69",
+      "owned_receivers_reaped": [
+        1743
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-ready-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 63",
+      "owned_receivers_reaped": [
+        99355
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-selection-trace-repair-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 73",
+      "owned_receivers_reaped": [
+        434
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-settled-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 84",
+      "owned_receivers_reaped": [
+        2297
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-settled-api-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 75",
+      "owned_receivers_reaped": [
+        2403
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-stack-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 77",
+      "owned_receivers_reaped": [
+        556
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-stored-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 68",
+      "owned_receivers_reaped": [
+        1601
+      ]
+    },
+    {
+      "log": "build/qa/working-selection-native-transitions-2026-10-17.log",
+      "failure": "Native QA failed: Exact native selection wait at 81",
+      "owned_receivers_reaped": [
+        2523
+      ]
+    }
+  ],
+  "diagnosis": [
+    "Initial fixture assumed classic SwiftUI Toggle was an NSButton; classic inclusion now uses an explicit native control",
+    "Direct multi-to-subset selectRowIndexes clears SwiftUI selection even in a minimal independent ASCII Table; Unicode, row encoding and binding representation are not a unique cause",
+    "Synthetic mouse-down fixture did not establish physical mouse behavior and was not retained as physical-input proof",
+    "Shared clear/select native replacement passes the minimal control and actual dialog transitions; explicit waits allow model-to-native selection publication before the next fixture gesture",
+    "Reading a three-state NSCell post-click state requested Unstage from Off; native checkbox intent again comes from the Git snapshot, preserving mixed-to-stage semantics"
+  ],
+  "native": [
+    {
+      "log": "build/qa/working-selection-native-complete-2026-10-17.log",
+      "exit_code": 0,
+      "case_engine_combinations": 6,
+      "cases": [
+        "identities",
+        "staging",
+        "commands"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "pids": [
+        3389,
+        3523,
+        3652,
+        3935,
+        4215,
+        4462
+      ],
+      "covers": "Native check/highlight independence, exact aliases, group/menu/focus/refresh/retirement, staging/unstaging/partial hunks, F5, command epochs and real remembered-action commits"
+    }
+  ],
+  "sync_native": {
+    "initial_log": "build/qa/working-selection-sync-native-2026-10-17.log",
+    "initial_exit_code": 1,
+    "initial_failure": "Fixture compile: two former Set<String> assignments needed GitPathSet; no receiver launched",
+    "log": "build/qa/working-selection-sync-native-final-2026-10-17.log",
+    "exit_code": 0,
+    "case_engine_combinations": 2,
+    "pids": [
+      4884,
+      5017
+    ]
+  },
+  "visuals": {
+    "captures": [
+      "site/assets/commit-file-selection-light.png",
+      "site/assets/commit-file-selection-dark.png",
+      "site/assets/working-tree-file-selection-light.png",
+      "site/assets/working-tree-file-selection-dark.png"
+    ],
+    "review": "Native groups, exact paired rows, single highlight/check, source icons, semantic colors and footer fit in light/dark. Inactive highlights are gray; fixture does not activate unrelated apps."
+  },
+  "remaining": [
+    "Other dialogs including Log/Add/Revert outer selection models and wider operation sets",
+    "LFS owner maps, Finder state/overlay/repository maps and URL-derived invocation spelling",
+    "Invalid UTF-8 Git filenames and physical filesystem case/normalization aliases",
+    "Physical input/accessibility, signed Finder/App Group/security scopes, App Store distribution and complete current hosted CI"
+  ],
+  "hosted_observation": {
+    "head": "bd7ace20",
+    "pages_run": 39018627380,
+    "pages": "success",
+    "macos_run": 39018627436,
+    "macos": "in_progress",
+    "job": 117357969167,
+    "step": "Git integration tests",
+    "scope": "Read-only observation of previous pushed head; not evidence for this uncommitted batch"
+  },
+  "fixture_callers": "Remaining Commit fixture assignments and fileTable signature callers migrated together; compile-only and affected refresh checks recorded separately.",
+  "cleanup": {
+    "owned_receivers_reaped": [
+      274,
+      434,
+      556,
+      982,
+      1255,
+      1601,
+      1743,
+      1893,
+      2297,
+      2403,
+      2523,
+      2655,
+      2790,
+      2959,
+      3098,
+      3223,
+      3389,
+      3523,
+      3652,
+      3935,
+      4215,
+      4462,
+      4884,
+      5017,
+      5202,
+      5354,
+      5615,
+      98801,
+      99063,
+      99172,
+      99355
+    ],
+    "independent_ps_absence": true
+  },
+  "native_distinct_final_case_engine_combinations": 10,
+  "refresh_native": {
+    "initial_log": "build/qa/working-selection-refresh-native-2026-10-17.log",
+    "initial_exit_code": 1,
+    "initial_failure": "Fixture issued Revert keyboard gesture before updated native enabled/focus state; wait now yields two ready render turns and explicitly verifies native keyboard focus",
+    "initial_pid": 5202,
+    "log": "build/qa/working-selection-refresh-native-final-2026-10-17.log",
+    "exit_code": 0,
+    "case_engine_combinations": 2,
+    "pids": [
+      5354,
+      5615
+    ],
+    "covers": "Commit/Working Tree/Revert viewport, multi-selection, check independence, filters, Ctrl/Cmd-A, pending restore replacement, LFS snapshot/failure, F5/Escape and retired Quit drain"
+  },
+  "fixture_compile_only": {
+    "log": "build/qa/working-selection-fixture-compile-2026-10-17.log",
+    "exit_code": 0,
+    "passed": 4,
+    "fixtures": [
+      "client-hooks",
+      "cherry-pick receiver",
+      "log-table-font",
+      "commit-column-sorting"
+    ],
+    "scope": "Updated API caller compile compatibility; not runtime coverage of these four families"
+  }
+}

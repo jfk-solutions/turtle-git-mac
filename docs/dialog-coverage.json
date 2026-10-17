@@ -635,6 +635,7 @@
         "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/submodule-handoffs-2026-10-14.json",
         "docs/qa/temporary-files-2026-10-08.json",
+        "docs/qa/working-selection-identities-2026-10-17.json",
         "docs/qa/working-tree-columns-2026-10-09.json",
         "docs/qa/working-tree-file-menu-2026-10-14.json",
         "docs/qa/working-tree-footer-2026-10-17.json",
@@ -858,7 +859,8 @@
         "docs/qa/source-message-links-2026-10-15.json",
         "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/temporary-files-2026-10-08.json",
-        "docs/qa/unified-find-source-family-2026-10-17.json"
+        "docs/qa/unified-find-source-family-2026-10-17.json",
+        "docs/qa/working-selection-identities-2026-10-17.json"
       ]
     },
     {
@@ -1956,7 +1958,8 @@
         "docs/qa/synchronization-tags-presentation-2026-10-11.json",
         "docs/qa/synchronization-transport-2026-10-11.json",
         "docs/qa/synchronization-window-2026-10-11.json",
-        "docs/qa/temporary-files-2026-10-08.json"
+        "docs/qa/temporary-files-2026-10-08.json",
+        "docs/qa/working-selection-identities-2026-10-17.json"
       ]
     },
     {
@@ -3171,7 +3174,8 @@
         "docs/qa/repository-presentation-2026-10-15.json",
         "docs/qa/shared-unversioned-2026-10-07.json",
         "docs/qa/status-colors-2026-10-09.json",
-        "docs/qa/unified-find-source-family-2026-10-17.json"
+        "docs/qa/unified-find-source-family-2026-10-17.json",
+        "docs/qa/working-selection-identities-2026-10-17.json"
       ]
     },
     {

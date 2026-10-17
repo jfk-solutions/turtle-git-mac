@@ -60,14 +60,14 @@ import TurtleGitCore
         model.performConflictFile(.open,menu:single);try await wait{!actions.busy && StatusWindowModel.activeOperations==0}
         model.performConflictFile(.editor,menu:single);try await wait{!actions.busy && StatusWindowModel.activeOperations==0}
         try require(opened == [names[0],"editor:"+names[0]],"Open/editor failed captured path")
-        actions.selection=Set(names);let multiple=model.conflictMenu(Set(names),mark:names[1])
+        actions.selection=GitPathSet(names);let multiple=model.conflictMenu(Set(names),mark:names[1])
         try require(multiple.commands.isEmpty,"Multi-selection enabled single-file commands")
         model.performConflict(.editConflict,menu:multiple);try require(routed.count==3,"Multi-selection Edit conflict dispatched")
         model.performConflict(.resolveTheirs,menu:multiple);try require(routed.last?.0 == .resolveTheirs && Set(routed.last!.1)==Set(names),"Multi-resolution lost selection")
         let clipboard=NSPasteboard.withUniqueName();defer{clipboard.releaseGlobally()};actions.clipboard=clipboard
         actions.withFileMenu(multiple){actions.copy(Set(names),information:.relativePaths)}
         try require(names.allSatisfy{clipboard.string(forType:.string)?.contains($0)==true},"Private clipboard lost conflict paths")
-        actions.selection=[names[0]];actions.selection=Set(names);let count=routed.count
+        actions.selection=[names[0]];actions.selection=GitPathSet(names);let count=routed.count
         model.performConflict(.resolveCurrent,menu:multiple);try require(routed.count==count,"Selection-away/return revived old menu")
         actions.setColumn(.added,visible:false)
         try require(prefs.integer(forKey:"ConflictSyncDlg.FileColumns.Version")==1 && prefs.object(forKey:"WorkingTree.FileColumns.Version")==nil,"Sync customization changed Working Tree profile")

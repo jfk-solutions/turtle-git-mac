@@ -92,4 +92,60 @@ final class GitPathIdentityTests: XCTestCase {
         let finalStage = try await repo.run(["ls-files","--stage","-z"]).stdout, finalHead = try await repo.run(["rev-parse","HEAD"]).stdout
         XCTAssertEqual(finalStage,stage); XCTAssertEqual(finalHead,head)
     }
+    func testNativeRowBridgeKeepsPathsAndGroupNamespaceLossless() {
+        let group = "\0group:modified", paths = GitPathSet([composed,decomposed,group])
+        let encoded = Set(paths.map(GitPathRowIdentity.encode))
+        XCTAssertEqual(encoded.count,3);XCTAssertTrue(encoded.allSatisfy {$0.utf8.allSatisfy {$0 < 128}})
+        XCTAssertEqual(GitPathRowIdentity.paths(encoded),paths)
+        XCTAssertNil(GitPathRowIdentity.decode("foreign"));XCTAssertNil(GitPathRowIdentity.decode("git-path:@@"))
+        XCTAssertEqual(GitPathRowIdentity.paths(["foreign"]).count,0)
+    }
+    func testExactSelectionSetAndCheckboxMarksKeepAliasesIndependent() throws {
+        var selected = GitPathSet([composed,decomposed])
+        XCTAssertEqual(selected.count,2); XCTAssertEqual(selected.identities.count,2)
+        XCTAssertEqual(try JSONDecoder().decode(GitPathSet.self,from:JSONEncoder().encode(selected)),selected)
+        selected.remove(composed); XCTAssertFalse(selected.contains(composed)); XCTAssertTrue(selected.contains(decomposed))
+        selected.formUnion([composed]); XCTAssertEqual(selected.intersection([composed]).count,1)
+        let rows = StatusEntry.parse(bytes(" M \(composed)\0 M \(decomposed)\0"))
+        let only = StatusListSelection.checkboxEntries(entry:rows[0],entries:rows,highlighted:GitPathSet([decomposed]))
+        XCTAssertEqual(only.count,1); XCTAssertEqual(bytes(only[0].path),bytes(composed))
+        let both = StatusListSelection.checkboxEntries(entry:rows[0],entries:rows,highlighted:selected)
+        XCTAssertEqual(both.count,2)
+        let marked = StatusListSelection.mark(entries:rows,requested:selected,highlighted:selected,focusedPath:decomposed)
+        XCTAssertEqual(marked.map { bytes($0.path) },bytes(decomposed))
+        let clicked = StatusListSelection.mark(entries:rows,requested:GitPathSet([composed]),highlighted:GitPathSet([decomposed]),focusedPath:decomposed)
+        XCTAssertEqual(clicked.map { bytes($0.path) },bytes(composed))
+        let grouped = StatusListGroups.rows(entries:rows,changelists:GitChangelists(),locallyIgnored:GitPathSet([decomposed]))
+        XCTAssertEqual(StatusListGroups.files(in:.localChangesIgnored,rows:grouped).map { bytes($0.path) },[bytes(decomposed)])
+    }
+    func testLiteralSelectedCommitAndStagingStateDoNotIncludeCanonicalNeighbor() async throws {
+        let (root,repo,normal) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at:root) }
+        _ = try await repo.run(["config","core.precomposeunicode","true"])
+        let original = try Data(contentsOf:root.appendingPathComponent(normal))
+        let blob = try await repo.run(["hash-object","-w","--stdin"],input:bytes("base\n")).text.trimmingCharacters(in:.newlines)
+        func packet(_ hash:String,_ path:String)->Data { bytes("100644 \(hash)\t\(path)\0") }
+        _ = try await repo.run(["update-index","-z","--index-info"],input:packet(blob,composed)+packet(blob,decomposed))
+        try await repo.unstage([decomposed])
+        var indexed = try await repo.trackedPaths()
+        XCTAssertTrue(indexed.contains { GitReferenceName.equal($0,composed) }); XCTAssertFalse(indexed.contains { GitReferenceName.equal($0,decomposed) })
+        _ = try await repo.run(["update-index","-z","--index-info"],input:packet(blob,decomposed))
+        _ = try await repo.commit(message:"paired index paths")
+        let newer = try await repo.run(["hash-object","-w","--stdin"],input:bytes("staged neighbor\n")).text.trimmingCharacters(in:.newlines)
+        _ = try await repo.run(["update-index","-z","--index-info"],input:packet(newer,composed))
+        let changes = try await repo.status()
+        let states = try await repo.commitStagingStates(for:changes)
+        XCTAssertEqual(states.count,2); XCTAssertEqual(states[composed],.partial); XCTAssertEqual(states[decomposed],.unstaged)
+        _ = try await repo.commitSelected(message:"delete only decomposed",paths:GitPathSet([decomposed]))
+        let tree = try await repo.run(["ls-tree","-r","-z","HEAD"]).stdout
+        XCTAssertTrue(tree.split(separator:0).contains { $0.suffix(bytes(composed).count).elementsEqual(bytes(composed)) })
+        XCTAssertFalse(tree.split(separator:0).contains { $0.suffix(bytes(decomposed).count).elementsEqual(bytes(decomposed)) })
+        let staged = try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertTrue(staged.split(separator:0).contains { $0.elementsEqual(bytes("100644 \(newer) 0\t\(composed)")) })
+        indexed = try await repo.trackedPaths(); XCTAssertTrue(indexed.contains { GitReferenceName.equal($0,composed) })
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(normal)),original)
+        let index = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        do { try await repo.stage(["bad\0path"]); XCTFail("NUL selection accepted") } catch {}
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+
 }

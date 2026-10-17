@@ -123,7 +123,8 @@ public enum LFSLockMenuAction: String, CaseIterable, Sendable {
 /// Upstream AppendLocksMenuItems: hidden ownership offers both operations;
 /// visible ownership offers one operation only for a uniformly locked selection.
 public enum LFSLockMenu {
-    public static func actions(paths: [String], ownersVisible: Bool, lockedPaths: Set<String>, ownershipKnown: Bool) -> [LFSLockMenuAction] {
+    public static func actions(paths: [String], ownersVisible: Bool, lockedPaths values: some Sequence<String>, ownershipKnown: Bool) -> [LFSLockMenuAction] {
+        let lockedPaths = GitPathSet(values)
         guard !paths.isEmpty else { return [] }
         if !ownersVisible { return [.lock, .unlock] }
         guard ownershipKnown else { return [] }

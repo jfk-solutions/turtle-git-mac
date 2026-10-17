@@ -2,6 +2,16 @@
 
 *A macOS fork of TortoiseGit*
 
+The connected [Commit/Working Tree selection family](WORKING-FILE-IDENTITY-PARITY.md)
+now preserves exact Git path membership through native row IDs, checked/highlighted
+sets, marked menus, groups, refresh and selected-index preparation, including the
+shared Sync conflict table. Native programmatic replacement handles a SwiftUI
+multi-to-subset failure independently reproduced with an ASCII control. The
+checkpoint passed 67 distinct relevant Core cases and ten final native case/engine
+combinations; four updated fixture callers also compile. All owned receivers are
+absent. Original failures, four reviewed light/dark captures and remaining
+identity/physical/signed limits are in [batch evidence](qa/working-selection-identities-2026-10-17.json).
+
 The [Send Mail source family](SEND-PATCH-PARITY.md) now connects exact native
 recipient/history controls, synchronous Combine/Subject transitions and captured
 list/form callbacks with owned target discovery and retained preparation lifetime.

@@ -51,7 +51,7 @@ extension GitRepository {
     /// Read the index independently of rename pairing. Git may choose a
     /// different identical source after staging a deletion; retained Commit rows
     /// must still show that original deletion as staged.
-    public func commitStagingStates(for entries: [StatusEntry], base: String? = nil, cancellation: OperationCancellation? = nil) throws -> [String: CommitStagingState] {
+    public func commitStagingStates(for entries: [StatusEntry], base: String? = nil, cancellation: OperationCancellation? = nil) throws -> GitPathMap<CommitStagingState> {
         try cancellation?.check()
         let cached = try run(["diff", "--cached", "--no-renames", "--name-only", "-z"] + (base.map { [$0] } ?? []) + ["--"], cancellation: cancellation)
         let working = try run(["diff", "--no-renames", "--name-only", "-z", "--"], cancellation: cancellation)
@@ -59,7 +59,7 @@ extension GitRepository {
         let stagedPaths = paths(cached.stdout), workingPaths = paths(working.stdout)
         let unversioned = Set(try status(cancellation: cancellation).filter { $0.state == .untracked }.map { Data($0.path.utf8) })
         try cancellation?.check()
-        return Dictionary(entries.map { entry in
+        return GitPathMap(entries.map { entry in
             var targets = [Data(entry.path.utf8)]
             if (entry.index == "R" || entry.worktree == "R"), let old = entry.originalPath { targets.append(Data(old.utf8)) }
             let staged = targets.contains { stagedPaths.contains($0) }
@@ -87,7 +87,7 @@ extension GitRepository {
         guard amendToParent else { try unstage(paths, cancellation: cancellation); return }
         guard !paths.isEmpty else { return }
         let base = try commitComparisonBase(amendToParent: true, cancellation: cancellation)
-        _ = try run(["restore", "--source=" + base, "--staged", "--"] + paths, cancellation: cancellation)
+        _ = try run(["restore","--source=" + base,"--staged","--pathspec-from-file=-","--pathspec-file-nul"],cancellation:cancellation,input:literalPathPacket(paths))
     }
 
     func commitParentSelection(message: String, checked: [StatusEntry], options: CommitOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
@@ -95,10 +95,10 @@ extension GitRepository {
         let base = try commitComparisonBase(amendToParent: true)
         return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: selectedStagedFileModes(checked), cancellation: cancellation, onOutput: onOutput)
     }
-    private func populateCommitSelectionIndex(checked: [StatusEntry], base: String, fileModes: [String: String], environment: [String: String], cancellation: OperationCancellation? = nil) throws -> [String] {
+    private func populateCommitSelectionIndex(checked: [StatusEntry], base: String, fileModes: GitPathMap<String>, environment: [String: String], cancellation: OperationCancellation? = nil) throws -> [String] {
         try cancellation?.check()
-        let tracked = Set(try trackedPaths())
-        let retainedDeletes = Set(checked.filter { $0.index == "D" && $0.hasUnversionedCopy }.map(\.path))
+        let tracked = GitPathSet(try trackedPaths())
+        let retainedDeletes = GitPathSet(checked.filter { $0.index == "D" && $0.hasUnversionedCopy }.map(\.path))
         var paths = checked.filter { !retainedDeletes.contains($0.path) }.map(\.path)
         var realStage = checked.filter { !retainedDeletes.contains($0.path) && ($0.state != .deleted || tracked.contains($0.path) || FileManager.default.fileExists(atPath: root.appendingPathComponent($0.path).path)) }.map(\.path)
         for entry in checked {
@@ -109,15 +109,15 @@ extension GitRepository {
         }
         _ = try run(["read-tree", base], environmentOverrides: environment, cancellation: cancellation)
         if !paths.isEmpty {
-            _ = try run(["add", "--all", "--"] + Array(Set(paths)).sorted(), environmentOverrides: environment, cancellation: cancellation)
+            _ = try run(["add","--all","--pathspec-from-file=-","--pathspec-file-nul"],environmentOverrides:environment,cancellation:cancellation,input:literalPathPacket(Array(GitPathSet(paths))))
         }
         if !retainedDeletes.isEmpty {
-            _ = try run(["update-index", "--force-remove", "--"] + retainedDeletes.sorted(), environmentOverrides: environment, cancellation: cancellation)
+            _ = try run(["update-index","--force-remove","-z","--stdin"],environmentOverrides:environment,cancellation:cancellation,input:literalPathPacket(Array(retainedDeletes)))
         }
         try applySelectedFileModes(fileModes, environment: environment, cancellation: cancellation)
         return realStage
     }
-    func commitSelectionIsEmpty(checked: [StatusEntry], base: String, fileModes: [String: String]) throws -> Bool {
+    func commitSelectionIsEmpty(checked: [StatusEntry], base: String, fileModes: GitPathMap<String>) throws -> Bool {
         let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-selection-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -126,7 +126,7 @@ extension GitRepository {
         let tree = try run(["write-tree"], environmentOverrides: environment).text
         return tree == (try run(["rev-parse", base + "^{tree}"]).text)
     }
-    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: GitPathMap<String> = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
         let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)

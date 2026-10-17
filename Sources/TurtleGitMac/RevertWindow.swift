@@ -145,7 +145,7 @@ private final class RevertNativeWindow:NSWindow {
     @Published private(set) var entries:[StatusEntry] = []
     @Published private(set) var statistics:GitPathMap<CommitFile> = [:]
     @Published var checked = Set<String>()
-    @Published var highlighted = Set<String>() {didSet {commands.selection = highlighted}}
+    @Published var highlighted = Set<String>() {didSet {commands.selection = GitPathSet(highlighted)}}
     @Published private(set) var busy = false
     @Published var confirmingQuit = false {didSet {commands.confirmingQuit = confirmingQuit;if !confirmingQuit {resumePendingRefresh()}}}
     @Published var error:String?
@@ -242,7 +242,7 @@ private final class RevertNativeWindow:NSWindow {
     private func start(forceChecked:Set<String>,drops:[URL]) {
         guard !retired,!confirmingQuit,!hasChild,!exclusiveAction,!closeAfterRead else {return}
         if commands.busy {refreshRequested = true;queuedForce.formUnion(forceChecked);return}
-        let position = fileListRefresh.begin(preferences:preferences,reset:!hasLoaded,selectedIDs:highlighted)
+        let position = fileListRefresh.begin(preferences:preferences,reset:!hasLoaded,selectedIDs:GitPathSet(highlighted))
         refreshRequested = false;request?.cancel();let token = OperationCancellation(),identity = UUID(),scope = paths
         request = token;generation = identity;busy = true;cancelling = false;error = nil
         let forced = queuedForce.union(forceChecked);queuedForce = [];Self.activeOperations += 1

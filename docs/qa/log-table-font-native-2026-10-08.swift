@@ -98,9 +98,9 @@ import TurtleGitCore
         prefs.set(false, forKey: "LogFontForFileListCtrl"); try await settle(addHost); precondition(addTable.rowHeight == defaultHeight)
 
         let commit = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: prefs, dialogDefaults: prefs)
-        commit.entries = try await repo.status(); commit.selection = Set(commit.entries.map(\.id)); commit.checked = commit.selection
+        commit.entries = try await repo.status(); commit.selection = GitPathSet(commit.entries.map(\.id)); commit.checked = commit.selection
         let commitSelection = commit.selection, commitChecked = commit.checked
-        let commitHost = NSHostingView(rootView: CommitDialog(model: commit).fileTable(commit.entries, selection: Binding(get: { commit.selection }, set: { commit.selection = $0 }), staged: nil).defaultAppStorage(prefs))
+        let commitHost = NSHostingView(rootView: CommitDialog(model: commit).fileTable(commit.entries, staged: nil).defaultAppStorage(prefs))
         let commitWindow = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
         commitWindow.isReleasedWhenClosed = false; commitWindow.contentView = commitHost; defer { commitWindow.close() }
         try await settle(commitHost); let commitTable = table(in: commitHost)!, interaction = probe(in: commitHost)!
