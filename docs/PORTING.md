@@ -529,8 +529,8 @@ controls, full visual matching and signed acceptance are still pending. See
 [Synchronization parity](SYNCHRONIZATION-PARITY.md).
 Across the 130 inventoried dialogs:
 120 dialogs have recorded partial family audits and 10 await a family review.
-No dialog is certified complete. Of 1,659 static controls, 811 have recorded
-native mappings and 848 still await control review. These are audit-coverage
+No dialog is certified complete. Of 1,659 static controls, 1,566 have recorded
+native mappings and 93 still await control review. These are audit-coverage
 counts, not a feature-completion percentage. See [all dialog coverage](DIALOG-COVERAGE.md).
 See [the reference dialog audit](COMMIT-CONTAINING-REFS-PARITY.md).
 
@@ -2347,3 +2347,24 @@ The latest inspected terminal hosted 33391321 run failed the moved-block family
 with `Discard/reload did not restore move mapping`, with receiver 24007 reaped.
 The newer a4811601 run was in progress and a0138ef3 pending at observation. Pages
 deployed a0138ef3 successfully. A full current macOS pass is still required.
+
+
+## Compare Reload, view changes and history — October 17, 2026
+
+Explicit Reload and two-pane/combined switching now share the owned comparison
+Save/Don't Save/Cancel transaction, including separate Save left/right/both
+choices when both panes are dirty. Cancel retains drafts and mode; accepting
+reload invalidates document-owned Undo even between native view replacements.
+Sheet dismissal retains the pending operation until AppKit releases the sheet,
+and combined reload selects Mine. See [reload parity](MERGE-COMPARISON-OPTIONS-PARITY.md#shared-reload-and-pane-switch-decisions--october-17-2026)
+and [batch evidence](qa/merge-reload-family-2026-10-17.json).
+
+The Debug build and six grouped native cases pass: savepoints/reload decisions,
+chronological history, combined view, moved blocks, viewport ownership and folding.
+An existing insertion fixture omitted the source-compatible EOF record; precise
+diagnostics showed the correct payload and two added rows, and its assertion now
+compares the exact two-row delta and restored baseline. Only fixture compilation
+was repeated for that repair. All seven receivers from diagnostics/attempts/final
+checks were reaped and independently absent. Core was unchanged and not repeated.
+Localization generation/check and the 267-page site build pass. Full hosted and
+physical/signed acceptance remain open.

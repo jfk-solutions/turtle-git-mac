@@ -38,12 +38,12 @@ struct MergeComparisonLifecycleVerification {
         try await type("keep",replacing:"keep"); try require(model.dirty,"New history branch reused the saved identity")
         try await save(); model.undo(); try await settled(); try require(model.dirty,"Undo across a later Save was clean")
         model.redo(); try await settled(); try require(!model.dirty,"Redo to later saved point was dirty")
-        let right = try editor(base:false)
-        right.insertText("one\ntwo\n",replacementRange:NSRange(location:5,length:0)); try await settled(); try require(model.alignment!.rows.count == 5,"Insertion did not pad opposite rows")
+        let right = try editor(base:false), unpaddedRows = model.alignment!.rows.count
+        right.insertText("one\ntwo\n",replacementRange:NSRange(location:5,length:0)); try await settled(); try require(model.alignment!.rows.count == unpaddedRows + 2,"Insertion did not pad opposite rows: count=\(model.alignment?.rows.count ?? -1), draft=\(String(reflecting:model.draftText(base:false))), display=\(String(reflecting:right.string)), active=\(model.activeBase), editable=\(right.isEditable)")
         right.insertText("",replacementRange:NSRange(location:5,length:8)); try await settled()
-        try require(model.alignment!.rows.count == 3 && model.draftText(base:false) == original && right.selectedRange().location == 5,"Deleted padding survived or moved caret")
-        model.undo(); try await settled(); try require(model.alignment!.rows.count == 5,"Undo did not restore padded rows")
-        model.redo(); try await settled(); try require(model.alignment!.rows.count == 3,"Redo did not clean empty rows")
+        try require(model.alignment!.rows.count == unpaddedRows && model.draftText(base:false) == original && right.selectedRange().location == 5,"Deleted padding survived or moved caret")
+        model.undo(); try await settled(); try require(model.alignment!.rows.count == unpaddedRows + 2,"Undo did not restore padded rows")
+        model.redo(); try await settled(); try require(model.alignment!.rows.count == unpaddedRows,"Redo did not clean empty rows")
         try await save()
         var question: NSAlert?, answer: ((NSApplication.ModalResponse) -> Void)?
         model.presentProjectionQuestion = { alert,parent,completion in question = alert; answer = completion; alert.beginSheetModal(for:parent,completionHandler:completion) }
@@ -99,11 +99,36 @@ struct MergeComparisonLifecycleVerification {
         try require(model.regexFilterName == filter.name && model.regexFilters == [filter] && model.dirty,"Active-filter removal Cancel changed cached projection")
         model.refreshRegexFilters(); try await wait { question != nil }; try await respond("Don’t Save")
         try require(model.regexFilterName == nil && model.regexFilters.isEmpty && !model.dirty,"Active-filter removal did not recompare")
+        // Explicit Reload and pane changes must offer the same per-pane
+        // decisions as option changes, using real owned native sheets.
+        try await type("RELOAD",replacing:"RIGHT3")
+        let retainedDraft = model.draftText(base:false)
+        model.load(); try await wait { question != nil }
+        try await respond("Cancel")
+        try require(model.draftText(base:false) == retainedDraft && model.canUndo,"Reload Cancel lost draft/history")
+        model.load(); try await wait { question != nil }; try await respond("Don’t Save")
+        try require(!model.dirty && !model.canUndo && !model.canRedo && !model.comparisonHistory.canUndo,"Reload retained document-owned history")
+        try await type("VIEWLEFT",replacing:"LEFT2",base:true); try await type("VIEWRIGHT",replacing:"RIGHT3")
+        model.switchPaneMode(true); try await wait { question != nil }
+        try require(question!.buttons.map(\.title) == ["Save left pane","Save right pane","Save both panes","Don’t Save","Cancel"],"Pane switch lost per-pane Save choices")
+        try await respond("Save left pane")
+        try await wait { TwoPaneEngineVerification.editors(owner.window?.contentView).count == 1 }
+        try require(model.onePaneActive && !model.activeBase && !model.dirty && !model.canUndo && !model.canRedo,"Combined reload retained wrong pane/history")
+        try require(try String(contentsOf:base,encoding:.utf8) == "VIEWLEFT\nkeep\ntail\n" && String(contentsOf:mine,encoding:.utf8) == "RIGHT3\nkeep\ntail\n","Pane switch saved the discarded pane")
+        model.switchPaneMode(false); try await settled()
+        try await wait { TwoPaneEngineVerification.editors(owner.window?.contentView).count == 2 }
         try await type("CLOSE",replacing:"RIGHT3"); model.setComparisonOptions(insensitive); try await wait { question != nil }
         let late = answer, bytes = try Data(contentsOf:mine)
         owner.close(); late?(.alertSecondButtonReturn)
         try await wait { FileComparisonWindowModel.activeProjectionChoices == 0 && FileComparisonWindowModel.activePaneExports == 0 && MergeRegexOperations.activeRequests == 0 }
         try require(MergeComparisonOptions.load(from:prefs) == .exact && Data(contentsOf:mine) == bytes,"Retired projection answer changed options or file")
+        let detached = FileComparisonWindowModel(comparison:try WorkingFileComparison(base:base,destination:mine),permissions:[])
+        detached.comparisonHistory.beginUndoGrouping()
+        detached.comparisonHistory.registerUndo(withTarget:detached) { _ in }
+        detached.comparisonHistory.endUndoGrouping()
+        detached.canUndo = true; detached.resetHistory()
+        try require(!detached.comparisonHistory.canUndo && !detached.canUndo && !detached.canRedo,"History reset depended on a live native editor")
+        detached.retireImageLoader()
         print("PASS: saved/branched same-byte edit identities, native gap cleanup/caret/Undo, owned options Cancel/discard/failed Save/per-pane Save/all Save, regex/removal choices, cleared stale history, close/Quit/duplicate/late gates and exact files; owned windows closed")
     }
 }

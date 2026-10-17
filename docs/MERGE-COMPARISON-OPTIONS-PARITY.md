@@ -4,6 +4,28 @@
 59 focused Core checks, ten native editor workflows, source/fixture repairs and
 owned cleanup. This remains a partial port.
 
+## Shared Reload and pane-switch decisions — October 17, 2026
+
+Explicit Reload and switching between two panes and the combined view now use
+that same owned Save/Don't Save/Cancel transaction. Both dirty panes offer Save
+left, Save right, Save both, Don't Save and Cancel, with Save both as the default.
+Saving only one pane reloads the other from disk. Cancel preserves both drafts,
+the view preference and chronological Undo. Failed Save retains the current view.
+The accepted continuation waits for an attached native sheet to end before
+starting its Save or reload; forced closure removes its observer and refuses
+late answers. Duplicate answers cannot start a second reload.
+
+The model now clears its shared UndoManager directly, even while split/combined
+native editors are being replaced or no editor callback remains. Exposed Undo
+and Redo flags reset with it. Combined reload selects Mine, and cancelled engine
+requests cannot publish a replacement alignment. This follows pinned
+MainFrm::OnFileReload, OnViewOnewaydiff, CheckForSave and LoadViews/CUndo::Clear.
+
+The recorded hosted moved-block discard failure is not reproduced by the local
+pre-change diagnostic. These changes address related ownership/history gaps;
+a current complete hosted pass is still required before claiming that failure
+resolved. See [batch evidence](qa/merge-reload-family-2026-10-17.json).
+
 ## Owned Save and reload — October 16, 2026
 
 Two-pane and combined option/active-regex changes now follow the pinned

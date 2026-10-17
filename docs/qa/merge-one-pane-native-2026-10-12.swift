@@ -41,7 +41,7 @@ struct MergeOnePaneNativeVerification {
         try check(model.draftText(base: false) == edited && model.dirty && model.canUndo, "Removed-line edit lost unselected payload or included untouched removals")
         model.undo(); try await TwoPaneEngineVerification.settled(model); try check(model.draftText(base: false) == after && !model.dirty, "Combined Undo failed")
         model.redo(); try await TwoPaneEngineVerification.settled(model); try check(model.draftText(base: false) == edited, "Combined Redo failed")
-        model.choosePaneSwitch = { _ in .alertThirdButtonReturn }; model.switchPaneMode(false)
+        model.presentProjectionQuestion = { _,_,reply in reply(.alertThirdButtonReturn) }; model.switchPaneMode(false)
         try check(model.onePaneMode && model.dirty && prefs.bool(forKey: "TurtleGitMerge.OnePane"), "Cancel view switch changed draft/mode")
         model.save(); try await wait { !model.busy && !model.filtering && !model.dirty }
         let saved = try Data(contentsOf: mine), retained = try Data(contentsOf: base)
@@ -55,13 +55,13 @@ struct MergeOnePaneNativeVerification {
         let current = TwoPaneEngineVerification.editors(owner.window?.contentView)[0]
         model.editingEnabled = true; try await wait { current.isEditable }
         current.insertText("discarded", replacementRange: (current.string as NSString).range(of: "changed")); try await TwoPaneEngineVerification.settled(model)
-        model.choosePaneSwitch = { _ in .alertSecondButtonReturn }; model.switchPaneMode(false)
+        model.presentProjectionQuestion = { _,_,reply in reply(.alertSecondButtonReturn) }; model.switchPaneMode(false)
         try await TwoPaneEngineVerification.settled(model)
         try check(!model.onePaneMode && !model.dirty && model.draftText(base: false) == edited, "Discard switch did not reread saved Mine")
         let destination = TwoPaneEngineVerification.editors(owner.window?.contentView).first { $0.isEditable }!
         destination.insertText("save branch", replacementRange: (destination.string as NSString).range(of: "changed")); try await TwoPaneEngineVerification.settled(model)
         let saveBranch = model.draftText(base: false)
-        model.choosePaneSwitch = { _ in .alertFirstButtonReturn }; model.switchPaneMode(true)
+        model.presentProjectionQuestion = { _,_,reply in reply(.alertFirstButtonReturn) }; model.switchPaneMode(true)
         try await TwoPaneEngineVerification.settled(model)
         try await wait { TwoPaneEngineVerification.editors(owner.window?.contentView).count == 1 }
         let savedBranch = try Data(contentsOf: mine), expectedBranch = try ComparisonTextEncoding.utf8BOM.encode(saveBranch)

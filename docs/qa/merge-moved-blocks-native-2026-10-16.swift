@@ -100,7 +100,7 @@ struct MergeMovedBlocksVerification {
         answer?(.init(rawValue:NSApplication.ModalResponse.alertFirstButtonReturn.rawValue+question!.buttons.count-1))
         try require(!model.confirmingQuit && model.dirty && !model.showMovedBlocks && !MergeMovedBlock.enabled(defaults:prefs),"Cancel lost draft/toggle preference")
         model.setMovedBlocks(true);answer?(.alertSecondButtonReturn);try await TwoPaneEngineVerification.settled(model)
-        try require(model.showMovedBlocks && !model.dirty && !model.canUndo && !model.movedBlockRecords.isEmpty,"Discard/reload did not restore move mapping")
+        try require(model.showMovedBlocks && !model.dirty && !model.canUndo && !model.movedBlockRecords.isEmpty,"Discard/reload did not restore move mapping: enabled=\(model.showMovedBlocks), dirty=\(model.dirty), undo=\(model.canUndo), moves=\(model.movedBlockRecords.count), error=\(model.error ?? "none")")
         if let output=ProcessInfo.processInfo.environment["TURTLEGIT_WRAP_CAPTURE"] {
             model.switchPaneMode(false);try await TwoPaneEngineVerification.settled(model)
             model.showLineDiffBar=false

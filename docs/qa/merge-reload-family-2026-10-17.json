@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Compare explicit Reload, split/combined view changes, per-pane save decisions, document-owned Undo/Redo and sheet/engine lifecycle.",
+  "source": [
+    "src/TortoiseMerge/MainFrm.cpp::OnFileReload",
+    "src/TortoiseMerge/MainFrm.cpp::OnViewOnewaydiff",
+    "src/TortoiseMerge/MainFrm.cpp::CheckForSave",
+    "src/TortoiseMerge/MainFrm.cpp::LoadViews / CUndo::Clear"
+  ],
+  "implemented": [
+    "Explicit Reload and view changes reuse owned per-pane Save/Don’t Save/Cancel with left/right/both choices",
+    "Cancel retains drafts/history/preferences; accepted changes reload unsaved panes and reset shared history",
+    "Pending answer retains operation/Quit ownership until attached native sheet dismissal; observer removed on retirement",
+    "Shared UndoManager and flags reset without requiring native editor callbacks; combined reload selects Mine",
+    "Changed-only Undo/Redo publication and cancellation guard before engine projection publication"
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false
+  },
+  "build": {
+    "log": "build/qa/merge-reload-build-2026-10-17.log",
+    "exit_code": 0,
+    "empty_output_exit_zero_diagnostics": 3,
+    "notes": "Existing compiler and CoreSimulator diagnostics retained; macOS build passed."
+  },
+  "diagnostic": {
+    "log": "build/qa/merge-moved-reload-diagnostic-2026-10-17.log",
+    "before_production_change": true,
+    "exit_code": 0,
+    "receiver_pid": 88683,
+    "meaning": "Recorded hosted moved-block failure not reproduced locally; precise combined assertion diagnostics retained. No confirmed root cause claimed."
+  },
+  "native_attempts": [
+    {
+      "log": "build/qa/merge-reload-native-2026-10-17.log",
+      "exit_code": 1,
+      "pid": 89053,
+      "failure": "Existing insertion fixture expected five rows, omitting source-compatible final EOF record."
+    },
+    {
+      "log": "build/qa/merge-reload-native-recheck-2026-10-17.log",
+      "exit_code": 1,
+      "pid": 89102,
+      "failure": "Diagnostic confirmed six rows with correct five-line payload and native final empty record."
+    },
+    {
+      "log": "build/qa/merge-reload-native-final-2026-10-17.log",
+      "exit_code": 0,
+      "pid": 89167,
+      "cases": [
+        "savepoints with actual owned native sheets and expanded Reload/per-pane view choices",
+        "history/caret/inline commands",
+        "one-pane Save/Cancel/discard, BOM/EOL, Replace All and Tab"
+      ]
+    },
+    {
+      "log": "build/qa/merge-reload-wrapped-2026-10-17.log",
+      "exit_code": 0,
+      "pids": [
+        89256,
+        89263,
+        89268
+      ],
+      "cases": [
+        "moved blocks",
+        "viewport ownership",
+        "folding"
+      ]
+    }
+  ],
+  "fixture_repair": "Assert insertion adds exactly two rows and deletion returns to the captured baseline, retaining exact payload/caret/Undo checks. No app rebuild for fixture-only diagnostics or repair.",
+  "cleanup": {
+    "owned_receivers_reaped": [
+      88683,
+      89053,
+      89102,
+      89167,
+      89256,
+      89263,
+      89268
+    ],
+    "independent_ps_absence": true
+  },
+  "localizations": {
+    "languages": 38,
+    "safe_literal_keys": 1242,
+    "generated_changes": false
+  },
+  "visual_scope": "Existing native alert controls reused; no new screenshots or physical interaction claim.",
+  "hosted_observation": {
+    "pages_fa3b7e69": "39016255949 success",
+    "macos_fa3b7e69": "39016255915 pending",
+    "macos_a0138ef3": "39014702461 cancelled",
+    "macos_a4811601": "39013950765 in_progress; job 117343554354 at Git integration tests"
+  },
+  "remaining": [
+    "Current complete hosted macOS pass, including recorded moved-block failure",
+    "Physical sheet/keyboard/VoiceOver and signed acceptance",
+    "Full comparison and other-dialog upstream parity",
+    "Latest distribution archive/preview refresh and App Store signing/installed Finder acceptance"
+  ],
+  "documentation": {
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93
+    },
+    "site": "build/qa/merge-reload-site-2026-10-17.log",
+    "localization_check": "passed"
+  }
+}

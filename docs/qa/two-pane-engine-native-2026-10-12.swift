@@ -23,7 +23,7 @@ import TurtleGitCore
                 fflush(stdout)
             }
             model.window?.contentView?.layoutSubtreeIfNeeded()
-            return !model.busy && !model.filtering && model.alignmentSelections.isEmpty && !model.initialNavigationPending
+            return !model.busy && !model.filtering && !model.hasPendingEditorChoice && !model.confirmingQuit && model.alignmentSelections.isEmpty && !model.initialNavigationPending
         }, line:line, file:file)
     }
     @MainActor static func main() async throws {

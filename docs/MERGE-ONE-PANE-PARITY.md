@@ -193,3 +193,8 @@ Base EOL on unsplit common combined records while keeping Mine's payload and
 encoding. Two-pane originals and unedited drafts remain independent. Split
 neutral aliases still retain each side's own ending; earlier blanket statements
 about all common records preserving Mine endings are superseded by this scope.
+
+
+Reload and pane-switch choices now share the owned per-pane Save transaction,
+including Save left/right/both and direct document-owned history invalidation.
+See [the reload continuation](MERGE-COMPARISON-OPTIONS-PARITY.md#shared-reload-and-pane-switch-decisions--october-17-2026).

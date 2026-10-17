@@ -71,7 +71,7 @@ private extension FileComparisonDocument {
     }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if model.imageComparison != nil, item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return model.imageCommandsAllowed && !preparingReplacement && editorOpenWorkflow == nil }
-        if item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return !preparingReplacement && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.hasPendingEditorChoice && !model.filtering && !model.confirmingQuit && window?.attachedSheet == nil }
+        if item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.hasPendingEditorChoice && !model.filtering && !model.confirmingQuit && window?.attachedSheet == nil }
         return item.action == #selector(createPatchFile(_:)) && model.canCreateUnifiedPatch
     }
     var onClosed: () -> Void = {}
@@ -320,26 +320,13 @@ private extension FileComparisonDocument {
         if onePaneActive, !base { return combined?.rows.map { paint($0.cell, row: $0.alignmentRow, side: $0.base) } ?? [] }
         return alignment?.rows.enumerated().map { paint(base ? $0.element.base : $0.element.destination, row: $0.offset, side: base) } ?? []
     }
-    var choosePaneSwitch: (String) -> NSApplication.ModalResponse = { description in
-        let alert = NSAlert(); alert.messageText = "Save changes to “" + description + "” before changing the view?"
-        alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
-        return alert.runModal()
-    }
     func switchPaneMode(_ value: Bool) {
-        guard !retired, !busy, !filtering, !confirmingQuit, !singleFileMode, value != onePaneMode, window?.attachedSheet == nil else { return }
-        func switchAndReload() {
-            guard !retired, let document else { return }
-            drafts = FileComparisonDrafts(document); resetHistory(); scrolls.removeValue(forKey: true)
-            onePaneMode = value; loadedPaneMode = true; comparisonDefaults.set(value, forKey: "TurtleGitMerge.OnePane")
-            activatePane(base: false); load()
+        guard !retired, !busy, !filtering, !confirmingQuit, !singleFileMode, value != onePaneMode else { return }
+        requestProjectionChange(reason: "changing the view") { [self] in
+            scrolls.removeValue(forKey: true)
+            onePaneMode = value; loadedPaneMode = true
+            comparisonDefaults.set(value, forKey: "TurtleGitMerge.OnePane")
         }
-        if dirty {
-            confirmingQuit = true; let answer = choosePaneSwitch(unsavedFilesDescription); confirmingQuit = false
-            guard !retired else { return }
-            if answer == .alertFirstButtonReturn { saveAll { saved in if saved { switchAndReload() } }; return }
-            guard answer == .alertSecondButtonReturn else { return }
-        }
-        switchAndReload()
     }
     @Published private(set) var regexFilters = MergeRegexFilters.load()
     @Published private(set) var regexFilterName: String?
@@ -512,6 +499,7 @@ private extension FileComparisonDocument {
         var question: NSAlert?
         var answers: [Answer] = []
         var answered = false
+        var sheetObserver: NSObjectProtocol?
         init(_ change: @escaping () -> Void) { self.change = change }
     }
     private var projectionChange: ProjectionChange?
@@ -519,6 +507,7 @@ private extension FileComparisonDocument {
     var presentProjectionQuestion: (NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { alert,owner,answer in alert.beginSheetModal(for:owner,completionHandler:answer) }
     private func finishProjectionChange(_ request: ProjectionChange) {
         guard projectionChange === request else { return }
+        if let observer = request.sheetObserver { NotificationCenter.default.removeObserver(observer); request.sheetObserver = nil }
         projectionChange = nil; confirmingQuit = false; Self.activeProjectionChoices -= 1
         if let question = request.question {
             if let owner = question.window.sheetParent { owner.endSheet(question.window) }
@@ -559,16 +548,31 @@ private extension FileComparisonDocument {
                 if let parent = question.window.sheetParent { parent.endSheet(question.window) }
                 question.window.orderOut(nil); request.question = nil
             }
-            let index = answer.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
-            switch request.answers.indices.contains(index) ? request.answers[index] : .cancel {
-            case .save(let sides):
-                self.save(sides:sides,ownerInitiated:true) { [weak self, weak request] saved in
+            self.resumeProjectionAnswer(request, answer: answer)
+        }
+    }
+    private func resumeProjectionAnswer(_ request: ProjectionChange, answer: NSApplication.ModalResponse) {
+        guard !retired, projectionChange === request else { return }
+        if let window, window.attachedSheet != nil {
+            guard request.sheetObserver == nil else { return }
+            request.sheetObserver = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification, object: window, queue: .main) { [weak self, weak request] _ in
+                Task { @MainActor in
                     guard let self, let request, self.projectionChange === request else { return }
-                    if saved { self.applyProjectionChange(request) } else { self.finishProjectionChange(request) }
+                    if let observer = request.sheetObserver { NotificationCenter.default.removeObserver(observer); request.sheetObserver = nil }
+                    self.resumeProjectionAnswer(request, answer: answer)
                 }
-            case .discard: self.applyProjectionChange(request)
-            default: self.finishProjectionChange(request)
             }
+            return
+        }
+        let index = answer.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        switch request.answers.indices.contains(index) ? request.answers[index] : .cancel {
+        case .save(let sides):
+            save(sides:sides,ownerInitiated:true) { [weak self, weak request] saved in
+                guard let self, let request, self.projectionChange === request else { return }
+                if saved { self.applyProjectionChange(request) } else { self.finishProjectionChange(request) }
+            }
+        case .discard: applyProjectionChange(request)
+        default: finishProjectionChange(request)
         }
     }
     struct AlignmentSelection { let id = UUID(); let sourceRange: NSRange; var scroll = false }
@@ -1057,7 +1061,15 @@ private extension FileComparisonDocument {
         guard !busy, !hasPendingEditorChoice, !confirmingQuit, (!onePaneActive || !base), activeBase != base else { return }
         activeBase = base; selectedRows = nil; selectionRequest = nil; selectEditorActions()
     }
-    func resetHistory() { historyCaretRequests = [:]; for actions in editorActions.values { actions.reset() }; selectEditorActions() }
+    func resetHistory() {
+        historyCaretRequests = [:]
+        // The history belongs to the document, including while a native pane
+        // is being replaced. Weak editor callbacks cannot own its lifetime.
+        comparisonHistory.removeAllActions()
+        canUndo = false; canRedo = false
+        for actions in editorActions.values { actions.reset() }
+        selectEditorActions()
+    }
     struct HistoryCaret {
         let displayText: String
         let displayOffset: Int
@@ -1229,13 +1241,8 @@ private extension FileComparisonDocument {
         if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
         if !loadedPaneMode { onePaneMode = OnePaneFileComparison.defaultEnabled(from: comparisonDefaults); loadedPaneMode = true }
         if dirty && !discardingDraft {
-            let alert = NSAlert(); alert.messageText = "Save changes to “\(unsavedFilesDescription)” before reloading?"
-            alert.addButton(withTitle: "Save and Reload"); alert.addButton(withTitle: "Reload Without Saving"); alert.addButton(withTitle: "Cancel")
-            switch alert.runModal() {
-            case .alertFirstButtonReturn: saveAll { [weak self] saved in if saved { self?.load() } }; return
-            case .alertSecondButtonReturn: break
-            default: return
-            }
+            requestProjectionChange(reason: "reloading") {}
+            return
         }
         reloadCommentProfiles = true
         generalPreferences = .load(from: comparisonDefaults); pendingLoadNavigation = generalPreferences.firstDifference
@@ -1307,7 +1314,7 @@ private extension FileComparisonDocument {
                 if let images = imageComparison {retainedImageModel?.configureImages(base:images.base,destination:images.destination,force:true)}
                 window?.title = "\(standaloneImages == nil ? (sidesReversed ? adapted.destination.path : path) : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
                 drafts = imageComparison == nil ? FileComparisonDrafts(adapted) : nil
-                activeBase = drafts?.preferredBase ?? false
+                activeBase = onePaneActive ? false : drafts?.preferredBase ?? false
                 selectEditorActions()
                 rebuildAlignment(); resetHistory(); selectionRequest = nil
                 difference = -1
@@ -1351,7 +1358,7 @@ private extension FileComparisonDocument {
             try? await Task.sleep(nanoseconds: 60_000_000)
             guard !retired, alignmentGeneration == current, !token.isCancelled else { return }
             let result = await Task.detached { Result { try SubversionComparisonPresentation(plan: configuration.get().plan(base: a, mine: b, cancellation: token), detectMovedBlocks:detectMoves, whitespace:configuration.get().options.whitespace, cancellation:token) } }.value
-            guard !retired, alignmentGeneration == current else { return }
+            guard !retired, alignmentGeneration == current, !token.isCancelled else { return }
             filtering = false; regexCancellation = nil
             switch result {
             case .success(let presentation):
@@ -2013,7 +2020,11 @@ struct FileComparisonEditor: NSViewRepresentable {
             }
             DispatchQueue.main.async { if self.model.activeBase == self.base, self.model.alignmentGeneration == generation, view.selectedRange() == range { self.model.updateSelection(range, cells: cells) } }
         }
-        func updateUndoState() { guard model.activeBase == base else { return }; model.canUndo = history.canUndo; model.canRedo = history.canRedo }
+        func updateUndoState() {
+            guard model.activeBase == base else { return }
+            if model.canUndo != history.canUndo { model.canUndo = history.canUndo }
+            if model.canRedo != history.canRedo { model.canRedo = history.canRedo }
+        }
         func annotate(_ value:FileComparisonEditing.Annotations) {
             guard model.canTransfer(toBase:base),let view = scroll?.documentView as? FileComparisonTextView else {return}
             let selection = view.selectedRange(),block = view.mergeSelectedBlockRange
