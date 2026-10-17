@@ -1,25 +1,43 @@
 import Foundation
 
 /// A read-only patch may contain bytes that cannot be represented in the
-/// display encoding. Saving uses the original data, never the display text.
+/// display encoding. Unedited exports retain original data; edits use the captured codec.
 public struct UnifiedDiffDocument: Sendable {
     public let bytes: Data
-    public init(bytes: Data) { self.bytes = bytes }
-    public var displayText: String {
-        // Decode display text without changing the original bytes used by Save As
-        // or external viewers. BOMs take precedence over the legacy fallback.
-        let signatures: [([UInt8], String.Encoding, Int)] = [
-            ([0xff, 0xfe, 0, 0], .utf32LittleEndian, 4), ([0, 0, 0xfe, 0xff], .utf32BigEndian, 4),
-            ([0xff, 0xfe], .utf16LittleEndian, 2), ([0xfe, 0xff], .utf16BigEndian, 2),
-            ([0xef, 0xbb, 0xbf], .utf8, 1)
-        ]
-        for (signature, encoding, width) in signatures where bytes.starts(with: signature) {
-            if (bytes.count - signature.count) % width == 0, let text = String(data: bytes.dropFirst(signature.count), encoding: encoding) { return text }
-            return String(decoding: bytes, as: UTF8.self)
-        }
-        return GitPatch.displayText(bytes)
+    public let displayLegacyEncoding:ComparisonTextEncoding
+    public let sourceEncoding:ComparisonTextEncoding
+    private let retainedEncoding:Bool
+    private static let signatures:[([UInt8],ComparisonTextEncoding,String.Encoding)] = [
+        ([0xff,0xfe,0,0],.utf32LE,.utf32LittleEndian),([0,0,0xfe,0xff],.utf32BE,.utf32BigEndian),
+        ([0xff,0xfe],.utf16LEBOM,.utf16LittleEndian),([0xfe,0xff],.utf16BEBOM,.utf16BigEndian),([0xef,0xbb,0xbf],.utf8BOM,.utf8)
+    ]
+    public init(bytes:Data,displayLegacyEncoding:ComparisonTextEncoding = .windows1252,sourceEncoding:ComparisonTextEncoding? = nil) {
+        self.bytes=bytes
+        self.displayLegacyEncoding=displayLegacyEncoding.legacyCodePage == nil ? .windows1252:displayLegacyEncoding
+        retainedEncoding=sourceEncoding != nil
+        self.sourceEncoding=sourceEncoding ?? Self.signatures.first(where:{bytes.starts(with:$0.0)})?.1
+            ?? (String(data:bytes,encoding:.utf8) == nil ? self.displayLegacyEncoding:.utf8)
     }
-    public func write(to url: URL) throws { try bytes.write(to: url, options: .atomic) }
+    public var displayText:String {
+        if retainedEncoding,let text=sourceEncoding.decode(bytes) {return text}
+        // BOMs precede line-local UTF8/legacy display. Prefixing a sentinel keeps
+        // a real leading FEFF character after the one file BOM is removed.
+        for (signature,_,encoding) in Self.signatures where bytes.starts(with:signature) {
+            let body=Data(bytes.dropFirst(signature.count)),width=encoding == .utf32LittleEndian || encoding == .utf32BigEndian ? 4:encoding == .utf8 ? 1:2
+            if body.count % width == 0,let prefix="x".data(using:encoding),var text=String(data:prefix+body,encoding:encoding),text.first == "x" {text.removeFirst();return text}
+            return String(decoding:bytes,as:UTF8.self)
+        }
+        return GitPatch.displayText(bytes,displayLegacyEncoding:displayLegacyEncoding)
+    }
+    public func encodedEdits(_ text:String) throws ->Data {
+        if text.utf8.elementsEqual(displayText.utf8) {return bytes}
+        return try sourceEncoding.encode(text)
+    }
+    public func recording(_ bytes:Data)->Self {
+        if bytes == self.bytes {return self}
+        return Self(bytes:bytes,displayLegacyEncoding:displayLegacyEncoding,sourceEncoding:sourceEncoding)
+    }
+    public func write(to url:URL) throws {try bytes.write(to:url,options:.atomic)}
 }
 
 public enum UnifiedDiffViewerChoice: Equatable, Sendable {

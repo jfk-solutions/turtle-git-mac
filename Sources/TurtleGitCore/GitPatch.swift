@@ -33,8 +33,9 @@ public struct GitPatch: Sendable {
     private let sourceLines: [String]
     public let files: [File]
     public let includesUntracked: Bool
-    public init(text: String, includesUntracked: Bool = false) {
-        self.init(bytes:Data(text.utf8),includesUntracked:includesUntracked)
+    public let displayLegacyEncoding:ComparisonTextEncoding
+    public init(text: String, includesUntracked: Bool = false,displayLegacyEncoding:ComparisonTextEncoding = .windows1252) {
+        self.init(bytes:Data(text.utf8),includesUntracked:includesUntracked,displayLegacyEncoding:displayLegacyEncoding)
     }
     private static func carrier(_ bytes:Data)->String {
         String(String.UnicodeScalarView(bytes.map {UnicodeScalar($0)}))
@@ -44,30 +45,32 @@ public struct GitPatch: Sendable {
         // is ASCII. Display decoding is deliberately outside this representation.
         Data(value.unicodeScalars.map {UInt8($0.value)})
     }
-    private static func displayLine(_ value:String)->String {
+    private static func displayLine(_ value:String,legacy:ComparisonTextEncoding)->String {
         let bytes=carrierBytes(value)
-        return String(data:bytes,encoding:.utf8) ?? String(data:bytes,encoding:.windowsCP1252) ?? value
+        if let text=String(data:bytes,encoding:.utf8) {return text}
+        if legacy == .windows1252 {return String(data:bytes,encoding:.windowsCP1252) ?? value}
+        return legacy.decode(bytes) ?? value
     }
-    public static func displayText(_ bytes:Data)->String {
-        carrier(bytes).components(separatedBy:"\n").map(displayLine).joined(separator:"\n")
+    public static func displayText(_ bytes:Data,displayLegacyEncoding:ComparisonTextEncoding = .windows1252)->String {
+        carrier(bytes).components(separatedBy:"\n").map {displayLine($0,legacy:displayLegacyEncoding)}.joined(separator:"\n")
     }
-    public init(bytes:Data,includesUntracked:Bool = false) {
-        self.bytes=bytes;self.includesUntracked=includesUntracked
+    public init(bytes:Data,includesUntracked:Bool = false,displayLegacyEncoding:ComparisonTextEncoding = .windows1252) {
+        self.bytes=bytes;self.includesUntracked=includesUntracked;self.displayLegacyEncoding=displayLegacyEncoding
         let source=Self.carrier(bytes)
-        self.text=Self.displayText(bytes)
+        self.text=Self.displayText(bytes,displayLegacyEncoding:displayLegacyEncoding)
         var lines=source.components(separatedBy:"\n")
         if lines.last == "" {lines.removeLast()}
-        self.sourceLines=lines;self.lines=lines.map(Self.displayLine)
+        self.sourceLines=lines;self.lines=lines.map {Self.displayLine($0,legacy:displayLegacyEncoding)}
         let expression = try! NSRegularExpression(pattern: #"^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@([\s\S]*)\z"#)
         var files: [File] = [], header: [String] = [], hunks: [Hunk] = []
         var pending: (Int, Int, Int, Int, Int, String)?
         func finishHunk(_ end: Int) {
-            if let value = pending { hunks.append(Hunk(header: value.0, range: value.0 + 1..<end, oldStart: value.1, oldCount: value.2, newStart: value.3, newCount: value.4, suffix: Self.displayLine(value.5), sourceSuffix:value.5)) }
+            if let value = pending { hunks.append(Hunk(header: value.0, range: value.0 + 1..<end, oldStart: value.1, oldCount: value.2, newStart: value.3, newCount: value.4, suffix: Self.displayLine(value.5,legacy:displayLegacyEncoding), sourceSuffix:value.5)) }
             pending = nil
         }
         func finishFile(_ end: Int) {
             finishHunk(end)
-            if !header.isEmpty { files.append(File(header: header.map(Self.displayLine), sourceHeader:header, hunks: hunks)) }
+            if !header.isEmpty { files.append(File(header: header.map {Self.displayLine($0,legacy:displayLegacyEncoding)}, sourceHeader:header, hunks: hunks)) }
             header = []; hunks = []
         }
         for (index, line) in lines.enumerated() {
@@ -87,7 +90,7 @@ public struct GitPatch: Sendable {
     }
     /// Text is for display/copy. Apply and patch export use selectedPatchData.
     public func selectedPatch(lines selected:Set<Int>,entireHunks:Bool,reverse:Bool) throws -> String {
-        try selectedSourcePatch(lines:selected,entireHunks:entireHunks,reverse:reverse).components(separatedBy:"\n").map(Self.displayLine).joined(separator:"\n")
+        try selectedSourcePatch(lines:selected,entireHunks:entireHunks,reverse:reverse).components(separatedBy:"\n").map {Self.displayLine($0,legacy:displayLegacyEncoding)}.joined(separator:"\n")
     }
     public func selectedPatchData(lines selected:Set<Int>,entireHunks:Bool,reverse:Bool) throws -> Data {
         Self.carrierBytes(try selectedSourcePatch(lines:selected,entireHunks:entireHunks,reverse:reverse))

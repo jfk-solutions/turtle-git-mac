@@ -131,21 +131,21 @@ import UniformTypeIdentifiers
     private var approvedReplacementText: String?
     private var savedText = ""
     var savedDocumentBytes: Data { savedDocument?.bytes ?? Data() }
-    var refreshReplacementApproved: Bool { approvedReplacementText == document.text }
+    var refreshReplacementApproved: Bool { approvedReplacementText.map {GitReferenceName.equal($0,document.text)} == true }
     var repositoryAccess: RepositoryAccessLease? { access }
-    var requestReplacement: ((Data) -> Void)?
-    var requestReload: (([String], Bool) -> Void)?
+    var requestReplacement: ((Data,ComparisonTextEncoding) -> Void)?
+    var requestReload: (([String], Bool,ComparisonTextEncoding) -> Void)?
     var documentChanged: () -> Void = {}
     var canEditText: Bool { allowsDocumentEditing && readOnly && canFind && error == nil }
     func editDocument(_ text: String) {
         guard canEditText else { return }
         approvedReplacementText = nil
-        document = GitPatch(text: text); documentDirty = text != savedText
+        document = GitPatch(text:text,displayLegacyEncoding:document.displayLegacyEncoding); documentDirty = !GitReferenceName.equal(text,savedText)
         if !documentDirty { originalDiff = savedDocument }
         documentChanged()
     }
     func markDocumentSaved(_ bytes: Data) {
-        savedText = document.text; savedDocument = UnifiedDiffDocument(bytes: bytes)
+        savedText = document.text; savedDocument = savedDocument?.recording(bytes) ?? UnifiedDiffDocument(bytes:bytes,displayLegacyEncoding:document.displayLegacyEncoding)
         originalDiff = savedDocument; documentDirty = false; documentChanged()
     }
     @Published var selectedLines = Set<Int>()
@@ -261,17 +261,27 @@ import UniformTypeIdentifiers
     var onApplied: () -> Void = {}
     var onSettled: (Bool) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, appearancePreferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.appearancePreferences = appearancePreferences }
-    var exportDocument: UnifiedDiffDocument { readOnly ? originalDiff ?? UnifiedDiffDocument(bytes: document.bytes) : UnifiedDiffDocument(bytes: document.bytes) }
+    var exportDocument: UnifiedDiffDocument { readOnly ? originalDiff ?? UnifiedDiffDocument(bytes: document.bytes,displayLegacyEncoding:document.displayLegacyEncoding) : UnifiedDiffDocument(bytes: document.bytes,displayLegacyEncoding:document.displayLegacyEncoding) }
     func copyPatch(to pasteboard: NSPasteboard = .general) {
         guard !retired, !busy, !confirmingQuit else { return }
-        if !PatchClipboard.write(exportDocument, to: pasteboard) { error = "The patch could not be copied to the clipboard." }
+        do {
+            let source:UnifiedDiffDocument
+            if readOnly,documentDirty,let savedDocument {source=savedDocument.recording(try encodedDocumentBytes())}
+            else {source=exportDocument}
+            if !PatchClipboard.write(source,to:pasteboard) {error="The patch could not be copied to the clipboard."}
+        } catch {self.error=error.localizedDescription}
     }
-    func setReadOnlyDiff(_ bytes: Data, discardingEdits: Bool = false) {
+    func encodedDocumentBytes() throws ->Data {
+        if readOnly,documentDirty,let savedDocument {return try savedDocument.encodedEdits(document.text)}
+        return exportDocument.bytes
+    }
+    func setReadOnlyDiff(_ bytes: Data, discardingEdits: Bool = false,displayLegacyEncoding:ComparisonTextEncoding? = nil) {
         guard !retired else { return }
-        if allowsDocumentEditing && documentDirty && !discardingEdits && approvedReplacementText != document.text { requestReplacement?(bytes); return }
+        let legacy=displayLegacyEncoding ?? .legacyEncoding(from:appearancePreferences)
+        if allowsDocumentEditing && documentDirty && !discardingEdits && !refreshReplacementApproved {requestReplacement?(bytes,legacy);return}
         approvedReplacementText = nil
-        let source = UnifiedDiffDocument(bytes: bytes)
-        readOnly = true; document = GitPatch(text: source.displayText); originalDiff = source
+        let source = UnifiedDiffDocument(bytes:bytes,displayLegacyEncoding:legacy)
+        readOnly = true; document = GitPatch(text:source.displayText,displayLegacyEncoding:legacy); originalDiff = source
         savedText = document.text; savedDocument = source; documentDirty = false; documentResetRevision += 1; documentChanged()
     }
     var canApplyLines: Bool { !retired && !readOnly && !busy && !confirmingQuit && selectedLines.contains(where: { document.changedLine($0) }) }
@@ -285,9 +295,10 @@ import UniformTypeIdentifiers
         if document.files.contains(where: { $0.hasSelectedTextMetadata }) { return "Rename and file mode changes are applied with the selected text. Right-click for staging actions." }
         return "Select changed lines, or place the caret in a hunk. Right-click for staging actions."
     }
-    func reload(paths: [String], staged: Bool, discardingEdits: Bool = false) {
+    func reload(paths: [String], staged: Bool, discardingEdits: Bool = false,displayLegacyEncoding:ComparisonTextEncoding? = nil) {
         guard !retired, !applying, !confirmingQuit, !showPageSetup else { return }
-        if documentDirty && !discardingEdits { requestReload?(paths, staged); return }
+        let legacy=displayLegacyEncoding ?? .legacyEncoding(from:appearancePreferences)
+        if documentDirty && !discardingEdits {requestReload?(paths,staged,legacy);return}
         if let customRefresh { if discardingEdits { approvedReplacementText = document.text }; customRefresh(); return }
         readCancellation?.cancel(); readTask?.cancel()
         generation += 1; let request = generation, cancellation = OperationCancellation()
@@ -309,7 +320,7 @@ import UniformTypeIdentifiers
                 else if readOnly { bytes = try await repository.workingTreePatchData(paths: paths, base: base, cancellation: cancellation) }
                 else { bytes = try await repository.patchData(paths:paths,staged:staged,base:base,cancellation:cancellation,includeUntracked:!staged) }
                 guard !retired, request == generation, !cancellation.isCancelled, !Task.isCancelled else { return }
-                if readOnly { setReadOnlyDiff(bytes) } else { document = GitPatch(bytes:bytes,includesUntracked:!staged) }
+                if readOnly { setReadOnlyDiff(bytes,displayLegacyEncoding:legacy) } else { document = GitPatch(bytes:bytes,includesUntracked:!staged,displayLegacyEncoding:legacy) }
             } catch {
                 if !retired && request == generation && !cancellation.isCancelled && !Task.isCancelled { self.error = error.localizedDescription }
             }
@@ -462,8 +473,8 @@ struct PatchTextView: NSViewRepresentable {
         let settings = UnifiedDiffAppearance.load(from: model.appearancePreferences), dark = scheme == .dark, highContrast = contrast == .increased
         let cache = context.coordinator
         guard !text.hasMarkedText() else { return }
-        guard cache.needsStyling || cache.resetRevision != model.documentResetRevision || cache.lastText != model.document.text || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
-        let contentChanged = cache.resetRevision != model.documentResetRevision || cache.lastText != model.document.text, selection = text.selectedRange()
+        guard cache.needsStyling || cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true) || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
+        let contentChanged = cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true), selection = text.selectedRange()
         cache.resetRevision = model.documentResetRevision; cache.needsStyling = false
         cache.lastText = model.document.text; cache.lastAppearance = settings; cache.dark = dark; cache.highContrast = highContrast
         let font = NSFont(name: settings.fontName, size: CGFloat(settings.fontSize)) ?? NSFontManager.shared.font(withFamily: settings.fontName, traits: [], weight: 5, size: CGFloat(settings.fontSize)) ?? NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
@@ -475,14 +486,14 @@ struct PatchTextView: NSViewRepresentable {
         text.whitespaceColor = highContrast ? .labelColor : dark ? NSColor(srgbRed: 180.0/255, green: 180.0/255, blue: 180.0/255, alpha: 1) : .secondaryLabelColor
         let value = NSMutableAttributedString(string: "")
         for (index, line) in model.document.lines.enumerated() {
-            let terminated = index < model.document.lines.count - 1 || model.document.text.hasSuffix("\n")
+            let terminated = index < model.document.lines.count - 1 || model.document.text.utf8.last == 10
             let style = UnifiedDiffLineStyle.classify(line + (terminated ? "\n" : "")), palette = settings.colors(style, dark: dark)
             let face = !highContrast && style == .comment ? NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask) : font
             value.append(NSAttributedString(string: line + (terminated ? "\n" : ""), attributes: [.font: face, .paragraphStyle: paragraph,
                 .foregroundColor: highContrast ? NSColor.labelColor : color(palette.foreground),
                 .backgroundColor: highContrast ? NSColor.textBackgroundColor : color(palette.background)]))
         }
-        if text.string == value.string {
+        if GitReferenceName.equal(text.string,value.string) {
             text.textStorage?.beginEditing()
             value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in text.textStorage?.setAttributes(attributes, range: range) }
             text.textStorage?.endEditing()
@@ -520,7 +531,7 @@ struct PatchTextView: NSViewRepresentable {
             guard !model.retired, let view = notification.object as? NSTextView else { return }
             let selected = view.selectedRange(); var offset = 0, lines = Set<Int>()
             for (index, line) in model.document.lines.enumerated() {
-                let terminated = index < model.document.lines.count - 1 || model.document.text.hasSuffix("\n")
+                let terminated = index < model.document.lines.count - 1 || model.document.text.utf8.last == 10
                 let range = NSRange(location: offset, length: (line as NSString).length + (terminated ? 1 : 0))
                 let caretInLine = NSLocationInRange(selected.location, range) || (!terminated && index == model.document.lines.count - 1 && selected.location == NSMaxRange(range))
                 if selected.length == 0 ? caretInLine : NSIntersectionRange(selected, range).length > 0 { lines.insert(index) }

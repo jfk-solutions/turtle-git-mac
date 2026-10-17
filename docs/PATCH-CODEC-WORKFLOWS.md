@@ -49,9 +49,9 @@ working bytes, modes, HEAD and raw index preservation. Both unaltered native
 captures below were inspected. They show the existing inactive-toolbar fading;
 complete toolbar/physical appearance acceptance remains open.
 
-The **Original patch** text tab and wider serial-import/unified-diff legacy display
-decoding still need their own connected migration. These file-pane/recovery checks
-do not certify that raw-patch text presentation. Wider filename alias handling,
+The **Original patch** text tab and serial-import/unified-diff legacy display
+now have a [separate connected migration](RAW-PATCH-CODECS.md). The original
+file-pane/recovery checkpoint does not certify that raw-patch presentation. Wider filename alias handling,
 all codepage mappings, physical gestures/accessibility and signed sandbox/App Store
 acceptance also remain open. No whole-app or complete hosted CI claim follows.
 

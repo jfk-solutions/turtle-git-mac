@@ -621,3 +621,13 @@ diagnostics; this is not a clean diagnostics claim. See
 Full physical keyboard/VoiceOver, every source byte/codepage and platform metric,
 very large/network documents, signed file grants and App Store acceptance remain
 open. No dialog is certified complete.
+
+
+## Captured regional patch codecs — October 17, 2026
+
+[Raw patch codecs](RAW-PATCH-CODECS.md) extends regional decoding to partial
+staging, Original Patch, serial preview and standalone Open/Save/Save As. Edits
+and clipboard output retain the loaded source codec, with exact Unicode dirty
+checks and no-op byte preservation. See that checkpoint for native evidence and
+remaining mixed-codec editing and byte-editor limits. Earlier fixed-1252 display
+and editable-document encoding limitations above describe their dated snapshots.

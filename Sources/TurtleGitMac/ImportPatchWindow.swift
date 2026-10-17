@@ -382,7 +382,8 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func loadPreview() {
-        let generation = UUID(); previewGeneration = generation; preview = ""; previewNotice = nil; previewDocument.setReadOnlyDiff(Data())
+        let legacy=ComparisonTextEncoding.legacyEncoding(from:previewDocument.appearancePreferences)
+        let generation = UUID(); previewGeneration = generation; preview = ""; previewNotice = nil; previewDocument.setReadOnlyDiff(Data(),displayLegacyEncoding:legacy)
         guard !invalidated, selection.count == 1, let item = items.first(where: { selection.contains($0.id) }) else { return }
         Self.activeWorkers+=1
         Task {
@@ -394,7 +395,7 @@ import TurtleGitCore
                 return (data, nil)
             }.value
             guard !invalidated, previewGeneration == generation else { return }
-            if let bytes = result.0 { previewDocument.setReadOnlyDiff(bytes); preview = previewDocument.document.text }
+            if let bytes = result.0 { previewDocument.setReadOnlyDiff(bytes,displayLegacyEncoding:legacy); preview = previewDocument.document.text }
             else { previewNotice = result.1; preview = result.1 ?? "" }
         }
     }
@@ -1061,7 +1062,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         self.directoryMode = directoryMode; self.isGitWorkingTree = isGitWorkingTree
         self.repository = repository; self.access = access; self.fileAccess = fileAccess; self.bytes = bytes; self.preferences = preferences;reviewEncodingPolicy=MergeTextEncodingPolicy(defaults:preferences)
         previewDocument = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
-        previewDocument.setReadOnlyDiff(bytes); previewDocument.refreshAvailable = false
+        previewDocument.setReadOnlyDiff(bytes,displayLegacyEncoding:reviewEncodingPolicy.legacyEncoding); previewDocument.refreshAvailable = false
     }
     func setReversed(_ value: Bool) {
         guard canReplaceComparison, value != reversed else { return }
@@ -1088,7 +1089,9 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         try ensure(token)
         let next = try await repository.reviewWorkingTreePatch(bytes, reversed: reverse, stripCount: strip, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, cancellation: token)
         try ensure(token)
-        reviewEncodingPolicy=encodingPolicy ?? reviewEncodingPolicy
+        let policy=encodingPolicy ?? reviewEncodingPolicy
+        if policy != reviewEncodingPolicy {previewDocument.setReadOnlyDiff(bytes,displayLegacyEncoding:policy.legacyEncoding)}
+        reviewEncodingPolicy=policy
         review = next; requiresRefresh = false; fileListGeneration = UUID()
         highlightedFiles.formIntersection(Set(next.files.map(\.id)))
         selected = Set(next.files.filter { !appliedPaths.contains($0.pathBytes) }.map(\.id))

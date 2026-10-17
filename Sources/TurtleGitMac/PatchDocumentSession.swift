@@ -27,7 +27,7 @@ import UniformTypeIdentifiers
     private var generation = 0
     private(set) var documentIdentity = UUID()
     private var cancellation: OperationCancellation?
-    private struct Replacement { let bytes: Data; let file: URL?; let access: RepositoryAccessLease?; let publish: () -> Void }
+    private struct Replacement { let bytes: Data; let file: URL?; let access: RepositoryAccessLease?; let displayLegacyEncoding:ComparisonTextEncoding; let publish: () -> Void }
     private var pendingReplacement: Replacement?
     private var replacing = false
     private var updates: AnyCancellable?
@@ -76,13 +76,11 @@ import UniformTypeIdentifiers
             Task { @MainActor [weak self] in self?.pumpReplacement() }
         }
         owner.model.documentChanged = { [weak self] in self?.owner?.window?.isDocumentEdited = self?.dirty == true }
-        owner.model.requestReplacement = { [weak self] bytes in
-            Task { @MainActor [weak self] in self?.replace(bytes) }
-        }
-        owner.model.requestReload = { [weak self] paths, staged in
+        owner.model.requestReplacement = { [weak self] bytes,legacy in self?.replace(bytes,displayLegacyEncoding:legacy) }
+        owner.model.requestReload = { [weak self] paths, staged,legacy in
             self?.launch { session in
                 guard await session.resolveChanges(), let model = session.owner?.model else { return }
-                model.reload(paths: paths, staged: staged, discardingEdits: true)
+                model.reload(paths: paths, staged: staged, discardingEdits: true,displayLegacyEncoding:legacy)
             }
         }
     }
@@ -118,10 +116,10 @@ import UniformTypeIdentifiers
     }
     func saveDocument(as newFile: Bool = false) { launch { _ = await $0.save(as: newFile) } }
     func requestClose() { launch { if await $0.resolveChanges() { $0.owner?.close() } } }
-    func replace(_ bytes: Data) { present(bytes, publish: {}) }
-    func present(_ bytes: Data, file: URL? = nil, access: RepositoryAccessLease? = nil, publish: @escaping () -> Void) {
+    func replace(_ bytes: Data,displayLegacyEncoding:ComparisonTextEncoding? = nil) {present(bytes,displayLegacyEncoding:displayLegacyEncoding,publish:{})}
+    func present(_ bytes: Data, file: URL? = nil, access: RepositoryAccessLease? = nil,displayLegacyEncoding:ComparisonTextEncoding? = nil, publish: @escaping () -> Void) {
         guard enabled, !working || replacing else { return }
-        pendingReplacement = Replacement(bytes: bytes, file: file, access: access, publish: publish)
+        pendingReplacement = Replacement(bytes:bytes,file:file,access:access,displayLegacyEncoding:displayLegacyEncoding ?? .legacyEncoding(from:owner?.model.appearancePreferences ?? .standard),publish:publish)
         pumpReplacement()
     }
     private func publish(_ request: Replacement) {
@@ -131,7 +129,7 @@ import UniformTypeIdentifiers
         }
         documentIdentity = UUID(); fileURL = request.file; fileAccess = request.access; diskBytes = request.file == nil ? nil : request.bytes
         owner.window?.representedURL = request.file
-        owner.model.setReadOnlyDiff(request.bytes, discardingEdits: true); request.publish()
+        owner.model.setReadOnlyDiff(request.bytes, discardingEdits: true,displayLegacyEncoding:request.displayLegacyEncoding); request.publish()
     }
     private func pumpReplacement() {
         guard enabled, pendingReplacement != nil, !working, let model = owner?.model,
@@ -198,7 +196,7 @@ import UniformTypeIdentifiers
     }
     private func load(_ url: URL) async {
         guard !retired, let owner else { return }
-        let access = acquireAccess(url), token = OperationCancellation(), request = generation
+        let access = acquireAccess(url), token = OperationCancellation(), request = generation,legacy=ComparisonTextEncoding.legacyEncoding(from:owner.model.appearancePreferences)
         if GitRuntime.isAppStoreBuild && !access.hasSecurityScope { owner.model.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
         owner.model.busy = true; cancellation = token
         defer { withExtendedLifetime(access) {}; owner.model.busy = false; cancellation = nil }
@@ -207,7 +205,7 @@ import UniformTypeIdentifiers
             guard !retired, generation == request, !token.isCancelled else { return }
             documentIdentity = UUID(); fileURL = url; fileAccess = access; diskBytes = bytes
             owner.window?.representedURL = url
-            owner.model.setReadOnlyDiff(bytes, discardingEdits: true)
+            owner.model.setReadOnlyDiff(bytes, discardingEdits: true,displayLegacyEncoding:legacy)
             owner.model.refreshAvailable = false; owner.model.customRefresh = nil
             owner.model.comparisonTitle = url.lastPathComponent
             owner.model.readOnlyInformation = "Patch document. Edits are saved to the selected patch file."
@@ -217,12 +215,8 @@ import UniformTypeIdentifiers
     func encodedBytes() throws -> Data {
         guard let model = owner?.model else { return Data() }
         if !model.documentDirty { return model.exportDocument.bytes }
-        let original = model.savedDocumentBytes
-        let signatures: [([UInt8], String.Encoding)] = [([0xff,0xfe,0,0], .utf32LittleEndian), ([0,0,0xfe,0xff], .utf32BigEndian), ([0xff,0xfe], .utf16LittleEndian), ([0xfe,0xff], .utf16BigEndian), ([0xef,0xbb,0xbf], .utf8)]
-        var prefix = Data(), encoding: String.Encoding = String(data: original, encoding: .utf8) == nil ? .windowsCP1252 : .utf8
-        for (signature, candidate) in signatures where original.starts(with: signature) { prefix = Data(signature); encoding = candidate; break }
-        guard let body = model.document.text.data(using: encoding, allowLossyConversion: false) else { throw Failure.encoding }
-        prefix.append(body); return prefix
+        do {return try model.encodedDocumentBytes()}
+        catch FileComparisonEditFailure.encoding {throw Failure.encoding}
     }
     func save(as newFile: Bool = false) async -> Bool {
         guard !retired, let owner, !owner.model.busy, let window = owner.window, window.attachedSheet == nil else { return false }

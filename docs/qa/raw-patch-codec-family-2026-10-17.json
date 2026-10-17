@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-17",
+  "implementation_baseline": "70c0d796",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "src/TortoiseUDiff/MainWindow.cpp": "fc1d4053019e4b8bc5c2a1c08837d19c7c506751"
+  },
+  "scope": "Captured raw patch display/save codecs across standalone documents, Original Patch, serial import previews and byte-preserving partial staging.",
+  "implemented": [
+    "Per-line UTF8-first regional display without changing Git patch bytes",
+    "Captured encoding through asynchronous Open/reload/replacement and serial preview",
+    "Strict edited Save/Save As and clipboard encoding with retained source codec after ambiguous valid-UTF8 bytes",
+    "Exact Unicode savepoint, replacement approval and text styling comparisons",
+    "Preserved final CRLF in the native text renderer"
+  ],
+  "validation": {
+    "core": {
+      "log": "build/qa/raw-patch-codec-core-2026-10-17.log",
+      "cases": 21,
+      "failures": 0,
+      "suites": [
+        "UnifiedDiffEncodingTests",
+        "UnifiedDiffViewerTests",
+        "GitPatchTests"
+      ]
+    },
+    "builds": [
+      {
+        "log": "build/qa/raw-patch-codec-build-2026-10-17.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/raw-patch-codec-crlf-build-2026-10-17.log",
+        "exit_code": 0
+      }
+    ],
+    "native": {
+      "passed": 6,
+      "log": "build/qa/raw-patch-codec-crlf-native-2026-10-17.log",
+      "cases": [
+        "raw codecs system Git",
+        "raw codecs bundled Git",
+        "retained document system Git",
+        "retained partial system Git",
+        "retained document bundled Git",
+        "retained partial bundled Git"
+      ]
+    },
+    "owned_receiver_pids": [
+      69275,
+      69426,
+      69492,
+      69571,
+      69670,
+      69698,
+      69742,
+      69755,
+      70043,
+      70056
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/raw-patch-codec-light.png",
+        "sha256": "b3583b29afbec66c5d20d3bf449812e91606d6129cc4e5405dcc3efca7709873",
+        "width": 1800,
+        "height": 1584,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/raw-patch-codec-dark.png",
+        "sha256": "c726c9c3121a766f5b41254253cd92d4b73e622747ac2873c643836eaedbfd7e",
+        "width": 1800,
+        "height": 1584,
+        "individually_viewed": true
+      }
+    ]
+  },
+  "failures_and_repairs": [
+    {
+      "log": "build/qa/raw-patch-codec-native-2026-10-17.log",
+      "kind": "fixture setup",
+      "detail": "Open refused before standalone readOnly/editable-document mode was established; initialize with an empty standalone document."
+    },
+    {
+      "log": "build/qa/raw-patch-codec-native-recheck-2026-10-17.log",
+      "kind": "fixture capture size",
+      "detail": "Capture required 700 points while the source default width is 600. Set the supported private width preference to 900; retain size guard."
+    },
+    {
+      "logs": [
+        "build/qa/raw-patch-codec-native-final-2026-10-17.log",
+        "build/qa/raw-patch-codec-diagnostic-2026-10-17.log"
+      ],
+      "kind": "product rendering defect",
+      "detail": "Dirty clipboard mismatch exposed final CRLF displayed as CR only. Swift hasSuffix on grapheme clusters did not recognize LF inside CRLF; compare final UTF8 byte. Also make remaining text-storage equality exact to avoid canonical spelling/UTF16-range errors. Rebuilt and reran affected native group; unchanged Core result retained."
+    }
+  ],
+  "remaining": [
+    "Mixed-codec edited documents that cannot fit a single captured codec are rejected; no standalone conversion picker",
+    "Dirty NUL text and complete Scintilla byte-editor behavior",
+    "All codepage byte mappings, complete source layouts and physical accessibility/print acceptance",
+    "Physical Finder and signed sandbox/App Store acceptance",
+    "Complete current hosted macOS CI; local focused checks do not certify it"
+  ],
+  "notes": [
+    "No full Core rerun after native-only rendering changes.",
+    "Existing outdated Simulator/exit-zero compiler and other warnings remain; successful build exit codes are not clean-diagnostics claims.",
+    "Raw captures retain inactive title chrome and source palette contrast; no complete visual parity claim."
+  ]
+}

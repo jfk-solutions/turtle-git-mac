@@ -59,6 +59,10 @@ updates are retained in [historical implementation notes](docs/IMPLEMENTATION-NO
 Local build and receiver results do not establish signed sandbox behavior, full
 physical UI acceptance or passing hosted GitHub CI.
 
+[Regional patch text](docs/RAW-PATCH-CODECS.md) covers captured code pages across
+Original Patch, serial previews, partial staging and editable unified diffs,
+including exact-byte exports and explicit limits on mixed-codec editing.
+
 ## Build and run
 
 Requires Xcode with its macOS SDK and command-line tools, Python 3, CMake and Git.
