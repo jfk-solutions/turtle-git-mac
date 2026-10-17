@@ -114,7 +114,11 @@ extension GitRepository {
             guard reference?.target == .tag else { throw CheckoutFailure.invalidRevision }
         }
         let resolved: String
-        do { resolved = try checkoutCommand(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+        do {
+            let output = try checkoutCommand(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).stdout
+            resolved = String(decoding:output,as:UTF8.self).trimmingCharacters(in:.newlines)
+            guard [40,64].contains(resolved.count), resolved.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw CheckoutFailure.invalidRevision }
+        }
         catch { try cancellation?.check(); throw CheckoutFailure.invalidRevision }
         var args = ["switch", "--no-guess"]
         if options.overwriteChanges { args.append("--discard-changes") }
@@ -126,8 +130,7 @@ extension GitRepository {
                 _ = try checkoutCommand(["check-ref-format", "--branch", name], cancellation: cancellation)
             } catch { try cancellation?.check(); throw CheckoutFailure.invalidBranch }
             func exists(_ reference: String) throws -> Bool {
-                do { _ = try checkoutCommand(["show-ref", "--verify", "--quiet", reference], cancellation: cancellation); return true }
-                catch { try cancellation?.check(); return false }
+                try checkoutCommand(["show-ref", "--verify", "--quiet", reference], successfulExitCodes:0...1,cancellation:cancellation).exitCode == 0
             }
             if !options.overrideBranch, try exists("refs/heads/" + name) { throw CheckoutFailure.branchExists }
             if !options.allowTagNameConflict, try exists("refs/tags/" + name) { throw CheckoutFailure.tagNameConflict }

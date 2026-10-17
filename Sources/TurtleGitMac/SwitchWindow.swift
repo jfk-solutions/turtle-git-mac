@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Native Switch form adapted from GitSwitchDlg, TortoiseGit 2008-2024.
 import AppKit
 import SwiftUI
 import TurtleGitCore
@@ -133,11 +135,12 @@ extension UserDefaults {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 370),
             styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Switch/Checkout", preferences: preferences)
-        window.minSize = NSSize(width: 600, height: 390); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: SwitchDialog(model: model).defaultAppStorage(preferences))
+        window.contentMinSize = NSSize(width: 600, height: 390); window.isReleasedWhenClosed = false
+        let host = NSHostingController(rootView: SwitchDialog(model: model).defaultAppStorage(preferences)); host.sizingOptions = []; window.contentViewController = host
         super.init(window: window); window.delegate = self
         pickers = VersionPickerCoordinator(window: window, model: model, access: access, preferences: preferences)
-        window.setContentSize(NSSize(width: 620, height: 370)); window.center()
+        pickers.contextualDraft = { [weak model] in guard let model else { return [] }; return [model.options.branchName, String(model.options.createBranch), String(model.options.overwriteChanges), String(model.options.merge), model.options.tracking.rawValue, String(model.options.overrideBranch)].map { GitReferenceName($0) } }
+        window.setContentSize(NSSize(width: 620, height: 430)); window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, !self.model.hasPendingTagConflict, self.model.browser == nil, self.model.pickerTarget == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] result in
             guard let self else { result.abandonPresentation(); return }
@@ -175,6 +178,8 @@ extension UserDefaults {
     private let access: RepositoryAccessLease?
     private let initialRevision: String?
     private let preferences: UserDefaults
+    @Published private(set) var formRevision = UUID()
+    @Published private(set) var initialFocusRequest = 0
     private var invalidated = false, finished = false
     private var initialLoadToken: OperationCancellation?
     private var checkoutToken: OperationCancellation?
@@ -188,17 +193,17 @@ extension UserDefaults {
         guard progress === result else { return }
         // A controller that was never presented must release its owner without
         // starting Git or waiting for an acknowledgement from its closed window.
-        result.abandonPresentation(); result.invalidate(); progress = nil; busy = false
+        result.abandonPresentation(); result.invalidate(); progress = nil; busy = false; formRevision = UUID()
     }
     func invalidate() {
-        invalidated = true; initialLoadToken?.cancel(); initialLoadToken = nil
+        invalidated = true; formRevision = UUID(); initialLoadToken?.cancel(); initialLoadToken = nil
         checkoutToken?.cancel(); checkoutToken = nil; conflictSnapshot = nil; tagConflict = false
         finishPicker(); referenceFocusRequest = 0; progress?.invalidate(); progress = nil; busy = false
     }
-    func abortTagConflict() { tagConflict = false; conflictSnapshot = nil }
+    func abortTagConflict() { tagConflict = false; conflictSnapshot = nil; formRevision = UUID() }
     func finish(_ result: SwitchProgressWindowModel) {
         guard progress === result, !result.busy, !result.confirmingCancellation else { return }
-        progress = nil; result.invalidate(); busy = false
+        progress = nil; result.invalidate(); busy = false; formRevision = UUID()
         guard !invalidated else { return }
         if result.success { finished = true; close(); onSwitched(result.output) }
     }
@@ -219,8 +224,8 @@ extension UserDefaults {
     private var referenceSelectionToken: OperationCancellation?
     var onBrowsePicker: ((CheckoutTarget) -> Void)?
     func canBrowse(_ target: CheckoutTarget) -> Bool { !busy && progress == nil && !hasPendingTagConflict && browser == nil && pickerTarget == nil && !invalidated && !finished && options.target == target && target != .tag }
-    func beginPicker(_ target: CheckoutTarget) -> Bool { guard canBrowse(target) else { return false }; pickerTarget = target; return true }
-    func finishPicker() { if referenceSelectionToken != nil { referenceSelectionToken?.cancel(); referenceSelectionToken = nil; busy = false }; pickerTarget = nil }
+    func beginPicker(_ target: CheckoutTarget) -> Bool { guard canBrowse(target) else { return false }; formRevision = UUID(); pickerTarget = target; return true }
+    func finishPicker() { if referenceSelectionToken != nil { referenceSelectionToken?.cancel(); referenceSelectionToken = nil; busy = false }; pickerTarget = nil; formRevision = UUID() }
     func focusReference(_ control: NSControl, target: CheckoutTarget) {
         guard !invalidated, !finished, referenceFocusRequest > appliedReferenceFocusRequest, options.target == target,
               !busy, pickerTarget == nil, browser == nil, progress == nil, !hasPendingTagConflict, error == nil,
@@ -234,7 +239,7 @@ extension UserDefaults {
         Self.activeReads += 1
         Task {
             var applied = false
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; formRevision = UUID(); if applied { referenceFocusRequest += 1 }; completion() } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
@@ -267,12 +272,12 @@ extension UserDefaults {
         }
     }
     func load(revision preset: String? = nil) {
-        guard !busy, pickerTarget == nil, progress == nil, !hasPendingTagConflict, !invalidated, !finished else { return }; busy = true
+        guard !busy, pickerTarget == nil, progress == nil, !hasPendingTagConflict, !invalidated, !finished else { return }; formRevision = UUID(); busy = true
         let token = OperationCancellation(); initialLoadToken = token
         let revision = preset ?? initialRevision
         Self.activeReads += 1
         Task {
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if initialLoadToken === token { initialLoadToken = nil; busy = false }; onInitialReadSettled() }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if initialLoadToken === token { initialLoadToken = nil; busy = false; formRevision = UUID(); if !invalidated && !token.isCancelled && error == nil { initialFocusRequest += 1 } }; onInitialReadSettled() }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let (catalog, current) = try await readInitialReferences(token)
@@ -297,12 +302,47 @@ extension UserDefaults {
         options.overrideBranch = false
         options.tracking = remote ? .automatic : .noTrack
         let reference = references.first { GitReferenceName.equal($0.name, revision) }
-        options.branchName = reference?.suggestedBranch ?? "Branch_" + String(commitRevision.prefix(7))
+        options.branchName = reference?.suggestedBranch ?? "Branch_" + String(commitRevision.prefix(8))
         switch options.target {
         case .branch: options.createBranch = remote
         case .tag: options.createBranch = preferences.object(forKey: "SwitchToTagNewBranch") as? Bool ?? true
         case .commit: options.createBranch = preferences.object(forKey: "SwitchToCommitNewBranch") as? Bool ?? true
         }
+    }
+    struct FormContext: Equatable { let owner: ObjectIdentifier; let revision: UUID }
+    var formContext: FormContext { .init(owner: ObjectIdentifier(self), revision: formRevision) }
+    var canEditForm: Bool { !invalidated && !finished && !busy && progress == nil && pickerTarget == nil && browser == nil && !hasPendingTagConflict && error == nil }
+    private func accepts(_ context: FormContext) -> Bool { canEditForm && context == formContext }
+    func selectTarget(_ target: CheckoutTarget, context: FormContext) {
+        guard accepts(context) else { return }; options.target = target; defaults(); formRevision = UUID()
+    }
+    func revisionBinding(_ target: CheckoutTarget, context: FormContext) -> Binding<String> {
+        Binding(get: { switch target { case .branch: return self.branchRevision; case .tag: return self.tagRevision; case .commit: return self.commitRevision } }, set: { value in
+            guard self.accepts(context), self.options.target == target else { return }
+            switch target { case .branch: self.branchRevision = value; case .tag: self.tagRevision = value; case .commit: self.commitRevision = value }
+            self.defaults()
+        })
+    }
+    func option<Value>(_ key: WritableKeyPath<CheckoutOptions,Value>, context: FormContext) -> Binding<Value> {
+        Binding(get: { self.options[keyPath:key] }, set: { value in
+            guard self.accepts(context) else { return }
+            if key == \CheckoutOptions.branchName || key == \CheckoutOptions.overrideBranch { guard self.options.createBranch else { return } }
+            if key == \CheckoutOptions.tracking { guard self.options.createBranch && self.remote else { return } }
+            self.options[keyPath:key] = value
+            if key == \CheckoutOptions.branchName { self.branchNameChanged() }
+            if key == \CheckoutOptions.createBranch, !self.options.createBranch { self.options.overrideBranch = false; self.options.tracking = .noTrack }
+        })
+    }
+    private func branchNameChanged() {
+        guard remote, let reference = references.first(where: { GitReferenceName.equal($0.name,branchRevision) }) else { return }
+        let remoteName = reference.symbolicTarget ?? reference.name, suffix = Array(("/" + options.branchName).utf8)
+        if !remoteName.utf8.suffix(suffix.count).elementsEqual(suffix) { options.tracking = .noTrack }
+    }
+    func browse(_ target: CheckoutTarget, context: FormContext) { guard accepts(context) else { return }; browse(target) }
+    func focusReference(_ control: NSControl, target: CheckoutTarget, context: FormContext) { guard accepts(context) else { return }; focusReference(control,target:target) }
+    private func rememberSelection(_ snapshot: CheckoutOptions) {
+        if snapshot.target == .tag { preferences.set(snapshot.createBranch,forKey:"SwitchToTagNewBranch") }
+        if snapshot.target == .commit { preferences.set(snapshot.createBranch,forKey:"SwitchToCommitNewBranch") }
     }
     func browse(_ target: CheckoutTarget) {
         if let onBrowsePicker { guard canBrowse(target) else { return }; onBrowsePicker(target); return }
@@ -322,17 +362,16 @@ extension UserDefaults {
         if allowTagConflict, let captured = conflictSnapshot { snapshot = captured; snapshot.allowTagNameConflict = true }
         else if hasPendingTagConflict { return }
         conflictSnapshot = nil; tagConflict = false
-        if snapshot.target == .tag { preferences.set(snapshot.createBranch, forKey: "SwitchToTagNewBranch") }
-        if snapshot.target == .commit { preferences.set(snapshot.createBranch, forKey: "SwitchToCommitNewBranch") }
-        busy = true; error = nil
+        formRevision = UUID(); busy = true; error = nil
         let token = OperationCancellation(); checkoutToken = token
         Task {
-            defer { if checkoutToken === token { checkoutToken = nil; if progress == nil { busy = false } } }
+            defer { if checkoutToken === token { checkoutToken = nil; if progress == nil { busy = false; formRevision = UUID() } } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                try await repository.validateCheckout(snapshot, cancellation: token)
+                guard !invalidated, checkoutToken === token, !token.isCancelled else { return }
+                rememberSelection(snapshot)
                 if let onProgress {
-                    try await repository.validateCheckout(snapshot, cancellation: token)
-                    guard !invalidated, checkoutToken === token, !token.isCancelled else { return }
                     let result = SwitchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences)
                     result.onFinished = { [weak self, weak result] output, _ in guard let self, let result, !self.invalidated, self.progress === result else { return }; self.onChanged(output) }
                     result.onPostAction = { [weak self] action, branch in guard let self, !self.invalidated || self.finished else { return }; self.onPostAction?(action, branch) }
@@ -351,40 +390,42 @@ extension UserDefaults {
 
 struct SwitchDialog: View {
     @ObservedObject var model: SwitchWindowModel
+    @FocusState private var createBranchFocused: Bool
     var body: some View {
+        let context = model.formContext
         VStack(spacing: 16) {
             GroupBox("Switch To") {
                 VStack(spacing: 6) {
                     HStack {
-                        SwitchRadio(title: "Branch", target: .branch, selection: $model.options.target).frame(width: 100)
-                        ReferencePopup(references: model.branches, selection: $model.branchRevision, accessibilityLabel: "Switch branch revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .branch) }).disabled(model.options.target != .branch)
-                        Button("…") { model.browse(.branch) }.accessibilityLabel("Browse references").disabled(model.options.target != .branch)
+                        SwitchRadio(title: "Branch", target: .branch, selection: Binding(get: { model.options.target }, set: { model.selectTarget($0,context:context) })).frame(width: 100)
+                        ReferencePopup(references: model.branches, selection: model.revisionBinding(.branch,context:context), accessibilityLabel: "Switch branch revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .branch, context:context) }).disabled(model.options.target != .branch)
+                        Button("…") { model.browse(.branch,context:context) }.accessibilityLabel("Browse references").disabled(model.options.target != .branch)
                     }.frame(height: 26)
                     HStack {
-                        SwitchRadio(title: "Tag", target: .tag, selection: $model.options.target).frame(width: 100)
-                        ReferencePopup(references: model.tags, selection: $model.tagRevision, accessibilityLabel: "Switch tag revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .tag) }).disabled(model.options.target != .tag)
+                        SwitchRadio(title: "Tag", target: .tag, selection: Binding(get: { model.options.target }, set: { model.selectTarget($0,context:context) })).frame(width: 100)
+                        ReferencePopup(references: model.tags, selection: model.revisionBinding(.tag,context:context), accessibilityLabel: "Switch tag revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .tag, context:context) }).disabled(model.options.target != .tag)
                         Color.clear.frame(width: 29)
                     }.frame(height: 26)
                     HStack {
-                        SwitchRadio(title: "Commit", target: .commit, selection: $model.options.target).frame(width: 100)
-                        VersionRevisionField(text: $model.commitRevision, choices: model.commitChoices, focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(model.options.target != .commit)
-                        Button("…") { model.browse(.commit) }.accessibilityLabel("Choose commit").disabled(model.options.target != .commit)
+                        SwitchRadio(title: "Commit", target: .commit, selection: Binding(get: { model.options.target }, set: { model.selectTarget($0,context:context) })).frame(width: 100)
+                        VersionRevisionField(text: model.revisionBinding(.commit,context:context), choices: model.commitChoices, focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit, context:context) }).disabled(model.options.target != .commit)
+                        Button("…") { model.browse(.commit,context:context) }.accessibilityLabel("Choose commit").disabled(model.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8)
             }
             GroupBox("Option") {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Toggle("Create New Branch", isOn: $model.options.createBranch).frame(width: 180, alignment: .leading)
-                        TextField("New branch name", text: $model.options.branchName).disabled(!model.options.createBranch)
+                        Toggle("Create New Branch", isOn: model.option(\.createBranch,context:context)).focused($createBranchFocused).frame(width: 180, alignment: .leading)
+                        TextField("New branch name", text: model.option(\.branchName,context:context)).disabled(!model.options.createBranch)
                     }
                     HStack {
-                        Toggle("Overwrite working tree changes (force)", isOn: $model.options.overwriteChanges)
-                        Spacer(); Toggle("Merge", isOn: $model.options.merge)
+                        Toggle("Overwrite working tree changes (force)", isOn: model.option(\.overwriteChanges,context:context))
+                        Spacer(); Toggle("Merge", isOn: model.option(\.merge,context:context))
                     }
-                    TrackingCheckbox(value: $model.options.tracking, enabled: model.remote && model.options.createBranch)
+                    TrackingCheckbox(value: model.option(\.tracking,context:context), enabled: model.remote && model.options.createBranch)
                         .frame(height: 18).help("Mixed: use Git's automatic tracking configuration. Checked: track this remote branch. Unchecked: no tracking.")
-                    Toggle("Override branch if exists", isOn: $model.options.overrideBranch).disabled(!model.options.createBranch)
+                    Toggle("Override branch if exists", isOn: model.option(\.overrideBranch,context:context)).disabled(!model.options.createBranch)
                 }.padding(8)
             }
             Spacer(minLength: 0)
@@ -395,17 +436,10 @@ struct SwitchDialog: View {
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button("Help") { TurtleGitHelp.show(.checkout) }
             }
-        }.padding(16).disabled(model.busy || model.pickerTarget != nil)
-        .onChange(of: model.options.target) { _ in model.defaults() }
-        .onChange(of: model.branchRevision) { _ in if model.options.target == .branch { model.defaults() } }
-        .onChange(of: model.tagRevision) { _ in if model.options.target == .tag { model.defaults() } }
-        .onChange(of: model.commitRevision) { _ in if model.options.target == .commit { model.defaults() } }
-        .onChange(of: model.options.branchName) { name in
-            if model.remote, let reference = model.references.first(where: { $0.name == model.branchRevision }), name != reference.suggestedBranch { model.options.tracking = .noTrack }
-        }
-        .onChange(of: model.options.createBranch) { create in
-            if !create { model.options.overrideBranch = false; model.options.tracking = .noTrack }
-        }
+        }.padding(16).disabled(model.busy || model.pickerTarget != nil || model.progress != nil || model.hasPendingTagConflict)
+        .onAppear { if model.canEditForm { createBranchFocused = true } }
+        .onChange(of: model.busy) { busy in if busy { createBranchFocused = false } }
+        .onChange(of: model.initialFocusRequest) { _ in if model.canEditForm { createBranchFocused = true } }
         .alert("Switch/Checkout failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
@@ -491,15 +525,16 @@ struct SwitchRadio: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSButton {
-        NSButton(radioButtonWithTitle: title, target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
+        ReferenceChoiceButton(radioButtonWithTitle: title, target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
     }
     func updateNSView(_ button: NSButton, context: Context) {
-        button.state = selection == target ? .on : .off; button.isEnabled = enabled
+        button.state = selection == target ? .on : .off; button.isEnabled = enabled && (button as? ReferenceChoiceButton)?.retired != true
         context.coordinator.change = { selection = target }
     }
+    static func dismantleNSView(_ button: NSButton, coordinator: Coordinator) { coordinator.live = false; button.isEnabled = false; button.target = nil; button.action = nil }
     final class Coordinator: NSObject {
-        var change: () -> Void = {}
-        @objc func clicked(_ sender: NSButton) { change() }
+        var change: () -> Void = {}; var live = true
+        @objc func clicked(_ sender: NSButton) { guard live, sender.isEnabled, sender.window != nil else { return }; change() }
     }
 }
 

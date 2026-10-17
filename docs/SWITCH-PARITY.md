@@ -64,7 +64,7 @@ of the actual native dialog; no mockup or synthetic image was used.
 - Native UI verification of remote three-state tracking, tag warning/abort, force,
   merge conflict recovery and the log/Finder entry points; backend tests cover their
   checkout effects, but do not establish native UI parity.
-- Resize/minimum-size, light appearance, keyboard navigation and accessibility QA.
+- Complete keyboard navigation, resizing at all font/locale sizes and accessibility QA. Source layout and light/dark capture evidence is recorded below.
 - Physical shared progress/cancellation, submodule checkout options, hooks and
   interactive prompts.
 - Broader preference/state persistence and detached/unborn repository scenarios.
@@ -177,3 +177,44 @@ disabled/retired/focus guards. Physical popup and complete dialog acceptance rem
 The connected [local command progress family](LOCAL-COMMAND-PROGRESS-PARITY.md)
 adds live Reset/Switch/Stash output, shared native log styling/copy controls,
 bounded presentation, independent ownership and once-only kill questions.
+
+## Source form and accepted choices — October 17, 2026
+
+The native form keeps all Switch To radio/selector/Browse rows, followed by source
+Create New Branch/name, Force/Merge, Track and Override rows and OK/Cancel/Help.
+Automatic host sizing is disabled and the native window has explicit content and
+minimum bounds. Initial focus requests Create New Branch after the first metadata
+read; picker completion retains its separate reference-focus route.
+
+Revision/radio selection applies defaults synchronously through captured bindings,
+rather than queued view change handlers. Source local/tag suggestions retain
+`Branch_`; typed commit suggestions now use the pinned source's eight characters.
+A remote name edit disables Track only if its exact byte spelling does not match
+the remote's path suffix. An explicit later Track click is retained. Turning off
+branch creation clears Track/Override, and disabled dependent bindings refuse
+writes. Option/base/picker snapshots reject busy, replaced, warning and retired
+owners; the picker captures every checkout option, not just its revision draft.
+Native radios retire with their window just like shared Track controls.
+
+Tag/commit Create New Branch preferences publish only after read-only validation
+accepts the captured choice and any cross-name warning. Rejected names, revisions,
+reference probes and unaccepted warnings leave the remembered choice untouched.
+Execution repeats validation; this is a preflight check rather than atomic
+protection against external Git writers. A resolved commit is parsed only from
+stdout and must be a complete object ID. Existence checks propagate Git failures
+other than the ordinary missing-ref result, preserving semantic error arguments.
+
+The Debug build and all 14 focused Core checks pass. Source native checks pass
+on both system and bundled Git; all four retained picker/progress case/engine checks
+also pass, for six distinct native case/engine passes across the attempts. The first retained picker attempt lacked an explicit
+owned key window for F5. Its repaired fixture rejects a foreign key window and
+accepts its owned one without activating the app. The progress fixture's old
+fixed-position command parser also needed to skip global `-c` arguments before
+its held Switch; its cancellation assertions are retained. Exact results and raw
+light/dark captures are recorded in [batch evidence](qa/switch-source-family-2026-10-17.json).
+The two actual window captures were individually reviewed, and all eight owned
+receivers from the attempts were reaped and independently absent. Native hidden picker
+split-view warnings remain. Public remotes,
+interactive credentials/hooks, physical keyboard/VoiceOver and sheet focus,
+all filesystem/locale boundaries, signed Finder/sandbox and App Store acceptance
+remain open. Full source/application parity is not certified.

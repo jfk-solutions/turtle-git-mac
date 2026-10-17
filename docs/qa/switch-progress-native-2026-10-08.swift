@@ -61,7 +61,13 @@ import TurtleGitCore
         let quoted = "'" + git.path.replacingOccurrences(of:"'",with:"'\\''") + "'"
         let script = """
         #!/bin/sh
-        if [ "${4-}" = switch ] && [ ! -f "$0.release" ]; then
+        task_is_switch() {
+          if [ "${1-}" = --literal-pathspecs ] || [ "${1-}" = --no-literal-pathspecs ]; then shift; fi
+          if [ "${1-}" = -C ]; then shift 2; fi
+          while [ "${1-}" = -c ]; do shift 2; done
+          test "${1-}" = switch
+        }
+        if task_is_switch "$@" && [ ! -f "$0.release" ]; then
           /bin/sleep 30 &
           task_child=$!
           trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT

@@ -352,6 +352,8 @@ jobs:
         run: python3 scripts/test-native-lfs-mail-batch.py
       - name: Native Branch and Tag source forms and connected workflows
         run: python3 scripts/test-branch-tag-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Switch source form and connected workflows
+        run: python3 scripts/test-switch-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Issue Tracker source and Regex Tester workflows
         run: python3 scripts/test-issue-tracker-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native release download and App Store workflows

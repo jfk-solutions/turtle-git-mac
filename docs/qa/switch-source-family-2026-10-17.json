@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "0ffa469603e6f82985606ab1341fbe5cbc8cf04d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source Switch To/Option/footers with explicit native content bounds and initial focus request",
+    "Captured form/revision/option bindings and complete picker options; retired native radios",
+    "Synchronous source defaults, eight-character commit suggestions and exact remote suffix tracking",
+    "Dependent disabled-option guards, validated preference publication and retained native checkout progress/recovery",
+    "Resolved commit stdout validation and failed existence-probe propagation; semantic error arguments retained",
+    "17 newly mapped source controls; 19/19 total partial mappings"
+  ],
+  "build": {
+    "log": "build/qa/switch-source-build-2026-10-17.log",
+    "exit": 0,
+    "exit_zero_no_output_diagnostics": 1
+  },
+  "core": {
+    "log": "build/qa/switch-source-core-2026-10-17.log",
+    "exit": 0,
+    "tests": 14,
+    "failures": 0,
+    "filter": "CheckoutTests|ReferenceCreationUnicodeTests",
+    "scope": [
+      "Warnings separate from detached object identity",
+      "Malformed object and fatal existence probe prevent mutation",
+      "Existing local/remote/tag/detach/force/merge/conflicts/cancellation/validation",
+      "Exact Unicode creation/description/Switch/Push regression"
+    ]
+  },
+  "native": {
+    "distinct_case_engine_passes": 6,
+    "cases": [
+      "source",
+      "pickers",
+      "progress"
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/switch-source-native-2026-10-17.log",
+        "exit": 1,
+        "passed_cases": 2,
+        "failure": "Retained hidden picker F5 lacked explicit key-window ownership; production gate correctly refused it."
+      },
+      {
+        "log": "build/qa/switch-source-owned-native-2026-10-17.log",
+        "exit": 1,
+        "passed_cases": 2,
+        "repair": "Picker fixture injects foreign then owned key window and asserts both outcomes without app activation.",
+        "failure": "Retained progress helper assumed switch at argv[4], failed to hold the command with new global -c options and timed out waiting for its marker."
+      },
+      {
+        "log": "build/qa/switch-source-progress-native-2026-10-17.log",
+        "exit": 0,
+        "passed_cases": 2,
+        "repair": "Fixture parser skips pathspec, -C and -c global options; real No/Yes helper cancellation, retry and deferred-completion assertions retained."
+      }
+    ],
+    "owned_receivers_reaped": [
+      26413,
+      26465,
+      26525,
+      26667,
+      26868,
+      27069,
+      27302,
+      27515
+    ],
+    "independently_absent_owned_receivers": [
+      26413,
+      26465,
+      26525,
+      26667,
+      26868,
+      27069,
+      27302,
+      27515
+    ],
+    "diagnostics": "Hidden native reference/Log picker NSSplitView zero-size warnings remain."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/switch-source-light.png",
+      "sha256": "2db12b11299e6e122bc89941d5a5d77a434085271d82d79bae0110595f91a920",
+      "pixels": [
+        1240,
+        924
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/switch-source-dark.png",
+      "sha256": "69ce55058fdd0df1caa077169226e72ec89ad661fd3ed84428b1359de53ff5d1",
+      "pixels": [
+        1240,
+        924
+      ],
+      "reviewed": true
+    }
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of production SwitchWindowController, privately initialized repositories and UserDefaults. Passive owned window only, no app activation or global input. Real exact-name checkout/progress is exercised separately through production models; retained picker/progress families cover additional ownership, focus and recovery. All windows/receivers closed.",
+  "hosted_observation": {
+    "head": "0ffa469603e6f82985606ab1341fbe5cbc8cf04d",
+    "macos": {
+      "run": 38994546612,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38994546668,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Preflight validation is not atomic against external Git writers",
+    "Normalizing filesystems may constrain coexisting loose canonical-equivalent names",
+    "Physical keyboard/VoiceOver, nested sheet focus and all locale/font/filesystem boundaries remain unverified",
+    "Public transport, credential/signing/hooks, Finder activation, signed sandbox/distribution and App Store acceptance remain open",
+    "Focused passes do not certify complete hosted integration, complete Switch dialog or full port parity"
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/switch-source-site-2026-10-17.log"
+  }
+}

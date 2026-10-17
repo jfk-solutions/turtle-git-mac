@@ -1919,3 +1919,14 @@ Git creation, description, Switch and Push commands retain exact names/messages
 without changing persistent path preferences. All 22 source controls have partial
 mappings. See [Branch/Tag parity](BRANCH-TAG-PARITY.md#source-form-and-exact-creation-handoffs--october-17-2026).
 The Debug build and eight grouped native case/engine checks pass. Core initially passed 32 of 35 cases; repairs to exact catalog reads and semantic error arguments then passed all 13 affected cases without rerunning unaffected checks. Native validation exposed a fixture entry-point error and delayed Track updates; both were repaired before the grouped pass. All four raw light/dark captures were individually reviewed, and all nine owned receivers from the attempts were reaped and independently absent. See [batch evidence](qa/branch-tag-source-family-2026-10-17.json) for failures, scope and remaining acceptance.
+
+### Switch source form and accepted choices — October 17, 2026
+
+The connected Switch options/validation/picker/progress family now uses captured
+native form bindings, synchronous source suggestions and exact remote suffix
+tracking, source eight-character commit suggestions and owned native radios.
+Remembered tag/commit choices publish after validation/warning acceptance;
+checkout rejects malformed object output and propagates failed existence probes.
+All 17 previously pending static controls receive partial mappings. See
+[Switch parity](SWITCH-PARITY.md#source-form-and-accepted-choices--october-17-2026).
+The Debug build, 14 focused Core checks and six native case/engine checks pass. Two retained fixtures needed repairs: explicit owned/foreign key-window injection for F5 and command-option parsing for the held Switch cancellation helper. Production ownership and cancellation assertions remain intact; unaffected Core/source checks were not repeated. Both raw light/dark captures were individually reviewed, and all eight owned receivers from the attempts were reaped and independently absent. See [batch evidence](qa/switch-source-family-2026-10-17.json) for exact scope and remaining acceptance.

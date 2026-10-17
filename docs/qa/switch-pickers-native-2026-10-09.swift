@@ -73,7 +73,10 @@ import TurtleGitCore
         try require(!owner.model.references.contains(where:{$0.name=="refs/tags/late"}),"Late reference already in parent catalog")
         _ = try await repo.run(["update-ref","refs/tags/late",prior])
         guard let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:refresh.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:96) else { throw Failure(description:"F5 event unavailable") }
-        try require(refresh.window!.performKeyEquivalent(with:event),"F5 not handled")
+        refresh.commandKeyWindow = { nil }
+        try require(!refresh.window!.performKeyEquivalent(with:event),"Foreign window accepted F5")
+        refresh.commandKeyWindow = { [weak refresh] in refresh?.window }
+        try require(refresh.window!.performKeyEquivalent(with:event),"Owned F5 not handled")
         try await wait([refresh.window!]) { !refresh.model.busy && refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == true }
         let lateChoice=refresh.model.snapshot!.initialSelection("refs/tags/late"); refresh.model.setFolder(lateChoice.folder); refresh.model.selected=lateChoice.reference; refresh.model.accept()
         try await wait([owner.window!]) { !owner.model.busy && owner.model.pickerTarget == nil && owner.model.options.target == .tag }
