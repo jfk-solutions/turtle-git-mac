@@ -2532,3 +2532,49 @@ small supported width. See [shared Find parity](UNIFIED-DIFF-VIEWER-PARITY.md#pi
 [batch evidence](qa/unified-find-source-family-2026-10-17.json). The actual retained
 line stage/hunk unstage workflow passes with both Git engines; full physical,
 byte/codepage and signed acceptance remains open.
+
+
+## Exact changelist storage and group identities — October 17, 2026
+
+Changelist assignments and names now use exact UTF-8 identities. Canonically
+equivalent spellings retain separate memberships, source groups and native menu
+items. Ambiguous names expose their UTF-8 bytes in help/accessibility labels.
+Group row IDs encode the exact group name; group equality/hashing no longer merges
+Swift-equivalent strings. A canonical-only assignment change invalidates captured
+Commit file menus. Name ordering follows UTF-16 source order.
+
+The native metadata document writes version 2 array records, retaining exact path
+and name strings without relying on JSON object-key equality. Existing version 1
+JSON is imported by enumerating NSString keys, and upstream UTF-8/BOM UTF-16
+changelists retain exact keys/names. Mutations upgrade the native document while
+leaving the original upstream text untouched. Duplicate exact version 2 paths,
+invalid metadata/paths and unsupported versions fail without replacing the file.
+Locking, cross-actor reload, atomic rename and cancellation remain in force.
+
+Scoped pruning now accepts exact path-name sets and matches directory boundaries
+by raw bytes; Commit captures unchecked/restored retention keys before set
+insertion. The compatibility `assignments` projection remains for older callers
+and cannot represent two Swift-equivalent keys; product consumers use exact
+lookups/storage. The wider status parser/file-table selection, metadata dictionaries,
+restore-copy and checked-path sets still need their separate exact-name migration.
+This changelist batch does not certify those wider file workflows.
+
+The Debug build, all sixteen focused Core checks and the grouped native family
+pass without repair/repetition, using system and bundled Git. Core covers exact
+path/name persistence across actors, Codable, version 1 JSON and both UTF-16 text
+imports, version 2 upgrade, duplicate-record refusal, exact scoped pruning and
+cancellation, plus the retained storage/group regressions. Native Commit and
+Working Tree preserve two canonical changelist spellings, distinct group row IDs,
+help, captured membership changes and canonical-only Commit menu invalidation.
+A real selected-file commit removes its assignment and preserves both unchecked
+names. All four raw light/dark captures were individually reviewed; both owned
+receivers were reaped and independently absent. No whole file-selection migration
+or physical/signed acceptance follows from these checks. See
+[batch evidence](qa/changelist-identities-2026-10-17.json).
+
+![Commit with byte-distinct changelist names, light](site/assets/commit-changelists-light.png)
+![Commit with byte-distinct changelist names, dark](site/assets/commit-changelists-dark.png)
+
+Complete physical menus, VoiceOver, upstream legacy codepages and signed AppStore
+acceptance remain open. Older builds that only read version 1 cannot read a native
+metadata document after its first successful version 2 mutation.

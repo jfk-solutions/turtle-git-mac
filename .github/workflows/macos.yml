@@ -627,6 +627,8 @@ jobs:
         run: python3 scripts/test-commit-message-encoding.py
       - name: Native Commit and Rebase message-file receiver
         run: python3 scripts/test-commit-message-file.py
+      - name: Native exact changelist Commit and Working Tree family
+        run: python3 scripts/test-changelist-family.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native Commit settings and selection receiver
         run: python3 scripts/test-commit-selection-settings.py
       - name: Native Commit dirty-submodule workflow receiver

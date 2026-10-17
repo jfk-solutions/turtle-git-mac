@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-17",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": "src/Git/GitStatusListCtrl.cpp::LoadChangelists/SaveChangelists/grouping and CommitDlg cleanup",
+  "scope": "Connected exact changelist metadata, legacy import/migration, grouping/native name targets and successful-commit cleanup; wider working-file selection remains open.",
+  "implemented": [
+    "Byte-exact UTF-8 path/name map and equality, source UTF-16 name ordering, exact group equality/hashing and encoded non-path group row IDs.",
+    "Version 2 array records avoid JSON object-key normalization; duplicate exact rows fail before mutation.",
+    "Legacy version 1 JSON imported through NSString key enumeration; UTF-8/BOM UTF-16 upstream text preserves exact path/name spellings and remains untouched.",
+    "Atomic locked mutation reloads other actor changes and preserves existing invalid/unsupported/locked metadata; cancellation retains prior contents.",
+    "Exact path-name pruning API uses byte directory boundaries and cancelled-operation checks; Commit retains unchecked/restored path keys before set insertion.",
+    "Product consumers use exact names/assignments; the older String dictionary projection is explicitly a lossy compatibility view.",
+    "Native Commit/Working Tree Move menu identities, group membership, help/accessibility for ambiguous spellings and Commit captured-menu invalidation."
+  ],
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'ChangelistTests|StatusListGroupTests'",
+    "log": "build/qa/changelist-identities-core-2026-10-17.log",
+    "exit_code": 0,
+    "tests": 16,
+    "failures": 0,
+    "duration_seconds": 2.632,
+    "invocations": 1,
+    "cases": "Retained storage/import/lock/worktree/cleanup/group checks plus exact canonical paths/names, cross-actor read/update/remove, Codable, legacy JSON/UTF-16 upgrade, duplicate records, raw scoped pruning and cancellation."
+  },
+  "build": {
+    "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+    "log": "build/qa/changelist-identities-build-2026-10-17.log",
+    "exit_code": 0,
+    "invocations": 1,
+    "empty_output_exit_zero_diagnostics": 0,
+    "warnings": "Existing compiler warnings remain; no warning-free claim."
+  },
+  "native": {
+    "command": "python3 scripts/test-changelist-family.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git --captures docs/site/assets",
+    "log": "build/qa/changelist-identities-native-2026-10-17.log",
+    "exit_code": 0,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "invocations": 1,
+    "receiver_pids": [
+      73775,
+      73990
+    ],
+    "independently_absent": true,
+    "cases": [
+      "Native Commit retains two canonical name identities and group header IDs.",
+      "Exact group membership and ambiguous UTF-8 help.",
+      "Canonical-only membership change invalidates captured Commit menus.",
+      "Commit Create applies captured raw name, Cancel does not write metadata.",
+      "Working Tree reopens exact metadata, selects separate groups and moves only selected members.",
+      "Membership changes preserve actual HEAD and index.",
+      "Real selected-file commit commits only one, prunes its assignment and retains both unchecked exact changelist names."
+    ],
+    "limits": "Names use two different Unicode spellings on distinct ordinary filenames. Native file-table selection of two canonically equivalent filenames is not covered and remains open. Progress result is dismissed through the existing model seam; no new progress UI claim."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/commit-changelists-dark.png",
+      "width": 2000,
+      "height": 1584,
+      "sha256": "8e3373113124fa8b13ea6bebe2a8ec4f7e1f6c691cd66aae242918f3dfb848d5",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Both visually equivalent group headings retain their separate source file slots; colored statuses and source controls/footer remain visible in light/dark. No pixel-identical Windows or physical-input claim."
+    },
+    {
+      "path": "docs/site/assets/commit-changelists-light.png",
+      "width": 2000,
+      "height": 1584,
+      "sha256": "01ddcc5ca18e4f8e2f45c8b56bd41f0728c4e49c029f2ba2c78b4126f77198aa",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Both visually equivalent group headings retain their separate source file slots; colored statuses and source controls/footer remain visible in light/dark. No pixel-identical Windows or physical-input claim."
+    },
+    {
+      "path": "docs/site/assets/working-tree-changelists-dark.png",
+      "width": 2200,
+      "height": 1324,
+      "sha256": "f18d717fc99275d03c7d31fc0effe4fbf6f45a50f445668b77ff73fecc9af384",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Both visually equivalent group headings retain their separate source file slots; colored statuses and source controls/footer remain visible in light/dark. No pixel-identical Windows or physical-input claim."
+    },
+    {
+      "path": "docs/site/assets/working-tree-changelists-light.png",
+      "width": 2200,
+      "height": 1324,
+      "sha256": "f0836c1d3b602798866e2c8a4097a793abf3c701a7c9f267b47071d05d184dd0",
+      "raw_owned_window": true,
+      "individually_reviewed": true,
+      "review": "Both visually equivalent group headings retain their separate source file slots; colored statuses and source controls/footer remain visible in light/dark. No pixel-identical Windows or physical-input claim."
+    }
+  ],
+  "coverage": {
+    "new_control_mappings": 0,
+    "certified_dialogs": 0,
+    "mapped_controls": 1566,
+    "pending_controls": 93,
+    "pending_family_reviews": 10
+  },
+  "remaining": [
+    "Wider status parser/file-table selection/checked-path/metadata/restore-copy String identity migration",
+    "Physical menus, keyboard and VoiceOver acceptance",
+    "Other upstream legacy codepages and Windows path adaptation",
+    "Signed sandbox, security scopes and AppStore/Finder acceptance",
+    "Current full hosted CI and earlier folding timeout investigation",
+    "Regenerate distribution snapshots at next release checkpoint; prior preview/archive remains tied to 1286765a"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/Changelists.swift": "25cda35e6f62f95bd106d95043b057105ac5ca243df68c4a7c155bf01915ec57",
+    "Sources/TurtleGitCore/StatusListGroups.swift": "d303d3ce267a56f9aec1dab627474cfbaa20406a2b7b93fe6f35ea2b6913d0c6",
+    "Sources/TurtleGitMac/CommitWindow.swift": "73c4143a782867ce6397ecc61279a7cd99023b0575b47f690fc01a355568e60e",
+    "Sources/TurtleGitMac/StatusWindow.swift": "e1d2565066b107b9826115274d7e0c86d8dfc6ac5d249c1c9781a6a960699375",
+    "Tests/TurtleGitCoreTests/ChangelistTests.swift": "0a0926298e02566ba25c2f5ccb9fc33ef58061e2542c481448376a97fb477320",
+    "Tests/TurtleGitCoreTests/StatusListGroupTests.swift": "eb5b93a0e3862bb079a86d696eda48d93015c8573980e72093a3cc8302d92846",
+    "scripts/test-changelist-family.py": "35cbcf476e6d376e7b69d17dfb65362e6d5eaa55b20a535e8f4aa6146c9b90d5",
+    "docs/qa/changelist-identities-native-2026-10-17.swift": "2d18428f454f2c6ebc0bdc1a4e5f483f5741488adfbecb8935d0034313cb0479",
+    ".github/workflows/macos.yml": "bd0b5e51b6cca9f03022144d6a5e205f83c13179b5c1d1f5401e5b6d26000ecc"
+  },
+  "documentation": {
+    "coverage_reconciled": true,
+    "help_check": {
+      "exit_code": 0,
+      "documents": 36,
+      "topics": 47,
+      "files": 50,
+      "bytes": 1971555
+    },
+    "site": {
+      "exit_code": 0,
+      "documents": 266,
+      "unresolved_fragments": [],
+      "log": "build/qa/changelist-identities-site-2026-10-17.log"
+    }
+  }
+}

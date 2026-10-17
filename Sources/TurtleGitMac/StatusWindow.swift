@@ -5,6 +5,17 @@ import SwiftUI
 import UniformTypeIdentifiers
 import TurtleGitCore
 
+/// Both spellings remain selectable; clarify visually identical source names.
+func changelistNameHelp(_ name: GitReferenceName, names: [GitReferenceName]) -> String {
+    guard names.contains(where: { $0 != name && $0.rawValue == name.rawValue }) else { return name.rawValue }
+    return name.rawValue + "\nUTF-8: " + name.rawValue.utf8.map { String(format: "%02X", $0) }.joined(separator: " ")
+}
+
+func changelistGroupHelp(_ group: StatusListGroup, lists: GitChangelists) -> String {
+    if case .changelist(let name) = group { return changelistNameHelp(GitReferenceName(name), names: lists.nameIdentities) }
+    return group.title
+}
+
 struct StatusRow: Identifiable {
     let file: WorkingTreeFile
     let statistics: CommitFile?
@@ -798,7 +809,7 @@ struct StatusDialog: View {
                     if let row = item.contents {
                         HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).lineLimit(1) }
                             .repositoryFileHelp(repository: model.repository.root, path: row.path, detail: row.file.entry.originalPath.map { "Renamed from " + $0 } ?? "", preferences: model.colorPreferences)
-                    } else if let group = item.row.group { Text(group.title).font(.headline).foregroundStyle(Color.accentColor).accessibilityLabel(group.title) }
+                    } else if let group = item.row.group { Text(group.title).font(.headline).foregroundStyle(Color.accentColor).help(changelistGroupHelp(group, lists: model.changelists)).accessibilityLabel(changelistGroupHelp(group, lists: model.changelists)) }
                 }.width(min: 250, ideal: 380)
                 TableColumn("Filename", sortUsing: StatusGroupedSort(column: .fileName)) { item in groupCell(item, column: .fileName) }.width(min: 100, ideal: 180)
                 TableColumn("Extension", sortUsing: StatusGroupedSort(column: .fileExtension)) { item in groupCell(item, column: .fileExtension) }.width(min: 45, ideal: 65)
@@ -881,15 +892,15 @@ struct StatusDialog: View {
                     }
                     if model.canAssignChangelist(snapshot) {
                         Divider()
-                        if snapshot.entries.contains(where: { model.changelists.assignments[$0.path] != nil }) {
+                        if snapshot.entries.contains(where: { model.changelists.name(for: $0.path) != nil }) {
                             Button("Remove from changelist") { model.assignChangelist(snapshot, name: nil) }
                         }
                         Menu("Move to changelist") {
                             Button("<new changelist>") { model.assignChangelist(snapshot, name: nil, creating: true) }
                             Divider()
                             Button(GitChangelists.ignored) { model.assignChangelist(snapshot, name: GitChangelists.ignored) }
-                            ForEach(model.changelists.names.filter { $0 != GitChangelists.ignored }, id: \.self) { name in
-                                Button(name) { model.assignChangelist(snapshot, name: name) }
+                            ForEach(model.changelists.nameIdentities.filter { $0.rawValue != GitChangelists.ignored }, id: \.self) { name in
+                                Button(name.rawValue) { model.assignChangelist(snapshot, name: name.rawValue) }.help(changelistNameHelp(name, names: model.changelists.nameIdentities)).accessibilityLabel(changelistNameHelp(name, names: model.changelists.nameIdentities))
                             }
                         }
                         Toggle("Keep changelists", isOn: Binding(get: { model.keepChangelists }, set: { model.setKeepChangelists($0, snapshot: snapshot) }))

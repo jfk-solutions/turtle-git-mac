@@ -796,6 +796,7 @@
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/changelist-identities-2026-10-17.json",
         "docs/qa/commit-amend-focus-2026-10-09.json",
         "docs/qa/commit-author-field-2026-10-09.json",
         "docs/qa/commit-branch-focus-2026-10-09.json",
@@ -3111,6 +3112,7 @@
         "docs/COMMIT-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/changelist-identities-2026-10-17.json",
         "docs/qa/commit-amend-focus-2026-10-09.json",
         "docs/qa/commit-author-field-2026-10-09.json",
         "docs/qa/commit-branch-focus-2026-10-09.json",

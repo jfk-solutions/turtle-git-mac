@@ -405,3 +405,20 @@ scope behavior remain. No extra Git fetch or remote-status feature is introduced
 All fifteen static Changed Files controls now have partial mappings, including
 explicit dormant-resource decisions. Four distinct native case/engine combinations pass with system and bundled Git. Both raw light/dark captures were individually reviewed: the selectable statistics wrap without clipping and the native Stash footer fits. All eight owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/working-tree-footer-2026-10-17.json) for the fixture repairs and remaining acceptance. Physical input/VoiceOver, all mixed-action cases, real child-dialog
 completion and signed Finder/App Store acceptance remain open.
+
+
+## Exact changelist groups — October 17, 2026
+
+Working Tree shares the [exact changelist storage and grouping family](COMMIT-PARITY.md#exact-changelist-storage-and-group-identities--october-17-2026).
+Native Move menus use byte-exact identities, group lookups distinguish canonical
+spellings and ambiguous name help/accessibility exposes UTF-8 bytes. Assigning,
+removing and reopening membership shares the atomic, versioned repository data.
+The wider working-file selection identity migration remains open; this does not
+certify every filename or the complete dialog.
+
+The grouped native family passes with both Git engines, including exact group
+selection, moving membership, reopening metadata and preserving Git state before
+the explicit commit. All owned receivers were reaped. Final raw captures:
+
+![Working Tree changelists, light](site/assets/working-tree-changelists-light.png)
+![Working Tree changelists, dark](site/assets/working-tree-changelists-dark.png)

@@ -421,7 +421,7 @@ import UniformTypeIdentifiers
     var visibleFileColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) && availableFileColumns.contains($0) } }
     @Published var fileSortOrder = [CommitFileSort(column: .path)] { didSet { if !fileSortOrder.elementsEqual(oldValue, by: { $0.column == $1.column && $0.order == $1.order }) { fileMenuGeneration = UUID() } } }
     @Published var focusedFiles: [String: String] = [:] { didSet { if focusedFiles != oldValue { fileMenuGeneration = UUID() } } }
-    @Published var changelists = GitChangelists() { didSet { if changelists.assignments != oldValue.assignments { fileMenuGeneration = UUID() } } }
+    @Published var changelists = GitChangelists() { didSet { if changelists != oldValue { fileMenuGeneration = UUID() } } }
     @Published var changelistsLoaded = false
     @Published var keepChangelists = false
     @Published var creatingChangelist = false
@@ -1149,7 +1149,7 @@ import UniformTypeIdentifiers
     }
     func fileHelp(_ entry: StatusEntry) -> String {
         let origin = entry.originalPath.map { "Renamed from " + $0 } ?? ""
-        return changelists.assignments[entry.path].map { origin + (origin.isEmpty ? "" : "\n") + "Changelist: " + $0 } ?? origin
+        return changelists.name(for: entry.path).map { origin + (origin.isEmpty ? "" : "\n") + "Changelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: Set<String> { Set(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
     var canCommit: Bool { messageFocusAvailable && !stagingStateNeedsRefresh && !savingPreferences && !stagingHintVisible && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: { isStaged($0) }) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
@@ -1666,7 +1666,8 @@ import UniformTypeIdentifiers
         if replaySplit == nil && historyCombine == nil { completionAction = action }
         let rawMessage = message, rawIssueID = issueID, properties = issueProperties, provider = nativeIssueProvider, paths = checkedPathsForCommit, staging = stagingEnabled
         let committedPaths = staging ? Set(entries.filter { isStaged($0) }.map(\.path)) : messageOnly ? Set<String>() : paths
-        let retainedChangelists = Set(visibleEntries.filter { !committedPaths.contains($0.path) }.map(\.path)).union(restoreCopies.keys)
+        let committedPathNames = Set(committedPaths.map { GitReferenceName($0) })
+        let retainedChangelists = Set(visibleEntries.filter { !committedPathNames.contains(GitReferenceName($0.path)) }.map { GitReferenceName($0.path) }).union(restoreCopies.keys.map { GitReferenceName($0) })
         let pruningScope = showWholeProject ? [] : scopePaths
         let preserveChangelists = keepChangelists
         var options = CommitOptions(); options.amend = amend; options.amendDiffToLastCommit = amendDiffToLastCommit; options.author = setAuthor ? author : nil
@@ -1807,7 +1808,7 @@ import UniformTypeIdentifiers
                     busy = false; reload(); return
                 }
                 if !preserveChangelists {
-                    do { changelists = try await repository.pruneChangelists(retaining: retainedChangelists, scope: pruningScope) }
+                    do { changelists = try await repository.pruneChangelists(retainingPathNames: retainedChangelists, scope: pruningScope) }
                     catch {
                         self.error = "The commit succeeded, but updating changelists failed.\n\n" + error.localizedDescription
                         busy = false; reload(); return
@@ -2241,7 +2242,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     HStack {
                         Text(group.title).font(.headline).foregroundStyle(Color.accentColor)
                         Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1)
-                    }.accessibilityLabel(group.title)
+                    }.help(changelistGroupHelp(group, lists: model.changelists)).accessibilityLabel(changelistGroupHelp(group, lists: model.changelists))
                 }
             }.width(min: 260, ideal: 420)
             TableColumn("Filename", sortUsing: CommitFileSort(column: .fileName)) { (row: CommitSortableRow) in
@@ -2379,17 +2380,17 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     // bits: only a pure Added action (1) is excluded, not UNVER (0x80000000).
                     if !selected.isEmpty, let mark = selectionMark, !(mark.index == "A" && mark.worktree == " ") {
                         Divider()
-                        if selected.contains(where: { model.changelists.assignments[$0.path] != nil }) {
+                        if selected.contains(where: { model.changelists.name(for: $0.path) != nil }) {
                             Button("Remove from changelist") { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: nil) } }
                         }
                         Menu("Move to changelist") {
                             Button("<new changelist>") { model.withFileMenu(menuSnapshot) { model.newChangelist(selected) } }
                             Divider()
                             Button(GitChangelists.ignored) { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: GitChangelists.ignored) } }
-                            let names = model.changelists.names.filter { $0 != GitChangelists.ignored }
+                            let names = model.changelists.nameIdentities.filter { $0.rawValue != GitChangelists.ignored }
                             if !names.isEmpty {
                                 Divider()
-                                ForEach(names, id: \.self) { name in Button(name) { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: name) } } }
+                                ForEach(names, id: \.self) { name in Button(name.rawValue) { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: name.rawValue) } }.help(changelistNameHelp(name, names: names)).accessibilityLabel(changelistNameHelp(name, names: names)) }
                             }
                         }
                         Toggle("Keep changelists", isOn: Binding(get: { model.keepChangelists }, set: { model.saveKeepChangelists($0) }))

@@ -6,6 +6,18 @@ final class StatusListGroupTests: XCTestCase {
         let characters = Array(status)
         return StatusEntry(path: path, originalPath: nil, index: characters[0], worktree: characters[1])
     }
+    func testCanonicalChangelistNamesKeepSeparateGroupsAndHeaderIDs() {
+        let first = "réview", second = "re\u{301}view"
+        let lists = GitChangelists(exactAssignments: ["one": GitReferenceName(first), "two": GitReferenceName(second)])
+        let entries = StatusEntry.parse(Data(" M one\0 M two\0".utf8))
+        let rows = StatusListGroups.rows(entries: entries, changelists: lists)
+        XCTAssertEqual(rows.count, 4)
+        XCTAssertEqual(Set(rows.map(\.id)).count, 4)
+        XCTAssertEqual(Set(rows.compactMap(\.group)).count, 2)
+        XCTAssertEqual(StatusListGroups.files(in: .changelist(first), rows: rows).map(\.path), ["one"])
+        XCTAssertEqual(StatusListGroups.files(in: .changelist(second), rows: rows).map(\.path), ["two"])
+    }
+
     func testStatusCategoriesMembershipPrecedenceAndIgnoreLast() {
         let entries = [entry("z-ignore"), entry("modified"), entry("a-named", "??"), entry("untracked", "??"), entry("ignored", "!!"), entry("flagged"), entry("b-named")]
         let lists = GitChangelists(assignments: ["z-ignore": GitChangelists.ignored, "a-named": "Alpha 雪", "b-named": "Beta", "not-shown": "Empty"])

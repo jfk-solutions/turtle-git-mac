@@ -2,6 +2,71 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ChangelistTests: XCTestCase {
+    func testExactPathAndNamePersistenceAcrossActorsAndCodable() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let a = "café/file", b = "cafe\u{301}/file", first = "réview", second = "re\u{301}view"
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        _ = try await repo.assignChangelist(paths: [a, b, a], name: first)
+        let other = GitRepository(root: root)
+        let lists = try await other.assignChangelist(paths: [b], name: second)
+        XCTAssertEqual(lists.exactAssignments.count, 2)
+        XCTAssertEqual(lists.nameIdentities.count, 2)
+        XCTAssertTrue(GitReferenceName.equal(try XCTUnwrap(lists.name(for: a)), first))
+        XCTAssertTrue(GitReferenceName.equal(try XCTUnwrap(lists.name(for: b)), second))
+        XCTAssertEqual(try JSONDecoder().decode(GitChangelists.self, from: JSONEncoder().encode(lists)), lists)
+        let read = try await repo.changelists(); XCTAssertEqual(read, lists)
+        let removed = try await repo.assignChangelist(paths: [a], name: nil)
+        XCTAssertNil(removed.name(for: a)); XCTAssertTrue(GitReferenceName.equal(try XCTUnwrap(removed.name(for: b)), second))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+    func testLegacyJSONObjectAndUTF16ImportRetainCanonicalSpellings() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent(".git/turtlegit-changelists.json")
+        let json = #"{"version":1,"assignments":{"café":"réview","cafe\u0301":"re\u0301view"}}"#
+        try Data(json.utf8).write(to: file)
+        var lists = try await repo.changelists()
+        XCTAssertEqual(lists.exactAssignments.count, 2); XCTAssertEqual(lists.nameIdentities.count, 2)
+        _ = try await repo.assignChangelist(paths: ["another"], name: "Third")
+        struct Header: Decodable { let version: Int }
+        XCTAssertEqual(try JSONDecoder().decode(Header.self, from: Data(contentsOf: file)).version, 2)
+        lists = try await repo.changelists(); XCTAssertEqual(lists.exactAssignments.count, 3)
+        let legacy = root.appendingPathComponent(".git/tgitchangelist")
+        let text = "<réview>\ncafé\n<re\u{301}view>\ncafe\u{301}\n"
+        for (bom, encoding) in [(Data([255,254]), String.Encoding.utf16LittleEndian), (Data([254,255]), .utf16BigEndian)] {
+            try FileManager.default.removeItem(at: file)
+            let bytes = bom + (try XCTUnwrap(text.data(using: encoding))); try bytes.write(to: legacy)
+            lists = try await repo.changelists()
+            XCTAssertEqual(lists.exactAssignments.count, 2); XCTAssertEqual(lists.nameIdentities.count, 2)
+            _ = try await repo.assignChangelist(paths: ["third"], name: "Third")
+            XCTAssertEqual(try Data(contentsOf: legacy), bytes)
+        }
+    }
+    func testExactScopedPruningAndCancellationPreserveOtherSpelling() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let a = "café", b = "cafe\u{301}"
+        try FileManager.default.createDirectory(at: root.appendingPathComponent(a), withIntermediateDirectories: true)
+        _ = try await repo.assignChangelist(paths: [a + "/one", b + "/two"], name: "Work")
+        let lists = try await repo.pruneChangelists(retainingPathNames: [], scope: [a])
+        XCTAssertNil(lists.name(for: a + "/one")); XCTAssertEqual(lists.name(for: b + "/two"), "Work")
+        let file = root.appendingPathComponent(".git/turtlegit-changelists.json"), before = try Data(contentsOf: file)
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.pruneChangelists(retainingPathNames: [], cancellation: token); XCTFail("Cancelled pruning wrote metadata") } catch is OperationCancellationFailure {}
+        XCTAssertEqual(try Data(contentsOf: file), before)
+    }
+    func testDuplicateExactRecordsAreRefusedWithoutOverwriting() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent(".git/turtlegit-changelists.json")
+        let bytes = Data(#"{"version":2,"assignments":[{"path":"file","name":"A"},{"path":"file","name":"B"}]}"#.utf8)
+        try bytes.write(to: file)
+        do { _ = try await repo.assignChangelist(paths: ["file"], name: "Changed"); XCTFail("Duplicate record accepted") } catch {}
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path + ".lock"))
+    }
+
     func testCancelledAssignmentRetainsExistingMetadataAndGitIndex() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

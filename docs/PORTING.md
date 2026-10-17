@@ -2163,3 +2163,26 @@ reviewed, and all three owned native receivers were independently absent. Help a
 source parity documentation are updated. Full physical, visual, VoiceOver, large
 history and signed acceptance remain open. See
 [batch evidence](qa/statistics-source-family-2026-10-17.json).
+
+
+## Exact changelist storage and Commit/Working Tree groups — October 17, 2026
+
+This connected changelist batch replaces normalized Swift dictionary/set identity
+with exact UTF-8 path/name keys. Native group equality, stable row IDs, Move menu
+items, ambiguous-name help/accessibility and Commit menu invalidation now retain
+canonically equivalent spellings separately. Source ordering uses UTF-16. Version
+2 metadata writes array records; legacy version 1 JSON and upstream UTF-8/BOM
+UTF-16 import remain supported, with atomic locked mutation, cross-actor reload,
+exact scoped pruning and cancellation. Commit retains unchecked/restored keys
+before set insertion for cleanup. Product consumers use exact lookups; the old
+String dictionary projection remains a limited compatibility API.
+
+One Debug build, sixteen focused Core checks and one native group across system
+and bundled Git pass, with no repair/repetition. A real selected-file commit prunes
+its own assignment and retains the two exact unchecked names. Four raw light/dark
+Commit/Working Tree captures were individually reviewed; both owned native
+receivers were reaped and independently absent. Full status-parser, file-table
+selection, metadata dictionary, checked-path and restore-copy identity migration
+remains open, along with physical and signed acceptance. This is a changelist
+family improvement, not full filename or application certification. See
+[batch evidence](qa/changelist-identities-2026-10-17.json).

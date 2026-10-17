@@ -11,6 +11,8 @@ public enum StatusListGroup: Hashable, Sendable {
         case .changelist(let name): return name
         }
     }
+    public static func == (lhs: Self, rhs: Self) -> Bool { GitReferenceName.equal(lhs.identity, rhs.identity) }
+    public func hash(into hasher: inout Hasher) { hasher.combine(GitReferenceName(identity)) }
     fileprivate var identity: String {
         switch self {
         case .modified: return "modified"
@@ -28,7 +30,7 @@ public enum StatusListRow: Identifiable, Hashable, Sendable {
     case group(StatusListGroup), file(StatusEntry)
     public var id: String {
         switch self {
-        case .group(let group): return "\0group:" + group.identity
+        case .group(let group): return "\0group:" + Data(group.identity.utf8).base64EncodedString()
         case .file(let entry): return entry.id
         }
     }
@@ -40,12 +42,12 @@ public enum StatusListGroups {
     /// Match PrepareGroups/SetItemGroup: explicit membership precedes flags and
     /// status categories; ordinary changelists precede ignore-on-commit.
     public static func rows(entries: [StatusEntry], changelists: GitChangelists, locallyIgnored: Set<String> = []) -> [StatusListRow] {
-        let enabled = !changelists.assignments.isEmpty || entries.contains { [.untracked, .ignored].contains($0.state) || locallyIgnored.contains($0.path) }
+        let enabled = !changelists.exactAssignments.isEmpty || entries.contains { [.untracked, .ignored].contains($0.state) || locallyIgnored.contains($0.path) }
         guard enabled else { return entries.map(StatusListRow.file) }
         var buckets: [StatusListGroup: [StatusEntry]] = [:]
         for entry in entries {
             let group: StatusListGroup
-            if let name = changelists.assignments[entry.path] { group = .changelist(name) }
+            if let name = changelists.name(for: entry.path) { group = .changelist(name) }
             else if locallyIgnored.contains(entry.path) { group = .localChangesIgnored }
             else if entry.state == .ignored { group = .ignored }
             else if entry.state == .untracked { group = .unversioned }
