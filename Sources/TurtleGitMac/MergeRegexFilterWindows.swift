@@ -3,6 +3,7 @@
 // and TortoiseSVN 2013-2014, 2016, 2020. See NOTICE and LICENSE.
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import TurtleGitCore
 
 extension Notification.Name {
@@ -18,17 +19,21 @@ extension Notification.Name {
     @Published private(set) var error: String?
     @Published private(set) var retired = false
     @Published private(set) var session: EditSession?
+    @Published private(set) var transferring = false
     @Published private var revision = UUID()
     private let original: [MergeRegexFilter]
     var edit: (MergeRegexFilter?) -> Void = { _ in }
     var close: () -> Void = {}
+    var importFile: (Context) -> Void = { _ in }
+    var exportFile: (Context) -> Void = { _ in }
+    var cancelTransfer: (Context) -> Void = { _ in }
     let defaults: UserDefaults
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults; let values = MergeRegexFilters.load(defaults: defaults)
         filters = values; original = values
     }
     var context: Context { .init(revision: revision, filters: filters) }
-    var canEdit: Bool { !retired && session == nil }
+    var canEdit: Bool { !retired && session == nil && !transferring }
     var selected: MergeRegexFilter? { filters.first { $0.id == selection } }
     func current(_ context: Context) -> Bool { canEdit && self.context == context }
     func requestEdit(_ filter: MergeRegexFilter?, context: Context) {
@@ -55,6 +60,18 @@ extension Notification.Name {
         guard current(context), filters.contains(filter) else { return }
         filters.removeAll { $0.id == filter.id }; selection = nil; revision = UUID(); error = nil
     }
+    func beginTransfer(context: Context) -> Context? {
+        guard current(context) else { return nil }; transferring = true; revision = UUID(); error = nil
+        return self.context
+    }
+    func finishTransfer(context: Context, imported: [MergeRegexFilter]? = nil, failure: String? = nil) {
+        guard !retired, transferring, self.context == context else { return }
+        if let imported {
+            for filter in imported { filters = MergeRegexFilters.updating(filters, oldName: nil, filter: filter) }
+            selection = imported.last?.id
+        }
+        transferring = false; revision = UUID(); error = failure
+    }
     func saveAndClose() {
         guard canEdit else { return }
         // Another comparison may have saved the same shared definitions while
@@ -71,7 +88,7 @@ extension Notification.Name {
         } catch { self.error = error.localizedDescription }
     }
     func cancel() { guard canEdit else { return }; retire(); close() }
-    func retire() { guard !retired else { return }; retired = true; session = nil; revision = UUID(); edit = { _ in } }
+    func retire() { guard !retired else { return }; retired = true; session = nil; transferring = false; revision = UUID(); edit = { _ in }; importFile = { _ in }; exportFile = { _ in }; cancelTransfer = { _ in } }
 }
 
 @MainActor final class MergeRegexFilterEditModel: ObservableObject {
@@ -136,6 +153,30 @@ extension Notification.Name {
     var onClosed: () -> Void = {}
     var executable: URL?
     private var retired = false
+    private final class Transfer {
+        let context: MergeRegexFilterListModel.Context
+        let data: Data?
+        let token = OperationCancellation()
+        var panel: NSSavePanel?
+        var delivered = false
+        var working = false
+        var settled = false
+        var task: Task<Void,Never>?
+        init(context: MergeRegexFilterListModel.Context, data: Data?) { self.context=context;self.data=data }
+    }
+    private var transfer: Transfer?
+    var presentOpen: ((NSOpenPanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void)?
+    var presentSave: ((NSSavePanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void)?
+    var chosenOpenURL: (NSOpenPanel)->URL? = { $0.url }
+    var chosenSaveURL: (NSSavePanel)->URL? = { $0.url }
+    var startScope: (URL)->Bool = { $0.startAccessingSecurityScopedResource() }
+    var stopScope: (URL)->Void = { $0.stopAccessingSecurityScopedResource() }
+    var readFile: (URL,URL?,OperationCancellation) async throws -> [MergeRegexFilter] = { url,helper,token in
+        try await Task.detached { try MergeRegexFilters.readINI(url,executable:helper,cancellation:token) }.value
+    }
+    var writeFile: (Data,URL,OperationCancellation) async throws -> Void = { data,url,token in
+        try await Task.detached { try MergeRegexFilters.writeINI(data,to:url,cancellation:token) }.value
+    }
     init(defaults: UserDefaults = .standard) {
         model = MergeRegexFilterListModel(defaults: defaults)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 570, height: 350), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -143,6 +184,9 @@ extension Notification.Name {
         super.init(window: window); window.delegate = self; window.center()
         window.contentViewController = NSHostingController(rootView: MergeRegexFilterListView(model: model))
         model.edit = { [weak self] in self?.edit($0) }; model.close = { [weak self] in self?.window?.performClose(nil) }
+        model.importFile = { [weak self] in self?.chooseTransfer(exporting:false,context:$0) }
+        model.exportFile = { [weak self] in self?.chooseTransfer(exporting:true,context:$0) }
+        model.cancelTransfer = { [weak self] context in guard self?.transfer?.context == context else { return }; self?.cancelFileTransfer() }
     }
     private func edit(_ filter: MergeRegexFilter?) {
         guard !retired, editor == nil, let window, window.attachedSheet == nil,
@@ -157,14 +201,70 @@ extension Notification.Name {
         }
         window.beginSheet(child.window!) { [weak child] _ in child?.cancel() }
     }
+    private func chooseTransfer(exporting: Bool, context: MergeRegexFilterListModel.Context) {
+        guard !retired, transfer == nil, editor == nil, let window, window.attachedSheet == nil,
+              let accepted = model.beginTransfer(context:context) else { return }
+        let data: Data?
+        do { data = exporting ? try MergeRegexFilters.encodeINI(accepted.filters) : nil }
+        catch { model.finishTransfer(context:accepted,failure:error.localizedDescription);return }
+        let request=Transfer(context:accepted,data:data);transfer=request;MergeRegexOperations.activeRequests += 1
+        if exporting {
+            let panel=NSSavePanel();request.panel=panel;panel.nameFieldStringValue="regexfilters.ini";panel.canCreateDirectories=true;panel.allowsOtherFileTypes=true
+            panel.allowedContentTypes=[UTType(filenameExtension:"ini") ?? .plainText]
+            let reply: (NSApplication.ModalResponse)->Void = { [weak self,weak request,weak panel] response in
+                guard let self,let request,let panel else { return };self.receiveTransfer(request,response:response,url:self.chosenSaveURL(panel))
+            }
+            if let presentSave { presentSave(panel,window,reply) } else { panel.beginSheetModal(for:window,completionHandler:reply) }
+        } else {
+            let panel=NSOpenPanel();request.panel=panel;panel.canChooseDirectories=false;panel.canChooseFiles=true;panel.allowsMultipleSelection=false
+            panel.allowedContentTypes=[UTType(filenameExtension:"ini") ?? .plainText];panel.allowsOtherFileTypes=true
+            let reply: (NSApplication.ModalResponse)->Void = { [weak self,weak request,weak panel] response in
+                guard let self,let request,let panel else { return };self.receiveTransfer(request,response:response,url:self.chosenOpenURL(panel))
+            }
+            if let presentOpen { presentOpen(panel,window,reply) } else { panel.beginSheetModal(for:window,completionHandler:reply) }
+        }
+    }
+    private func dismissPanel(_ request: Transfer) {
+        guard let panel=request.panel else { return };request.panel=nil
+        if let parent=panel.sheetParent { parent.endSheet(panel,returnCode:.cancel) };panel.orderOut(nil)
+    }
+    private func receiveTransfer(_ request: Transfer, response: NSApplication.ModalResponse, url: URL?) {
+        guard transfer === request, !request.delivered, !request.settled, !retired else { return }
+        request.delivered=true;dismissPanel(request)
+        guard response == .OK, let url else { finishTransfer(request);return }
+        request.working=true
+        let scoped=startScope(url),release=stopScope,read=readFile,write=writeFile,helper=executable
+        request.task=Task { [self] in
+            defer { if scoped { release(url) };finishTransfer(request);request.task=nil }
+            do {
+                if let data=request.data { try await write(data,url,request.token) }
+                else {
+                    let imported=try await read(url,helper,request.token)
+                    guard !retired,!request.token.isCancelled else { return }
+                    model.finishTransfer(context:request.context,imported:imported)
+                }
+            } catch {
+                if !retired,!request.token.isCancelled { model.finishTransfer(context:request.context,failure:error.localizedDescription) }
+            }
+        }
+    }
+    private func finishTransfer(_ request: Transfer) {
+        guard transfer === request, !request.settled else { return }
+        request.settled=true;request.delivered=true;dismissPanel(request);transfer=nil
+        MergeRegexOperations.activeRequests -= 1;model.finishTransfer(context:request.context)
+    }
+    private func cancelFileTransfer() {
+        guard let request=transfer else { return };request.delivered=true;request.token.cancel();request.task?.cancel();dismissPanel(request)
+        if !request.working { finishTransfer(request) }
+    }
     func retire() { window?.close(); retireOwnedState() }
     private func retireOwnedState() {
-        guard !retired else { return }; retired = true; model.retire()
+        guard !retired else { return }; retired = true; model.retire(); cancelFileTransfer()
         editor?.cancel(); editor = nil
         model.edit = { _ in }; model.close = {}
         let callback = onClosed; onClosed = {}; callback()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { editor == nil && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { editor == nil && transfer == nil && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { retireOwnedState() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -208,13 +308,19 @@ private struct MergeRegexFilterListView: View {
                 }
                 .disabled(!model.canEdit)
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+            if model.transferring { HStack { ProgressView().controlSize(.small); Text("Transferring filters…"); Button("Cancel operation") { model.cancelTransfer(context) } } }
             HStack {
                 Spacer()
                 Button { model.requestEdit(nil, context: context) } label: { CommandLabel(title: "Add Filter", icon: .add) }
                 Button { if let selected { model.requestEdit(selected, context: context) } } label: { CommandLabel(title: "Edit Filter", icon: .settingsGeneral) }.disabled(selected == nil)
                 Button { if let selected { model.remove(selected, context: context) } } label: { CommandLabel(title: "Delete Filter", icon: .remove) }.disabled(selected == nil)
             }.disabled(!model.canEdit)
-            HStack { Spacer(); Button("OK") { if model.current(context) { model.saveAndClose() } }.keyboardShortcut(.defaultAction); Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }.disabled(!model.canEdit)
+            HStack {
+                Menu("Filter Files") {
+                    Button { model.importFile(context) } label: { CommandLabel(title:"Import Filters…",icon:.patch) }
+                    Button { model.exportFile(context) } label: { CommandLabel(title:"Export Filters…",icon:.export) }
+                }.menuStyle(.borderlessButton).fixedSize()
+                Spacer(); Button("OK") { if model.current(context) { model.saveAndClose() } }.keyboardShortcut(.defaultAction); Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }.disabled(!model.canEdit)
         }.padding(14)
     }
 }

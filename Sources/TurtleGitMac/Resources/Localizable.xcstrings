@@ -60323,6 +60323,29 @@
         }
       }
     },
+    "Export Filters…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter exportieren…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Filters…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter des filtres…"
+          }
+        }
+      }
+    },
     "Export Zip File": {
       "extractionState": "manual",
       "localizations": {
@@ -64482,6 +64505,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "篩選器(F)"
+          }
+        }
+      }
+    },
+    "Filter Files": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filterdateien"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter Files"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fichiers de filtres"
           }
         }
       }
@@ -83559,6 +83605,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "影像資訊(I)"
+          }
+        }
+      }
+    },
+    "Import Filters…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter importieren…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import Filters…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importer des filtres…"
           }
         }
       }
@@ -169721,6 +169790,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "追蹤分支"
+          }
+        }
+      }
+    },
+    "Transferring filters…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter werden übertragen…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transferring filters…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transfert des filtres…"
           }
         }
       }

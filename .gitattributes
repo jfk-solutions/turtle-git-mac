@@ -9,3 +9,6 @@ Tests/TurtleGitCoreTests/Fixtures/WorkingCopyRevision/*.tmpl -text -whitespace
 
 # Packaged application artwork carries the same unchanged upstream notice.
 Sources/TurtleGitMac/Resources/Branding/UPSTREAM-ICON-LICENSE.txt -text -whitespace
+
+# Preserve the shipped upstream Merge regex preset byte-for-byte, including CRLF.
+Sources/TurtleGitCore/Resources/RegexFilter.ini -text -whitespace

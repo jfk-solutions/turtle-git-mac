@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-17",
+  "scope": "Merge shipped preset, source INI serialization and native file workflows with section identity through comparison selection",
+  "upstream": {
+    "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "upstream_path": "src/Resources/RegexFilter.ini",
+    "blob": "acde44b5e3bc983b6e60b0d2bda8f4998cb48280",
+    "native_path": "Sources/TurtleGitCore/Resources/RegexFilter.ini",
+    "sha256": "de5d1bee34d6626fbdda919f792aad72b245fa3aaf912f74e5fd90ac808d3776",
+    "scope": "Unmodified shipped GUID filter; source section names remain literal."
+  },
+  "implementation": [
+    "Unmodified source GUID preset in Core/SwiftPM resources, absent-only seeding and explicit-empty preservation",
+    "UTF-8/BOM and UTF-16/BOM single-line INI decoding, ordered sections/last values, bounded regular-file reads and expression validation",
+    "UTF-8 BOM/CRLF export of captured draft with explicit lossy-format refusal",
+    "SimpleIni ASCII-only name identity and byte-exact filter equality across list and both comparison consumers",
+    "Native Filter Files actions with original icons, once-only owned panels and draft-only imports",
+    "Cancellation, retired callback refusal, retained security scope and global Quit ownership through worker drain"
+  ],
+  "validation": {
+    "core": {
+      "distinct_passed": 10,
+      "initial_passed": 9,
+      "initial_failure": "Preset resource lookup was shadowed by an older Core bundle embedded in the local XCTest product. Nine other cases passed; the first preset assertion failed and its subsequent array indexing crashed the test process.",
+      "repair": "Preset test now unwraps before use. Only this preset case was rerun with the generated Debug PACKAGE_RESOURCE_BUNDLE_PATH override pointing to the actual newly built SwiftPM resources. No product resource fallback was changed to hide the failure.",
+      "initial_log": "build/qa/regex-files-core-2026-10-17.log",
+      "focused_recheck_log": "build/qa/regex-files-preset-recheck-2026-10-17.log",
+      "recheck_passed": 1
+    },
+    "native_build": {
+      "exit_code": 0,
+      "first_pass": true,
+      "log": "build/qa/regex-files-build-2026-10-17.log",
+      "diagnostics": "Existing simulator, exit-zero frontend and Swift warnings remain."
+    },
+    "native": {
+      "processes": 3,
+      "first_pass": true,
+      "cases": [
+        "source list/editor ownership and mutation guards",
+        "retained actual comparison filtering and draft workflows",
+        "shipped preset, actual INI import/export, validation atomicity, exact Unicode section selection, panel cancellation/duplicates, scopes and closed-owner write drain"
+      ],
+      "log": "build/qa/regex-files-native-2026-10-17.log"
+    },
+    "cleanup": {
+      "pids": [
+        4592,
+        4615,
+        4632
+      ],
+      "independent_ps_audit": "All three owned receivers absent."
+    },
+    "preset_bundle": "Compiled Core framework resource matches pinned original bytes and SHA-256; native first-run assertion passes.",
+    "screenshots": {
+      "files": [
+        {
+          "path": "docs/site/assets/merge-regex-library-light.png",
+          "sha256": "5faa7cb981b67573446fc59ba76baba3c8374a51ba72f4aa544389ae0c5592b1"
+        },
+        {
+          "path": "docs/site/assets/merge-regex-library-dark.png",
+          "sha256": "3e88036b85a668c38a06bfdd017aad99f62bfca10711c83cedb201058c9adf66"
+        }
+      ],
+      "review": "Both new raw compositor library captures individually reviewed. Source command order, icons, Unicode-distinct rows and new footer menu fit in light/dark. Four supplementary retained source list/editor captures were produced but not newly published or claimed reviewed."
+    },
+    "catalog": {
+      "languages": 38,
+      "keys": 1281
+    },
+    "site": {
+      "documents": 285,
+      "unresolved_fragments": []
+    },
+    "help": {
+      "documents": 38,
+      "topics": 48,
+      "files": 58,
+      "bytes": 3549628,
+      "resource_build": {
+        "exit_code": 0,
+        "log": "build/qa/regex-files-help-build-2026-10-17.log",
+        "source_files_matched_in_bundle": 58
+      }
+    }
+  },
+  "limits": [
+    "Legacy Windows ANSI codepages and arbitrary SimpleIni extensions are not supported by this codec",
+    "Windows SimpleIni execution interop is not certified; supported semantics follow pinned caller and primary SimpleIni documentation",
+    "No new physical picker, keyboard, VoiceOver or signed scope/helper acceptance",
+    "Not full Merge/application parity, hosted CI completion or App Store readiness",
+    "Exact Unicode selection was newly exercised in two-pane Compare; complete three-pane and physical menu acceptance remain open."
+  ]
+}

@@ -545,7 +545,7 @@ private enum MergeSourceSide {
         regexFilters = MergeRegexFilters.load(defaults: regexDefaults)
     }
     func selectRegexFilter(_ name: String?) {
-        guard !busy, !confirmingQuit, !retired, !formatPending, name == nil || regexFilters.contains(where: { $0.name == name }) else { return }
+        guard !busy, !confirmingQuit, !retired, !formatPending, name == nil || regexFilters.contains(where: { MergeRegexFilters.sameName($0.name,name) }) else { return }
         load(filterName: name)
     }
     func retire() {
@@ -899,7 +899,7 @@ private enum MergeSourceSide {
     }
     private func reloadDocument(filterName: String?, cancellation: OperationCancellation? = nil, generation: Int? = nil) async throws {
         let requested = filterName
-        let filter = regexFilters.first { $0.name == requested }
+        let filter = regexFilters.first { MergeRegexFilters.sameName($0.name,requested) }
         var engine = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
         let changingOptions = pendingComparisonOptions != nil
         let options = pendingComparisonOptions ?? MergeComparisonOptions.load(from: comparisonDefaults)
@@ -1371,7 +1371,7 @@ private struct TextConflictDialog: View {
                     }
                     ForEach(model.regexFilters) { filter in
                         Button { model.selectRegexFilter(filter.name) } label: {
-                            if model.regexFilterName == filter.name { Label(filter.name, systemImage: "checkmark") } else { Text(filter.name) }
+                            if MergeRegexFilters.sameName(model.regexFilterName,filter.name) { Label(filter.name, systemImage: "checkmark") } else { Text(filter.name) }
                         }
                     }
                     Divider(); Button("Edit Filters…") { model.manageRegexFilters() }

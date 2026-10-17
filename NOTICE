@@ -1549,3 +1549,8 @@ Translations: matching native labels reuse the pinned TortoiseGit PO catalogs
 under the same GPL-2.0-or-later terms. Bundled LocalizationCredits.txt retains the
 upstream translator notices; LocalizationManifest.json identifies each source
 blob and the pinned upstream commit. Missing or incompatible entries use English.
+
+The unmodified src/Resources/RegexFilter.ini from the pinned TortoiseGit source
+is bundled in TurtleGitCore as the first-run Merge GUID filter preset. Source,
+blob and SHA-256 provenance are recorded in Configuration/MergeRegexPresets.json.
+It retains the upstream GPL-2.0-or-later licensing and contributor attribution.

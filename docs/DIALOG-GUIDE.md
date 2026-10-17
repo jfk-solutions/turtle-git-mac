@@ -250,6 +250,9 @@ leaves the same text still marks that pane modified after Save. Undo/Redo can
 return to the saved state. When both sides of an alignment gap become empty,
 the redundant row disappears; ordinary blank lines remain.
 
+The [Merge comparison filters guide](MERGE-FILTERS.md) explains the shipped GUID
+preset and importing/exporting `regexfilters.ini` libraries.
+
 Changing comparison options or the active regex filter asks about unsaved work.
 With two modified panes, choose Save left, Save right or Save both; any pane you
 do not save reloads from disk. Don't Save reloads both, and Cancel keeps the

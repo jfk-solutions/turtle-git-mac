@@ -410,6 +410,7 @@
 		E1152A9034E41DA028A9026D /* LocalizationManifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 82D09E622E81DE3113C5517C /* LocalizationManifest.json */; };
 		D7C442B7B51E53DF203B3DED /* LocalizationCredits.txt in Resources */ = {isa = PBXBuildFile; fileRef = 696F71712EA2A3BA32CF5A86 /* LocalizationCredits.txt */; };
 		C21010160000000000000201 /* Finder Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B6A118BB321240B0BBC7C7CD /* Localizable.xcstrings */; };
+		C21010160000000000000211 /* RegexFilter.ini in Resources */ = {isa = PBXBuildFile; fileRef = C21010160000000000000212 /* RegexFilter.ini */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -917,6 +918,7 @@
 		B6A118BB321240B0BBC7C7CD /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = "Resources/Localizable.xcstrings"; sourceTree = "<group>"; };
 		82D09E622E81DE3113C5517C /* LocalizationManifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Resources/LocalizationManifest.json"; sourceTree = "<group>"; };
 		696F71712EA2A3BA32CF5A86 /* LocalizationCredits.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LocalizationCredits.txt"; sourceTree = "<group>"; };
+		C21010160000000000000212 /* RegexFilter.ini */ = {isa = PBXFileReference; lastKnownFileType = text; name = RegexFilter.ini; path = Sources/TurtleGitCore/Resources/RegexFilter.ini; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1752,6 +1754,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D34F49E3F0D522AB9029D03A /* Completion in Resources */,
+				C21010160000000000000211 /* RegexFilter.ini in Resources */,
 				3E19A6945479711E0CDE3542 /* Icons in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

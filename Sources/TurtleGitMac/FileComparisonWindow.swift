@@ -583,12 +583,12 @@ private extension FileComparisonDocument {
     func refreshRegexFilters() {
         guard !retired else { return }
         let incoming = MergeRegexFilters.load(defaults:regexDefaults)
-        let old = regexFilters.first { $0.name == regexFilterName }, next = incoming.first { $0.name == regexFilterName }
+        let old = regexFilters.first { MergeRegexFilters.sameName($0.name,regexFilterName) }, next = incoming.first { MergeRegexFilters.sameName($0.name,regexFilterName) }
         if regexFilterName == nil || old == next { regexFilters = incoming; return }
         requestProjectionChange { [self] in regexFilters = incoming; if next == nil { regexFilterName = nil } }
     }
     func selectRegexFilter(_ name: String?) {
-        guard name != regexFilterName, name == nil || regexFilters.contains(where: { $0.name == name }) else { return }
+        guard !MergeRegexFilters.sameName(name,regexFilterName), name == nil || regexFilters.contains(where: { MergeRegexFilters.sameName($0.name,name) }) else { return }
         requestProjectionChange { [self] in regexFilterName = name; difference = -1 }
     }
     private func rebuildFilterAlignment() {
@@ -1356,7 +1356,7 @@ private extension FileComparisonDocument {
         // inline comparison are gated until Subversion publishes its ranges.
         alignment = a.flatMap { old in b.map { FileComparisonAlignment(base: old, destination: $0) } }
         guard let a, let b, imageComparison == nil, !retired else { return }
-        let filter = regexFilters.first(where: { $0.name == regexFilterName })
+        let filter = regexFilters.first(where: { MergeRegexFilters.sameName($0.name,regexFilterName) })
         let current = alignmentGeneration, token = OperationCancellation(), detectMoves = showMovedBlocks
         let configuration = Result { () throws -> SubversionMergeConfiguration in
             if reloadCommentProfiles {
@@ -1784,7 +1784,7 @@ private struct FileComparisonDialog: View {
                     }
                     ForEach(model.regexFilters) { filter in
                         Button { model.selectRegexFilter(filter.name) } label: {
-                            if model.regexFilterName == filter.name { Label(filter.name, systemImage: "checkmark") } else { Text(filter.name) }
+                            if MergeRegexFilters.sameName(model.regexFilterName,filter.name) { Label(filter.name, systemImage: "checkmark") } else { Text(filter.name) }
                         }
                     }
                     Divider(); Button("Edit Filters…") { model.manageRegexFilters() }

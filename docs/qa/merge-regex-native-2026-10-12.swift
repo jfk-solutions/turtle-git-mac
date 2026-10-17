@@ -18,6 +18,9 @@ import TurtleGitCore
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitMergeRegex-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { preferences.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
+        // This retained case starts from an explicitly saved empty library.
+        // First-run shipped presets are exercised by the file-workflow case.
+        try MergeRegexFilters.save([], defaults: preferences)
         let filter = MergeRegexFilter(name: "Versions", expression: "[0-9]+", replacement: "")
         let list = MergeRegexFilterListController(defaults: preferences)
         list.model.accept(filter, oldName: nil)

@@ -88,3 +88,52 @@ All fourteen list/editor controls receive partial native mappings. The Debug bui
 preset migration, all regex/locale/UTF-16 boundaries, physical keys/VoiceOver,
 large files and signed helper/sandbox acceptance remain open. This is not full
 Merge or dialog certification.
+
+
+## Shipped preset and INI file workflows — October 17, 2026
+
+A previously unconfigured library now exposes the pinned `ignore guids` preset.
+`src/Resources/RegexFilter.ini` is copied unmodified into the Core bundle; source
+blob and SHA-256 are recorded in `Configuration/MergeRegexPresets.json`. Reading
+it does not write preferences. An explicitly saved empty library stays empty;
+existing saved definitions and malformed preference data do not silently acquire
+new presets. This follows MainFrm::BuildRegexSubitems's missing-file seed while
+retaining native per-user JSON storage.
+
+The lower-left native Filter Files menu adds Import Filters and Export Filters
+without moving the source Add/Edit/Delete row or OK/Cancel. This macOS file-picker
+adaptation replaces manually copying a file into the application-support folder.
+Import reads a bounded regular INI file and validates every expression through
+the existing ECMAScript helper before changing the draft. Named sections merge
+in file order, replacing an existing ASCII-case-insensitive name; other draft
+sections survive. Nothing persists until the outer OK. Cancel leaves definitions
+unchanged. Export captures the complete current draft, including unapplied edits,
+and writes its selected destination atomically. It does not save preferences or
+change the source INI file.
+
+The codec supports UTF-8, its optional BOM, UTF-16 with BOM, CR/LF/CRLF, full-line
+comments, literal backslashes/dollar replacements/quotes and inline #/; content.
+Repeated sections and keys retain first section order and last key values. Only
+ASCII case folds, matching SimpleIni's default comparator; canonical Unicode
+spellings retain separate section, row and comparison-menu identities. Both
+comparison consumers now use that section identity. See [SimpleIni's documented
+case and single-line behavior](https://github.com/brofield/simpleini/blob/master/SimpleIni.h).
+The pinned Merge caller does not enable its multiline mode. Export uses UTF-8
+with BOM and CRLF and refuses values that would lose line breaks or surrounding
+whitespace in that single-line format. Legacy Windows ANSI codepages, arbitrary
+SimpleIni extensions and comment-preserving file rewriting are not claimed.
+Native JSON continues retaining existing multiline definitions; an unsupported
+INI export reports an error without altering them. Imports/exports are capped at
+1 MiB and 256 filters; symlink and nonregular import inputs are refused.
+
+Owned panels accept once, reject old menu contexts and block competing edits,
+ordinary Close and Quit. Cancel signals active reads/validation; the draft stays
+unchanged until complete successful delivery. Forced closure dismisses panels,
+cancels work and retires results/errors. Accepted writes and available security
+scopes retain independent Quit accounting through worker drain, even after the
+window closes. A write that already entered atomic publication may complete when
+the owner closes. Actual picker gestures and signed installed grants remain open.
+
+This supersedes the earlier preset-distribution and INI migration gaps for the
+supported format. Full regex/locale/UTF-16 edge cases, physical keyboard/menu/
+VoiceOver and signed helper/App Store acceptance remain required.

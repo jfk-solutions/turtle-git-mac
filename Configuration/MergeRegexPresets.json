@@ -1,0 +1,8 @@
+{
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_path": "src/Resources/RegexFilter.ini",
+  "blob": "acde44b5e3bc983b6e60b0d2bda8f4998cb48280",
+  "native_path": "Sources/TurtleGitCore/Resources/RegexFilter.ini",
+  "sha256": "de5d1bee34d6626fbdda919f792aad72b245fa3aaf912f74e5fd90ac808d3776",
+  "scope": "Unmodified shipped GUID filter; source section names remain literal."
+}

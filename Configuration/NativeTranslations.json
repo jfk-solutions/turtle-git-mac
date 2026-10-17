@@ -43,7 +43,11 @@
     "Compare with ": "Vergleichen mit ",
     "Ignore {count} items by name": "{count} Elemente nach Namen ignorieren",
     "Ignore {count} items by extension": "{count} Elemente nach Erweiterung ignorieren",
-    "Select items in one repository to use this command.": "Wählen Sie Elemente aus einem Repository, um diesen Befehl zu verwenden."
+    "Select items in one repository to use this command.": "Wählen Sie Elemente aus einem Repository, um diesen Befehl zu verwenden.",
+    "Filter Files": "Filterdateien",
+    "Import Filters…": "Filter importieren…",
+    "Export Filters…": "Filter exportieren…",
+    "Transferring filters…": "Filter werden übertragen…"
   },
   "fr": {
     "Type changed": "Type modifié",
@@ -73,6 +77,10 @@
     "Compare with ": "Comparer avec ",
     "Ignore {count} items by name": "Ignorer {count} éléments par nom",
     "Ignore {count} items by extension": "Ignorer {count} éléments par extension",
-    "Select items in one repository to use this command.": "Sélectionnez des éléments dans un seul dépôt pour utiliser cette commande."
+    "Select items in one repository to use this command.": "Sélectionnez des éléments dans un seul dépôt pour utiliser cette commande.",
+    "Filter Files": "Fichiers de filtres",
+    "Import Filters…": "Importer des filtres…",
+    "Export Filters…": "Exporter des filtres…",
+    "Transferring filters…": "Transfert des filtres…"
   }
 }

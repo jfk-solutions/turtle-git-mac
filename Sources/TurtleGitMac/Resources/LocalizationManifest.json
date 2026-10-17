@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
-  "catalog_sha256": "623851a29a112db4fc1193e7e9e74a7b1731a8f56f548a439f7bc7da6ee03d56",
-  "keys": 1277,
+  "catalog_sha256": "397481f970fe19ecfcbbc4ef0e7741a76fbb45edf00252007bbbaadf06208257",
+  "keys": 1281,
   "languages": [
     {
       "id": "bg",
@@ -40,7 +40,7 @@
       "id": "de",
       "source": "Languages/Tortoise_de.po",
       "blob": "ccabc4dfd31b7f687b19e16c538cff834977533c",
-      "translated_keys": 1257,
+      "translated_keys": 1261,
       "ambiguous_keys_skipped": 22,
       "formatted_entries_skipped": 288
     },
@@ -80,7 +80,7 @@
       "id": "fr",
       "source": "Languages/Tortoise_fr.po",
       "blob": "70fc13d85763d6d4b057f7ef4c59b76528d306c2",
-      "translated_keys": 1228,
+      "translated_keys": 1232,
       "ambiguous_keys_skipped": 37,
       "formatted_entries_skipped": 286
     },
@@ -357,7 +357,7 @@
   },
   "native_adaptations": {
     "path": "Configuration/NativeTranslations.json",
-    "sha256": "9f638cb9e709bc2314ac979049f2c6ba22b6348caab99542dd971a0929875300"
+    "sha256": "247bef7e6debc3cf755ba1ba43ec7646dc0f765c26b152d5df9908094a5da3aa"
   },
   "scope": "Literal labels, reviewed spelling aliases and validated native integer-count templates. Other missing/fuzzy/ambiguous/plural/formatted/native-only text falls back to English; dynamic native menus/alerts remain under migration."
 }
