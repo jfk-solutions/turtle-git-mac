@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-17",
+  "base_commit": "b9ad459cb51ee3eb028d37e23f2521c2b0852928",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source Merging/Apply groups with aligned five path/Browse rows, version, reserved status and source-spaced OK/Cancel/Help",
+    "Captured form/slot/window chooser acceptance, file-directory validation before leases, source path seed and patch/all-files filters",
+    "Independent asynchronous choice drain guards Quit after forced closure",
+    "Busy/retired native completion/drop gates and callback retirement",
+    "Captured successful mode, retry after failure and reentrant/duplicate Open refusal",
+    "All 24 static resource controls have explicit partial mappings"
+  ],
+  "builds": [
+    {
+      "log": "build/qa/merge-open-source-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    },
+    {
+      "log": "build/qa/merge-open-source-layout-build-2026-10-17.log",
+      "exit": 0,
+      "exit_zero_no_output_diagnostics": 1
+    }
+  ],
+  "native": {
+    "distinct_family_passes": 4,
+    "families": [
+      "source controls/choice ownership",
+      "retained standalone Open",
+      "text editor replacement",
+      "patch editor replacement"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/merge-open-source-native-2026-10-17.log",
+        "exit": 1,
+        "failure": "Fixture compile error: extra optional chain on nonoptional allowedContentTypes array; no receiver started."
+      },
+      {
+        "log": "build/qa/merge-open-source-native-recheck-2026-10-17.log",
+        "exit": 0,
+        "distinct_family_passes": 4
+      },
+      {
+        "log": "build/qa/merge-open-source-native-layout-2026-10-17.log",
+        "exit": 0,
+        "affected_source_passes": 1
+      }
+    ],
+    "owned_receivers_reaped": [
+      10281,
+      10294,
+      10310,
+      10315,
+      10475
+    ],
+    "independently_absent_owned_receivers": [
+      10281,
+      10294,
+      10310,
+      10315,
+      10475
+    ],
+    "affected_source_rechecks": 1
+  },
+  "core": {
+    "repeated": false,
+    "reason": "Core input selection, patch parsing and save algorithms unchanged; grouped native cases exercise their existing production routes."
+  },
+  "repairs": [
+    "Corrected fixture optional chaining without an app rebuild.",
+    "Raw initial captures showed Cancel beside OK instead of the source central position. Changed the footer to equal spacing; original captures preserved under build/qa/merge-open-source-initial-captures."
+  ],
+  "capture_provenance": "Unedited ScreenCaptureKit captures of the actual MergeOpenWindowController, private real input files/preferences/pasteboard, passive owned windows with no user activation/global input. Receiver bundle shows Development version; signed app version comes from its application bundle.",
+  "hosted_observation": {
+    "head": "b9ad459cb51ee3eb028d37e23f2521c2b0852928",
+    "macos": {
+      "run": 38986221894,
+      "status": "pending",
+      "conclusion": null
+    },
+    "pages": {
+      "run": 38986220838,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "limitations": [
+    "Native picker responses injected; actual panel gestures and signed sandbox authorization not certified",
+    "Standalone receiver emitted two sandbox_extension_consume permission diagnostics; signed access is not proven by unsigned runs",
+    "Physical path completion/drop/radio/keyboard, VoiceOver and all input alias/volume cases remain open",
+    "Full source single-pane pruning and complete text/patch replacement acceptance remain open",
+    "Current hosted macOS CI and App Store distribution acceptance not established"
+  ],
+  "captures": [
+    {
+      "path": "docs/site/assets/merge-open-source-light.png",
+      "sha256": "6051e33a54d350606cd368c369ff1bb127aa55dac0051c05c84d77529f660d46",
+      "pixels": [
+        1400,
+        1004
+      ],
+      "reviewed": true
+    },
+    {
+      "path": "docs/site/assets/merge-open-source-dark.png",
+      "sha256": "7986f3bb576463f7f9430528eaca28471f9ef6d1e0a844e8ec4838ccd2f4230b",
+      "pixels": [
+        1400,
+        1004
+      ],
+      "reviewed": true
+    }
+  ],
+  "site": {
+    "documents": 265,
+    "unresolved_fragments": [],
+    "exit": 0,
+    "log": "build/qa/merge-open-source-site-2026-10-17.log"
+  }
+}

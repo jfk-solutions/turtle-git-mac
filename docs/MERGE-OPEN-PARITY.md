@@ -129,3 +129,30 @@ folder sheets, live Finder/menu/keyboard/VoiceOver, exact light/dark captures,
 forced-parent-close during every preparation phase and signed grant/App Store
 acceptance remain open. This local checkpoint does not prove full hosted CI or
 complete upstream merge-editor parity.
+
+## Source form and chooser ownership — October 17, 2026
+
+The native Open form now aligns all five permanent path/Browse columns across
+source Merging and Apply unified diff groups, with version/radios above and the
+OK/Cancel/Help footer below. The selectable error area has reserved height.
+Browse retains source current-path seeding, file versus directory choices and a
+patch/diff filter with an all-files alternative. It accepts existing regular
+files or directories of the requested kind before creating a new access lease.
+Drops share that validation; typed paths retain existing explicit authorization.
+
+Each choice captures the full form, slot and window. Changed fields/mode,
+retirement and duplicate answers cannot publish a path or retain a new grant.
+Native cancellation ends the owned sheet; an independently counted choice keeps
+Quit blocked until its callback/async response drains, even after forced closure.
+Cancelled choices return focus to their path field. Scoped completion rejects
+retired/busy inputs and delayed completion also checks the current enabled field.
+
+Open submission captures its successful mode and refuses reentrant callbacks.
+A preparation error restores editing for retry; successful acceptance remains
+single use. Retirement clears delivery callbacks and disables controls. The
+existing immutable patch bytes, standalone input order and text/patch editor
+replacement owners remain authoritative.
+
+All 24 resource controls have explicit partial mappings. The Debug build and all four grouped native families pass: source form/chooser ownership, standalone Open, text replacement and patch replacement. The affected source case passes again after the footer-spacing repair. Both raw light/dark captures were individually reviewed; all five receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-open-source-family-2026-10-17.json) for the fixture compile repair, captures, diagnostic warnings and acceptance limits. Physical sheets, keyboard/drop/completion,
+VoiceOver, source single-pane pruning, all replacement transitions and signed
+App Store authorization remain open; this is not complete dialog certification.

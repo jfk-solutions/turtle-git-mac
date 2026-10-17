@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 521,
-    "mapped_controls": 1138,
+    "pending_control_reviews": 498,
+    "mapped_controls": 1161,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 88,
@@ -284,16 +284,12 @@
       "status": "partial-native-replacement",
       "source_blob": "b0c19b52528f5dc6a7adb62095e5cd7260abe5dd",
       "static_controls": 24,
-      "mapped_controls": 1,
-      "pending_control_reviews": 23,
+      "mapped_controls": 24,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/MergeOpenWindow.swift",
-          "origin": "recorded-control-mapping"
-        },
-        {
-          "path": "Sources/TurtleGitMac/TurtleGitHelp.swift",
           "origin": "recorded-control-mapping"
         }
       ],
@@ -307,6 +303,7 @@
         "docs/qa/merge-editor-open-2026-10-14.json",
         "docs/qa/merge-open-2026-10-12.json",
         "docs/qa/merge-open-lifecycle-2026-10-12.json",
+        "docs/qa/merge-open-source-family-2026-10-17.json",
         "docs/qa/merge-patch-open-2026-10-14.json"
       ]
     },

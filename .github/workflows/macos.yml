@@ -350,6 +350,8 @@ jobs:
         run: python3 scripts/test-merge-diff-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Grouped native LFS and Send Mail receivers with one compilation
         run: python3 scripts/test-native-lfs-mail-batch.py
+      - name: Native Merge Open source and replacement workflows
+        run: python3 scripts/test-merge-open-source.py
       - name: Native Working Tree footer and captured Stash menu
         run: python3 scripts/test-working-tree-footer.py
       - name: Native Git configuration source forms and owned editors

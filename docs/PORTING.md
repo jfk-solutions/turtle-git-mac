@@ -1809,3 +1809,13 @@ single-use captured popup dispatch. Scope/filter acquisition, dormant source
 controls and source normal-counter behavior are explicit. See
 [Working Tree parity](STATUS-PARITY.md#detailed-statistics-and-native-stash-footer--october-17-2026).
 Four distinct native case/engine combinations pass with system and bundled Git. Both raw light/dark captures were individually reviewed: the selectable statistics wrap without clipping and the native Stash footer fits. All eight owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/working-tree-footer-2026-10-17.json) for the fixture repairs and remaining acceptance. Physical/signed and all combined-action acceptance remain separate.
+
+### Merge Open source form and chooser family — October 17, 2026
+
+Merge Open now aligns source groups and five native path/Browse rows, validates
+file/directory choices before grants, captures the form/slot/window for each
+one-response choice, retains independent Quit ownership after forced closure and
+refuses reentrant Open delivery while allowing failed preparation to retry.
+All 24 static controls receive explicit partial mappings. See
+[Open parity](MERGE-OPEN-PARITY.md#source-form-and-chooser-ownership--october-17-2026).
+The Debug build and all four grouped native families pass: source form/chooser ownership, standalone Open, text replacement and patch replacement. The affected source case passes again after the footer-spacing repair. Both raw light/dark captures were individually reviewed; all five receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-open-source-family-2026-10-17.json) for the fixture compile repair, captures, diagnostic warnings and acceptance limits.
