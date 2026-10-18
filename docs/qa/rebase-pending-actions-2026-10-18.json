@@ -1,0 +1,153 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "3de8a21bbc65971018694681706fb1b25a196d35",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Durable paused future Pick/Edit/Squash/Skip and per-occurrence cycle changes",
+    "Checked todo/done/identity/message/Cherry Pick snapshot and journal publication/recovery",
+    "Native structural session generation from all-Pick start, future suffix regeneration and branch updates",
+    "Skipped Cherry Pick merge restoration with mainline and attribution, initial Squash message metadata",
+    "Native message/conflict draft preservation, captured permission/preferences, cancel/close/Quit/retirement drain"
+  ],
+  "validation": {
+    "build_attempts": [
+      {
+        "log": "rebase-pending-build-2026-10-18.log",
+        "exit": 65,
+        "reason": "New synthetic merge object helper omitted try on throwing temporary root property."
+      },
+      {
+        "log": "rebase-pending-build-affected-2026-10-18.log",
+        "exit": 0,
+        "scope": "Correct throwing temporary-root access."
+      },
+      {
+        "log": "rebase-pending-build-recovery-2026-10-18.log",
+        "exit": 0,
+        "scope": "Preserve explicit native conflict-recovery identity after saved action edit; prevent normal Edit becoming conflict recovery."
+      },
+      {
+        "log": "rebase-pending-build-attribution-2026-10-18.log",
+        "exit": 0,
+        "scope": "Update an existing Squash message entry when a skipped merge gains a synthetic mainline object/attribution."
+      }
+    ],
+    "core": {
+      "status": "passed across initial and affected receipts",
+      "distinct_cases": 30,
+      "initial_log": "rebase-pending-core-2026-10-18.log",
+      "initial_exit": 1,
+      "initial_selection": "RebasePendingActionTests|RebaseTests.testStructural|RebaseTests.testPreserveMerges|RebaseTests.testReferenceUpdates",
+      "initial_new_cases": 10,
+      "initial_new_passes": 7,
+      "retained_structural_reference_cases": 20,
+      "retained_passes": 20,
+      "affected_log": "rebase-pending-core-affected-2026-10-18.log",
+      "affected_cases": 3,
+      "affected_passes": 3,
+      "affected_exit": 0,
+      "scope": "Only three actual failed cases repeated. All 20 retained and seven unaffected new cases retained; no full Core suite repeat."
+    },
+    "native": {
+      "status": "passed",
+      "planned_cases": [
+        "linear",
+        "structural",
+        "menus",
+        "controls",
+        "rows"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "rebase-pending-native-2026-10-18.log",
+      "exit": 0,
+      "distinct_case_engine_receipts": 10,
+      "scope": "Paused native linear2 and structural2; retained revision menus2, bulk/completion/Edit/Abort/Squash2 and structural row/merge recovery2. Each with system and bundled Git. No native repeats/failures."
+    },
+    "failures": [
+      {
+        "phase": "new Core fixtures",
+        "initial_log": "rebase-pending-core-2026-10-18.log",
+        "cases": [
+          "testCherryPickRepeatedOccurrenceSkipDoesNotRetargetCurrentObject",
+          "testSkippedCherryMergeCanBePickedWithCapturedMainlineAndAttribution",
+          "testStructuralFutureSquashCanExtendStoppedEditGroup"
+        ],
+        "reason": "Cherry Pick fixture bypassed Add occurrence construction / used execution-order input instead of newest-first API input; structural tree expectation omitted the upstream-only file.",
+        "repair": "Construct repeat with Add, pass newest-first selections and verify all original tree differences are exactly upstream.txt. Merge case additionally exercises existing Squash metadata and newly retained attribution. All original behavioral expectations retained."
+      },
+      {
+        "phase": "attribution review",
+        "reason": "A skipped Cherry Pick merge restored into a session with existing Squash metadata needs its message entry replaced by the new attributed synthetic object message.",
+        "repair": "Update that changed execution-object message while retaining other captured messages/dates/encoding; affected real merge/Squash Core case passes."
+      }
+    ],
+    "resources": {
+      "languages": 38,
+      "keys": 1289,
+      "write_exit": 0,
+      "check_exit": 0
+    },
+    "documentation": {
+      "coverage_write_exit": 0,
+      "coverage_check_exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "site_build_exit": 0,
+      "site_documents": 312,
+      "site_link_exit": 0,
+      "site_link_cases": 2,
+      "unresolved_fragments": [],
+      "scope": "Mapping counts are not functional completion percentages.",
+      "log": "rebase-pending-site-final-2026-10-18.log"
+    },
+    "diagnostic_observation": {
+      "owned_core_pid": 3859,
+      "sample_log": "rebase-pending-core-sample-command-2026-10-18.log",
+      "result": "Sample unavailable because xctest had already exited. Re-polled original session and obtained terminal exit 1 with full results; no restart or termination based on observation delay."
+    },
+    "retained_assertion_change": {
+      "test": "RebaseTests.testStructuralConflictPreservesEditableNativeSessionContext",
+      "reason": "All-Pick structural sessions now intentionally retain native occurrence metadata to support future action editing. The old absence assertion becomes a presence assertion, while session/afterFetch/upstream/conflict and Abort assertions remain. Included in the 20 retained passes."
+    },
+    "warnings": "Existing SDK/compiler isolation, no-usage and simulator warnings retained; successful xcodebuild can emit exit-code-0/no-output diagnostic lines. No warning-free or hosted-CI claim."
+  },
+  "ownership": {
+    "presentation": "Automated native receiver parents/children invisible or unshown; capture environment removed. Private repositories/preferences. run_receiver closes/reaps only its owned process group.",
+    "recorded_receiver_pids": [
+      10179,
+      10623,
+      11068,
+      11710,
+      12339,
+      12520,
+      12699,
+      13127,
+      13556,
+      14277
+    ],
+    "recorded_receiver_count": 10,
+    "all_recorded_receivers_absent": true
+  },
+  "limitations": [
+    "Unknown/custom external todos and older non-native structural sessions are refused without discarding their commands",
+    "Existing structural first-parent/compiler restrictions remain",
+    "Stale Git todo lock left after process termination needs resolution before journal recovery",
+    "No complete external-Git race/power-loss durability certification",
+    "No full source matrix, physical/VoiceOver, hosted Intel/minimum OS, signed Finder/App Store or whole-port certification"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "df66b0a7fe5ef97fa94a161de0e19bb94cdfe1c6a659276462b467a8b7a5e334",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "8c4192f48c9638c2e698c6b870d74f156cb857a3dd9891ccc8df8e277d298f5c",
+    "Tests/TurtleGitCoreTests/RebasePendingActionTests.swift": "c133b75f541c63dba9ff7c8f61647a705eff3f9e716e693007c8b8b499b215a8",
+    "docs/qa/rebase-pending-actions-native-2026-10-18.swift": "b1dc8bea673abbfb3c6482109803b5da4607cabea681c12e7ba98ed2e1f75834",
+    "scripts/test-rebase-pending-actions.py": "09af1f02122d1de9756e3da10600b89d2929874f472b17c96bfbd00eca225912"
+  }
+}

@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 public enum RebaseAction: String, CaseIterable, Sendable { case pick, skip = "drop", edit, squash }
 public enum RebaseEntryProgress: Sendable { case pending, current, completed }
@@ -64,10 +65,11 @@ public struct RebaseSessionContext: Codable, Sendable {
     public let afterFetch: Bool
     public let autoStart: Bool
     public let fromLog: Bool?
+    public let addCherryPickedFrom: Bool?
     init(options: RebaseOptions, afterFetch: Bool, autoStart: Bool, fromLog: Bool) {
         version = 1; branch = options.branch; upstream = options.upstream; onto = options.onto
         force = options.force; preserveMerges = options.preserveMerges
-        self.afterFetch = afterFetch && !options.isCherryPick; self.autoStart = autoStart && self.afterFetch; self.fromLog = fromLog && !options.isCherryPick
+        self.afterFetch = afterFetch && !options.isCherryPick; self.autoStart = autoStart && self.afterFetch; self.fromLog = fromLog && !options.isCherryPick; addCherryPickedFrom = options.addCherryPickedFrom
     }
 }
 
@@ -139,9 +141,10 @@ public struct RebaseExecution: Sendable {
     public let state: RebaseState
 }
 public enum RebaseFailure: LocalizedError {
-    case revision, active, inactive, changed, plan, squash, preservePlan, message, mainline, emptyResult
+    case revision, active, inactive, changed, plan, squash, preservePlan, message, mainline, emptyResult, actionEditLocked
     public var errorDescription: String? {
         switch self {
+        case .actionEditLocked: return "The replay plan is being changed by another operation. Try again when it finishes."
         case .revision: return "Choose valid branch, upstream and onto revisions."
         case .active: return "A rebase is already active. Continue, skip or abort that operation first."
         case .inactive: return "No rebase is active in this repository."
@@ -239,8 +242,9 @@ public enum RebaseEditor {
         var preceding = "", updates: [String:[String]] = [:]
         for line in generated.split(separator:"\n") {
             let fields = canonicalLine(String(line)).split(separator:" ").map(String.init)
-            if fields.first == "pick", fields.count >= 2 { preceding = fields[1] }
+            if fields.first.map({ ["pick","edit","squash","drop"].contains($0) }) == true, fields.count >= 2 { preceding = fields[1] }
             else if fields.first == "merge", fields.count >= 3, ["-C","-c"].contains(fields[1]) { preceding = fields[2] }
+            else if fields.first == "label", fields.count == 2, fields[1].hasPrefix("turtlegit-"), fields[1] != "turtlegit-onto" { preceding = String(fields[1].dropFirst("turtlegit-".count)) }
             else if fields.first == "update-ref" {
                 guard fields.count == 2, fields[1].hasPrefix("refs/heads/"), !preceding.isEmpty else { throw RebaseFailure.plan }
                 let labels = custom.split(separator:"\n").map(String.init).filter { $0.hasPrefix("label turtlegit-") && $0.dropFirst("label turtlegit-".count).hasPrefix(preceding) }
@@ -354,6 +358,7 @@ extension GitRepository {
     }
     public func rebaseState(cancellation: OperationCancellation? = nil) throws -> RebaseState {
         try cancellation?.check()
+        try recoverRebaseActionEdit(cancellation: cancellation)
         let merge = try rebasePath("rebase-merge", cancellation: cancellation), apply = try rebasePath("rebase-apply", cancellation: cancellation)
         let manager = FileManager.default
         let directory = manager.fileExists(atPath: merge.path) ? merge : apply
@@ -572,12 +577,9 @@ extension GitRepository {
         return RebaseSessionSnapshot(state:state,identity:recovery ? identity:nil,fileRecovery:recovery,conflicts:conflicts,rows:rows,statistics:statistics,indexFlags:indexFlags,head:head,remaining:remaining,replay:replay)
     }
     public func rebaseTodo(_ plan: RebasePlan) throws -> String {
-        let ids = plan.entries.map(\.id)
         try validateRebaseIdentities(plan)
         guard plan.entries.first(where: { $0.action != .skip })?.action != .squash else { throw RebaseFailure.squash }
-        if plan.options.preserveMerges {
-            if ids != plan.originalCommits || plan.entries.contains(where: { $0.action != .pick }) { return try structuralRebaseTodo(plan) }
-        }
+        if plan.options.preserveMerges { return try structuralRebaseTodo(plan) }
         if plan.options.isCherryPick {
             for entry in plan.entries where entry.action != .skip {
                 if entry.commit.parents.count > 1 {
@@ -690,7 +692,7 @@ extension GitRepository {
         }
         let path = temporary.appendingPathComponent("todo")
         // Validate the original plan first; synthetic merge IDs intentionally differ from its selections.
-        let structural = plan.options.preserveMerges && (plan.entries.map(\.id) != plan.originalCommits || plan.entries.contains { $0.action != .pick })
+        let structural = plan.options.preserveMerges
         let todo = replay.entries.map { $0.action.rawValue + " " + $0.commit.hash + " " + $0.commit.subject.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }.joined(separator: "\n") + "\n"
         try Data((structural ? try structuralRebaseTodo(plan) : replay.entries.isEmpty ? "noop\n" : todo).utf8).write(to: path)
         var environment = ["GIT_SEQUENCE_EDITOR": RebaseEditor.command(executable: editorExecutable), "TURTLEGIT_REBASE_PLAN": path.path, "GIT_EDITOR": "/usr/bin/true"]
@@ -1057,5 +1059,231 @@ extension GitRepository {
     public func commitRebaseSplit(message: String, paths selection: some Sequence<String>, staging: Bool, options: CommitOptions, expected: RebaseSplitState, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         let paths = GitPathSet(selection)
         return try withProtectedReplayIO(cancellation: cancellation, onOutput: onOutput) { try commitRebaseSplitOwned(message: message, paths: paths, staging: staging, options: options, expected: expected) }
+    }
+}
+
+/// A captured stopped session, including the exact files whose future commands
+/// will be replaced. Public callers cannot construct or retarget this receipt.
+public struct RebaseActionEditSnapshot: Sendable {
+    public let state: RebaseState
+    public let head: String
+    public let replay: [RebaseEntry]
+    fileprivate let directory: URL
+    fileprivate let files: [String: RebaseActionEditFile]
+}
+fileprivate struct RebaseActionEditFile: Codable, Equatable, Sendable { let bytes: Data? }
+private struct RebaseActionEditJournal: Codable {
+    let version: Int
+    let before: [String: RebaseActionEditFile]
+    let after: [String: RebaseActionEditFile]
+}
+
+extension GitRepository {
+    private static let actionEditNames = ["git-rebase-todo", "done", "turtlegit-replay-identities.json", "turtlegit-message-editor.json", "turtlegit-cherry-pick.json"]
+    private static let actionEditJournal = "turtlegit-action-edit.json"
+    private func actionEditFile(_ directory: URL, _ name: String) throws -> RebaseActionEditFile {
+        let url = directory.appendingPathComponent(name)
+        if !FileManager.default.fileExists(atPath: url.path) { return RebaseActionEditFile(bytes: nil) }
+        let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+        guard values.isRegularFile == true, values.isSymbolicLink != true else { throw RebaseFailure.plan }
+        return RebaseActionEditFile(bytes: try Data(contentsOf: url))
+    }
+    private func actionEditFiles(_ directory: URL) throws -> [String: RebaseActionEditFile] {
+        try Dictionary(uniqueKeysWithValues: Self.actionEditNames.map { ($0, try actionEditFile(directory, $0)) })
+    }
+    private func actionEditWrite(_ file: RebaseActionEditFile, directory: URL, name: String) throws {
+        let url = directory.appendingPathComponent(name)
+        if let bytes = file.bytes { try bytes.write(to: url, options: .atomic) }
+        else if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+    }
+    private func withActionEditLock<T>(_ directory: URL, _ action: () throws -> T) throws -> T {
+        let lock = directory.appendingPathComponent("git-rebase-todo.lock")
+        let descriptor = Darwin.open(lock.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, mode_t(0o600))
+        guard descriptor >= 0 else { throw RebaseFailure.actionEditLocked }
+        defer { Darwin.close(descriptor); try? FileManager.default.removeItem(at: lock) }
+        return try action()
+    }
+    /// Metadata is staged first, Git's todo is the commit point. On the next
+    /// read an interrupted transaction finishes the committed side or restores
+    /// the original side. Unknown external bytes are never overwritten.
+    private func recoverRebaseActionEdit(cancellation: OperationCancellation? = nil) throws {
+        let directory = try rebasePath("rebase-merge", cancellation: cancellation)
+        let url = directory.appendingPathComponent(Self.actionEditJournal)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try cancellation?.check()
+        try withActionEditLock(directory) {
+            guard let bytes = try actionEditFile(directory, Self.actionEditJournal).bytes else { return }
+            let journal = try JSONDecoder().decode(RebaseActionEditJournal.self, from: bytes)
+            guard journal.version == 1, Set(journal.before.keys) == Set(Self.actionEditNames), Set(journal.after.keys) == Set(Self.actionEditNames),
+                  journal.before["done"] == journal.after["done"] else { throw RebaseFailure.plan }
+            let actual = try actionEditFiles(directory)
+            let useNew = actual["git-rebase-todo"] == journal.after["git-rebase-todo"]
+            guard useNew || actual["git-rebase-todo"] == journal.before["git-rebase-todo"],
+                  actual["done"] == journal.before["done"],
+                  Self.actionEditNames.allSatisfy({ actual[$0] == journal.before[$0] || actual[$0] == journal.after[$0] }) else { throw RebaseFailure.changed }
+            let chosen = useNew ? journal.after : journal.before
+            for name in Self.actionEditNames where name != "git-rebase-todo" && name != "done" {
+                try actionEditWrite(chosen[name]!, directory: directory, name: name)
+            }
+            try FileManager.default.removeItem(at: url)
+        }
+    }
+    public func rebaseActionEditSnapshot(cancellation: OperationCancellation? = nil) throws -> RebaseActionEditSnapshot {
+        try withReplayIO(cancellation: cancellation, onOutput: nil) {
+            let state = try rebaseState(), directory = try rebasePath("rebase-merge")
+            guard state.active else { throw RebaseFailure.inactive }
+            let head = try rebaseRevision("HEAD"), files = try actionEditFiles(directory)
+            let replay = try rebaseReplayEntries()
+            guard files["git-rebase-todo"]?.bytes != nil, files["turtlegit-replay-identities.json"]?.bytes != nil,
+                  !replay.isEmpty, Set(replay.map(\.id)).count == replay.count else { throw RebaseFailure.plan }
+            try requireRebaseContinuation(rebaseState(), expected: state, expectedHead: head)
+            guard files == (try actionEditFiles(directory)) else { throw RebaseFailure.changed }
+            return RebaseActionEditSnapshot(state: state, head: head, replay: replay, directory: directory, files: files)
+        }
+    }
+    /// Change selected future occurrences without altering the stopped commit,
+    /// HEAD, index, worktree, messages being edited, or completed commands.
+    public func changePendingRebaseActions(_ action: RebaseAction, ids: Set<String>, expected: RebaseActionEditSnapshot, changes: [String: RebaseAction] = [:], mainlines: [String: Int] = [:],
+                                          editorExecutable: URL, retaining previous: RebaseConflictIdentity? = nil, cancellation: OperationCancellation? = nil) throws -> RebaseSessionSnapshot {
+        try withReplayIO(cancellation: cancellation, onOutput: nil) {
+            let directory = try rebasePath("rebase-merge")
+            guard directory == expected.directory, Set(changes.keys).isSubset(of: ids), Set(mainlines.keys).isSubset(of: ids), !ids.isEmpty, ids.isSubset(of: Set(expected.replay.map(\.id))) else { throw RebaseFailure.plan }
+            try withActionEditLock(directory) {
+                try requireRebaseContinuation(rebaseState(), expected: expected.state, expectedHead: expected.head)
+                guard expected.files == (try actionEditFiles(directory)) else { throw RebaseFailure.changed }
+                var identities = try JSONDecoder().decode([RebaseReplayIdentity].self, from: expected.files["turtlegit-replay-identities.json"]!.bytes!)
+                guard identities.map(\.id) == expected.replay.map(\.id) else { throw RebaseFailure.plan }
+                var rows = expected.replay
+                for index in rows.indices {
+                    guard let stored = identities[index].action.flatMap(RebaseAction.init(rawValue:)) else { throw RebaseFailure.plan }
+                    rows[index].action = stored
+                }
+                let oldRows = rows
+                for index in rows.indices where ids.contains(rows[index].id) && rows[index].progress == .pending {
+                    let requested = changes[rows[index].id] ?? action
+                    if requested == .squash && (index == 0 || !expected.state.isCherryPick && rows[index].commit.parents.count > 1) { continue }
+                    rows[index].action = requested; identities[index].action = requested.rawValue
+                }
+                if rows.map(\.action) == oldRows.map(\.action) { return }
+                guard rows.first(where: { $0.action != .skip })?.action != .squash else { throw RebaseFailure.squash }
+                let todo = String(decoding: expected.files["git-rebase-todo"]!.bytes!, as: UTF8.self)
+                let done = String(decoding: expected.files["done"]?.bytes ?? Data(), as: UTF8.self)
+                let structural = FileManager.default.fileExists(atPath: directory.appendingPathComponent("turtlegit-structural-plan").path)
+                var options = RebaseOptions(); options.preserveMerges = structural; options.isCherryPick = expected.state.isCherryPick
+                var mapping = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: directory.appendingPathComponent("turtlegit-cherry-pick.json")))) ?? [:]
+                func originalHash(_ hash: String) -> String {
+                    if let original = mapping[hash] { return original }
+                    let matches = mapping.keys.filter { $0.hasPrefix(hash) }
+                    return matches.count == 1 ? mapping[matches[0]]! : hash
+                }
+                let all = (done + "\n" + todo).split(separator: "\n").map { RebaseEditor.canonicalLine(String($0)) }.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty && !$0.hasPrefix("#") }
+                let commands = all.map { $0.split(separator: " ", maxSplits: 2).map(String.init) }.filter { $0.count >= 2 && RebaseAction(rawValue: $0[0]) != nil }
+                var newCommands = commands
+                if expected.state.isCherryPick {
+                    for index in rows.indices where ids.contains(rows[index].id) && rows[index].progress == .pending && rows[index].commit.parents.count > 1 && rows[index].action != .skip {
+                        let commit = rows[index].commit
+                        guard let mainline = mainlines[rows[index].id] ?? rows[index].mainline, commit.parents.indices.contains(mainline - 1) else { throw RebaseFailure.mainline }
+                        if oldRows[index].action == .skip || mainlines[rows[index].id] != nil {
+                            let object = try run(["cat-file", "commit", commit.hash]).stdout
+                            guard let separator = object.range(of: Data([10, 10])) else { throw RebaseFailure.plan }
+                            var message = object.subdata(in: separator.upperBound..<object.count)
+                            if expected.state.session?.addCherryPickedFrom == true {
+                                while message.last == 10 { message.removeLast() }
+                                message.append(Data(("\n\n(cherry picked from commit " + commit.hash + ")\n").utf8))
+                            }
+                            let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent(UUID().uuidString)
+                            try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
+                            defer { try? FileManager.default.removeItem(at: temporary) }
+                            let file = temporary.appendingPathComponent("message"); try message.write(to: file)
+                            let tree = try run(["rev-parse", commit.hash + "^{tree}"]).text.trimmingCharacters(in: .newlines)
+                            let hash = try run(["commit-tree", tree, "-p", commit.parents[mainline - 1], "-F", file.path], environmentOverrides:
+                                ["GIT_AUTHOR_NAME": commit.author, "GIT_AUTHOR_EMAIL": commit.email, "GIT_AUTHOR_DATE": commit.date]).text.trimmingCharacters(in: .newlines)
+                            mapping[hash] = commit.hash; newCommands[index][1] = hash
+                        }
+                        rows[index].mainline = mainline; identities[index].mainline = mainline
+                    }
+                }
+                func generated(_ values: [RebaseEntry], execution: [[String]]) throws -> String {
+                    if structural {
+                        let plan = RebasePlan(disposition: .ready, options: options, branchHash: expected.state.originalHead, upstreamHash: expected.state.onto, ontoHash: expected.state.onto,
+                                              branchReference: expected.state.branch, originalCommits: values.map(\.id), entries: values)
+                        return try RebaseEditor.mergeStructuralReferenceUpdates(generated: done + "\n" + todo, custom: structuralRebaseTodo(plan)).todo
+                    }
+                    // Non-native structural/custom todo commands are preserved by
+                    // refusing a receipt that cannot be reproduced exactly.
+                    guard execution.count == values.count else { throw RebaseFailure.plan }
+                    let custom = try values.indices.map { index -> String in
+                        let fields = execution[index], hash = fields[1]
+                        let original = originalHash(hash)
+                        guard values[index].commit.hash.hasPrefix(original) else { throw RebaseFailure.changed }
+                        return ([values[index].action.rawValue, hash] + fields.dropFirst(2)).joined(separator: " ")
+                    }.joined(separator: "\n") + "\n"
+                    var positions: [String: Int] = [:]
+                    for index in execution.indices where positions[execution[index][1]] == nil { positions[execution[index][1]] = index }
+                    return try RebaseEditor.mergeReferenceUpdates(generated: done + "\n" + todo, custom: custom, originalPositions: positions).todo
+                }
+                func lines(_ text: String) -> [String] {
+                    text.split(separator: "\n").map { RebaseEditor.canonicalLine(String($0)) }.filter { !$0.hasPrefix("#") && !$0.trimmingCharacters(in: .whitespaces).isEmpty }.map { line in
+                        var fields = line.split(separator: " ", maxSplits: 2).map(String.init)
+                        if fields.count >= 2, RebaseAction(rawValue: fields[0]) != nil {
+                            let hash = fields[1], matches = oldRows.filter { $0.commit.hash.hasPrefix(originalHash(hash)) }
+                            if let entry = matches.first { fields[1] = entry.commit.hash }
+                        } else if fields.first == "merge", fields.count >= 3 {
+                            // Keep original -C object spelling stable across Git's
+                            // shortened done/todo serialization.
+                            fields = line.split(separator: " ").map(String.init)
+                            if let entry = oldRows.first(where: { $0.commit.hash.hasPrefix(fields[2]) }) { fields[2] = entry.commit.hash }
+                        }
+                        return fields.joined(separator: " ")
+                    }
+                }
+                let before = try generated(oldRows, execution: commands)
+                guard lines(before) == lines(done + "\n" + todo) else { throw RebaseFailure.changed }
+                let updated = try generated(rows, execution: newCommands), completed = lines(done), newLines = lines(updated)
+                var prefix = 0
+                for (index, actual) in completed.enumerated() {
+                    if index == completed.count - 1, actual == "break", expected.state.isStructuralMergeEdit, newLines.indices.contains(prefix), newLines[prefix] != "break" { continue }
+                    guard newLines.indices.contains(prefix) else { throw RebaseFailure.changed }
+                    let proposed = newLines[prefix]
+                    let sameCurrentEdit = actual.hasPrefix("edit " + expected.state.stoppedCommit + " ") && proposed == "pick " + actual.dropFirst(5)
+                    guard actual == proposed || sameCurrentEdit else { throw RebaseFailure.changed }
+                    prefix += 1
+                }
+                // Keep Git's actual object IDs (including synthetic Cherry Pick
+                // mainline objects), not normalized display identities.
+                let rawLines = updated.split(separator: "\n").map(String.init).filter { !$0.hasPrefix("#") && !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                let newTodo = Data((rawLines.dropFirst(prefix).joined(separator: "\n") + "\n").utf8)
+                var after = expected.files
+                after["git-rebase-todo"] = RebaseActionEditFile(bytes: newTodo)
+                after["turtlegit-replay-identities.json"] = RebaseActionEditFile(bytes: try JSONEncoder().encode(identities))
+                let oldConfig = try expected.files["turtlegit-message-editor.json"]?.bytes.map { try JSONDecoder().decode(RebaseMessageConfiguration.self, from: $0) }
+                if expected.state.isCherryPick { after["turtlegit-cherry-pick.json"] = RebaseActionEditFile(bytes: try JSONEncoder().encode(mapping)) }
+                var messages = try oldConfig?.messages ?? (structural ? rows.map { $0.commit.message } : newCommands.map { try rebaseCommit($0[1]).message })
+                if !structural {
+                    guard messages.count == newCommands.count else { throw RebaseFailure.plan }
+                    for index in newCommands.indices where newCommands[index][1] != commands[index][1] { messages[index] = try rebaseCommit(newCommands[index][1]).message }
+                }
+                let config = try RebaseMessageConfiguration(editorCommand: oldConfig?.editorCommand ?? RebaseEditor.messageCommand(executable: editorExecutable), datePolicy: oldConfig?.datePolicy ?? .first,
+                    dates: oldConfig?.dates ?? rows.map { $0.commit.date }, actions: rows.map { $0.action.rawValue }, messages: messages, commitEncoding: oldConfig?.commitEncoding ?? commitMessageEncodingName())
+                after["turtlegit-message-editor.json"] = RebaseActionEditFile(bytes: try JSONEncoder().encode(config))
+                try replayCancellation?.check()
+                guard expected.files == (try actionEditFiles(directory)) else { throw RebaseFailure.changed }
+                let journal = RebaseActionEditJournal(version: 1, before: expected.files, after: after)
+                let journalURL = directory.appendingPathComponent(Self.actionEditJournal)
+                try JSONEncoder().encode(journal).write(to: journalURL, options: .atomic)
+                // No cancellation point inside publication. The final todo write
+                // chooses one complete side of this recoverable transaction.
+                do {
+                    for name in Self.actionEditNames where name != "git-rebase-todo" && name != "done" { try actionEditWrite(after[name]!, directory: directory, name: name) }
+                    try actionEditWrite(after["git-rebase-todo"]!, directory: directory, name: "git-rebase-todo")
+                    try FileManager.default.removeItem(at: journalURL)
+                } catch {
+                    // Recovery happens after this owned lock is released, at the
+                    // next state/read/Continue. Never guess over external bytes.
+                    throw error
+                }
+            }
+            return try replayUncancelled { try rebaseSessionSnapshot(retaining: previous) }
+        }
     }
 }

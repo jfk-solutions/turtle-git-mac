@@ -62,8 +62,8 @@ Fixture existence does not prove a pass; the parent records the grouped outcome.
 This does not certify the full Windows menu or every shared-list consumer.
 The connected [Rebase revision menu family](REBASE-REVISION-MENU-PARITY.md)
 now applies the choosing-phase action/current/done gates and existing command
-consumer mappings to the embedded native list. Live paused-session action editing
-and the rest of the shared Log commands remain open. Remaining work also includes historical Blame
+consumer mappings to the embedded native list. [Durable paused-session editing](REBASE-PENDING-ACTIONS-PARITY.md) now handles
+reproducible native sessions; the rest of the shared Log commands remain open. Remaining work also includes historical Blame
 parent-path actions outside normal Log, every source command's exact enabled/
 omitted matrix across all branch/merge/submodule/reflog states, all source
 separators under asynchronous Combine visibility, Windows default-item versus

@@ -308,6 +308,8 @@ jobs:
         run: python3 scripts/test-log-message-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Source history actions and replay identity family
         run: python3 scripts/test-history-action-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Durable paused replay actions
+        run: python3 scripts/test-rebase-pending-actions.py --only linear --only structural --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Rebase captured revision menu family
         run: python3 scripts/test-rebase-revision-menus.py --only menus --only controls --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Captured Settings sheet callers

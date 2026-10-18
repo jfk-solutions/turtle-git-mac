@@ -200,7 +200,7 @@ final class RebaseTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
     }
 
-    func testStructuralConflictPreservesSessionContextWithoutCustomEditor() async throws {
+    func testStructuralConflictPreservesEditableNativeSessionContext() async throws {
         let (root, repo, _) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
         var settings = options(); settings.preserveMerges = true
         let plan = try await repo.rebasePlan(settings)
@@ -209,7 +209,7 @@ final class RebaseTests: XCTestCase {
         let recovered = try await GitRepository(root: root).rebaseState()
         XCTAssertTrue(recovered.session?.preserveMerges == true); XCTAssertTrue(recovered.session?.afterFetch == true)
         XCTAssertEqual(recovered.session?.upstream, "upstream")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".git/rebase-merge/turtlegit-replay-identities.json").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent(".git/rebase-merge/turtlegit-replay-identities.json").path))
         let aborted = try await repo.abortRebase(); XCTAssertFalse(aborted.state.active); XCTAssertNil(aborted.state.session)
     }
 

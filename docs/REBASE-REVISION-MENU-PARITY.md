@@ -41,10 +41,11 @@ keyboard/AX entry and stale/Quit/retired callbacks. Retained native bulk/complet
 controls and row-drag/structural replay cases share the checkpoint. Actual results
 are recorded in [batch evidence](qa/rebase-revision-menus-2026-10-18.json).
 
-Remaining source behavior is explicit: changing *future* row actions during a
-paused active replay is not implemented. The draft editor remains disabled while
-the Git sequencer owns its live todo/structural session; this requires a backend
-session-edit transaction, not merely enabling a menu item. Rebase also still lacks
+The [durable pending action family](REBASE-PENDING-ACTIONS-PARITY.md) supersedes
+the earlier paused-session editing gap for reproducible native sessions. It owns
+the saved todo/identity/message transaction; the menu does not edit live files
+by itself. Older/custom structural conversion remains explicit.
+Rebase also still lacks
 all of the shared Log command family (including full Find, source reference/range
 menus and export entries). No compiled Windows enabled/omitted matrix, physical
 pointer/VoiceOver, minimum-macOS/Intel, signed deployment or full-dialog visual

@@ -1,10 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+The [durable pending replay action family](REBASE-PENDING-ACTIONS-PARITY.md)
+adds future Pick/Edit/Squash/Skip and per-row cycling while paused, with saved
+occurrence/mainline/message metadata, checked todo publication and journal
+recovery. Native drafts and ownership survive the handoff. [Batch evidence](qa/rebase-pending-actions-2026-10-18.json)
+records the grouped Core/native checkpoint and remaining acceptance.
+
 The [Rebase revision menu family](REBASE-REVISION-MENU-PARITY.md) adds source
 row-action eligibility/order, all merge-parent/unified mode choices, inherited
 icons/default comparison, native keyboard/AX entry and exact captured receipts.
 [Batch evidence](qa/rebase-revision-menus-2026-10-18.json) records the grouped
-checkpoint. Editing future actions in a paused sequencer and the remaining shared
+checkpoint. Older/custom structural session conversion and the remaining shared
 Log menu commands remain open.
 
 The [captured Settings sheet family](SETTINGS-SHEET-PARITY.md) repairs real
