@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [conflict editor entry/routing family](CONFLICT-EDITOR-PARITY.md)
+adds standalone normal/alternative command entry, captured working-tree/metadata
+authorization and adoption, original preference inheritance across all four
+specialized editors, and exact preparation/Delete/Submodule window identities.
+Duplicate native drafts survive entry; owner/retirement cancellation holds pending
+work through actual drain. [Batch evidence](qa/conflict-commands-2026-10-18.json)
+records actual checks and remaining external, physical, source and signed gates.
+
 The connected [service utility command family](COMMAND-LINE.md#daemon-updates-autotext-and-introduction-entry)
 adds Daemon normal/bare entry, visible/quiet/forced update behavior and download
 visibility, owned no-Git Autotext entry, and a native launch explanation with

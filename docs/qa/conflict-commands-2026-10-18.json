@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "ecbd8aa2c7d9e8202003b05d68f703c70314db96",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Standalone conflict-editor command, authorization/adoption and connected shared text/image/delete/submodule routing, captured preferences, exact identities, draft reuse and cancellation ownership.",
+  "dialogs": [
+    "IDD_RESOLVE_CONFLICT",
+    "IDD_RESOLVESUBMODULECONFLICT"
+  ],
+  "resources": [
+    "src/Resources/TortoiseProcENG.rc"
+  ],
+  "source_review": [
+    "src/TortoiseProc/Commands/ConflictEditorCommand.cpp",
+    "src/TortoiseProc/AppUtils.cpp::ConflictEdit",
+    "src/TortoiseIDiff/MainWindow.cpp selection mode"
+  ],
+  "implementation": [
+    "Source conflicteditor entry accepts one literal path and optional alternative; path-file validation precedes explicit deletion. CLI normal/alternative choice overrides ambient modifier state.",
+    "Captured window/preferences survive private/saved scope acquisition, metadata preparation and root discovery; initialized conflicted submodules use the existing superproject resolver. Workspace adoption receives the validated root separately from the original selected item; accepted extra grants are retained and persisted for an existing saved record.",
+    "Shared routing captures merge-tool settings and conflict identities before asynchronous reads. Text, image, delete/modify and submodule native editors receive the owning preferences; default external launch receives captured settings/identities.",
+    "Preparation and Delete/Submodule maps now use exact Git path keys, joining existing Text/Image maps. Close callbacks remove only their own controller. Repeated native text entry retains the edited result.",
+    "Command/shared preparations participate in pending-work ownership before task execution and until actual drain. Closed/retired owners cancel and fence late routing/error delivery; metadata Git children are reaped."
+  ],
+  "validation": {
+    "core": {
+      "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter 'PrimaryCommandInvocationTests|ConflictPathIdentityTests|GitPathIdentityTests|RepositoryAccessTests'",
+      "exit": 0,
+      "attempts": 1,
+      "cases": 97,
+      "classes": {
+        "PrimaryCommandInvocationTests": 52,
+        "ConflictPathIdentityTests": 5,
+        "GitPathIdentityTests": 21,
+        "RepositoryAccessTests": 19
+      }
+    },
+    "build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "attempts": [
+        {
+          "log": "conflict-commands-build-2026-10-18.log",
+          "exit": 65,
+          "failure": "Persistence catch assigned to the caught Error rather than self.error."
+        },
+        {
+          "log": "conflict-commands-build-repair-2026-10-18.log",
+          "exit": 0
+        }
+      ],
+      "scope": "Local arm64 Debug app/embedded targets; existing warnings and simulator-version diagnostic remain. No universal/signed or hosted build claim."
+    },
+    "new_native": {
+      "command": "python3 scripts/test-primary-commands.py --only conflicts --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "fixture_compile_attempts": [
+        {
+          "log": "conflict-commands-native-2026-10-18.log",
+          "exit": 1,
+          "failure": "Swift type-check timeout in a compound fixture-only index-record expression; split into typed records without changing assertions."
+        },
+        {
+          "log": "conflict-commands-native-fixture-repair-2026-10-18.log",
+          "exit": 0
+        }
+      ],
+      "engine_cases": 2,
+      "runtime_failures": [],
+      "passed": [
+        "Actual command root adoption and all four native editor kinds; owning window/preferences and explicit normal/alternative flags despite ambient modifiers and preference retargeting.",
+        "Edited text draft retained on repeated command; image stage bytes and identity captions preserved through reload.",
+        "Bare/root-only selections refused with unchanged workspace context; opening editors leaves captured HEAD/index unchanged.",
+        "Canonically equivalent paths retain separate pending reads and Delete windows; cancel/close affects only the exact peer.",
+        "Late noncooperative entry result cannot route after owner close; pending counts retain ownership until return.",
+        "Actual held metadata Git child cancelled and reaped before repository adoption."
+      ],
+      "scope_limits": "Scope adapters injected; no real external app launched, actual sandbox scope issuance, physical Finder entry or signed acceptance."
+    },
+    "retained_native": {
+      "command": "python3 scripts/test-image-command-family.py --only conflict-routing --only conflict-owned --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "attempts": 1,
+      "engine_cases": 4,
+      "scope": "Existing four-kind shared route/unchanged baselines, actual blob cancellation, late external SDK callbacks/input lifetime, image raw-stage selection, confirmation/forced close/Quit ownership and settings/modifier capture."
+    },
+    "distinct_native_case_engine_passes": 6,
+    "cleanup": {
+      "owned_pids": [
+        57173,
+        57271,
+        57519,
+        57965,
+        58008,
+        58033,
+        58393,
+        58761
+      ],
+      "confirmed_absent": [
+        57173,
+        57271,
+        57519,
+        57965,
+        58008,
+        58033,
+        58393,
+        58761
+      ],
+      "still_present": [],
+      "scope": "Owned receivers/windows/private helpers closed or reaped, operation counters drained. Unrelated installed applications left alone."
+    },
+    "localizations": {
+      "write_before_build": true,
+      "languages": 38,
+      "keys": 1287,
+      "check_exit": 0,
+      "scope": "Generated catalog unchanged; English fallback retained."
+    },
+    "site": {
+      "command": "build/site-venv/bin/python scripts/build-site.py",
+      "exit": 0,
+      "documents": 295,
+      "unresolved_fragments": []
+    }
+  },
+  "remaining": [
+    "Physical source layout/default-button/keyboard/VoiceOver/theme acceptance and full visual comparison of all upstream dialogs.",
+    "Real authorization issuance/renewal, child submodule Log/Reset metadata grants, actual external merge tools and current signed Finder/App Store acceptance.",
+    "Windows process exit semantics, arbitrary invalid UTF-8 paths and remaining source command/control families.",
+    "Current full hosted CI and refreshed universal/signed distribution are not proved by this focused batch.",
+    "The earlier custom TurtleGit artwork has not been recovered; existing shared branding remains upstream-derived."
+  ],
+  "fixture_sha256": "4031ad5f31f2c64a8233f1ca5954039670502549e82f152ce152cc26ac2d1504",
+  "logs": {
+    "conflict-commands-build-2026-10-18.log": {
+      "bytes": 22726,
+      "sha256": "cb5f86aa54de3e8a83ae0e4472386672a498db8557ce199213dab4c552c3b580"
+    },
+    "conflict-commands-build-repair-2026-10-18.log": {
+      "bytes": 29175,
+      "sha256": "b9e690c1687af0ec73239be1e0e3ad5a49f429197aabdbea8208338890e52e9d"
+    },
+    "conflict-commands-core-2026-10-18.log": {
+      "bytes": 27496,
+      "sha256": "4c2aec5d61992be1e76e84d3c5e192df890bf5467fc3a4d568cb80accb98f55d"
+    },
+    "conflict-commands-native-2026-10-18.log": {
+      "bytes": 5592,
+      "sha256": "40bba25cccee1fdd376ac3d57ba895e5247608dc01072d85432d0738eb075069"
+    },
+    "conflict-commands-native-fixture-repair-2026-10-18.log": {
+      "bytes": 4075,
+      "sha256": "b78a3af009c586313eb3bb69da8152da98b18e12b75cf3b90886c18aa68c16ca"
+    },
+    "conflict-commands-retained-2026-10-18.log": {
+      "bytes": 4081,
+      "sha256": "f7e71c4d9236a1c5d6077f15f4e5f442c8ad0d6d631cb80a8c604dbc2b5f145f"
+    },
+    "conflict-commands-site-2026-10-18.log": {
+      "bytes": 123,
+      "sha256": "ce9a50d5187922eeef385b2978c999c322fb10732c141dd35c5256ea94be42f6"
+    }
+  }
+}

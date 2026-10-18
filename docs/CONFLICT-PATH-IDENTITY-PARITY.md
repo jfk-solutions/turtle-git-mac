@@ -66,3 +66,16 @@ The retained Resolve mutation checks still emit the known AppKit reentrant-table
 delegate warning when entering shared Revert. This batch does not claim that
 separate warning is repaired. Complete hosted/physical/signed acceptance remains
 open, and the dialog ledger does not certify either complete dialog.
+
+## Shared editor preparation and window identity
+
+The [standalone/shared editor continuation](CONFLICT-EDITOR-PARITY.md) extends the
+exact-path boundary to pending editor reads and Delete/Submodule controller maps.
+Text/Image maps already used exact identities. Cancelling or closing one canonical
+spelling cannot suppress or remove another. Existing controller close callbacks
+also compare their own identity before removing a map entry.
+
+The same continuation captures the preference store throughout preparation,
+image identity reads/reload, external launch and native editor creation. Its
+[batch evidence](qa/conflict-commands-2026-10-18.json) separates private index/native
+checks from physical filesystem independence and full source/signed acceptance.

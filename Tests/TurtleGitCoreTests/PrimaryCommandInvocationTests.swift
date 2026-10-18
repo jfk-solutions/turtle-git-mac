@@ -2,6 +2,23 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PrimaryCommandInvocationTests: XCTestCase {
+    func testStandaloneConflictEditorCapturesExplicitAlternativeAndOnePath() throws {
+        let normal=try parse(["--command=conflicteditor","--path=-conflict 雪\n[*].txt"])
+        XCTAssertEqual(normal.request.action,.editConflict);XCTAssertTrue(normal.request.action.requiresWorkingTree);XCTAssertEqual(normal.request.alternateTool,false)
+        let alternate=try parse(["/command:conflicteditor","/path:file.txt","/alternative"])
+        XCTAssertEqual(alternate.request.alternateTool,true)
+        for args in [["--command=conflicteditor","--path=a","--path=b"],["--command=conflicteditor","--force"],["--command=conflicteditor","--rev=HEAD"],["--command=conflicteditor","--unified"]] {XCTAssertThrowsError(try parse(args))}
+    }
+    func testConflictPathFilePreservesAlternativeAndInvalidListBeforeDeletion() throws {
+        let root=try temporaryDirectory();defer {try? FileManager.default.removeItem(at:root)}
+        let list=root.appendingPathComponent("conflicts");try Data("first\0second\0".utf8).write(to:list)
+        let value=try parse(["--command=conflicteditor","--alternative","--pathfile",list.path,"--pathfile0","--deletepathfile"])
+        XCTAssertThrowsError(try value.resolvingPathFile(cancellation:OperationCancellation()));XCTAssertTrue(FileManager.default.fileExists(atPath:list.path))
+        try Data("-file[*]\0".utf8).write(to:list)
+        let resolved=try value.resolvingPathFile(cancellation:OperationCancellation())
+        XCTAssertEqual(resolved.request.alternateTool,true);XCTAssertEqual(resolved.request.paths.map(\.path),["/repo/-file[*]"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath:list.path))
+    }
     func testServiceUtilityCommandsRequireNoGitAndScopeSourceFlags() throws {
         let quiet=try parse(["/command:updatecheck"]),visible=try parse(["--command=updatecheck","--visible","--force"])
         XCTAssertEqual(quiet.request.action,.updateCheck);XCTAssertFalse(quiet.updateVisible);XCTAssertFalse(quiet.forceUpdate)

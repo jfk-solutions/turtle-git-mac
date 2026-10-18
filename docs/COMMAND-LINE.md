@@ -941,3 +941,32 @@ open -n -a 'TurtleGit for Mac' --args --command=rtfm
 [Service command evidence](qa/service-commands-2026-10-18.json) records grouped
 validation and separates injected/private execution from public release/LAN
 behavior, physical Help/Finder actions, complete layout and signed Store acceptance.
+
+## Standalone conflict editing
+
+`conflicteditor` opens the existing specialized editor for one conflicted file or
+submodule. `alternative` selects the alternative merge tool; without it the
+normal choice is explicit, independent of currently pressed modifier keys.
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=conflicteditor \
+  --path '/absolute/repository/conflicted-file.txt'
+open -n -a 'TurtleGit for Mac' --args --command=conflicteditor \
+  --path '/absolute/repository/conflicted-file.txt' --alternative
+```
+
+Authorized path files retain the same flag and single-item requirement. A missing
+working file can still open Delete/Modify from its index stages. Initialized
+submodule selections follow the shared superproject conflict resolver. Bare and
+repository-root-only selections are refused.
+
+Preparation captures the original window, input and preference store, authorizes
+working-tree/linked metadata, and uses normal adoption/rollback before routing.
+Native Text, Image, Delete/Modify and Submodule editors share captured settings
+and exact conflict identities. Duplicate native entry preserves the current
+controller/draft. Closing during preparation cancels it and retains ownership
+until the actual read returns; a late reply cannot open another editor.
+
+See [conflict editor parity](CONFLICT-EDITOR-PARITY.md) and
+[batch evidence](qa/conflict-commands-2026-10-18.json) for actual validation and
+remaining source, external-tool, physical and signed acceptance.
