@@ -37,27 +37,29 @@ struct RebaseReplayTable: NSViewRepresentable {
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         struct Row: Equatable {
-            let id: String, values: [String], action: RebaseAction, progress: RebaseEntryProgress
+            let id: String, hash: String, values: [String], action: RebaseAction, progress: RebaseEntryProgress
         }
         private(set) var model: RebaseWindowModel
         weak var table: RebaseReplayNativeTable?
         private var rows: [Row] = []
         private var font: NSFont?
+        private var highlightedHash: String?
         private var synchronizing = false
+        private var scrollRequest = -1
         var retired = false, menuGeneration = UUID()
         init(model: RebaseWindowModel) { self.model = model }
         var available: Bool { !retired && model.revisionMenuAvailable && table?.window != nil && table?.window?.attachedSheet == nil }
         func update(model: RebaseWindowModel, dates: HistoryDateSettings, font: NSFont?) {
             guard !retired, let table else { return }; self.model = model
             let next = model.entries.map { entry in
-                Row(id: entry.id, values: [entry.action == .skip ? "Skip" : entry.action.rawValue.capitalized,
+                Row(id: entry.id, hash: entry.commit.hash, values: [entry.action == .skip ? "Skip" : entry.action.rawValue.capitalized,
                     String(model.entryNumber(entry)), entry.commit.hash, entry.commit.logLine(fullMessage: model.fullCommitMessageOnLogLine),
                     entry.commit.author, dates.format(entry.commit.date), entry.commit.email, entry.commit.committer,
                     entry.commit.committerEmail, dates.format(entry.commit.committerDate), model.issueColumnValues[entry.commit.hash] ?? "",
                     model.svnColumnValues[entry.commit.hash] ?? ""], action: entry.action, progress: entry.progress)
             }
-            let changed = rows != next || self.font != font
-            self.font = font; rows = next; synchronizing = true
+            let changed = rows != next || self.font != font || highlightedHash != model.revisionFindHighlightHash
+            self.font = font; highlightedHash = model.revisionFindHighlightHash; rows = next; synchronizing = true
             if changed {
                 menuGeneration = UUID()
                 let face = font ?? .systemFont(ofSize: NSFont.systemFontSize)
@@ -67,6 +69,11 @@ struct RebaseReplayTable: NSViewRepresentable {
             let selected = IndexSet(rows.indices.filter { model.selection.contains(rows[$0].id) })
             if selected != table.selectedRowIndexes { menuGeneration = UUID(); table.selectRowIndexes(selected, byExtendingSelection: false) }
             synchronizing = false
+            if scrollRequest != model.scrollRevisionRequest {
+                scrollRequest = model.scrollRevisionRequest
+                if let id = model.scrollRevisionOccurrence, let index = rows.firstIndex(where: { $0.id == id }) { table.scrollRowToVisible(index) }
+            }
+            model.onFindAvailability()
         }
         func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
@@ -77,6 +84,9 @@ struct RebaseReplayTable: NSViewRepresentable {
             cell.identifier = key; let value = rows[row]
             var face = font ?? (column == 2 ? NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular) : NSFont.systemFont(ofSize: NSFont.systemFontSize))
             if value.progress == .current { face = NSFontManager.shared.convert(face, toHaveTrait: .boldFontMask) }
+            // Source m_highlight emphasizes every occurrence of the found hash
+            // with italics, retaining the existing action colors and bold state.
+            if value.hash == highlightedHash { face = NSFontManager.shared.convert(face, toHaveTrait: .italicFontMask) }
             cell.configure(value.values[column], font: face, secondary: value.action == .skip || value.progress == .completed,
                            icon: column == 0 ? value.action.icon.image() : nil, rightAligned: column == 1,
                            progress: value.progress == .completed ? "Completed" : value.progress == .current ? "Current" : "Pending", column: tableColumn.title)
@@ -90,7 +100,12 @@ struct RebaseReplayTable: NSViewRepresentable {
         func tableViewSelectionDidChange(_ notification: Notification) {
             guard !synchronizing, available, !model.revisionFiles.busy, let table else { return }
             let selected = Set(table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].id : nil })
+            model.revisionFindHighlightHash = nil
             if selected != model.selection { menuGeneration = UUID(); model.selection = selected }
+            // RebaseDlg::OnLvnItemchangedLoglist moves the Find cursor with the
+            // native selection. Synchronization above must not undo Shift Find's
+            // scroll-only navigation by restoring the cursor to the old selection.
+            if rows.indices.contains(table.selectedRow) { model.revisionFindIndex = table.selectedRow }
         }
         @discardableResult func performDefaultComparison(alternate: Bool = false) -> Bool {
             guard available, model.columnPreferences.bool(forKey: "DiffByDoubleClickInLog"),
@@ -103,6 +118,11 @@ struct RebaseReplayTable: NSViewRepresentable {
             menuGeneration = UUID(); let generation = menuGeneration
             let menu = NSMenu(); menu.autoenablesItems = false
             guard available, let claim = model.captureRevisionMenu(ids) else { return menu }
+            // GetSelectionMark follows the focused native selection, including
+            // multi-selection, rather than the first displayed selected commit.
+            if let table, rows.indices.contains(table.selectedRow), ids.contains(rows[table.selectedRow].id) {
+                model.revisionFindIndex = table.selectedRow
+            } else if let index = model.entries.firstIndex(where: { ids.contains($0.id) }) { model.revisionFindIndex = index }
             let selected = model.revisionMenuRows(ids), one = selected.count == 1
             let policy = model.revisionContextPolicy
             @discardableResult func add(_ title: String, icon: MenuIcon, to menu: NSMenu, allowed: @escaping @MainActor () -> Bool, action: @escaping @MainActor () -> Void) -> NSMenuItem {
@@ -149,7 +169,13 @@ struct RebaseReplayTable: NSViewRepresentable {
                 if !one || selected.first?.commit.parents.count == 1 { command(.unified, to: menu) }
                 if !one || (selected.first?.commit.parents.count ?? 0) > 0 { command(.compare, to: menu) }
             }
-            let groups: [[RebaseRevisionCommand]] = [[.log, .browse, .branch, .tag, .push], [.notes, .patch]]
+            if ids.count == 2 {
+                for range in model.revisionMenuRanges(ids) {
+                    let title = "Show log of " + String(range.from.prefix(8)) + range.separator + String(range.to.prefix(8))
+                    add(title, icon: .log, to: menu, allowed: { [weak model] in model?.revisionMenuLog.onShowHistoryRange != nil && model?.revisionMenuRanges(ids).contains(range) == true }, action: { [weak model] in model?.performRevisionRange(range, ids: ids) })
+                }
+            }
+            let groups: [[RebaseRevisionCommand]] = [[.log, .browse, .branch, .tag, .export, .notes], [.patch], [.push]]
             for group in groups {
                 separator(); for value in group { command(value, to: menu) }
             }
@@ -159,6 +185,8 @@ struct RebaseReplayTable: NSViewRepresentable {
             let choices = NSMenu(); choices.autoenablesItems = false
             for value in [RebaseRevisionCommand.details, .detailsWithoutPaths, .hashes, .authors, .authorNames, .authorEmails, .subjects, .messages] { command(value, to: choices) }
             copy.submenu = choices; menu.addItem(copy)
+            command(.find, to: menu)
+            if one { command(.containing, to: menu) }
             return menu
         }
     }
@@ -186,6 +214,7 @@ struct RebaseReplayTable: NSViewRepresentable {
     override func accessibilityPerformShowMenu() -> Bool { showSelectionMenu() }
     override func keyDown(with event: NSEvent) {
         let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        if event.keyCode == 3, flags == .command, owner?.available == true { owner?.model.onFindRevision?(); return }
         if event.keyCode == 121, flags == .shift, showSelectionMenu() { return }
         if [36, 76].contains(event.keyCode), flags.isEmpty, owner?.performDefaultComparison() == true { return }
         super.keyDown(with: event)

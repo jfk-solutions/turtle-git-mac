@@ -40,7 +40,10 @@ import Darwin
         let suite = "TurtleGit.LogFind.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
         let controller = LogWindowController(repository: repo, access: nil, labelDefaults: prefs, savesColumnLayout: false, savesGeometry: false)
-        let window = controller.window!; window.alphaValue = 0
+        let window = controller.window! as! LogHistoryWindow; window.alphaValue = 0
+        // Source commands now require the owning key window. Inject that
+        // state for this hidden receiver rather than relying on global focus.
+        window.commandKeyWindow = { [weak window] in window }
         defer { controller.find?.close(); controller.model.invalidate(); window.close() }
         try await wait { !controller.model.busy }
         if controller.model.entries.filter({ !$0.hash.isEmpty }).count != 2 { print("Initial Log diagnostic:", controller.model.entries.count, controller.model.error ?? "no error") }

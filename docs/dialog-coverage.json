@@ -2847,6 +2847,7 @@
         "docs/HELP-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
         "docs/REBASE-ACTION-CONTROLS.md",
+        "docs/REBASE-HISTORY-TOOLS-PARITY.md",
         "docs/REBASE-PARITY.md",
         "docs/REBASE-PENDING-ACTIONS-PARITY.md",
         "docs/REBASE-REFERENCE-PREPARATION-PARITY.md",
@@ -2868,6 +2869,7 @@
         "docs/qa/rebase-columns-2026-10-13.json",
         "docs/qa/rebase-compositor-2026-10-15.json",
         "docs/qa/rebase-conditional-2026-10-13.json",
+        "docs/qa/rebase-history-tools-2026-10-18.json",
         "docs/qa/rebase-list-interaction-2026-10-06.json",
         "docs/qa/rebase-native-report-2026-10-15.json",
         "docs/qa/rebase-pending-actions-2026-10-18.json",
@@ -4002,14 +4004,16 @@
       "native_sources": [],
       "missing_native_references": [],
       "parity_documents": [
-        "docs/COMMIT-CONTAINING-REFS-PARITY.md"
+        "docs/COMMIT-CONTAINING-REFS-PARITY.md",
+        "docs/REBASE-HISTORY-TOOLS-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/commit-containing-refs-2026-10-10.json",
         "docs/qa/commit-containing-refs-audit-2026-10-10.json",
         "docs/qa/commit-refs-completion-2026-10-10.json",
         "docs/qa/history-commands-2026-10-18.json",
-        "docs/qa/log-reference-highlight-2026-10-11.json"
+        "docs/qa/log-reference-highlight-2026-10-11.json",
+        "docs/qa/rebase-history-tools-2026-10-18.json"
       ]
     },
     {

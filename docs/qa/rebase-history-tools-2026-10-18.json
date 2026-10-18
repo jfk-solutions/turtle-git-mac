@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "0aee89bdd67ffc9b9155d972bb4f8e82aea70c57",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Rebase shared native Find with repeated occurrences, source selection mark, Shift navigation and saved search options",
+    "Source Export tag preference, containing-reference dialog and forward/reverse/symmetric Log handoffs",
+    "Captured repository, permission lease, preferences, menu receipts and child/read/close/Quit ownership"
+  ],
+  "validation": {
+    "status": "passed scoped grouped checkpoint",
+    "build_attempts": [
+      {
+        "log": "rebase-history-tools-build-2026-10-18.log",
+        "exit": 65,
+        "reason": "AppKit has willBeginSheetNotification, not didBeginSheetNotification."
+      },
+      {
+        "log": "rebase-history-tools-build-affected-2026-10-18.log",
+        "exit": 0,
+        "repair": "Use actual notification and defer availability update until attached-sheet state is installed."
+      }
+    ],
+    "core": "Not run: native-only consumers; existing Core readers unchanged.",
+    "native": {
+      "distinct_case_engine_passes": 10,
+      "cases": [
+        "tools",
+        "find",
+        "references",
+        "export",
+        "menus"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "initial": {
+        "log": "rebase-history-tools-native-2026-10-18.log",
+        "exit": 1,
+        "passed": [
+          "tools/system",
+          "tools/bundled"
+        ],
+        "failed": "Retained Log Find line49: hidden fixture did not inject key-window state required by newer command routing."
+      },
+      "affected_and_remaining": {
+        "log": "rebase-history-tools-native-retained-2026-10-18.log",
+        "exit": 0,
+        "passed": 8,
+        "repair": "Retained hidden Log Find fixture injects its own key-window state; original interaction assertions retained. New tools cases were not repeated."
+      }
+    },
+    "resources": {
+      "write_exit": 0,
+      "languages": 38,
+      "keys": 1289,
+      "check_exit": 0
+    },
+    "ownership": {
+      "owned_receiver_pids": [
+        17537,
+        17761,
+        17962,
+        18069,
+        18522,
+        18978,
+        19263,
+        19518,
+        19618,
+        19713,
+        19898
+      ],
+      "all_absent_after_checks": true,
+      "automated_windows": "hidden; app activation prohibited; private repositories/preferences; process-group cleanup on every outcome"
+    },
+    "limitations": [
+      "Actual workspace Export/range callbacks compiled and reviewed; fixture injects handoffs into actual existing native consumers.",
+      "No current hosted CI pass or physical/signed/App Store acceptance is claimed.",
+      "Hidden unshown split-view hosts emit AppKit geometry diagnostics; these checks do not certify full visual parity."
+    ],
+    "documentation": {
+      "coverage_write_exit": 0,
+      "coverage_check_exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "site_documents": 313,
+      "site_build_exit": 0,
+      "site_link_exit": 0,
+      "site_link_tests": 2
+    }
+  },
+  "remaining": [
+    "Rest of shared Log/reference pointed menu family",
+    "All metadata and mutation-to-Find refresh routes",
+    "Compiled Windows enabled/omitted matrix and full visual parity",
+    "Physical input/VoiceOver, minimum macOS/Intel, current hosted CI",
+    "Signed sandbox/Finder and App Store deployment"
+  ],
+  "validated_sha256": {
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "2039f03f8261806b45332648e999f73a1e4984b08ee7d6f08031c22366fd9935",
+    "Sources/TurtleGitMac/CommitContainingReferencesWindow.swift": "17a5968e2aa568c3211e2a826b8f9d44692430d6b37185b363a404a7e2368b30",
+    "Sources/TurtleGitMac/RebaseReplayTable.swift": "0d83d71d5e5b6022cc7cf2ae7fb64a6cbd3f784f2dfe47ebd80a4680863cc908",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "bf1e69b72995167c309ac7e7d62d5c5661419b2def1489b64f7d517f602a9298",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "2953215c219d35ee0c526662652481b4a04d222605a95e89b27ca03f9e7f93be",
+    "Sources/TurtleGitMac/RevisionGraphWindow.swift": "20f35a64a0a845a7e0bcce21fca06d25bea06272756f93d092ba292a7a5b2579",
+    "docs/qa/rebase-history-tools-native-2026-10-18.swift": "dda034e7e0a0cefa6cdcdabc19ad3925ca1da0127c729cb1bb7664c1d8852713",
+    "docs/qa/log-find-native-2026-10-10.swift": "89aaf9171d4f1042707bd94f5194f9cd8dca2b491fa7ec651ddde30e5b156b1a",
+    "scripts/test-rebase-history-tools.py": "85b100438504c15566b1ba7616630baeaf64e7d0e1989389546761d5cb23e9f4"
+  }
+}

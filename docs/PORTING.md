@@ -3037,3 +3037,14 @@ focus across the Remote read. Only affected checks repeated after repairs. All
 were inspected but have incomplete backdrops/button layers; they are not
 publication screenshots or complete visual parity evidence. No full hosted or
 current signed distribution pass is inferred from this local checkpoint.
+
+
+### Rebase connected history tools, 2026-10-18
+
+The [history tools batch](REBASE-HISTORY-TOOLS-PARITY.md) connects occurrence-based
+Find, Export, containing references and forward/reverse/symmetric range logs to
+the replay table. Existing native consumers retain repository/access/preferences,
+source artwork and captured single-use menu receipts. Parent action/close ownership
+and actual cancelled-read lifetime extend through helper retirement. The remaining
+shared Log/reference menu family, complete visual parity, physical acceptance,
+current hosted CI and signed App Store deployment remain open.

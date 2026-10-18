@@ -102,3 +102,7 @@ The added cursor lifecycle and context-menu checks are recorded in
 The accepted Log reload route and reference-read replacement checks are recorded
 in [reference refresh evidence](qa/log-find-refresh-2026-10-10.json). Graph keeps
 its source initialization-only reference refresh route.
+
+The [Rebase history tools family](REBASE-HISTORY-TOOLS-PARITY.md) reuses this
+native consumer with captured replay occurrences, inherited preferences and
+parent/read ownership. Its focused evidence does not certify every Log route.

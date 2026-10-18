@@ -975,6 +975,7 @@ final class RevisionGraphFindWindow: NSWindow {
 
 /// Modeless owned replacement of CFindDlg / TortoiseLoglistCommon IDD_FIND.
 @MainActor final class RevisionGraphFindController: NSWindowController, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSComboBoxDelegate, NSTextFieldDelegate {
+    private(set) static var activeOperations = 0
     let searchBox = NSComboBox()
     let matchCase = NSButton(checkboxWithTitle: "Match case", target: nil, action: nil)
     let regex = NSButton(checkboxWithTitle: "Regular Expression", target: nil, action: nil)
@@ -991,6 +992,10 @@ final class RevisionGraphFindWindow: NSWindow {
     var snapshot: () -> [RevisionGraphNode] = { [] }
     /// Log shares CFindDlg while searching its richer LOGFILTER_ALL corpus.
     var logSnapshot: (() -> [LogEntry])?
+    var logRowIdentities: (() -> [String])?
+    var snapshotEpoch: () -> UUID? = { nil }
+    var navigateIndex: ((Int, Bool) -> Void)?
+    var readReferences: ((OperationCancellation) async throws -> [String])?
     var logFiles: () -> [String: [CommitFile]] = { [:] }
     var logDateSettings = HistoryDateSettings()
     private var searchScope: String { logSnapshot == nil ? "graph" : "log" }
@@ -1092,10 +1097,13 @@ final class RevisionGraphFindWindow: NSWindow {
         references = []; visibleReferences = []; table.deselectAll(nil); table.reloadData()
         loadingReferences = true; status.stringValue = "Loading references…"; updateAvailability()
         let repo = repository, cancellation = refToken
+        Self.activeOperations += 1
+        let read = readReferences
         refWorker = Task { [weak self, access] in
-            _ = access
+            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
             let result = await Task.detached { () -> Result<[String], Error> in
                 do {
+                    if let read { return .success(Self.orderedReferences(try await read(cancellation))) }
                     let output = try await repo.run(["for-each-ref", "--format=%(refname)"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation)
                     let names = String(decoding: output.stdout, as: UTF8.self).split(separator: "\n").map(String.init)
                     return .success(Self.orderedReferences(names))
@@ -1155,6 +1163,7 @@ final class RevisionGraphFindWindow: NSWindow {
         window?.makeFirstResponder(nil)
         let nodes = snapshot(), logs = logSnapshot?(), cached = logFiles(), dates = logDateSettings
         let hashes = logs?.map(\.hash) ?? nodes.map(\.hash)
+        let identities = logRowIdentities?() ?? hashes, epoch = snapshotEpoch()
         let query = searchBox.stringValue, useRegex = regex.state == .on, sensitive = matchCase.state == .on
         if reference == nil {
             preferences.set(sensitive, forKey: "LogDialog.FindMatchCase"); preferences.set(useRegex, forKey: "LogDialog.FindRegex")
@@ -1165,29 +1174,34 @@ final class RevisionGraphFindWindow: NSWindow {
         let previous: Int? = hashes.indices.contains(index) ? index : nil
         let repo = repository, helper = regexExecutable
         let cancellation = OperationCancellation(), generation = UUID(); token = cancellation; request = generation; busy = true; status.stringValue = "Searching…"; updateAvailability()
+        Self.activeOperations += 1
         worker = Task { [weak self, access] in
-            _ = access
-            let result = await Task.detached { () -> Result<(String, Bool)?, Error> in
+            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+            let result = await Task.detached { () -> Result<(Int, Bool)?, Error> in
                 do {
                     if let reference {
                         let hash = String(decoding: try await repo.run(["rev-parse", "--verify", "--end-of-options", reference + "^{}"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
-                        return .success(hashes.contains(hash) ? (hash, false) : nil)
+                        return .success(hashes.firstIndex(of: hash).map { ($0, false) })
                     }
                     if let logs {
                         guard let found = try await repo.findNextHistoryMatch(in: logs, after: previous, query: query, regex: useRegex, caseSensitive: sensitive, cachedFiles: cached, dateSettings: dates, regexExecutable: helper, cancellation: cancellation) else { return .success(nil) }
-                        return .success((hashes[found.index], found.wrapped))
+                        return .success((found.index, found.wrapped))
                     }
                     let matches = try RevisionGraphSearch.matches(nodes, query: query, regex: useRegex, caseSensitive: sensitive, regexExecutable: helper, cancellation: cancellation)
                     guard let found = RevisionGraphSearch.next(matches, after: previous) else { return .success(nil) }
-                    return .success((hashes[found.index], found.wrapped))
+                    return .success((found.index, found.wrapped))
                 } catch { return .failure(error) }
             }.value
             guard let self, !self.closed, self.request == generation, !cancellation.isCancelled else { return }
             self.busy = false; self.worker = nil; self.token = nil; self.updateAvailability()
-            guard self.canSearch(), (self.logSnapshot?().map(\.hash) ?? self.snapshot().map(\.hash)) == hashes else { self.status.stringValue = "The \(self.searchScope) changed. Search again."; return }
+            guard self.canSearch(), self.snapshotEpoch() == epoch, (self.logRowIdentities?() ?? self.logSnapshot?().map(\.hash) ?? self.snapshot().map(\.hash)) == identities else { self.status.stringValue = "The \(self.searchScope) changed. Search again."; return }
             switch result {
             case .success(let found):
-                if let (hash, wrapped) = found, let index = hashes.firstIndex(of: hash) { self.didFindIndex(index); self.navigate(hash, select); self.status.stringValue = wrapped ? "Search continued from the beginning." : "" }
+                if let (index, wrapped) = found, hashes.indices.contains(index) {
+                    self.didFindIndex(index)
+                    if let navigateIndex = self.navigateIndex { navigateIndex(index, select) } else { self.navigate(hashes[index], select) }
+                    self.status.stringValue = wrapped ? "Search continued from the beginning." : ""
+                }
                 else { self.status.stringValue = "No further match in the displayed \(self.searchScope)." }
             case .failure(let error): self.presentFailure(reference.map { "Could not get hash of ref \"" + $0 + "^{}\"." } ?? "Could not search the \(self.searchScope).", detail: error.localizedDescription)
             }

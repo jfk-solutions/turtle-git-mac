@@ -2779,7 +2779,8 @@ import UniformTypeIdentifiers
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
     }
-    private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = [], commandLaunch: Bool = false) {
+    private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = [], commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
+        let defaults = preferences ?? fileComparisonPreferences
         let commandKey = repository.root.path + "\0command-export"
         if commandLaunch, let existing = exportWindows[commandKey] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let root = repository.root
@@ -2788,10 +2789,10 @@ import UniformTypeIdentifiers
         let reusable = exportWindows.first { key, controller in
             !commandLaunch && key != commandKey &&
             controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
-            controller.window?.attachedSheet == nil && controller.model.canReuseForRevision(revision, directory: directory)
+            controller.model.presentationPreferences === defaults && controller.window?.attachedSheet == nil && controller.model.canReuseForRevision(revision, directory: directory)
         }
         let key = commandLaunch ? commandKey : reusable?.key ?? (exportWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
-        let controller = reusable?.value ?? ExportWindowController(repository: repository, access: access, revision: revision, directory: directory, preferences: fileComparisonPreferences)
+        let controller = reusable?.value ?? ExportWindowController(repository: repository, access: access, revision: revision, directory: directory, preferences: defaults)
         configureExportInteractions(controller, repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }
         exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -3004,6 +3005,10 @@ import UniformTypeIdentifiers
         revisionFiles.onSubmoduleCompare={ [weak self] path,oldPath,from,to in
             self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:from == .emptyTree ? "" : from.label,to:to == .workingTree ? nil : to == .emptyTree ? "":to.label,fromPath:oldPath)
         }
+        let inherited = controller.model.columnPreferences
+        controller.configureContainingReferences = { [weak self] child in
+            child.onLog = { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range, preferences: inherited) }
+        }
         let revisionLog = controller.model.revisionMenuLog
         revisionLog.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         revisionLog.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
@@ -3012,11 +3017,15 @@ import UniformTypeIdentifiers
         revisionLog.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
         revisionLog.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         revisionLog.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
+        revisionLog.onExportRevision = { [weak self] hash in self?.showExport(repository: repository, access: access, revision: hash, preferences: inherited) }
+        revisionLog.onShowHistoryRange = { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: inherited) }
+        revisionLog.onContainingLog = { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range, preferences: inherited) }
+
         revisionLog.onRevisionChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output }
         }
-        controller.model.onShowRevisionLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
+        controller.model.onShowRevisionLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, preferences: inherited) }
         controller.model.configureLogPicker = { [weak self] log in
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }

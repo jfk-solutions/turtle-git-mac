@@ -1,5 +1,6 @@
 // Native adaptation of CommitIsOnRefsDlg. SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import Combine
 import TurtleGitCore
 
 private final class CommitReferencesSurface: NSView {
@@ -15,6 +16,7 @@ private final class CommitReferencesWindow: NSWindow {
 }
 
 @MainActor final class CommitContainingReferencesWindowController: NSWindowController, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSComboBoxDelegate, NSSearchFieldDelegate {
+    private(set) static var activeOperations = 0
     let repository: GitRepository
     let access: RepositoryAccessLease?
     private let wordCommands=GitInputWordCommands()
@@ -48,8 +50,19 @@ private final class CommitReferencesWindow: NSWindow {
     private var lastSelected: GitReferenceName?
     private var previousSelection = IndexSet()
     private var completionCache: [GitReferenceName]?
-    private var unifiedViewer: PatchWindowController?
-    private var canAct: Bool { !closed && !busy && picker == nil && window?.attachedSheet == nil && window?.parent?.attachedSheet == nil }
+    private var unifiedViewerObservation: AnyCancellable?
+    private var unifiedViewer: PatchWindowController? {
+        didSet {
+            unifiedViewerObservation = unifiedViewer?.model.objectWillChange.sink { [weak self] _ in
+                DispatchQueue.main.async { self?.updateAvailability() }
+            }
+            updateAvailability()
+        }
+    }
+    var blockingStateChanged: () -> Void = {}
+    private var reportedBlockingState = false
+    var externalAvailability: () -> Bool = { true }
+    private var canAct: Bool { externalAvailability() && !closed && !busy && !hasBlockingChild && window?.parent?.attachedSheet == nil }
 
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.preferences = preferences
@@ -57,6 +70,8 @@ private final class CommitReferencesWindow: NSWindow {
         window.title = "References commit is on – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 470, height: 300)
         window.contentView = CommitReferencesSurface(frame: window.contentView!.frame)
         super.init(window: window); window.delegate = self
+        NotificationCenter.default.addObserver(self, selector: #selector(sheetStateChanged(_:)), name: NSWindow.willBeginSheetNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(sheetStateChanged(_:)), name: NSWindow.didEndSheetNotification, object: nil)
         self.revision.stringValue = revision; self.revision.completes = true; self.revision.delegate = self
         filter.delegate = self; filter.placeholderString = "Filter references"
         subject.lineBreakMode = .byTruncatingTail; subject.isSelectable = true
@@ -86,16 +101,16 @@ private final class CommitReferencesWindow: NSWindow {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     private func cancelRead() { request = UUID(); token?.cancel(); token = nil; worker?.cancel(); worker = nil; busy = false }
     func refresh(reloadCompletion: Bool = false) {
-        guard !closed, picker == nil, window?.attachedSheet == nil, window?.parent?.attachedSheet == nil else { return }
+        guard externalAvailability(), !closed, !hasBlockingChild, window?.parent?.attachedSheet == nil else { return }
         revisionTimer?.invalidate(); revisionTimer = nil; filterTimer?.invalidate(); filterTimer = nil
         cancelRead(); snapshot = nil; rows = []; subject.stringValue = ""; subject.toolTip = nil; table.reloadData(); previousSelection = []; lastSelected = nil
         let name = revision.stringValue
         if reloadCompletion { completionCache = nil; revision.removeAllItems(); revision.stringValue = name }
         let cancellation = OperationCancellation(), generation = UUID(); request = generation; token = cancellation; busy = true; status.stringValue = "Loading…"; updateAvailability()
         let useMailmap = GitIdentityDisplay(defaults: preferences).useMailmap
-        worker = Task { [weak self] in
-            guard let self else { return }
-            defer { withExtendedLifetime(access) {} }
+        Self.activeOperations += 1
+        worker = Task { [self] in
+            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 if completionCache == nil {
@@ -132,8 +147,15 @@ private final class CommitReferencesWindow: NSWindow {
         rows = snapshot?.filtered(filter.stringValue) ?? []; previousSelection = []; lastSelected = nil; table.deselectAll(nil); table.reloadData()
         if snapshot != nil { status.stringValue = rows.isEmpty ? "No references found." : "" }
     }
-    private func updateAvailability() {
+    func updateAvailability() {
+        revision.isEnabled = externalAvailability() && !closed && !hasBlockingChild && window?.parent?.attachedSheet == nil
         showLog.isEnabled = canAct && snapshot != nil && onLog != nil; chooser.isEnabled = canAct; filter.isEnabled = canAct && snapshot != nil; table.isEnabled = canAct
+        let blocking = hasBlockingChild
+        if reportedBlockingState != blocking { reportedBlockingState = blocking; blockingStateChanged() }
+    }
+    @objc private func sheetStateChanged(_ notification: Notification) {
+        guard let changed = notification.object as? NSWindow, changed === window || changed === unifiedViewer?.window else { return }
+        DispatchQueue.main.async { [weak self] in self?.updateAvailability() }
     }
     func controlTextDidChange(_ notification: Notification) {
         if notification.object as? NSComboBox === revision {
@@ -179,13 +201,14 @@ private final class CommitReferencesWindow: NSWindow {
         performRead { [weak self] token in
             guard let self else { return }
             let hash = try await repository.run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
-            if !closed, !token.isCancelled { onNavigate(hash, select) }
+            if externalAvailability(), !closed, !token.isCancelled { onNavigate(hash, select) }
         }
     }
     private func performRead(_ action: @escaping (OperationCancellation) async throws -> Void) {
         guard canAct else { return }; let cancellation = OperationCancellation(), generation = UUID(); token = cancellation; request = generation; busy = true; updateAvailability()
-        worker = Task { [weak self] in
-            guard let self else { return }; defer { withExtendedLifetime(access) {} }
+        Self.activeOperations += 1
+        worker = Task { [self] in
+            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
             do { try await action(cancellation) }
             catch { if !closed, request == generation, !cancellation.isCancelled { status.stringValue = error.localizedDescription } }
             if !closed, request == generation { busy = false; token = nil; worker = nil; updateAvailability() }
@@ -214,7 +237,7 @@ private final class CommitReferencesWindow: NSWindow {
         if let value { revision.stringValue = value; refresh() } else { updateAvailability() }
         owner.makeFirstResponder(revision)
     }
-    var hasBlockingChild: Bool { picker != nil || window?.attachedSheet != nil || unifiedViewer?.model.busy == true || unifiedViewer?.window?.attachedSheet != nil }
+    var hasBlockingChild: Bool { !closed && (picker != nil || window?.attachedSheet != nil || unifiedViewer?.model.busy == true || unifiedViewer?.window?.attachedSheet != nil) }
     func handleKey(_ event: NSEvent) -> Bool {
         if event.keyCode == 96 { refresh(reloadCompletion: true); return true }
         if event.keyCode == 53, let editor = filter.currentEditor(), window?.firstResponder === editor, !filter.stringValue.isEmpty { filter.stringValue = ""; applyFilter(); return true }
@@ -230,6 +253,7 @@ private final class CommitReferencesWindow: NSWindow {
         closed = true; cancelRead(); revisionTimer?.invalidate(); filterTimer?.invalidate()
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
         picker?.close(); picker = nil; unifiedViewer?.close(); unifiedViewer = nil; onClosed()
+        updateAvailability(); NotificationCenter.default.removeObserver(self)
     }
 }
 
@@ -267,9 +291,9 @@ extension CommitContainingReferencesWindowController: NSMenuDelegate {
                 guard let self else { return }
                 let data = try await repository.revisionComparison(from: .revision(names[0].rawValue), to: .revision(names[1].rawValue), cancellation: token)
                 let bytes = try await repository.revisionComparisonPatchData(data, cancellation: token)
-                guard !closed, !token.isCancelled else { return }
+                guard externalAvailability(), !closed, !token.isCancelled else { return }
                 if let onUnified { try await onUnified(bytes, alternate) }
-                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: names.map(\.rawValue).joined(separator: ":"), permissions: access.map { [$0] } ?? [], cancellation: token), !closed, !token.isCancelled {
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: names.map(\.rawValue).joined(separator: ":"), permissions: access.map { [$0] } ?? [], cancellation: token), externalAvailability(), !closed, !token.isCancelled {
                     unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedViewer, title: names.map(\.rawValue).joined(separator: ":"), onClosed: { [weak self] in self?.unifiedViewer = nil })
                 }
             }

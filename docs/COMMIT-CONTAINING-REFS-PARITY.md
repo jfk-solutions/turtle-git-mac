@@ -150,3 +150,7 @@ reference navigation alongside configured fonts and live search-match coloring.
 See [Log highlight evidence](qa/log-reference-highlight-2026-10-11.json) for the
 scope. The containing-reference window layout and physical gesture/signed
 acceptance remain partial; these checks do not certify either dialog complete.
+
+The [Rebase history tools family](REBASE-HISTORY-TOOLS-PARITY.md) reuses this
+native consumer with captured replay occurrences, inherited preferences and
+parent/read ownership. Its focused evidence does not certify every Log route.
