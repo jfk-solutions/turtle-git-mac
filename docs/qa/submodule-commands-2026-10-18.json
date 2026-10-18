@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-18",
+  "scope": "Connected source subadd/subupdate/subsync command entry, explicit/default superproject base, Update scope/selection, preserved native drafts, same-operation progress refusal and owning preferences. Reuses native forms, original icons and Git operations.",
+  "base_commit": "00aa1fcb3b27b2e3ee5fbc24cd392acf62083596",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_sources": [
+    "src/TortoiseProc/Commands/SubmoduleCommand.cpp",
+    "src/Git/GitAdminDir.cpp::GetSuperProjectRoot",
+    "src/TortoiseProc/SubmoduleAddDlg.cpp",
+    "src/TortoiseProc/SubmoduleUpdateDlg.cpp",
+    "src/Resources/TortoiseProcENG.rc::IDD_SUBMODULE_ADD/IDD_SUBMODULE_UPDATE"
+  ],
+  "implementation": [
+    "Typed source command aliases and option allowlists; bkpath URL and safe relative selectedpath; native literal versus legacy Windows separator handling; path-file default base derived after resolution and single-path Add validation before requested deletion.",
+    "Authorized discovery starts at bkpath or first selection parent, stops at nearest repository and requires .gitmodules. Selected paths and resolved superproject must stay in the held permission. Generic metadata preparation and original workspace opening cancellation remain the owners.",
+    "Submodule Add initializes from selected directory/file parent, owning URL/path/key histories and native source/key/path picker flows. Repeated command focuses an existing review without replacing its input or submit callback.",
+    "Update filters existing selected directories and intersects requested selectedpath; ordinary files do not become a directory filter. Repeated review preserves scope, checks and options. Its existing native selection/options/Whole Project/progress/Bisect actions remain.",
+    "Sync delegates original relative file/directory selection to the existing plan, preserving directory order and file-only no-command behavior. Same-operation active progress owners focus/refuse duplicate commands.",
+    "Owning workspace preferences reach Add, Update, Sync and Update progress; Add progress already carries its form preferences. Existing native source icons and layouts remain."
+  ],
+  "validation": {
+    "core": {
+      "log": "build/qa/submodule-commands-core-2026-10-18.log",
+      "initial_exit": 1,
+      "initial_executed": 42,
+      "initial_failures": 1,
+      "classes": [
+        "PrimaryCommandInvocationTests:32",
+        "SubmoduleSyncTests:4",
+        "SubmoduleUpdateTests:6"
+      ],
+      "failure": "One new path-file assertion compared directory URLs with different trailing-slash metadata; normalized path comparison preserves the expected directory.",
+      "affected_recheck_log": "build/qa/submodule-commands-core-url-recheck-2026-10-18.log",
+      "affected_recheck_exit": 0,
+      "affected_recheck_cases": 1,
+      "distinct_cases_with_final_passing_evidence": 42,
+      "full_suite_rerun": false
+    },
+    "debug_build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "log": "build/qa/submodule-commands-build-2026-10-18.log",
+      "exit": 0,
+      "invocations": 1,
+      "scope": "Current arm64 Debug app and embedded targets. Nonfatal toolchain/simulator diagnostics and compiler warnings remain in log; no universal/signed build claim for this source batch."
+    },
+    "native": {
+      "commands": [
+        "python3 scripts/test-primary-commands.py --only submodules --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+        "python3 scripts/test-submodule-source-family.py --only source --only progress --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+      ],
+      "logs": [
+        "build/qa/submodule-commands-native-2026-10-18.log",
+        "build/qa/submodule-commands-native-refresh-recheck-2026-10-18.log",
+        "build/qa/submodule-commands-native-loaded-recheck-2026-10-18.log",
+        "build/qa/submodule-commands-native-literal-recheck-2026-10-18.log",
+        "build/qa/submodule-commands-regression-2026-10-18.log"
+      ],
+      "distinct_case_engine_passes": 6,
+      "receiver_attempts": 9,
+      "final_command_family_exit": 0,
+      "regression_exit": 0,
+      "passed": [
+        "submodule-commands/system",
+        "submodule-commands/bundled",
+        "submodule-source/system",
+        "submodule-source/bundled",
+        "submodule-progress/system",
+        "submodule-progress/bundled"
+      ],
+      "failed_receiver_attempts": [
+        {
+          "pid": 25377,
+          "result": "Initial Update-open wait at fixture line 72 timed out after Add; fixture now waits for the completion-triggered workspace refresh to become idle. No product repair or confirmed product root-cause claim from this timeout."
+        },
+        {
+          "pid": 25789,
+          "result": "Composite Update assertion ran before a loaded-row readiness condition and used raw directory URL equality. Fixture now waits for requested row availability and compares the directory path; assertions for repository/scope/selection/options remain."
+        },
+        {
+          "pid": 26212,
+          "result": "Sync plan refused nonexistent selections: fixture passed a literal asterisk through legacy /path syntax, where asterisk separates selections. Corrected to native --path; legacy file-only Sync remains exercised."
+        }
+      ],
+      "assertions": [
+        "Actual accepted Add stages new module while parent HEAD remains unchanged; no module before OK; repeated Add preserves edited source/path.",
+        "Update discovers superproject from initialized module default parent, filters literal Unicode/glob path, applies selectedpath and saved Recursive option; repeated command preserves draft; accepted no-fetch/force Update restores only selected child to indexed commit.",
+        "Update keeps parent index and HEAD; unselected child remains at its changed commit.",
+        "Legacy file-only Sync changes no parent config and reports no directories; native literal module Sync updates only selected URL, no network request; active Sync request retains owner.",
+        "Private preference animation setting reaches each progress model; existing workspace repository lease reused.",
+        "Cancelled, selected-child-only and discovery-folder-only grants cannot authorize the superproject. A nearest repository without .gitmodules refuses Update.",
+        "Existing source native case covers selection/options/form behavior; existing progress case covers actual checkout, persistence, auto-close/output, cancellation/Quit/retirement, original Bisect post-actions and owned process cleanup."
+      ],
+      "fixture_git": "Each receiver uses a private executable wrapper around its selected system or pinned Git with -c protocol.file.allow=always for local clone fixtures; no user Git config is changed. The actual Git operations and native workflow assertions remain."
+    },
+    "ownership": {
+      "reaped_receiver_pids": [
+        25377,
+        25789,
+        26212,
+        27020,
+        27945,
+        28890,
+        28914,
+        28937,
+        29305
+      ],
+      "independently_absent": true,
+      "cleanup": "New fixture closes all receiver-owned windows, stops workspace monitoring and drains update reads/progress; exception path closes/cancels owners. Runner reaps owned process groups on all outcomes.",
+      "user_apps": "No installed app or extension was launched, replaced or terminated by this batch."
+    },
+    "documentation": {
+      "localizations": "38 languages / 1284 keys; --write before Debug build and --check passed; resource bytes unchanged",
+      "dialog_coverage": "Regenerated after new evidence record was present, then --check passed; 130 dialogs / 120 partial families / 10 pending / 0 certified; 1659 controls / 1566 mapped / 93 pending. Counts are not completion percentages.",
+      "site": "294 documents / zero unresolved fragments; site rebuilt after ledger regeneration.",
+      "scope": "No full Core, unrelated native families, universal packaging, screenshots, installed Finder or signed checks repeated for this source continuation."
+    }
+  },
+  "remaining": [
+    "This batch adds connected entry paths and preference/ownership routing; it does not certify complete upstream Submodule dialogs or global command permissiveness.",
+    "Cross-operation/cross-process repository mutation locking is not established by same-operation duplicate refusal.",
+    "Physical Finder/GUI selection, network/key transport, signed external metadata/source grants, minimum OS and App Store acceptance remain separate.",
+    "Existing screenshots/layout checks are reused; no fresh capture or new full visual-parity certification.",
+    "Most recent packaged Release preview remains at source 16380893; this continuation is verified in the current Debug build.",
+    "Full current hosted CI and complete application parity remain required."
+  ]
+}

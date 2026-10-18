@@ -254,6 +254,7 @@ import TurtleGitCore
     }
     @MainActor static func main() async throws {
         NSApp.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "submodules" { try await verifySubmoduleCommands(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "bisect" { try await verifyBisectCommands(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "patches" { try await verifyPatchCommands(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "integration" { try await verifyIntegration(); return }

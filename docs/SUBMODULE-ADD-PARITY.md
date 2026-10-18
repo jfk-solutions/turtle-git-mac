@@ -1,5 +1,11 @@
 # Submodule Add parity
 
+The connected [Submodule command-entry family](COMMAND-LINE.md#submodule-add-update-and-sync-entry)
+adds source `subadd`/`subupdate`/`subsync` routes, superproject base discovery,
+directory filtering/selection, preserved reviews, owning preferences and existing
+Git progress consumers. [Dated evidence](qa/submodule-commands-2026-10-18.json)
+separates scoped checks from physical, signed and complete dialog acceptance.
+
 Baseline: `7338078f8ddd924b8cddee35f512f2286072136d`,
 `SubmoduleAddDlg.cpp/.h`, `IDD_SUBMODULE_ADD`, `SubmoduleCommand.cpp/.h` Add
 branch and `MenuInfo.cpp` SubmoduleAdd clause. The full application port remains

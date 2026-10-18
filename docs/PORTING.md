@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Submodule entry batch](COMMAND-LINE.md#submodule-add-update-and-sync-entry)
+adds Add, Update and Sync command routes, source parent/bkpath superproject
+lookup, Update filtering/preselection, preserved reviews, active-progress refusal
+and owning preferences throughout forms/progress. File-only Sync remains empty
+rather than expanding to whole-project work. Existing source forms/icons and Git
+operations remain the consumers. [Batch evidence](qa/submodule-commands-2026-10-18.json)
+retains validation scope and source/platform gaps.
+
 The connected [Bisect command family](COMMAND-LINE.md#stateful-bisect-entry)
 adds fresh-state source routing, optional Good/Bad Start presets, active custom-term
 classification, Skip/Reset, preserved native reviews and captured progress/picker

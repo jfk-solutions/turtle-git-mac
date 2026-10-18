@@ -1,10 +1,16 @@
 # Submodule Sync parity
 
+The connected [Submodule command-entry family](COMMAND-LINE.md#submodule-add-update-and-sync-entry)
+adds source `subadd`/`subupdate`/`subsync` routes, superproject base discovery,
+directory filtering/selection, preserved reviews, owning preferences and existing
+Git progress consumers. [Dated evidence](qa/submodule-commands-2026-10-18.json)
+separates scoped checks from physical, signed and complete dialog acceptance.
+
 Baseline: `7338078f8ddd924b8cddee35f512f2286072136d`,
 `SubmoduleCommand.cpp/.h` Sync branch, `ProgressDlg::RunCmdList`, shell
 `MenuInfo.cpp` SubmoduleSync clause and `src/Resources/menusync.ico`.
-This is local submodule URL synchronization, separate from the unported broader
-SyncDlg transport window. No SSH agent or network connection is required.
+This is local submodule URL synchronization, separate from the broader native
+Synchronization transport window. No SSH agent or network connection is required.
 
 The application action and Finder menu use the unchanged original colored Sync
 icon. Finder requires a folder in Git with submodule configuration, as in source;

@@ -15,6 +15,14 @@ public struct PrimaryCommandInvocation: Sendable {
     public let importTarget: URL?
     public let formatPatchPreset: FormatPatchPreset?
     public let bisectCommand: BisectCommandRequest?
+    public let submoduleBase: URL?
+    public let selectedSubmodule: String?
+    /// Source subupdate/subsync start at bkpath, or the selected path's parent.
+    /// Resolving a path file must happen before deriving that default.
+    public var submoduleDiscoveryURL: URL? {
+        guard [.submoduleUpdate, .submoduleSync].contains(request.action) else { return nil }
+        return submoduleBase ?? request.paths.first?.deletingLastPathComponent()
+    }
     public let unified: Bool
     public let line: Int?
     public let sourceURL: String?
@@ -49,9 +57,10 @@ public struct PrimaryCommandInvocation: Sendable {
         }
         guard hasCommand else { return nil }
         let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete", "abort", "start", "skip", "reset"]
-        let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream", "msg", "droptarget"]
+        let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream", "msg", "droptarget", "bkpath", "selectedpath"]
         let optionalValues: Set<String> = ["good", "bad"]
         var values: [String: String] = [:], paths: [String] = [], index = 0
+        var legacySelectedPath = false
         while index < arguments.count {
             let argument = arguments[index]; index += 1
             guard !argument.contains("\0") else { throw Failure("Command arguments cannot contain NUL.") }
@@ -84,6 +93,7 @@ public struct PrimaryCommandInvocation: Sendable {
             } else {
                 guard values[key] == nil else { throw Failure("Duplicate command option: " + key) }
                 values[key] = value
+                if key == "selectedpath" { legacySelectedPath = legacy }
             }
         }
         let action: RepositoryAction
@@ -111,6 +121,9 @@ public struct PrimaryCommandInvocation: Sendable {
         case "rename": action = .rename
         case "remove": action = values["keep"] != nil ? .removeKeep : .remove
         case "bisect": action = .bisect
+        case "subadd": action = .submoduleAdd
+        case "subupdate": action = .submoduleUpdate
+        case "subsync": action = .submoduleSync
         case "formatpatch": action = .formatPatch
         case "export": action = .export
         case "importpatch": action = .importPatch
@@ -131,6 +144,8 @@ public struct PrimaryCommandInvocation: Sendable {
         case .log: allowed.formUnion(["startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "findtext", "findregex", "outfile"])
         case .diff: allowed.formUnion(["path2", "alternative", "startrev", "endrev", "unified", "line"])
         case .bisect: allowed.formUnion(["start", "good", "bad", "skip", "reset", "ref"])
+        case .submoduleUpdate: allowed.formUnion(["bkpath", "selectedpath"])
+        case .submoduleSync: allowed.insert("bkpath")
         case .formatPatch: allowed.formUnion(["startrev", "endrev"])
         case .export: allowed.insert("rev")
         case .importPatch: allowed.insert("droptarget")
@@ -224,11 +239,18 @@ public struct PrimaryCommandInvocation: Sendable {
             let mapping: [(UInt16, HistorySearchFields)] = [(1,.messages),(2,.paths),(4,.authors),(8,.revisions),(32,.bugIDs),(64,.subject),(128,.referenceNames),(256,.emails),(512,.notes),(1024,.tagInfo)]
             fields = mapping.reduce(into: HistorySearchFields()) { result, item in if mask & item.0 != 0 { result.formUnion(item.1) } }
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        let selectedSubmodule = try values["selectedpath"].flatMap { raw -> String? in
+            guard !raw.isEmpty else { return nil }
+            let path = legacySelectedPath ? raw.replacingOccurrences(of: "\\", with: "/") : raw
+            do { _ = try RemovalRequest(paths: [path], keepLocal: true) }
+            catch { throw Failure("Select a relative submodule path inside the superproject.") }
+            return path
+        }
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {
-        if [.clone, .initialize, .blame, .previousDiff, .rename, .export].contains(action), urls.count != 1 {
+        if [.clone, .initialize, .blame, .previousDiff, .rename, .export, .submoduleAdd].contains(action), urls.count != 1 {
             throw Failure("This command requires one selected path.")
         }
     }

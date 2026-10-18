@@ -544,7 +544,8 @@ import UniformTypeIdentifiers
                 } else { commandMessage = nil }
                 defer { withExtendedLifetime(messageAccess) {} }
                 let first = selected?.paths.first ?? lease.url
-                var location = first
+                let submoduleLocation = invocation?.submoduleDiscoveryURL
+                var location = submoduleLocation ?? first
                 var directory: ObjCBool = false
                 if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue {
                     location.deleteLastPathComponent()
@@ -553,12 +554,18 @@ import UniformTypeIdentifiers
                 try cancellation.check();guard adoption==adoptionGeneration else { return }
                 let sessionAccess=lease.retainingRelatedScopes(prepared.scopes)
                 let candidate = try makeRepository(location)
-                let resolved = try await candidate.discoverSelectionRoot(for: action ?? .status, selected: first,cancellation:cancellation)
+                let resolved: URL
+                if submoduleLocation != nil {
+                    resolved = try await candidate.discoverRoot(cancellation: cancellation)
+                    guard FileManager.default.fileExists(atPath: resolved.appendingPathComponent(".gitmodules").path) else {
+                        throw PrimaryCommandInvocation.Failure("Could not find a superproject with a .gitmodules file.")
+                    }
+                } else { resolved = try await candidate.discoverSelectionRoot(for: action ?? .status, selected: first,cancellation:cancellation) }
                 if commandRootOnly {
                     let requested = first.standardizedFileURL.resolvingSymlinksInPath().path
                     guard GitReferenceName.equal(location.standardizedFileURL.resolvingSymlinksInPath().path, requested), GitReferenceName.equal(resolved.standardizedFileURL.resolvingSymlinksInPath().path, requested) else { throw PrimaryCommandInvocation.Failure("Batch transport commands require repository-root folders.") }
                 }
-                if requiresRepositoryScope && (!lease.hasSecurityScope || !lease.contains(resolved)) {
+                if (requiresRepositoryScope && !lease.hasSecurityScope) || ((requiresRepositoryScope || submoduleLocation != nil) && !lease.contains(resolved)) {
                     throw RepositoryAccessFailure.repositoryRootOutsidePermission(resolved.path)
                 }
                 if let selected {
@@ -566,6 +573,7 @@ import UniformTypeIdentifiers
                         guard lease.contains(item), item.path == resolved.path || item.path.hasPrefix(resolved.path + "/") else {
                             throw FinderSelectionFailure.multipleRepositories
                         }
+                        if submoduleLocation != nil { continue }
                         var location = item
                         var directory: ObjCBool = false
                         if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue { location.deleteLastPathComponent() }
@@ -2047,9 +2055,12 @@ import UniformTypeIdentifiers
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         }
     }
-    private func showSubmoduleSync(repository: GitRepository, access: RepositoryAccessLease?, scope: [String]) {
-        guard !submoduleSyncWindows.values.contains(where: { $0.model.repository.root == repository.root && $0.model.activeOperation }) else { return }
-        let id = UUID(), controller = SubmoduleSyncWindowController(repository: repository, access: access, scope: scope)
+    private func showSubmoduleSync(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], commandLaunch: Bool = false) {
+        if let existing = submoduleSyncWindows.values.first(where: { $0.model.repository.root == repository.root && $0.model.activeOperation }) {
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
+            if commandLaunch { error = "A Submodule Sync operation is already running. Wait for it before opening another command." }; return
+        }
+        let id = UUID(), controller = SubmoduleSyncWindowController(repository: repository, access: access, scope: scope, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.submoduleSyncWindows.removeValue(forKey: id) }
         controller.model.onSynced = { [weak self] _ in
             self?.refreshRepositoryLogs(repository.root)
@@ -2057,9 +2068,17 @@ import UniformTypeIdentifiers
         }
         submoduleSyncWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
-    private func showSubmoduleAdd(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
+    private func showSubmoduleAdd(repository: GitRepository, access: RepositoryAccessLease?, path: String, commandLaunch: Bool = false) {
         let key = repository.root.path
-        let controller = submoduleAddWindows[key] ?? SubmoduleAddWindowController(repository: repository, access: access, path: path,clipboardText:creationClipboardText())
+        if commandLaunch, let existing = submoduleAddWindows[key] {
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
+            error = "A Submodule Add dialog is already open. Close it before opening another command-line Submodule Add."; return
+        }
+        if commandLaunch, let existing = submoduleAddProgressWindows.values.first(where: { $0.model.repository.root == repository.root && $0.model.activeOperation }) {
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
+            error = "A Submodule Add operation is already running. Wait for it before opening another command."; return
+        }
+        let controller = submoduleAddWindows[key] ?? SubmoduleAddWindowController(repository: repository, access: access, path: path, preferences: fileComparisonPreferences, clipboardText:creationClipboardText())
         controller.onClosed = { [weak self] in self?.submoduleAddWindows.removeValue(forKey: key) }
         controller.model.onSubmit = { [weak self] progress in self?.showSubmoduleAddProgress(model: progress) }
         submoduleAddWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -2075,9 +2094,17 @@ import UniformTypeIdentifiers
         }
         submoduleAddProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); model.start()
     }
-    private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], completion: (() -> Void)? = nil) {
+    private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], commandLaunch: Bool = false, completion: (() -> Void)? = nil) {
         let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0")
-        let controller = submoduleUpdateWindows[key] ?? SubmoduleUpdateWindowController(repository: repository, access: access, scope: scope, selected: selected)
+        if commandLaunch, let existing = submoduleUpdateWindows.values.first(where: { $0.model.repository.root == root }) {
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
+            error = "A Submodule Update dialog is already open. Close it before opening another command-line Submodule Update."; return
+        }
+        if commandLaunch, let existing = submoduleUpdateProgressWindows.values.first(where: { $0.model.repository.root == root && $0.model.activeOperation }) {
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
+            error = "A Submodule Update operation is already running. Wait for it before opening another command."; return
+        }
+        let controller = submoduleUpdateWindows[key] ?? SubmoduleUpdateWindowController(repository: repository, access: access, scope: scope, selected: selected, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.submoduleUpdateWindows.removeValue(forKey: key) }
         controller.model.onSubmit = { [weak self] paths, options in
             self?.showSubmoduleUpdateProgress(repository: repository, access: access, paths: paths, options: options, completion: completion)
@@ -2087,7 +2114,7 @@ import UniformTypeIdentifiers
     }
     private func showSubmoduleUpdateProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], options: SubmoduleUpdateOptions, completion: (() -> Void)? = nil) {
         let root = repository.root, id = UUID()
-        let controller = SubmoduleUpdateProgressWindowController(repository: repository, access: access, paths: paths, options: options)
+        let controller = SubmoduleUpdateProgressWindowController(repository: repository, access: access, paths: paths, options: options, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.submoduleUpdateProgressWindows.removeValue(forKey: id) }
         controller.model.onUpdated = { [weak self] output in
             self?.refreshRepositoryLogs(root)
@@ -3365,6 +3392,20 @@ import UniformTypeIdentifiers
             showPreviousDiff(repository: repository, access: access, path: paths[0], owner: workspaceWindow, unified: invocation.unified)
         case .add: showAdd(repository: repository, access: access, paths: paths, commandLaunch: true)
         case .clean: showClean(repository: repository, access: access, paths: paths, commandLaunch: true)
+        case .submoduleAdd:
+            var folder = invocation.request.paths[0], directory: ObjCBool = false
+            if !FileManager.default.fileExists(atPath: folder.path, isDirectory: &directory) || !directory.boolValue { folder.deleteLastPathComponent() }
+            let path = FinderRequest(action: .submoduleAdd, paths: [folder]).relativePaths(root: repository.root).first ?? ""
+            showSubmoduleAdd(repository: repository, access: access, path: path, commandLaunch: true)
+        case .submoduleUpdate, .submoduleSync:
+            let directories = invocation.request.paths.filter { url in
+                var directory: ObjCBool = false
+                return FileManager.default.fileExists(atPath: url.path, isDirectory: &directory) && directory.boolValue
+            }
+            let scope = FinderRequest(action: invocation.request.action, paths: directories).relativePaths(root: repository.root)
+            if invocation.request.action == .submoduleUpdate {
+                showSubmoduleUpdate(repository: repository, access: access, scope: scope, selected: invocation.selectedSubmodule.map { [$0] } ?? [], commandLaunch: true)
+            } else { showSubmoduleSync(repository: repository, access: access, scope: paths, commandLaunch: true) }
         case .fetch: showFetch(repository: repository, access: access, remote: invocation.remote)
         case .pull: showFetch(repository: repository, access: access, isPull: true)
         case .push: showPush(repository: repository, access: access, source: invocation.pushBranch)
@@ -3469,6 +3510,7 @@ import UniformTypeIdentifiers
         if action == .diff && request.paths.count == 2 { handleFilePair(paths: request.paths, line: invocation?.line); return }
         let candidate = request.paths[0]
         var permissionTargets = request.paths
+        if let discovery = invocation?.submoduleDiscoveryURL { permissionTargets.append(discovery) }
         if action == .rename || action == .remove || action == .submoduleSync || action == .logSubmodule || action == .properties,
            let parent = FinderSnapshot.read()?.repositories[candidate.standardizedFileURL.path]?.submoduleParentRoot {
             let parentURL = URL(fileURLWithPath: parent, isDirectory: true)

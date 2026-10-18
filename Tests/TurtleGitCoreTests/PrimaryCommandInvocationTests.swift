@@ -2,6 +2,42 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PrimaryCommandInvocationTests: XCTestCase {
+    func testSubmoduleCommandRoutingAndDiscoveryInputs() throws {
+        for (command, action) in [("subadd", RepositoryAction.submoduleAdd), ("subupdate", .submoduleUpdate), ("subsync", .submoduleSync)] {
+            let value = try parse(["--command=" + command, "--path", "libs/雪[*]"])
+            XCTAssertEqual(value.request.action, action)
+            XCTAssertEqual(value.request.paths.first?.path, "/repo/libs/雪[*]")
+            XCTAssertEqual(value.submoduleDiscoveryURL?.path, action == .submoduleAdd ? nil : "/repo/libs")
+        }
+        let update = try parse(["/command:subupdate", "/bkpath:project", "/selectedpath:libs\\child"])
+        XCTAssertEqual(update.submoduleDiscoveryURL?.path, "/repo/project")
+        XCTAssertEqual(update.selectedSubmodule, "libs/child")
+        let native = try parse(["--command=subupdate", "--selectedpath=libs/child\\name"])
+        XCTAssertEqual(native.selectedSubmodule, "libs/child\\name")
+        XCTAssertNil(try parse(["--command=subupdate", "--selectedpath="]).selectedSubmodule)
+    }
+    func testSubmoduleCommandPathFileRecomputesDefaultBase() throws {
+        let root = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("selections")
+        try Data("parent/child\0parent/other\0".utf8).write(to: file)
+        let value = try parse(["--command=subupdate", "--pathfile", file.path, "--pathfile0", "--selectedpath=parent/child"])
+        let resolved = try value.resolvingPathFile(cancellation: OperationCancellation())
+        XCTAssertEqual(resolved.submoduleDiscoveryURL?.path, "/repo/parent")
+        XCTAssertEqual(resolved.selectedSubmodule, "parent/child")
+        XCTAssertEqual(resolved.selecting([root.appendingPathComponent("one")]).submoduleDiscoveryURL?.path, root.path)
+        let explicit = try parse(["--command=subsync", "--bkpath=/chosen", "--pathfile", file.path, "--pathfile0"])
+        XCTAssertEqual(try explicit.resolvingPathFile(cancellation: OperationCancellation()).submoduleDiscoveryURL?.path, "/chosen")
+    }
+    func testSubmoduleCommandRefusesInvalidOptionsAndEscapingSelection() throws {
+        for arguments in [["--command=subadd", "--bkpath=/repo"], ["--command=subsync", "--selectedpath=child"], ["--command=subupdate", "--selectedpath=../child"], ["--command=subupdate", "--selectedpath=/child"], ["--command=subupdate", "--bkpath="], ["--command=subadd", "--path=a", "--path=b"], ["--command=commit", "--bkpath=/repo"]] {
+            XCTAssertThrowsError(try parse(arguments), arguments.joined(separator: " "))
+        }
+        let root = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("selections"); try Data("one\ntwo\n".utf8).write(to: file)
+        let add = try parse(["--command=subadd", "--pathfile", file.path, "--deletepathfile"])
+        XCTAssertThrowsError(try add.resolvingPathFile(cancellation: OperationCancellation()))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
+    }
     func parse(_ arguments: [String], cwd: String = "/repo") throws -> PrimaryCommandInvocation {
         let value = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: cwd)
         return try XCTUnwrap(value)

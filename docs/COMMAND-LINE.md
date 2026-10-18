@@ -489,3 +489,50 @@ Source review is pinned `Commands/BisectCommand.cpp` and
 `AppUtils.cpp::{BisectStart,BisectOperation}`. This does not establish all legacy
 argument permissiveness, cross-process locking, physical interaction or signed
 App Store acceptance.
+
+## Submodule Add, Update and Sync entry
+
+| Source command | Native destination and inputs |
+| --- | --- |
+| `subadd` | One selected path opens Submodule Add; an ordinary file supplies its containing directory. Repository/Path histories and key controls remain editable; Add runs only after OK |
+| `subupdate` | `bkpath` selects the discovery base; otherwise use the first selected path's parent. The nearest repository must contain `.gitmodules`. Selected directories filter the module list; `selectedpath` supplies a relative initial selection |
+| `subsync` | The same superproject lookup and optional `bkpath`; immediately opens the existing Sync progress workflow. Selected directories run in order, ordinary files are skipped, and a file-only selection does not become whole-project Sync |
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=subadd \
+  --path '/absolute/project/vendor'
+
+open -n -a 'TurtleGit for Mac' --args --command=subupdate \
+  --path '/absolute/project' --bkpath '/absolute/project' \
+  --selectedpath 'vendor/library'
+
+open -n -a 'TurtleGit for Mac' --args --command=subsync \
+  --path '/absolute/project/vendor/library'
+```
+
+For root-folder requests, pass `bkpath` explicitly: the pinned handler's default
+is the selected path's parent. Lookup stops at the nearest repository; a child
+repository without `.gitmodules` does not search past its own boundary. The app
+requires a folder grant covering the selected paths, discovery base and resolved
+superproject. Neither a CLI path nor `bkpath` grants access. An outside selection,
+missing superproject, insufficient grant or declined authorization stops dispatch.
+Path-list input derives its default base after reading the list, and invalid
+single-path Add lists are retained even with `deletepathfile`.
+
+`selectedpath` is relative to the superproject and rejects absolute/traversing
+paths. Legacy `/selectedpath:` converts Windows separators to `/`; native
+`--selectedpath` retains literal backslashes. A requested selection is intersected
+with the configured paths in the filtered list. Whole Project and persisted
+Update options retain the ordinary dialog behavior. Existing Add/Update drafts
+are focused and preserved when another command arrives, with an explicit error;
+active Add/Update/Sync progress owners refuse a competing command for the same operation. No command
+implicitly accepts Add or Update. Sync follows its immediate source semantics.
+
+All entry routes reuse the native source-layout forms, original action icons,
+owned Add key/source/path sheets, option persistence, progress/cancellation and
+Update's Bisect post-actions. Workspace preferences now reach all three dialog
+and progress families. Source review covers pinned `Commands/SubmoduleCommand.cpp`,
+`Git/GitAdminDir.cpp::GetSuperProjectRoot` and the existing Add/Update resources.
+The [batch evidence](qa/submodule-commands-2026-10-18.json) records grouped checks
+and limits. Physical interaction, external metadata/security-scope grants,
+network/key execution and signed App Store acceptance remain separate work.

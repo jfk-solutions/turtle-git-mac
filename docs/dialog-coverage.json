@@ -2965,6 +2965,7 @@
         "docs/qa/submodule-add-2026-10-09.json",
         "docs/qa/submodule-add-progress-styling-2026-10-09.json",
         "docs/qa/submodule-add-progress-window-2026-10-09.json",
+        "docs/qa/submodule-commands-2026-10-18.json",
         "docs/qa/submodule-path-identities-2026-10-17.json",
         "docs/qa/submodule-source-family-2026-10-17.json",
         "docs/qa/unified-byte-buffer-2026-10-17.json"
@@ -3502,6 +3503,7 @@
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/submodule-commands-2026-10-18.json",
         "docs/qa/submodule-path-identities-2026-10-17.json",
         "docs/qa/submodule-progress-controls-2026-10-09.json",
         "docs/qa/submodule-progress-styling-2026-10-09.json",
