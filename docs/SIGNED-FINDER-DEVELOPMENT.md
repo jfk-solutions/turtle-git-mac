@@ -87,3 +87,29 @@ file-context Show Log then opened the containing signed app. The disposable
 watch/recent/helper grants were removed, the agent unregistered and owned app/
 extension processes closed. This is development acceptance, not App Store export,
 minimum-version acceptance or certification of every Finder command.
+
+## Current signed runtime checkpoint
+
+The [October 18 checkpoint at 16380893](qa/distribution-16380893-2026-10-18.json)
+refreshes the universal Apple Development candidate at
+`build/signed-development/Build/Products/AppStore/TurtleGitMac.app`. It reuses
+existing profiles with `DEVELOPMENT_TEAM=A49SCA5S8K` and
+`CODE_SIGN_IDENTITY='Apple Development'`; no provisioning update was requested.
+An initial exact-certificate override failed because the targets use automatic
+signing. Actual signatures establish team `A49SCA5S8K` for all three peers.
+
+The current bundle passes deep/strict code verification, universal app component
+checks, the 204-item runtime code/data audit and cache-service packaging. Four
+owned sandbox probe processes pass writer, independent reader, denied nonmember
+and cleanup. The writer runs the actual packaged inherited-sandbox Git and
+Lexilla. The OS resolves the authorized group container; only a private UUID
+fixture is created/removed. All four probe processes exit and are independently
+absent afterward. The shipping candidate remains unchanged.
+
+The unsigned `validate-app-bundle.py --require-git` command was mistakenly run
+after the signed build and failed at direct Git startup with SIGTRAP. Such a
+helper requires its sandboxed parent, as described above. The separate static
+signed audit and runtime probe passed; this is not a complete unsigned-validator
+pass on signed code. It does not renew the older installed checkpoint, launch
+the shipping main GUI, register a service/extension, export or submit an archive,
+or certify external folder grants and every signed workflow.

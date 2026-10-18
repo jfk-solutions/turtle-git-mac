@@ -55,14 +55,20 @@ remaining work. Nothing is installed, registered, uploaded or submitted by local
 packaging. The website's screenshots are actual native captures from their dated
 workflow checks; each parity guide records the remaining acceptance.
 
-The current hosted wrapped-navigation check times out on macOS 15.7.9 Intel.
-A hash-verified stack sample is retained in [the CI evidence](qa/ci-wrapped-stack-2026-10-18.json).
-The preview contains the corresponding inspected editor source; the exact trigger
-and repair remain unproven. Successful packaging does not clear that issue.
+An earlier hosted wrapped-navigation check timed out on macOS 15.7.9 Intel.
+The hash-verified stack sample is retained in [the CI evidence](qa/ci-wrapped-stack-2026-10-18.json).
+The current preview includes subsequent presentation/history changes with scoped
+local passes. A complete current hosted macOS result remains pending; successful
+packaging does not clear the release gate.
 
-The 18 October local package is under `build/previews/TurtleGit-2026-10-18`.
-Its ZIP is `TurtleGit-for-Mac-0.1.0-local-preview.zip`; the adjacent manifest
-records application source `ae48b26a`, measured dirty script inputs and the actual
-checksum. The [packaging evidence](qa/distribution-current-preview-2026-10-18.json)
-also records the separate unsigned AppStore archive. These local artifacts have
-not been uploaded as a GitHub release.
+The current 18 October local package is under `build/previews/TurtleGit-16380893`.
+Its ZIP is `TurtleGit-for-Mac-0.1.0-local-preview.zip` (353,713,855 bytes); the
+adjacent manifest records application source `16380893`, measured dirty script
+inputs and SHA-256 `4af4beb37e5c00a646184b9899dddd7d0c66e070aeaed73137a345ea824b32c2`.
+The [packaging evidence](qa/distribution-16380893-2026-10-18.json) also records the
+separate unsigned AppStore archive and current development-signed sandbox probe.
+WCRev from the preview passes under arm64 and x86_64/Rosetta with the same expected
+demo revision and branch. The shipping main GUI and installed Finder were not
+launched by this checkpoint. These artifacts have not been uploaded as a GitHub
+release. The [earlier ae48b26a record](qa/distribution-current-preview-2026-10-18.json)
+remains historical evidence.

@@ -9,28 +9,47 @@ configuration requires a prepared pinned runtime and refuses external fallback.
 
 ## Current local artifacts — 18 October 2026
 
-The current local Release preview and unsigned AppStore archive use application
-source revision `ae48b26a`. [Dated evidence](qa/distribution-current-preview-2026-10-18.json)
-retains the measured input fingerprint, dirty script inputs, complete inventory
-hashes and actual build/packaging results. This includes the recent certificate,
-clipboard-patch, Log opening/cache and Finder root/query work.
+The current local Release preview, unsigned AppStore archive and Apple Development
+candidate use application source revision `16380893`. [Dated evidence](qa/distribution-16380893-2026-10-18.json)
+retains measured inputs, dirty script state, inventory hashes, failed attempts and
+actual results. This includes the connected command-entry, patch, Bisect and
+Compare history continuations after the [earlier ae48b26a package](qa/distribution-current-preview-2026-10-18.json).
 
-- Preview: `build/previews/TurtleGit-2026-10-18/TurtleGit-for-Mac-0.1.0-local-preview.zip`
-  (353,375,136 bytes), with adjacent app, checksum, notices and manifest.
-- Archive: `build/archives/TurtleGit-AppStore-2026-10-18.xcarchive`, with its adjacent
+- Preview: `build/previews/TurtleGit-16380893/TurtleGit-for-Mac-0.1.0-local-preview.zip`
+  (353,713,855 bytes), with adjacent app, checksum, notices and manifest.
+- Archive: `build/archives/TurtleGit-AppStore-16380893.xcarchive`, with adjacent
   audit and offline export settings. All eight app components and matching dSYMs
   contain arm64 and x86_64; the archive inventory has 6,303 members.
+- Development-signed candidate:
+  `build/signed-development/Build/Products/AppStore/TurtleGitMac.app`.
+  Three peer signatures and group entitlements, all eight universal components,
+  the 204-item runtime layout and the complete code seal pass. A real sandboxed
+  parent runs its packaged Git and Lexilla; independent group read, nonmember
+  denial and fixture cleanup pass. See [signed execution](SIGNED-FINDER-DEVELOPMENT.md#current-signed-runtime-checkpoint).
 
 The packager verified the ad-hoc app and extracted ZIP against matching complete
-inventories. No app was installed/launched or uploaded, and no extension/service
-was registered. [Trying the preview](LOCAL-PREVIEW.md) explains its separate signed
-Finder channel: ad-hoc processes cannot access the authorized App Group. The Store
-archive is unsigned and requires a separately signed archive before export.
+inventories. The packaged WCRev helper returned the expected demo revision and
+branch under arm64 and x86_64/Rosetta. Rosetta execution does not certify a physical
+Intel Mac or minimum macOS. No shipping main GUI was launched, app installed or
+uploaded, or extension/service registered by this checkpoint. [Trying the preview](LOCAL-PREVIEW.md)
+explains its separate signed Finder channel: ad-hoc processes cannot access the
+authorized App Group. The archive is unsigned; the separate development-signed
+build is not an App Store distribution archive or export.
 
-The [hosted wrapped-editor timeout](qa/ci-wrapped-stack-2026-10-18.json) remains
-unresolved; actual macOS 15.7.9 Intel samples include active UI layout/drawing.
-Packaging does not clear that release blocker, prove signed runtime behavior or
-certify the complete TortoiseGit port.
+The initial exact certificate override conflicted with automatic signing; using
+Xcode's Apple Development selector built the candidate. A subsequent invocation
+of the unsigned validator failed when it directly launched inherited-sandbox Git
+from the ordinary build process. The signed candidate instead passed static
+identity/layout/signature checks and the real sandboxed-parent probe. No complete
+unsigned-validator pass is claimed for that signed app. The signed-runtime check
+uses disposable probe mains and does not renew installed Finder or main-GUI
+acceptance for this revision.
+
+The [earlier hosted wrapped-editor timeout](qa/ci-wrapped-stack-2026-10-18.json)
+remains release evidence; its macOS 15.7.9 Intel samples show active UI layout/drawing.
+Subsequent local presentation/history checks pass, but a complete current hosted
+macOS result is still pending. [Current blockers](RELEASE-BLOCKERS.md) keep that
+separate from packaging, selected signed runtime checks and complete port acceptance.
 
 ## Build channels
 
