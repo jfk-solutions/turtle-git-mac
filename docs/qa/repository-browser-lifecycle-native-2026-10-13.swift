@@ -10,6 +10,8 @@ import TurtleGitCore
     }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Browser lifecycle failed: \(error)\n",stderr);exit(1) } }
     @MainActor static func verify() async throws {
+        let suite="TurtleGit.BrowserLifecycle."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
+        defer{prefs.removePersistentDomain(forName:suite)}
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),repo=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","Browser QA"),("user.email","browser@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] { _ = try await repo.run(["config",key,value]) }
@@ -22,7 +24,7 @@ import TurtleGitCore
         _ = try await repo.run(["update-index","--add","--cacheinfo","160000,"+original+",module"])
         _ = try await repo.commit(message:"Missing child")
         let pinned=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
-        let owner=RepositoryBrowserWindowController(repository:repo,access:nil,revision:pinned)
+        let owner=RepositoryBrowserWindowController(repository:repo,access:nil,revision:pinned,preferences:prefs)
         defer { owner.close() }
         let model=owner.model
         try await wait { !model.busy && model.snapshot != nil }
@@ -84,7 +86,7 @@ import TurtleGitCore
             exec \(quoted) "$@"
             """
             try script.write(to:helper,atomically:true,encoding:.utf8);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
-            let slow=GitRepository(root:root,executable:helper),host=RepositoryBrowserWindowController(repository:slow,access:nil,revision:pinned)
+            let slow=GitRepository(root:root,executable:helper),host=RepositoryBrowserWindowController(repository:slow,access:nil,revision:pinned,preferences:prefs)
             var replies=0;host.model.presentFile={ _,_ in replies += 1 };host.model.onChanged={ replies += 1 };host.model.showRevertResult={ _ in replies += 1 }
             do {
                 try await wait { !host.model.busy && host.model.snapshot != nil }
@@ -103,13 +105,13 @@ import TurtleGitCore
         }
         // Forced close retires actual Save/Open With and per-file failure sheets.
         for action in [RepositoryBrowserWindowModel.FileAction.save,.openWith] {
-            let host=RepositoryBrowserWindowController(repository:repo,access:nil,revision:pinned)
+            let host=RepositoryBrowserWindowController(repository:repo,access:nil,revision:pinned,preferences:prefs)
             try await wait { !host.model.busy };host.model.loadDirectory("a/b",select:true);try await wait { host.model.snapshot?.directory=="a/b" }
             host.model.open(host.model.entries[0],action:action);try await wait { host.window?.attachedSheet != nil }
             host.close();try await wait { host.window?.attachedSheet==nil && RepositoryBrowserWindowModel.activeOperations==0 }
             try require(!host.model.active && host.model.error==nil,"Retired file sheet result")
         }
-        let host=RepositoryBrowserWindowController(repository:repo,access:nil,revision:pinned)
+        let host=RepositoryBrowserWindowController(repository:repo,access:nil,revision:pinned,preferences:prefs)
         try await wait { !host.model.busy };host.model.loadDirectory("a/b",select:true);try await wait { host.model.snapshot?.directory=="a/b" }
         try Data().write(to:lock);host.model.revert(host.model.entries);try await wait { host.window?.attachedSheet != nil }
         host.close();try await wait { host.window?.attachedSheet==nil && RepositoryBrowserWindowModel.activeOperations==0 }
@@ -118,7 +120,7 @@ import TurtleGitCore
         try require(head==afterHead && index==afterIndex,"Retirement checks changed HEAD/index")
         // Tree-object handoffs keep the exact snapshot rather than requiring a commit.
         let tree = try await repo.run(["rev-parse", pinned + "^{tree}"]).text.trimmingCharacters(in: .newlines)
-        let treeOwner = RepositoryBrowserWindowController(repository:repo,access:nil,revision:tree)
+        let treeOwner = RepositoryBrowserWindowController(repository:repo,access:nil,revision:tree,preferences:prefs)
         defer { treeOwner.close() }
         let treeModel = treeOwner.model
         try await wait { !treeModel.busy && treeModel.snapshot != nil }
@@ -145,7 +147,7 @@ import TurtleGitCore
         treeModel.showEntryLog(treeEntry);try require(treeModel.error?.contains("no commit history") == true,"Tree Log explanation missing")
         treeModel.error=nil;treeModel.showEntryBlame(treeEntry)
         try require(historyCalls == 0 && treeModel.error?.contains("no commit history") == true,"Tree Blame fabricated history")
-        let treeCompare = RevisionComparisonWindowController(repository:repo,access:nil,from:.revision(pinned),to:.revision(tree))
+        let treeCompare = RevisionComparisonWindowController(repository:repo,access:nil,from:.revision(pinned),to:.revision(tree),preferences:prefs)
         defer { treeCompare.close() }
         treeCompare.model.load();try await wait { !treeCompare.model.busy && treeCompare.model.snapshot != nil }
         try require(treeCompare.model.snapshot?.toDetails?.isTree == true,"Tree revision metadata missing")
@@ -154,6 +156,13 @@ import TurtleGitCore
         treeCompare.model.log();treeCompare.model.logFiles([treeEntry.path])
         try require(historyCalls == 0 && treeCompare.model.error?.contains("no commit history") == true,"Changed Files launched tree history")
         for appearance in [NSAppearance.Name.aqua,.darkAqua] { treeCompare.window?.appearance=NSAppearance(named:appearance);treeOwner.window?.appearance=NSAppearance(named:appearance) }
+        // The asserted no-history explanations are real SwiftUI alerts. Retire
+        // their presentation bindings and detach before closing their parents.
+        treeModel.error=nil;treeCompare.model.error=nil
+        for window in [treeOwner.window,treeCompare.window].compactMap({$0}) {
+            if let sheet=window.attachedSheet {window.endSheet(sheet,returnCode:.alertFirstButtonReturn);sheet.orderOut(nil)}
+        }
+        try await wait {treeOwner.window?.attachedSheet==nil && treeCompare.window?.attachedSheet==nil}
         treeOwner.close();treeCompare.close()
         print("Tree-object browser: working and marked comparison handoffs, exact blob content, commit/tree details, history explanations, light/dark native hosts and owned close passed.")
         print("Repository Browser: retained ancestor/selection refresh, removed-folder fallback, pinned child lookup, private Copy, multi-file Continue/Cancel and duplicate guards, root/tree/blob/checkout cancellation with owned process reaping, Quit lifetime, Save/Open With/failure sheet retirement passed. Owned windows closed.")

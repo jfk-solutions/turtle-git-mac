@@ -621,3 +621,32 @@ shutdown/temp-file acceptance remains separate from this launch boundary.
 Four grouped native case/engine combinations pass with system and bundled Git after the recorded fixture URL repair. Both raw light/dark captures were individually reviewed: the native relative Path, tree/list and information/footer fit. All five owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/browser-file-actions-2026-10-17.json) for build diagnostics, failed-fixture details, intercepted launch scope and remaining acceptance. Physical keyboard and
 panels, VoiceOver, signed destination/application grants and full upstream/App
 Store acceptance remain open.
+
+## Live working marks, initial focus and child handoffs — October 19, 2026
+
+The connected source comparison follows `RepositoryBrowser.cpp::OnInitDialog`
+(initial contents focus), `UpdateDiffWithFileFromReg`, `ShowContextMenu` and the
+working/submodule Open and Compare handlers. The native contents popup now
+re-reads its supplied working-mark provider before capturing its actions, matching
+the source's menu-time DiffLater refresh. A newly published working mark replaces
+the current mark. Re-publishing the same mark leaves a subsequently chosen local
+historical mark intact. Clearing the global mark removes the matching imported
+working mark without discarding a historical choice. This explicit live removal
+is a native extension of the pinned source's nonempty-registry import. A captured
+marked-comparison command rejects a mark changed or removed before dispatch.
+
+The real contents table registers as the window's initial responder. Its first
+owned key activation requests contents focus once, after table attachment. A
+deliberate folder/field edit, attached child, Quit or retired browser cannot lose
+focus to that request. Reload, sorting and later key activation do not reapply it.
+The source's initial list focus therefore works with asynchronous native loading
+without turning each refresh into a focus change.
+
+The missing-submodule Update question inherits the browser's appearance and
+opacity and retains its captured snapshot, scope and operation lifetime. Accepted
+Update runs only after the question has physically detached; cancellation,
+duplicate replies, changed snapshots, Quit and forced owner closure cannot
+dispatch a stale child. Existing working/marked comparison and child Log/Browser/
+Update routes retain their originating browser preferences and permissions.
+Grouped evidence is recorded after validation; physical initial-focus/menu
+gestures, signed child grants and complete Browser parity remain open.

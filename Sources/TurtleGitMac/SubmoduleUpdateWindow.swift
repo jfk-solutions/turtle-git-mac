@@ -41,6 +41,7 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
     private(set) static var activeReads = 0
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    var repositoryAccess: RepositoryAccessLease? { access }
     let scope: [String]
     private let requestedSelection: [String]
     private var loaded = false, invalidated = false, submitted = false

@@ -743,6 +743,7 @@ struct LogCommandRequest: Identifiable {
     let selectingMultiple: Bool
     // Keep the security-scoped grant alive if the main repository window changes.
     private let access: RepositoryAccessLease?
+    var repositoryAccess: RepositoryAccessLease? { access }
     private var statisticsWindow: StatisticsWindowController?
     // Upstream CGitLogListBase retains the index across Find close/reopen and reload.
     var findSearchIndex = 0

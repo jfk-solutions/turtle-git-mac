@@ -1,0 +1,207 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "405893c001837ece84818b0631696312b3dff565",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Repository Browser working path identity for tracked/untracked/ignored case and Unicode aliases including directory prefixes, existing containment and cancellation",
+    "Live global working comparison marks, menu refresh, historical mark preservation and stale marked action rejection",
+    "Captured private preferences, permission leases and appearance for Browser comparison and gitlink Log/Browser/Update routes; historical-working viewer initialization",
+    "One-shot native contents focus, owned Update offer actual detach and late/retired/Quit fences"
+  ],
+  "validation": {
+    "core": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "tests": 20,
+        "passed_methods": 19,
+        "failed_methods": [
+          "RepositoryBrowserWorkingIdentityTests.testExactPinnedRevertCancellationAndContainment"
+        ],
+        "log": "build/qa/browser-working-core-2026-10-19.log",
+        "diagnostic": "Unexpected selection refusal in new containment fixture; investigating. All 17 retained Browser methods and other two new identity methods passed."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "tests": 1,
+        "failures": 0,
+        "log": "build/qa/browser-working-core-focused-2026-10-19.log",
+        "scope": "Only previously failed new method; other 19 passing methods not repeated.",
+        "repair": "Hand-built admin snapshot now uses pinned.root, matching standardized repository owner URL, so existing selection validation admits the fixture to the administrative-path containment check. Production unchanged."
+      }
+    ],
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "log": "build/qa/browser-working-build-2026-10-19.log"
+      }
+    ],
+    "native": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "log": "build/qa/browser-working-native-2026-10-19.log",
+        "failed_case": "routes",
+        "git": "/usr/bin/git",
+        "receiver_pid": 40992,
+        "reaped": true,
+        "diagnostic": "Route assertion for gitlink Log root/revision/access/preferences/appearance failed after initial focus, Compare WC and marked comparison checks; investigating exact component."
+      },
+      {
+        "attempt": 2,
+        "exit": 1,
+        "log": "build/qa/browser-working-routes-repair-2026-10-19.log",
+        "failed_case": "routes",
+        "git": "/usr/bin/git",
+        "receiver_pid": 41336,
+        "reaped": true,
+        "diagnostic": "Component diagnostics proved exact same filesystem path, pinned revision, permission object, preferences object and DarkAqua appearance. Foundation URL object equality still differed due directory/trailing-slash metadata. Fixture will compare exact UTF8 .path, retaining route assertions. No production repair inferred."
+      },
+      {
+        "attempt": 3,
+        "exit": 0,
+        "log": "build/qa/browser-working-routes-path-2026-10-19.log",
+        "passed_pairs": [
+          [
+            "routes",
+            "/usr/bin/git",
+            41519
+          ],
+          [
+            "routes",
+            "build/git-runtime/Git/bin/git",
+            41689
+          ]
+        ],
+        "reaped": true,
+        "scope": "Only affected routes case on both Git engines; native controller preferences/access/appearance, exact comparison bytes, live marks/menu receipts, one-shot focus, actual-detach Update and late/retired/Quit fences. Fixture-only exact path correction, app/Core not rebuilt/repeated."
+      },
+      {
+        "attempt": 4,
+        "exit": 1,
+        "log": "build/qa/browser-working-retained-2026-10-19.log",
+        "failed_case": "guards",
+        "git": "/usr/bin/git",
+        "receiver_pid": 41853,
+        "reaped": true,
+        "diagnostic": "Native Compare/Revert refusal assertions passed; grouped cleanup detected a surviving expected error presentation. Repair expected alert dismissal and preserve strict window/sheet/work drain checks; lifecycle/presentation pairs not yet run."
+      },
+      {
+        "attempt": 5,
+        "exit": 1,
+        "log": "build/qa/browser-working-retained-alerts-2026-10-19.log",
+        "passed_pairs": [
+          [
+            "guards",
+            "/usr/bin/git",
+            41990
+          ],
+          [
+            "guards",
+            "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git",
+            42017
+          ]
+        ],
+        "failed_case": "lifecycle",
+        "git": "/usr/bin/git",
+        "receiver_pid": 42043,
+        "reaped": true,
+        "diagnostic": "Guard actual error-alert dismissal repair passed both engines. Retained lifecycle behavior assertions passed, but strict cleanup showed all eight work counters zero and one expected invisible alert still attached to Browser. Fixture-only repair clears tree-history error bindings, dismisses actual attached sheets and waits detach before parent closure. Routes/guards/Core/app build not repeated."
+      },
+      {
+        "attempt": 6,
+        "exit": 0,
+        "log": "build/qa/browser-working-lifecycle-alerts-2026-10-19.log",
+        "passed_pairs": [
+          [
+            "lifecycle",
+            "/usr/bin/git",
+            42311
+          ],
+          [
+            "lifecycle",
+            "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git",
+            42523
+          ],
+          [
+            "presentation",
+            "/usr/bin/git",
+            42744
+          ],
+          [
+            "presentation",
+            "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git",
+            42782
+          ]
+        ],
+        "reaped": true,
+        "scope": "Only retained lifecycle and previously unrun presentation. Expected history-explanation alerts explicitly dismissed and detached in fixture; behavior and strict final cleanup assertions retained. Passing routes/guards/Core/app build not repeated."
+      }
+    ],
+    "site": {
+      "exit": 0,
+      "documents": 340,
+      "unresolved_fragments": [],
+      "log": "build/qa/browser-working-site-2026-10-19.log"
+    },
+    "core_distinct_methods_passed": 20,
+    "resources": {
+      "localizations": {
+        "exit": 0,
+        "languages": 38,
+        "keys": 1292
+      },
+      "help": {
+        "exit": 0,
+        "documents": 40,
+        "topics": 49,
+        "files": 60
+      },
+      "coverage": {
+        "exit": 0,
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1566,
+        "pending_control_reviews": 93
+      }
+    },
+    "native_distinct_case_engine_pairs_passed": 8,
+    "owned_receiver_cleanup": {
+      "pids": [
+        40992,
+        41336,
+        41519,
+        41689,
+        41853,
+        41990,
+        42017,
+        42043,
+        42311,
+        42523,
+        42744,
+        42782
+      ],
+      "pid_and_pgid_absent": true,
+      "native_assertions": "No attached/visible test windows or sheets and all grouped ownership counters drained."
+    }
+  },
+  "remaining": [
+    "Raw invalid-UTF8 Git tree filenames are still rejected by the existing String-based listing boundary.",
+    "Filesystem identity validation and subsequent Git I/O are not atomic against concurrent external filesystem changes.",
+    "Submodule Update progress and Blame retain scoped preferences but do not yet inherit the Browser appearance/alpha through every downstream presentation.",
+    "Focused local verification does not establish complete hosted CI, physical Finder transfers/integration, signed sandbox deployment, or exhaustive visual parity."
+  ],
+  "unrelated_work_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ],
+  "unrelated_work_sha256": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "status": "Scoped batch validated; whole port remains incomplete."
+}

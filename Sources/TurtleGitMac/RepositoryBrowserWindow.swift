@@ -47,8 +47,12 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     private(set) var picker: LogWindowController?
     private var pickerIdentity:UUID?
     var configureLogPicker:(LogWindowModel)->Void = { _ in }
+    private(set) weak var contentsTable:NSTableView?
+    private var initialContentsFocusPending=true
     private var ownedSheet:NSWindow?
     private var fileOperation:RepositoryBrowserFileOperation?
+    private var submoduleUpdateReply:((NSApplication.ModalResponse)->Void)?
+    var presentSubmoduleUpdate:((NSAlert,NSWindow,@escaping(NSApplication.ModalResponse)->Void)->Void)?
     var presentSavePanel:((NSSavePanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void)?
     var presentApplicationPanel:((NSOpenPanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void)?
     var saveDestination:(NSSavePanel)->URL? = {$0.url}
@@ -70,6 +74,13 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         window.setContentSize(NSSize(width: 1000, height: 650))
         window.center()
         model.close = { [weak window] in window?.performClose(nil) }
+        model.contentsTableAttached = { [weak self] table in
+            guard let self,self.model.active else{return}
+            self.contentsTable=table
+            guard self.initialContentsFocusPending else{return}
+            self.window?.initialFirstResponder=table
+            DispatchQueue.main.async { [weak self] in self?.focusInitialContentsIfNeeded() }
+        }
         model.chooseRevision = { [weak self] in self?.chooseRevision() }
         model.presentFile = { [weak self] content, action in self?.presentFile(content,action:action) }
         model.handleRevertFailure = { [weak self] message in
@@ -94,17 +105,28 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             }
         }
         model.offerSubmoduleUpdate = { [weak self] entry in
-            guard let self, self.model.active, let window=self.window, window.attachedSheet == nil else { return }
-            let identity = self.model.generation
+            guard let self,self.model.active,!self.model.confirmingQuit,self.fileOperation==nil,let window=self.window,window.attachedSheet==nil else{return}
+            let identity=self.model.generation,object=self.model.snapshot?.objectID,directory=self.model.snapshot?.directory,callback=self.model.onSubmoduleUpdate
+            let operation=RepositoryBrowserFileOperation();operation.working=true
+            self.fileOperation=operation;self.model.handlingFile=true
             let alert=NSAlert(); alert.messageText="Update submodule?"
             alert.informativeText="Revision " + entry.objectID + " is unavailable in submodule “" + entry.path + "”. Update the submodule to browse it."
             alert.addButton(withTitle:"Update"); alert.addButton(withTitle:"Cancel"); self.ownedSheet=alert.window
-            alert.beginSheetModal(for:window) { [weak self] response in
-                guard let self else { return }
-                if self.ownedSheet === alert.window { self.ownedSheet=nil }
-                guard self.model.active, self.model.generation == identity, response == .alertFirstButtonReturn else { return }
-                self.model.onSubmoduleUpdate(entry.path)
+            alert.window.appearance=window.appearance;alert.window.alphaValue=window.alphaValue
+            var answered=false
+            let reply:(NSApplication.ModalResponse)->Void={ [self] response in
+                guard !answered else{return};answered=true
+                Task { @MainActor [self,operation] in
+                    alert.window.sheetParent?.endSheet(alert.window,returnCode:response);alert.window.orderOut(nil)
+                    while alert.window.sheetParent != nil{try? await Task.sleep(nanoseconds:5_000_000)}
+                    let accepted=self.fileOperation===operation && self.ownedSheet===alert.window && self.model.active && !self.model.confirmingQuit && !operation.cancellation.isCancelled && self.model.generation==identity && self.model.snapshot?.objectID==object && RepositoryBrowserPathIdentity.equal(self.model.snapshot?.directory ?? "",directory ?? "") && response == .alertFirstButtonReturn
+                    if self.ownedSheet===alert.window{self.ownedSheet=nil}
+                    self.submoduleUpdateReply=nil;self.finishFile(operation)
+                    if accepted{callback(entry.path)}
+                }
             }
+            self.submoduleUpdateReply=reply
+            if let presenter=self.presentSubmoduleUpdate{presenter(alert,window,reply)}else{alert.beginSheetModal(for:window,completionHandler:reply)}
         }
         model.confirmResetColumns = { [weak self] in
             guard let self,self.model.active,let window=self.window,window.attachedSheet==nil else { return false }
@@ -206,6 +228,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.mutating && !model.confirmingQuit }
     func windowWillClose(_ notification: Notification) {
         model.invalidate()
+        submoduleUpdateReply?(.cancel)
         let operation=fileOperation;fileOperation=nil;model.handlingFile=false;operation?.retire()
         pickerIdentity=nil;model.choosingRevision=false
         if let sheet=ownedSheet, window?.attachedSheet === sheet { window?.endSheet(sheet,returnCode:.cancel); sheet.orderOut(nil) }
@@ -217,6 +240,16 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    func windowDidBecomeKey(_ notification:Notification){focusInitialContentsIfNeeded()}
+    func focusInitialContentsIfNeeded(){
+        guard initialContentsFocusPending,model.active,!model.busy,!model.mutating,!model.confirmingColumns,let window,let contentsTable,contentsTable.window===window,commandKeyWindow()===window else{return}
+        initialContentsFocusPending=false
+        guard window.attachedSheet==nil,!model.confirmingQuit,!model.choosingRevision,!model.handlingFile else{return}
+        // A deliberate tree selection or field edit already owns focus. Initial
+        // source focus is one-shot; refresh and subsequent activation never steal it.
+        if window.firstResponder is NSOutlineView || window.firstResponder is NSTextView{return}
+        window.makeFirstResponder(contentsTable)
+    }
 }
 @MainActor final class RepositoryBrowserWindowModel: ObservableObject {
     let repository: GitRepository
@@ -235,8 +268,11 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     @Published var mutating = false
     @Published var confirmingQuit = false
     @Published var error: String?
-    @Published var comparisonMark: PreparedFileComparisonMark?
+    @Published var comparisonMark: PreparedFileComparisonMark? {didSet{comparisonMarkRevision=UUID()}}
     private var lastImportedWorkingMark: UUID?
+    private var comparisonMarkRevision=UUID()
+    var currentWorkingComparisonMark:(()->WorkingComparisonAccess?)?
+    var contentsTableAttached:(NSTableView)->Void={_ in}
     private(set) var generation = UUID()
     private var menuGeneration = UUID()
     private var loads = RepositoryBrowserPathSet()
@@ -483,10 +519,17 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func importWorkingComparisonMark(_ access: WorkingComparisonAccess?) {
-        guard let access, access.mark.id != lastImportedWorkingMark else { return }
+        guard active else{return}
+        guard let access else{
+            if comparisonMark?.workingAccess?.mark.id==lastImportedWorkingMark,comparisonMark?.workingAccess != nil{comparisonMark=nil}
+            lastImportedWorkingMark=nil
+            return
+        }
+        guard access.mark.id != lastImportedWorkingMark else{return}
         lastImportedWorkingMark = access.mark.id
         comparisonMark = PreparedFileComparisonMark(path: access.file.path, revision: "", workingAccess: access)
     }
+    func prepareComparisonMenu(){if let currentWorkingComparisonMark{importWorkingComparisonMark(currentWorkingComparisonMark())}}
     func markForComparison(_ entry: RepositoryBrowserEntry) {
         guard active, !busy, !confirmingQuit, !confirmingColumns,!choosingRevision,!handlingFile, let snapshot, let revision = snapshot.objectID,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
@@ -505,12 +548,14 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         let directory: String
         let entries: [RepositoryBrowserEntry]
         let comparisonMark: PreparedFileComparisonMark?
+        let comparisonMarkRevision:UUID
     }
     func menuTarget(_ entries: [RepositoryBrowserEntry] = []) -> MenuTarget? {
         guard canUseMenu, let snapshot, let revision = snapshot.objectID,
               entries.allSatisfy({ snapshot.entries.contains($0) }) else { return nil }
-        return MenuTarget(owner:ObjectIdentifier(self),generation:generation,navigation:menuGeneration,revision:revision,directory:snapshot.directory,entries:entries,comparisonMark:comparisonMark)
+        return MenuTarget(owner:ObjectIdentifier(self),generation:generation,navigation:menuGeneration,revision:revision,directory:snapshot.directory,entries:entries,comparisonMark:comparisonMark,comparisonMarkRevision:comparisonMarkRevision)
     }
+    func acceptsComparisonMark(_ target:MenuTarget)->Bool{acceptsMenu(target) && target.comparisonMarkRevision==comparisonMarkRevision}
     func acceptsMenu(_ target: MenuTarget) -> Bool {
         canUseMenu && target.owner == ObjectIdentifier(self) && target.generation == generation && target.navigation == menuGeneration &&
         target.revision == snapshot?.objectID && snapshot.map { RepositoryBrowserPathIdentity.equal(target.directory,$0.directory) } == true &&

@@ -2201,7 +2201,8 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     var submoduleDiffPresentation:((SubmoduleDiffWindowController)->Void)?
-    private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults? = nil) {
+    private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults? = nil, appearance: NSAppearance? = nil, alpha: CGFloat? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let defaults = preferences ?? fileComparisonPreferences
         let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree") + "\0" + (fromPath ?? path) + "\0" + String(fromIndex) + "\0preferences:" + String(describing: ObjectIdentifier(defaults))
         let controller = submoduleDiffWindows[key] ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to, fromPath:fromPath,fromIndex:fromIndex,preferences:defaults)
@@ -2219,6 +2220,8 @@ import UniformTypeIdentifiers
         }
         controller.onBisect = { [weak self] in self?.showBisect(repository: repository, access: access, operation: $0, preferences: defaults) }
         submoduleDiffWindows[key] = controller
+        if let appearance { controller.window?.appearance = appearance }
+        if let alpha { controller.window?.alphaValue = alpha }
         if let submoduleDiffPresentation {submoduleDiffPresentation(controller)} else {controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)}
         controller.model.load()
     }
@@ -2314,6 +2317,10 @@ import UniformTypeIdentifiers
             self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: from, to: to,fromPath:oldPath,preferences:preferences)
         }
     }
+    var browserWindowPresentation: ((RepositoryBrowserWindowController) -> Void)?
+    var fileComparisonWindowPresentation: ((FileComparisonWindowController) -> Void)?
+    var logWindowPresentation: ((LogWindowController) -> Void)?
+    var submoduleUpdateWindowPresentation: ((SubmoduleUpdateWindowController) -> Void)?
     var fileComparisonPreferences: UserDefaults = .standard
     var fileComparisonQuestion: ((Int) async -> Bool)?
     var fileComparisonPresentation: ((RevisionComparisonSnapshot, CommitFile) -> Void)?
@@ -2333,7 +2340,7 @@ import UniformTypeIdentifiers
     }
     private var fileComparisonSessions: [UUID: FileListComparisonSession] = [:]
     private func prepareFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, selectedCount: Int, owner: NSWindow?, preferences: UserDefaults? = nil, capturedOwner: Bool = false, operation: @escaping (OperationCancellation) async throws -> Void) {
-        guard !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !confirmingQuit else { return }
         let id = UUID(), session = FileListComparisonSession(window: capturedOwner ? owner : owner ?? NSApp.keyWindow ?? workspaceWindow, preferences: preferences ?? fileComparisonPreferences)
         session.confirmation = fileComparisonQuestion
         fileComparisonSessions[id] = session; busy = true
@@ -2391,20 +2398,22 @@ import UniformTypeIdentifiers
             presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
         }
     }
-    func showPreparedFileComparison(repository: GitRepository, access: RepositoryAccessLease?, marked: PreparedFileComparisonMark, current: PreparedFileComparisonMark, owner: NSWindow? = nil) {
-        prepareFileComparisons(repository: repository, access: access, selectedCount: 2, owner: owner) { [self] token in
+    func showPreparedFileComparison(repository: GitRepository, access: RepositoryAccessLease?, marked: PreparedFileComparisonMark, current: PreparedFileComparisonMark, owner: NSWindow? = nil, preferences: UserDefaults? = nil) {
+        let defaults = preferences ?? fileComparisonPreferences
+        let appearance = owner?.effectiveAppearance, alpha = owner?.alphaValue
+        prepareFileComparisons(repository: repository, access: access, selectedCount: 2, owner: owner, preferences: defaults, capturedOwner: owner != nil) { [self] token in
             if current.isDirectory || marked.isDirectory {
                 guard current.isDirectory,marked.workingAccess == nil else {throw SubmoduleComparisonFailure.unsupported}
                 try token.check()
                 showSubmoduleDiff(repository:repository,access:access,path:current.path,
                     from:marked.revision.isEmpty ? "Working tree":marked.revision,
                     to:current.revision.isEmpty ? nil:current.revision,
-                    fromPath:marked.path,fromIndex:marked.revision.isEmpty && current.revision.isEmpty)
+                    fromPath:marked.path,fromIndex:marked.revision.isEmpty && current.revision.isEmpty,preferences:defaults,appearance:appearance,alpha:alpha)
                 return
             }
             if let workingAccess = marked.workingAccess {
                 if GitRuntime.isAppStoreBuild && (!workingAccess.permission.hasSecurityScope || !workingAccess.permission.contains(workingAccess.file)) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                guard !token.isCancelled, !confirmingQuit else { return }
+                guard !retired, !token.isCancelled, !confirmingQuit else { return }
                 let key = "historical-working:" + UUID().uuidString
                 let controller: FileComparisonWindowController
                 if current.revision.isEmpty {
@@ -2412,20 +2421,23 @@ import UniformTypeIdentifiers
                     if GitRuntime.isAppStoreBuild && access?.contains(file) != true { throw RepositoryAccessFailure.securityScopeUnavailable }
                     let comparison = try WorkingFileComparison(base: workingAccess.file, destination: file)
                     _ = try comparison.read()
-                    controller = FileComparisonWindowController(comparison: comparison, permissions: [workingAccess.permission] + [access].compactMap { $0 })
+                    controller = FileComparisonWindowController(comparison: comparison, permissions: [workingAccess.permission] + [access].compactMap { $0 }, preferences: defaults)
                 } else {
                     let comparison = try await repository.historicalWorkingFileComparison(revision: current.revision, path: current.path, workingFile: workingAccess.file, cancellation: token)
-                    controller = FileComparisonWindowController(repository: repository, access: access, comparison: comparison, permission: workingAccess.permission)
+                    controller = FileComparisonWindowController(repository: repository, access: access, comparison: comparison, permission: workingAccess.permission, preferences: defaults)
                 }
-                guard !token.isCancelled, !confirmingQuit else { return }
+                guard !retired, !token.isCancelled, !confirmingQuit else { return }
                 controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
                 fileComparisonWindows[key] = controller
-                controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+                controller.window?.appearance = appearance
+                if let alpha { controller.window?.alphaValue = alpha }
+                if let fileComparisonWindowPresentation { fileComparisonWindowPresentation(controller) }
+                else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
                 _ = try comparisonMarkStore.consume(workingAccess.mark.id)
                 try publishComparisonMark()
             } else {
                 let snapshot = try await repository.preparedPathComparison(from: marked.revision.isEmpty ? .workingTree : .revision(marked.revision), fromPath: marked.path, to: current.revision.isEmpty ? .workingTree : .revision(current.revision), toPath: current.path, cancellation: token)
-                presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
+                presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, preferences: defaults, appearance: appearance, alpha: alpha)
             }
         }
     }
@@ -2446,20 +2458,22 @@ import UniformTypeIdentifiers
             for snapshot in snapshots { presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token) }
         }
     }
-    func showHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String], owner: NSWindow? = nil, line: Int? = nil) {
-        prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: owner) { [self] token in
+    func showHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String], owner: NSWindow? = nil, line: Int? = nil, preferences: UserDefaults? = nil) {
+        let defaults = preferences ?? fileComparisonPreferences
+        let appearance = owner?.effectiveAppearance, alpha = owner?.alphaValue
+        prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: owner, preferences: defaults, capturedOwner: owner != nil) { [self] token in
             let snapshot = try await repository.revisionFileComparison(from: from, to: to, paths: paths, cancellation: token)
             if snapshot.files.isEmpty { output = "No files exist at the selected comparison paths."; return }
-            presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, line: line)
+            presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, line: line, preferences: defaults, appearance: appearance, alpha: alpha)
         }
     }
-    private func presentFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, cancellation: OperationCancellation, line: Int? = nil, preferences: UserDefaults? = nil) {
+    private func presentFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, cancellation: OperationCancellation, line: Int? = nil, preferences: UserDefaults? = nil, appearance: NSAppearance? = nil, alpha: CGFloat? = nil) {
         let defaults = preferences ?? fileComparisonPreferences
         for file in snapshot.files {
             guard !retired, !confirmingQuit, !cancellation.isCancelled else { return }
             if let fileComparisonPresentation { fileComparisonPresentation(snapshot, file); continue }
             if file.isSubmodule {
-                showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label,fromPath:file.oldPath,preferences:defaults)
+                showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label,fromPath:file.oldPath,preferences:defaults,appearance:appearance,alpha:alpha)
                 continue
             }
             let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey + "\0preferences:" + String(describing: ObjectIdentifier(defaults)) + (line.map { "\0line\0" + String($0) + "\0" + UUID().uuidString } ?? "")
@@ -2467,7 +2481,10 @@ import UniformTypeIdentifiers
             controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
             controller.model.comparisonDefaults = defaults
-            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+            if let appearance { controller.window?.appearance = appearance }
+            if let alpha { controller.window?.alphaValue = alpha }
+            if let fileComparisonWindowPresentation { fileComparisonWindowPresentation(controller) }
+            else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
         }
     }
     private func refreshAfterSubmoduleMutation(_ root: URL, output: String) {
@@ -2518,9 +2535,9 @@ import UniformTypeIdentifiers
         submoduleAddProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); model.start()
     }
     private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], commandLaunch: Bool = false, completion: (() -> Void)? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil) {
-        guard !confirmingQuit else { return }
+        guard !retired, !confirmingQuit else { return }
         let preferences = preferences ?? fileComparisonPreferences
-        let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0")
+        let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0") + "\0preferences:" + String(describing: ObjectIdentifier(preferences))
         if commandLaunch, let existing = submoduleUpdateWindows.values.first(where: { $0.model.repository.root == root }) {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "A Submodule Update dialog is already open. Close it before opening another command-line Submodule Update."; return
@@ -2531,13 +2548,14 @@ import UniformTypeIdentifiers
         }
         let controller = submoduleUpdateWindows[key] ?? SubmoduleUpdateWindowController(repository: repository, access: access, scope: scope, selected: selected, preferences: preferences)
         if let sourceWindow {controller.window?.alphaValue=sourceWindow.alphaValue;controller.window?.appearance=sourceWindow.effectiveAppearance}
-        controller.onClosed = { [weak self] in self?.submoduleUpdateWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.submoduleUpdateWindows[key] === controller else { return }; self.submoduleUpdateWindows.removeValue(forKey: key) }
         let progressPreferences = controller.model.presentationPreferences
         controller.model.onSubmit = { [weak self] paths, options in
             self?.showSubmoduleUpdateProgress(repository: repository, access: access, paths: paths, options: options, completion: completion, preferences: progressPreferences)
         }
         submoduleUpdateWindows[key] = controller
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        if let submoduleUpdateWindowPresentation { submoduleUpdateWindowPresentation(controller) }
+        else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
     private func showSubmoduleUpdateProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], options: SubmoduleUpdateOptions, completion: (() -> Void)? = nil, preferences: UserDefaults? = nil) {
         guard !confirmingQuit else { return }
@@ -2788,7 +2806,8 @@ import UniformTypeIdentifiers
     func configureBrowserRevisionPicker(_ controller:RepositoryBrowserWindowController,repository:GitRepository,access:RepositoryAccessLease?) {
         controller.configureLogPicker={ [weak self] log in self?.configureSelectableLog(log,repository:repository,access:access) }
     }
-    private func showRepositoryBrowser(repository: GitRepository, access: RepositoryAccessLease?, revision: String = "HEAD", preferences: UserDefaults? = nil, initialFile: String? = nil) {
+    func showRepositoryBrowser(repository: GitRepository, access: RepositoryAccessLease?, revision: String = "HEAD", preferences: UserDefaults? = nil, initialFile: String? = nil, sourceWindow: NSWindow? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let defaults = preferences ?? fileComparisonPreferences
         let baseKey = repository.root.path + "\0" + revision
         let reusable = browserWindows.first { _, controller in
@@ -2798,33 +2817,41 @@ import UniformTypeIdentifiers
         let key = reusable?.key ?? (browserWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? RepositoryBrowserWindowController(repository: repository, access: access, revision: revision, preferences:defaults, initialFile:initialFile)
         configureBrowserRevisionPicker(controller,repository:repository,access:access)
-        controller.onClosed = { [weak self] in self?.browserWindows.removeValue(forKey: key) }
-        controller.model.onLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash, preferences: defaults) }
+        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.browserWindows[key] === controller else { return }; self.browserWindows.removeValue(forKey: key) }
+        controller.model.onLog = { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash, preferences: defaults, sourceWindow: controller.window) }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash, preferences: defaults) }
-        controller.model.onCompare = { [weak self, weak controller] path, hash in guard let controller else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: .revision(hash), to: .workingTree, paths: [path], owner: controller.window) }
+        controller.model.onCompare = { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: .revision(hash), to: .workingTree, paths: [path], owner: controller.window, preferences: defaults) }
         controller.model.onChanged = { [weak self] in
             guard let self else { return }
             self.statusWindows[repository.root.path]?.model.requestReload()
             self.commitWindows[repository.root.path]?.model.reload()
             if self.root == repository.root { Task { await self.refresh() } }
         }
-        controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
-        controller.model.onPreparedFileCompare = { [weak self, weak controller] marked, current in guard let controller else { return }; self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current, owner: controller.window) }
-        controller.model.onSubmoduleUpdate = { [weak self] path in
-            self?.showSubmoduleUpdate(repository:repository,access:access,scope:[],selected:[path])
+        controller.model.currentWorkingComparisonMark = { [weak self] in
+            guard let self, !self.retired, !self.confirmingQuit else { return nil }
+            return try? self.comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild)
         }
-        controller.model.onSubmodule = { [weak self,weak model=controller.model] module,entry,showLog in
-            guard let model, model.active else { return }
+        controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
+        controller.model.onPreparedFileCompare = { [weak self, weak controller] marked, current in guard let controller, controller.model.active else { return }; self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current, owner: controller.window, preferences: defaults) }
+        controller.model.onSubmoduleUpdate = { [weak self, weak controller] path in
+            guard let controller, controller.model.active else { return }
+            self?.showSubmoduleUpdate(repository:repository,access:access,scope:[],selected:[path],preferences:defaults,sourceWindow:controller.window)
+        }
+        controller.model.onSubmodule = { [weak self,weak controller,weak model=controller.model] module,entry,showLog in
+            guard let self, !self.retired, !self.confirmingQuit, let controller, let model, model.active else { return }
             guard let checkout=module.checkout, module.from.available else {
                 if showLog { model.error="Cannot show submodule history at " + entry.objectID + ". The child repository is not initialized or the revision is unavailable." }
                 else { model.offerSubmoduleUpdate(entry) }
                 return
             }
             let child=GitRepository(root:checkout,executable:repository.executable)
-            if showLog { self?.showLog(repository:child,access:access,paths:[],endRevision:entry.objectID) }
-            else { self?.showRepositoryBrowser(repository:child,access:access,revision:entry.objectID) }
+            if showLog { self.showLog(repository:child,access:access,paths:[],endRevision:entry.objectID,preferences:defaults,sourceWindow:controller.window) }
+            else { self.showRepositoryBrowser(repository:child,access:access,revision:entry.objectID,preferences:defaults,sourceWindow:controller.window) }
         }
-        browserWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        browserWindows[key] = controller
+        if let sourceWindow { controller.window?.appearance = sourceWindow.effectiveAppearance; controller.window?.alphaValue = sourceWindow.alphaValue }
+        if let browserWindowPresentation { browserWindowPresentation(controller) }
+        else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
     private func configureBlameRoutes(_ controller:BlameWindowController) {
         let repository=controller.model.repository,access=controller.model.repositoryAccess,preferences=controller.model.labelDefaults
@@ -2922,7 +2949,8 @@ import UniformTypeIdentifiers
         }
         gitPropertyWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil, invocation: PrimaryCommandInvocation? = nil, outputAccess: RepositoryAccessLease? = nil, preferences: UserDefaults? = nil) {
+    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil, invocation: PrimaryCommandInvocation? = nil, outputAccess: RepositoryAccessLease? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let defaults = preferences ?? fileComparisonPreferences
         let root = repository.root
         var baseKey = root.path
@@ -2945,7 +2973,7 @@ import UniformTypeIdentifiers
             controller = commandLineSelectionWindowFactory?(repository, access, completion) ?? LogWindowController(repository: repository, access: access, onChoose: completion, labelDefaults: defaults, loadsImmediately: false)
         } else { controller = reusable?.value ?? logWindowFactory?(repository,access) ?? LogWindowController(repository: repository, access: access, labelDefaults: defaults, loadsImmediately: invocation == nil) }
         let operationPreferences = controller.model.colorPreferences
-        controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.logWindows[key] === controller else { return }; self.logWindows.removeValue(forKey: key) }
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
         controller.model.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
@@ -3012,7 +3040,9 @@ import UniformTypeIdentifiers
             controller.window?.title = location + " – Log Messages " + revisionRange.expression + " – TurtleGit"
         }
         controller.model.reload()
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        if let sourceWindow { controller.window?.appearance = sourceWindow.effectiveAppearance; controller.window?.alphaValue = sourceWindow.alphaValue }
+        if let logWindowPresentation { logWindowPresentation(controller) }
+        else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
 
     private func configureLogMenus(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?, registerRefresh: Bool = true) {
@@ -3592,16 +3622,23 @@ import UniformTypeIdentifiers
         guard !bare || !action.requiresWorkingTree else { error = "This operation requires a working tree."; return }
         perform { try await $0.run(args).text }
     }
-    private func publishComparisonMark() throws {
+    func refreshWorkingComparisonMark() throws {
+        guard !retired, !confirmingQuit else { return }
         workingComparisonMark = try comparisonMarkStore.snapshot()
+        let access = workingComparisonMark == nil ? nil : try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild)
+        if let access { workingComparisonMark = access.mark }
         if workingComparisonMark != nil {
-            let access = try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild)
-            if let access { workingComparisonMark = access.mark }
             for controller in logWindows.values { controller.model.importWorkingComparisonMark(access) }
-            for controller in rebaseWindows.values {controller.model.importConflictComparisonMark(access)}
-            for controller in revertWindows.values {controller.model.importWorkingComparisonMark(access)}
+            for controller in rebaseWindows.values { controller.model.importConflictComparisonMark(access) }
+            for controller in revertWindows.values { controller.model.importWorkingComparisonMark(access) }
         }
-        if try WorkingComparisonMarkSnapshot.publish(workingComparisonMark) {
+        for controller in browserWindows.values { controller.model.importWorkingComparisonMark(access) }
+    }
+    var comparisonMarkPublication: ((WorkingComparisonMarkSnapshot?) throws -> Bool)?
+    private func publishComparisonMark() throws {
+        try refreshWorkingComparisonMark()
+        let changed = try comparisonMarkPublication?(workingComparisonMark) ?? WorkingComparisonMarkSnapshot.publish(workingComparisonMark)
+        if changed {
             DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil)
         }
     }

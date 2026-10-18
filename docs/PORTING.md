@@ -909,7 +909,7 @@ sandbox execution, passing hosted CI on the latest source or App Store readiness
 | Export | Native upstream ZIP/revision/scope options and separate result; verbose streaming, source-colored output/footer, Close/Abort, original Explore action, retained grants and atomic destination replacement; real Git and hidden native cancellation/owner checks | Physical options/sheets/keyboard/themes, full progress behavior, signed destination grants/Finder acceptance; see EXPORT-PARITY.md |
 | Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, resolve, bisect, clean |
 | Patch workflows | Native Format Patch dialog and three repository export modes; progress and mail handoff compile | Native export/mail acceptance, apply patches, am continuation/abort, full review and email workflows |
-| Repository Browser | Native lazy folder tree, pinned revisions, sortable Name/Extension/Size, historical file menus, marked comparisons and historical Revert, pinned child Log and historical drag representations | Multi-file Revert acceptance, actual Finder drops, broader submodule acceptance, dark/native action coverage and signed scopes; see REPOSITORY-BROWSER-PARITY.md |
+| Repository Browser | Native lazy folder tree, pinned revisions, sortable Name/Extension/Size, historical file menus, live working/historical marks, one-shot contents focus, volume-aware working-path checks, captured child Log/Browser/Update and comparison routes, historical Revert and drag representations | Raw invalid-UTF8 filenames, validation/use race, multi-file Revert acceptance, actual Finder drops, broader submodule acceptance, physical/visual coverage and signed scopes; see REPOSITORY-BROWSER-PARITY.md |
 | Submodule Add | Native source groups/history/browse, Branch/Force, explicit SSH key loading and child remote setting, app/Finder action | Clipboard defaults, displayed UI, complete progress, signed grants and real network; see SUBMODULE-ADD-PARITY.md |
 | Submodule Sync | Original icon/app/Finder action, source non-recursive directory sequence, local URL config effects, owned live progress/cancellation and failure continuation | Displayed/full progress, signed parent/child access and Finder acceptance; broader SyncDlg remains separate; see SUBMODULE-SYNC-PARITY.md |
 | Submodule Update | Native scoped options and separate owned progress, live output/cancellation, captured auto-close and successful bisect post-actions | Full progress and physical/signed/transfer acceptance; explicit command batches and partial recovery are covered in SUBMODULE-UPDATE-RECOVERY-PARITY.md; see SUBMODULE-UPDATE-PARITY.md |
@@ -3381,3 +3381,37 @@ and focused repairs are retained. A hidden Return event was not delivered; the
 actual No default cell and button action were verified instead. Physical input,
 the existing-local editor value presentation, signed sandbox grants and whole-port
 acceptance remain open. No new screenshots or full hosted pass are claimed.
+
+### Repository Browser working actions and child handoffs, October 19, 2026
+
+Browser contents menus refresh the shared working-file mark before capturing
+their actions. New marks replace the current choice; repeated publication of the
+same mark preserves a subsequently chosen local historical mark. Clearing the
+shared mark removes the matching imported working choice while retaining a local
+historical choice. A changed or cleared mark rejects an old captured comparison.
+The live removal is an explicit native extension of the pinned source's nonempty
+DiffLater import. Initial contents focus waits for the first owned table/load
+settlement and is applied once; refresh, user folder/field focus and owned children
+do not repeatedly lose focus.
+
+Working and marked comparisons, child submodule Log/Browser and Update routes
+capture their originating browser preferences, appearance and repository access.
+The unavailable-submodule question retains its request through actual sheet
+detachment before routing Update. Duplicate, stale, cancelled, retired and Quit
+replies cannot open a child; actual pending work remains counted through drain.
+
+Working comparison, submodule resolution and historical Revert validate every
+path prefix against raw tracked paths and actual directory entries. Device/inode
+lookup identity detects Unicode/case aliases on the current volume, including
+untracked and ignored items, without rejecting distinct entries on sensitive
+volumes. The exact indexed scope may authorize macOS's equivalent Unicode disk
+spelling; an untracked or differently cased alias cannot substitute for it.
+Historical blob reads retain their pinned exact paths. Raw invalid-UTF8 filenames
+remain outside the supported boundary. Filesystem changes between validation and
+use remain an unavoidable race in this path-based Git workflow.
+
+[Browser source comparison](REPOSITORY-BROWSER-PARITY.md) and the forthcoming
+[grouped batch record](qa/repository-browser-family-2026-10-19.json) describe this
+scope; no passing build or check is claimed here before results are recorded.
+Physical menus/focus, Finder delivery, VoiceOver, exhaustive submodule/Revert
+combinations, signed grants and complete Browser/application parity remain open.

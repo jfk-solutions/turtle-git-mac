@@ -105,7 +105,26 @@ child dialog returns it to the caller; it does not itself check out that referen
 <p>The browser keeps distinct Unicode spellings from Git as separate entries, even
 when they look alike. Export refuses names that collide on the destination volume.
 Working-tree actions report a conflict if another tracked path has the same
-Unicode spelling, rather than choosing one silently.</p>
+Unicode spelling and resolves to the same filesystem item. Checks also inspect
+each parent folder and untracked or ignored names, including case aliases, using
+the actual volume's lookup identity. Distinct names on a sensitive volume can
+remain distinct. A tracked name may use the filesystem's equivalent Unicode
+spelling, but an untracked alias cannot silently substitute for it. These checks
+run before working comparison, submodule access and Revert; another process can
+still change a file between validation and use. Raw filenames containing invalid
+UTF-8 bytes remain unsupported.</p>
+<p>Use <strong>Mark for comparison</strong> to retain a historical file and its pinned revision,
+then <strong>Compare with…</strong> on another file. The contents menu also refreshes a working
+file marked elsewhere in the app or Finder. A new working mark replaces the
+previous choice; reopening the menu with the same working mark preserves a newer
+historical choice made in this browser. Clearing the working mark removes its
+imported choice without clearing a historical mark. A menu opened before its
+comparison mark changes cannot dispatch that old comparison.</p>
+<p>Submodule Open browses the recorded child revision when available; <strong>Show
+submodule log</strong> opens that revision's history. An unavailable child revision can
+offer <strong>Update</strong>. Its question closes before opening Update. Child Log, Browser,
+Update and comparisons keep the originating browser's preferences, appearance
+and repository access.</p>
 <a name="topic-branchTag"></a><a name="topic-checkout"></a><h2 id="branch-tag-and-checkout">Branch, tag and checkout</h2>
 <p>Create Branch or Tag asks for a name and a base revision: HEAD, a branch, a tag,
 or an explicit commit. Choose the base before accepting. Branch tracking, force,
@@ -624,7 +643,10 @@ Jump category.</p>
 Right-click the contents header for Extension/Size visibility or <strong>Reset column
 order</strong>; Name remains visible. Reset restores columns after Yes/No confirmation
 and keeps the divider position. In the contents list, Ctrl-A or Cmd-A selects all
-and Ctrl-C or Cmd-C copies the selected names. F5 refreshes the active browser.</p>
+and Ctrl-C or Cmd-C copies the selected names. F5 refreshes the active browser.
+The contents list receives initial focus once after loading. Refreshing or
+returning from a child window does not repeatedly take focus from a folder or
+field you selected.</p>
 <h2 id="about-and-version-information">About and version information</h2>
 <p>Use the app menu’s About entry for TurtleGit for Mac, or About Tools for Merge,
 Blame, Image Diff and Unified Diff. Each window shows the original project

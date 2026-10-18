@@ -1,6 +1,7 @@
 // Native adaptation of TortoiseGit RepositoryBrowser.cpp tree/list workflows.
 // Copyright (C) 2009-2026 - TortoiseGit; 2003-2013 - TortoiseSVN. GPL-2.0-or-later.
 import Foundation
+import Darwin
 
 /// Git path identity is UTF-8 byte identity, not Swift's canonical String equality.
 public enum RepositoryBrowserPathIdentity {
@@ -92,7 +93,7 @@ public enum RepositoryBrowserFailure: LocalizedError {
         case .directory: return "The selected directory does not exist at this revision."
         case .output: return "Git returned an invalid repository tree."
         case .selection: return "Choose a file from the displayed repository revision."
-        case .normalizationCollision(let path): return "The Git path “\(path)” conflicts with another tracked path after Unicode normalization. This working-folder action cannot safely keep those paths separate."
+        case .normalizationCollision(let path): return "The Git path “\(path)” conflicts with another working-folder or tracked path on this filesystem. This action cannot safely keep those paths separate."
         }
     }
 }
@@ -229,22 +230,73 @@ extension GitRepository {
         } catch { try? manager.removeItem(at: container); throw error }
     }
     public func validateRepositoryBrowserWorkingPath(_ snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry,cancellation:OperationCancellation? = nil) throws {
+        try cancellation?.check()
         guard snapshot.root == root, !snapshot.bare, snapshot.objectID != nil, snapshot.entries.contains(entry) else {throw RepositoryBrowserFailure.selection}
+        _ = try restoreLocation(entry.path)
         let components=entry.path.split(separator:"/").map(String.init)
         var target:[String]=[],prefix=""
         for component in components {prefix += (prefix.isEmpty ? "" : "/") + component;target.append(prefix)}
-        let records=try run(["ls-files","--cached","-z","--"],cancellation:cancellation).stdout.split(separator:0)
+        let records=try run(["-c","core.precomposeUnicode=false","ls-files","--cached","-z","--"],cancellation:cancellation).stdout.split(separator:0)
+        var indexed=RepositoryBrowserPathSet(),candidates=[RepositoryBrowserPathSet](repeating:RepositoryBrowserPathSet(),count:target.count)
         for record in records {
             try cancellation?.check()
             guard let path=String(data:Data(record),encoding:.utf8) else {continue}
             var prefix=""
             for (index,component) in path.split(separator:"/").enumerated() where index < target.count {
                 prefix += (prefix.isEmpty ? "" : "/") + component
-                if prefix == target[index], !RepositoryBrowserPathIdentity.equal(prefix,target[index]) {
-                    throw RepositoryBrowserFailure.normalizationCollision(entry.path)
+                indexed.insert(prefix)
+                if !RepositoryBrowserPathIdentity.equal(prefix,target[index]),prefix.compare(target[index],options:.caseInsensitive) == .orderedSame {
+                    candidates[index].insert(prefix)
                 }
             }
         }
+        func identity(_ path:String)throws->(dev_t,ino_t)? {
+            try cancellation?.check()
+            var info=stat()
+            if path.withCString({lstat($0,&info)}) == 0 {return(info.st_dev,info.st_ino)}
+            if errno == ENOENT || errno == ENOTDIR {return nil}
+            throw NSError(domain:NSPOSIXErrorDomain,code:Int(errno))
+        }
+        var listings:[Data:[String]]=[:]
+        func names(_ parent:String)throws->[String] {
+            try cancellation?.check()
+            let key=Data(parent.utf8)
+            if let cached=listings[key] {return cached}
+            let values=try FileManager.default.contentsOfDirectory(atPath:parent)
+            listings[key]=values;return values
+        }
+        func hasLiteralLeaf(_ relative:String)throws->Bool {
+            let parts=relative.split(separator:"/")
+            let parent=root.path + (parts.count > 1 ? "/" + parts.dropLast().joined(separator:"/"):"")
+            guard try identity(parent) != nil else{return false}
+            return try names(parent).contains {RepositoryBrowserPathIdentity.equal($0,String(parts.last!))}
+        }
+        for (index,relative) in target.enumerated() {
+            try cancellation?.check()
+            let location=root.path + "/" + relative
+            guard let requested=try identity(location) else {break}
+            // Consult actual lookup identity, rather than assuming all volumes
+            // fold case/Unicode. Separate files on sensitive volumes are safe.
+            for candidate in candidates[index].sorted(by:{$0.utf8.lexicographicallyPrecedes($1.utf8)}) {
+                guard let other=try identity(root.path + "/" + candidate),requested.0 == other.0,requested.1 == other.1 else {continue}
+                // Distinct directory entries may deliberately be hard links.
+                if try hasLiteralLeaf(relative) && hasLiteralLeaf(candidate) {continue}
+                throw RepositoryBrowserFailure.normalizationCollision(entry.path)
+            }
+            let parent=root.path + (index > 0 ? "/" + target[index-1]:"")
+            let siblings=try names(parent),name=components[index]
+            if siblings.contains(where:{RepositoryBrowserPathIdentity.equal($0,name)}) {continue}
+            for sibling in siblings {
+                try cancellation?.check()
+                guard let other=try identity(parent + "/" + sibling),requested.0 == other.0,requested.1 == other.1 else {continue}
+                // macOS may expose NFD disk spelling for an indexed NFC name.
+                // Only its exact indexed scope can authorize that spelling;
+                // an untracked/ignored or differently cased alias cannot.
+                if indexed.contains(relative),sibling == name {continue}
+                throw RepositoryBrowserFailure.normalizationCollision(entry.path)
+            }
+        }
+        try cancellation?.check()
     }
     /// Resolve the child checkout at the gitlink displayed by this pinned tree.
     /// Availability may be false; this never initializes or fetches a submodule.

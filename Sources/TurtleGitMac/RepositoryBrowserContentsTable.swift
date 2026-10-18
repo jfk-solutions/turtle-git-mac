@@ -13,6 +13,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
     static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) {
         coordinator.retired = true
         coordinator.table?.delegate = nil;coordinator.table?.dataSource = nil;coordinator.table?.menu?.delegate = nil
+        (coordinator.table as? RepositoryBrowserNativeTable)?.contentsAttached={_ in}
         (coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.buildMenu = {nil}
         (coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.fit = {_,_ in}
     }
@@ -29,6 +30,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         var available:Bool { !retired && model.canEditColumns && table?.window?.attachedSheet == nil }
         func makeView() -> NSScrollView {
             let table=RepositoryBrowserNativeTable();table.style = .plain
+            table.contentsAttached={ [weak model] table in model?.contentsTableAttached(table) }
             table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(open)
             table.rowHeight=24;table.intercellSpacing=NSSize(width:4,height:0);table.allowsMultipleSelection=true
             table.columnAutoresizingStyle = .noColumnAutoresizing;table.allowsColumnResizing=true;table.allowsColumnReordering=true
@@ -68,6 +70,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             let descriptor=NSSortDescriptor(key:key,ascending:sort?.order != .reverse)
             if table.sortDescriptors != [descriptor] { table.sortDescriptors=[descriptor] }
             table.isEnabled=available;table.allowsColumnResizing=available;table.allowsColumnReordering=available
+            if table.window != nil{model.contentsTableAttached(table)}
         }
         func numberOfRows(in tableView:NSTableView) -> Int { rows.count }
         func value(_ id:String,_ entry:RepositoryBrowserEntry) -> String {
@@ -139,6 +142,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         }
         var selected:[RepositoryBrowserEntry] { rows.filter { model.selection.contains($0.id) } }
         func menuNeedsUpdate(_ menu:NSMenu) {
+            model.prepareComparisonMenu()
             menu.removeAllItems();let values=selected
             func item(_ title:String,_ action:Selector,_ icon:MenuIcon,enabled:Bool=true) {
                 let entry=NSMenuItem(title:title,action:#selector(invokeBrowserMenu(_:)),keyEquivalent:"");entry.target=self;entry.image=icon.contextImage(defaults:model.preferences)
@@ -174,6 +178,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             guard available, let invocation=sender.representedObject as? MenuInvocation,!invocation.used, model.acceptsMenu(invocation.target) else { return }
             invocation.used=true
             let entries=invocation.target.entries
+            if invocation.command == #selector(compareMarked),!model.acceptsComparisonMark(invocation.target){return}
             if invocation.command == #selector(revert) { model.revert(entries); return }
             if invocation.command == #selector(copyNames) { model.copy(entries:entries); return }
             if invocation.command == #selector(copyHashes) { model.copy(hashes:true,entries:entries); return }
@@ -214,6 +219,8 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
 }
 
 final class RepositoryBrowserNativeTable:NSTableView {
+    var contentsAttached:(NSTableView)->Void={_ in}
+    override func viewDidMoveToWindow(){super.viewDidMoveToWindow();if window != nil{contentsAttached(self)}}
     override func menu(for event:NSEvent) -> NSMenu? {
         guard isEnabled else { return nil };let clicked=row(at:convert(event.locationInWindow,from:nil))
         if clicked>=0 && !selectedRowIndexes.contains(clicked) { selectRowIndexes(IndexSet(integer:clicked),byExtendingSelection:false) }

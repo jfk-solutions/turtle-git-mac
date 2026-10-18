@@ -130,7 +130,28 @@ child dialog returns it to the caller; it does not itself check out that referen
 The browser keeps distinct Unicode spellings from Git as separate entries, even
 when they look alike. Export refuses names that collide on the destination volume.
 Working-tree actions report a conflict if another tracked path has the same
-Unicode spelling, rather than choosing one silently.
+Unicode spelling and resolves to the same filesystem item. Checks also inspect
+each parent folder and untracked or ignored names, including case aliases, using
+the actual volume's lookup identity. Distinct names on a sensitive volume can
+remain distinct. A tracked name may use the filesystem's equivalent Unicode
+spelling, but an untracked alias cannot silently substitute for it. These checks
+run before working comparison, submodule access and Revert; another process can
+still change a file between validation and use. Raw filenames containing invalid
+UTF-8 bytes remain unsupported.
+
+Use **Mark for comparison** to retain a historical file and its pinned revision,
+then **Compare with…** on another file. The contents menu also refreshes a working
+file marked elsewhere in the app or Finder. A new working mark replaces the
+previous choice; reopening the menu with the same working mark preserves a newer
+historical choice made in this browser. Clearing the working mark removes its
+imported choice without clearing a historical mark. A menu opened before its
+comparison mark changes cannot dispatch that old comparison.
+
+Submodule Open browses the recorded child revision when available; **Show
+submodule log** opens that revision's history. An unavailable child revision can
+offer **Update**. Its question closes before opening Update. Child Log, Browser,
+Update and comparisons keep the originating browser's preferences, appearance
+and repository access.
 
 ## Branch, tag and checkout
 
@@ -780,6 +801,9 @@ Right-click the contents header for Extension/Size visibility or **Reset column
 order**; Name remains visible. Reset restores columns after Yes/No confirmation
 and keeps the divider position. In the contents list, Ctrl-A or Cmd-A selects all
 and Ctrl-C or Cmd-C copies the selected names. F5 refreshes the active browser.
+The contents list receives initial focus once after loading. Refreshing or
+returning from a child window does not repeatedly take focus from a folder or
+field you selected.
 
 
 ## About and version information
