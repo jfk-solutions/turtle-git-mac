@@ -70,6 +70,36 @@ import TurtleGitCore
         await model.perform(paths:[a],locked:false)
         try require(model.results.isEmpty && model.error != nil,"Foreign final batch was accepted")
         model.finishProgress()
+        // Incomplete terminal replies cannot erase already-reported effects or
+        // claim success. Force retries the entire captured original selection.
+        var pulls=0,partialAttempts=[[String]]()
+        model.onPullAfterLock={pulls += 1}
+        model.change={paths,force,_,report in
+            partialAttempts.append(paths)
+            if force {return .init(files:paths.map {.init(path:$0,success:true,output:"forced")})}
+            report(.init(path:paths[0],success:true,output:"completed before disconnect"))
+            return .init(files:[])
+        }
+        await model.perform(paths:[a,b],locked:false)
+        try require(model.error != nil && model.canForceRetry && model.results.count==1 && GitReferenceName.equal(model.results[0].path,a),"Incomplete reply erased completed effects or disabled captured Force recovery")
+        try require(model.notifications.last?.kind == .finishedFailure && model.actionLogFailed && pulls==0,"Incomplete unlock reported successful completion")
+        await model.unlock(forceRetry:true)
+        try require(partialAttempts.count==2 && partialAttempts.allSatisfy {$0.map {Data($0.utf8)} == [Data(a.utf8),Data(b.utf8)]} && model.results.count==2 && !model.canForceRetry && !model.actionLogFailed,"Force recovery changed original targets or retained an old failure")
+        model.finishProgress()
+        model.lockChange={paths,_,report in
+            report(.init(path:paths[0],success:true,output:"locked before disconnect"))
+            return .init(files:[])
+        }
+        await model.perform(paths:[a,b],locked:true)
+        try require(model.error != nil && model.results.count==1 && !model.canForceRetry && pulls==0 && model.notifications.last?.kind == .finishedFailure,"Incomplete Lock opened Pull or discarded server effects")
+        model.finishProgress()
+        model.lockChange={paths,token,report in
+            report(.init(path:paths[0],success:true,output:"locked before Cancel"));token.cancel()
+            return .init(files:[],cancelled:true)
+        }
+        await model.perform(paths:[a,b],locked:true)
+        try require(model.error==nil && model.actionLogCancelled && model.results.count==1 && pulls==0 && model.notifications.last?.kind == .finishedFailure,"Cancelled partial reply erased completed effects or opened Pull")
+        model.finishProgress()
         // The real status reads expose two index names that may alias one disk path.
         let locks=[LFSLock(id:"1",path:a,owner:"Alice"),LFSLock(id:"2",path:b,owner:"Bob")]
         let commit=CommitWindowController(repository:repo,access:nil,defaults:prefs),status=StatusWindowController(repository:repo,access:nil,defaults:prefs)
@@ -89,6 +119,6 @@ import TurtleGitCore
         try require(copied.count==staleCopies && LFSLocksWindowModel.activeOperations==0,"Retired LFS owner accepted work or leaked operation ownership")
         try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==beforeIndex,"LFS family changed the index")
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout;try require(afterHead==beforeHead,"LFS family changed HEAD")
-        print("PASS: LFS exact checked paths/opaque IDs, native selection, owned menus, progress/Force receipts and Commit/Working Tree ownership columns; private windows closed")
+        print("PASS: LFS exact checked paths/opaque IDs, native selection, owned menus, progress/Force receipts, incomplete/cancelled terminal effects and Commit/Working Tree ownership columns; private windows closed")
     }
 }

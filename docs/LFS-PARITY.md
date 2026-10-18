@@ -514,3 +514,40 @@ to satisfy the old expectation. Validation results are recorded separately in
 [batch evidence](qa/lfs-commands-2026-10-18.json). Public-provider authentication,
 physical input/visual parity, full hosted CI and signed App Store acceptance
 remain outside this local check.
+
+## Connected LFS completion and native readiness — October 18, 2026
+
+The original LFS progress command reports each completed file, continues through
+ordinary file errors and retains the captured selection for an explicit Force
+unlock. Native progress now also handles a backend that terminates without a
+complete final list: valid live results remain in original selected-path order,
+and matching final records supersede those notifications. An incomplete,
+noncancelled final reply is an error, cannot open Pull, and cannot display a
+successful completion. Failed Unlock, including an incomplete reply with no
+failed per-file row, offers Force against the complete original selection.
+Cancellation retains reported server effects without asserting that unfinished
+files succeeded; it never opens the successful Lock → Pull follow-up.
+
+File-lock preparation captures its preference store and progress factory before
+asynchronous eligibility work. A later workspace setting/context change cannot
+retarget the child. Locks window ownership uses exact UTF-8 repository keys and
+identity-checked close callbacks, consistent with the other conflict/file owners.
+Standalone Locks refresh still clears its list while reading, matching the
+source `CLFSLocksDlg::LocksThread`; Commit/Working Tree complete-snapshot reloads
+retain their separate atomic cancellation policy.
+
+The hosted run at source `88efaf6c` passed the corrected cancellation-snapshot
+assertions, then stopped at generated `LFSReceiver.swift:702`, waiting for the
+Working Tree owner column to hide. That generated location is source fixture
+line 701. The fixture had dispatched the header action after model completion
+without waiting for delivery of the enabled native target. Delayed delivery is
+the current explanation to verify on the hosted SDK. It now waits for the actual
+header's enabled/on state and owning probe, then retains the existing hidden-column
+and both-actions assertions. It does not extend the timeout, remove an assertion,
+or force the production state to hide the column.
+
+[Batch evidence](qa/lfs-completion-2026-10-18.json) records actual validation and
+attempts. Private injected replies cover completion/cancellation; authenticated
+providers, physical header input, arbitrary invalid UTF-8 names, full hosted CI,
+whole-dialog appearance/accessibility and current signed Finder/App Store
+acceptance remain open.

@@ -94,6 +94,24 @@ extension PrimaryCommandsVerification {
         attachedReply?.resume(); attachedReply = nil
         try await wait { LFSLocksWindowModel.activeOperations == 0 }
         try require(attached.model.results.isEmpty && closed == 1, "Retired LFS sheet accepted late result")
+        // Capture the presentation store before a delayed selection preflight;
+        // a subsequent workspace settings change cannot retarget the child.
+        let otherSuite=suite+".other",otherPrefs=UserDefaults(suiteName:otherSuite)!
+        defer {otherPrefs.removePersistentDomain(forName:otherSuite)}
+        var preferenceReply:CheckedContinuation<Void,Never>?
+        workspace.lfsSelectionPreflight={_,paths,_,_ in
+            workspace.fileComparisonPreferences=otherPrefs
+            await withCheckedContinuation {preferenceReply=$0}
+            return paths
+        }
+        try await wait {!workspace.busy && RepositoryModel.activeCommandFileOperations==0}
+        invoke(["--command=lfslock","--path",root.appendingPathComponent(path).path])
+        try await wait {preferenceReply != nil && workspace.busy}
+        preferenceReply?.resume();preferenceReply=nil
+        try await wait {!workspace.busy && operations.count==4 && !operations[3].model.busy && operations[3].model.showingProgress}
+        try require(operations[3].model.presentationPreferences === prefs,"LFS preflight retargeted the owning presentation preferences")
+        operations[3].model.finishProgress();try await wait {operations[3].model.retired}
+        let priorOperationCount=operations.count,priorLockCount=locks.count
         // A slow selection read owns the launching window and remains accounted
         // for until the actual work drains, even if its reply ignores cancellation.
         let owner = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 200), styleMask: [.titled], backing: .buffered, defer: false)
@@ -113,7 +131,7 @@ extension PrimaryCommandsVerification {
         try require(workspace.hasPendingRepositoryWork && workspace.busy, "Closing owner dropped pending read before drain")
         pending?.resume(); pending = nil
         try await wait { !workspace.hasPendingRepositoryWork && !workspace.busy }
-        try require(operations.count == 3 && locks.count == 1, "Late preflight opened LFS progress after owner closed")
+        try require(operations.count == priorOperationCount && locks.count == priorLockCount, "Late preflight opened LFS progress after owner closed")
         workspace.workspaceWindow = nil
         invoke(["--command=lfsunlock", "--path", root.appendingPathComponent(path).path])
         try await wait { pending != nil && workspace.hasPendingRepositoryWork }
@@ -121,10 +139,10 @@ extension PrimaryCommandsVerification {
         try require(preparationToken?.isCancelled == true, "Workspace retirement did not cancel LFS preparation")
         pending?.resume(); pending = nil
         try await wait { !workspace.hasPendingRepositoryWork && !workspace.busy }
-        try require(operations.count == 3 && LFSLocksWindowModel.activeOperations == 0, "Retired workspace accepted delayed LFS preparation")
+        try require(operations.count == priorOperationCount && LFSLocksWindowModel.activeOperations == 0, "Retired workspace accepted delayed LFS preparation")
         let finalTip = try await repo.rebaseCommit("HEAD")
         try require(try Data(contentsOf: root.appendingPathComponent(".git/index")) == index && finalTip.hash == tip.hash, "Injected LFS actions changed index/HEAD")
         for name in [path, other] { try require(try Data(contentsOf: root.appendingPathComponent(name)) == Data("base\n".utf8), "LFS actions changed working bytes") }
-        print("PASS: LFS command family: server-wide Locks and retained checks/Force; literal NUL path-file forced Unlock; normal Unlock and captured Force retry; Lock; preferences; standalone progress/Quit review; owner-close and retirement cancellation; unchanged index/HEAD/working bytes; owned windows closed")
+        print("PASS: LFS command family: server-wide Locks and retained checks/Force; literal NUL path-file forced Unlock; normal Unlock and captured Force retry; Lock; captured preferences across delayed preflight; standalone progress/Quit review; owner-close and retirement cancellation; unchanged index/HEAD/working bytes; owned windows closed")
     }
 }

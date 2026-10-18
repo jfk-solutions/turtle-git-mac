@@ -696,6 +696,14 @@ import TurtleGitCore
         precondition(status.model.lfsOwnershipKnown && status.model.lfsOwners.isEmpty && status.model.lfsLockedPaths.isEmpty)
         precondition(status.model.lfsActions([statusLocked,statusFree]) == [.lock])
         print("LFS cancellation retained complete ownership snapshot; late reply fenced; subsequent known-empty snapshot published."); fflush(stdout)
+        // Model completion precedes SwiftUI/AppKit column-target delivery on
+        // older hosted SDKs. Exercise the enabled, settled native header, rather
+        // than dispatching a stale target captured during the busy refresh.
+        try await settle {
+            guard !status.model.busy, statusProbe().enabled,
+                  let choice = statusTable.headerView?.menu?.item(withTitle: "LFS Lock") else { return false }
+            return choice.isEnabled && choice.state == .on && choice.target === statusProbe()
+        }
         let statusHide = statusTable.headerView!.menu!.item(withTitle: "LFS Lock")!
         _ = NSApplication.shared.sendAction(statusHide.action!, to: statusHide.target, from: statusHide)
         try await settle { statusOwner.isHidden }

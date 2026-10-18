@@ -251,7 +251,7 @@ import UniformTypeIdentifiers
     private var daemonWindows: [String: GitDaemonWindowController] = [:]
     var daemonConfiguration = GitDaemonConfiguration()
     var daemonPresentation: ((GitDaemonWindowController) -> Void)?
-    private var lfsLocksWindows: [String: LFSLocksWindowController] = [:]
+    private var lfsLocksWindows = GitPathMap<LFSLocksWindowController>()
     private var lfsFileOperations: [UUID: LFSFileOperationController] = [:]
     private var reviewPatchWorkflows: [UUID: ReviewPatchWorkflow] = [:]
     private(set) var patchDocumentWindows: [UUID: PatchWindowController] = [:]
@@ -1490,14 +1490,14 @@ import UniformTypeIdentifiers
         let controller = lfsLocksWindowFactory?(repository, access, fileComparisonPreferences) ?? LFSLocksWindowController(repository: repository, access: access, defaults: fileComparisonPreferences)
         controller.model.onProgressLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
         controller.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-        controller.onClosed = { [weak self] in self?.lfsLocksWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.lfsLocksWindows[key] === controller else { return }; self.lfsLocksWindows.removeValue(forKey: key) }
         lfsLocksWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         Task { await controller.model.refresh() }
     }
     private func showFinderLFSOperation(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], locked: Bool, force: Bool = false, commandLaunch: Bool = false) {
         guard !retired, !busy, !confirmingQuit, workspaceWindow?.attachedSheet == nil else { return }
         let id = UUID(), window = workspaceWindow, owner = RepositoryWindowOwner(window: workspaceWindow)
-        let preflight = lfsSelectionPreflight
+        let preflight = lfsSelectionPreflight, preferences = fileComparisonPreferences, factory = lfsFileOperationFactory
         lfsPreparations[id] = owner; busy = true
         Task { [self, access] in
             defer { lfsPreparations.removeValue(forKey: id); busy = false; withExtendedLifetime(access) {} }
@@ -1510,7 +1510,7 @@ import UniformTypeIdentifiers
                 else { targets = try await repository.finderLFSPaths(paths, cancellation: owner.cancellation) }
                 try owner.cancellation.check()
                 guard !retired, !confirmingQuit, window?.attachedSheet == nil else { return }
-                let controller = lfsFileOperationFactory?(repository, access, fileComparisonPreferences) ?? LFSFileOperationController(repository: repository, access: access, defaults: fileComparisonPreferences)
+                let controller = factory?(repository, access, preferences) ?? LFSFileOperationController(repository: repository, access: access, defaults: preferences)
                 controller.model.onProgressLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
                 controller.model.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
                 controller.onClosed = { [weak self] in

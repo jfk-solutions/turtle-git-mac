@@ -176,6 +176,7 @@ import TurtleGitCore
     var query: (OperationCancellation) async throws -> [LFSLock]
     var change: ([String], Bool, OperationCancellation, @escaping @Sendable (LFSFileResult) -> Void) async throws -> LFSBatchResult = { _,_,_,_ in throw LFSLocksFailure.selection }
     var lockChange: ([String], OperationCancellation, @escaping @Sendable (LFSFileResult) -> Void) async throws -> LFSBatchResult = { _,_,_ in throw LFSLocksFailure.selection }
+    var canForceRetry: Bool { !retired && !busy && !progressActionBusy && !confirmingQuit && showingProgress && !operationLocked && operationFailed }
     var canUnlock: Bool { !retired && !busy && !confirmingQuit && !showingProgress && locks.contains { checked.contains($0.id) } }
     var rows: [LFSListRow] { locks.map { LFSListRow(lock: $0, metadata: fileMetadata[$0.path]) }.sorted(using: sortOrder) }
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
@@ -319,7 +320,7 @@ import TurtleGitCore
         }
     }
     func unlock(forceRetry: Bool = false) async {
-        guard !retired, !busy, !confirmingQuit, !forceRetry || !operationLocked else { return }
+        guard !retired, !busy, !confirmingQuit, !forceRetry || canForceRetry else { return }
         guard forceRetry || !showingProgress else { return }
         if !forceRetry { operationLocked = false; operationForce = force; resetTargetChecks = false; operationPaths = rows.filter { checked.contains($0.id) }.map(\.path) }
         await runOperation(forceRetry: forceRetry)
@@ -331,7 +332,7 @@ import TurtleGitCore
         await runOperation(forceRetry: false)
     }
     private func runOperation(forceRetry: Bool) async {
-        guard !retired, !progressActionBusy, !operationPaths.isEmpty, !forceRetry || showingProgress && results.contains(where: { !$0.success }) else { return }
+        guard !retired, !progressActionBusy, !operationPaths.isEmpty, !forceRetry || canForceRetry else { return }
         var seen = GitPathSet(); operationPaths = operationPaths.filter { seen.insert($0).inserted }
         operationScope = GitPathSet(operationPaths)
         ProgressActionLog.nextAttempt(self); attemptStarted = true
@@ -373,15 +374,22 @@ import TurtleGitCore
             drain(mailbox, generation: generation); acceptingBatchResults = false
             let returned = GitPathSet(batch.files.map(\.path))
             guard returned.count == batch.files.count, returned.isSubset(of: operationScope) else { throw LFSLocksFailure.selection }
-            results = batch.files
+            // A terminal reply can omit work after cancellation or transport
+            // failure. Retain every reported server effect, in captured order;
+            // a valid final row supersedes the corresponding live notification.
+            var completed = GitPathMap(results.map { ($0.path, $0) }, uniquingKeysWith: { first, _ in first })
+            for result in batch.files { completed[result.path] = result }
+            results = operationPaths.compactMap { completed[$0] }
             notifications = []; startedPaths = []; completedPaths = []
             appendNotification(action: "Command", text: operationLocked ? "Lock" : "Unlock", kind: .command)
-            for result in batch.files { record(result, appendResult: false) }
+            for result in results { record(result, appendResult: false) }
             operationCancelled = batch.cancelled || cancellation.isCancelled
-            operationFailed = batch.files.contains { !$0.success }
+            operationFailed = results.contains { !$0.success }
             if operationCancelled { appendNotification(action: "Error", text: "User cancelled", kind: .error) }
-            openPull = operationLocked && !batch.cancelled && !cancellation.isCancelled &&
-                batch.files.count == operationPaths.count && batch.files.allSatisfy(\.success)
+            else if returned.count != operationPaths.count {
+                throw StatusFileActionFailure(message: "Git LFS did not return a result for every selected file. Completed server changes remain; refresh to verify lock state.")
+            }
+            openPull = operationLocked && !operationCancelled && !operationFailed && returned.count == operationPaths.count
             information = batch.cancelled || cancellation.isCancelled ? "Cancelled. Completed server changes remain; refresh to verify lock state." : "\(results.filter(\.success).count) of \(operationPaths.count) file(s) \(operationLocked ? "locked" : "unlocked")."
         } catch {
             guard !retired else { return }
@@ -460,7 +468,7 @@ struct LFSUnlockProgress: View {
             Text(model.information).textSelection(.enabled)
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             HStack {
-                if !model.busy && !model.operationLocked && model.results.contains(where: { !$0.success }) {
+                if model.canForceRetry {
                     Button { Task { await model.unlock(forceRetry: true) } } label: { CommandLabel(title: "Force unlock", icon: .unlock) }.disabled(model.confirmingQuit || model.progressActionBusy)
                 }
                 Spacer()

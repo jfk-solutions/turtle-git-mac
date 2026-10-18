@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [LFS completion and native-readiness family](LFS-PARITY.md#connected-lfs-completion-and-native-readiness--october-18-2026)
+retains reported server effects through incomplete/cancelled terminal replies,
+refuses false success/Pull, preserves captured Force targets, settings and exact
+window ownership, and addresses the next hosted native-header settlement failure.
+[Batch evidence](qa/lfs-completion-2026-10-18.json) records focused validation and
+remaining physical, hosted and signed acceptance.
+
 The connected [conflict editor entry/routing family](CONFLICT-EDITOR-PARITY.md)
 adds standalone normal/alternative command entry, captured working-tree/metadata
 authorization and adoption, original preference inheritance across all four

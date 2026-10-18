@@ -1,0 +1,29 @@
+Read-only hosted log excerpt
+Source: 88efaf6c96f78f8befb7ec388ec7f437197c89c5
+Run: https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39117422709
+Job: 117650583265
+The source fixture receives one leading @testable import in LFSReceiver.swift.
+Generated line 702 therefore maps to source fixture line 701.
+The cancellation-snapshot assertions passed. Native header target readiness was
+not recorded here; delayed target delivery remains an explanation requiring a
+current hosted run, not a proven root cause from this excerpt alone.
+
+2026-10-18T12:03:58.0220700Z LFS checkpoint: forced retry finished
+2026-10-18T12:03:58.2647140Z LFS checkpoint: completed review closed/refreshed
+2026-10-18T12:03:59.1035180Z LFS checkpoint: cancellation review passed
+2026-10-18T12:03:59.4967360Z LFS checkpoint: deferred refresh ownership passed
+2026-10-18T12:04:00.2250090Z LFS checkpoint: path check memory passed
+2026-10-18T12:04:52.9643830Z Standalone Finder LFS progress receiver: captured file batch, duplicate gate, no required parent window, Quit guard and exactly-once Close cleanup passed with injected results; no remote endpoint or displayed window.
+2026-10-18T12:04:52.9648100Z LFS cancellation retained complete ownership snapshot; late reply fenced; subsequent known-empty snapshot published.
+2026-10-18T12:05:18.2611450Z LFS WINDOW DIAGNOSTIC 702 [("", "none", false, []), ("Colors", "none", false, []), ("Review/apply single patch – TurtleGitMerge", "none", false, []), ("Review/apply single patch – TurtleGitMerge", "none", false, []), ("Clipboard patch – Review Patch – TurtleGitMerge", "none", false, [1]), ("Review/apply single patch – TurtleGitMerge", "none", false, []), ("Review/apply single patch – TurtleGitMerge", "none", false, []), ("/var/folders/20/jp1_0n3…0gn/T/TurtleGitLFSMailNativeBatch-h7fta7hb/lfs – LFS Locks – TurtleGit", "none", false, [1]), ("/var/folders/20/jp1_0n3…0gn/T/TurtleGitLFSMailNativeBatch-h7fta7hb/lfs – LFS Locks – TurtleGit", "none", false, [2]), ("/var/folders/20/jp1_0n3…0gn/T/TurtleGitLFSMailNativeBatch-h7fta7hb/lfs – LFS Locks – TurtleGit", "none", false, [0]), ("/var/folders/20/jp1_0n3…0gn/T/TurtleGitLFSMailNativeBatch-h7fta7hb/lfs – LFS Locks – TurtleGit", "none", false, [160]), ("/var/folders/20/jp1_0n3…0gn/T/TurtleGitLFSMailNativeBatch-h7fta7hb/lfs – LFS Locks – TurtleGit", "none", false, [2]), ("/var/folders/20/jp1_0n3…0gn/T/TurtleGitLFSMailNativeBatch-h7fta7hb/lfs – LFS Locks – TurtleGit", "none", false, [2]), ("/var/folders/20/jp1_0n3n…000gn/T/TurtleGitLFSMailNativeBatch-h7fta7hb/lfs – Commit – TurtleGit", "none", true, [3]), ("/var/folders/20/jp1_0n…n/T/TurtleGitLFSMailNativeBatch-h7fta7hb/lfs – Working Tree – TurtleGit", "none", true, [3]), ("/var/folders/20/jp1_0n3n…eGitLFSMailNativeBatch-h7fta7hb/lfs/-雪\t\n🦎.bin – LFS Lock – TurtleGit", "none", false, [3]), ("/var/folders/20/jp1_0n…n/T/TurtleGitLFSMailNativeBatch-h7fta7hb/lfs – Working Tree – TurtleGit", "none", false, [3])]
+2026-10-18T12:05:18.3111930Z swift-driver version: 1.120.5 verify/LFSReceiver.swift:12: Fatal error: LFS native condition did not settle at line 702
+2026-10-18T12:05:18.4151040Z Owned native receiver reaped: 26550
+2026-10-18T12:05:18.7954690Z Traceback (most recent call last):
+2026-10-18T12:05:18.7978670Z   File "/Users/runner/work/turtle-git-mac/turtle-git-mac/scripts/test-native-lfs-mail-batch.py", line 207, in <module>
+2026-10-18T12:05:18.7981720Z     raise RuntimeError('Native receiver exited before SMTP readiness: exit=' + str(code) + ', phase=' + str(phase))
+2026-10-18T12:05:18.7984760Z RuntimeError: Native receiver exited before SMTP readiness: exit=-4, phase={'status': 'running', 'phase': 'LFSLocksVerification'}
+2026-10-18T12:05:18.9083540Z ##[error]Process completed with exit code 1.
+2026-10-18T12:05:19.3248160Z Post job cleanup.
+2026-10-18T12:05:20.4024660Z [command]/usr/local/bin/git version
+2026-10-18T12:05:20.4910600Z git version 2.55.0
+2026-10-18T12:05:20.5009290Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/7b7cbf1a-f75b-4045-80d6-edd6de7085da/.gitconfig'

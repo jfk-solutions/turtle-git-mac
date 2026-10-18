@@ -1,0 +1,154 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "c2de922bb4ef0f5cd87cca18588dee813a949b4e",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected LFS progress terminal results, captured preflight preferences/factory, exact lock-list ownership and hosted Working Tree header-readiness continuation.",
+  "source_review": [
+    "src/TortoiseProc/LFSLocksDlg.cpp::LocksThread",
+    "src/TortoiseProc/Commands/LFSCommands.cpp",
+    "src/TortoiseProc/ProgressCommands/LFSSetLockedProgressCommand.cpp::Run/post-command callback",
+    "src/Git/GitStatusListCtrl.cpp::GetStatus"
+  ],
+  "implementation": [
+    "Valid live per-file results survive partial/cancelled final replies; matching valid terminal rows supersede live rows, preserving captured original path order. Duplicate/out-of-scope final records remain rejected.",
+    "An incomplete noncancelled terminal list is a failure, with retained server-effect rows and failed completion/action-log state. Lock cannot open Pull without a complete successful terminal result. Cancellation retains completed effects without inventing success for unfinished files.",
+    "Failed Unlock, including missing final rows, offers explicit Force for the original captured entire batch. Success clears the old failure; Lock does not offer Unlock Force. Existing cancellation and retired-owner fences remain.",
+    "Finder/direct LFS eligibility preparation captures preferences/factory before asynchronous work. Exact GitPathMap repository keys and identity-checked close callbacks isolate Locks window owners.",
+    "Hosted generated source line 702 maps to original fixture line 701 after its leading import. The corrected cancellation snapshot passed. Header hiding was dispatched without waiting for native target readiness; fixture now requires enabled/on header state and its owning probe before dispatch, retaining hidden-column/action assertions. Delayed delivery is an explanation awaiting hosted confirmation, not a proven root cause from the log alone."
+  ],
+  "hosted_observation": {
+    "run": 39117422709,
+    "job": 117650583265,
+    "head": "88efaf6c96f78f8befb7ec388ec7f437197c89c5",
+    "failure_step": "Grouped native LFS and Send Mail receivers with one compilation",
+    "failure": "LFS native condition did not settle at generated line 702",
+    "excerpt": "ci-lfs-header-88efaf6c-2026-10-18.txt",
+    "scope": "Older source failed before SMTP readiness. Current complete hosted result remains unverified. Optional gh CLI status lookup unavailable because gh has no login; read-only connector supplied the job/log evidence."
+  },
+  "validation": {
+    "core": {
+      "run": false,
+      "reason": "Core sources and Git protocol unchanged; native state/capture and fixture-readiness changes only."
+    },
+    "build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "exit": 0,
+      "attempts": 1,
+      "scope": "Local arm64 Debug app/embedded targets. Existing warnings, simulator-version mismatch and exit-zero compiler-driver diagnostics remain; no clean diagnostic/universal/signed claim."
+    },
+    "commands": {
+      "command": "python3 scripts/test-primary-commands.py --only lfs --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "attempts": [
+        {
+          "exit": 1,
+          "engine_cases_passed": 0,
+          "log": "lfs-completion-commands-2026-10-18.log",
+          "failure": "New preference case dispatched without awaiting workspace idle after the prior operation-close refresh; wait at fixture line 108 expired."
+        },
+        {
+          "exit": 0,
+          "engine_cases_passed": 2,
+          "log": "lfs-completion-commands-fixture-repair-2026-10-18.log",
+          "repair": "Added the existing idle/active-command drain barrier before the new invocation; all behavioral assertions retained. Fixture-only repair; no app build or unaffected native repeat."
+        }
+      ],
+      "scope": "Server-wide Locks retention, direct literal path-file Force, normal failed-Unlock/Force recovery, Lock, captured preferences through held preflight, standalone/sheet ownership/Quit, owner-close/retirement and unchanged HEAD/index/working bytes."
+    },
+    "terminal_identity": {
+      "command": "python3 scripts/test-lfs-path-family.py --only identities --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "attempts": 1,
+      "engine_cases": 2,
+      "scope": "Exact paths/opaque IDs, native selection/checks, once-only menus, duplicate/foreign callbacks, malformed terminal list, incomplete Lock/Unlock/cancelled replies, retained completed effects, complete captured Force retry and suppressed Pull; Commit/Working Tree owners and unchanged HEAD/index."
+    },
+    "retained_native": {
+      "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 python3 scripts/test-lfs-locks.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "attempts": 1,
+      "engine_cases": 2,
+      "scope": "Actual lock list and progress sheet ownership, refresh/Force/cancellation, original artwork, header order/width/copy/reset, corrected cancelled complete snapshot, new native header readiness, owner visibility/actions, selection/checkbox and retirement/Quit. Remote replies injected."
+    },
+    "distinct_native_case_engine_passes": 6,
+    "total_native_runtime_attempts": 7,
+    "cleanup": {
+      "owned_pids": [
+        59494,
+        59651,
+        59768,
+        59885,
+        60429,
+        61009,
+        61217
+      ],
+      "confirmed_absent": [
+        59494,
+        59651,
+        59768,
+        59885,
+        60429,
+        61009,
+        61217
+      ],
+      "still_present": [],
+      "scope": "All owned receivers, including failed attempt, reaped. Fixture-owned windows/preferences/repositories and pending work closed/drained; unrelated user-owned app untouched."
+    },
+    "localizations": {
+      "write_before_build": true,
+      "check_exit": 0,
+      "languages": 38,
+      "keys": 1287,
+      "scope": "Catalog unchanged; safe English fallback retained."
+    },
+    "site": {
+      "command": "build/site-venv/bin/python scripts/build-site.py",
+      "exit": 0,
+      "documents": 295,
+      "unresolved_fragments": []
+    }
+  },
+  "remaining": [
+    "Current complete hosted CI confirmation, including whether the header readiness barrier repairs the older SDK timing.",
+    "Physical menus/pointer/keyboard/VoiceOver/theme and complete source visual parity.",
+    "Authenticated provider, real sandbox scopes, installed signed Finder workflow and current App Store distribution acceptance.",
+    "Exact Locks owner map change was compiled/source-inspected; no claim of independent physical canonical-alias repository behavior.",
+    "Custom TurtleGit artwork not recovered; current shared artwork remains upstream-derived."
+  ],
+  "fixtures": {
+    "lfs-commands-native-2026-10-18.swift": "a553105f9388ef78a1937bcfeb8869f6ebdd2589cdc029c66b80cad144e40bbd",
+    "lfs-path-identities-native-2026-10-17.swift": "2b2adf5686cd4dd2f70657e09db650b134b02d8ce206adcb3c087286ac5b4b4e",
+    "lfs-locks-native-2026-10-08.swift": "4f486884d587efef4ba236a7b5711caa4fa45a0c5bb4cf6f316d9d77be4212b7"
+  },
+  "logs": {
+    "lfs-completion-build-2026-10-18.log": {
+      "bytes": 45647,
+      "sha256": "6f5255db3cbab832564c4f32adfbb3475692fb2b1565ca45aff209ed22dbd127"
+    },
+    "lfs-completion-commands-2026-10-18.log": {
+      "bytes": 4008,
+      "sha256": "2fea84490bffe25ac2a9e69daa60163178939085d296f45a5b2b8bef7e241c91"
+    },
+    "lfs-completion-commands-fixture-repair-2026-10-18.log": {
+      "bytes": 3753,
+      "sha256": "eda113a679f46dd6ffee0abcce660b627dc72e6a7f5b986418b60f4b19f48113"
+    },
+    "lfs-completion-paths-2026-10-18.log": {
+      "bytes": 806,
+      "sha256": "2d9a6226da6bf34b5101e4d1fadaa6ee17499963ba50b318c0ab4d924112221a"
+    },
+    "lfs-completion-retained-2026-10-18.log": {
+      "bytes": 3621,
+      "sha256": "d46dc6b1aed3338fa339f04b7c720d15f9a0b6c4399cc7306d19aebf8a6bcb89"
+    },
+    "lfs-completion-site-2026-10-18.log": {
+      "bytes": 123,
+      "sha256": "ce9a50d5187922eeef385b2978c999c322fb10732c141dd35c5256ea94be42f6"
+    }
+  },
+  "dialogs": [
+    "IDD_LFS_LOCKS",
+    "IDD_GITPROGRESS"
+  ],
+  "resources": [
+    "src/Resources/TortoiseProcENG.rc"
+  ]
+}
