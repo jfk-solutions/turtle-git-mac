@@ -2850,6 +2850,7 @@
         "docs/REBASE-PARITY.md",
         "docs/REBASE-REFERENCE-PREPARATION-PARITY.md",
         "docs/REBASE-REVISION-FILES.md",
+        "docs/REBASE-REVISION-MENU-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
@@ -2870,6 +2871,7 @@
         "docs/qa/rebase-native-report-2026-10-15.json",
         "docs/qa/rebase-references-2026-10-14.json",
         "docs/qa/rebase-revision-files-2026-10-16.json",
+        "docs/qa/rebase-revision-menus-2026-10-18.json",
         "docs/qa/rebase-row-drag-2026-10-13.json",
         "docs/qa/rebase-session-refresh-2026-10-14.json",
         "docs/qa/rebase-source-family-2026-10-17.json",

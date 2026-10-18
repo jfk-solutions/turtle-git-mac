@@ -16,6 +16,7 @@ struct RebaseReplayTable: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let table = RebaseReplayNativeTable(); table.owner = context.coordinator
         table.delegate = context.coordinator; table.dataSource = context.coordinator
+        table.target = context.coordinator; table.doubleAction = #selector(Coordinator.compareDefault(_:))
         table.allowsMultipleSelection = true; table.allowsEmptySelection = true
         table.columnAutoresizingStyle = .noColumnAutoresizing; table.usesAlternatingRowBackgroundColors = true
         table.setAccessibilityLabel("Rebase commits")
@@ -32,7 +33,7 @@ struct RebaseReplayTable: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) { context.coordinator.update(model: model, dates: dates, font: configuredFont) }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
         coordinator.retired = true; coordinator.menuGeneration = UUID()
-        coordinator.table?.owner = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil
+        coordinator.table?.owner = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.target = nil; coordinator.table?.doubleAction = nil
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         struct Row: Equatable {
@@ -45,7 +46,7 @@ struct RebaseReplayTable: NSViewRepresentable {
         private var synchronizing = false
         var retired = false, menuGeneration = UUID()
         init(model: RebaseWindowModel) { self.model = model }
-        var available: Bool { !retired && !model.retired && !model.busy && table?.window != nil && table?.window?.attachedSheet == nil }
+        var available: Bool { !retired && model.revisionMenuAvailable && table?.window != nil && table?.window?.attachedSheet == nil }
         func update(model: RebaseWindowModel, dates: HistoryDateSettings, font: NSFont?) {
             guard !retired, let table else { return }; self.model = model
             let next = model.entries.map { entry in
@@ -91,29 +92,68 @@ struct RebaseReplayTable: NSViewRepresentable {
             let selected = Set(table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].id : nil })
             if selected != model.selection { menuGeneration = UUID(); model.selection = selected }
         }
+        @discardableResult func performDefaultComparison(alternate: Bool = false) -> Bool {
+            guard available, model.columnPreferences.bool(forKey: "DiffByDoubleClickInLog"),
+                  model.canPerformRevisionMenu(.compare, ids: model.selection),
+                  let claim = model.captureRevisionMenu(model.selection), claim() else { return false }
+            model.performRevisionMenu(.compare, ids: model.selection, alternate: alternate); return true
+        }
+        @objc func compareDefault(_ sender: Any?) { guard (table?.clickedRow ?? -1) >= 0 else { return }; _ = performDefaultComparison(alternate: NSEvent.modifierFlags.contains(.shift)) }
         func menu(ids: Set<String>, alternate: Bool) -> NSMenu {
             menuGeneration = UUID(); let generation = menuGeneration
             let menu = NSMenu(); menu.autoenablesItems = false
-            func add(_ title: String, icon: MenuIcon, to menu: NSMenu, allowed: @escaping @MainActor () -> Bool, action: @escaping @MainActor () -> Void) {
-                let target = RebaseReplayMenuTarget(allowed: { [weak self] in self?.available == true && self?.menuGeneration == generation && allowed() }, action: { [weak self] in self?.menuGeneration = UUID(); action() })
+            guard available, let claim = model.captureRevisionMenu(ids) else { return menu }
+            let selected = model.revisionMenuRows(ids), one = selected.count == 1
+            let policy = model.revisionContextPolicy
+            @discardableResult func add(_ title: String, icon: MenuIcon, to menu: NSMenu, allowed: @escaping @MainActor () -> Bool, action: @escaping @MainActor () -> Void) -> NSMenuItem {
+                let target = RebaseReplayMenuTarget(allowed: { [weak self] in self?.available == true && self?.menuGeneration == generation && allowed() && claim() }, action: { [weak self] in self?.menuGeneration = UUID(); action() })
                 let item = NSMenuItem(title: title, action: #selector(RebaseReplayMenuTarget.invoke(_:)), keyEquivalent: "")
                 item.target = target; item.representedObject = target; item.image = icon.contextImage(defaults: model.columnPreferences)
-                item.isEnabled = available && allowed(); menu.addItem(item)
+                item.isEnabled = available && allowed(); menu.addItem(item); return item
             }
-            for action in RebaseAction.allCases {
+            for action in model.revisionActionChoices(ids) {
                 add(action == .skip ? "Skip" : action.rawValue.capitalized, icon: action.icon, to: menu,
-                    allowed: { [weak model] in guard let model else { return false }; return !ids.isEmpty && model.editable && !(model.options.preserveMerges && action == .squash && model.entries.contains { ids.contains($0.id) && $0.commit.parents.count != 1 }) },
+                    allowed: { [weak model] in model?.revisionActionChoices(ids).contains(action) == true },
                     action: { [weak model] in model?.setAction(action, ids: ids) })
             }
-            guard !model.revisionMenuRows(ids).isEmpty else { return menu }
-            let groups: [[RebaseRevisionCommand]] = [[.workingTree, .compare, .unified], [.log, .browse, .branch, .tag, .push], [.notes, .patch]]
-            func command(_ command: RebaseRevisionCommand, to menu: NSMenu) {
-                add(command == .compare && ids.count == 2 ? "Compare revisions" : command.rawValue, icon: command.icon, to: menu,
+            func command(_ command: RebaseRevisionCommand, to menu: NSMenu, title: String? = nil, parent: Int? = nil, mode: LogRevisionDiffMode = .firstParent) {
+                guard policy.contains(command.sourceCommand(single: one)) else { return }
+                let item = add(title ?? (command == .compare && ids.count == 2 ? "Compare revisions" : command.rawValue), icon: command.icon, to: menu,
                     allowed: { [weak model] in model?.canPerformRevisionMenu(command, ids: ids) == true },
-                    action: { [weak model] in model?.performRevisionMenu(command, ids: ids, alternate: alternate) })
+                    action: { [weak model] in model?.performRevisionMenu(command, ids: ids, alternate: alternate, parent: parent, diffMode: mode) })
+                if command == .compare, model.columnPreferences.bool(forKey: "DiffByDoubleClickInLog"), parent == nil || parent == 1 {
+                    item.attributedTitle = NSAttributedString(string: item.title, attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)])
+                }
             }
-            for group in groups { menu.addItem(.separator()); for value in group { command(value, to: menu) } }
-            menu.addItem(.separator())
+            func separator() { if !menu.items.isEmpty, menu.items.last?.isSeparatorItem != true { menu.addItem(.separator()) } }
+            separator()
+            if one { command(.workingTree, to: menu) }
+            if one, let revision = selected.first?.commit, revision.parents.count > 1 {
+                let unified = NSMenuItem(title: "Unified diff with", action: nil, keyEquivalent: "")
+                unified.image = MenuIcon.unifiedDiff.contextImage(defaults: model.columnPreferences)
+                let choices = NSMenu(); choices.autoenablesItems = false
+                for (title, mode) in [("All Parents", LogRevisionDiffMode.allParents), ("Only Merged Files", .combined), ("Show extra changes after merge", .extraMergeChanges)] {
+                    command(.unified, to: choices, title: title, mode: mode)
+                }
+                for parent in model.revisionMenuLog.parentChoices(for: revision) { command(.unified, to: choices, title: parent.title, mode: .parent(parent.number)) }
+                unified.submenu = choices; unified.isEnabled = model.canPerformRevisionMenu(.unified, ids: ids)
+                if policy.contains(.unifiedDiff) { menu.addItem(unified) }
+                let compare = NSMenuItem(title: "Compare with previous revision", action: nil, keyEquivalent: "")
+                compare.image = MenuIcon.compare.contextImage(defaults: model.columnPreferences)
+                let parents = NSMenu(); parents.autoenablesItems = false
+                for parent in model.revisionMenuLog.parentChoices(for: revision) { command(.compare, to: parents, title: parent.title, parent: parent.number) }
+                compare.submenu = parents; compare.isEnabled = model.canPerformRevisionMenu(.compare, ids: ids)
+                if model.columnPreferences.bool(forKey: "DiffByDoubleClickInLog") { compare.attributedTitle = NSAttributedString(string: compare.title, attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]) }
+                if policy.contains(.comparePrevious) { menu.addItem(compare) }
+            } else {
+                if !one || selected.first?.commit.parents.count == 1 { command(.unified, to: menu) }
+                if !one || (selected.first?.commit.parents.count ?? 0) > 0 { command(.compare, to: menu) }
+            }
+            let groups: [[RebaseRevisionCommand]] = [[.log, .browse, .branch, .tag, .push], [.notes, .patch]]
+            for group in groups {
+                separator(); for value in group { command(value, to: menu) }
+            }
+            separator()
             let copy = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
             copy.image = MenuIcon.copy.contextImage(defaults: model.columnPreferences); copy.isEnabled = model.revisionMenuAvailable
             let choices = NSMenu(); choices.autoenablesItems = false
@@ -126,11 +166,29 @@ struct RebaseReplayTable: NSViewRepresentable {
 
 @MainActor final class RebaseReplayNativeTable: NSTableView {
     weak var owner: RebaseReplayTable.Coordinator?
+    var presentContextMenu: (NSMenu, NSPoint, NSView) -> Void = { menu, point, view in menu.popUp(positioning: nil, at: point, in: view) }
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let owner, owner.available else { return nil }
-        let row = self.row(at: convert(event.locationInWindow, from: nil))
-        if row >= 0, !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
+        let point = convert(event.locationInWindow, from: nil), row = self.row(at: point)
+        guard row >= 0 else { return nil }
+        if !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
         return owner.menu(ids: owner.model.selection, alternate: event.modifierFlags.contains(.shift))
+    }
+    @discardableResult func showSelectionMenu() -> Bool {
+        guard let owner, owner.available, let row = selectedRowIndexes.first, row < numberOfRows else { return false }
+        let menu = owner.menu(ids: owner.model.selection, alternate: NSEvent.modifierFlags.contains(.shift))
+        guard !menu.items.isEmpty else { return false }
+        scrollRowToVisible(row)
+        let visible = rect(ofRow: row).intersection(visibleRect)
+        guard !visible.isEmpty else { return false }
+        presentContextMenu(menu, NSPoint(x: visible.minX + 16, y: visible.midY), self); return true
+    }
+    override func accessibilityPerformShowMenu() -> Bool { showSelectionMenu() }
+    override func keyDown(with event: NSEvent) {
+        let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        if event.keyCode == 121, flags == .shift, showSelectionMenu() { return }
+        if [36, 76].contains(event.keyCode), flags.isEmpty, owner?.performDefaultComparison() == true { return }
+        super.keyDown(with: event)
     }
 }
 @MainActor final class RebaseReplayNativeCell: NSTableCellView {

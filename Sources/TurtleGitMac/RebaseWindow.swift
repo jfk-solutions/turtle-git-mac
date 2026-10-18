@@ -369,7 +369,7 @@ struct RebaseReferenceRequest {
     @Published private(set) var bulkAction:RebaseBulkAction = .pickAll
     @Published private(set) var completionAction:RebaseCompletionAction = .log
     @Published private(set) var referenceTooltips:[String:String]=[:]
-    @Published var ontoEnabled = false
+    @Published var ontoEnabled = false {didSet{if ontoEnabled != oldValue {controlMenuGeneration=UUID()}}}
     @Published private(set) var showsIssueColumn = false
     @Published private(set) var hasGitSVN = false
     @Published private(set) var issueColumnValues: [String:String] = [:]
@@ -384,9 +384,9 @@ struct RebaseReferenceRequest {
     @Published var references: [CheckoutReference] = []
     @Published var plan: RebasePlan? {didSet{controlMenuGeneration=UUID()}}
     @Published var recovered: [RebaseEntry] = []
-    @Published var replayRows: [RebaseEntry] = []
-    @Published var draftEntries: [RebaseEntry] = []
-    @Published var state: RebaseState?
+    @Published var replayRows: [RebaseEntry] = [] {didSet{controlMenuGeneration=UUID()}}
+    @Published var draftEntries: [RebaseEntry] = [] {didSet{controlMenuGeneration=UUID()}}
+    @Published var state: RebaseState? {didSet{controlMenuGeneration=UUID()}}
     @Published var selection = Set<String>() {didSet{if selection != oldValue {controlMenuGeneration=UUID()}}}
     @Published var files: [CommitFile] = []
     let revisionFiles:RevisionComparisonWindowModel
@@ -1174,11 +1174,43 @@ struct RebaseReferenceRequest {
         self.fullCommitMessageOnLogLine = messageDefaults.bool(forKey: "FullCommitMessageOnLogLine")
         revisionFilesObservation=revisionFiles.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
     }
-    var revisionMenuAvailable: Bool { pendingConfirmation == nil && !retired && !busy && !revisionFiles.busy && !selectingSplit && !pickingCommits && revisionMenuLog.noteRequest == nil && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
+    /// Rebase's source list enables its action bits in the choosing phase.
+    /// Running/paused replay plans remain owned by the sequencer, not this draft.
+    var revisionContextPolicy: HistoryContextMenuPolicy {
+        var policy = HistoryContextMenuPolicy.rebase
+        policy.commands.insert(.showLog)
+        if editable { policy.commands.formUnion([.rebasePick, .rebaseSquash, .rebaseEdit, .rebaseSkip]) }
+        return policy
+    }
+    func revisionActionChoices(_ ids: Set<String>) -> [RebaseAction] {
+        let rows = revisionMenuRows(ids)
+        guard editable, !rows.isEmpty, rows.count == ids.count,
+              rows.first?.progress == .pending else { return [] }
+        return [RebaseAction.pick, .squash, .edit, .skip].filter { action in
+            action != .squash || (!ids.contains(entries.last!.id) && (isCherryPick || rows[0].commit.parents.count == 1))
+        }
+    }
+    /// Each popup owns one exact occurrence selection, phase and form generation.
+    /// Option/selection away-and-back cannot revive it before AppKit redraws.
+    func captureRevisionMenu(_ ids: Set<String>) -> (() -> Bool)? {
+        guard revisionMenuAvailable, selection == ids, !ids.isEmpty,
+              revisionMenuRows(ids).count == ids.count else { return nil }
+        let context = formContext, policy = revisionContextPolicy
+        let rows = entries.map { [$0.id, $0.commit.hash, $0.action.rawValue, String(describing: $0.progress)] }
+        var used = false
+        return { [weak self] in
+            guard let self, !used, self.revisionMenuAvailable, self.formContext == context,
+                  self.selection == ids, self.revisionContextPolicy == policy,
+                  self.entries.map({ [$0.id, $0.commit.hash, $0.action.rawValue, String(describing: $0.progress)] }) == rows else { return false }
+            used = true; return true
+        }
+    }
+    var revisionMenuAvailable: Bool { confirmation == nil && pendingConfirmation == nil && !hasReplayQuestion && !confirmingReplayCancellation && pickingReference == nil && revisionMenuLog.window?.attachedSheet == nil && !revisionMenuLog.confirmingQuit && !retired && !busy && !revisionFiles.busy && !selectingSplit && !pickingCommits && revisionMenuLog.noteRequest == nil && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
     func revisionMenuRows(_ ids: Set<String>) -> [RebaseEntry] { entries.filter { ids.contains($0.id) } }
     @discardableResult func prepareRevisionMenu(_ ids: Set<String>) -> LogWindowModel? {
         let rows = revisionMenuRows(ids)
         guard revisionMenuAvailable, !rows.isEmpty, rows.count == ids.count else { return nil }
+        revisionMenuLog.contextMenuPolicy = revisionContextPolicy
         revisionMenuLog.entries = rows.map(\.commit)
         revisionMenuLog.selected = Set(rows.map { $0.commit.hash })
         return revisionMenuLog
@@ -1205,12 +1237,12 @@ struct RebaseReferenceRequest {
         default: return true
         }
     }
-    func performRevisionMenu(_ command: RebaseRevisionCommand, ids: Set<String>, alternate: Bool = false) {
+    func performRevisionMenu(_ command: RebaseRevisionCommand, ids: Set<String>, alternate: Bool = false, parent: Int? = nil, diffMode: LogRevisionDiffMode = .firstParent) {
         guard canPerformRevisionMenu(command, ids: ids), let log = prepareRevisionMenu(ids) else { return }
         switch command {
-        case .workingTree: log.compare(workingTree: true)
-        case .compare: log.compare()
-        case .unified: log.diff(alternate: alternate)
+        case .workingTree: ComparisonToolInvocation.$alternate.withValue(alternate) { log.compare(workingTree: true) }
+        case .compare: ComparisonToolInvocation.$alternate.withValue(alternate) { log.compare(parent: parent) }
+        case .unified: log.diff(alternate: alternate, mode: diffMode)
         case .log: if let revision = log.revision { onShowRevisionLog?(revision.hash) }
         case .browse: if let revision = log.revision { log.onBrowseRepository?(revision.hash) }
         case .branch: log.request(.branch)
@@ -1498,7 +1530,7 @@ struct RebaseReferenceRequest {
         guard !retired, editable else { return }
         var values = plan?.entries ?? draftEntries
         let targets = ids ?? selection
-        for index in values.indices where targets.contains(values[index].id) {
+        for index in values.indices where targets.contains(values[index].id) && values[index].progress == .pending {
             if action == .squash && (index==0 || !isCherryPick && values[index].commit.parents.count > 1) {continue}
             values[index].action = action
         }
@@ -1858,6 +1890,21 @@ enum RebaseRevisionCommand: String, CaseIterable {
     case workingTree = "Compare with working tree", compare = "Compare with previous revision", unified = "Show changes as unified diff"
     case log = "Show log", browse = "Browse repository", branch = "Create branch at this version…", tag = "Create tag at this version…", push = "Push…", notes = "Edit Notes", patch = "Format Patch…"
     case details = "Full log details", detailsWithoutPaths = "Full log details without changed paths", hashes = "Hashes", authors = "Authors", authorNames = "Author names", authorEmails = "Author emails", subjects = "Subjects", messages = "Messages"
+    func sourceCommand(single: Bool) -> HistoryContextCommand {
+        switch self {
+        case .workingTree: return .compareWorkingTree
+        case .compare: return single ? .comparePrevious : .compareTwo
+        case .unified: return single ? .unifiedDiff : .unifiedDiffTwo
+        case .log: return .showLog
+        case .browse: return .repositoryBrowser
+        case .branch: return .createBranch
+        case .tag: return .createTag
+        case .push: return .push
+        case .notes: return .editNote
+        case .patch: return .createPatch
+        default: return .copyClipboard
+        }
+    }
     var icon: MenuIcon {
         switch self {
         case .workingTree, .compare: return .compare

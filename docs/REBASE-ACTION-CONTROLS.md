@@ -75,3 +75,8 @@ Full physical menu/key/VoiceOver interaction, all minimum-size combinations,
 selected-row contrast, signed sandbox/Finder and complete Rebase parity remain
 open. The Preserve merges help describes the native structural engine rather
 than repeating the Windows engine's obsolete reordering limitation verbatim.
+
+The [revision menu family](REBASE-REVISION-MENU-PARITY.md) adds source-ordered
+row-action visibility, merge-parent and unified mode menus, exact captured menu
+receipts and native keyboard/AX entry. Its remaining live-session editing gap is
+explicit; draft actions are not claimed as a complete sequencer editor.

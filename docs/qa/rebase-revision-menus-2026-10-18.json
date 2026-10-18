@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "c1e5dbae0292efee3bb89098912d44d618a7666a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Rebase choosing-phase row action insertion/visibility and current/done setter refusal",
+    "Merge-parent comparison and all five unified modes with captured alternate tool state",
+    "Occurrence/phase/form-policy receipt across nested menus, options/selection away-return, busy/child/Quit/retirement",
+    "Private default comparison/icon preferences, Return/double-click and AX/Shift F10 entry"
+  ],
+  "validation": {
+    "build": {
+      "log": "rebase-revision-menus-build-2026-10-18.log",
+      "exit": 0,
+      "warnings": "Existing actor isolation, simulator version and exit-code-0/no-output compiler diagnostic lines retained. No warning-free build claim."
+    },
+    "core": "Not rerun; this batch changes native controls/models only. Existing Core Git operations reused.",
+    "native": {
+      "status": "passed",
+      "log": "rebase-revision-menus-native-modes-affected-2026-10-18.log",
+      "planned_cases": [
+        "menus",
+        "controls",
+        "rows"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "exit": 0,
+      "distinct_case_engine_receipts": 6,
+      "scope": "New revision menus2; retained native bulk/completion/Edit/Abort/Squash2; retained row-drag and structural merge Edit/Squash recovery/Continue2. System and bundled Git. Passing app build retained; no Core repeat."
+    },
+    "failures": [
+      {
+        "log": "rebase-revision-menus-native-2026-10-18.log",
+        "phase": "fixture compilation before launch",
+        "reason": "Task-local alternate tool setting is optional Bool, fixture tuple expected Bool.",
+        "repair": "Use existing false fallback in receiver assertion. App source/build unchanged."
+      },
+      {
+        "log": "rebase-revision-menus-native-compile-affected-2026-10-18.log",
+        "phase": "new menus/system engine",
+        "owned_receiver_pid": 99585,
+        "reason": "Receiver expected a viewer callback for clean remerge extra-changes mode; existing source viewer intentionally emits no-extra-changes notice without opening a blank document.",
+        "repair": "Preserve exact notice/no-publication assertion for empty extra mode; retain Git-byte and alternate assertions for all other modes. New fixture then passed both engines; other planned groups first ran afterward. App source/build unchanged."
+      }
+    ],
+    "resources": {
+      "languages": 38,
+      "keys": 1289,
+      "write_exit": 0,
+      "check_exit": 0
+    },
+    "documentation": {
+      "coverage_write_exit": 0,
+      "coverage_check_exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "site_build_exit": 0,
+      "site_documents": 311,
+      "unresolved_fragments": [],
+      "site_link_cases": 2,
+      "site_link_exit": 0,
+      "scope": "Control mappings are not feature completion percentages."
+    }
+  },
+  "ownership": {
+    "presentation": "Activation prohibited, new fixture alpha zero; retained controls no capture env and retained rows unshown. Private repositories/preferences; only owned receiver groups terminated/reaped.",
+    "recorded_receiver_pids": [
+      99585,
+      99767,
+      99943,
+      277,
+      754,
+      1199,
+      2041
+    ],
+    "recorded_receiver_count": 7,
+    "all_recorded_receivers_absent": true
+  },
+  "limitations": [
+    "Live future-row action editing in a paused Git/structural sequencer requires a backend transaction and is not implemented",
+    "Remaining shared Log commands in Rebase include full Find, source reference/range/export families",
+    "No complete Windows enabled/omitted matrix, physical mouse/VoiceOver or all-dialog visual parity",
+    "No current hosted CI/Intel/minimum-macOS, signed deployment, Finder or App Store certification",
+    "Whole port remains incomplete"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/RebaseWindow.swift": "e7b0776166434db9d4f7cd38b49e26a98831b2d516f887672d4bdc344cd789f3",
+    "Sources/TurtleGitMac/RebaseReplayTable.swift": "a10b56dc433a15fc7de46451aa73f7dab8d156bb41d3feba53dbb0101f1ca302",
+    "docs/qa/rebase-revision-menu-native-2026-10-18.swift": "147e6723e7a7e62fa6966bbc767671fa9f4a9af9b902d45508907cf613bee59d",
+    "scripts/test-rebase-revision-menus.py": "679f6cee9dfed6bbebe9430c26aeb8d29a66b30019e1a0ae4ca14913c07fcab2"
+  }
+}

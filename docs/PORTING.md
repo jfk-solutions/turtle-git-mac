@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+The [Rebase revision menu family](REBASE-REVISION-MENU-PARITY.md) adds source
+row-action eligibility/order, all merge-parent/unified mode choices, inherited
+icons/default comparison, native keyboard/AX entry and exact captured receipts.
+[Batch evidence](qa/rebase-revision-menus-2026-10-18.json) records the grouped
+checkpoint. Editing future actions in a paused sequencer and the remaining shared
+Log menu commands remain open.
+
 The [captured Settings sheet family](SETTINGS-SHEET-PARITY.md) repairs real
 Close/OK/Cancel across Rebase, Git Properties and Unified Diff. It preserves
 captured preferences, property drafts and queued dirty-document decisions through
