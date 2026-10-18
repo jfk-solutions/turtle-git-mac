@@ -39,3 +39,17 @@ now retain the intended 660 × 640 point dialog. The focused receiver checks act
 content bounds, and the capture case rejects collapsed PNG dimensions. Reviewed
 images show both editors, full labels, Scan, results, timing and Exit. See the
 utility capture record; physical/signed and full visual certification remain open.
+
+## Explicit utility ownership — October 18, 2026
+
+The no-Git `autotexttest` command now opens an independently owned native tester.
+Repeated entry focuses its existing window without replacing content, regex or a
+pending scan, including when the window has not yet been made visible. Closed
+controllers notify their owner and a later command creates a fresh tester.
+Command and Settings-child owners remain separate. Both supply their own
+preference store. Retirement still cancels the packaged matcher and fences late
+publication while its active counter remains until real return.
+
+[Service command evidence](qa/service-commands-2026-10-18.json) records checks and
+remaining physical/native/signed acceptance. The ECMAScript helper and source
+capture/limit/timing semantics are unchanged.

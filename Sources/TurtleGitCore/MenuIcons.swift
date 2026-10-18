@@ -222,6 +222,9 @@ extension RepositoryAction {
         case .previousDiff: return .compare
         case .logSubmodule: return .log
         case .properties: return .settingsGit
+        case .updateCheck: return .fetch
+        case .autotextTest: return .settingsDialogs
+        case .introduction: return .help
         case .settings: return .settings
         case .help: return .help
         case .about, .firstStartWizard: return .about

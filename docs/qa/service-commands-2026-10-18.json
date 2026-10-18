@@ -1,0 +1,225 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "0f3797952770bd6b545b5a763e4282a9e8981ddf",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected remaining application service entry family: Daemon normal/bare warning/progress, updatecheck quiet/visible/force and download/footer states, owned no-Git Autotext, native RTFM introduction, preferences and actual backend/late callback ownership.",
+  "dialogs": [
+    "IDD_CHECKFORUPDATES",
+    "IDD_AUTOTEXTTESTDLG",
+    "IDD_GITPROGRESS"
+  ],
+  "resources": [
+    "src/Resources/TortoiseProcENG.rc"
+  ],
+  "dynamic_dialogs": [
+    "src/TortoiseProc/Commands/RTFMCommand.h::CMessageBox"
+  ],
+  "source_review": [
+    "src/TortoiseProc/Commands/DaemonCommand.cpp",
+    "src/TortoiseProc/Commands/UpdateCheckCommand.cpp",
+    "src/TortoiseProc/CheckForUpdatesDlg.cpp::OnTimer/AdjustSize/version selection",
+    "src/TortoiseProc/Commands/AutoTextTestCommand.h",
+    "src/TortoiseProc/AutoTextTestDlg.cpp",
+    "src/TortoiseProc/Commands/RTFMCommand.h"
+  ],
+  "implementation": [
+    "Typed daemon/updatecheck/autotexttest/rtfm routes; visible/force accepted only for updates; Daemon single-path validation includes authorized path-file cardinality. Update flags survive path-file resolution and adoption selection. The three no-Git utilities do not discover/adopt a repository.",
+    "Daemon reuses its warning/running/result window by repository and preserves Proceed/Abort/suppression. Its captured repository/access and owning preferences reach the existing runner; normal serving defaults remain. Constructor configuration/presentation hooks support private verification without changing source defaults.",
+    "Update service owns quiet models and supports visible promotion without refetch. Explicit requests bypass weekly scheduling; automatic background requests retain the preference gate. Force promotes a valid published equal/older result while preserving model/generation/selections/accepted work. Up-to-date ordinary results hide/disable downloads; integrity/version/URL/asset gates remain.",
+    "Quiet footers offer automatic opt-out only when the owning preference enables it. Visible/forced promotion, including an already-displayed automatic result, updates footer state without replacing its model or clearing message/selection/downloads. A stale automatic opt-out button also checks the current manual-presentation state. Forced available results preserve existing success/progress messages.",
+    "App Store quiet requests finish without a metadata model; visible/forced requests show the Store explanation and never enable GitHub checks/downloads. Quiet cancellation retires delivery but retains active accounting until transport actually returns.",
+    "Autotext owner now reuses even a not-yet-visible window and receives controller close notification. Repeated command preserves draft/scan; close cancels/fences late work through actual drain. Command and workspace-debug entry share the existing workspace owner, while Settings children remain separate. All pass their owning preference store.",
+    "New native launch explanation adapts RTFM to the Mac client, with the shared colored icon, File/Finder instructions, Help and default OK/Documents actions. Failed Documents launch remains visible for retry; repeated entry reuses the window and retired actions are fenced. It is registered in Xcode and SwiftPM source discovery.",
+    "General Settings Check now and First Start re-run now forward their owning preferences; those argument-only consumers were compiled/source-inspected. The receiver substitutes private utility services, not the live application singleton/menu handlers."
+  ],
+  "validation": {
+    "core": {
+      "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter 'PrimaryCommandInvocationTests|GeneralSetupBatchTests|GitDaemonTests|MenuIconTests'",
+      "exit": 0,
+      "attempts": 1,
+      "cases": 63,
+      "classes": {
+        "PrimaryCommandInvocationTests": 50,
+        "GeneralSetupBatchTests": 6,
+        "GitDaemonTests": 4,
+        "MenuIconTests": 3
+      },
+      "scope": "Typed flags/cardinality/path-file snapshots, version/feed/config behavior and real private-loopback Git daemon lifecycle/worker cleanup. Native-only refinements afterward did not change Core; no Core repeat."
+    },
+    "build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "attempts": [
+        {
+          "log": "service-commands-build-2026-10-18.log",
+          "exit": 0
+        },
+        {
+          "log": "service-commands-build-footer-recheck-2026-10-18.log",
+          "exit": 0,
+          "reason": "Final source footer preference condition, before native checkpoint."
+        },
+        {
+          "log": "service-commands-build-promotion-recheck-2026-10-18.log",
+          "exit": 0,
+          "reason": "Already-displayed automatic result must become manual without resetting state."
+        },
+        {
+          "log": "service-commands-build-owning-ui-recheck-2026-10-18.log",
+          "exit": 0,
+          "reason": "Reuse existing workspace tester and finish General/workspace preference consumers before final native recheck."
+        }
+      ],
+      "scope": "Local arm64 Debug app/embedded targets with new source registered. Existing warnings, simulator mismatch and exit-0/no-output compiler diagnostics remain; no clean diagnostic/current universal/signed claim."
+    },
+    "new_native": {
+      "command": "python3 scripts/test-primary-commands.py --only services --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "initial_exit": 0,
+      "initial_engine_cases": 2,
+      "final_exit": 0,
+      "final_engine_cases": 2,
+      "final_log": "service-commands-native-promotion-recheck-2026-10-18.log",
+      "runtime_failures": [],
+      "passed": [
+        "No-Git utility dispatch uses no repository factory and adopts no checkout.",
+        "Quiet/visible update coalescing, equal-version normal download refusal, Force activation without new fetch/context, and Force promotion during a pending request.",
+        "Quiet equal/error cleanup; newer explicit result bypasses disabled weekly preference/deadline.",
+        "Automatic footer eligibility and private opt-out; already-displayed automatic result becomes manual without losing generation, message, selection or requesting another feed.",
+        "Pending quiet cancellation retains accounting and rejects late release/UI; App Store Force/quiet isolation makes no feed request or download.",
+        "Private clipboard/preferences Autotext retains hidden/in-flight content/pattern/scan; close retains counter until held return and refuses late words; later command creates a fresh window.",
+        "Introduction retains launch error/reuse, dispatches injected Help/Documents once, and refuses retired replay.",
+        "Normal/bare Daemon command adoption, owning preferences, warning/suppression/Abort, reused warning/running instance, injected worker cancellation and zero leaked counters."
+      ],
+      "scope_limits": "RepositoryModel command entry and private service/worker boundaries were exercised. Live singleton/menu installation, normal launched-process argv/startup-due race, real Help/Finder launch, physical layouts/accessibility and actual scope issuance were not exercised."
+    },
+    "retained_daemon": {
+      "command": "python3 scripts/test-daemon-progress-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "engine_cases": 2,
+      "attempts": 1,
+      "scope": "Warning/remembered Proceed/Abort, bounded/native output/copy, completion/logging, kill questions, retired worker/Quit ownership and real loopback lifecycle. No public/default listener.",
+      "timing": "Passed before later update-only presentation and utility preference forwarding; Daemon implementation unchanged afterward and not repeated."
+    },
+    "retained_updates": {
+      "command": "python3 scripts/test-release-updates.py",
+      "exit": 0,
+      "cases": 2,
+      "affected_recheck_command": "python3 scripts/test-release-updates.py --only source",
+      "affected_recheck_exit": 0,
+      "affected_recheck_cases": 1,
+      "scope": "Private source list/defaults/feed/preferences, native/injected folder Cancel/Abort, two verified file installs, no overwrite/digest failure and captured external targets. Lifetime retains held transfer/fetch/forced close/drain/Quit and Store-open failure. External open/reveal callbacks are injected.",
+      "timing": "Source case repeated after final footer promotion; unaffected lifetime/backend assertions from the preceding pass retained."
+    },
+    "distinct_native_case_engine_passes": 6,
+    "total_native_runtime_case_engine_passes": 9,
+    "cleanup": {
+      "owned_pids": [
+        54096,
+        54164,
+        54263,
+        54264,
+        54276,
+        54278,
+        54588,
+        54596,
+        54663
+      ],
+      "confirmed_absent": [
+        54096,
+        54164,
+        54263,
+        54264,
+        54276,
+        54278,
+        54588,
+        54596,
+        54663
+      ],
+      "still_present": [],
+      "scope": "All receivers reaped; fixtures closed owned windows/panels, cancelled private workers and drained counters. No unrelated installed app terminated."
+    },
+    "localizations": {
+      "write_before_build": true,
+      "languages": 38,
+      "keys": 1287,
+      "scope": "Catalog unchanged; English fallback retained, no complete-language claim.",
+      "check_exit": 0
+    },
+    "hosted_observation": {
+      "current_source": "0f3797952770bd6b545b5a763e4282a9e8981ddf",
+      "macos_run": 39121910643,
+      "macos_status": "pending",
+      "pages_run": 39121910747,
+      "pages_observed_status": "in_progress",
+      "older_live_run": 39117422709,
+      "older_live_source": "88efaf6c96f78f8befb7ec388ec7f437197c89c5",
+      "older_live_build_job": 117650583265,
+      "older_live_step": "Git integration tests",
+      "older_live_step_status": "in_progress",
+      "older_svn_runtime_job": 117650321697,
+      "older_svn_runtime_conclusion": "success",
+      "scope": "Read-only observations during this batch. Earlier running workflow retained; no restart and no current complete hosted pass inferred."
+    },
+    "site": {
+      "command": "build/site-venv/bin/python scripts/build-site.py",
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": []
+    }
+  },
+  "remaining": [
+    "Full physical source layout/default-button/keyboard/VoiceOver/theme acceptance, including the new native introduction.",
+    "Actual public release/CDN and LAN/firewall/IPv6 serving, genuine sandbox grants, installed Finder/Help/App Store actions and current signed distribution acceptance.",
+    "Normal launched application argv/menu routing and update startup coalescing still require physical/integration acceptance beyond this model/service receiver.",
+    "Windows process exit/return-code semantics and exact source concurrent process behavior are not emulated by per-process native singleton reuse. The existing command-dispatch repository-busy guard remains.",
+    "Independent release signatures, installers/code execution, real App Store product deployment and remaining source command/control families are separate work.",
+    "Custom TurtleGit artwork was not recovered; existing shared artwork remains adapted upstream artwork, including the new introduction.",
+    "A current full hosted CI pass and complete port certification remain unproven."
+  ],
+  "fixture_sha256": "9d9f61a4a77e96ab21151d24d1983990fe9543ddd2913bc34b59130ebeadcb48",
+  "logs": {
+    "service-commands-build-2026-10-18.log": {
+      "bytes": 67569,
+      "sha256": "bf54b9d2811a51b78991ff13ece088ee23e1ef64f830928b144143682a655120"
+    },
+    "service-commands-build-footer-recheck-2026-10-18.log": {
+      "bytes": 14915,
+      "sha256": "7e89263c0c06fabeb87f585e011fc85c2c41944edc1ba12f02f5e564f027a64e"
+    },
+    "service-commands-build-owning-ui-recheck-2026-10-18.log": {
+      "bytes": 27577,
+      "sha256": "49115b82ac88170a4b17aa253130c8e2997783a0d08e4ae470551e9bd1bd69e2"
+    },
+    "service-commands-build-promotion-recheck-2026-10-18.log": {
+      "bytes": 14915,
+      "sha256": "5e437b09ac7b087b408ff52f90c75ed904d8971e1f2b8c8921617356653e4102"
+    },
+    "service-commands-core-2026-10-18.log": {
+      "bytes": 18034,
+      "sha256": "43d7f1ff3306db631809e258d4ffef28c5a77883fe385d567e620919f7290fce"
+    },
+    "service-commands-daemon-2026-10-18.log": {
+      "bytes": 833,
+      "sha256": "6d2c7209ab02cf48c7794cc4166f46197667d2c9f4773c2f8f0d8f38e26cfbec"
+    },
+    "service-commands-native-2026-10-18.log": {
+      "bytes": 1896,
+      "sha256": "397348346a8cd295ffa783bc2ec44f9614c6b1619d81021e6dfb16586a6ebd56"
+    },
+    "service-commands-native-promotion-recheck-2026-10-18.log": {
+      "bytes": 1896,
+      "sha256": "0e940c3b1e6942c4e7aa922840e5f74357cd15f099d21bbb91ad4e4a2f8e61dd"
+    },
+    "service-commands-updates-2026-10-18.log": {
+      "bytes": 709,
+      "sha256": "e21be8b127e78436ffd759e182d4ca01268af3dcb3b9afa0dc25b430b8ec06d7"
+    },
+    "service-commands-updates-source-recheck-2026-10-18.log": {
+      "bytes": 493,
+      "sha256": "6d54924552a7d13b5ed87903b4621c69596e1041db8ceecd43edf78f22b8a70e"
+    },
+    "service-commands-site-2026-10-18.log": {
+      "bytes": 123,
+      "sha256": "5c960247777bfa7672e3c2b60aa02946a6d588814bbacd7b1a81cb9dff74a451"
+    }
+  }
+}

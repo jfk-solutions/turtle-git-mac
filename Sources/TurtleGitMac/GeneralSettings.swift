@@ -251,9 +251,9 @@ struct GeneralSettings: View {
                         LogPreferenceCheckbox(title: "Automatically check for newer versions every week", value: Binding(get: { updates }, set: { enabled in
                             if enabled { updates = true } else { model.confirmDisableUpdates { updates = false } }
                         })).frame(height:24).disabled(GitRuntime.isAppStoreBuild)
-                        Spacer(); Button("Check now") { ReleaseUpdateService.shared.show() }
+                        Spacer(); Button("Check now") { ReleaseUpdateService.shared.show(preferences: preferences) }
                     }
-                    Button("Re-run First Start Wizard") { FirstStartWizardService.shared.show() }
+                    Button("Re-run First Start Wizard") { FirstStartWizardService.shared.show(preferences: preferences) }
                     Picker("Appearance:", selection: $appearance.choice) { ForEach(AppearanceChoice.allCases) { Text($0.title).tag($0) } }
                 }.padding(10).disabled(!model.canEditPage)
             }

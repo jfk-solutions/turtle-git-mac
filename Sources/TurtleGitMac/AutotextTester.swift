@@ -61,6 +61,7 @@ import TurtleGitCore
 
 @MainActor final class AutotextTesterController: NSWindowController, NSWindowDelegate {
     let model: AutotextTesterModel
+    var onClosed: () -> Void = {}
     init(model: AutotextTesterModel? = nil) {
         let model = model ?? AutotextTesterModel(); self.model = model
         let window = NSWindow(contentRect: NSRect(x:0,y:0,width:660,height:640), styleMask:[.titled,.closable], backing:.buffered, defer:false)
@@ -72,7 +73,7 @@ import TurtleGitCore
     }
     required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
     override func close() { model.retire(); super.close() }
-    func windowWillClose(_ notification:Notification) { model.retire() }
+    func windowWillClose(_ notification:Notification) { model.retire(); let callback = onClosed; onClosed = {}; callback() }
 }
 
 private struct AutotextTesterDialog: View {
@@ -133,10 +134,14 @@ struct AutotextEditor: NSViewRepresentable {
 }
 
 @MainActor final class AutotextTesterOwner: ObservableObject {
-    private var controller: AutotextTesterController?
-    func show() {
-        if let controller, controller.window?.isVisible == true { controller.showWindow(nil); return }
-        controller = AutotextTesterController(); controller?.showWindow(nil)
+    private(set) var controller: AutotextTesterController?
+    var create: (UserDefaults) -> AutotextTesterController = { AutotextTesterController(model: AutotextTesterModel(preferences: $0)) }
+    var present: (AutotextTesterController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
+    func show(preferences: UserDefaults = .standard) {
+        if let controller { present(controller); return }
+        let controller = create(preferences); self.controller = controller
+        controller.onClosed = { [weak self, weak controller] in if self?.controller === controller { self?.controller = nil } }
+        present(controller)
     }
     func close() { controller?.model.retire(); controller?.close(); controller = nil }
 }

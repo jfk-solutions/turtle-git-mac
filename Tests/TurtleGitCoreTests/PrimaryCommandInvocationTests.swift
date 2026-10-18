@@ -2,6 +2,24 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PrimaryCommandInvocationTests: XCTestCase {
+    func testServiceUtilityCommandsRequireNoGitAndScopeSourceFlags() throws {
+        let quiet=try parse(["/command:updatecheck"]),visible=try parse(["--command=updatecheck","--visible","--force"])
+        XCTAssertEqual(quiet.request.action,.updateCheck);XCTAssertFalse(quiet.updateVisible);XCTAssertFalse(quiet.forceUpdate)
+        XCTAssertTrue(visible.updateVisible);XCTAssertTrue(visible.forceUpdate);XCTAssertFalse(visible.forceRebase);XCTAssertFalse(visible.forceLFSUnlock)
+        for (name,action) in [("updatecheck",RepositoryAction.updateCheck),("autotexttest",.autotextTest),("rtfm",.introduction)] {
+            XCTAssertEqual(try parse(["--command="+name]).request.action,action);XCTAssertTrue(action.isApplicationUtility);XCTAssertFalse(action.requiresWorkingTree);XCTAssertNil(FinderMenuEntry.entry(for:action))
+        }
+        let daemon=try parse(["--command=daemon","--path=repository.git"])
+        XCTAssertEqual(daemon.request.action,.daemon);XCTAssertFalse(daemon.request.action.requiresWorkingTree)
+        for args in [["--command=daemon","--path=a","--path=b"],["--command=daemon","--force"],["--command=autotexttest","--force"],["--command=rtfm","--visible"],["--command=updatecheck","--remote=origin"],["--command=commit","--visible"]] {XCTAssertThrowsError(try parse(args))}
+    }
+    func testUpdateFlagsSurviveAuthorizedPathFileAndSelection() throws {
+        let root=try temporaryDirectory();defer {try? FileManager.default.removeItem(at:root)}
+        let file=root.appendingPathComponent("paths");try Data("path\0".utf8).write(to:file)
+        let value=try parse(["--command=updatecheck","--visible","--force","--pathfile",file.path,"--pathfile0"])
+        let resolved=try value.resolvingPathFile(cancellation:OperationCancellation()).selecting([root])
+        XCTAssertTrue(resolved.updateVisible);XCTAssertTrue(resolved.forceUpdate);XCTAssertEqual(resolved.request.action,.updateCheck)
+    }
     func testDropTransfersRequireDestinationAndKeepExactSourceIdentity() throws {
         let value = try parse(["/command:dropmove", "/path:one*two", "/droptarget:target", "/rename"])
         XCTAssertEqual(value.request.action, .dropMove); XCTAssertTrue(value.renameTransfer)

@@ -357,11 +357,14 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     case svnDCommit, svnRebase, svnFetch, svnIgnore
     case reviewPatch, daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
     case synchronize, blame, previousDiff, logSubmodule, properties, settings, help, about
-    case showCompare, cat, commitIsOnRefs, firstStartWizard, dropMove, dropCopyAdd
+    case showCompare, cat, commitIsOnRefs, firstStartWizard, dropMove, dropCopyAdd, updateCheck, autotextTest, introduction
     case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, move, pasteCopy, pasteMove, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
+        case .updateCheck: return "Check for Updates…"
+        case .autotextTest: return "Autotext Tester…"
+        case .introduction: return "Using TurtleGit for Mac…"
         case .dropMove: return "Move here"
         case .dropCopyAdd: return "Copy and add here"
         case .firstStartWizard: return "First Start Wizard…"
@@ -458,7 +461,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         switch self { case .svnDCommit: return .dcommit; case .svnRebase: return .rebase; case .svnFetch: return .fetch; case .svnIgnore: return .ignore; default: return nil }
     }
     public var isResolve: Bool { self == .resolve || self == .editConflict || resolveChoice != nil }
-    public var isApplicationUtility: Bool { [.settings, .help, .about, .firstStartWizard].contains(self) }
+    public var isApplicationUtility: Bool { [.settings, .help, .about, .firstStartWizard, .updateCheck, .autotextTest, .introduction].contains(self) }
     public var allowsEmptySelection: Bool { isApplicationUtility || self == .clone || self == .initialize }
     public var isMenuHeader: Bool { self == .lfs }
     public var isDropTransfer: Bool { self == .dropMove || self == .dropCopyAdd }

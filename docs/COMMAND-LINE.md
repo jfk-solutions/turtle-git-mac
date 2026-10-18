@@ -839,9 +839,10 @@ open -n -a 'TurtleGit for Mac' --args --command=firststartwizard --page=3
 
 [Utility batch evidence](qa/utility-commands-2026-10-18.json) separates local
 source/default/lifecycle checks from real Help browser, physical pickers,
-rendered/VoiceOver parity, signed deployment and App Store acceptance. Other
-utility command families, including daemon serving and release administration,
-remain separate work.
+rendered/VoiceOver parity, signed deployment and App Store acceptance. The later
+[service command continuation](#daemon-updates-autotext-and-introduction-entry)
+records Daemon, updates, Autotext and introduction entry. Release administration,
+remaining command contracts and full source acceptance remain separate work.
 
 ## Dropped-file Move and Copy/Add entry
 
@@ -888,3 +889,55 @@ clipboard commands have their existing native entry points. See
 [transfer command evidence](qa/transfer-commands-2026-10-18.json) and
 [dropped-file workflow parity](FILE-DROP-TRANSFER-PARITY.md) for validation and
 physical/signed/source acceptance gaps.
+
+## Daemon, updates, Autotext and introduction entry
+
+`daemon` accepts one repository/file path and opens the existing source warning
+and native progress workflow, including bare repositories. It does not bypass
+Proceed/Abort or the remembered Proceed choice. Repeated commands reuse that
+repository's warning/progress/result window and cannot launch a second server.
+The selected repository/grant and owning preferences reach the existing runner.
+Normal serving retains upstream's port/listen/export defaults; private tests use
+loopback/injected workers. See [Daemon parity](DAEMON-PARITY.md).
+
+`updatecheck`, `autotexttest` and `rtfm` need no Git executable or repository.
+They use the application's existing utilities without adopting the current path.
+
+| Update command | Behavior |
+| --- | --- |
+| `updatecheck` | Check quietly; display an available release, otherwise finish without a window |
+| `updatecheck --visible` | Show the result, including up-to-date, empty-feed and error results |
+| `updatecheck --force` | Offer the published release even if its valid version is equal/older; show the result when available |
+| `updatecheck --visible --force` | Show the forced check and its result immediately |
+
+Explicit checks bypass the weekly scheduling preference/deadline. A visible
+request promotes an in-flight quiet check without a duplicate request. Force can
+promote that check or its already-displayed result; it preserves the current
+window, selected files and accepted downloads. Up-to-date ordinary checks do not
+offer download controls. Version/feed/integrity/URL errors remain errors; Force
+does not bypass asset validation, SHA-256 checks or non-overwriting publication.
+Cancelling a quiet request retires delivery while accounting remains until actual
+transport return. App Store builds never query/download GitHub releases; visible
+or forced checks show the App Store explanation, while ordinary quiet checks finish.
+
+`autotexttest` opens/reuses the native Autotext Tester. Content, regex and a running
+scan survive repeated entry; closing cancels the scan and rejects late results.
+Command-owned windows are independent of a Settings page's tester child. Both
+carry the owning preferences. The packaged ECMAScript matcher is unchanged.
+
+`rtfm` adapts the source launch explanation to the native client. It explains the
+File/Finder entry points and offers Help or OK. Help opens the manual overview;
+OK opens Documents in Finder. A failed Documents launch remains visible for
+retry. Repeated entry reuses the explanation; closed windows reject stale actions.
+Ordinary application startup still opens the native repository workspace.
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=daemon --path '/absolute/repository'
+open -n -a 'TurtleGit for Mac' --args --command=updatecheck --visible --force
+open -n -a 'TurtleGit for Mac' --args --command=autotexttest
+open -n -a 'TurtleGit for Mac' --args --command=rtfm
+```
+
+[Service command evidence](qa/service-commands-2026-10-18.json) records grouped
+validation and separates injected/private execution from public release/LAN
+behavior, physical Help/Finder actions, complete layout and signed Store acceptance.

@@ -86,3 +86,17 @@ consistent selection of existing artwork, not a newly drawn independent logo.
 The dedicated icon checks and packaged identity audit cover resource decoding,
 rendering and bundle equality. Physical Finder/Dock/Launch Services cache refresh
 and signed/App Store deployment of this revision remain open.
+
+## Native launch explanation
+
+Source `RTFMCommand.h` now has an explicit no-Git `rtfm` route. Its native window
+explains File/Finder repository entry and retains Help and OK actions. Help opens
+the manual overview; OK opens Documents in Finder, matching the source's personal
+folder action. A failed launch remains visible. Repeated entry reuses the window;
+closure retires its callbacks. Ordinary native startup still opens the workspace.
+This is the macOS client adaptation of a Windows shell-extension explanation.
+
+The shared application artwork is reused; no recovered/custom TurtleGit artwork
+is claimed. See [service command evidence](qa/service-commands-2026-10-18.json) for
+local checks and outstanding physical Help/Finder, rendered/keyboard and signed
+acceptance.

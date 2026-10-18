@@ -104,3 +104,17 @@ Finder/App Store acceptance remain open.
 
 ![Actual native Daemon failed-result fixture, light](site/assets/daemon-progress-light.png)
 ![Actual native Daemon failed-result fixture, dark](site/assets/daemon-progress-dark.png)
+
+## Explicit Daemon command and shared ownership — October 18, 2026
+
+The source `daemon` command accepts one selected path, resolves the normal/bare
+repository through ordinary authorization/adoption, and hands its captured
+repository/grant to the shared warning/progress owner. It carries the workspace's
+owning preferences rather than falling back to the standard store. Repeated
+entry focuses the same repository's warning, running server or result; it does
+not repeat Proceed or start another worker. Abort still clears warning suppression
+and only accepted Proceed stores it. Source serving defaults remain unchanged.
+
+[The service command evidence](qa/service-commands-2026-10-18.json) records the
+command checks and retained real private-loopback/progress checks. Public default
+listeners, firewall/LAN/IPv6 behavior and signed sandbox deployment remain open.

@@ -1327,7 +1327,8 @@
       ],
       "qa_records": [
         "docs/qa/general-setup-batch-2026-10-11.json",
-        "docs/qa/release-download-family-2026-10-17.json"
+        "docs/qa/release-download-family-2026-10-17.json",
+        "docs/qa/service-commands-2026-10-18.json"
       ]
     },
     {
@@ -2156,7 +2157,9 @@
       "parity_documents": [
         "docs/AUTOTEXT-TESTER-PARITY.md"
       ],
-      "qa_records": []
+      "qa_records": [
+        "docs/qa/service-commands-2026-10-18.json"
+      ]
     },
     {
       "resource": "src/Resources/TortoiseProcENG.rc",

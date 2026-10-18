@@ -54,7 +54,7 @@ import UniformTypeIdentifiers
     private let autotextTester = AutotextTesterOwner()
     func showAutotextTester() {
         guard !busy, !confirmingQuit else { return }
-        autotextTester.show()
+        autotextTester.show(preferences: fileComparisonPreferences)
     }
     private var issueTester: IssueRegexTesterController?
     private var issueTesterRequest: OperationCancellation?
@@ -122,6 +122,9 @@ import UniformTypeIdentifiers
         loader.present(parent: workspaceWindow)
     }
     weak var workspaceWindow: NSWindow? { didSet { retireWorkspaceMenus() } }
+    var onUpdateCheck: (Bool, Bool) -> Void = { _, _ in }
+    var onAutotextTest: () -> Void = {}
+    var onIntroduction: () -> Void = {}
     var onSettingsPage: (Bool, String?) -> Void = { _, _ in }
     var onFirstStart: (Int) -> Void = { _ in }
     var onCommandHelp: () -> Void = {}
@@ -246,6 +249,7 @@ import UniformTypeIdentifiers
     var svnPresentation: ((SVNWindowController) -> Void)?
     var svnWindowFactory:((GitRepository,RepositoryAccessLease?,GitSVNOperation)->SVNWindowController)?
     private var daemonWindows: [String: GitDaemonWindowController] = [:]
+    var daemonConfiguration = GitDaemonConfiguration()
     var daemonPresentation: ((GitDaemonWindowController) -> Void)?
     private var lfsLocksWindows: [String: LFSLocksWindowController] = [:]
     private var lfsFileOperations: [UUID: LFSFileOperationController] = [:]
@@ -762,6 +766,9 @@ import UniformTypeIdentifiers
         case .properties:
             guard let repository else { return }; showGitProperties(repository:repository,access:activeAccess,paths:paths.isEmpty ? selectedPaths : paths)
         case .dropMove, .dropCopyAdd: break // Command sources/target are carried by PrimaryCommandInvocation.
+        case .updateCheck: onUpdateCheck(true, false)
+        case .autotextTest: onAutotextTest()
+        case .introduction: onIntroduction()
         case .firstStartWizard: onFirstStart(0)
         case .settings: onSettings(false)
         case .help: onHelp()
@@ -1448,11 +1455,11 @@ import UniformTypeIdentifiers
         if let svnPresentation { svnPresentation(controller) } else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
         controller.model.load()
     }
-    func showDaemon() {
-        guard !busy, !confirmingQuit, let repository else { return }
+    func showDaemon(repository captured: GitRepository? = nil, access capturedAccess: RepositoryAccessLease? = nil) {
+        guard !busy, !confirmingQuit, !retired, let repository = captured ?? repository else { return }
         let key = repository.root.path
-        if let existing = daemonWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
-        let controller = GitDaemonWindowController(repository: repository, access: activeAccess)
+        if let existing = daemonWindows[key] { if let daemonPresentation { daemonPresentation(existing) } else { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil) }; return }
+        let controller = GitDaemonWindowController(repository: repository, access: captured == nil ? activeAccess : capturedAccess, configuration: daemonConfiguration, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.daemonWindows.removeValue(forKey: key) }
         daemonWindows[key] = controller
         if let daemonPresentation { daemonPresentation(controller) }
@@ -3456,6 +3463,9 @@ import UniformTypeIdentifiers
             guard outputAccess.contains(output), outputAccess.contains(output.deletingLastPathComponent()), !GitRuntime.isAppStoreBuild || outputAccess.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
         } else { outputAccess = nil }
         try cancellation?.check()
+        if invocation.request.action == .updateCheck { onUpdateCheck(invocation.updateVisible, invocation.forceUpdate); return }
+        if invocation.request.action == .autotextTest { onAutotextTest(); return }
+        if invocation.request.action == .introduction { onIntroduction(); return }
         if invocation.request.action == .about { onAbout(); return }
         if invocation.request.action == .help { onCommandHelp(); return }
         if invocation.request.action == .firstStartWizard { onFirstStart(invocation.wizardPage ?? 0); return }
@@ -3701,6 +3711,7 @@ import UniformTypeIdentifiers
         case .previousDiff:
             guard paths.count == 1 else { error = "Select one file or directory to compare."; return }
             showPreviousDiff(repository: repository, access: access, path: paths[0], owner: workspaceWindow, unified: invocation.unified)
+        case .daemon: showDaemon(repository: repository, access: access)
         case .settings: onSettingsPage(false, invocation.settingsPage)
         case .requestPull:
             showRequestPull(repository: repository, access: access, end: invocation.request.requestPullEnd, repositoryURL: invocation.request.requestPullURL, commandLaunch: true)

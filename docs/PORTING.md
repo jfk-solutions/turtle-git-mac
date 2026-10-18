@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [service utility command family](COMMAND-LINE.md#daemon-updates-autotext-and-introduction-entry)
+adds Daemon normal/bare entry, visible/quiet/forced update behavior and download
+visibility, owned no-Git Autotext entry, and a native launch explanation with
+Help/Documents actions. Utilities preserve their existing drafts/workers and
+preferences; update checks coalesce without interrupting accepted downloads.
+[Batch evidence](qa/service-commands-2026-10-18.json) retains actual validation and
+public-network, physical, source and signed acceptance gaps.
+
 The connected [dropped-file command family](COMMAND-LINE.md#dropped-file-move-and-copyadd-entry)
 adds source Move, Move/Rename and Copy/Add command routes, source/target separation,
 owned destination authorization/adoption, automatic explicit operation startup and

@@ -276,6 +276,7 @@
 		B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */; };
 		B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA121F2E317F86B146016B4E /* Rename.swift */; };
 		B63213996B268EE2EAC9B0A6 /* EmailSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 809D37BDD2634840B77F0A85 /* EmailSettings.swift */; };
+		11093D5F4B8D1856AE3CE2FF /* ApplicationIntroduction.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBBD8565B30421DA978B8A58 /* ApplicationIntroduction.swift */; };
 		B6DE7C8AE3A9B25FFE8B6982 /* AutotextTester.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16465B7DCE5BB303F553610 /* AutotextTester.swift */; };
 		B8A7AF9FEA0FB08862822AE4 /* RevisionGraphLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD369921B6275ED94AC162A8 /* RevisionGraphLayout.swift */; };
 		B94CDDFE0367B09E5E08A8C5 /* DialogGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A970E8A247DF0EE306AB7F /* DialogGeometry.swift */; };
@@ -831,6 +832,7 @@
 		D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueTracker.swift; sourceTree = "<group>"; };
 		D093EAD0CE5B754453B7C11E /* FinderContextMenuSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderContextMenuSettings.swift; sourceTree = "<group>"; };
 		D11FB71BB05B58ECF349B727 /* GitDaemon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitDaemon.swift; sourceTree = "<group>"; };
+		FBBD8565B30421DA978B8A58 /* ApplicationIntroduction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationIntroduction.swift; sourceTree = "<group>"; };
 		D16465B7DCE5BB303F553610 /* AutotextTester.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutotextTester.swift; sourceTree = "<group>"; };
 		D1C08CE65957F3F0D4164400 /* RevisionComparisonWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionComparisonWindow.swift; sourceTree = "<group>"; };
 		D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancellableGitProcess.swift; sourceTree = "<group>"; };
@@ -1006,6 +1008,7 @@
 				58AC22A1002BEBAD67A07B33 /* AlternativeEditorSettings.swift */,
 				B16F443B326FDAB1414D334B /* Appearance.swift */,
 				5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */,
+				FBBD8565B30421DA978B8A58 /* ApplicationIntroduction.swift */,
 				D16465B7DCE5BB303F553610 /* AutotextTester.swift */,
 				2889759BB2F79152E342606E /* BisectWindow.swift */,
 				7C3A0368920E97DF4AFA1318 /* BlameMenuCommands.swift */,
@@ -2081,6 +2084,7 @@
 				338C2F4E08F8FCB953636C45 /* AlternativeEditorSettings.swift in Sources */,
 				D710492DFFD4B6D5AF1A322E /* Appearance.swift in Sources */,
 				230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */,
+				11093D5F4B8D1856AE3CE2FF /* ApplicationIntroduction.swift in Sources */,
 				B6DE7C8AE3A9B25FFE8B6982 /* AutotextTester.swift in Sources */,
 				C0DFDDFC2CEFE1853FEDEA84 /* BisectWindow.swift in Sources */,
 				C0CB11DFCDE279F6A54841FD /* BlameMenuCommands.swift in Sources */,

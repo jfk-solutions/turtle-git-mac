@@ -21,6 +21,8 @@ import TurtleGitCore
     let installed: String, repository: String, appStore: Bool
     private let preferences: UserDefaults
     private var task: Task<Void,Never>?, downloadTask: Task<Void,Never>?
+    @Published private(set) var manualPresentation = false
+    private var forceRequested = false
     private var generation = UUID(), downloadRequest: UUID?
     private(set) var retired = false
     weak var window: NSWindow?
@@ -43,16 +45,27 @@ import TurtleGitCore
     }
     var context: UUID { generation }
     var assets: [ReleaseAsset] { release?.assets ?? [] }
-    var canDownload: Bool { !retired && !busy && !appStore && assets.contains { selected.contains($0.id) && $0.downloadable && !downloadedIDs.contains($0.id) } }
-    func canSelect(_ asset: ReleaseAsset) -> Bool { !retired && !busy && !appStore && asset.downloadable && !downloadedIDs.contains(asset.id) }
+    var canDownload: Bool { !retired && !busy && !appStore && available && assets.contains { selected.contains($0.id) && $0.downloadable && !downloadedIDs.contains($0.id) } }
+    func canSelect(_ asset: ReleaseAsset) -> Bool { !retired && !busy && !appStore && available && asset.downloadable && !downloadedIDs.contains(asset.id) }
     func select(_ asset: ReleaseAsset, checked: Bool, context: UUID) {
         guard context == generation, canSelect(asset), assets.contains(asset) else { return }
         if checked { selected.insert(asset.id) } else { selected.remove(asset.id) }
     }
-    func check() {
+    func promote(force: Bool, visible: Bool = false) {
+        guard !retired else { return }
+        if visible || force { manualPresentation = true }
+        guard force, !downloadPending, !appStore else { return }
+        forceRequested = true
+        if !busy, release != nil, error == nil {
+            if !available { message = "The published release is available for download." }
+            available = true
+        }
+    }
+    func check(force: Bool = false) {
         guard !busy, !retired else { return }
         if appStore { message = "Application updates are managed by the App Store."; return }
-        let request = UUID(); generation = request
+        let request = UUID(); generation = request; forceRequested = force
+        if force { manualPresentation = true }
         let preview = preferences.bool(forKey: "VersionCheckPreview"), fetch = fetch
         busy = true; release = nil; selected = []; statuses = [:]; downloaded = []; downloadedIDs = []
         available = false; error = nil; message = "Checking for updates…"; Self.activeOperations += 1
@@ -65,8 +78,9 @@ import TurtleGitCore
                 guard let newest = list.first else { message = "No published releases are available yet."; onResult(); return }
                 release = newest
                 guard let current = ReleaseVersion(installed), let latest = ReleaseVersion(newest.tag) else { throw ReleaseUpdateFailure.invalidVersion }
-                available = latest > current
-                message = available ? "A new version of TurtleGit for Mac is available." : "You have the latest published version of TurtleGit for Mac."
+                let newer = latest > current
+                available = newer || forceRequested
+                message = newer ? "A new version of TurtleGit for Mac is available." : forceRequested ? "The published release is available for download." : "You have the latest published version of TurtleGit for Mac."
                 // Prefer the published Mac application archive; auxiliary files
                 // remain available as separate source-style checked downloads.
                 let main = newest.assets.first { $0.downloadable && ["zip","dmg","pkg"].contains($0.url.pathExtension.lowercased()) && $0.name.lowercased().contains("turtlegit") }
@@ -174,8 +188,11 @@ import TurtleGitCore
 }
 @MainActor final class ReleaseUpdateWindowController: NSWindowController, NSWindowDelegate {
     let model: ReleaseUpdateModel
+    private let initiallyAutomatic: Bool
+    var automatic: Bool { initiallyAutomatic && !model.manualPresentation }
     var onClosed: () -> Void = {}
     init(model suppliedModel: ReleaseUpdateModel? = nil, automatic: Bool = false) {
+        self.initiallyAutomatic = automatic
         let model = suppliedModel ?? ReleaseUpdateModel(); self.model = model
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 720, height: 650), styleMask: [.titled,.closable,.resizable], backing: .buffered, defer: false)
         window.title = "Check For Updates – TurtleGit for Mac"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 600, height: 520)
@@ -191,7 +208,7 @@ private struct ReleaseUpdateDialog: View {
     @ObservedObject var model: ReleaseUpdateModel
     let automatic: Bool
     var body: some View {
-        let context = model.context
+        let context = model.context, automatic = self.automatic && !model.manualPresentation
         VStack(alignment: .leading, spacing: 10) {
             Text(model.appStore ? "Using App Store updates" : "Using GitHub Releases: " + model.repository).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             Text("Your version is: " + model.installed).textSelection(.enabled)
@@ -203,7 +220,7 @@ private struct ReleaseUpdateDialog: View {
             GroupBox("Change log") {
                 ScrollView { Text(model.release?.notes ?? (model.appStore ? "The App Store provides release notes for this build." : "Release notes appear after the check completes.")).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(8) }.frame(minHeight: 100)
             }
-            if !model.appStore {
+            if !model.appStore && model.available {
                 GroupBox("Download") {
                     VStack(alignment: .leading, spacing: 8) {
                         ScrollView {
@@ -232,7 +249,7 @@ private struct ReleaseUpdateDialog: View {
             }
             HStack {
                 Spacer()
-                if automatic { Button("Don’t ask me again", action: model.disableAutomatic).disabled(model.busy) }
+                if automatic { Button("Don’t ask me again") { if !model.manualPresentation { model.disableAutomatic() } }.disabled(model.busy) }
                 if model.appStore { Button("Open App Store", action: model.openAppStore) }
                 if !model.downloaded.isEmpty && model.canDownload { Button("Show downloaded files", action: model.showDownloads).disabled(model.busy) }
                 Button(automatic ? "Remind me later" : "Close") { model.window?.performClose(nil) }.keyboardShortcut(.defaultAction).disabled(model.downloadPending)
@@ -243,10 +260,14 @@ private struct ReleaseUpdateDialog: View {
 @MainActor final class ReleaseUpdateService {
     static let shared = ReleaseUpdateService()
     private var timer: Timer?
-    private var background: ReleaseUpdateModel?
-    private var controller: ReleaseUpdateWindowController?
+    private(set) var background: ReleaseUpdateModel?
+    private(set) var controller: ReleaseUpdateWindowController?
+    private var backgroundAutomatic = false, backgroundRequiresEnabled = false
     private var attempted = false
-    static var enabled: Bool { (UserDefaults.standard.object(forKey: "VersionCheck") as? NSNumber)?.boolValue ?? true }
+    var createModel: (UserDefaults) -> ReleaseUpdateModel = { ReleaseUpdateModel(preferences: $0) }
+    var display: (ReleaseUpdateWindowController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
+    static var enabled: Bool { enabled(in: .standard) }
+    private static func enabled(in preferences: UserDefaults) -> Bool { (preferences.object(forKey: "VersionCheck") as? NSNumber)?.boolValue ?? true }
     func install() {
         guard timer == nil, !GitRuntime.isAppStoreBuild, Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") != true else { return }
         timer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { [weak self] _ in
@@ -254,29 +275,50 @@ private struct ReleaseUpdateDialog: View {
         }
         checkIfDue()
     }
-    func show() {
-        if let controller { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return }
-        if let model = background { background = nil; model.onResult = {}; present(model, automatic: false); return }
-        let model = ReleaseUpdateModel(); present(model, automatic: false); model.check()
+    func show(preferences: UserDefaults = .standard) { showCommand(visible: true, force: false, preferences: preferences) }
+    func showCommand(visible: Bool, force: Bool, preferences: UserDefaults = .standard) {
+        if let controller {
+            controller.model.promote(force: force, visible: visible)
+            if visible || force { display(controller) }; return
+        }
+        if let model = background {
+            model.promote(force: force, visible: visible); backgroundRequiresEnabled = false
+            if force { backgroundAutomatic = false }
+            if visible { background = nil; model.onResult = {}; present(model, automatic: false) }
+            return
+        }
+        let model = createModel(preferences)
+        if model.appStore {
+            model.check()
+            if visible || force { present(model, automatic: false) } else { model.cancel() }
+        } else if visible { present(model, automatic: false); model.check(force: force) }
+        else { startBackground(model, force: force, automatic: !force, respectEnabled: false, preferences: preferences) }
+    }
+    func cancelBackground() {
+        let model = background; background = nil
+        model?.cancel() // Backend accounting remains until its actual return.
     }
     private func present(_ model: ReleaseUpdateModel, automatic: Bool) {
         let controller = ReleaseUpdateWindowController(model: model, automatic: automatic); self.controller = controller
         controller.onClosed = { [weak self, weak controller] in if self?.controller === controller { self?.controller = nil } }
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        display(controller)
+    }
+    private func startBackground(_ model: ReleaseUpdateModel, force: Bool, automatic: Bool, respectEnabled: Bool, preferences: UserDefaults) {
+        background = model; backgroundAutomatic = automatic; backgroundRequiresEnabled = respectEnabled
+        model.onResult = { [weak self, weak model] in
+            guard let self, let model, self.background === model else { return }
+            let show = model.available && (!self.backgroundRequiresEnabled || Self.enabled(in: preferences)) && self.controller == nil
+            let automatic = self.backgroundAutomatic && Self.enabled(in: preferences); self.background = nil
+            if show { self.present(model, automatic: automatic) } else { model.cancel() }
+        }
+        model.check(force: force)
     }
     private func checkIfDue() {
         guard !attempted, Self.enabled, controller == nil, background == nil, !GitRuntime.isAppStoreBuild else { return }
         attempted = true
         let last = UserDefaults.standard.object(forKey: "TurtleGit.LastVersionCheck") as? Date ?? .distantPast
         guard Date().timeIntervalSince(last) >= 7 * 24 * 60 * 60 else { return }
-        // Throttle failures too; explicit Check now always remains available.
         UserDefaults.standard.set(Date(), forKey: "TurtleGit.LastVersionCheck")
-        let model = ReleaseUpdateModel(); background = model
-        model.onResult = { [weak self, weak model] in
-            guard let self, let model else { return }; self.background = nil
-            guard Self.enabled, model.available, self.controller == nil else { model.cancel(); return }
-            self.present(model, automatic: true)
-        }
-        model.check()
+        startBackground(createModel(.standard), force: false, automatic: true, respectEnabled: true, preferences: .standard)
     }
 }

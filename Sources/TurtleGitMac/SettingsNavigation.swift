@@ -338,6 +338,9 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var updates: AnyCancellable?
     func install(workspace: RepositoryModel, appearance: AppAppearance) {
         self.workspace = workspace; self.appearance = appearance
+        workspace.onUpdateCheck = { [weak workspace] visible, force in ReleaseUpdateService.shared.showCommand(visible: visible, force: force, preferences: workspace?.fileComparisonPreferences ?? .standard) }
+        workspace.onAutotextTest = { [weak workspace] in workspace?.showAutotextTester() }
+        workspace.onIntroduction = { [weak workspace] in ApplicationIntroductionService.shared.show(preferences: workspace?.fileComparisonPreferences ?? .standard) }
         workspace.onSettings = { [weak self] in self?.show(globalOnly: $0) }
         workspace.onSettingsPage = { [weak self] global, name in
             self?.show(globalOnly: global, initialPage: SettingsPageID.commandPage(name, repository: !global), remoteNoFetch: name == "gitremote")
@@ -489,7 +492,8 @@ struct SettingsNavigation: NSViewControllerRepresentable {
 private struct DialogsBehaviorSettings: View {
     @Environment(\.settingsTransaction) private var transaction
     @StateObject private var draft: DialogsBehaviorDraft
-    init(defaults: UserDefaults = .standard) { _draft = StateObject(wrappedValue: DialogsBehaviorDraft(defaults: defaults)) }
+    private let preferences: UserDefaults
+    init(defaults: UserDefaults = .standard) { preferences = defaults; _draft = StateObject(wrappedValue: DialogsBehaviorDraft(defaults: defaults)) }
     @StateObject private var autotextTester = AutotextTesterOwner()
     var body: some View {
         ScrollView {
@@ -513,7 +517,7 @@ private struct DialogsBehaviorSettings: View {
                 GroupBox("Commit") {
                     VStack(alignment: .leading, spacing: 10) {
                         LogPreferenceCheckbox(title: "Use auto-completion of file paths and keywords", value: draft.boolean("Autocompletion"))
-                        Button("Autotext Tester…", action: autotextTester.show)
+                        Button("Autotext Tester…") { autotextTester.show(preferences: preferences) }
                         Stepper("Timeout in seconds to stop auto-completion parsing: \(draft.integer("AutocompleteParseTimeout").wrappedValue)", value: draft.integer("AutocompleteParseTimeout"), in: 1...100)
                             .disabled(!draft.boolean("Autocompletion").wrappedValue)
                         Stepper("Max. items to keep in the log message history: \(draft.integer("MaxHistoryItems").wrappedValue)", value: draft.integer("MaxHistoryItems"), in: 1...100)

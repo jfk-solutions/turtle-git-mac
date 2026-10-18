@@ -102,3 +102,31 @@ App Store builds never check/download GitHub assets and use the installed App St
 All thirteen static resource controls have partial mappings. The Debug build, nine focused Core checks and both grouped native families pass. Core covers metadata/eligibility, old feeds and duplicate assets, real URLSession transport through a private URLProtocol, cancellation, digest/size rejection and non-overwriting file publication. Native checks cover captured feed/defaults, native/injected folder cancellation, two verified file installs, existing-file and digest failure, held request drain, late replies and App Store isolation. Initial captures exposed unbounded hosting growth; disabling automatic host sizing repaired it, and the affected source case passed again. All four final raw light/dark captures were individually reviewed, and all three owned receivers were reaped and independently absent. See [batch evidence](qa/release-download-family-2026-10-17.json) for exact scope and limits. Actual public-network/CDN
 behavior, large-file/mount/permission boundaries, independent signatures, signed
 Finder/App Store deployment and full dialog parity remain unverified.
+
+## Explicit utility commands and result visibility — October 18, 2026
+
+Source `updatecheck` now reaches the native service without Git/repository
+requirements. `visible` shows the check and all results; an ordinary quiet command
+shows only an available release. Explicit checks bypass the automatic scheduling
+preference/deadline. A visible request promotes the current background model;
+repeated commands retain its window, generation, selections and accepted work.
+
+Source `force` treats a valid published equal/older version as available. It can
+promote an in-flight check or an already-displayed result without refetching or
+replacing download state. Normal up-to-date results now hide/disable source
+download controls; Force makes them available. Malformed versions, feed/URL/asset
+validation and verified non-overwriting downloads retain their existing gates.
+The message distinguishes forced availability from a genuinely newer version.
+
+Automatic results retain the weekly preference gate; explicit quiet results are
+independent of it. Quiet result footers offer Remind me later/Don’t ask again only
+when the owning store enables automatic checks; visible/forced results use Close.
+Promoting an already-displayed automatic result updates only that footer; its
+model, generation, selected files, status message and accepted work remain. Pending hidden checks own a model and active counter through
+actual cancellation drain. Late retired replies cannot create a result window.
+App Store quiet checks finish without a background request; visible/forced checks
+show the Store result and cannot enable GitHub downloads.
+
+See [service command evidence](qa/service-commands-2026-10-18.json) for exact local
+scope, retained download/lifetime checks and remaining public CDN, physical,
+signed and complete-source acceptance. No installer/code execution is added.
