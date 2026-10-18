@@ -99,3 +99,12 @@ now orders its owned hidden window and waits for `nativeEditorReady`, retaining
 the production gate and all five block shortcut/Undo assertions. The affected
 local case passes; hosted confirmation remains required. See
 [primary command-band batch evidence](qa/primary-command-bands-2026-10-17.json).
+
+The October 18 [editing-history batch](MERGE-TYPING-PARITY.md#document-owned-editing-history--october-18-2026)
+keeps Compare Undo/Redo on the document rather than a weak native pane callback.
+Role-reused editors refresh action ownership and Base/Destination accessibility
+identity; commands captured before a role change refuse to retarget. History
+replays exact data/row metadata and caret through the current viewport. Existing
+Undo/Redo icons, keyboard routes, window menu ownership and operation/sheet/closed
+fences remain the command interface. Hosted acceptance is recorded separately
+from local focused passes in the batch evidence.

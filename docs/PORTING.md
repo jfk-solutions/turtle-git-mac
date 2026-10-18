@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Compare editing-history batch](MERGE-TYPING-PARITY.md#document-owned-editing-history--october-18-2026)
+addresses the hosted combined-row Undo failure with document-owned history and
+native pane-role rebinding. A production view-reuse fixture reproduced the owner
+failure locally after the ordinary typing case passed. Snapshots retain exact
+text, row metadata and caret across native pane replacement; stale role callbacks
+refuse mutation. [Batch evidence](qa/merge-edit-history-2026-10-18.json) separates
+local validation from hosted, physical and full-port acceptance.
+
 The [repository maintenance entry family](COMMAND-LINE.md#repository-creation-cleanup-and-ignore)
 adds source Create Repository, Cleanup and Ignore commands with captured native
 folder authorization, parent permissions for new destinations, preserved Cleanup

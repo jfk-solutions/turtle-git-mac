@@ -50,3 +50,40 @@ after diagnosis. All final receiver PIDs were independently absent. No full Core
 suite, complete hosted CI or physical input/caret acceptance is claimed. This is partial source parity;
 complete editor state transitions, physical input/accessibility, native menu and
 caret appearance, signed sandbox/Finder/App Store acceptance remain open.
+
+## Document-owned editing history — October 18, 2026
+
+Hosted CI at `12f29e1e` passed the earlier Unicode/paste, row cycle and marking
+phases but failed `Combined cycle Undo failed`. The ordinary typing receiver
+passed locally. A separate production-representable fixture reproduced the owner
+failure locally: reusing a Base coordinator as Destination left Undo routed through
+the departed Destination coordinator's weak callback.
+
+Comparison Undo/Redo now targets the document model and its ordered all-view
+history. Each edit captures exact target text, annotations, edit identities, row
+alignment/combined records, moved-row links and caret. Restoring history updates
+live native panes synchronously; when a pane is temporarily absent, the restored
+caret is consumed after its replacement attaches. New edits discard the abandoned
+Redo branch. History resets on document reload/close and retains the existing
+operation, sheet and retirement gates.
+
+Undo remains available while a text/block edit's comparison request is pending;
+restoring the snapshot cancels that request. Redo of a pending projection starts
+the authoritative engine comparison again, preserving comparison options such as
+Ignore Case rather than accepting provisional row differences as final.
+
+Native editor registration follows logical role changes as well as initial
+creation. Base/Destination accessibility labels follow the actual role. Captured
+edit actions recheck their original role and viewport owner, so a stale Base
+callback cannot mutate a reused Destination editor. Detached editors cannot
+register text mutations. Editing callbacks remain native-window scoped; Undo no
+longer needs a coordinator which may have been dismantled by SwiftUI.
+
+This follows pinned `TortoiseMerge/Undo.cpp`'s ordered all-view text/state/ending/
+mark history and `BaseView.cpp`'s grouped editing actions. Existing encoding choice
+and typing granularity remain unchanged. Three-pane result metadata continues to
+use its existing result-editor transactions; this batch does not certify every
+possible three-pane view replacement or native IME interaction. The source icons,
+menus and shortcuts remain the existing native controls. See
+[batch evidence](qa/merge-edit-history-2026-10-18.json) for the reproduced failure,
+grouped validation and remaining hosted/visual limits.

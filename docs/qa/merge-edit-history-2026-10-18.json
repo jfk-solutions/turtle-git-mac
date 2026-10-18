@@ -1,0 +1,164 @@
+{
+  "date": "2026-10-18",
+  "scope": "Connected Compare editing-history, reused native pane roles, grouped Undo/Redo, metadata/caret restoration and pending comparison ownership",
+  "base_commit": "0cc0d6ae57126e926f99bc37326a68be670a87e6",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_review": [
+    "src/TortoiseMerge/Undo.cpp and Undo.h ordered all-view text, line-state, ending and mark history",
+    "src/TortoiseMerge/BaseView.cpp grouped editing actions and current-ending operations"
+  ],
+  "implementation": [
+    "Document model owns shared Undo/Redo targets instead of weak callbacks to per-pane coordinators",
+    "Snapshots retain exact target text, all-view row presentation and annotations, edit identities, moved-row links and caret",
+    "Native editor callbacks and accessibility identity rebind when SwiftUI reuses a Base editor as Destination; captured stale-role mutations are rejected",
+    "Undo/Redo refresh attached presentations synchronously and replay pending caret after a replacement viewport attaches",
+    "Undo can supersede a pending edit comparison; Redo of a provisional snapshot recomputes using current comparison options instead of accepting provisional ranges",
+    "Busy, sheet, pending-choice, Quit and retired owners gate history; closed/reloaded documents clear history; existing icons and input routes remain"
+  ],
+  "hosted_failure_under_repair": {
+    "commit": "12f29e1e31d087ffed3718424541987ba0052a37",
+    "run": 39083876316,
+    "job": 117557557616,
+    "step": "Scoped native Merge menus and pane shortcuts",
+    "case": "typing/system",
+    "assertion": "Combined cycle Undo failed",
+    "remote_receiver_reaped": 13326,
+    "new_hosted_pass_proven": false
+  },
+  "local_reproduction": {
+    "ordinary_typing_baseline_exit": 0,
+    "view_reuse_exit": 1,
+    "assertion": "Reused native role kept a departed pane's Undo callback",
+    "evidence": "Real FileComparisonEditor representable reused its coordinator across Base/Destination roles after the previous Destination coordinator was released. Baseline ordinary typing passed first. This proves the local ownership defect; it does not independently prove every cause of the hosted failure.",
+    "logs": [
+      "build/qa/merge-edit-history-baseline-2026-10-18.log",
+      "build/qa/merge-edit-history-role-reproduction-2026-10-18.log"
+    ]
+  },
+  "validation": {
+    "core": {
+      "rerun": false,
+      "reason": "No Core sources changed; grouped native receivers exercise the changed document/editor consumers."
+    },
+    "build": {
+      "final_exit": 0,
+      "log": "build/qa/merge-edit-history-build-pending-2026-10-18.log",
+      "earlier_successful_logs": [
+        "build/qa/merge-edit-history-build-2026-10-18.log",
+        "build/qa/merge-edit-history-build-recheck-2026-10-18.log"
+      ],
+      "initial_compile_repair": "Removed optional chaining after scroll had already been unwrapped in Coordinator.replace."
+    },
+    "native": {
+      "final_build_distinct_case_engine_passes": 10,
+      "passed": [
+        "history/system",
+        "lifecycle/system",
+        "two-pane/system",
+        "menus/system",
+        "view/system",
+        "view/bundled",
+        "moved/system",
+        "wrapped/system",
+        "find/system",
+        "find/bundled"
+      ],
+      "unaffected_prior_build_passes": [
+        "typing/system",
+        "three-pane/system"
+      ],
+      "unaffected_prior_build_log": "build/qa/merge-edit-history-native-final-2026-10-18.log",
+      "total_distinct_case_engine_passes": 12,
+      "final_logs": [
+        "build/qa/merge-edit-history-native-pending-2026-10-18.log",
+        "build/qa/merge-edit-history-find-2026-10-18.log"
+      ],
+      "runtime_failures_and_repairs": [
+        {
+          "log": "build/qa/merge-edit-history-native-2026-10-18.log",
+          "failure": "Replacement pane caret timed out",
+          "repair": "Diagnostic confirmed attached replacement viewport had zero content size. Preserve the prior editor size when attaching the bare fixture hosting controller; retain production geometry and caret assertions."
+        },
+        {
+          "log": "build/qa/merge-edit-history-caret-diagnostic-2026-10-18.log",
+          "failure": "Caret timeout diagnostic",
+          "observed": "Caret 0, request pending, filtering false, attached true, viewport size 0 by 0."
+        },
+        {
+          "log": "build/qa/merge-edit-history-native-recheck-2026-10-18.log",
+          "failure": "Shared Undo did not restore last edited pane first",
+          "repair": "Additional assertions exposed that fixture typed into the left pane before its native editable flag updated."
+        },
+        {
+          "log": "build/qa/merge-edit-history-shared-diagnostic-2026-10-18.log",
+          "failure": "Left-pane edit did not reach document history",
+          "repair": "Wait for the real native editable state before delivering fixture input; assert both edits changed exact document bytes."
+        },
+        {
+          "log": "build/qa/merge-edit-history-native-final-2026-10-18.log",
+          "failure": "Block shortcut lost one-step Undo",
+          "repair": "Removed the newly added filtering refusal, preserving immediate Undo during asynchronous comparison. Added a pending-projection flag and a real Ignore Case block-choice Undo/Redo regression to prevent provisional ranges becoming final."
+        }
+      ],
+      "ownership": {
+        "receiver_attempts_including_baseline_and_reproduction": 21,
+        "owned_pids": [
+          1755,
+          1866,
+          2614,
+          2675,
+          2727,
+          2755,
+          2801,
+          2805,
+          2809,
+          2831,
+          3131,
+          3281,
+          3288,
+          3291,
+          3308,
+          3318,
+          3397,
+          3474,
+          3481,
+          3504,
+          3554
+        ],
+        "cleanup": "All receivers reaped by owned process-group runner; independent ps exit 1 with empty output. Hidden windows, private files/preferences and helpers remain receiver-owned.",
+        "unrepaired_local_failures": []
+      }
+    },
+    "localization": {
+      "exit": 0,
+      "languages": 38,
+      "keys": 1284,
+      "write_log": "build/qa/merge-edit-history-localizations-2026-10-18.log",
+      "check_log": "build/qa/merge-edit-history-localizations-check-2026-10-18.log"
+    },
+    "dialog_ledger": {
+      "exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "controls": 1659,
+      "mapped": 1566,
+      "pending": 93,
+      "log": "build/qa/merge-edit-history-coverage-2026-10-18.log"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": 0,
+      "log": "build/qa/merge-edit-history-site-2026-10-18.log"
+    }
+  },
+  "limits": [
+    "No complete hosted CI pass claimed; new history case is added to the existing hosted Merge command step.",
+    "Local native checks use current arm64 macOS 27 SDK; hosted older-SDK behavior still needs confirmation.",
+    "Three-pane result transactions retain their existing implementation; this does not certify every three-pane replacement path or native IME interaction.",
+    "No visual layout acceptance, physical Finder integration, current Release/archive, App Store export or signing acceptance is established by this editor batch.",
+    "Full source dialog parity, distribution and custom TurtleGit artwork remain open."
+  ]
+}

@@ -802,8 +802,17 @@ private extension FileComparisonDocument {
         inlineNavigationCache[row] = InlineResult(value: value); return value
     }
     weak var window: NSWindow?
-    var undo: () -> Void = {}
-    var redo: () -> Void = {}
+    func undo() {
+        guard historyActionsAllowed, comparisonHistory.canUndo else { return }
+        comparisonHistory.undo(); updateHistoryState()
+    }
+    func redo() {
+        guard historyActionsAllowed, comparisonHistory.canRedo else { return }
+        comparisonHistory.redo(); updateHistoryState()
+    }
+    // Undo can supersede an edit's pending comparison request. Restoring its
+    // presentation cancels that request and fences any late engine result.
+    private var historyActionsAllowed: Bool { !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
     var canTransfer: Bool { canTransfer(toBase: activeBase) }
     func canTransfer(toBase base: Bool) -> Bool { mutablePane(base) && drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !hasPendingEditorChoice && !confirmingQuit && !filtering }
     var copyCommandsAllowed: Bool { !retired }
@@ -813,14 +822,14 @@ private extension FileComparisonDocument {
     func useOtherBlock(_ choice: FileComparisonEditing.BlockChoice = .other, targetBase: Bool? = nil) {
         let base = targetBase ?? activeBase
         guard !onePaneActive, canTransfer(toBase: base), let alignment, let rows = transferRows else { return }
-        do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: rows, targetBase: base, choice: choice); editorActions[base]?.replace(edit.text, edit.caret, choice == .other ? rows : nil) }
+        do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: rows, targetBase: base, choice: choice); editingActions(for: base)?.replace(edit.text, edit.caret, choice == .other ? rows : nil) }
         catch { self.error = error.localizedDescription }
     }
     func useOtherFile(targetBase: Bool? = nil) {
         let base = targetBase ?? activeBase
         guard !onePaneActive, canTransfer(toBase: base), let alignment else { return }
-        if alignment.rows.isEmpty { editorActions[base]?.replace("", 0, nil); return }
-        do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: alignment.rows.indices, targetBase: base); editorActions[base]?.replace(edit.text, 0, alignment.rows.indices) }
+        if alignment.rows.isEmpty { editingActions(for: base)?.replace("", 0, nil); return }
+        do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: alignment.rows.indices, targetBase: base); editingActions(for: base)?.replace(edit.text, 0, alignment.rows.indices) }
         catch { self.error = error.localizedDescription }
     }
     func markBlock(_ marked: Bool, targetBase: Bool? = nil) {
@@ -828,12 +837,12 @@ private extension FileComparisonDocument {
         guard !onePaneActive, canTransfer(toBase: base), let rows = transferRows else { return }
         var value = annotations(base: base)
         if marked { value.marked.formUnion(rows) } else { value.marked.subtract(rows) }
-        editorActions[base]?.annotate(value)
+        editingActions(for: base)?.annotate(value)
     }
     func leaveOnlyMarked(targetBase: Bool? = nil) {
         let base = targetBase ?? activeBase
         guard !onePaneActive, canTransfer(toBase: base), let alignment else { return }
-        do { editorActions[base]?.keep(try FileComparisonEditing.leavingOnlyMarked(alignment, targetBase: base, annotations: annotations(base: base))) }
+        do { editingActions(for: base)?.keep(try FileComparisonEditing.leavingOnlyMarked(alignment, targetBase: base, annotations: annotations(base: base))) }
         catch { self.error = error.localizedDescription }
     }
     func encoding(base: Bool) -> ComparisonTextEncoding? { drafts?.encoding(base: base) }
@@ -869,7 +878,7 @@ private extension FileComparisonDocument {
             guard canTransfer(toBase: base) else { return }
             do {
                 let converted = try choice.applying(to: original)
-                if !converted.utf8.elementsEqual(original.utf8) { editorActions[base]?.replace(converted, 0, nil) }
+                if !converted.utf8.elementsEqual(original.utf8) { editingActions(for: base)?.replace(converted, 0, nil) }
                 try drafts?.setEncoding(choice.encoding, base: base)
             } catch { self.error = error.localizedDescription }
         }
@@ -881,7 +890,7 @@ private extension FileComparisonDocument {
     func changeWhitespace(_ command: MergeWhitespaceCommand, base: Bool) {
         guard canTransfer(toBase: base) else { return }
         let text = MergeWhitespace.applying(command, to: draftText(base: base), tabWidth: tabWidth(base: base))
-        editorActions[base]?.replace(text, 0, nil)
+        editingActions(for: base)?.replace(text, 0, nil)
     }
     func indent(_ range: NSRange, cells: [MergeSourceCell], base: Bool, remove: Bool) -> NSRange? {
         guard activeBase == base, canTransfer(toBase: base) else { return nil }
@@ -890,24 +899,24 @@ private extension FileComparisonDocument {
                 let expanded = try combined.editingSource(for: [range]), source = expanded.ranges[0]
                 if let edit = MergeWhitespace.indentSelection(in: expanded.text, selection: source, tabWidth: tabWidth(base: false), useSpaces: useSpaces(base: false), smart: smartTab(base: false), remove: remove) {
                     let text = (expanded.text as NSString).replacingCharacters(in: edit.range, with: edit.replacement)
-                    editorActions[false]?.type(text, edit.range.location + edit.replacement.utf16.count)
+                    editingActions(for: false)?.type(text, edit.range.location + edit.replacement.utf16.count)
                     return NSRange(location: edit.range.location, length: edit.replacement.utf16.count)
                 }
                 guard !remove else { return nil }
                 let remaining = (expanded.text as NSString).replacingCharacters(in: source, with: "")
                 let inserted = MergeWhitespace.tabInsertion(in: remaining, utf16Offset: source.location, tabWidth: tabWidth(base: false), useSpaces: useSpaces(base: false), smart: smartTab(base: false))
-                editorActions[false]?.type((remaining as NSString).replacingCharacters(in: NSRange(location: source.location, length: 0), with: inserted), source.location + inserted.utf16.count)
+                editingActions(for: false)?.type((remaining as NSString).replacingCharacters(in: NSRange(location: source.location, length: 0), with: inserted), source.location + inserted.utf16.count)
                 return NSRange(location: source.location + inserted.utf16.count, length: 0)
             }
             guard let edit = try FileComparisonEditing.indentation(range, cells: cells, tabWidth: tabWidth(base: base), useSpaces: useSpaces(base: base), smart: smartTab(base: base), remove: remove) else { return nil }
-            editorActions[base]?.type(edit.text, edit.selection.location)
+            editingActions(for: base)?.type(edit.text, edit.selection.location)
             selectionRequest = nil
             return edit.selection
         } catch { self.error = error.localizedDescription; return nil }
     }
     func changeLineEnding(_ ending: MergeLineEnding, base: Bool) {
         guard canTransfer(toBase: base) else { return }
-        editorActions[base]?.replace(MergeLineEndings.converting(draftText(base: base), to: ending), 0, nil)
+        editingActions(for: base)?.replace(MergeLineEndings.converting(draftText(base: base), to: ending), 0, nil)
     }
     func updateSelection(_ range: NSRange, cells: [MergeSourceCell]) {
         guard !retired, let alignment else { return }
@@ -1015,7 +1024,7 @@ private extension FileComparisonDocument {
                         paneTargets[base] = target; retainPermissions([permission])
                         self.document = document.replacingPane(base: base, content: target.content)
                         try drafts?.didSaveAs(target.content, base: base)
-                        selectEditorActions(); rebuildAlignment(); reloadEditorConfig()
+                        updateHistoryState(); rebuildAlignment(); reloadEditorConfig()
                     }
                 } catch { if acceptsOutput(request) { self.error = error.localizedDescription } }
             }
@@ -1063,10 +1072,6 @@ private extension FileComparisonDocument {
     var activeDirty: Bool { drafts?.isDirty(base: activeBase) == true }
     func annotations(base: Bool) -> FileComparisonEditing.Annotations { drafts?.annotations(base: base) ?? .init() }
     struct EditorActions {
-        var reset: () -> Void
-        var refresh: () -> Void
-        var undo: () -> Void
-        var redo: () -> Void
         var replace: (String, Int, Range<Int>?) -> Void
         var type: (String, Int) -> Void
         var annotate: (FileComparisonEditing.Annotations) -> Void
@@ -1074,20 +1079,70 @@ private extension FileComparisonDocument {
         var resolveForSave: (String) -> Void
     }
     private var editorActions: [Bool: EditorActions] = [:]
+    private var editorOwners: [Bool: ObjectIdentifier] = [:]
     // TortoiseMerge's CUndo stores one ordered all-view history. Sharing it is
     // essential now that an edit snapshot also owns the opposite row layout.
     let comparisonHistory: UndoManager = { let value = UndoManager(); value.groupsByEvent = false; return value }()
-    func registerEditor(base: Bool, actions: EditorActions) {
-        editorActions[base] = actions
-        if base == activeBase { selectEditorActions() }
+    func editingActions(for base: Bool) -> EditorActions? {
+        guard let scroll = scrolls[base], ownsViewport(scroll, base: base), ownsEditor(scroll, base: base) else { return nil }
+        return editorActions[base]
     }
-    private func selectEditorActions() {
-        guard let actions = editorActions[activeBase] else { canUndo = false; canRedo = false; return }
-        undo = actions.undo; redo = actions.redo; actions.refresh()
+    func ownsEditor(_ scroll: NSScrollView, base: Bool) -> Bool {
+        editorOwners[base] == ObjectIdentifier(scroll) && scrolls[base] === scroll
+    }
+    func registerEditor(base: Bool, scroll: NSScrollView, actions: EditorActions) {
+        guard scrolls[base] === scroll else { return }
+        let id = ObjectIdentifier(scroll)
+        for other in [true, false] where other != base && editorOwners[other] == id {
+            editorOwners.removeValue(forKey: other); editorActions.removeValue(forKey: other)
+        }
+        editorOwners[base] = id; editorActions[base] = actions
+        updateHistoryState()
+    }
+    func updateHistoryState() {
+        if canUndo != comparisonHistory.canUndo { canUndo = comparisonHistory.canUndo }
+        if canRedo != comparisonHistory.canRedo { canRedo = comparisonHistory.canRedo }
+    }
+    /// Undo targets the document. Native coordinators can be reused for another
+    /// pane or dismantled while this ordered all-view history remains live.
+    private struct EditingHistoryState {
+        let base: Bool
+        let text: String
+        let annotations: FileComparisonEditing.Annotations
+        let caret: HistoryCaret
+        let presentation: EditingPresentation?
+        let needsComparison: Bool
+    }
+    private func editingHistoryState(base: Bool, fallbackCaret: Int) -> EditingHistoryState {
+        .init(base: base, text: draftText(base: base), annotations: annotations(base: base),
+              caret: captureHistoryCaret(base: base) ?? .init(displayText: "", displayOffset: 0, sourceOffset: min(fallbackCaret, draftText(base: base).utf16.count)),
+              presentation: captureEditingPresentation(), needsComparison: filtering)
+    }
+    func registerEditingHistory(base: Bool, fallbackCaret: Int) {
+        let state = editingHistoryState(base: base, fallbackCaret: fallbackCaret)
+        comparisonHistory.registerUndo(withTarget: self) { $0.restoreEditingHistory(state) }
+    }
+    private func restoreEditingHistory(_ state: EditingHistoryState) {
+        guard historyActionsAllowed, canEdit(base: state.base) else { return }
+        comparisonHistory.beginUndoGrouping()
+        defer { comparisonHistory.endUndoGrouping(); updateHistoryState() }
+        registerEditingHistory(base: state.base, fallbackCaret: state.caret.sourceOffset)
+        updateDraft(state.text, base: state.base)
+        if let presentation = state.presentation { installEditingPresentation(presentation) }
+        if state.presentation == nil || state.needsComparison {
+            rebuildAlignment()
+            if state.presentation == nil { updateAnnotations(state.annotations, base: state.base) }
+        }
+        clearNavigationBlockSelection(clearTextSelections: true)
+        requestHistoryCaret(state.caret, base: state.base)
+        updateFolding()
+        for (base, scroll) in scrolls where ownsViewport(scroll, base: base) {
+            if let view = scroll.documentView as? NSTextView, let coordinator = view.delegate as? FileComparisonEditor.Coordinator { coordinator.installCurrentPresentation() }
+        }
     }
     func activatePane(base: Bool) {
         guard !busy, !hasPendingEditorChoice, !confirmingQuit, (!onePaneActive || !base), activeBase != base else { return }
-        activeBase = base; selectedRows = nil; selectionRequest = nil; selectEditorActions()
+        activeBase = base; selectedRows = nil; selectionRequest = nil; updateHistoryState()
     }
     func resetHistory() {
         historyCaretRequests = [:]
@@ -1095,8 +1150,7 @@ private extension FileComparisonDocument {
         // is being replaced. Weak editor callbacks cannot own its lifetime.
         comparisonHistory.removeAllActions()
         canUndo = false; canRedo = false
-        for actions in editorActions.values { actions.reset() }
-        selectEditorActions()
+        updateHistoryState()
     }
     struct HistoryCaret {
         let displayText: String
@@ -1119,6 +1173,7 @@ private extension FileComparisonDocument {
         selectionRequest = nil
         historyCaretRequests[base] = (alignmentGeneration,caret)
     }
+    func hasHistoryCaret(base: Bool) -> Bool { historyCaretRequests[base] != nil }
     func restoreHistoryCaret(base: Bool, view: NSTextView, cells: [MergeSourceCell]) {
         guard !retired, !filtering, let scroll = scrolls[base], ownsViewport(scroll, base: base), scroll.documentView === view, let request = historyCaretRequests[base] else { return }
         guard request.generation == alignmentGeneration else { historyCaretRequests.removeValue(forKey:base); return }
@@ -1145,11 +1200,12 @@ private extension FileComparisonDocument {
         guard !retired, !base || !onePaneActive && !singleFileMode, let window,
               scrolls[base] === scroll, scroll.window === window,
               let view = scroll.documentView as? FileComparisonTextView else { return false }
-        return view.window === window && view.model === self
+        return view.window === window && view.model === self && view.baseSide == base
     }
     func unregister(_ scroll: NSScrollView, base: Bool) {
         guard scrolls[base] === scroll else { return }
         scrolls.removeValue(forKey: base); viewportNavigation.removeValue(forKey: base)
+        if editorOwners[base] == ObjectIdentifier(scroll) { editorOwners.removeValue(forKey: base); editorActions.removeValue(forKey: base) }
     }
     func applyViewportNavigation() { guard !retired else { return }; for action in viewportNavigation.values { action() } }
     private var synchronizing = false
@@ -1157,7 +1213,7 @@ private extension FileComparisonDocument {
     var patchEditingEnabled: Bool { drafts?.editingEnabled(base: false) == true }
     func setPatchEditing(_ enabled: Bool) {
         guard !retired, !busy, !hasPendingEditorChoice, !confirmingQuit else { return }
-        drafts?.setEditing(enabled, base: false); activeBase = false; selectEditorActions()
+        drafts?.setEditing(enabled, base: false); activeBase = false; updateHistoryState()
     }
     func acceptPatchSave(_ saved: FileComparisonDocument) throws {
         guard !retired, let document, document.destination.path == saved.destination.path else { throw FileComparisonEditFailure.changed }
@@ -1346,7 +1402,7 @@ private extension FileComparisonDocument {
                 window?.title = "\(standaloneImages == nil ? (sidesReversed ? adapted.destination.path : path) : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
                 drafts = imageComparison == nil ? FileComparisonDrafts(adapted) : nil
                 activeBase = onePaneActive ? false : drafts?.preferredBase ?? false
-                selectEditorActions()
+                updateHistoryState()
                 rebuildAlignment(); resetHistory(); selectionRequest = nil
                 difference = -1
                 if imageComparison == nil { reloadEditorConfig() }
@@ -1480,7 +1536,7 @@ private extension FileComparisonDocument {
         paneTargets[base]=target;retainPermissions([permission])
         self.document=document.replacingPane(base:base,content:target.content)
         try drafts?.didSaveAs(target.content,base:base)
-        selectEditorActions();rebuildAlignment();reloadEditorConfig()
+        updateHistoryState();rebuildAlignment();reloadEditorConfig()
         return true
     }
     private func save(sides: [Bool], ownerInitiated: Bool = false, completion: ((Bool) -> Void)?) {
@@ -1502,7 +1558,7 @@ private extension FileComparisonDocument {
                     if !base, !annotations(base: false).marked.isEmpty {
                         guard let choice = await chooseMarkedSave() else { return }
                         try ensurePaneSave(request)
-                        guard let alignment, let actions = editorActions[false] else { throw FileComparisonEditFailure.unsupported }
+                        guard let alignment, let actions = editingActions(for: false) else { throw FileComparisonEditFailure.unsupported }
                         let text = try FileComparisonEditing.resolvingMarkedBlocks(alignment, targetBase: false, annotations: annotations(base: false), choice: choice)
                         updatingSaveDecision = true; actions.resolveForSave(text); updatingSaveDecision = false
                     }
@@ -1589,6 +1645,10 @@ private extension FileComparisonDocument {
         // A new representable registers before attachment. Keep the live pane
         // authoritative until its replacement actually joins this editor window.
         if let current = scrolls[base], current.window != nil, scroll.window == nil { return }
+        for other in [true, false] where other != base && scrolls[other] === scroll {
+            scrolls.removeValue(forKey: other); viewportNavigation.removeValue(forKey: other)
+            if editorOwners[other] == ObjectIdentifier(scroll) { editorOwners.removeValue(forKey: other); editorActions.removeValue(forKey: other) }
+        }
         scrolls[base] = scroll; onRegisterScroll(scroll,base); refreshLocatorViewport()
     }
     func scrolled(_ source: NSScrollView) {
@@ -1708,7 +1768,7 @@ private extension FileComparisonDocument {
         if let text = activeFindText { MergeFindInterface.perform(action, in: text) }
     }
     func replaceFindMatches(_ ranges: [NSRange], cells: [MergeSourceCell], base: Bool, replacement: String) -> Bool {
-        guard canTransfer(toBase: base), let actions = editorActions[base], !ranges.isEmpty else { return false }
+        guard canTransfer(toBase: base), let actions = editingActions(for: base), !ranges.isEmpty else { return false }
         do {
             if onePaneActive, !base, let combined {
                 let edit = try combined.applying(replacement, ranges: ranges); actions.replace(edit.text, edit.caret, nil); return true
@@ -1878,17 +1938,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         scroll.hasVerticalRuler = true; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
         scroll.contentView.postsBoundsChangedNotifications = true
         context.coordinator.scroll = scroll
-        model.registerEditor(base: base, actions: .init(
-            reset: { [weak coordinator = context.coordinator] in coordinator?.history.removeAllActions(); coordinator?.updateUndoState() },
-            refresh: { [weak coordinator = context.coordinator] in coordinator?.updateUndoState() },
-            undo: { [weak coordinator = context.coordinator] in guard let coordinator, !coordinator.model.busy, !coordinator.model.confirmingQuit else { return }; coordinator.history.undo(); coordinator.updateUndoState() },
-            redo: { [weak coordinator = context.coordinator] in guard let coordinator, !coordinator.model.busy, !coordinator.model.confirmingQuit else { return }; coordinator.history.redo(); coordinator.updateUndoState() },
-            replace: { [weak coordinator = context.coordinator] text, caret, cleared in coordinator?.replace(text, caret: caret, cleared: cleared) },
-            type: { [weak coordinator = context.coordinator] text, caret in coordinator?.replace(text, caret: caret, typing: true) },
-            annotate: { [weak coordinator = context.coordinator] value in coordinator?.annotate(value) },
-            keep: { [weak coordinator = context.coordinator] text in coordinator?.replace(text, caret: 0, clearMarks: true) },
-            resolveForSave: { [weak coordinator = context.coordinator] text in coordinator?.replace(text, caret: 0, clearMarks: true, resolvingSave: true) }
-        ))
+        context.coordinator.bind(scroll, base: base)
         view.history = context.coordinator.history
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.scrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         model.register(scroll, base: base)
@@ -1901,7 +1951,8 @@ struct FileComparisonEditor: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? NSTextView, let presentationCache = (view as? MergeEditorPresentationProviding)?.presentationCache else { return }
         (view as? FileComparisonTextView)?.baseSide = base
-        model.register(scroll, base: base)
+        view.setAccessibilityLabel(base ? "Base file" : "Destination file")
+        context.coordinator.bind(scroll, base: base)
         let background = MergePalette.color(MergeSourceState.normal), foreground = MergePalette.foreground(.normal)
         if view.backgroundColor != background { view.backgroundColor = background }
         if view.insertionPointColor != foreground { view.insertionPointColor = foreground }
@@ -1970,7 +2021,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
         model.refreshLocatorHighlights()
         // Run once after layout, including the first representable update.
-        if model.initialNavigationPending || model.alignmentSelections[base]?.id != context.coordinator.appliedSelection {
+        if model.initialNavigationPending || model.hasHistoryCaret(base: base) || model.alignmentSelections[base]?.id != context.coordinator.appliedSelection {
             context.coordinator.scheduleViewportSelection()
         }
     }
@@ -2088,10 +2139,33 @@ struct FileComparisonEditor: NSViewRepresentable {
             }
             DispatchQueue.main.async { if self.model.activeBase == self.base, self.model.alignmentGeneration == generation, view.selectedRange() == range { self.model.updateSelection(range, cells: cells) } }
         }
-        func updateUndoState() {
-            guard model.activeBase == base else { return }
-            if model.canUndo != history.canUndo { model.canUndo = history.canUndo }
-            if model.canRedo != history.canRedo { model.canRedo = history.canRedo }
+        func updateUndoState() { model.updateHistoryState() }
+        func bind(_ scroll: NSScrollView, base: Bool) {
+            self.scroll = scroll; self.base = base
+            model.register(scroll, base: base)
+            guard !model.ownsEditor(scroll, base: base) else { return }
+            let current: () -> Coordinator? = { [weak self, weak scroll] in
+                guard let self, let scroll, self.base == base, self.model.ownsEditor(scroll, base: base), self.model.ownsViewport(scroll, base: base) else { return nil }
+                return self
+            }
+            model.registerEditor(base: base, scroll: scroll, actions: .init(
+                replace: { text, caret, cleared in current()?.replace(text, caret: caret, cleared: cleared) },
+                type: { text, caret in current()?.replace(text, caret: caret, typing: true) },
+                annotate: { value in current()?.annotate(value) },
+                keep: { text in current()?.replace(text, caret: 0, clearMarks: true) },
+                resolveForSave: { text in current()?.replace(text, caret: 0, clearMarks: true, resolvingSave: true) }
+            ))
+        }
+        func installCurrentPresentation() {
+            guard !model.filtering, let scroll, model.ownsViewport(scroll, base: base), let view = scroll.documentView as? FileComparisonTextView else { return }
+            cells = model.displayCells(base: base); view.sourceCells = cells
+            if view.blockGeneration != model.alignmentGeneration { view.blockSelection.clear(in: view); view.invalidateNavigationRevision(); view.blockGeneration = model.alignmentGeneration }
+            view.presentationDepth += 1
+            _ = view.foldLayout.installPresentation(FileComparisonEditor.attributed(cells, font: view.font ?? model.generalPreferences.nativeFont, model: model, base: base), font: view.font ?? model.generalPreferences.nativeFont, in: view, controller: model.folding)
+            view.presentationDepth -= 1
+            view.missingOffsets = FileComparisonEditor.missingOffsets(cells, model: model, base: base)
+            view.whitespaceRenderer.update(text: view.string, cells: cells, otherCells: model.onePaneActive ? nil : model.displayCells(base: !base), preferences: model.whitespaceDisplay)
+            model.restoreHistoryCaret(base: base, view: view, cells: cells)
         }
         func annotate(_ value:FileComparisonEditing.Annotations) {
             guard model.canTransfer(toBase:base),let view = scroll?.documentView as? FileComparisonTextView else {return}
@@ -2116,8 +2190,8 @@ struct FileComparisonEditor: NSViewRepresentable {
             let sourceCaret = (try? FileComparisonEditing.sourceRange(NSRange(location:displayCaret,length:0),cells:cells).location) ?? 0
             replace(edit.text,caret:sourceCaret,presentation:next,displayCaret:displayCaret,actionName:"Cycle line ending")
         }
-        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false, resolvingSave: Bool = false, historyCaret: FileComparisonWindowModel.HistoryCaret? = nil, presentation: FileComparisonWindowModel.EditingPresentation? = nil, displayCaret: Int? = nil, actionName:String = "Edit comparison") {
-            guard model.canEdit(base: base), resolvingSave || (!model.busy && !model.confirmingQuit) else { return }
+        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false, resolvingSave: Bool = false, presentation: FileComparisonWindowModel.EditingPresentation? = nil, displayCaret: Int? = nil, actionName:String = "Edit comparison") {
+            guard let scroll, model.ownsEditor(scroll, base: base), model.ownsViewport(scroll, base: base), model.canEdit(base: base), resolvingSave || (!model.busy && !model.confirmingQuit) else { return }
             let old = model.draftText(base: base), previous = model.annotations(base: base), oldAlignment = model.alignment
             var next = previous
             if clearMarks { next.marked = [] }
@@ -2125,12 +2199,8 @@ struct FileComparisonEditor: NSViewRepresentable {
             let textChanged = !old.utf8.elementsEqual(text.utf8)
             guard textChanged || restored != nil || next != previous || presentation != nil || typing else { return }
             if !textChanged, (restored ?? next) == previous, presentation == nil, !typing { return }
-            let previousCaret = model.captureHistoryCaret(base:base)
-            let previousPresentation = model.captureEditingPresentation()
             history.beginUndoGrouping(); defer { history.endUndoGrouping(); updateUndoState() }
-            history.registerUndo(withTarget:self) { target in
-                target.replace(old,caret:previousCaret?.sourceOffset ?? min(caret,old.utf16.count),restored:previous,historyCaret:previousCaret,presentation:previousPresentation)
-            }
+            model.registerEditingHistory(base: base, fallbackCaret: caret)
             history.setActionName(actionName)
             model.updateDraft(text, base: base)
             if model.activeBase == base { model.selectionRequest = caret }
@@ -2140,7 +2210,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             if presentation == nil, let oldAlignment, let alignment = model.alignment { model.remapOtherAnnotations(from: oldAlignment, to: alignment, changedBase: base) }
             if let restored { model.updateAnnotations(restored, base: base) }
             else if presentation == nil, let oldAlignment, let alignment = model.alignment { model.updateAnnotations(next.remapped(from: oldAlignment, to: alignment, targetBase: base, typing: typing), base: base) }
-            if let alignment = model.alignment, let view = scroll?.documentView as? NSTextView {
+            if let alignment = model.alignment, let view = scroll.documentView as? NSTextView {
                 cells = model.displayCells(base: base)
                 (view as? FileComparisonTextView)?.sourceCells = cells
                 view.textStorage?.setAttributedString(FileComparisonEditor.attributed(cells, font: view.font!, model: model, base: base))
@@ -2152,10 +2222,6 @@ struct FileComparisonEditor: NSViewRepresentable {
                     // has selected another range.
                     if model.selectionRequest == caret { model.selectionRequest = nil }
                 }
-            }
-            if let historyCaret {
-                model.clearNavigationBlockSelection(clearTextSelections:true)
-                model.requestHistoryCaret(historyCaret,base:base)
             }
         }
         deinit { NotificationCenter.default.removeObserver(self) }
