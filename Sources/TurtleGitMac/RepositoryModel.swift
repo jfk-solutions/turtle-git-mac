@@ -3,9 +3,9 @@ import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
 
-/// A creation result belongs to the workspace window that launched it, even
-/// when that window closes before Clone/Init reports completion.
-@MainActor private final class RepositoryHandoffOwner {
+/// Delayed repository work belongs to the window that launched it, even when
+/// that window closes before preparation or creation reports completion.
+@MainActor private final class RepositoryWindowOwner {
     let cancellation = OperationCancellation()
     var onCancelled: () -> Void = {}
     private var observer: NSObjectProtocol?
@@ -266,6 +266,7 @@ import UniformTypeIdentifiers
     private var resolveWindows: [String: ResolveWindowController] = [:]
     private var ignoreWindows: [String: IgnoreWindowController] = [:]
     private var removeWindows: [String: RemoveWindowController] = [:]
+    var removeWindowFactory: ((GitRepository, RepositoryAccessLease?, RemovalRequest) -> RemoveWindowController)?
     private var adoptionGeneration = 0
     private var retired = false
     private struct CompletedRepositoryHandoff {
@@ -273,11 +274,14 @@ import UniformTypeIdentifiers
         let generation: Int
         let root: URL
         let access: RepositoryAccessLease
-        let owner: RepositoryHandoffOwner
+        let owner: RepositoryWindowOwner
         let output: String
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
+    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty }
+    private var addPreparations: [UUID: RepositoryWindowOwner] = [:]
+    var addSelectionPreflight: ((GitRepository, [String], OperationCancellation) async throws -> Bool)?
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
     private let repositoryFactory:((URL) throws -> GitRepository)?
     private let snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)?
@@ -289,7 +293,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; for owner in addPreparations.values { owner.cancellation.cancel() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -470,7 +474,7 @@ import UniformTypeIdentifiers
         }
         throw RepositoryMetadataAccessFailure.tooManyDependencies
     }
-    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandRootOnly: Bool = false, onFinished: ((Bool) -> Void)? = nil, handoffOwner: RepositoryHandoffOwner? = nil, onOpened: (() -> Void)? = nil) {
+    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandRootOnly: Bool = false, onFinished: ((Bool) -> Void)? = nil, handoffOwner: RepositoryWindowOwner? = nil, onOpened: (() -> Void)? = nil) {
         guard !busy, !confirmingQuit, !retired, handoffOwner?.cancellation.isCancelled != true else { onFinished?(false); return }
         let restoreState:()->Void = { [repository,activeAccess,root,entries,selection,branch,bare,hasGitSVN,mergeActive,conflictRebase,submodules,section,output] in
             self.repository=repository;self.activeAccess=activeAccess;self.root=root;self.entries=entries;self.selection=selection
@@ -485,9 +489,9 @@ import UniformTypeIdentifiers
         let owner=workspaceWindow
         let ownerObserver=owner.map { NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:$0,queue:.main) { _ in cancellation.cancel() } }
         Task {
-            var opened = false
+            var opened = false, holdsBusy = true
             defer { onFinished?(opened) }
-            defer { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) };if adoptionCancellation === cancellation { adoptionCancellation=nil;busy=false };withExtendedLifetime(lease) {} }
+            defer { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) };if adoptionCancellation === cancellation { adoptionCancellation=nil;if holdsBusy { busy=false } };withExtendedLifetime(lease) {} }
             do {
                 var commandSelectedRevision: String?
                 let commandMessage: String?
@@ -548,7 +552,7 @@ import UniformTypeIdentifiers
                     do { for folder in prepared.newFolders { try store.addPermission(saved.id,url:folder) };recentRepositories=store.repositories }
                     catch { self.error="The repository is open, but additional folder access could not be saved: "+error.localizedDescription }
                 }
-                busy = false
+                holdsBusy = false; busy = false
                 if let invocation {
                     activateCommandLine(invocation, message: commandMessage, selectedRevision: commandSelectedRevision, repository: repository!, access: sessionAccess, outputAccess: outputAccess)
                 } else if let action {
@@ -567,7 +571,7 @@ import UniformTypeIdentifiers
                 restoreState()
                 if !cancellation.isCancelled { self.error=error.localizedDescription }
                 if !retired,monitoringEnabled,let repository,let directories=try? await repository.finderWatchDirectories() { monitorFiles(directories) }
-                busy=false
+                holdsBusy = false; busy=false
             }
         }
     }
@@ -851,7 +855,7 @@ import UniformTypeIdentifiers
         let id = UUID(), controller = cloneWindowFactory?(directory ?? root, activeAccess) ?? CloneWindowController(directory: directory ?? root, access: activeAccess,preferences:fileComparisonPreferences,clipboardText:source == nil ? creationClipboardText():nil)
         controller.onClosed = { [weak self] in self?.cloneWindows.removeValue(forKey: id) }
         controller.model.onLog = { [weak self] repository, access in self?.showLog(repository: repository, access: access, paths: []) }
-        let handoffOwner = RepositoryHandoffOwner(window: workspaceWindow)
+        let handoffOwner = RepositoryWindowOwner(window: workspaceWindow)
         controller.model.onCloned = { [weak self] repo, access, keyAccess, _, result in
             guard let self, !self.retired, !handoffOwner.cancellation.isCancelled else { return }
             if let keyAccess {
@@ -865,7 +869,7 @@ import UniformTypeIdentifiers
         controller.model.configureLaunch(source: source, exactPath: exactPath)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func adoptRepository(_ repo: GitRepository, access: RepositoryAccessLease, output: String, owner: RepositoryHandoffOwner) {
+    private func adoptRepository(_ repo: GitRepository, access: RepositoryAccessLease, output: String, owner: RepositoryWindowOwner) {
         guard !retired, !owner.cancellation.isCancelled else { return }
         let handoff = CompletedRepositoryHandoff(generation: adoptionGeneration, root: repo.root, access: access, owner: owner, output: output)
         completedRepositoryHandoff = handoff
@@ -919,7 +923,7 @@ import UniformTypeIdentifiers
         let fresh = createWindows[folder.path] == nil
         controller.onClosed = { [weak self] in self?.createWindows.removeValue(forKey: folder.path) }
         if fresh {
-            let handoffOwner = RepositoryHandoffOwner(window: workspaceWindow)
+            let handoffOwner = RepositoryWindowOwner(window: workspaceWindow)
             controller.model.onInitialized = { [weak self] repo, access, _, output in self?.adoptRepository(repo, access: access, output: output, owner: handoffOwner) }
         }
         createWindows[folder.path] = controller
@@ -928,7 +932,7 @@ import UniformTypeIdentifiers
     }
     private func showRename(repository: GitRepository, access: RepositoryAccessLease?, source: String) {
         let root = repository.root, key = GitPathRowIdentity.encode(root.path + "\0" + source)
-        let controller = renameWindows[key] ?? RenameWindowController(repository: repository, access: access, source: source)
+        let controller = renameWindows[key] ?? RenameWindowController(repository: repository, access: access, source: source, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.renameWindows.removeValue(forKey: key) }
         controller.model.onRenamed = { [weak self] old, new, output in
             guard let self else { return }
@@ -1194,7 +1198,7 @@ import UniformTypeIdentifiers
         do {
             let request = try RemovalRequest(paths: paths, keepLocal: keepLocal)
             let root = repository.root, key = root.path + "\0" + String(keepLocal) + "\0" + request.paths.joined(separator: "\0")
-            let controller = removeWindows[key] ?? RemoveWindowController(repository: repository, access: access, request: request)
+            let controller = removeWindows[key] ?? removeWindowFactory?(repository, access, request) ?? RemoveWindowController(repository: repository, access: access, request: request, preferences: fileComparisonPreferences)
             controller.onClosed = { [weak self] in self?.removeWindows.removeValue(forKey: key) }
             controller.onChanged = { [weak self] output in
                 self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
@@ -1232,12 +1236,28 @@ import UniformTypeIdentifiers
         controller.model.reload(paths: invocation?.wholeProject == true ? [] : paths)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showAdd(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
-        Task {
+    private func showAdd(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], commandLaunch: Bool = false) {
+        let id = UUID(), owner = RepositoryWindowOwner(window: workspaceWindow)
+        addPreparations[id] = owner
+        let preflight = addSelectionPreflight
+        Task { [self, access] in
+            defer { addPreparations.removeValue(forKey: id); withExtendedLifetime(access) {} }
             do {
-                if try await repository.addSelectionIsFiles(paths) { showAddProgress(repository: repository, access: access, paths: paths); return }
+                try owner.cancellation.check()
+                guard !retired, !confirmingQuit else { return }
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let files: Bool
+                if let preflight { files = try await preflight(repository, paths, owner.cancellation) }
+                else { files = try await repository.addSelectionIsFiles(paths, cancellation: owner.cancellation) }
+                try owner.cancellation.check(); guard !retired, !confirmingQuit else { return }
+                if files { showAddProgress(repository: repository, access: access, paths: paths); return }
                 let key = repository.root.path
-                let controller = addWindows[key] ?? AddWindowController(repository: repository, access: access)
+                if commandLaunch, let existing = addWindows[key] {
+                    existing.window?.makeKeyAndOrderFront(nil)
+                    error = "An Add dialog is already open. Close it before opening another command-line Add."
+                    return
+                }
+                let controller = addWindows[key] ?? AddWindowController(repository: repository, access: access, defaults: fileComparisonPreferences)
                 guard !controller.model.busy else { controller.window?.makeKeyAndOrderFront(nil); return }
                 controller.onClosed = { [weak self] in self?.addWindows.removeValue(forKey: key) }
                 controller.model.onAccepted = { [weak self] paths in self?.showAddProgress(repository: repository, access: access, paths: paths) }
@@ -1271,7 +1291,7 @@ import UniformTypeIdentifiers
                 controller.model.onDeleteChanged = controller.model.onIgnoreChanged
                 addWindows[key] = controller; controller.model.setScope(paths); controller.model.reload()
                 controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
-            } catch { self.error = error.localizedDescription }
+            } catch { if !retired, !owner.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func showSVN(_ operation: GitSVNOperation) {
@@ -1612,14 +1632,13 @@ import UniformTypeIdentifiers
     }
 
     private func showAddProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal) {
-        let id = UUID(), controller = AddProgressWindowController(repository: repository, access: access, paths: paths, mode: mode)
+        let id = UUID(), controller = AddProgressWindowController(repository: repository, access: access, paths: paths, mode: mode, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.addProgressWindows.removeValue(forKey: id) }
         controller.model.onFinished = { [weak self] text, _ in
             self?.refreshRepositoryLogs(repository.root)
             self?.statusWindows[repository.root.path]?.model.requestReload()
             self?.commitWindows[repository.root.path]?.model.reload()
-            self?.output = text
-            if self?.root?.path == repository.root.path { Task { await self?.refresh() } }
+            if self?.root?.path == repository.root.path { self?.output = text; Task { await self?.refresh() } }
         }
         controller.model.onCommit = { [weak self] in self?.openSession(access ?? RepositoryAccessLease(url: repository.root), selected: FinderRequest(action: .commit, paths: [repository.root]), action: .commit) }
         addProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
@@ -1719,7 +1738,7 @@ import UniformTypeIdentifiers
             controller.model.alternateTool == ComparisonToolInvocation.alternate && controller.window?.attachedSheet == nil && controller.model.canReuseForComparison(from: from, to: to, paths: paths)
         }
         let key = reusable?.key ?? (revisionComparisonWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
-        let controller = reusable?.value ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to, paths: paths)
+        let controller = reusable?.value ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to, paths: paths, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.revisionComparisonWindows.removeValue(forKey: key) }
         configureRevisionComparisonInteractions(controller.model, repository: repository, access: access)
         revisionComparisonWindows[key] = controller
@@ -1855,12 +1874,16 @@ import UniformTypeIdentifiers
             presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, line: line)
         }
     }
-    func showPreviousDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, owner: NSWindow? = nil) {
+    func showPreviousDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, owner: NSWindow? = nil, unified: Bool = false) {
+        let alternate = ComparisonToolInvocation.capture, preferences = fileComparisonPreferences
         prepareFileComparisons(repository: repository, access: access, selectedCount: 1, owner: owner) { [self] token in
             let base = try await repository.previousDiffBase(path: path, cancellation: token)
             guard !confirmingQuit, !token.isCancelled else { return }
             if base.directory {
                 showRevisionComparison(repository: repository, access: access, from: .revision(base.revision), to: .workingTree, paths: [path])
+            } else if unified {
+                let bytes = try await repository.commandUnifiedDiff(from: base.revision, to: nil, paths: [path], cancellation: token)
+                try await presentCommandUnifiedDiff(bytes, title: base.revision + " → Working tree", repository: repository, access: access, alternate: alternate, preferences: preferences, cancellation: token)
             } else {
                 let snapshot = try await repository.revisionFileComparison(from: .revision(base.revision), to: .workingTree, paths: [path], cancellation: token)
                 guard !confirmingQuit, !token.isCancelled else { return }
@@ -2249,8 +2272,8 @@ import UniformTypeIdentifiers
         controller.model.onChanges={ [weak self, weak controller] snapshot in guard let controller else { return }; self?.showFileComparisons(repository:repository,access:access,snapshot:snapshot,owner:controller.window) }
         controller.model.onPrevious={ [weak self] origin,hash,number,inherited in self?.showBlame(repository:repository,access:access,path:origin,revision:hash,line:number,options:inherited) }
     }
-    private func showBlame(repository:GitRepository,access:RepositoryAccessLease?,path:String,revision:String,line:Int? = nil,options:GitBlameOptions? = nil) {
-        let key=repository.root.path+"\0"+path+"\0"+revision
+    private func showBlame(repository:GitRepository,access:RepositoryAccessLease?,path:String,revision:String,line:Int? = nil,options:GitBlameOptions? = nil,commandLaunch:Bool = false) {
+        let key=GitPathRowIdentity.encode(repository.root.path+"\0"+path+"\0"+revision)+(commandLaunch ? UUID().uuidString:"")
         var recentFailure:String?
         if blameRecentDocuments==nil { do { blameRecentDocuments=try BlameRecentDocuments.production() } catch { recentFailure="Recent files could not be loaded: "+error.localizedDescription } }
         let controller=blameWindows[key] ?? BlameWindowController(repository:repository,access:access,path:path,revision:revision,options:options ?? GitBlamePreferences.load(from:fileComparisonPreferences),preferences:fileComparisonPreferences,recentDocuments:blameRecentDocuments)
@@ -2260,7 +2283,7 @@ import UniformTypeIdentifiers
         controller.onDocumentChanged={ [weak self,weak controller] in
             guard let self,let controller else { return };self.configureBlameRoutes(controller)
             self.blameWindows=self.blameWindows.filter { $0.value !== controller }
-            let newKey=controller.model.repository.root.path+"\0"+controller.model.path+"\0HEAD"
+            let newKey=GitPathRowIdentity.encode(controller.model.repository.root.path+"\0"+controller.model.path+"\0HEAD")
             // Another window may already display this file; retain both without
             // corrupting either owner's lifecycle or discarding its work.
             let available=self.blameWindows[newKey]==nil ? newKey : newKey+"\0"+UUID().uuidString
@@ -3148,6 +3171,13 @@ import UniformTypeIdentifiers
         switch invocation.request.action {
         case .commit: showCommitDialog(repository: repository, access: access, paths: paths, invocation: invocation, commandMessage: message)
         case .log: showLog(repository: repository, access: access, paths: paths, selectedRevision: selectedRevision, invocation: invocation, outputAccess: outputAccess)
+        case .blame:
+            guard paths.count == 1, paths[0] != "." else { error = "Select one versioned file to blame."; return }
+            showBlame(repository: repository, access: access, path: paths[0], revision: invocation.blameRevision ?? "HEAD", line: invocation.line, commandLaunch: true)
+        case .previousDiff:
+            guard paths.count == 1 else { error = "Select one file or directory to compare."; return }
+            showPreviousDiff(repository: repository, access: access, path: paths[0], owner: workspaceWindow, unified: invocation.unified)
+        case .add: showAdd(repository: repository, access: access, paths: paths, commandLaunch: true)
         case .fetch: showFetch(repository: repository, access: access, remote: invocation.remote)
         case .pull: showFetch(repository: repository, access: access, isPull: true)
         case .push: showPush(repository: repository, access: access, source: invocation.pushBranch)
@@ -3201,15 +3231,18 @@ import UniformTypeIdentifiers
     private func showCommandUnifiedDiff(_ invocation: PrimaryCommandInvocation, repository: GitRepository, access: RepositoryAccessLease, paths: [String]) {
         prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: workspaceWindow) { [self] token in
             let bytes = try await repository.commandUnifiedDiff(from: invocation.diffFrom, to: invocation.diffTo, paths: paths, cancellation: token)
-            try token.check(); guard !confirmingQuit else { return }
-            if let commandUnifiedPresentation { commandUnifiedPresentation(bytes); return }
             let title = (invocation.diffFrom ?? "HEAD") + " → " + (invocation.diffTo ?? "Working tree")
-            if try await UnifiedDiffApplication.openExternal(bytes, alternate: invocation.request.alternateTool ?? false, preferences: fileComparisonPreferences, title: title, permissions: [access], cancellation: token) { return }
-            try token.check(); guard !confirmingQuit else { return }
-            let id = UUID()
-            let controller = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: nil, title: title, preferences: fileComparisonPreferences, onClosed: { [weak self] in self?.commandUnifiedWindows.removeValue(forKey: id) })
-            commandUnifiedWindows[id] = controller
+            try await presentCommandUnifiedDiff(bytes, title: title, repository: repository, access: access, alternate: invocation.request.alternateTool ?? false, preferences: fileComparisonPreferences, cancellation: token)
         }
+    }
+    private func presentCommandUnifiedDiff(_ bytes: Data, title: String, repository: GitRepository, access: RepositoryAccessLease?, alternate: Bool, preferences: UserDefaults, cancellation: OperationCancellation) async throws {
+        try cancellation.check(); guard !confirmingQuit, !retired else { return }
+        if let commandUnifiedPresentation { commandUnifiedPresentation(bytes); return }
+        if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: title, permissions: access.map { [$0] } ?? [], cancellation: cancellation) { return }
+        try cancellation.check(); guard !confirmingQuit, !retired else { return }
+        let id = UUID()
+        let controller = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: nil, title: title, preferences: preferences, onClosed: { [weak self] in self?.commandUnifiedWindows.removeValue(forKey: id) })
+        commandUnifiedWindows[id] = controller
     }
     private func handleFinderRequest(_ request:FinderRequest, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandCancellation: OperationCancellation? = nil, commandRootOnly: Bool = false, completion: ((Bool) -> Void)? = nil) {
         var handedOff = false

@@ -21,12 +21,17 @@ public enum AddFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func addSelectionIsFiles(_ paths: [String]) throws -> Bool {
+    public func addSelectionIsFiles(_ paths: [String], cancellation: OperationCancellation? = nil) throws -> Bool {
+        try cancellation?.check()
         guard !paths.isEmpty else { return false }
         return try paths.allSatisfy { path in
+            try cancellation?.check()
             guard path != "." else { return false }
             let location = try restoreLocation(path)
-            guard let type = try? FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType else { return false }
+            // Upstream AreAllPathsFiles excludes directories, including when
+            // an explicitly selected file has disappeared. Git stages tracked
+            // deletions or reports a missing untracked path in progress.
+            let type = try? FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType
             return type != .typeDirectory
         }
     }

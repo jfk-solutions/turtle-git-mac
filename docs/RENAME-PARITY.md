@@ -118,3 +118,10 @@ autocomplete-pending entries above describe the preceding implementation. Physic
 completion/focus/IME and signed access remain open.
 
 The connected [exact transfer identity continuation](FILE-TRANSFER-PARITY.md#exact-movecopyclipboarddrop-identities--october-17-2026) covers source rows, clipboard/drop capture, working-path resolution and Move/Rename/Copy/Add targets. Physical/signed and full dialog acceptance remain partial.
+
+The October 18 [source-file command family](COMMAND-LINE.md#source-file-actions-and-annotation-launches)
+connects `rename` to this native input/progress workflow after repository selection
+and permission. One path is required, including path-list launches. A repeated
+launch focuses the same dialog without replacing its edited name; Git moves run
+only after acceptance. No upstream new-name command preset exists in the pinned
+`RenameCommand`, so such an unsupported option is diagnosed rather than ignored.

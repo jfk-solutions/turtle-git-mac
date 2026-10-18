@@ -5,12 +5,12 @@ import TurtleGitCore
 @MainActor final class AddProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: AddProgressWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal, preferences: UserDefaults = .standard) {
         model = AddProgressWindowModel(repository: repository, access: access, paths: paths, mode: mode)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 460), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Add"); window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Add", preferences: preferences); window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 580, height: 330)
-        window.contentViewController = NSHostingController(rootView: AddProgressView(model: model))
+        window.contentViewController = NSHostingController(rootView: AddProgressView(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.close() }
 

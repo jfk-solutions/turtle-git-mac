@@ -105,3 +105,11 @@ minimum-OS acceptance remain open. Debug compilation, nine relevant Core tests
 and two native checks with system/bundled Git passed on the first grouped run. All
 owned receiver processes were reaped; no repeated or broader test rounds followed.
 See [batch evidence](qa/removal-progress-2026-10-14.json).
+
+The October 18 [source-file command family](COMMAND-LINE.md#source-file-actions-and-annotation-launches)
+connects `remove` and its source `keep` flag to the existing Remove/Abort question,
+progress and per-path Ignore/Abort handling. Both ordinary and keep-local modes
+retain Abort as the default. Launching the command never bypasses this confirmation;
+acceptance uses the existing captured removal plans and refresh routes. Path lists
+retain literal names and independent repository authorization. Windows shared
+process/taskbar switches and result status remain separate open work.

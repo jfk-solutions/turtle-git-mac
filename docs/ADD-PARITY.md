@@ -330,3 +330,18 @@ Open With/editor from its chooser through worker/launch drain; Add and Revert
 share a picker identity/release/retirement session. Actual grouped evidence,
 compatibility diagnosis and acceptance boundaries are in
 [the batch record](qa/add-revert-file-flow-2026-10-17.json).
+
+## Captured command preparation — October 18, 2026
+
+The [source-file CLI family](COMMAND-LINE.md#source-file-actions-and-annotation-launches)
+adds the upstream `add` entry: explicit files go directly to progress, directories
+to the scoped checklist. `AreAllPathsFiles` classifies a selected missing path as a
+file; native Add now stages a tracked deletion or reports Git's missing-path error
+rather than opening an empty checklist. Preparation checks cancellation before
+and within classification, retains its repository/access owner through drain and
+cannot open mutation progress after its initiating window closes. Pending
+preparation blocks Quit. A directory command preserves an existing checked draft.
+An Add result refreshes its captured repository's dialogs and updates workspace
+output only while that repository is still current. The existing checklist,
+colored file states, icon menus and normal/executable/symlink progress actions
+remain the native implementation; full Add/progress visual parity remains open.

@@ -21,6 +21,7 @@ public struct PrimaryCommandInvocation: Sendable {
     public let pushBranch: String?
     public let reflogReference: String?
     public let upstream: String?
+    public let blameRevision: String?
     public let forceRebase: Bool
     public let message: String?
     public let messageFile: URL?
@@ -44,7 +45,7 @@ public struct PrimaryCommandInvocation: Sendable {
             return key == "--command" || key.hasPrefix("--command=") || key.hasPrefix("/command:")
         }
         guard hasCommand else { return nil }
-        let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force"]
+        let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep"]
         let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream"]
         var values: [String: String] = [:], paths: [String] = [], index = 0
         while index < arguments.count {
@@ -94,6 +95,11 @@ public struct PrimaryCommandInvocation: Sendable {
         case "repobrowser": action = .repositoryBrowser
         case "reflog": action = .reflog
         case "rebase": action = .rebase
+        case "blame": action = .blame
+        case "prevdiff": action = .previousDiff
+        case "add": action = .add
+        case "rename": action = .rename
+        case "remove": action = values["keep"] != nil ? .removeKeep : .remove
         default: throw Failure("Unsupported command: " + (values["command"] ?? ""))
         }
         var allowed: Set<String> = ["command", "pathfile", "deletepathfile", "pathfile0"]
@@ -108,6 +114,9 @@ public struct PrimaryCommandInvocation: Sendable {
         case .switchBranch, .repositoryBrowser: allowed.insert("rev")
         case .reflog: allowed.insert("ref")
         case .rebase: allowed.formUnion(["upstream", "force"])
+        case .blame: allowed.formUnion(["endrev", "line"])
+        case .previousDiff: allowed.formUnion(["alternative", "unified"])
+        case .remove, .removeKeep: allowed.insert("keep")
         default: break
         }
         for key in values.keys.sorted() where !allowed.contains(key) { throw Failure("Option “" + key + "” is not valid for this command.") }
@@ -120,7 +129,7 @@ public struct PrimaryCommandInvocation: Sendable {
         if values["pathfile"] == nil && (values["deletepathfile"] != nil || values["pathfile0"] != nil) { throw Failure("Path-file options require pathfile.") }
         var line: Int?
         if let raw = values["line"] {
-            guard let number = Int(raw), (0...Int(Int32.max)).contains(number) else { throw Failure("Invalid comparison line number.") }
+            guard let number = Int(raw), (0...Int(Int32.max)).contains(number) else { throw Failure("Invalid source line number.") }
             line = number == 0 ? nil : number
         }
         var urls = try (paths.isEmpty ? [currentDirectory] : paths).map(file)
@@ -151,7 +160,8 @@ public struct PrimaryCommandInvocation: Sendable {
         let selected = try values["rev"].flatMap { $0.isEmpty ? nil : try revision($0) }
         let reflog = try values["ref"].flatMap { $0.isEmpty ? nil : try revision($0) }
         let upstream = try values["upstream"].flatMap { $0.isEmpty ? nil : try revision($0) }
-        if action == .clone && urls.count != 1 { throw Failure("Select one Clone destination.") }
+        let blameRevision = action == .blame ? try values["endrev"].flatMap { $0.isEmpty ? nil : try revision($0) } : nil
+        if values["pathfile"] == nil { try Self.validateSelection(urls, action: action) }
         var limit: HistoryLimitScope?
         if let raw = values["limit"]?.lowercased() {
             let digits = raw.prefix(while: { $0.isASCII && $0.isNumber }), suffix = raw.dropFirst(digits.count).trimmingCharacters(in: .whitespaces)
@@ -173,7 +183,13 @@ public struct PrimaryCommandInvocation: Sendable {
             let mapping: [(UInt16, HistorySearchFields)] = [(1,.messages),(2,.paths),(4,.authors),(8,.revisions),(32,.bugIDs),(64,.subject),(128,.referenceNames),(256,.emails),(512,.notes),(1024,.tagInfo)]
             fields = mapping.reduce(into: HistorySearchFields()) { result, item in if mask & item.0 != 0 { result.formUnion(item.1) } }
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: action == .diff ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, forceRebase: values["force"] != nil, message: values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+    }
+
+    private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {
+        if [.clone, .blame, .previousDiff, .rename].contains(action), urls.count != 1 {
+            throw Failure("This command requires one selected path.")
+        }
     }
 
     /// Read only after the caller has acquired the requested file's permission.
@@ -231,7 +247,7 @@ public struct PrimaryCommandInvocation: Sendable {
             urls.append(secondaryPath)
             guard FinderRequest.normalizedSelection(urls).count == 2 else { throw Failure("Select two different comparison files.") }
         }
-        if request.action == .clone && urls.count != 1 { throw Failure("Select one Clone destination.") }
+        try Self.validateSelection(urls, action: request.action)
         try cancellation.check()
         if deletePathFile {
             var current = stat()
@@ -268,10 +284,12 @@ extension GitRepository {
     /// literal pathspecs and command-only precomposition preserve exact names.
     public func commandUnifiedDiff(from: String?, to: String?, paths: [String], cancellation: OperationCancellation) throws -> Data {
         try cancellation.check()
-        guard (from == nil) == (to == nil), paths.allSatisfy({ !$0.contains("\0") }) else { throw RevisionComparisonFailure.range }
+        guard from != nil || to == nil, paths.allSatisfy({ !$0.contains("\0") }) else { throw RevisionComparisonFailure.range }
         var arguments = ["--literal-pathspecs", "-c", "core.precomposeunicode=false", "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary"] + diffDetection.comparisonArguments
-        if let from, let to { arguments += [try rebaseCommit(from, cancellation: cancellation).hash, try rebaseCommit(to, cancellation: cancellation).hash] }
-        else {
+        if let from {
+            arguments.append(try rebaseCommit(from, cancellation: cancellation).hash)
+            if let to { arguments.append(try rebaseCommit(to, cancellation: cancellation).hash) }
+        } else {
             let head = try run(["rev-parse", "--verify", "HEAD"], successfulExitCodes: 0...128, cancellation: cancellation)
             arguments += head.exitCode == 0 ? ["HEAD"] : ["--cached"]
         }

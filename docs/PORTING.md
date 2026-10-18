@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+The [source-file launch family](COMMAND-LINE.md#source-file-actions-and-annotation-launches)
+adds Blame revision/line viewers, Previous Diff file/directory/unified routes,
+source-style file Add progress and folder checklist, Rename and Remove/keep
+confirmation. Delayed Add preparation owns cancellation/permissions and preserves
+existing drafts and another repository's output. The native dialogs, colored
+source icons and existing Git operations are reused. See
+[batch evidence](qa/source-file-commands-2026-10-18.json) for actual validation and
+remaining entry/platform limits: 54 distinct focused Core passes, ten native
+case/engine passes after unified-range and busy-transfer repairs, and all twelve
+owned receivers reaped. No all-dialog completion is inferred.
+
 The connected [Clone/Init workspace handoff family](CLONE-PARITY.md#workspace-completion-handoffs--october-18-2026)
 replaces busy polling with captured completion ownership, unifies permission and
 rollback behavior with ordinary Open, preserves compound grants and stops

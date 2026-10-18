@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-18",
+  "scope": "Five TortoiseProc source-file entry handlers and captured Add preparation, Blame line navigation and Previous Diff unified dispatch",
+  "base_commit": "28a08b36983f732ee0af8a6f03adf57df9edb597",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_review": [
+    "Commands/BlameCommand.cpp endrev/line forwarding and AppUtils.cpp LaunchTortoiseBlame",
+    "Commands/PrevDiffCommand.cpp file history base, directory precedence, alternative/unified flags",
+    "Commands/AddCommand.cpp file-only progress versus scoped Add dialog and inactive noui implementation",
+    "Git/TGitPath.cpp AreAllPathsFiles and UpdateAttributes missing-file classification",
+    "Commands/RenameCommand.cpp input/validation and Commands/RemoveCommand.cpp keep flag, Abort default and per-path error handling",
+    "TortoiseGitBlame/TortoiseGitBlameDoc.cpp annotation document/revision/line startup"
+  ],
+  "implementation": [
+    "Typed blame/prevdiff/add/rename/remove handlers with action-specific options, remove keep projection and inline/path-list singleton validation before explicit list deletion",
+    "Independent Blame command viewers, historical endrev and clamped source selection/navigation, exact encoded path ownership keys",
+    "Previous Diff retains second selected-file history versus HEAD~1 directory semantics; file unified/alternative choice uses ordinary configured native/external viewer",
+    "File-only Add stages directly, including selected tracked deletion; missing unknown path fails without replacing the index",
+    "Owned cancellable Add preparation participates in Quit, rejects late completion after owner-close/retirement, preserves checked Add drafts and captures repository/output ownership",
+    "Existing native Rename input/progress and Remove/keep confirmations remain authoritative; Add/Remove/Rename/Changed Files receive owning private preference store",
+    "Repository-open cleanup releases only its own busy ownership; activated comparison keeps busy through held questions/reads. New native four-file held-question assertion covers this transfer"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "executed": 54,
+      "failures": 0,
+      "classes": [
+        "AddTests",
+        "FinderCommandBatchTests",
+        "GitBlameTests",
+        "PrimaryCommandInvocationTests",
+        "WorkingFileAddTests"
+      ],
+      "full_suite_rerun": false,
+      "log": "build/qa/source-file-commands-core-2026-10-18.log",
+      "distinct_cumulative_passes": 54
+    },
+    "native": {
+      "exit": 0,
+      "log": "build/qa/source-file-commands-native-unified-2026-10-18.log",
+      "distinct_case_engine_passes": 6,
+      "passed": [
+        "files/system",
+        "files/bundled",
+        "bare/system",
+        "bare/bundled",
+        "io/system",
+        "io/bundled"
+      ],
+      "scope": [
+        "Historical Blame revision and clamped line navigation in independent viewers, including authorized/deleted input list",
+        "Comparison keeps its busy owner through a held four-file question after repository adoption",
+        "File Previous Diff chooses second path-specific history entry; directory uses HEAD~1; unified bytes retain working changes",
+        "Rename review and repeated draft preservation, then actual accepted Git move",
+        "Folder Add scope and checked-draft refusal; file-only progress stages literal name and a selected tracked deletion",
+        "Remove Abort default and no mutation before confirmation, actual keep-local and actual deletion",
+        "Closed/retired Add preparation cancels late reply and blocks Quit until drained",
+        "Repository switch during Add preparation does not retarget the action or overwrite the new workspace output",
+        "Existing command-file reads/results/unified/source-line routes and new source-file bare guards"
+      ]
+    },
+    "core_affected_recheck": {
+      "exit": 0,
+      "executed": 1,
+      "failures": 0,
+      "test": "PrimaryCommandInvocationTests.testUnifiedDiffUsesExactScopeAndCapturedRevisions",
+      "reason": "Extend the shared patch reader with an explicit historical-base-to-working comparison and reject missing-base/to-only input; retain paired, HEAD-working, literal-scope and unchanged-index assertions",
+      "log": "build/qa/source-file-commands-core-unified-2026-10-18.log"
+    },
+    "debug_builds": [
+      {
+        "exit": 0,
+        "log": "build/qa/source-file-commands-build-2026-10-18.log"
+      },
+      {
+        "exit": 0,
+        "log": "build/qa/source-file-commands-build-unified-2026-10-18.log",
+        "reason": "Historical-to-working unified range support and transfer of busy ownership to activated comparison"
+      }
+    ],
+    "native_initial": {
+      "exit": 1,
+      "log": "build/qa/source-file-commands-native-2026-10-18.log",
+      "failed": "files/system at unified Previous Diff viewer after Blame and ordinary file comparison assertions",
+      "owned_receiver_pid": 94562
+    },
+    "native_diagnostic": {
+      "exit": 1,
+      "log": "build/qa/source-file-commands-native-diagnostic-2026-10-18.log",
+      "failed": "Same route, immediate no-viewer/no-error diagnostic exposed repository-open cleanup clearing a newly activated comparison busy flag; source inspection also found incompatible base-to-working patch call",
+      "owned_receiver_pid": 94830,
+      "assertions_removed": false
+    },
+    "blame_regression": {
+      "exit": 0,
+      "log": "build/qa/source-file-commands-blame-regression-2026-10-18.log",
+      "distinct_case_engine_passes": 4,
+      "passed": [
+        "commands/system",
+        "commands/bundled",
+        "editor/system",
+        "editor/bundled"
+      ],
+      "scope": "Existing source/native shortcuts, Go To zero/clamp/forced-close, pane focus, private source clipboard, UTF-16/Unicode/BOM/CRLF/no-final-newline display, range retention, scroll, Find/Go To and unchanged repository bytes"
+    },
+    "native_cumulative": {
+      "distinct_case_engine_passes": 10,
+      "runtime_attempts": 12,
+      "owned_receiver_pids": [
+        94562,
+        94830,
+        95215,
+        95782,
+        96358,
+        96438,
+        96518,
+        96766,
+        97045,
+        97069,
+        97099,
+        97127
+      ],
+      "cleanup": "All receivers reported reaped; independent ps exit 1 and empty stdout",
+      "unrepaired_failures": [],
+      "unaffected_cases_repeated": false
+    },
+    "localizations": {
+      "write_exit": 0,
+      "check_exit": 0,
+      "languages": 38,
+      "keys": 1284,
+      "log": "build/qa/source-file-commands-localizations-2026-10-18.log",
+      "generated_resource_changes": false
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "pending_control_reviews": 93,
+      "mapped_controls": 1566,
+      "statuses": {
+        "pending-review": 10,
+        "partial-native-replacement": 89,
+        "partial": 24,
+        "native-partial": 1,
+        "partial-workflow-replacement": 3,
+        "partial-native": 3
+      },
+      "not_a_completion_percentage": true
+    },
+    "warnings": [
+      "Successful Debug builds include existing CoreSimulator version and unrelated actor/weak-capture warnings; terminal build exits were 0",
+      "No new layout screenshots; existing native dialog and editor layout acceptance remains partial"
+    ],
+    "site": {
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": 0,
+      "log": "build/qa/source-file-commands-site-2026-10-18.log"
+    }
+  },
+  "limits": [
+    "Full Windows Working Copy sentinel and TortoiseGitBlame standalone executable protocol remain open",
+    "Add noui implementation is inactive upstream and remains explicitly unsupported, rather than silently stages files",
+    "Blame/Previous Diff/Rename require one native selection; repeated Rename focuses and preserves the existing draft rather than opening a separate Windows process",
+    "Physical Launch Services/Finder, signed App Store permissions, third-party external viewers and full all-dialog visual parity remain unverified",
+    "Other source commands, shared Windows switches and process exit protocol remain open; no complete port or current-head hosted pass claimed"
+  ]
+}

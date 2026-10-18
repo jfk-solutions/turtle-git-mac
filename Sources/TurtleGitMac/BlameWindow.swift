@@ -732,7 +732,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         pendingLine = nil
         guard !lines.isEmpty else { selection = nil; navigationMessage = "The previous file has no lines."; return }
         let selected = min(number, lines.count)
-        selection = selected; navigationMessage = "Line \(selected)"
+        goToLine(selected)
     }
     func showLog(_ line: GitBlameLine) { onLog?(line.filename, line.hash) }
     func copyLogMessage(_ hash:String) { copyHistoryDetails([hash],includePaths:true) }

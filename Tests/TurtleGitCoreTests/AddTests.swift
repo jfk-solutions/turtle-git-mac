@@ -2,6 +2,17 @@ import XCTest
 @testable import TurtleGitCore
 
 final class AddTests: XCTestCase {
+    func testMissingFileSelectionStagesDeletionAndUnknownPathPreservesIndex() async throws {
+        let (root,repo,path)=try await GitPatchTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
+        try FileManager.default.removeItem(at:root.appendingPathComponent(path))
+        let direct=try await repo.addSelectionIsFiles([path]);XCTAssertTrue(direct)
+        _ = try await repo.addReviewedPaths([path])
+        let indexed=try await repo.trackedPaths();XCTAssertFalse(indexed.contains(path))
+        let before=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let missing=try await repo.addSelectionIsFiles(["unknown.txt"]);XCTAssertTrue(missing)
+        do {_ = try await repo.addReviewedPaths(["unknown.txt"]);XCTFail("Missing untracked path succeeded")} catch {}
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),before)
+    }
     func testFolderSelectionIgnoredDefaultsAndLiteralCheckedAdd() async throws {
         let (root, repo, tracked) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let folder = root.appendingPathComponent("new", isDirectory: true)
@@ -59,6 +70,7 @@ final class AddTests: XCTestCase {
         let direct = try await repo.addSelectionIsFiles(["first.txt"]); XCTAssertTrue(direct)
         let whole = try await repo.addSelectionIsFiles(["."]); XCTAssertFalse(whole)
         let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.addSelectionIsFiles(["first.txt"], cancellation: token); XCTFail("Cancelled Add preparation succeeded") } catch {}
         do { _ = try await repo.addReviewedPaths(["first.txt"], cancellation: token); XCTFail("Cancelled add succeeded") } catch {}
         let before = try await repo.trackedPaths(); XCTAssertTrue(before.isEmpty)
         _ = try await repo.addReviewedPaths(["first.txt"])

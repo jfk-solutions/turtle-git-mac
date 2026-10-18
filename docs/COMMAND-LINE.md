@@ -100,7 +100,7 @@ command dispatch does not certify all-dialog visual or functional parity.
 
 ## Path-list input and Log revision output
 
-All six commands also accept `pathfile` in place of `path`. UTF-8 (with optional
+All documented commands also accept `pathfile` in place of `path`. UTF-8 (with optional
 BOM), UTF-16 with a BOM, and unmarked UTF-16LE detected by zero bytes are read as
 newline-separated paths. Use a BOM for unmarked wide text that could also be UTF-8;
 a completely non-ASCII wide list without zero bytes is ambiguous to auto-detection. CRLF is accepted; blank lines are skipped. Paths keep
@@ -219,3 +219,76 @@ Source review for this continuation covers
 `Commands/RefBrowseCommand.h` and `CloneDlg.cpp`, at the same pinned upstream
 commit. Windows URL-protocol registration and every legacy command/shared switch
 remain outside this continuation; unsupported options still report an error.
+
+## Source-file actions and annotation launches
+
+| Command | Source behavior and native destination |
+| --- | --- |
+| `blame` | One file; `endrev` selects a historical revision (HEAD by default), `line` selects a one-based source line |
+| `prevdiff` | One file or directory; `unified`, `alternative` for file viewers |
+| `add` | File-only selections start Add progress; a directory opens the scoped Add checklist |
+| `rename` | One selected path opens the existing Rename input/progress workflow |
+| `remove` | Selected files/directories open the normal Remove confirmation; `keep` removes from the index while retaining local files |
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=blame \
+  --path '/absolute/repository/file.txt' --endrev 'HEAD~2' --line 40
+
+open -n -a 'TurtleGit for Mac' --args --command=prevdiff \
+  --path '/absolute/repository/file.txt' --unified --alternative
+
+open -n -a 'TurtleGit for Mac' --args --command=add \
+  --path '/absolute/repository/new folder'
+
+open -n -a 'TurtleGit for Mac' --args --command=remove \
+  --path '/absolute/repository/file.txt' --keep
+```
+
+These commands also support the path-list input, authorization and explicit list
+removal described above. Blame, Previous Diff and Rename require one path,
+including after reading a list; invalid cardinality preserves a `deletepathfile`
+input. Native `--path` arguments keep shell-quoted asterisks and Unicode literal.
+
+Blame commands use separate viewers, preserving another viewer's selection and
+settings. The requested source line is selected and scrolled after annotation
+loads; values beyond the file clamp to its final line. Empty `endrev` selects
+HEAD. Native Blame's existing annotation, Log/source menus and colored margins
+are reused. Bare working-tree entry remains disabled. The Windows Working Copy
+sentinel and separate TortoiseGitBlame executable's entire argument protocol are
+not implemented by this TortoiseProc-style entry family.
+
+Previous Diff chooses the second history entry **for the selected file**, then
+compares it with working bytes; unrelated later commits do not change that base.
+A directory opens Changed Files from `HEAD~1` to Working tree. Its directory
+precedence ignores the file-only unified/tool choice, matching `PrevDiffCommand`.
+Repository-open cleanup preserves the busy owner acquired by a comparison while
+its question or Git reads are pending. Insufficient history reports the existing
+error. Unified file requests use the
+ordinary configured unified viewer (including the alternative tool), or the
+built-in colored patch document. Ordinary file requests use the existing native
+comparison/editor workflow and external-tool preference.
+
+Add follows the source's immediate file-only behavior: invoking it for files is
+an instruction to stage those files after authorization. No further checklist is
+shown. A missing selected tracked file stages its deletion; an unknown missing
+path reports a progress error. Directory selections open the checked Add list and
+wait for OK. A new directory command refuses to replace an existing Add draft.
+Preparation captures the repository, permission and initiating window, participates
+in Quit ownership, and rejects a late reply after window closure or termination.
+An explicit repository switch while preparation runs preserves the captured Add
+repository; its completion cannot overwrite the new workspace's output.
+`noui` is rejected: its upstream implementation is inactive and this port does not
+silently reinterpret it as permission for a different operation.
+
+Rename keeps an existing input draft for the same path; it runs only after OK.
+Remove uses the existing source-style Remove/Abort question, defaulting to Abort,
+and preserves the existing progress, Ignore/Abort errors and cancellation behavior.
+`keep` is accepted only with Remove. New commands do not implicitly accept Rename
+or Remove confirmation. Repository/file content is passed as Git arguments rather
+than evaluated shell text.
+
+Reviewed pinned handlers: `Commands/{Blame,PrevDiff,Add,Rename,Remove}Command.cpp`,
+`AppUtils.cpp::LaunchTortoiseBlame`, `Git/TGitPath.cpp::AreAllPathsFiles` and
+`TortoiseGitBlame/TortoiseGitBlameDoc.cpp`. Existing dialog layouts/icons and
+backend operations are reused. This adds entry paths; it does not certify complete
+source dialog, signed sandbox or process-exit protocol parity.

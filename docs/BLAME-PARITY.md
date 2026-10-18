@@ -1409,3 +1409,18 @@ Windows equivalence.
 ![Native Blame Go To Line in dark appearance](site/assets/blame-go-to-dark.png)
 
 The connected [workspace file workflow continuation](WORKSPACE-FILE-WORKFLOWS.md) covers exact overview selection, Finder reopening, shared viewer caches and Add/Commit drop identities. Earlier workspace-selection limitations describe the prior checkpoint; complete physical/signed and application parity remain open.
+
+## Native command launch and source line — October 18, 2026
+
+TortoiseProc-style `blame` accepts the selected file, `endrev` and positive `line`,
+as pinned `BlameCommand` forwards to `LaunchTortoiseBlame`. Each invocation gets
+an independent viewer; it cannot retarget an existing viewer's selection. Pending
+line selection now requests source-editor navigation after annotation loads, with
+last-line clamping. Existing previous-revision handoffs share that navigation.
+Window keys encode exact UTF-8 path identities so canonically equivalent Git
+names cannot alias a native viewer owner. The
+[command guide](COMMAND-LINE.md#source-file-actions-and-annotation-launches)
+records supported arguments, default HEAD, path-list authorization and remaining
+Windows sentinel/executable protocol limitations. This reuses the existing colored
+source/log panes, source icons, preferences and captured menus; it does not mark
+all Blame behavior or layout certified.

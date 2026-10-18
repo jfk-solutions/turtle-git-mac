@@ -6,6 +6,51 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         let value = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: cwd)
         return try XCTUnwrap(value)
     }
+    func testSourceFileCommandRoutingAndPresets() throws {
+        for (name,action) in [("add",RepositoryAction.add),("rename",.rename),("remove",.remove),("blame",.blame),("prevdiff",.previousDiff)] {
+            let value = try parse(["--command="+name,"--path","literal 雪[*].txt"])
+            XCTAssertEqual(value.request.action,action)
+            XCTAssertEqual(value.request.paths.map(\.path),["/repo/literal 雪[*].txt"])
+        }
+        let blame=try parse(["/command:blame","/endrev:topic~2","/line:21"])
+        XCTAssertEqual(blame.blameRevision,"topic~2");XCTAssertEqual(blame.line,21)
+        XCTAssertNil(blame.diffTo);XCTAssertNil(blame.selectedRevision)
+        XCTAssertNil(try parse(["/command:blame","/endrev:","/line:0"]).blameRevision)
+        let previous=try parse(["/command:prevdiff","/alternative","/unified"])
+        XCTAssertEqual(previous.request.alternateTool,true);XCTAssertTrue(previous.unified)
+        XCTAssertEqual(try parse(["/command:remove","/keep"]).request.action,.removeKeep)
+        XCTAssertEqual(try parse(["/command:remove","/path:a*b"]).request.paths.count,2)
+        XCTAssertEqual(try parse(["/command:add","/path:a*b"]).request.paths.count,2)
+    }
+    func testSourceFileInvalidOptionsAndCardinality() throws {
+        for args in [["/command:add","/noui"],["/command:remove","/keep:true"],["/command:add","/keep"],["/command:rename","/name:new"],["/command:blame","/rev:HEAD"],["/command:blame","/endrev:-invalid"],["/command:blame","/line:-1"],["/command:blame","/line:2147483648"],["/command:prevdiff","/line:1"],["/command:prevdiff","/startrev:HEAD"],["/command:remove","/force"]] {
+            XCTAssertThrowsError(try parse(args),args.joined(separator:" "))
+        }
+        for command in ["blame","prevdiff","rename","clone"] {
+            XCTAssertThrowsError(try parse(["--command="+command,"--path","one","--path","two"]))
+        }
+    }
+    func testSourceFileListsValidateBeforeDeletionAndKeepPresets() throws {
+        let folder=try temporaryDirectory();defer {try? FileManager.default.removeItem(at:folder)}
+        let file=folder.appendingPathComponent("paths")
+        for command in ["blame","prevdiff","rename"] {
+            try Data("one\ntwo\n".utf8).write(to:file)
+            let value=try parse(["--command="+command,"--pathfile",file.path,"--deletepathfile"])
+            XCTAssertThrowsError(try value.resolvingPathFile(cancellation:OperationCancellation()))
+            XCTAssertEqual(try Data(contentsOf:file),Data("one\ntwo\n".utf8))
+        }
+        try Data("literal 雪[*]\nname\0".utf8).write(to:file)
+        let value=try parse(["--command=blame","--pathfile",file.path,"--pathfile0","--endrev","HEAD~3","--line=12"])
+        let resolved=try value.resolvingPathFile(cancellation:OperationCancellation())
+        XCTAssertEqual(resolved.blameRevision,"HEAD~3");XCTAssertEqual(resolved.line,12)
+        XCTAssertEqual(resolved.request.paths.first?.path,"/repo/literal 雪[*]\nname")
+        XCTAssertEqual(resolved.selecting([folder]).blameRevision,"HEAD~3")
+        let previous=try parse(["--command=prevdiff","--pathfile",file.path,"--pathfile0","--alternative","--unified"])
+        let comparison=try previous.resolvingPathFile(cancellation:OperationCancellation())
+        XCTAssertTrue(comparison.unified);XCTAssertEqual(comparison.request.alternateTool,true)
+        let removal=try parse(["--command=remove","--pathfile",file.path,"--pathfile0","--keep"])
+        XCTAssertEqual(try removal.resolvingPathFile(cancellation:OperationCancellation()).request.action,.removeKeep)
+    }
     func testOrdinaryLaunchDoesNotTreatMacArgumentsAsCommands() throws {
         for arguments in [[], ["-psn_0_123"], ["-ApplePersistenceIgnoreState", "YES"], ["--path", "/repo"]] {
             XCTAssertNil(try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: "/repo"))
@@ -161,6 +206,9 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         XCTAssertTrue(historical.contains("+selected revision"));XCTAssertFalse(historical.contains("excluded"));XCTAssertFalse(historical.contains("selected working"))
         let working=String(decoding:try await repo.commandUnifiedDiff(from:nil,to:nil,paths:[paths[0]],cancellation:OperationCancellation()),as:UTF8.self)
         XCTAssertTrue(working.contains("+selected working"));XCTAssertFalse(working.contains("excluded"))
+        let previous=String(decoding:try await repo.commandUnifiedDiff(from:base.hash,to:nil,paths:[paths[0]],cancellation:OperationCancellation()),as:UTF8.self)
+        XCTAssertTrue(previous.contains("-base"));XCTAssertTrue(previous.contains("+selected working"));XCTAssertFalse(previous.contains("excluded"))
+        do {_ = try await repo.commandUnifiedDiff(from:nil,to:head.hash,paths:[paths[0]],cancellation:OperationCancellation());XCTFail("Missing base accepted")} catch {}
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
     }
 
