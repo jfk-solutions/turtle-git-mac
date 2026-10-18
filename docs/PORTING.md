@@ -3058,3 +3058,21 @@ comparison/child release. Canonical targets, captured alternative-tool choices,
 source artwork, actual cancelled-read ownership and inherited preferences remain
 part of the end-user workflow. Its evidence records the grouped checkpoint and
 remaining Windows matrix, physical/visual, signed and whole-port gaps.
+
+
+### Commit, replay message and transport workflow batch, 2026-10-18
+
+Three parallel owners extended [Commit option transitions](COMMIT-OPTION-TRANSITION-PARITY.md),
+[Rebase message editing](REBASE-MESSAGE-EDITING-PARITY.md) and
+[Fetch/Pull handoffs](FETCH-PULL-HANDOFF-PARITY.md). Message-only list actions,
+checked-file Edit amendment, stopped-message drafts, actual native sheet release,
+failed owned-Rebase recovery and delayed Quit belong to these connected operation
+workflows. Follow-up windows inherit their originating presentation preferences.
+The grouped checkpoint is recorded in
+[operation workflow evidence](qa/operation-workflows-2026-10-18.json).
+
+This remains a partial source-family audit. Existing source controls are not a
+completion percentage; full visual comparison, physical macOS/Finder acceptance,
+current hosted integration and signed/App Store distribution remain separate,
+unfinished gates. Bundled Mac Help is regenerated with included guide changes;
+the Pages source check must pass before website rendering and deployment.

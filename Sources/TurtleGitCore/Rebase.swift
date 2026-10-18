@@ -133,6 +133,28 @@ public struct RebaseSessionSnapshot:Sendable {
     public var indexFlags:GitPathMap<FinderIndexFlags>=[:]
     public let head:String
     public let remaining:[RebaseEntry],replay:[RebaseEntry]
+    public var messageCommit: LogEntry? = nil
+}
+
+/// A draft belongs to one stopped occurrence and applied HEAD, never just a
+/// repository path or step number. Changing the applied object retires it.
+public struct RebaseMessageIdentity: Codable, Equatable, Sendable {
+    public let originalHead: String, branch: String, onto: String, entry: String, head: String, phase: String
+    public let step: Int
+    public init?(state: RebaseState, head: String) {
+        guard state.active, !head.isEmpty, state.needsFileRecovery || state.isEditPause || state.squashMessage != nil || state.split != nil else { return nil }
+        originalHead = state.originalHead; branch = state.branch; onto = state.onto; entry = state.stoppedEntryID; self.head = head; step = state.currentStep
+        phase = state.squashMessage != nil ? "squash" : state.split?.conflictRecovery == true ? "amend-selection" : state.split != nil ? "split" : state.isEditPause ? "edit" : "conflict"
+    }
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.step == rhs.step && lhs.phase == rhs.phase &&
+            zip([lhs.originalHead, lhs.branch, lhs.onto, lhs.entry, lhs.head], [rhs.originalHead, rhs.branch, rhs.onto, rhs.entry, rhs.head]).allSatisfy { GitReferenceName.equal($0.0, $0.1) }
+    }
+}
+public struct RebaseMessageDraft: Codable, Sendable {
+    public let identity: RebaseMessageIdentity
+    public let message: String
+    public init(identity: RebaseMessageIdentity, message: String) { self.identity = identity; self.message = message }
 }
 
 public struct RebaseExecution: Sendable {
@@ -569,12 +591,13 @@ extension GitRepository {
         })
         let remaining=state.active && includeReplay ? try remainingRebaseEntries(cancellation:cancellation):[]
         let replay=state.active && includeReplay ? try rebaseReplayEntries(cancellation:cancellation):[]
+        let messageCommit = state.active && !head.isEmpty && (state.isEditPause || state.squashMessage != nil || state.split != nil) ? try rebaseCommit(head, cancellation: cancellation) : nil
         let final=try rebaseState(cancellation:cancellation),finalHead=try run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:cancellation).text.trimmingCharacters(in:.newlines)
         try cancellation?.check()
         guard state.active == final.active,identity == RebaseConflictIdentity(final),state.stoppedAction == final.stoppedAction,
               state.remainingCommands == final.remainingCommands,state.conflicts.map({GitReferenceName($0)}) == final.conflicts.map({GitReferenceName($0)}),state.message == final.message,
               state.squashMessage?.message == final.squashMessage?.message,state.isEditPause == final.isEditPause,head == finalHead else {throw RebaseFailure.changed}
-        return RebaseSessionSnapshot(state:state,identity:recovery ? identity:nil,fileRecovery:recovery,conflicts:conflicts,rows:rows,statistics:statistics,indexFlags:indexFlags,head:head,remaining:remaining,replay:replay)
+        return RebaseSessionSnapshot(state:state,identity:recovery ? identity:nil,fileRecovery:recovery,conflicts:conflicts,rows:rows,statistics:statistics,indexFlags:indexFlags,head:head,remaining:remaining,replay:replay,messageCommit:messageCommit)
     }
     public func rebaseTodo(_ plan: RebasePlan) throws -> String {
         try validateRebaseIdentities(plan)
@@ -879,6 +902,24 @@ extension GitRepository {
         try JSONEncoder().encode(split).write(to: rebasePath("rebase-merge/turtlegit-split.json"), options: .atomic)
         return split
     }
+    /// Edit's dirty-worktree handoff amends the applied commit, without turning
+    /// the first accepted selection into a new split part or resetting HEAD.
+    public func beginRebaseEditSelection(expected: RebaseState, expectedHead: String, cancellation: OperationCancellation? = nil) throws -> RebaseSplitState? {
+        try withReplayIO(cancellation: cancellation, onOutput: nil) {
+            let state = try rebaseState(); try requireRebaseContinuation(state, expected: expected, expectedHead: expectedHead)
+            guard state.isEditPause, state.squashMessage == nil, state.split == nil else { throw RebaseFailure.plan }
+            guard try rebaseSplitHasRemainingChangesOwned() else { return nil }
+            let head = try rebaseCommit("HEAD")
+            guard head.hash == expectedHead else { throw RebaseFailure.changed }
+            try requireRebaseContinuation(rebaseState(), expected: expected, expectedHead: expectedHead)
+            var selection = RebaseSplitState(entryID: state.stoppedEntryID, step: state.currentStep, expectedHead: head.hash, parts: 0,
+                                             firstAuthor: head.author + " <" + head.email + ">", firstDate: head.date, squashDate: nil)
+            selection.conflictRecovery = true; selection.firstParents = head.parents
+            try replayCancellation?.check()
+            try JSONEncoder().encode(selection).write(to: rebasePath("rebase-merge/turtlegit-split.json"), options: .atomic)
+            return selection
+        }
+    }
     /// Commit checked conflict-resolution files against destination HEAD. The
     /// durable continuation record keeps excluded index/worktree changes available
     /// for the native amend loop; Git's original replay metadata remains in place.
@@ -911,7 +952,9 @@ extension GitRepository {
         return RebaseExecution(output: output, exitCode: 0, state: try rebaseState())
     }
     private func rebaseSplitHasRemainingChangesOwned() throws -> Bool {
-        try status().contains { $0.state != .untracked && $0.state != .ignored }
+        let worktree = try run(["diff", "--quiet", "--ignore-submodules", "--"], successfulExitCodes: 0...1).exitCode
+        let index = try run(["diff", "--cached", "--quiet", "--ignore-submodules", "HEAD", "--"], successfulExitCodes: 0...1).exitCode
+        return worktree != 0 || index != 0
     }
     private func cancelUnstartedRebaseSplitOwned() throws {
         guard let split = try rebaseState().split, split.parts == 0, try rebaseRevision("HEAD") == split.expectedHead else { throw RebaseFailure.changed }

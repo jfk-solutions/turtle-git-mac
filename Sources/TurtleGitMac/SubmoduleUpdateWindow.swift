@@ -45,6 +45,7 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
     private let requestedSelection: [String]
     private var loaded = false, invalidated = false, submitted = false
     private let preferences: UserDefaults
+    var presentationPreferences: UserDefaults { preferences }
     private var loadToken: OperationCancellation?
     private var formRevision = UUID()
     struct FormContext: Equatable { let owner: ObjectIdentifier; let revision: UUID }

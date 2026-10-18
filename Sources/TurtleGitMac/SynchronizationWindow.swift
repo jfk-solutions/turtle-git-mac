@@ -440,6 +440,7 @@ final class SynchronizationNativeWindow: NSWindow {
                 var dismissed = false
                 var handoffError: Error?
                 child.model.onOwnedRebase = { [weak self, weak child] target, autoStart, preserve in
+                    handoffError = nil
                     guard let self, !self.model.closed, let child, let options = child.window,
                           options.sheetParent === owner, let progress = child.fetchProgressController?.window,
                           progress.sheetParent === options, progress.attachedSheet == nil else { handoffError = OperationCancellationFailure.cancelled; throw OperationCancellationFailure.cancelled }

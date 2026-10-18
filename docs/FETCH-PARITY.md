@@ -1,5 +1,7 @@
 # Fetch dialog parity
 
+See the October 18 [completion and owned Rebase handoff follow-up](FETCH-PULL-HANDOFF-PARITY.md) for native sheet drain, failed handoff recovery and deferred Quit ownership.
+
 Reference: `PullFetchDlg.cpp`, `IDD_PULLFETCH`, FetchCommand and `CAppUtils::Fetch/DoFetch`
 at the pinned commit in `upstream.json`. Native Pull shares this implementation; see PULL-PARITY.md for its merge options
 and remaining workflows.

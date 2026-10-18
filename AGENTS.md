@@ -82,3 +82,12 @@ uses localized captions by default; pass localized: false for user-derived title
 Keep the generated locale IDs, manifest and translator notices together. Do not
 claim complete localization from label-resource counts. The SwiftPM executable is
 an unbundled development entry point; localized distribution uses the Xcode app.
+
+## Bundled Mac Help
+
+After changing a guide included by `docs/help-topics.json`, regenerate the tracked
+help book with `scripts/build-help.py` after documentation freezes and before the
+batch app build. Run `scripts/build-help.py --check` before committing. Use the
+site Python environment when the system Python lacks the renderer dependency.
+Keep the generated HTML, Info.plist and help manifest together; the Pages workflow
+checks them before rendering the website.

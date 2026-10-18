@@ -811,6 +811,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/COMMIT-METADATA-LIFETIME-PARITY.md",
+        "docs/COMMIT-OPTION-TRANSITION-PARITY.md",
         "docs/COMMIT-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
         "docs/PRIMARY-COMMAND-BANDS.md",
@@ -2849,6 +2850,7 @@
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
         "docs/REBASE-ACTION-CONTROLS.md",
         "docs/REBASE-HISTORY-TOOLS-PARITY.md",
+        "docs/REBASE-MESSAGE-EDITING-PARITY.md",
         "docs/REBASE-PARITY.md",
         "docs/REBASE-PENDING-ACTIONS-PARITY.md",
         "docs/REBASE-REFERENCE-CONTEXT-PARITY.md",

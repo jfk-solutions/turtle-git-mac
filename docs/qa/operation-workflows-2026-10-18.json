@@ -1,0 +1,147 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "cdc17f6956a125909cb84bf015cf41bd4b0fec13",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Commit Message-only classic/staging native action suspension and amend read/draft ownership",
+    "Rebase dirty Edit checked-amend selection, applied message/author context and stopped-phase drafts",
+    "Fetch/Pull actual sheet completion, captured one-shot post-actions, owned Rebase recovery and deferred Quit",
+    "Originating preferences and repository-access leases through connected operation handoffs",
+    "Tracked Mac Help source regeneration for hosted Pages failure"
+  ],
+  "validation": {
+    "status": "passed scoped grouped checkpoint",
+    "build_attempts": [
+      {
+        "log": "operation-workflows-build-2026-10-18.log",
+        "exit": 65,
+        "scope": "AppKit async beginSheet overload in Fetch recovery needed explicit synchronous completionHandler:nil."
+      },
+      {
+        "log": "operation-workflows-build-repair-2026-10-18.log",
+        "exit": 0
+      },
+      {
+        "log": "operation-workflows-build-rebase-options-2026-10-18.log",
+        "exit": 0,
+        "scope": "Affected native Rebase option-restoration repair."
+      },
+      {
+        "log": "operation-workflows-build-retirement-2026-10-18.log",
+        "exit": 0,
+        "scope": "Affected native Fetch closed-owner error-alert guard."
+      }
+    ],
+    "core": {
+      "log": "operation-workflows-core-2026-10-18.log",
+      "exit": 0,
+      "cases": 12,
+      "attempts": 1,
+      "selection": "RebaseMessageEditingTests|RebaseSessionSnapshotTests|RebaseTests.testUnstartedSplitCancelAndMultilineEditContinueLeaveReplayUsable|RebaseTests.testCancelFirstSplitAfterCheckedConflictRestoresAppliedEditPause"
+    },
+    "native": {
+      "distinct_case_engine_passes": 6,
+      "cases": [
+        "commit",
+        "rebase",
+        "transport"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "attempts": [
+        {
+          "log": "operation-workflows-native-2026-10-18.log",
+          "exit": 1,
+          "scope": "Commit fixture incorrectly expected actual classic Message-only amend to preserve staged patch; source intentionally normalizes in-scope index. No passing cases repeated."
+        },
+        {
+          "log": "operation-workflows-native-source-index-2026-10-18.log",
+          "exit": 1,
+          "scope": "Corrected fixture checks option-transition index invariance, then source-defined actual commit normalization. Commit passed both engines; Rebase/system exposed omitted durable attribution-option restoration."
+        },
+        {
+          "log": "operation-workflows-native-remaining-2026-10-18.log",
+          "exit": 1,
+          "scope": "Rebase passed both engines after native session option restoration. Transport/system synthetic failure lacked LocalizedError; cleanup also exposed late outer Fetch error alert after owner retirement."
+        },
+        {
+          "log": "operation-workflows-native-transport-2026-10-18.log",
+          "exit": 0,
+          "scope": "Only transport repeated: localized injected diagnostics, actual window/sheet cleanup wait, closed-owner alert guard. Both engines passed. Prior Commit/Rebase passes retained."
+        }
+      ]
+    },
+    "ownership": {
+      "owned_receiver_pids": [
+        29827,
+        32267,
+        32699,
+        33134,
+        33647,
+        34420,
+        35196,
+        35627,
+        35800
+      ],
+      "independently_absent": true,
+      "active_owned_processes": [],
+      "note": "Receiver lifecycle checks retire owned windows and wait actual operation/release counters; native_receiver.py reaps each owned process group on all outcomes."
+    },
+    "resources": {
+      "localization_check": {
+        "exit": 0,
+        "languages": 38,
+        "keys": 1289
+      },
+      "help_check": {
+        "exit": 0,
+        "documents": 39,
+        "topics": 48,
+        "files": 59
+      },
+      "coverage_check": {
+        "exit": 0,
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1566,
+        "pending_control_reviews": 93
+      },
+      "site_build": {
+        "exit": 0,
+        "documents": 320,
+        "unresolved_fragments": []
+      },
+      "site_link_tests": {
+        "exit": 0,
+        "tests": 2
+      },
+      "site_search_tests": {
+        "exit": 0,
+        "scope": "Search, filtering, no-match and load-failure"
+      },
+      "diff_check": {
+        "exit": 0
+      }
+    }
+  },
+  "behavior_note": "Classic Message-only actual commit normalizes displayed tracked index entries per upstream; toggling options alone preserves the prior index. HEAD tree and working inputs remain unchanged by the tested message-only amend.",
+  "hosted_evidence_at_checkpoint": {
+    "base_macos_run": 39148538823,
+    "base_macos_status": "pending",
+    "base_pages_run": 39148538824,
+    "base_pages_conclusion": "failure",
+    "base_pages_failure": "Check bundled Mac help sources: stale LOG-FIND.html, Info.plist, manifest.json. Regenerated tracked help in this batch. Current commit hosted result is not yet proven."
+  },
+  "remaining": [
+    "Source amend-failure Ignore behavior and broader existing per-family gaps remain documented.",
+    "Complete upstream Windows interaction/state matrix and visual comparison of every dialog.",
+    "Physical Finder menu/badge integration, physical keyboard/menu/VoiceOver acceptance.",
+    "Minimum macOS/Intel acceptance, current full hosted integration, signed sandbox deployment and App Store distribution.",
+    "Custom TurtleGit artwork recovery/replacement remains unresolved; no icon completion is claimed."
+  ],
+  "limits": "A local Debug build, focused Core pass and six native case/engine passes do not certify a whole dialog, full source parity, physical Finder behavior, signed distribution or App Store readiness."
+}

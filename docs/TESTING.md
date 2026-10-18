@@ -2295,3 +2295,26 @@ moved preferred refs without fallback, native options presets and owned
 cancellation/selection/close/retirement/Quit behavior. It uses private repositories
 and preferences, preserves HEAD/index tree/status, closes owned windows and reaps
 helpers. This is a native-only preparation change; no Core implementation changed.
+
+
+## Commit, Rebase message and Fetch/Pull workflow checkpoint
+
+`scripts/test-operation-workflows.py` compiles one cached receiver for the connected
+operation batch. It accepts repeated `--git` arguments and `--only commit`,
+`--only rebase` or `--only transport` for an affected repair. The default runs all
+three completed implementation families. Each invocation uses private repositories
+and preferences and hides owned native windows and children. Cleanup retires the
+owners and waits for actual metadata, Git and sheet-release work; process ownership
+is also enforced by `native_receiver.py` on success, failure and timeout.
+
+Core changes in this batch are limited to Rebase message snapshots and guarded
+Edit amend-selection preparation. Run the relevant Rebase Core cases as one group;
+Commit/Fetch native-only corrections do not require another full Core run. Grouped
+results and any repairs are recorded in `qa/operation-workflows-2026-10-18.json`.
+Physical interaction, hosted integration, signed sandbox/Finder and full source
+visual parity require their own evidence.
+
+When changing included Mac Help guides, run `scripts/build-help.py` after the guide
+edits and before building the app, then `scripts/build-help.py --check` before
+committing. The Pages workflow validates the tracked help HTML and manifest before
+building the website. A passing site render alone does not validate those sources.

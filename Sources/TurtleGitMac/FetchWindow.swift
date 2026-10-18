@@ -6,17 +6,19 @@ import TurtleGitCore
 
 @MainActor final class FetchWindowController: NSWindowController, NSWindowDelegate {
     let model: FetchWindowModel
+    static var activeProgressReleases: Int { TransportProgressRelease.activeCount }
     var onClosed: () -> Void = {}
-    var presentPullProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
+    var presentPullProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; child.alphaValue = owner.alphaValue; child.appearance = owner.appearance; owner.beginSheet(child); return true }
     private(set) var remoteReferenceController: RemoteReferenceWindowController?
     var configureRemoteReferences: (RemoteReferenceWindowController) -> Void = { _ in }
-    var presentRemoteReferences: (NSWindow,NSWindow) -> Bool = { owner,child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
+    var presentRemoteReferences: (NSWindow,NSWindow) -> Bool = { owner,child in guard owner.attachedSheet == nil else { return false }; child.alphaValue = owner.alphaValue; child.appearance = owner.appearance; owner.beginSheet(child); return true }
     private var remotePickerRequest: UUID?
     private var remotePickerCompletion: (() -> Void)?
     private weak var remotePickerFocus: NSResponder?
     private var closingPreparation = false
+    private var rebasePresentation: (parent: NSWindow?, visible: Bool)?
     private(set) var progressController: PullProgressWindowController?
-    var presentFetchProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
+    var presentFetchProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; child.alphaValue = owner.alphaValue; child.appearance = owner.appearance; owner.beginSheet(child); return true }
     private(set) var fetchProgressController: FetchProgressWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, preferences: UserDefaults = .standard) {
         model = FetchWindowModel(repository: repository, access: access, isPull: isPull, preferences: preferences)
@@ -25,7 +27,7 @@ import TurtleGitCore
         let host = NSHostingController(rootView: FetchDialog(model: model).defaultAppStorage(preferences)); host.sizingOptions = []; window.contentViewController = host
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width:700,height:480)); window.center()
         model.becameIdle = { [weak self] in if self?.closingPreparation == true { self?.window?.performClose(nil) } }
-        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.browsing, !self.model.preparingRemote, self.model.progress == nil, self.model.fetchProgress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.confirmingQuit, !self.model.busy, !self.model.browsing, !self.model.preparingRemote, self.model.progress == nil, self.model.fetchProgress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] progress in
             guard let self else { progress.invalidate(); return }
             guard let window = self.window, window.attachedSheet == nil else { self.model.abandonPullPresentation(progress); return }
@@ -53,8 +55,13 @@ import TurtleGitCore
         model.sshSettings.present = { [weak self] controller in
             guard let self, let owner = self.fetchProgressController?.window ?? self.progressController?.window ?? self.window,
                   owner.attachedSheet == nil, let child = controller.window else { return false }
-            owner.makeFirstResponder(nil); owner.beginSheet(child); return true
+            owner.makeFirstResponder(nil); child.alphaValue = owner.alphaValue; child.appearance = owner.appearance; owner.beginSheet(child); return true
         }
+        model.beforeOwnedRebase = { [weak self] in
+            guard let self, let window = self.window else { return }
+            self.rebasePresentation = (window.sheetParent, window.isVisible)
+        }
+        model.recoverOwnedRebase = { [weak self] in await self?.restoreRebasePresentation() }
         model.onBrowseRemote = { [weak self] remote in self?.showRemoteReferences(remote) }
         model.confirmCancellation = { [weak window] choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
@@ -63,11 +70,30 @@ import TurtleGitCore
             alert.informativeText = "Are you sure to abort?"
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
             yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
 
         NotificationCenter.default.addObserver(self, selector: #selector(remotePickerSheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         DialogGeometry.attach(window, identifier: "FetchWindowController")
+    }
+    private func restoreRebasePresentation() async {
+        guard !model.closed, let window, let original = rebasePresentation,
+              let progress = fetchProgressController?.window else { return }
+        let chain: [(NSWindow,NSWindow)] = original.parent.map { [($0,window),(window,progress)] } ?? [(window,progress)]
+        for (parent,child) in chain {
+            guard !model.closed else { return }
+            if child.sheetParent === parent && parent.attachedSheet === child { continue }
+            // endSheet animations may still own attachedSheet after the handoff
+            // callback has returned its failure. Reattach only after actual drain.
+            await withCheckedContinuation { continuation in
+                let release = TransportProgressRelease(window: child, parent: parent) { continuation.resume() }
+                release.start()
+            }
+            guard !model.closed, parent.attachedSheet == nil else { return }
+            child.alphaValue = parent.alphaValue; child.appearance = parent.appearance; parent.beginSheet(child, completionHandler: nil)
+        }
+        if original.parent == nil && original.visible { window.orderFront(nil) }
     }
     @objc private func remotePickerSheetEnded() {
         guard let window, window.attachedSheet == nil, !model.closed, let completion = remotePickerCompletion else { return }
@@ -108,6 +134,7 @@ import TurtleGitCore
         onClosed()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !model.confirmingQuit else { return false }
         if model.preparing { closingPreparation = true; model.cancelPreparation(); return false }
         if model.progress != nil || model.fetchProgress != nil { if model.transportRunning { model.cancel() }; return false }
         guard model.transportRunning else { return !model.busy && sender.attachedSheet == nil }
@@ -117,6 +144,7 @@ import TurtleGitCore
 }
 @MainActor final class FetchWindowModel: ObservableObject {
     static var activePreparationReads = 0
+    static var activeProgressOperations: Int { PullProgressWindowModel.activeOperations + FetchProgressWindowModel.activeOperations }
     let repository: GitRepository
     let isPull: Bool
     let sshSettings: SSHTransportSettings
@@ -145,6 +173,10 @@ import TurtleGitCore
     @Published var tagsDefault = ""
     @Published var pruneDefault = ""
     @Published var busy = false
+    @Published var confirmingQuit = false { didSet {
+        if confirmingQuit != oldValue { formRevision = UUID() }
+        progress?.confirmingQuit = confirmingQuit; fetchProgress?.confirmingQuit = confirmingQuit
+    } }
     var cancelling: Bool { progress?.cancelling ?? fetchProgress?.cancelling ?? false }
     var confirmingCancellation: Bool { progress?.confirmingCancellation ?? fetchProgress?.confirmingCancellation ?? false }
     @Published private(set) var progress: PullProgressWindowModel?
@@ -165,12 +197,13 @@ import TurtleGitCore
     private var loadPresetRemote: String?
     private var loadPresetAllRemotes: Bool?
     func retryPreparation() {
-        guard !closed, !busy, !preparing else { return }
+        guard !closed, !confirmingQuit, !busy, !preparing else { return }
         if !metadataLoaded { load(remote: loadPresetRemote, allRemotes: loadPresetAllRemotes) } else { remoteChanged() }
     }
     private var invalidated = false
+    private var completedPresentation = false
     var closed: Bool { invalidated }
-    var operationActive: Bool { preparationNeedsRetry || busy || preparingRemote || browsing || progress != nil || fetchProgress != nil }
+    var operationActive: Bool { confirmingQuit || preparationNeedsRetry || busy || preparingRemote || browsing || progress != nil || fetchProgress != nil }
     func invalidate() {
         invalidated = true; formRevision = UUID(); generation += 1; metadataToken?.cancel(); metadataToken = nil; remoteToken?.cancel(); remoteToken = nil
         remoteSettings.invalidate(); preparingRemote = false; becameIdle = {}; close = {}
@@ -180,14 +213,14 @@ import TurtleGitCore
     func abandonFetchPresentation(_ result: FetchProgressWindowModel) { guard fetchProgress === result else { return }; result.invalidate(); fetchProgress = nil; busy = false }
     func finish(_ result: PullProgressWindowModel) {
         guard !invalidated, progress === result, !result.busy, !result.confirmingConflictHint, !result.confirmingCancellation, !result.dispatchingAction else { return }
-        progress = nil; error = nil; result.invalidate(); close()
+        completedPresentation = true; progress = nil; error = nil; result.invalidate(); close()
     }
     func finishFetch(_ result: FetchProgressWindowModel) {
         guard !invalidated, fetchProgress === result, !result.busy, !result.confirmingCancellation, !result.confirmingRebaseDecision, !result.dispatchingAction else { return }
-        fetchProgress = nil; error = nil; result.invalidate(); close()
+        completedPresentation = true; fetchProgress = nil; error = nil; result.invalidate(); close()
     }
     var transportRunning: Bool { progress?.busy ?? fetchProgress?.busy ?? false }
-    var canCancel: Bool { !invalidated && (preparing || (progress?.canCancel ?? fetchProgress?.canCancel ?? !busy)) }
+    var canCancel: Bool { !invalidated && !confirmingQuit && (preparing || (progress?.canCancel ?? fetchProgress?.canCancel ?? !busy)) }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     @Published var error: String?
     @Published var browsing = false { didSet { if browsing != oldValue { formRevision = UUID() } } }
@@ -198,6 +231,8 @@ import TurtleGitCore
     var onFetched: (String) -> Void = { _ in }
     var onRebase: (String, Bool, Bool) -> Void = { _, _, _ in }
     var onOwnedRebase: ((String, Bool, Bool) async throws -> Void)?
+    var beforeOwnedRebase: () -> Void = {}
+    var recoverOwnedRebase: () async -> Void = {}
     private var generation = 0
     private var key: String { (isPull ? "Pull." : "Fetch.") + repository.root.path }
     var configuredRebase: Bool { isPull && rebaseRequired && !options.arbitraryURL }
@@ -209,7 +244,7 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func load(remote presetRemote: String? = nil, allRemotes presetAllRemotes: Bool? = nil) {
-        guard !invalidated, !busy, !preparingRemote, !browsing, progress == nil, fetchProgress == nil else { return }; formRevision = UUID(); busy = true; error = nil; preparationNeedsRetry = false
+        guard !invalidated, !confirmingQuit, !busy, !preparingRemote, !browsing, progress == nil, fetchProgress == nil else { return }; formRevision = UUID(); busy = true; error = nil; preparationNeedsRetry = false
         loadPresetRemote = presetRemote; loadPresetAllRemotes = presetAllRemotes
         let token = OperationCancellation(); metadataToken = token; Self.activePreparationReads += 1
         Task { [self, access] in
@@ -381,7 +416,7 @@ import TurtleGitCore
         var pullOptions = PullOptions(); pullOptions.fetch = snapshot; pullOptions.squash = squash; pullOptions.noCommit = noCommit; pullOptions.noFastForward = noFastForward; pullOptions.fastForwardOnly = fastForwardOnly
         branchHistory = FetchDialogHistory.save(options.branch, entries: branchHistory, preferences: preferences, key: "History.PullRemoteBranch", caseSensitive: true)
         formRevision = UUID(); error = nil
-        busy = true
+        busy = true; completedPresentation = false
         let sshFactory = sshSettings.capture(); sshSettings.save(preferences, key: key + ".autoload")
         preferences.set(wantsRebase, forKey: key + ".rebase")
         if isPull { preferences.set(fastForwardOnly, forKey: key + ".ffonly") }
@@ -391,7 +426,10 @@ import TurtleGitCore
             progress.makeSSHCoordinator = sshFactory
             self.progress = progress
             progress.confirmCancellation = { [weak self] choose in self?.confirmCancellation(choose) }
-            progress.onPostAction = onPullPostAction
+            let postAction = onPullPostAction
+            progress.onPostAction = { [self] action, context in
+                guard !invalidated || completedPresentation else { return }; postAction?(action, context)
+            }
             progress.onCompleted = { [weak self, weak progress] in
                 guard let self, let progress, !self.invalidated, self.progress === progress else { return }; self.busy = false
                 self.error = progress.success ? nil : progress.output
@@ -405,9 +443,21 @@ import TurtleGitCore
         progress.makeSSHCoordinator = sshFactory
         fetchProgress = progress
         progress.confirmCancellation = { [weak self] choose in self?.confirmCancellation(choose) }
-        progress.onPostAction = onFetchPostAction
-        progress.onRebase = onRebase
-        progress.onOwnedRebase = onOwnedRebase
+        let postAction = onFetchPostAction, rebase = onRebase
+        progress.onPostAction = { [self] action, revision in
+            guard !invalidated || completedPresentation else { return }; postAction?(action, revision)
+        }
+        progress.onRebase = { [self] target, automatic, preserve in
+            guard !invalidated || completedPresentation else { return }; rebase(target, automatic, preserve)
+        }
+        if let onOwnedRebase {
+            let prepare = beforeOwnedRebase, recover = recoverOwnedRebase
+            progress.onOwnedRebase = { target, automatic, preserve in
+                prepare()
+                do { try await onOwnedRebase(target, automatic, preserve) }
+                catch { await recover(); throw error }
+            }
+        }
         progress.onCompleted = { [weak self, weak progress] in
             guard let self, let progress, !self.invalidated, self.fetchProgress === progress else { return }; self.busy = false
             self.error = progress.success ? nil : progress.output; self.onChanged(progress.rawOutput)
@@ -450,7 +500,7 @@ private struct FetchDialog: View {
             Spacer(minLength: 0)
             HStack { if model.busy || model.preparingRemote { ProgressView().controlSize(.small) }; if model.preparationNeedsRetry { Button("Retry loading", action: model.retryPreparation).disabled(model.busy || model.preparing) }; Spacer(); Button("OK") { model.fetch() }.keyboardShortcut(.defaultAction).disabled(model.operationActive); Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel); Button("Help") { TurtleGitHelp.show(model.isPull ? .pull : .fetch) } }
         }.padding(16)
-        .alert(model.isPull ? "Pull failed" : "Fetch failed", isPresented: Binding(get: { model.progress == nil && model.fetchProgress == nil && model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; if model.isPull { Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } } message: { Text(model.error ?? "") }
+        .alert(model.isPull ? "Pull failed" : "Fetch failed", isPresented: Binding(get: { !model.closed && model.progress == nil && model.fetchProgress == nil && model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; if model.isPull { Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } } message: { Text(model.error ?? "") }
         .sheet(isPresented: $model.managing, onDismiss: { model.reloadRemotes() }) { PushRemoteSettings(onClose: { model.managing = false }, model: model.remoteSettings) }
     }
 }
@@ -647,6 +697,13 @@ enum PullPostAction: String, CaseIterable, Hashable {
     }
 }
 @MainActor final class PullProgressWindowModel: ObservableObject {
+    private(set) static var activeOperations = 0
+    @Published var confirmingQuit = false
+    var presentationAvailable: () -> Bool = { true }
+    var closeForHandoff: ((@escaping () -> Void) -> Void)?
+    private func finishAndPerform(_ action: @escaping () -> Void) {
+        if let closeForHandoff { closeForHandoff(action) } else { close(); action() }
+    }
     let repository: GitRepository
     let options: PullOptions
     let followUp: PullFollowUp
@@ -689,7 +746,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
     @Published private(set) var postActions: [PullPostAction] = []
     @Published private(set) var oldHead = ""
     @Published private(set) var newHead = ""
-    var canCancel: Bool { !confirmingConflictHint && !dispatchingAction && (!busy || !cancelling && !confirmingCancellation) }
+    var canCancel: Bool { !confirmingQuit && !confirmingConflictHint && !dispatchingAction && (!busy || !cancelling && !confirmingCancellation) }
     var close: () -> Void = {}
     var onCompleted: () -> Void = {}
     var onPostAction: ((PullPostAction, PullProgressContext) -> Void)?
@@ -712,6 +769,8 @@ enum PullPostAction: String, CaseIterable, Hashable {
     }
     private func execute(_ snapshot: PullOptions) async {
         guard !invalidated else { return }
+        Self.activeOperations += 1
+        defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
         busy = true; success = false; cancelled = false; cancelling = false; resetOutput(); postActions = []; newHead = ""
         do { try validateAccess(); if cancellation.isCancelled { throw OperationCancellationFailure.cancelled } }
         catch { guard !invalidated else { return }; output = error.localizedDescription; cancelled = cancellation.isCancelled; completed(); return }
@@ -791,7 +850,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
         } else { cancelling = true; token.cancel() }
     }
     func perform(_ action: PullPostAction) {
-        guard !invalidated, !dispatched, !busy, !confirmingCancellation, !dispatchingAction, !confirmingConflictHint, postActions.contains(action) else { return }
+        guard !invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !confirmingCancellation, !dispatchingAction, !confirmingConflictHint, postActions.contains(action) else { return }
         if action == .mergeUnrelated {
             ProgressActionLog.nextAttempt(self);
             var snapshot = options; snapshot.allowUnrelatedHistories = true
@@ -801,8 +860,9 @@ enum PullPostAction: String, CaseIterable, Hashable {
         guard let onPostAction else { return }
         if action == .reset {
             dispatchingAction = true; let token = OperationCancellation(); inspectionToken = token
+            Self.activeOperations += 1
             Task {
-                defer { if inspectionToken === token { inspectionToken = nil } }
+                defer { Self.activeOperations -= 1; withExtendedLifetime(access) {}; if inspectionToken === token { inspectionToken = nil } }
                 var revision = ""
                 do {
                     try validateAccess()
@@ -813,16 +873,20 @@ enum PullPostAction: String, CaseIterable, Hashable {
                 dispatchingAction = false
                 guard !invalidated else { return }; dispatched = true
                 let context = PullProgressContext(oldHead: oldHead, newHead: newHead, resetRevision: revision, followUp: followUp)
-                close(); onPostAction(action, context)
+                finishAndPerform { onPostAction(action, context) }
             }
         } else {
             dispatched = true
             let context = PullProgressContext(oldHead: oldHead, newHead: newHead, resetRevision: "", followUp: followUp)
-            close(); onPostAction(action, context)
+            finishAndPerform { onPostAction(action, context) }
         }
     }
 }
 @MainActor final class PullProgressWindowController: NSWindowController, NSWindowDelegate {
+    private var pendingHandoff: (() -> Void)?
+    private var presentationParent: NSWindow?
+    private var release: TransportProgressRelease?
+    private var finished = false
     let model: PullProgressWindowModel
     var onClosed: () -> Void = {}
     init(model: PullProgressWindowModel) {
@@ -832,13 +896,19 @@ enum PullPostAction: String, CaseIterable, Hashable {
         window.contentViewController = NSHostingController(rootView: PullProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in
-            guard let self, !self.model.busy, !self.model.confirmingCancellation, !self.model.dispatchingAction, !self.model.confirmingConflictHint, self.window?.attachedSheet == nil else { return }
-            if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
+            guard let self, !self.model.confirmingQuit, !self.model.busy, !self.model.confirmingCancellation, !self.model.dispatchingAction, !self.model.confirmingConflictHint, self.window?.attachedSheet == nil else { return }
+            if let window = self.window { self.presentationParent = window.sheetParent; window.close() }
+        }
+        model.presentationAvailable = { [weak window] in window != nil && window?.attachedSheet == nil }
+        model.closeForHandoff = { [weak self] action in
+            guard let self, !self.finished, self.pendingHandoff == nil else { return }
+            self.pendingHandoff = action; self.model.close()
         }
         model.confirmCancellation = { [weak window] choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
         model.presentConflictHint = { [weak window] in
@@ -847,6 +917,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
                 let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "TurtleGit"; alert.informativeText = MergeProgressWindowModel.conflictHint
                 let okay = alert.addButton(withTitle: "OK"); okay.keyEquivalent = "\r"; alert.window.defaultButtonCell = okay.cell as? NSButtonCell
                 alert.showsSuppressionButton = true; alert.suppressionButton?.title = "Don't show this message again"
+                alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance
                 alert.beginSheetModal(for: window) { _ in continuation.resume(returning: alert.suppressionButton?.state == .on) }
             }
         }
@@ -854,11 +925,22 @@ enum PullPostAction: String, CaseIterable, Hashable {
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !model.confirmingQuit else { return false }
         if model.busy { model.cancel(); return false }
         guard !model.confirmingCancellation, !model.confirmingConflictHint, !model.dispatchingAction, sender.attachedSheet == nil else { return false }
-        sender.sheetParent?.endSheet(sender); return true
+        presentationParent = sender.sheetParent; return true
     }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); if let window { if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; window.sheetParent?.endSheet(window) }; onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        guard !finished else { return }; finished = true
+        model.saveActionLog(); model.invalidate(); model.closeForHandoff = nil
+        guard let window else { pendingHandoff = nil; onClosed(); return }
+        if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
+        let action = pendingHandoff; pendingHandoff = nil
+        let release = TransportProgressRelease(window: window, parent: presentationParent ?? window.sheetParent) { [self] in
+            self.release = nil; self.presentationParent = nil; onClosed(); action?()
+        }
+        self.release = release; release.start()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 struct PullProgressDialog: View {
@@ -883,7 +965,7 @@ struct PullProgressDialog: View {
                     if !model.success { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }
                     Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.dispatchingAction)
                 }
-            }.disabled(model.confirmingConflictHint || model.dispatchingAction)
+            }.disabled(model.confirmingQuit || model.confirmingConflictHint || model.dispatchingAction)
         }.padding(12)
         .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation || model.confirmingConflictHint, percentage: model.percentage))
     }
@@ -917,6 +999,13 @@ enum FetchRebasePrompt: String, CaseIterable {
 }
 struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
 @MainActor final class FetchProgressWindowModel: ObservableObject {
+    private(set) static var activeOperations = 0
+    @Published var confirmingQuit = false
+    var presentationAvailable: () -> Bool = { true }
+    var closeForHandoff: ((@escaping () -> Void) -> Void)?
+    private func finishAndPerform(_ action: @escaping () -> Void) {
+        if let closeForHandoff { closeForHandoff(action) } else { close(); action() }
+    }
     let repository: GitRepository
     let options: FetchOptions
     let rebaseMode: FetchRebaseMode
@@ -961,7 +1050,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     @Published private(set) var postActions: [FetchPostAction] = []
     @Published private(set) var confirmingRebaseDecision = false
     @Published private(set) var merging = false
-    var canCancel: Bool { !dispatchingAction && !confirmingRebaseDecision && (!busy || !cancelling && !confirmingCancellation) }
+    var canCancel: Bool { !confirmingQuit && !dispatchingAction && !confirmingRebaseDecision && (!busy || !cancelling && !confirmingCancellation) }
     var closeAfterCancellation = false
     var close: () -> Void = {}
     var onCompleted: () -> Void = {}
@@ -985,12 +1074,27 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         if result.suppress { preferences.set(value, forKey: prompt.rawValue) }
         return value
     }
+    private var pendingRebase: FetchRebaseResult?
+    private func openOwnedRebase(_ fetched: FetchRebaseResult) async -> Bool {
+        guard !invalidated, let onOwnedRebase else { return false }
+        pendingRebase = fetched; dispatchingAction = true
+        do { try await onOwnedRebase(fetched.upstream, rebaseMode == .automatic, preserveMerges) }
+        catch {
+            guard !invalidated else { return false }
+            dispatchingAction = false; success = false; explicitCloseRequested = false
+            output = GitProgressFailureOutput.render(error, existing: output, limit: outputState.limit, context: "Opening Rebase failed.")
+            postActions = [.rebase]; return false
+        }
+        guard !invalidated else { return false }
+        pendingRebase = nil; dispatchingAction = false; success = true; explicitCloseRequested = true
+        return true
+    }
     private func finishCompletion() {
         guard !busy, !invalidated, !confirmingCancellation else { return }
         if let deferredRebase { self.deferredRebase = nil; deferredRebase(); return }
         if explicitCloseRequested || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
     }
-    func invalidate() { invalidated = true; cancellation.cancel(); inspectionToken?.cancel(); inspectionToken = nil; deferredRebase = nil; busy = false; confirmingCancellation = false; confirmingRebaseDecision = false; dispatchingAction = false }
+    func invalidate() { invalidated = true; cancellation.cancel(); inspectionToken?.cancel(); inspectionToken = nil; deferredRebase = nil; pendingRebase = nil; busy = false; confirmingCancellation = false; confirmingRebaseDecision = false; dispatchingAction = false }
     func start() { Task { await run() } }
     func run() async { guard !started, !invalidated else { return }; started = true; await execute() }
     private func validateAccess() throws {
@@ -998,6 +1102,8 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     }
     private func execute() async {
         guard !invalidated else { return }
+        Self.activeOperations += 1
+        defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
         busy = true; success = false; cancelled = false; cancelling = false; merging = false; explicitCloseRequested = false; deferredRebase = nil; resetOutput(); postActions = []
         do {
             try validateAccess()
@@ -1030,18 +1136,16 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
                 if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                 if openRebase {
                     success = true; busy = false
-                    if let onOwnedRebase {
-                        dispatchingAction = true
-                        do { try await onOwnedRebase(fetched.upstream, rebaseMode == .automatic, preserveMerges) }
-                        catch {
-                            guard !invalidated else { return }
-                            success=false;output=GitProgressFailureOutput.render(error,existing:output,limit:outputState.limit,context:"Opening Rebase failed.")
-                        }
+                    if onOwnedRebase != nil {
+                        _ = await openOwnedRebase(fetched)
                         guard !invalidated else { return }
-                        dispatchingAction = false; explicitCloseRequested = true
                         onCompleted(); finishCompletion(); return
                     }
-                    deferredRebase = { [weak self] in guard let self else { return }; self.close(); self.onRebase(fetched.upstream, self.rebaseMode == .automatic, self.preserveMerges) }
+                    deferredRebase = { [weak self] in
+                        guard let self else { return }
+                        let callback = self.onRebase, automatic = self.rebaseMode == .automatic, preserve = self.preserveMerges
+                        self.finishAndPerform { callback(fetched.upstream, automatic, preserve) }
+                    }
                     onCompleted(); finishCompletion(); return
                 }
             }
@@ -1107,14 +1211,24 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         } else { cancelling = true; token.cancel() }
     }
     func perform(_ action: FetchPostAction) {
-        guard !invalidated, !dispatched, !busy, !confirmingCancellation, !confirmingRebaseDecision, !dispatchingAction, postActions.contains(action) else { return }
+        guard !invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !confirmingCancellation, !confirmingRebaseDecision, !dispatchingAction, postActions.contains(action) else { return }
+        if action == .rebase, let fetched = pendingRebase, onOwnedRebase != nil {
+            dispatchingAction = true; Self.activeOperations += 1
+            Task {
+                defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+                _ = await openOwnedRebase(fetched)
+                guard !invalidated else { return }; onCompleted(); finishCompletion()
+            }
+            return
+        }
         if action == .retry {
             ProgressActionLog.nextAttempt(self); cancellation = OperationCancellation(); busy = true; Task { await execute() }; return }
         guard let onPostAction else { return }
         if action == .reset {
             dispatchingAction = true; let token = OperationCancellation(); inspectionToken = token
+            Self.activeOperations += 1
             Task {
-                defer { if inspectionToken === token { inspectionToken = nil } }
+                defer { Self.activeOperations -= 1; withExtendedLifetime(access) {}; if inspectionToken === token { inspectionToken = nil } }
                 var revision = ""
                 do {
                     try validateAccess(); let defaults = try await repository.pullDefaults(cancellation: token)
@@ -1122,12 +1236,16 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
                     if !defaults.trackedRemote.isEmpty && !defaults.trackedBranch.isEmpty { revision = "refs/remotes/" + defaults.trackedRemote + "/" + defaults.trackedBranch }
                 } catch { guard !invalidated, inspectionToken === token, !token.isCancelled else { return }; output += "\n" + error.localizedDescription; dispatchingAction = false; return }
                 dispatchingAction = false; guard !invalidated else { return }; dispatched = true
-                close(); onPostAction(action, revision)
+                finishAndPerform { onPostAction(action, revision) }
             }
-        } else { dispatched = true; close(); onPostAction(action, "") }
+        } else { dispatched = true; finishAndPerform { onPostAction(action, "") } }
     }
 }
 @MainActor final class FetchProgressWindowController: NSWindowController, NSWindowDelegate {
+    private var pendingHandoff: (() -> Void)?
+    private var presentationParent: NSWindow?
+    private var release: TransportProgressRelease?
+    private var finished = false
     let model: FetchProgressWindowModel
     var onClosed: () -> Void = {}
     init(model: FetchProgressWindowModel) {
@@ -1137,13 +1255,19 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         window.contentViewController = NSHostingController(rootView: FetchProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in
-            guard let self, !self.model.busy, !self.model.confirmingCancellation, !self.model.dispatchingAction, !self.model.confirmingRebaseDecision, self.window?.attachedSheet == nil else { return }
-            if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
+            guard let self, !self.model.confirmingQuit, !self.model.busy, !self.model.confirmingCancellation, !self.model.dispatchingAction, !self.model.confirmingRebaseDecision, self.window?.attachedSheet == nil else { return }
+            if let window = self.window { self.presentationParent = window.sheetParent; window.close() }
+        }
+        model.presentationAvailable = { [weak window] in window != nil && window?.attachedSheet == nil }
+        model.closeForHandoff = { [weak self] action in
+            guard let self, !self.finished, self.pendingHandoff == nil else { return }
+            self.pendingHandoff = action; self.model.close()
         }
         model.confirmCancellation = { [weak window] choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
         model.presentRebasePrompt = { [weak window] prompt in
@@ -1157,6 +1281,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
                 }
                 if prompt == .fastForward { alert.buttons.last?.keyEquivalent = "\u{1b}" }
                 alert.showsSuppressionButton = true; alert.suppressionButton?.title = "Don't show this message again"
+                alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance
                 alert.beginSheetModal(for: window) { response in
                     let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
                     let value = prompt.answers.indices.contains(index) ? prompt.answers[index] : prompt.answers[prompt.defaultIndex]
@@ -1169,11 +1294,22 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !model.confirmingQuit else { return false }
         if model.busy { model.cancel(); return false }
         guard !model.confirmingCancellation, !model.dispatchingAction, !model.confirmingRebaseDecision, sender.attachedSheet == nil else { return false }
-        sender.sheetParent?.endSheet(sender); return true
+        presentationParent = sender.sheetParent; return true
     }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); if let window { if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; window.sheetParent?.endSheet(window) }; onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        guard !finished else { return }; finished = true
+        model.saveActionLog(); model.invalidate(); model.closeForHandoff = nil
+        guard let window else { pendingHandoff = nil; onClosed(); return }
+        if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
+        let action = pendingHandoff; pendingHandoff = nil
+        let release = TransportProgressRelease(window: window, parent: presentationParent ?? window.sheetParent) { [self] in
+            self.release = nil; self.presentationParent = nil; onClosed(); action?()
+        }
+        self.release = release; release.start()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 struct FetchProgressDialog: View {
@@ -1195,7 +1331,7 @@ struct FetchProgressDialog: View {
                 Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else { if !model.success { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }; Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
-            }.disabled(model.dispatchingAction)
+            }.disabled(model.confirmingQuit || model.dispatchingAction)
         }.padding(12)
         .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation || model.confirmingRebaseDecision, percentage: model.percentage))
     }
@@ -1214,5 +1350,36 @@ enum GitProgressAutoClose: Int, CaseIterable, Sendable {
     }
     func shouldClose(success: Bool, postActionCount: Int) -> Bool {
         success && (self == .noErrors || self == .noOptions && postActionCount == 0)
+    }
+}
+
+
+/// Native equivalent of returning from CProgressDlg::DoModal before executing a
+/// post-command. Retains the closed progress window and grant owner until AppKit
+/// detaches its sheet, including when its outer controller is forcibly retired.
+@MainActor private final class TransportProgressRelease {
+    static private(set) var activeCount = 0
+    private let window: NSWindow
+    private let parent: NSWindow?
+    private var completion: () -> Void
+    private var observer: NSObjectProtocol?
+    private var started = false, finished = false
+    init(window: NSWindow, parent: NSWindow?, completion: @escaping () -> Void) {
+        self.window = window; self.parent = parent; self.completion = completion
+    }
+    func start() {
+        guard !started else { return }; started = true; Self.activeCount += 1
+        if window.sheetParent == nil && parent?.attachedSheet !== window { drain(); return }
+        observer = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification, object: parent, queue: .main) { [self] _ in
+            DispatchQueue.main.async { self.drain() }
+        }
+        window.sheetParent?.endSheet(window); window.orderOut(nil)
+        DispatchQueue.main.async { [self] in drain() }
+    }
+    private func drain() {
+        guard !finished, window.sheetParent == nil, parent?.attachedSheet !== window else { return }
+        finished = true
+        if let observer { NotificationCenter.default.removeObserver(observer); self.observer = nil }
+        Self.activeCount -= 1; let done = completion; completion = {}; done()
     }
 }

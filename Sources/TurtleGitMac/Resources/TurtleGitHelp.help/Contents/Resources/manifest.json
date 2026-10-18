@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "b47017719c56e056774f0a73268fc7162e6c77eb66d50c7261084388eed59e4c",
+    "Contents/Info.plist": "e15efa498160d6f0b455a606ec1b41ca0a379e976b4b8a617899e6a99a31bb3a",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "ea62e9255277183fb721ceb36a97a21b113f94329e42eef862414b541f4853fd",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
@@ -20,7 +20,7 @@
     "Contents/Resources/en.lproj/LANGUAGES.html": "3352490c128dfe47372f3c7f238b476138fd9b14641f61f9954fd1e67af517a4",
     "Contents/Resources/en.lproj/LFS.html": "010f0cc3bf9d14ae7b5ef9e20925e40f5644744cf33841df574d2f6f022c0b72",
     "Contents/Resources/en.lproj/LIBREOFFICE-COMPARISON.html": "e451291b0f37adf06688ea828a60151aa49859948cf576e20961989fd3b9e236",
-    "Contents/Resources/en.lproj/LOG-FIND.html": "5fb7c9146ba8e132351598888986dd7af3ab6f9be48cf9d8fb27b5dbacea5109",
+    "Contents/Resources/en.lproj/LOG-FIND.html": "6f557107c2666c5117ca34d1486449389f82e74eade846a50d75a3a676d7b739",
     "Contents/Resources/en.lproj/MERGE-FILTERS.html": "fd3810301986f74435fb161b42c4abff1bb1f53347e5e2cd9eae51f4c8b2a8af",
     "Contents/Resources/en.lproj/MERGE-TOOL.html": "04f0830be9589106a99ab85d2a3dd7a7dbb8d6bcbdaad8248f5d37d33e4347e9",
     "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "71958b1b9f698bc2ab50a3d56bd3fe563cafa377f47929bbaa2b4df69ce7a2d6",
@@ -78,7 +78,7 @@
     "docs/LANGUAGES.md": "ed51f9133b61e064168e2b44843d47a7378d4fc054c86507b742b4a855257611",
     "docs/LFS.md": "8359a2e1d91661d2fb3f93ba2d5e34aa1fbc53ee8f30e63f89e9bb03d90aa774",
     "docs/LIBREOFFICE-COMPARISON.md": "8ec86dfbadbfd8d76f9feaca94e331c8fed7fca41886cf256a380da5db0533bc",
-    "docs/LOG-FIND.md": "3712ab5d1ae0e9471c10fe5b69cc4eda2b50b341671b305f20c416e261be29f4",
+    "docs/LOG-FIND.md": "76d55d6d65a79e6bb066468bddd465e81c3a038b4289e2db84a3ded13c5d7e9e",
     "docs/MERGE-FILTERS.md": "c32dbedd77e3f6903bb05bac9d9edc9efbdfad6942bdaad57752a27c7107f028",
     "docs/MERGE-TOOL.md": "016985a213a8bc9cdc571552ebccc1cabe4095ad4d3b30d0a415ec307bd43a05",
     "docs/MOVING-AND-COPYING.md": "af27ece7f54d23f3a8e43af1144fbde6f794a38d76c6551becfc1909cfc8d7e1",
